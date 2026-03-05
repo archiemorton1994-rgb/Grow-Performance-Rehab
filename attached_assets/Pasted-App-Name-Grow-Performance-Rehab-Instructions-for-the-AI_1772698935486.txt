@@ -1,0 +1,62 @@
+App Name: Grow Performance & Rehab
+
+Instructions for the AI:
+I want to build a native mobile app using React Native, Expo, and NativeWind (Tailwind CSS for React Native). Below is the exact specification, design system, and logic based on a successful web prototype we just built.
+
+1. Core Concept & Vibe
+App Name: Grow Performance & Rehab
+Vibe: Clean, premium, minimalist iOS feel. Lots of white space, subtle grays, and a signature primary green (#2f6b46 or Tailwind emerald-700/800 equivalents) for active/completed states.
+Goal: Remove decision fatigue. The app tells the user exactly what to do today based on their equipment and how their body feels right now.
+2. Navigation & Structure
+Use Expo Router with a bottom tab bar:
+
+Home: High-level stats, "Start Today's Session" hero card.
+Workouts: The scrolling timeline of the program (Squat day, Bench day, Deadlift day rotating).
+Profile: Settings, change equipment tier, view history.
+3. Core Data & Logic
+Equipment Tiers
+The user selects what equipment they have access to during onboarding:
+
+Bodyweight / Bands only
+Dumbbells / Kettlebells
+Full Gym / Barbell
+The Program Rotation
+The program rotates endlessly through 3 session types:
+
+Squat (Lower Body)
+Bench (Upper Body)
+Deadlift (Full Body)
+The Session Engine (CRITICAL)
+Every time a user starts a session, they are asked two readiness questions before seeing the workout:
+
+Aches? (Yes/No) -> If Yes, ask "Where?" (Upper body, Back, Legs)
+Energy? (Low, Normal, High)
+The workout dynamically generates based on 3 layers of logic:
+
+Layer 1: Equipment Swap. The main lift changes based on their tier.
+Squat: BW Squat -> Goblet Squat -> Back Squat
+Bench: Push-up -> DB Press -> Barbell Bench
+Deadlift: Hinge Tempo -> DB RDL -> Barbell Deadlift
+Layer 2: Pain Swap. If Aches = Yes:
+Main lift becomes a "Comfort Range" variant (slow, controlled, slightly lighter).
+The accessory exercise targeting the painful area swaps to a supported/rehab version (e.g., if Legs hurt on Squat day, Split Squats become Supported Split Squats).
+Layer 3: Energy Swap.
+If Low Energy: Main lift drops 1 set. Finisher reduces to 4 mins (Easy).
+If High Energy: Main lift adds 1 set. Finisher increases to 8 mins (Moderate).
+4. UI Components Needed
+Readiness Check Modal/Screen: Clean, big tap targets for Yes/No and Energy levels.
+Exercise List: Cards showing exercise name, sets x reps, a specific "Cue" (e.g., "Keep chest up"), and a "Suggested Load".
+Adaptation Badges: If an exercise was changed due to pain or energy, show a small badge (e.g., "Comfort swap" or "Volume adjusted").
+Workout Player: A way to check off sets, or a simple "Complete Session" button at the bottom.
+5. Storage
+Use @react-native-async-storage/async-storage or Zustand with persistence to save:
+
+Onboarding completed status
+Current Equipment Tier
+programCompleted count (integer, determines which day they are on: day = (completed % 3) + 1)
+History of completed workouts
+6. First Steps for the AI
+Scaffold the Expo Router tabs.
+Build the Global State (Zustand) to handle the Equipment Tier and Program Progress.
+Build the Workouts list UI showing the 3 rotating days.
+Implement the Readiness Check -> Session Generation logic.
