@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,19 +13,21 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EnergyLevel, PainArea, SessionType, useAppStore } from '@/lib/store';
+import { EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, useAppStore } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
 
-type Step = 'aches' | 'painArea' | 'energy';
+type Step = 'aches' | 'painCategory' | 'painRegion' | 'energy' | 'time';
 
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ sessionType: string }>();
+  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
+  const isTestWeek = params.isTestWeek === 'true';
 
   const [step, setStep] = useState<Step>('aches');
   const [hasAches, setHasAches] = useState(false);
-  const [painArea, setPainArea] = useState<PainArea | undefined>();
+  const [painCategory, setPainCategory] = useState<keyof typeof PAIN_CATEGORIES | undefined>();
+  const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
   const [energy, setEnergy] = useState<EnergyLevel | undefined>();
 
   const hapticTap = () => {
@@ -35,33 +38,109 @@ export default function ReadinessScreen() {
     hapticTap();
     setHasAches(val);
     if (val) {
-      setStep('painArea');
+      setStep('painCategory');
+    } else {
+      if (isTestWeek) {
+        router.push({
+          pathname: '/session',
+          params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'true' },
+        });
+      } else {
+        setStep('energy');
+      }
+    }
+  };
+
+  const handlePainCategory = (cat: keyof typeof PAIN_CATEGORIES) => {
+    hapticTap();
+    setPainCategory(cat);
+    setStep('painRegion');
+  };
+
+  const handlePainRegion = (region: PainRegion) => {
+    hapticTap();
+    setPainRegion(region);
+    if (isTestWeek) {
+      router.push({
+        pathname: '/session',
+        params: { sessionType, hasAches: 'true', painRegion: region, energy: 'normal', timeAvailable: '60', isTestWeek: 'true' },
+      });
     } else {
       setStep('energy');
     }
   };
 
-  const handlePainArea = (area: PainArea) => {
-    hapticTap();
-    setPainArea(area);
-    setStep('energy');
-  };
-
   const handleEnergy = (level: EnergyLevel) => {
     hapticTap();
     setEnergy(level);
+    setStep('time');
+  };
+
+  const handleTime = (time: TimeAvailable) => {
+    hapticTap();
     router.push({
       pathname: '/session',
       params: {
         sessionType,
         hasAches: hasAches ? 'true' : 'false',
-        painArea: painArea || '',
-        energy: level,
+        painRegion: painRegion || '',
+        energy: energy || 'normal',
+        timeAvailable: time,
+        isTestWeek: 'false',
       },
     });
   };
 
+  const goBack = () => {
+    switch (step) {
+      case 'aches': router.back(); break;
+      case 'painCategory': setStep('aches'); break;
+      case 'painRegion': setStep('painCategory'); break;
+      case 'energy': setStep(hasAches ? 'painRegion' : 'aches'); break;
+      case 'time': setStep('energy'); break;
+    }
+  };
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  const getStepInfo = () => {
+    if (isTestWeek) {
+      const total = hasAches ? 3 : 1;
+      if (step === 'aches') return { num: 1, total };
+      if (step === 'painCategory') return { num: 2, total: 3 };
+      return { num: 3, total: 3 };
+    }
+    const total = hasAches ? 5 : 3;
+    switch (step) {
+      case 'aches': return { num: 1, total };
+      case 'painCategory': return { num: 2, total };
+      case 'painRegion': return { num: 3, total };
+      case 'energy': return { num: hasAches ? 4 : 2, total };
+      case 'time': return { num: hasAches ? 5 : 3, total };
+    }
+  };
+
+  const stepInfo = getStepInfo();
+
+  const CATEGORY_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+    upper: { icon: 'hand-left-outline', color: '#4285f4' },
+    torso: { icon: 'swap-vertical-outline', color: '#e65100' },
+    lower: { icon: 'footsteps-outline', color: Colors.primary },
+  };
+
+  const REGION_ICONS: Record<PainRegion, keyof typeof Ionicons.glyphMap> = {
+    front_shoulder: 'arrow-up-outline',
+    rear_shoulder: 'arrow-down-outline',
+    elbow_wrist: 'hand-right-outline',
+    neck: 'resize-outline',
+    lower_back: 'chevron-down-circle-outline',
+    upper_back: 'chevron-up-circle-outline',
+    core_ribs: 'ellipse-outline',
+    knee: 'radio-button-on-outline',
+    hip_groin: 'contract-outline',
+    ankle_achilles: 'footsteps-outline',
+    calf_shin: 'trending-down-outline',
+  };
 
   const renderStep = () => {
     switch (step) {
@@ -77,6 +156,7 @@ export default function ReadinessScreen() {
               <Pressable
                 onPress={() => handleAches(true)}
                 style={({ pressed }) => [styles.bigButton, styles.bigButtonOutline, pressed && { opacity: 0.8 }]}
+                testID="aches-yes"
               >
                 <Ionicons name="alert-circle-outline" size={28} color={Colors.warning} />
                 <Text style={styles.bigButtonText}>Yes</Text>
@@ -84,6 +164,7 @@ export default function ReadinessScreen() {
               <Pressable
                 onPress={() => handleAches(false)}
                 style={({ pressed }) => [styles.bigButton, styles.bigButtonFilled, pressed && { opacity: 0.8 }]}
+                testID="aches-no"
               >
                 <Ionicons name="checkmark-circle-outline" size={28} color={Colors.textInverse} />
                 <Text style={[styles.bigButtonText, { color: Colors.textInverse }]}>No</Text>
@@ -92,29 +173,61 @@ export default function ReadinessScreen() {
           </Animated.View>
         );
 
-      case 'painArea':
+      case 'painCategory':
         return (
-          <Animated.View key="painArea" entering={FadeInDown.duration(400)} style={styles.stepContent}>
+          <Animated.View key="painCat" entering={FadeInDown.duration(400)} style={styles.stepContent}>
             <View style={styles.questionIcon}>
               <Ionicons name="body-outline" size={28} color={Colors.warning} />
             </View>
-            <Text style={styles.question}>Where does it hurt?</Text>
-            <Text style={styles.questionSub}>We will swap exercises for that area</Text>
+            <Text style={styles.question}>What area?</Text>
+            <Text style={styles.questionSub}>Select the body region</Text>
             <View style={styles.areaButtons}>
-              {([
-                { area: 'upper' as PainArea, label: 'Upper Body', icon: 'hand-left-outline' as const },
-                { area: 'back' as PainArea, label: 'Back', icon: 'swap-vertical-outline' as const },
-                { area: 'legs' as PainArea, label: 'Legs', icon: 'footsteps-outline' as const },
-              ]).map((item) => (
+              {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((key) => {
+                const cat = PAIN_CATEGORIES[key];
+                const iconInfo = CATEGORY_ICONS[key];
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => handlePainCategory(key)}
+                    style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                    testID={`pain-cat-${key}`}
+                  >
+                    <View style={[styles.areaIconWrap, { backgroundColor: Colors.primaryMuted }]}>
+                      <Ionicons name={iconInfo.icon} size={24} color={iconInfo.color} />
+                    </View>
+                    <View style={styles.areaCatContent}>
+                      <Text style={styles.areaLabel}>{cat.label}</Text>
+                      <Text style={styles.areaSublabel}>{cat.regions.length} regions</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        );
+
+      case 'painRegion':
+        const regions = painCategory ? PAIN_CATEGORIES[painCategory as keyof typeof PAIN_CATEGORIES].regions : [];
+        return (
+          <Animated.View key="painRegion" entering={FadeInDown.duration(400)} style={styles.stepContent}>
+            <View style={styles.questionIcon}>
+              <Ionicons name="locate-outline" size={28} color={Colors.warning} />
+            </View>
+            <Text style={styles.question}>Specific area?</Text>
+            <Text style={styles.questionSub}>We will swap exercises for this region</Text>
+            <View style={styles.areaButtons}>
+              {regions.map((r) => (
                 <Pressable
-                  key={item.area}
-                  onPress={() => handlePainArea(item.area)}
+                  key={r.id}
+                  onPress={() => handlePainRegion(r.id)}
                   style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                  testID={`pain-region-${r.id}`}
                 >
-                  <View style={styles.areaIconWrap}>
-                    <Ionicons name={item.icon} size={24} color={Colors.primary} />
+                  <View style={[styles.areaIconWrap, { backgroundColor: Colors.warningLight }]}>
+                    <Ionicons name={REGION_ICONS[r.id]} size={22} color={Colors.warning} />
                   </View>
-                  <Text style={styles.areaLabel}>{item.label}</Text>
+                  <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
                   <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
                 </Pressable>
               ))}
@@ -140,6 +253,7 @@ export default function ReadinessScreen() {
                   key={item.level}
                   onPress={() => handleEnergy(item.level)}
                   style={({ pressed }) => [styles.energyButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                  testID={`energy-${item.level}`}
                 >
                   <View style={[styles.energyIconWrap, { backgroundColor: item.level === 'normal' ? Colors.primaryMuted : Colors.surfaceTertiary }]}>
                     <Ionicons name={item.icon} size={22} color={item.color} />
@@ -154,205 +268,104 @@ export default function ReadinessScreen() {
             </View>
           </Animated.View>
         );
+
+      case 'time':
+        return (
+          <Animated.View key="time" entering={FadeInDown.duration(400)} style={styles.stepContent}>
+            <View style={styles.questionIcon}>
+              <Ionicons name="time-outline" size={28} color={Colors.primary} />
+            </View>
+            <Text style={styles.question}>How much time?</Text>
+            <Text style={styles.questionSub}>Shorter sessions focus on main lifts</Text>
+            <View style={styles.energyButtons}>
+              {([
+                { time: '30' as TimeAvailable, label: '30 min', sublabel: 'Main lift + 1 accessory', icon: 'timer-outline' as const },
+                { time: '45' as TimeAvailable, label: '45 min', sublabel: 'Main lift + accessories + finisher', icon: 'time-outline' as const },
+                { time: '60' as TimeAvailable, label: '60 min', sublabel: 'Full session with warm-up', icon: 'hourglass-outline' as const },
+              ]).map((item) => (
+                <Pressable
+                  key={item.time}
+                  onPress={() => handleTime(item.time)}
+                  style={({ pressed }) => [styles.energyButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                  testID={`time-${item.time}`}
+                >
+                  <View style={[styles.energyIconWrap, { backgroundColor: Colors.primaryMuted }]}>
+                    <Ionicons name={item.icon} size={22} color={Colors.primary} />
+                  </View>
+                  <View style={styles.energyContent}>
+                    <Text style={styles.energyLabel}>{item.label}</Text>
+                    <Text style={styles.energySublabel}>{item.sublabel}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        );
     }
   };
-
-  const stepNumber = step === 'aches' ? 1 : step === 'painArea' ? 2 : hasAches ? 3 : 2;
-  const totalSteps = hasAches ? 3 : 2;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => step === 'aches' ? router.back() : setStep(step === 'energy' ? (hasAches ? 'painArea' : 'aches') : 'aches')} style={styles.backButton}>
+        <Pressable onPress={goBack} style={styles.backButton} testID="readiness-back">
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </Pressable>
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionLabel}>{getSessionLabel(sessionType)}</Text>
-          <Text style={styles.sessionSub}>{getSessionSubtitle(sessionType)}</Text>
+          <Text style={styles.sessionLabel}>
+            {isTestWeek ? '1RM Test Week' : getSessionLabel(sessionType)}
+          </Text>
+          <Text style={styles.sessionSub}>
+            {isTestWeek ? 'Strength Testing' : getSessionSubtitle(sessionType)}
+          </Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, { width: `${(stepNumber / totalSteps) * 100}%` }]} />
+          <Animated.View style={[styles.progressFill, { width: `${(stepInfo.num / stepInfo.total) * 100}%` }]} />
         </View>
-        <Text style={styles.stepIndicator}>Step {stepNumber} of {totalSteps}</Text>
+        <Text style={styles.stepIndicator}>Step {stepInfo.num} of {stepInfo.total}</Text>
       </View>
 
-      {renderStep()}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        {renderStep()}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sessionInfo: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  sessionLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
-  },
-  sessionSub: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-  },
-  progressContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 8,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: Colors.surfaceTertiary,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-  },
-  stepIndicator: {
-    fontSize: 12,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textTertiary,
-    textAlign: 'center',
-  },
-  stepContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    alignItems: 'center',
-  },
-  questionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  question: {
-    fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  questionSub: {
-    fontSize: 15,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 36,
-  },
-  bigButtons: {
-    flexDirection: 'row',
-    gap: 14,
-    width: '100%',
-  },
-  bigButton: {
-    flex: 1,
-    paddingVertical: 28,
-    borderRadius: 16,
-    alignItems: 'center',
-    gap: 10,
-  },
-  bigButtonOutline: {
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  bigButtonFilled: {
-    backgroundColor: Colors.primary,
-  },
-  bigButtonText: {
-    fontSize: 18,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
-  },
-  areaButtons: {
-    width: '100%',
-    gap: 10,
-  },
-  areaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  areaIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  areaLabel: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
-  },
-  energyButtons: {
-    width: '100%',
-    gap: 10,
-  },
-  energyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  energyIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  energyContent: {
-    flex: 1,
-  },
-  energyLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
-  },
-  energySublabel: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-    marginTop: 1,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  sessionInfo: { flex: 1, alignItems: 'center' },
+  sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
+  progressContainer: { paddingHorizontal: 24, marginBottom: 8 },
+  progressTrack: { height: 4, backgroundColor: Colors.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
+  progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
+  stepIndicator: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
+  stepContent: { flex: 1, paddingHorizontal: 24, paddingTop: 40, alignItems: 'center' },
+  questionIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  question: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 6 },
+  questionSub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 36 },
+  bigButtons: { flexDirection: 'row', gap: 14, width: '100%' },
+  bigButton: { flex: 1, paddingVertical: 28, borderRadius: 16, alignItems: 'center', gap: 10 },
+  bigButtonOutline: { backgroundColor: Colors.surface, borderWidth: 2, borderColor: Colors.border },
+  bigButtonFilled: { backgroundColor: Colors.primary },
+  bigButtonText: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  areaButtons: { width: '100%', gap: 10 },
+  areaButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
+  areaIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  areaLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  areaCatContent: { flex: 1 },
+  areaSublabel: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 1 },
+  energyButtons: { width: '100%', gap: 10 },
+  energyButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
+  energyIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  energyContent: { flex: 1 },
+  energyLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  energySublabel: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 1 },
 });
