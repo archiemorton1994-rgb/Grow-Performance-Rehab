@@ -1,4 +1,3 @@
-// template
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -14,14 +13,26 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
+import { useAppStore } from "@/lib/store";
+import { router } from "expo-router";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
+  const { onboardingComplete } = useAppStore();
+
+  useEffect(() => {
+    if (!onboardingComplete) {
+      setTimeout(() => router.replace("/onboarding"), 0);
+    }
+  }, []);
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      <Stack.Screen name="readiness" options={{ headerShown: false }} />
+      <Stack.Screen name="session" options={{ headerShown: false }} />
     </Stack>
   );
 }

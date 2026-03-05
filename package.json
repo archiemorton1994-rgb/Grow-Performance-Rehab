@@ -58,14 +58,15 @@
     "tsx": "^4.20.6",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
     "@expo/ngrok": "^4.1.0",
     "@types/express": "^5.0.0",
     "@types/react": "~19.1.10",
+    "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9.31.0",
     "eslint-config-expo": "~10.0.0",
