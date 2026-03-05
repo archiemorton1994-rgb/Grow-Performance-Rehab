@@ -181,11 +181,18 @@ export default function SessionScreen() {
     isTestWeek: string;
   }>();
 
-  const sessionType = (params.sessionType || 'squat') as SessionType;
+  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
+  const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
+  const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
+
+  const sessionType = VALID_SESSION_TYPES.includes(params.sessionType as SessionType)
+    ? (params.sessionType as SessionType) : 'squat';
   const hasAches = params.hasAches === 'true';
-  const painRegion = (params.painRegion || undefined) as PainRegion | undefined;
-  const energy = (params.energy || 'normal') as EnergyLevel;
-  const timeAvailable = (params.timeAvailable || '60') as TimeAvailable;
+  const painRegion = params.painRegion ? (params.painRegion as PainRegion) : undefined;
+  const energy = VALID_ENERGY.includes(params.energy as EnergyLevel)
+    ? (params.energy as EnergyLevel) : 'normal';
+  const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
+    ? (params.timeAvailable as TimeAvailable) : '60';
   const isTestWeek = params.isTestWeek === 'true';
 
   const { equipmentTier, completeSession, addOneRepMax } = useAppStore();
