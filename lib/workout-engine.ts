@@ -1,10 +1,15 @@
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable } from './store';
 import {
+  ExerciseCategory,
   ExerciseTemplate,
-  getWarmups,
+  getPrep,
+  getMechanical,
+  getNeuro,
   getMainLift,
   getAccessories,
+  getPrehab,
   getFinisher,
+  getCooldown,
   get1RMProtocol,
 } from './exercise-db';
 
@@ -15,7 +20,7 @@ export interface Exercise {
   reps: string;
   cue: string;
   suggestedLoad: string;
-  category: 'warmup' | 'main' | 'accessory' | 'finisher';
+  category: ExerciseCategory;
   badge?: 'comfort' | 'volume';
   videoId: string;
 }
@@ -46,6 +51,50 @@ function shouldSwapForComfort(template: ExerciseTemplate, painRegion?: PainRegio
   return template.comfortVariant.triggerRegions.includes(painRegion);
 }
 
+function applyComfortOrBadge(
+  template: ExerciseTemplate,
+  hasAches: boolean,
+  painRegion: PainRegion | undefined,
+  overrideSets?: number,
+  overrideCategory?: ExerciseCategory
+): Exercise {
+  if (hasAches && shouldSwapForComfort(template, painRegion) && template.comfortVariant) {
+    const cv = template.comfortVariant;
+    return {
+      id: template.id + '-comfort',
+      name: cv.name,
+      sets: overrideSets ?? template.sets,
+      reps: template.reps,
+      cue: cv.cue,
+      suggestedLoad: cv.suggestedLoad,
+      category: overrideCategory ?? template.category,
+      badge: 'comfort',
+      videoId: template.videoId,
+    };
+  }
+  const ex = templateToExercise(template);
+  if (overrideSets !== undefined) ex.sets = overrideSets;
+  if (overrideCategory !== undefined) ex.category = overrideCategory;
+  return ex;
+}
+
+/**
+ * SESSION STRUCTURE (8 phases):
+ *
+ * 1. Pre-Training Preparation  (prep)        — breathing, mobility
+ * 2. Mechanical Priming        (mechanical)   — bands, activation, constant tension
+ * 3. Neurological Priming      (neuro)        — explosive movement, 1-5 reps
+ * 4. KPI Lift                  (main)         — main strength exercise with ramp + work sets
+ * 5. Pump Accessories          (accessory)    — hypertrophy support, 15-25 reps
+ * 6. Prehab                    (prehab)       — joint health, holds
+ * 7. Conditioning Finisher     (finisher)     — 2-10 min, energy-scaled (optional)
+ * 8. Post-Training Cool Down   (cooldown)     — breathing + stretch
+ *
+ * Time scaling:
+ *   30 min → mechanical + KPI + 1 accessory               (4 phases, no prep/neuro/prehab/finisher/cooldown)
+ *   45 min → prep + mechanical + neuro + KPI + 2 acc + prehab + finisher  (7 phases)
+ *   60 min → all 8 phases — full session
+ */
 export function generateWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
@@ -53,20 +102,33 @@ export function generateWorkout(
 ): Exercise[] {
   const exercises: Exercise[] = [];
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
+  const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
 
-  const warmups = getWarmups(sessionType, equipmentTier);
+  // ── 1. Pre-Training Preparation (45 and 60 min only) ────────────────────
   if (timeAvailable !== '30') {
-    for (const wu of warmups) {
-      exercises.push(templateToExercise(wu));
+    const prep = getPrep(sessionType, equipmentTier);
+    for (const p of prep) {
+      exercises.push(templateToExercise(p));
     }
   }
 
+  // ── 2. Mechanical Priming (all session lengths) ──────────────────────────
+  const mechanical = getMechanical(sessionType, equipmentTier);
+  for (const m of mechanical) {
+    exercises.push(templateToExercise(m));
+  }
+
+  // ── 3. Neurological Priming (45 and 60 min only) ────────────────────────
+  if (timeAvailable !== '30') {
+    const neuroTemplate = getNeuro(sessionType, equipmentTier);
+    exercises.push(applyComfortOrBadge(neuroTemplate, hasAches, painRegion));
+  }
+
+  // ── 4. KPI Lift ──────────────────────────────────────────────────────────
   const mainTemplate = getMainLift(sessionType, equipmentTier);
   let baseSets = mainTemplate.sets;
   if (energy === 'low') baseSets = Math.max(baseSets - 1, 2);
   if (energy === 'high') baseSets = baseSets + 1;
-
-  let mainBadge: 'comfort' | 'volume' | undefined;
 
   if (hasAches && shouldSwapForComfort(mainTemplate, painRegion) && mainTemplate.comfortVariant) {
     const cv = mainTemplate.comfortVariant;
@@ -81,51 +143,44 @@ export function generateWorkout(
       badge: 'comfort',
       videoId: mainTemplate.videoId,
     });
-    mainBadge = 'comfort';
   } else {
     const badge = energy !== 'normal' ? 'volume' as const : undefined;
-    exercises.push({
-      ...templateToExercise(mainTemplate, badge),
-      sets: baseSets,
-    });
-    if (badge) mainBadge = badge;
+    exercises.push({ ...templateToExercise(mainTemplate, badge), sets: baseSets });
   }
 
+  // ── 5. Pump Accessories ──────────────────────────────────────────────────
   const allAccessories = getAccessories(sessionType, equipmentTier);
-  let accessoriesToInclude: ExerciseTemplate[];
-
-  if (timeAvailable === '30') {
-    accessoriesToInclude = allAccessories.slice(0, 1);
-  } else if (timeAvailable === '45') {
-    accessoriesToInclude = allAccessories.slice(0, 2);
-  } else {
-    accessoriesToInclude = allAccessories;
-  }
+  const accessoriesToInclude = timeAvailable === '30'
+    ? allAccessories.slice(0, 1)
+    : timeAvailable === '45'
+      ? allAccessories.slice(0, 2)
+      : allAccessories;
 
   for (const acc of accessoriesToInclude) {
-    if (hasAches && shouldSwapForComfort(acc, painRegion) && acc.comfortVariant) {
-      const cv = acc.comfortVariant;
-      exercises.push({
-        id: acc.id + '-comfort',
-        name: cv.name,
-        sets: acc.sets,
-        reps: acc.reps,
-        cue: cv.cue,
-        suggestedLoad: cv.suggestedLoad,
-        category: 'accessory',
-        badge: 'comfort',
-        videoId: acc.videoId,
-      });
-    } else {
-      exercises.push(templateToExercise(acc));
+    exercises.push(applyComfortOrBadge(acc, hasAches, painRegion));
+  }
+
+  // ── 6. Prehab (45 and 60 min only) ──────────────────────────────────────
+  if (timeAvailable !== '30') {
+    const prehab = getPrehab(sessionType, equipmentTier);
+    for (const ph of prehab) {
+      exercises.push(templateToExercise(ph));
     }
   }
 
+  // ── 7. Conditioning Finisher (45 and 60 min only) ────────────────────────
   if (timeAvailable !== '30') {
-    const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
     const finisher = getFinisher(sessionType, equipmentTier, finisherKey);
     const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
     exercises.push(templateToExercise(finisher, finBadge));
+  }
+
+  // ── 8. Cool Down (60 min only) ────────────────────────────────────────────
+  if (timeAvailable === '60') {
+    const cooldown = getCooldown();
+    for (const cd of cooldown) {
+      exercises.push(templateToExercise(cd));
+    }
   }
 
   return exercises;
@@ -149,9 +204,9 @@ export function getSessionLabel(type: SessionType): string {
 
 export function getSessionSubtitle(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Lower Body Focus';
-    case 'bench': return 'Upper Body Focus';
-    case 'deadlift': return 'Full Body Focus';
+    case 'squat': return 'Lower Body — Squat Pattern';
+    case 'bench': return 'Upper Body — Horizontal Push';
+    case 'deadlift': return 'Full Body — Hinge Pattern';
   }
 }
 

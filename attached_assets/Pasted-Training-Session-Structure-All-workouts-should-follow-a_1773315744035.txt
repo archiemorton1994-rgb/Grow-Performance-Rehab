@@ -1,0 +1,235 @@
+Training Session Structure
+
+All workouts should follow a consistent training flow built around movement preparation, a key lift, accessory work, and optional conditioning.
+
+Each session should follow this order:
+
+1. Pre-Training Preparation
+
+Purpose: prepare joints, breathing, and mobility.
+
+Typical duration: ~10–12 minutes
+
+Examples:
+• breathing drills
+• mobility work
+• light movement preparation
+
+Rest: minimal
+
+⸻
+
+2. Mechanical Priming
+
+Purpose: activate muscles and prepare movement patterns.
+
+Sets: 3–5
+
+Reps: 15–25+ reps with constant tension
+
+Rest: 30–45 sec
+
+Examples:
+• light band work
+• activation drills
+
+⸻
+
+3. Neurological Priming
+
+Purpose: prepare nervous system for powerful movement.
+
+Sets: 3–5
+
+Reps: 1–5 reps (explosive)
+
+Rest: 30–45 sec
+
+Examples:
+• jumps
+• medicine ball throws
+• explosive push-ups
+
+⸻
+
+4. KPI Lift (Main Strength Exercise)
+
+This is the main lift of the session.
+
+Examples:
+• squat
+• deadlift / hinge
+• bench press
+• overhead press
+• pull-ups
+• rows
+
+Ramp-up sets:
+• 2–4 sets
+• 3–5 reps
+• controlled tempo
+
+Working sets:
+• 1–2 sets
+• 3–8 reps
+• challenging weight
+
+Rest:
+• 90 sec – 2 min
+
+⸻
+
+5. Pump Accessories (Hypertrophy Work)
+
+Purpose: build muscle and reinforce the main movement pattern.
+
+Exercises should complement the KPI lift.
+
+Sets: 2–3
+
+Reps: 15–25 reps
+
+Rest: 30–60 sec
+
+Examples based on KPI movement:
+
+If KPI = Squat
+• RDL variation
+• hip dominant lunges
+
+If KPI = Hinge
+• front loaded squat
+• knee dominant lunge
+
+If KPI = Horizontal Push
+• vertical push
+• vertical pull
+• row variation
+
+If KPI = Vertical Push
+• push-ups
+• pull-ups
+• rows
+
+If KPI = Pull
+• overhead press
+• push-ups
+• rows
+
+⸻
+
+6. Prehab (Joint Health & Balance)
+
+Purpose: support joints and address weak links.
+
+Sets: 1–2
+
+Reps:
+• 10–15 reps
+or
+• 30–60 sec holds
+
+Rest:
+• 30 sec – 1 min
+
+Examples by body area:
+
+Lower body:
+• glutes
+• hamstrings
+• quads
+• calves
+• adductors
+
+Upper body:
+• shoulders
+• upper back
+• arms
+
+⸻
+
+7. Conditioning Finisher (Optional)
+
+Purpose: increase work capacity and calorie burn.
+
+Time: 2–10 minutes
+
+Examples:
+• sled pushes
+• circuits
+• bike intervals
+• kettlebell swings
+
+Rest: task dependent
+
+⸻
+
+8. Post-Training Cool Down
+
+Purpose: recovery and mobility.
+
+Time: 3–8 minutes
+
+Include:
+• breathing
+• foam rolling
+• stretching
+
+⸻
+
+Movement Pattern Logic
+
+All exercises should fall under six foundational movement patterns:
+1. Squat
+2. Hinge
+3. Lunge
+4. Horizontal Push
+5. Vertical Push
+6. Pull (horizontal or vertical)
+
+The system should ensure balanced programming across the week so all movement patterns are trained.
+
+⸻
+
+Mobility / Corrective Work
+
+Add optional filler mobility sets between lifts based on movement pattern.
+
+Examples:
+
+Squat:
+• hip flexor stretch
+• ankle dorsiflexion mobility
+• calf stretch
+
+Hinge:
+• adductor stretch
+• hamstring stretch
+• child’s pose
+
+Lunge:
+• 90/90 hip mobility
+• adductor rockbacks
+
+Push:
+• chest stretch
+• thoracic spine mobility
+
+Pull:
+• lat stretch
+• upper back mobility
+
+Purpose:
+• improve joint function
+• decompress spine
+• improve lifting mechanics
+
+⸻
+
+Key Programming Rules for the App
+1. Every workout must include one KPI lift.
+2. Accessory exercises must support the KPI movement pattern.
+3. Training should rotate movement patterns across sessions.
+4. Sessions should last 30–60 minutes total.
+5. Volume and intensity should adjust based on user feedback.
+6. Optional conditioning should be scaled by user time availability.

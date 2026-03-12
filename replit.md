@@ -10,16 +10,23 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 
 ## Key Features
 - **Equipment Tiers**: Bodyweight/Bands, Dumbbells/Kettlebells, Full Gym/Barbell (exercises are strictly tier-appropriate)
-- **3-Day Rotation**: Squat (Lower), Bench (Upper), Deadlift (Full Body)
+- **3-Day Rotation**: Squat (Lower/Squat), Bench (Upper/Horizontal Push), Deadlift (Full Body/Hinge)
 - **Readiness Check**: Multi-step pre-workout assessment (aches, granular pain region, energy, time available)
 - **11 Granular Pain Regions**: Front/Rear Shoulder, Elbow/Wrist, Neck, Lower/Upper Back, Core/Ribs, Knee, Hip/Groin, Ankle/Achilles, Calf/Shin
-- **Time-Based Session Scaling**: 30/45/60 min options control workout depth (main only → full session)
+- **8-Phase Session Structure** (Rusin / Edgley / Horschig principles):
+  1. **Prep** — breathing drills, mobility work (~10-12 min)
+  2. **Mechanical Priming** — band activation, constant tension, 3×15-25 reps
+  3. **Neurological Priming** — jumps, explosive push-ups, KB swings, 3×1-5 reps
+  4. **KPI Lift** — main strength exercise with ramp-up + working sets
+  5. **Pump Accessories** — hypertrophy support, 2-3×15-25 reps
+  6. **Prehab** — joint health, 1-2×10-15 reps or 30-60s holds
+  7. **Conditioning Finisher** — sled/bike/circuits, energy-scaled (2-10 min)
+  8. **Cool Down** — diaphragmatic breathing + full body stretch
+- **Time-Based Session Scaling**: 30 min (phases 2+4+1 acc) / 45 min (phases 1-7) / 60 min (all 8 phases)
 - **Dynamic Workout Engine**: Multi-layer adaptation (equipment, pain region comfort swaps, energy volume, time scaling)
 - **Weight/Rep Logging**: Per-set weight (kg) and rep tracking during sessions
 - **1RM Test Weeks**: Every 4 or 6 cycles, a test week triggers with ramping protocols; results tracked in profile
-- **Sled/Cardio Finishers**: Conditioning-focused finishers (sled, bike, rower, bodyweight cardio) inspired by Edgley
 - **Video Demo Placeholders**: Each exercise has a video button (placeholder modal for future video assets)
-- **Warm-Up Primers**: Session-specific warm-ups with mobility work (Rusin/Horschig principles)
 - **All loads in kg**
 
 ## File Structure

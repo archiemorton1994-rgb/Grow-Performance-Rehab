@@ -94,14 +94,18 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress }: {
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
 
-  const categoryColors: Record<string, { bg: string; text: string }> = {
-    warmup: { bg: '#e8f0fe', text: '#4285f4' },
-    main: { bg: Colors.primaryMuted, text: Colors.primaryDark },
-    accessory: { bg: Colors.surfaceTertiary, text: Colors.textSecondary },
-    finisher: { bg: '#fff3e0', text: '#e65100' },
+  const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
+    prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Prep' },
+    mechanical: { bg: '#e0f2f1', text: '#00695c', label: 'Activation' },
+    neuro:      { bg: '#f3e5f5', text: '#7b1fa2', label: 'Power Primer' },
+    main:       { bg: Colors.primaryMuted, text: Colors.primaryDark, label: 'KPI Lift' },
+    accessory:  { bg: Colors.surfaceTertiary, text: Colors.textSecondary, label: 'Pump' },
+    prehab:     { bg: '#fff3e0', text: '#e65100', label: 'Prehab' },
+    finisher:   { bg: '#fce8e6', text: '#c62828', label: 'Finisher' },
+    cooldown:   { bg: '#e8f5e9', text: '#2e7d32', label: 'Cool Down' },
   };
 
-  const cat = categoryColors[exercise.category] || categoryColors.accessory;
+  const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
 
   return (
     <Animated.View entering={FadeInDown.delay(80 + index * 40).duration(400)}>
@@ -130,7 +134,7 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress }: {
               <View style={styles.exerciseMeta}>
                 <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
                   <Text style={[styles.categoryText, { color: cat.text }]}>
-                    {exercise.category.charAt(0).toUpperCase() + exercise.category.slice(1)}
+                    {cat.label}
                   </Text>
                 </View>
                 <Text style={styles.metaText}>{exercise.sets}x{exercise.reps}</Text>
