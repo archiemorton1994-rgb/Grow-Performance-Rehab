@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type EquipmentTier = 'bodyweight' | 'dumbbells' | 'fullgym';
+export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
-export type SessionType = 'squat' | 'bench' | 'deadlift';
+export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning';
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab';
 
 export type PainRegion =
   | 'front_shoulder' | 'rear_shoulder' | 'elbow_wrist' | 'neck'
@@ -76,6 +78,13 @@ export interface CompletedSession {
   isTestWeek?: boolean;
 }
 
+export interface UserProfile {
+  name: string;
+  experienceLevel: ExperienceLevel;
+  goal: FitnessGoal;
+  bodyweightKg: number;
+}
+
 interface AppState {
   onboardingComplete: boolean;
   equipmentTier: EquipmentTier;
@@ -83,10 +92,12 @@ interface AppState {
   completedSessions: CompletedSession[];
   oneRepMaxes: OneRepMax[];
   testWeekFrequency: TestWeekFrequency;
+  userProfile: UserProfile;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTier: (tier: EquipmentTier) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
+  setUserProfile: (profile: Partial<UserProfile>) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
   resetProgress: () => void;
@@ -96,6 +107,7 @@ interface AppState {
   getStreakDays: () => number;
   getThisWeekCount: () => number;
   getBestORM: (lift: SessionType) => OneRepMax | null;
+  getInternalTier: () => 'bodyweight' | 'dumbbells' | 'fullgym';
 }
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
@@ -109,10 +121,19 @@ export const useAppStore = create<AppState>()(
       completedSessions: [],
       oneRepMaxes: [],
       testWeekFrequency: 12,
+      userProfile: {
+        name: '',
+        experienceLevel: 'beginner',
+        goal: 'fitness',
+        bodyweightKg: 75,
+      },
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTier: (tier) => set({ equipmentTier: tier }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
+      setUserProfile: (profile) => set((state) => ({
+        userProfile: { ...state.userProfile, ...profile },
+      })),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -193,6 +214,13 @@ export const useAppStore = create<AppState>()(
         const lifts = oneRepMaxes.filter((o) => o.lift === lift);
         if (lifts.length === 0) return null;
         return lifts.reduce((best, curr) => curr.weight > best.weight ? curr : best);
+      },
+
+      getInternalTier: () => {
+        const { equipmentTier } = get();
+        if (equipmentTier === 'bands' || equipmentTier === 'bodyweight') return 'bodyweight';
+        if (equipmentTier === 'kettlebells' || equipmentTier === 'dumbbells') return 'dumbbells';
+        return 'fullgym';
       },
     }),
     {
