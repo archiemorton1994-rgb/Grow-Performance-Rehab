@@ -208,8 +208,13 @@ function nearestKbWeight(kg: number): number {
 
 function relabelForKettlebell(text: string): string {
   return text
-    .replace(/\bDumbbells?\b/g, 'Kettlebell')
-    .replace(/\bDB\b/g, 'KB');
+    .replace(/\bdumbbells?\b/gi, (match) => {
+      const isPlural = /s$/i.test(match);
+      const isCapital = /^[A-Z]/.test(match);
+      const base = isCapital ? 'Kettlebell' : 'kettlebell';
+      return isPlural ? base + 's' : base;
+    })
+    .replace(/\bDBs?\b/g, (match) => (match.endsWith('s') ? 'KBs' : 'KB'));
 }
 
 function relabelLoadForKettlebell(load: string): string {
