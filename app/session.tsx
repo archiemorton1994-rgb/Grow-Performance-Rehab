@@ -351,11 +351,15 @@ export default function SessionScreen() {
       const mainExIndex = exercises.findIndex(e => e.category === 'main');
       if (mainExIndex >= 0) {
         const mainSets = exerciseData[mainExIndex].sets;
-        const heaviest = mainSets.reduce((best, s) => s.weight > best ? s.weight : best, 0);
-        if (heaviest > 0) {
+        const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0)
+          ?? mainSets.find(s => s.completed && s.weight > 0);
+        if (amrapSet && amrapSet.weight > 0) {
+          const reps = amrapSet.reps > 0 ? amrapSet.reps : 1;
+          const estimatedMax = Math.round(amrapSet.weight * (1 + reps / 30));
           addOneRepMax({
             lift: sessionType,
-            weight: heaviest,
+            weight: estimatedMax,
+            reps,
             date: new Date().toISOString(),
             unit: 'kg',
           });
@@ -411,10 +415,10 @@ export default function SessionScreen() {
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
-            {isTestWeek ? '1RM Test' : getSessionLabel(sessionType)}
+            {isTestWeek ? 'Strength Test' : getSessionLabel(sessionType)}
           </Text>
           <Text style={styles.sessionSub}>
-            {isTestWeek ? `${getSessionLabel(sessionType)} — Max Effort` : getSessionSubtitle(sessionType)}
+            {isTestWeek ? `${getSessionLabel(sessionType)} — AMRAP @ 90%` : getSessionSubtitle(sessionType)}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -496,7 +500,7 @@ export default function SessionScreen() {
         >
           <Ionicons name="checkmark-circle" size={22} color={allDone ? Colors.textInverse : Colors.textTertiary} />
           <Text style={[styles.completeText, !allDone && styles.completeTextDisabled]}>
-            {isTestWeek ? 'Save 1RM Results' : 'Complete Session'}
+            {isTestWeek ? 'Save Strength Results' : 'Complete Session'}
           </Text>
         </Pressable>
       </View>

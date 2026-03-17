@@ -141,7 +141,7 @@ export default function WorkoutsScreen() {
                       {getSessionLabel(item.sessionType)}
                     </Text>
                     <Text style={styles.cardSub}>
-                      {isCurrent && testWeek ? '1RM Test' : getSessionSubtitle(item.sessionType)}
+                      {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
                     </Text>
                   </View>
                   {isCurrent && (

@@ -110,7 +110,7 @@ export default function ProfileScreen() {
   const handleReset = () => {
     Alert.alert(
       'Reset Progress',
-      'This will clear all your workout history, stats, and 1RM records. This cannot be undone.',
+      'This will clear all your workout history, stats, and strength test records. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -384,6 +384,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.ormRight}>
                       <Text style={styles.ormBest}>{best ? `${best.weight} kg` : '—'}</Text>
+                      <Text style={styles.ormEstLabel}>Est. 1RM</Text>
                       {isImproving && (
                         <View style={styles.pbBadge}>
                           <Ionicons name="trending-up" size={11} color={Colors.primary} />
@@ -393,7 +394,7 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                   {history.length === 0 ? (
-                    <Text style={styles.ormEmpty}>Complete a test week to record your KPI</Text>
+                    <Text style={styles.ormEmpty}>Complete a strength test week to record your KPI</Text>
                   ) : (
                     <View style={styles.ormHistory}>
                       {history.map((h, i) => {
@@ -401,7 +402,10 @@ export default function ProfileScreen() {
                         const diff = prev ? h.weight - prev.weight : null;
                         return (
                           <View key={i} style={styles.ormRow}>
-                            <Text style={styles.ormWeight}>{h.weight} kg</Text>
+                            <Text style={styles.ormWeight}>{h.weight} kg est.</Text>
+                            {h.reps !== undefined && (
+                              <Text style={styles.ormReps}>{h.reps} reps</Text>
+                            )}
                             {diff !== null && diff !== 0 && (
                               <Text style={[styles.ormDiff, { color: diff > 0 ? Colors.primary : '#e53e3e' }]}>
                                 {diff > 0 ? `+${diff}` : diff} kg
@@ -447,7 +451,7 @@ export default function ProfileScreen() {
                       <View style={styles.histContent}>
                         <View style={styles.histTitleRow}>
                           <Text style={styles.histTitle}>{getSessionLabel(session.sessionType)}</Text>
-                          {session.isTestWeek && <View style={styles.testBadge}><Text style={styles.testBadgeText}>1RM</Text></View>}
+                          {session.isTestWeek && <View style={styles.testBadge}><Text style={styles.testBadgeText}>Test</Text></View>}
                         </View>
                         <View style={styles.histMeta}>
                           <Text style={styles.histDate}>{formatDate(session.date)}</Text>
@@ -499,7 +503,7 @@ export default function ProfileScreen() {
             <Text style={styles.sheetTitle}>Settings</Text>
 
             <Text style={styles.settingItemLabel}>Test Week Frequency</Text>
-            <Text style={styles.settingItemSub}>How often to trigger a 1RM test week</Text>
+            <Text style={styles.settingItemSub}>How often to trigger a strength test week</Text>
             <View style={styles.freqRow}>
               {([12, 18] as const).map(freq => (
                 <Pressable
@@ -614,11 +618,13 @@ const styles = StyleSheet.create({
   ormSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   ormRight: { alignItems: 'flex-end', gap: 4 },
   ormBest: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.primary },
+  ormEstLabel: { fontSize: 10, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   pbBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   pbText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
   ormHistory: { gap: 5, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 8 },
   ormRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ormWeight: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, flex: 1 },
+  ormReps: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
   ormDiff: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   ormDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   ormEmpty: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },

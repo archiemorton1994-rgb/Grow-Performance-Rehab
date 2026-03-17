@@ -130,8 +130,8 @@ export default function HomeScreen() {
               <Ionicons name="trophy" size={20} color="#e65100" />
             </View>
             <View style={styles.testWeekContent}>
-              <Text style={styles.testWeekTitle}>1RM Test Week</Text>
-              <Text style={styles.testWeekSub}>Time to test your strength progress</Text>
+              <Text style={styles.testWeekTitle}>Strength Test Week</Text>
+              <Text style={styles.testWeekSub}>AMRAP @ 90% — find your strength level safely</Text>
             </View>
           </View>
         </Animated.View>

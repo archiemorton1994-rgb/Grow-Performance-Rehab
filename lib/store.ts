@@ -60,6 +60,7 @@ export interface ExerciseLog {
 export interface OneRepMax {
   lift: SessionType;
   weight: number;
+  reps?: number;
   date: string;
   unit: 'kg';
 }

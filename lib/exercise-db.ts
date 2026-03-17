@@ -562,49 +562,51 @@ const CONDITIONING_WORKOUTS: Record<InternalTier, { easy: ExerciseTemplate[]; no
   },
 };
 
-// ─── 1RM TEST PROTOCOL ────────────────────────────────────────────────────────
+// ─── STRENGTH TEST PROTOCOL (AMRAP @ 90%) ────────────────────────────────────
+// Safety protocol: clients perform one AMRAP set at a weight they can
+// comfortably lift at least twice. Estimated 1RM = weight × (1 + reps ÷ 30).
 
 const ORM_TEST: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = {
   squat: {
     bodyweight: [
-      { id: 'sq-1rm-bw-1', name: 'BW Squat Warm-Up', sets: 1, reps: '10', cue: 'Full depth, controlled — prepare joints', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'sq-1rm-bw-2', name: 'Max Rep Bodyweight Squat', sets: 3, reps: 'Max reps (2 min rest)', cue: 'Full depth every rep — stop when form breaks', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-bw-1', name: 'BW Squat Warm-Up', sets: 1, reps: '10', cue: 'Full depth, controlled — prepare joints before the test set', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-bw-2', name: 'Bodyweight Squat AMRAP', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Full depth every rep — push until form breaks, then stop. Log your total reps.', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
     ],
     dumbbells: [
-      { id: 'sq-1rm-db-1', name: 'Goblet Squat Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare', suggestedLoad: '8 / 14 / 20 kg per hand', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'sq-1rm-db-2', name: 'Goblet Squat Heavy Single', sets: 5, reps: '3, 2, 1, 1, 1 (ramp)', cue: 'Find heaviest clean single — form is non-negotiable', suggestedLoad: 'Build to max', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-db-1', name: 'Goblet Squat Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare joints — last set should feel moderately hard', suggestedLoad: '8 / 14 / 20 kg', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-db-2', name: 'Goblet Squat AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Choose a weight you can comfortably lift at least twice. Do as many clean reps as possible — stop when form breaks. Log weight and reps.', suggestedLoad: '~90% of your working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
     fullgym: [
-      { id: 'sq-1rm-fg-1', name: 'Back Squat Ramp-Up', sets: 4, reps: '8, 5, 3, 2 (increasing)', cue: 'Bar → 40% → 60% → 75% estimated max', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'sq-1rm-fg-2', name: 'Back Squat 1RM Attempts', sets: 3, reps: '1 (3-5 min rest)', cue: 'Attempt 90% → 95% → 100%+ estimated max', suggestedLoad: 'Max attempt', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-fg-1', name: 'Back Squat Ramp-Up', sets: 4, reps: '8, 5, 3, 2 (increasing)', cue: 'Bar → 40% → 60% → 75% of your working weight — prepare for the AMRAP set', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'sq-1rm-fg-2', name: 'Back Squat AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Load ~90% of your normal working weight — a weight you can lift at least twice. Do as many perfect reps as possible. Stop at form failure. Log weight and reps.', suggestedLoad: '~90% of working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
   },
   bench: {
     bodyweight: [
-      { id: 'bn-1rm-bw-1', name: 'Push-Up Warm-Up', sets: 1, reps: '10', cue: 'Full ROM, controlled — shoulder and chest prep', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'bn-1rm-bw-2', name: 'Max Rep Push-Up Test', sets: 3, reps: 'Max reps (2 min rest)', cue: 'Chest to floor, full lockout — stop at failure', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-bw-1', name: 'Push-Up Warm-Up', sets: 1, reps: '10', cue: 'Full ROM, controlled — shoulder and chest prep before the test set', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-bw-2', name: 'Push-Up AMRAP', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Chest to floor, full lockout every rep — stop when you can no longer maintain form. Log your total reps.', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
     ],
     dumbbells: [
-      { id: 'bn-1rm-db-1', name: 'DB Press Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare', suggestedLoad: '8 / 14 / 20 kg per hand', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'bn-1rm-db-2', name: 'DB Press Heavy Single', sets: 5, reps: '3, 2, 1, 1, 1 (ramp)', cue: 'Find heaviest clean single', suggestedLoad: 'Build to max', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-db-1', name: 'DB Press Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare — last set should feel moderately hard', suggestedLoad: '8 / 14 / 20 kg per hand', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-db-2', name: 'DB Press AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Choose a weight you can comfortably press at least twice. Do as many clean reps as possible — stop when form breaks. Log weight and reps.', suggestedLoad: '~90% of your working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
     fullgym: [
-      { id: 'bn-1rm-fg-1', name: 'Bench Press Ramp-Up', sets: 4, reps: '8, 5, 3, 2 (increasing)', cue: 'Bar → 40% → 60% → 75% estimated max', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'bn-1rm-fg-2', name: 'Bench Press 1RM Attempts', sets: 3, reps: '1 (3-5 min rest)', cue: 'Attempt 90% → 95% → 100%+ estimated max', suggestedLoad: 'Max attempt', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-fg-1', name: 'Bench Press Ramp-Up', sets: 4, reps: '8, 5, 3, 2 (increasing)', cue: 'Bar → 40% → 60% → 75% of your working weight — prepare for the AMRAP set', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'bn-1rm-fg-2', name: 'Bench Press AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Load ~90% of your normal working weight — a weight you can press at least twice. Do as many perfect reps as possible. Stop at form failure. Log weight and reps.', suggestedLoad: '~90% of working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
   },
   deadlift: {
     bodyweight: [
-      { id: 'dl-1rm-bw-1', name: 'Hinge Warm-Up', sets: 1, reps: '10', cue: 'BW hinge, feel hamstrings load — posterior chain prep', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'dl-1rm-bw-2', name: 'Max Rep Single-Leg Hinge', sets: 3, reps: 'Max reps each (2 min rest)', cue: 'Maintain flat back throughout — stop at form failure', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-bw-1', name: 'Hinge Warm-Up', sets: 1, reps: '10', cue: 'BW hinge, feel hamstrings load — posterior chain prep before the test set', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-bw-2', name: 'Single-Leg Hinge AMRAP', sets: 1, reps: 'AMRAP each side — max clean reps', cue: 'Maintain flat back throughout — stop when form breaks. Log your total reps per side.', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: [], videoId: '' },
     ],
     dumbbells: [
-      { id: 'dl-1rm-db-1', name: 'DB RDL Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare', suggestedLoad: '10 / 18 / 24 kg per hand', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'dl-1rm-db-2', name: 'DB RDL Heavy Single', sets: 5, reps: '3, 2, 1, 1, 1 (ramp)', cue: 'Find heaviest clean single', suggestedLoad: 'Build to max', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-db-1', name: 'DB RDL Ramp-Up', sets: 3, reps: '8, 5, 3 (increasing)', cue: 'Increase weight each set to prepare — last set should feel moderately hard', suggestedLoad: '10 / 18 / 24 kg per hand', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-db-2', name: 'DB RDL AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Choose a weight you can comfortably lift at least twice. Do as many clean reps as possible — stop when form breaks. Log weight and reps.', suggestedLoad: '~90% of your working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
     fullgym: [
-      { id: 'dl-1rm-fg-1', name: 'Deadlift Ramp-Up', sets: 4, reps: '5, 3, 2, 1 (increasing)', cue: 'Bar → 40% → 60% → 80% estimated max', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'dl-1rm-fg-2', name: 'Deadlift 1RM Attempts', sets: 3, reps: '1 (3-5 min rest)', cue: 'Attempt 90% → 95% → 100%+ estimated max', suggestedLoad: 'Max attempt', category: 'main', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-fg-1', name: 'Deadlift Ramp-Up', sets: 4, reps: '5, 3, 2, 1 (increasing)', cue: 'Bar → 40% → 60% → 80% of your working weight — prepare for the AMRAP set', suggestedLoad: 'Ramp up', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'dl-1rm-fg-2', name: 'Deadlift AMRAP @ 90%', sets: 1, reps: 'AMRAP — max clean reps', cue: 'Load ~90% of your normal working weight — a weight you can lift at least twice. Do as many perfect reps as possible. Stop at form failure. Log weight and reps.', suggestedLoad: '~90% of working weight', category: 'main', targetRegions: [], videoId: '' },
     ],
   },
 };

@@ -396,7 +396,7 @@ export default function ReadinessScreen() {
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
-            {isTestWeek ? '1RM Test Week' : getSessionLabel(sessionType)}
+            {isTestWeek ? 'Strength Test Week' : getSessionLabel(sessionType)}
           </Text>
           <Text style={styles.sessionSub}>
             {isTestWeek ? 'Strength Testing' : getSessionSubtitle(sessionType)}
