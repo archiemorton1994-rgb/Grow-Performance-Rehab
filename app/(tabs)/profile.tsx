@@ -4,11 +4,11 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  ScrollView,
   Platform,
   Alert,
   TextInput,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
 import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, useAppStore } from '@/lib/store';
-import { getEquipmentLabel, getEquipmentIcon, getSessionLabel, getPainRegionLabel } from '@/lib/workout-engine';
+import { getEquipmentLabel, getEquipmentIcon, getSessionLabel } from '@/lib/workout-engine';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 const LIFTS: SessionType[] = ['squat', 'bench', 'deadlift'];
@@ -36,6 +36,8 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
 ];
 
 const SESSION_MILESTONES = [1, 5, 10, 25, 50, 100, 150, 200];
+
+type ActiveModal = 'edit' | 'progress' | 'records' | 'history' | 'equipment' | 'settings' | null;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -57,19 +59,38 @@ export default function ProfileScreen() {
 
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
-  const recentSessions = completedSessions.slice(0, 8);
-  const nextMilestone = SESSION_MILESTONES.find(m => m > completedCount) ?? null;
-
-  const [editNameModal, setEditNameModal] = useState(false);
-  const [editName, setEditName] = useState(userProfile.name);
-  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
-
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+
+  // Edit details local state
+  const [editName, setEditName] = useState('');
+  const [editWeight, setEditWeight] = useState('');
+  const [editExp, setEditExp] = useState<ExperienceLevel>('beginner');
+  const [editGoal, setEditGoal] = useState<FitnessGoal>('fitness');
+
+  const openEdit = () => {
+    setEditName(userProfile.name);
+    setEditWeight(userProfile.bodyweightKg > 0 ? String(userProfile.bodyweightKg) : '');
+    setEditExp(userProfile.experienceLevel);
+    setEditGoal(userProfile.goal);
+    setActiveModal('edit');
+  };
+
+  const saveEdit = () => {
+    setUserProfile({
+      name: editName.trim(),
+      bodyweightKg: parseFloat(editWeight) || 0,
+      experienceLevel: editExp,
+      goal: editGoal,
+    });
+    setActiveModal(null);
+  };
 
   const handleTierChange = (tier: EquipmentTier) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEquipmentTier(tier);
-    setShowEquipmentModal(false);
+    setActiveModal(null);
   };
 
   const handleReset = () => {
@@ -84,20 +105,11 @@ export default function ProfileScreen() {
           onPress: () => {
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             resetProgress();
+            setActiveModal(null);
           },
         },
       ]
     );
-  };
-
-  const toggleTestFrequency = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTestWeekFrequency(testWeekFrequency === 12 ? 18 : 12);
-  };
-
-  const saveName = () => {
-    setUserProfile({ name: editName.trim() });
-    setEditNameModal(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -111,430 +123,495 @@ export default function ProfileScreen() {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
-  const displayName = userProfile.name || 'Your Name';
-  const milestoneProgress = nextMilestone
-    ? Math.min(completedCount / nextMilestone, 1)
-    : 1;
-
   const earnedMilestones = SESSION_MILESTONES.filter(m => completedCount >= m);
-  const bestStreak = streak;
+  const nextMilestone = SESSION_MILESTONES.find(m => m > completedCount) ?? null;
+  const milestoneProgress = nextMilestone ? completedCount / nextMilestone : 1;
+
+  const displayName = userProfile.name || 'Set your name';
+  const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
+  const goalLabel = GOAL_OPTIONS.find(g => g.value === userProfile.goal)?.label ?? 'Fitness';
+
+  const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }[] = [
+    { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
+    { id: 'progress', label: 'My Progress', icon: 'trophy-outline', color: '#f59e0b', bg: '#fef9c3' },
+    { id: 'records', label: 'Strength KPIs', icon: 'barbell-outline', color: '#9c27b0', bg: '#f3e5f5' },
+    { id: 'history', label: 'Session History', icon: 'time-outline', color: '#4285f4', bg: '#e8f0fe' },
+    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(equipmentTier) as any, color: '#00695c', bg: '#e0f2f1' },
+    { id: 'settings', label: 'Settings', icon: 'settings-outline', color: Colors.textSecondary, bg: Colors.surfaceTertiary },
+  ];
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + webTopInset + 8, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100 },
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Hero Profile Card */}
-      <Animated.View entering={FadeInDown.delay(0).duration(500)} style={styles.heroCard}>
-        <View style={styles.heroLeft}>
-          <Pressable onPress={() => { setEditName(userProfile.name); setEditNameModal(true); }} style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitial}>
-                {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
-              </Text>
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+      {/* Hero Card */}
+      <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
+        <View style={styles.avatarWrap}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitial}>
+              {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.heroInfo}>
+          <Text style={styles.heroName}>{displayName}</Text>
+          <View style={styles.heroTags}>
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{expLabel}</Text>
             </View>
-            <View style={styles.avatarEdit}>
-              <Ionicons name="pencil" size={10} color="#fff" />
+            <View style={[styles.tag, { backgroundColor: Colors.primaryMuted }]}>
+              <Text style={[styles.tagText, { color: Colors.primaryDark }]}>{goalLabel}</Text>
             </View>
-          </Pressable>
-          <View style={styles.heroInfo}>
-            <Pressable onPress={() => { setEditName(userProfile.name); setEditNameModal(true); }}>
-              <Text style={styles.heroName}>{displayName}</Text>
-            </Pressable>
-            <View style={styles.heroTags}>
-              <View style={styles.heroTag}>
-                <Text style={styles.heroTagText}>
-                  {EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner'}
-                </Text>
+            {userProfile.bodyweightKg > 0 && (
+              <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
+                <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
               </View>
-              <View style={[styles.heroTag, { backgroundColor: Colors.primaryMuted }]}>
-                <Text style={[styles.heroTagText, { color: Colors.primaryDark }]}>
-                  {GOAL_OPTIONS.find(g => g.value === userProfile.goal)?.label ?? 'Fitness'}
-                </Text>
-              </View>
-            </View>
+            )}
           </View>
         </View>
       </Animated.View>
 
       {/* Stats Row */}
-      <Animated.View entering={FadeInDown.delay(80).duration(500)} style={styles.statsGrid}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{completedCount}</Text>
-          <Text style={styles.statLabel}>Sessions</Text>
+      <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statVal}>{completedCount}</Text>
+          <Text style={styles.statLbl}>Sessions</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>Day Streak</Text>
+        <View style={styles.statDiv} />
+        <View style={styles.stat}>
+          <Text style={styles.statVal}>{streak}</Text>
+          <Text style={styles.statLbl}>Streak</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{weekCount}</Text>
-          <Text style={styles.statLabel}>This Week</Text>
+        <View style={styles.statDiv} />
+        <View style={styles.stat}>
+          <Text style={styles.statVal}>{weekCount}</Text>
+          <Text style={styles.statLbl}>This Week</Text>
         </View>
       </Animated.View>
 
-      {/* Milestone Progress */}
-      {(nextMilestone !== null || completedCount > 0) && (
-        <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Journey</Text>
-          {nextMilestone !== null ? (
-            <View style={styles.milestoneCard}>
-              <View style={styles.milestoneTop}>
-                <Ionicons name="flag-outline" size={18} color={Colors.primary} />
-                <Text style={styles.milestoneLabel}>
-                  {completedCount} / {nextMilestone} sessions to next milestone
-                </Text>
-              </View>
-              <View style={styles.milestoneTrack}>
-                <View style={[styles.milestoneFill, { width: `${milestoneProgress * 100}%` as any }]} />
-              </View>
+      {/* Nav Grid */}
+      <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.navGrid}>
+        {NAV_BUTTONS.map((btn, i) => (
+          <Pressable
+            key={btn.id}
+            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveModal(btn.id); }}
+            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+          >
+            <View style={[styles.navIcon, { backgroundColor: btn.bg }]}>
+              <Ionicons name={btn.icon} size={22} color={btn.color} />
             </View>
-          ) : (
-            <View style={styles.milestoneCard}>
-              <Ionicons name="trophy" size={20} color="#f59e0b" />
-              <Text style={styles.milestoneLabel}>All milestones achieved — legend!</Text>
-            </View>
-          )}
-          {earnedMilestones.length > 0 && (
-            <View style={styles.badgesRow}>
-              {earnedMilestones.map(m => (
-                <View key={m} style={styles.badge}>
-                  <Ionicons name="trophy" size={14} color="#f59e0b" />
-                  <Text style={styles.badgeText}>{m}</Text>
-                </View>
+            <Text style={styles.navLabel}>{btn.label}</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+          </Pressable>
+        ))}
+      </Animated.View>
+
+      {/* ─── MODALS ──────────────────────────────────────────── */}
+
+      {/* Edit Details Modal */}
+      <Modal visible={activeModal === 'edit'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Edit Details</Text>
+
+            <Text style={styles.inputLabel}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor={Colors.textTertiary}
+              returnKeyType="next"
+            />
+
+            <Text style={styles.inputLabel}>Bodyweight (kg)</Text>
+            <TextInput
+              style={styles.input}
+              value={editWeight}
+              onChangeText={setEditWeight}
+              placeholder="e.g. 80"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+            />
+
+            <Text style={styles.inputLabel}>Experience Level</Text>
+            <View style={styles.optionGroup}>
+              {EXPERIENCE_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setEditExp(opt.value)}
+                  style={[styles.optionChip, editExp === opt.value && styles.optionChipActive]}
+                >
+                  <Text style={[styles.optionChipText, editExp === opt.value && styles.optionChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
               ))}
             </View>
-          )}
-        </Animated.View>
-      )}
 
-      {/* KPI Strength Stats */}
-      <Animated.View entering={FadeInDown.delay(160).duration(500)} style={styles.section}>
-        <Text style={styles.sectionTitle}>Strength KPIs</Text>
-        <View style={styles.ormCards}>
-          {LIFTS.map((lift) => {
-            const best = getBestORM(lift);
-            const history = oneRepMaxes
-              .filter(o => o.lift === lift)
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .slice(0, 4);
-            const isImproving = history.length >= 2 && history[0].weight > history[1].weight;
-            return (
-              <View key={lift} style={styles.ormCard}>
-                <View style={styles.ormHeader}>
-                  <View>
-                    <Text style={styles.ormLift}>{getSessionLabel(lift)}</Text>
-                    <Text style={styles.ormSub}>KPI Lift</Text>
-                  </View>
-                  <View style={styles.ormRight}>
-                    <Text style={styles.ormBest}>{best ? `${best.weight} kg` : '—'}</Text>
-                    {isImproving && (
-                      <View style={styles.improvingBadge}>
-                        <Ionicons name="trending-up" size={12} color={Colors.primary} />
-                        <Text style={styles.improvingText}>PB</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                {history.length > 1 ? (
-                  <View style={styles.ormHistory}>
-                    {history.map((h, i) => {
-                      const prev = history[i + 1];
-                      const diff = prev ? h.weight - prev.weight : null;
-                      return (
-                        <View key={i} style={styles.ormHistoryRow}>
-                          <Text style={styles.ormHistoryWeight}>{h.weight} kg</Text>
-                          {diff !== null && diff !== 0 && (
-                            <Text style={[styles.ormDiff, { color: diff > 0 ? Colors.primary : '#e53e3e' }]}>
-                              {diff > 0 ? `+${diff}` : diff} kg
-                            </Text>
-                          )}
-                          <Text style={styles.ormHistoryDate}>{formatDate(h.date)}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : history.length === 1 ? (
-                  <Text style={styles.ormEmpty}>Complete another test week to track progress</Text>
-                ) : (
-                  <Text style={styles.ormEmpty}>Complete a test week to record your KPI</Text>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Animated.View>
-
-      {/* Profile Settings */}
-      <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.section}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-
-        {/* Equipment */}
-        <Pressable onPress={() => setShowEquipmentModal(true)} style={styles.settingRow}>
-          <View style={styles.settingLeft}>
-            <Ionicons name={getEquipmentIcon(equipmentTier) as any} size={20} color={Colors.primary} />
-            <View>
-              <Text style={styles.settingLabel}>Equipment</Text>
-              <Text style={styles.settingValue}>{getEquipmentLabel(equipmentTier)}</Text>
+            <Text style={styles.inputLabel}>Primary Goal</Text>
+            <View style={styles.goalGroup}>
+              {GOAL_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setEditGoal(opt.value)}
+                  style={[styles.goalChip, editGoal === opt.value && styles.goalChipActive]}
+                >
+                  <Ionicons name={opt.icon} size={16} color={editGoal === opt.value ? Colors.primary : Colors.textTertiary} />
+                  <Text style={[styles.goalChipText, editGoal === opt.value && styles.goalChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-        </Pressable>
 
-        {/* Experience Level */}
-        <View style={styles.settingSection}>
-          <Text style={styles.settingSubTitle}>Experience Level</Text>
-          {EXPERIENCE_OPTIONS.map(opt => (
-            <Pressable
-              key={opt.value}
-              onPress={() => { setUserProfile({ experienceLevel: opt.value }); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-              style={[styles.optionRow, userProfile.experienceLevel === opt.value && styles.optionRowActive]}
-            >
-              <View style={styles.optionLeft}>
-                <Text style={[styles.optionLabel, userProfile.experienceLevel === opt.value && styles.optionLabelActive]}>{opt.label}</Text>
-                <Text style={styles.optionDesc}>{opt.desc}</Text>
-              </View>
-              {userProfile.experienceLevel === opt.value && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+            <Pressable onPress={saveEdit} style={styles.saveBtn}>
+              <Text style={styles.saveBtnText}>Save Details</Text>
             </Pressable>
-          ))}
-        </View>
-
-        {/* Goal */}
-        <View style={styles.settingSection}>
-          <Text style={styles.settingSubTitle}>Primary Goal</Text>
-          <View style={styles.goalGrid}>
-            {GOAL_OPTIONS.map(opt => (
-              <Pressable
-                key={opt.value}
-                onPress={() => { setUserProfile({ goal: opt.value }); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                style={[styles.goalOption, userProfile.goal === opt.value && styles.goalOptionActive]}
-              >
-                <Ionicons name={opt.icon} size={20} color={userProfile.goal === opt.value ? Colors.primary : Colors.textTertiary} />
-                <Text style={[styles.goalLabel, userProfile.goal === opt.value && styles.goalLabelActive]}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
+      </Modal>
 
-        {/* Test Week Frequency */}
-        <Pressable onPress={toggleTestFrequency} style={styles.settingRow} testID="test-freq-toggle">
-          <View style={styles.settingLeft}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
-            <View>
-              <Text style={styles.settingLabel}>Test Week Frequency</Text>
-              <Text style={styles.settingValue}>
-                Every {testWeekFrequency === 12 ? '12 sessions' : '18 sessions'}
-              </Text>
-            </View>
+      {/* My Progress Modal */}
+      <Modal visible={activeModal === 'progress'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>My Progress</Text>
+            {nextMilestone !== null && (
+              <View style={styles.milestoneCard}>
+                <View style={styles.milestoneRow}>
+                  <Ionicons name="flag-outline" size={18} color={Colors.primary} />
+                  <Text style={styles.milestoneLabel}>{completedCount} / {nextMilestone} sessions to next milestone</Text>
+                </View>
+                <View style={styles.milestoneTrack}>
+                  <View style={[styles.milestoneFill, { width: `${milestoneProgress * 100}%` as any }]} />
+                </View>
+              </View>
+            )}
+            <Text style={styles.subSectionTitle}>Earned Badges</Text>
+            {earnedMilestones.length === 0 ? (
+              <Text style={styles.emptyText}>Complete your first session to earn badges!</Text>
+            ) : (
+              <View style={styles.badgesGrid}>
+                {SESSION_MILESTONES.map(m => {
+                  const earned = completedCount >= m;
+                  return (
+                    <View key={m} style={[styles.badge, !earned && styles.badgeLocked]}>
+                      <Ionicons name="trophy" size={18} color={earned ? '#f59e0b' : Colors.textTertiary} />
+                      <Text style={[styles.badgeText, !earned && styles.badgeTextLocked]}>{m}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
           </View>
-          <View style={styles.togglePill}>
-            <Text style={styles.toggleText}>Tap to change</Text>
-          </View>
-        </Pressable>
-      </Animated.View>
+        </View>
+      </Modal>
 
-      {/* Recent Sessions */}
-      <Animated.View entering={FadeInDown.delay(240).duration(500)} style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Sessions</Text>
-        {recentSessions.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="barbell-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>No sessions yet</Text>
-            <Text style={styles.emptySubtext}>Start your first workout to see history here</Text>
-          </View>
-        ) : (
-          <View style={styles.historyList}>
-            {recentSessions.map((session) => {
-              const topWeight = session.exerciseLogs
-                ? Math.max(0, ...session.exerciseLogs.flatMap(l => l.sets.map(s => s.weight)))
-                : 0;
+      {/* Strength KPIs Modal */}
+      <Modal visible={activeModal === 'records'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <ScrollView style={styles.sheetScroll} contentContainerStyle={[styles.sheetScrollContent, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Strength KPIs</Text>
+            {LIFTS.map(lift => {
+              const best = getBestORM(lift);
+              const history = oneRepMaxes
+                .filter(o => o.lift === lift)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 5);
+              const isImproving = history.length >= 2 && history[0].weight > history[1].weight;
               return (
-                <View key={session.id} style={styles.historyItem}>
-                  <View style={[styles.historyDot, { backgroundColor: session.isTestWeek ? '#e65100' : Colors.primary }]} />
-                  <View style={styles.historyContent}>
-                    <View style={styles.historyTitleRow}>
-                      <Text style={styles.historyTitle}>{getSessionLabel(session.sessionType)}</Text>
-                      {session.isTestWeek && (
-                        <View style={styles.testBadge}>
-                          <Text style={styles.testBadgeText}>1RM</Text>
+                <View key={lift} style={styles.ormCard}>
+                  <View style={styles.ormHeader}>
+                    <View>
+                      <Text style={styles.ormLift}>{getSessionLabel(lift)}</Text>
+                      <Text style={styles.ormSub}>KPI Lift</Text>
+                    </View>
+                    <View style={styles.ormRight}>
+                      <Text style={styles.ormBest}>{best ? `${best.weight} kg` : '—'}</Text>
+                      {isImproving && (
+                        <View style={styles.pbBadge}>
+                          <Ionicons name="trending-up" size={11} color={Colors.primary} />
+                          <Text style={styles.pbText}>PB</Text>
                         </View>
                       )}
                     </View>
-                    <View style={styles.historyMeta}>
-                      <Text style={styles.historyDate}>{formatDate(session.date)}</Text>
-                      {session.timeAvailable && (
-                        <Text style={styles.historyTime}>{session.timeAvailable} min</Text>
-                      )}
-                      {topWeight > 0 && (
-                        <Text style={styles.historyWeight}>{topWeight} kg top</Text>
-                      )}
-                    </View>
                   </View>
+                  {history.length === 0 ? (
+                    <Text style={styles.ormEmpty}>Complete a test week to record your KPI</Text>
+                  ) : (
+                    <View style={styles.ormHistory}>
+                      {history.map((h, i) => {
+                        const prev = history[i + 1];
+                        const diff = prev ? h.weight - prev.weight : null;
+                        return (
+                          <View key={i} style={styles.ormRow}>
+                            <Text style={styles.ormWeight}>{h.weight} kg</Text>
+                            {diff !== null && diff !== 0 && (
+                              <Text style={[styles.ormDiff, { color: diff > 0 ? Colors.primary : '#e53e3e' }]}>
+                                {diff > 0 ? `+${diff}` : diff} kg
+                              </Text>
+                            )}
+                            <Text style={styles.ormDate}>{formatDate(h.date)}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               );
             })}
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Session History Modal */}
+      <Modal visible={activeModal === 'history'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Session History</Text>
+            {completedSessions.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="barbell-outline" size={32} color={Colors.textTertiary} />
+                <Text style={styles.emptyText}>No sessions yet</Text>
+                <Text style={styles.emptySubText}>Start your first workout to see history here</Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
+                {completedSessions.slice(0, 20).map(session => {
+                  const topWeight = session.exerciseLogs
+                    ? Math.max(0, ...session.exerciseLogs.flatMap(l => l.sets.map(s => s.weight)))
+                    : 0;
+                  return (
+                    <View key={session.id} style={styles.histItem}>
+                      <View style={[styles.histDot, { backgroundColor: session.isTestWeek ? '#e65100' : Colors.primary }]} />
+                      <View style={styles.histContent}>
+                        <View style={styles.histTitleRow}>
+                          <Text style={styles.histTitle}>{getSessionLabel(session.sessionType)}</Text>
+                          {session.isTestWeek && <View style={styles.testBadge}><Text style={styles.testBadgeText}>1RM</Text></View>}
+                        </View>
+                        <View style={styles.histMeta}>
+                          <Text style={styles.histDate}>{formatDate(session.date)}</Text>
+                          {session.timeAvailable && <Text style={styles.histMeta2}>{session.timeAvailable} min</Text>}
+                          {topWeight > 0 && <Text style={styles.histWeight}>{topWeight} kg top</Text>}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <Pressable onPress={() => setActiveModal(null)} style={[styles.cancelBtn, { marginTop: 8 }]}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
           </View>
-        )}
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.delay(280).duration(500)} style={styles.section}>
-        <Pressable onPress={handleReset} style={({ pressed }) => [styles.resetButton, pressed && { opacity: 0.8 }]} testID="reset-progress">
-          <Ionicons name="refresh-outline" size={18} color={Colors.error} />
-          <Text style={styles.resetText}>Reset All Progress</Text>
-        </Pressable>
-      </Animated.View>
-
-      {/* Edit Name Modal */}
-      <Modal visible={editNameModal} transparent animationType="fade" onRequestClose={() => setEditNameModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setEditNameModal(false)}>
-          <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Your Name</Text>
-            <TextInput
-              style={styles.nameInput}
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Enter your name"
-              placeholderTextColor={Colors.textTertiary}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={saveName}
-            />
-            <Pressable onPress={saveName} style={styles.saveBtn}>
-              <Text style={styles.saveBtnText}>Save</Text>
-            </Pressable>
-            <Pressable onPress={() => setEditNameModal(false)} style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Equipment Modal */}
-      <Modal visible={showEquipmentModal} transparent animationType="slide" onRequestClose={() => setShowEquipmentModal(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowEquipmentModal(false)}>
-          <Pressable style={[styles.modalContent, { width: '100%', maxWidth: 400, paddingBottom: 24 }]} onPress={e => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Select Equipment</Text>
-            <Text style={styles.modalSub}>Choose what you have available for your workouts</Text>
-            {ALL_TIERS.map((tier) => {
+      <Modal visible={activeModal === 'equipment'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Equipment</Text>
+            <Text style={styles.sheetSub}>Choose what you have available for your workouts</Text>
+            {ALL_TIERS.map(tier => {
               const isActive = tier === equipmentTier;
               return (
-                <Pressable key={tier} onPress={() => handleTierChange(tier)} style={[styles.equipOption, isActive && styles.equipOptionActive]} testID={`tier-${tier}`}>
+                <Pressable key={tier} onPress={() => handleTierChange(tier)} style={[styles.equipRow, isActive && styles.equipRowActive]} testID={`tier-${tier}`}>
                   <Ionicons name={getEquipmentIcon(tier) as any} size={22} color={isActive ? Colors.primary : Colors.textTertiary} />
                   <Text style={[styles.equipLabel, isActive && styles.equipLabelActive]}>{getEquipmentLabel(tier)}</Text>
                   {isActive && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
                 </Pressable>
               );
             })}
-            <Pressable onPress={() => setShowEquipmentModal(false)} style={styles.cancelBtn}>
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
-    </ScrollView>
+
+      {/* Settings Modal */}
+      <Modal visible={activeModal === 'settings'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Settings</Text>
+
+            <Text style={styles.settingItemLabel}>Test Week Frequency</Text>
+            <Text style={styles.settingItemSub}>How often to trigger a 1RM test week</Text>
+            <View style={styles.freqRow}>
+              {([12, 18] as const).map(freq => (
+                <Pressable
+                  key={freq}
+                  onPress={() => { setTestWeekFrequency(freq); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.freqBtn, testWeekFrequency === freq && styles.freqBtnActive]}
+                  testID="test-freq-toggle"
+                >
+                  <Text style={[styles.freqBtnText, testWeekFrequency === freq && styles.freqBtnTextActive]}>
+                    Every {freq} sessions
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.settingDivider} />
+
+            <Pressable onPress={handleReset} style={styles.resetBtn} testID="reset-progress">
+              <Ionicons name="refresh-outline" size={18} color={Colors.error} />
+              <Text style={styles.resetText}>Reset All Progress</Text>
+            </Pressable>
+
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingHorizontal: 20 },
-  heroCard: { backgroundColor: Colors.surface, borderRadius: 18, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: Colors.borderLight },
-  heroLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatarContainer: { position: 'relative' },
-  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  avatarEdit: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 20 },
+  heroCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: Colors.surface, borderRadius: 18, padding: 18,
+    marginTop: 12, marginBottom: 14,
+    borderWidth: 1, borderColor: Colors.borderLight,
+  },
+  avatarWrap: {},
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.primary },
   heroInfo: { flex: 1 },
   heroName: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 6 },
-  heroTags: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  heroTag: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: Colors.surfaceTertiary, borderRadius: 6 },
-  heroTagText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  statsGrid: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: Colors.borderLight, alignItems: 'center' },
-  statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  statLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
-  statDivider: { width: 1, height: 32, backgroundColor: Colors.border },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 12 },
-  milestoneCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 10 },
-  milestoneTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: Colors.surfaceTertiary, borderRadius: 6 },
+  tagText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 18,
+    marginBottom: 16, borderWidth: 1, borderColor: Colors.borderLight,
+  },
+  stat: { flex: 1, alignItems: 'center' },
+  statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primary },
+  statLbl: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
+  statDiv: { width: 1, height: 32, backgroundColor: Colors.border },
+  navGrid: { gap: 10 },
+  navBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.surface, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: Colors.borderLight,
+  },
+  navIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  navLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+
+  // Sheet / Modal base
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 12 },
+  sheetScroll: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheetScrollContent: { paddingHorizontal: 24, paddingTop: 12 },
+  sheetHandle: { width: 40, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
+  sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 6 },
+  sheetSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 16 },
+  subSectionTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 10, marginTop: 16 },
+
+  // Edit form
+  inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 6, marginTop: 12 },
+  input: {
+    height: 48, borderRadius: 12, backgroundColor: Colors.surfaceTertiary,
+    paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_500Medium', color: Colors.text,
+    borderWidth: 1, borderColor: Colors.borderLight,
+  },
+  optionGroup: { flexDirection: 'row', gap: 8 },
+  optionChip: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderLight, alignItems: 'center', backgroundColor: Colors.surfaceTertiary },
+  optionChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  optionChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  optionChipTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+  goalGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderLight, backgroundColor: Colors.surfaceTertiary },
+  goalChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  goalChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  goalChipTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+
+  // Progress
+  milestoneCard: { backgroundColor: Colors.primarySurface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.primaryMuted, marginBottom: 4 },
+  milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   milestoneLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, flex: 1 },
-  milestoneTrack: { height: 6, backgroundColor: Colors.surfaceTertiary, borderRadius: 3, overflow: 'hidden' },
+  milestoneTrack: { height: 6, backgroundColor: Colors.primaryMuted, borderRadius: 3, overflow: 'hidden' },
   milestoneFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fef9c3', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  badgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: '#92400e' },
-  ormCards: { gap: 10 },
-  ormCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badge: { alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, backgroundColor: '#fef9c3', gap: 2 },
+  badgeLocked: { backgroundColor: Colors.surfaceTertiary },
+  badgeText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: '#92400e' },
+  badgeTextLocked: { color: Colors.textTertiary },
+
+  // KPI Records
+  ormCard: { backgroundColor: Colors.surfaceTertiary, borderRadius: 14, padding: 14, marginBottom: 10 },
   ormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   ormLift: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   ormSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   ormRight: { alignItems: 'flex-end', gap: 4 },
   ormBest: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  improvingBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  improvingText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
+  pbBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  pbText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
   ormHistory: { gap: 5, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 8 },
-  ormHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ormHistoryWeight: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, flex: 1 },
+  ormRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ormWeight: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, flex: 1 },
   ormDiff: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  ormHistoryDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
+  ormDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   ormEmpty: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
-  settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  settingLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  settingValue: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 2 },
-  settingSubTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 8, marginTop: 4 },
-  settingSection: { backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
-  togglePill: { backgroundColor: Colors.surfaceTertiary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  toggleText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4, borderRadius: 10, gap: 8, marginBottom: 2 },
-  optionRowActive: { backgroundColor: Colors.primarySurface },
-  optionLeft: { flex: 1 },
-  optionLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  optionLabelActive: { fontFamily: 'Inter_600SemiBold', color: Colors.primaryDark },
-  optionDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginTop: 1 },
-  goalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  goalOption: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderLight, backgroundColor: Colors.surfaceTertiary },
-  goalOptionActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
-  goalLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  goalLabelActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
-  emptyState: { alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 32, borderWidth: 1, borderColor: Colors.borderLight },
-  emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginTop: 12 },
-  emptySubtext: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  historyList: { gap: 8 },
-  historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: Colors.borderLight, gap: 12 },
-  historyDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  historyContent: { flex: 1 },
-  historyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-  historyTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+
+  // History
+  emptyState: { alignItems: 'center', paddingVertical: 32 },
+  emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginTop: 10 },
+  emptySubText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
+  histItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  histDot: { width: 8, height: 8, borderRadius: 4 },
+  histContent: { flex: 1 },
+  histTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  histTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   testBadge: { backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
   testBadgeText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: '#e65100' },
-  historyMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  historyDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-  historyTime: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
-  historyWeight: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
-  resetButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.errorLight },
-  resetText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.error },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 24, alignItems: 'center', width: '100%', maxWidth: 340 },
-  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 6 },
-  modalSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 16, textAlign: 'center' },
-  nameInput: { width: '100%', height: 48, borderRadius: 12, backgroundColor: Colors.surfaceTertiary, paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_500Medium', color: Colors.text, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 16 },
-  saveBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 },
-  saveBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
-  cancelBtn: { paddingVertical: 10 },
-  cancelBtnText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  equipOption: { flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
-  equipOptionActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  histMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  histDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
+  histMeta2: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
+  histWeight: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
+
+  // Equipment
+  equipRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
+  equipRowActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
   equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: Colors.text },
   equipLabelActive: { fontFamily: 'Inter_600SemiBold', color: Colors.primaryDark },
+
+  // Settings
+  settingItemLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 2 },
+  settingItemSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 12 },
+  settingDivider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 16 },
+  freqRow: { flexDirection: 'row', gap: 10 },
+  freqBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, alignItems: 'center', backgroundColor: Colors.surfaceTertiary },
+  freqBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  freqBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  freqBtnTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.errorLight },
+  resetText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.error },
+
+  // Shared
+  saveBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 15, borderRadius: 13, alignItems: 'center', marginTop: 20 },
+  saveBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  cancelBtn: { paddingVertical: 12, alignItems: 'center' },
+  cancelBtnText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
 });
