@@ -373,7 +373,8 @@ export function generate1RMWorkout(
 ): Exercise[] {
   if (sessionType === 'conditioning') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
-  return protocol.map((t) => templateToExercise(t));
+  const exercises = protocol.map((t) => templateToExercise(t));
+  return equipmentTier === 'kettlebells' ? applyKettlebellNaming(exercises) : exercises;
 }
 
 export function getRestPeriod(category: ExerciseCategory): string {
