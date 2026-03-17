@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,19 +111,16 @@ export default function HomeScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Animated.View entering={FadeInUp.duration(500)} style={styles.greeting}>
-        <View style={styles.greetingLeft}>
-          <Text style={styles.greetingText}>
-            {firstName ? `Hey, ${firstName}` : 'Ready to train'}
-          </Text>
-          <Text style={styles.tierText}>{getEquipmentLabel(equipmentTier)}</Text>
-        </View>
-        <View style={styles.avatarCircle}>
-          {userProfile.name
-            ? <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
-            : <Ionicons name="person-outline" size={20} color={Colors.primary} />
-          }
-        </View>
+      <Animated.View entering={FadeInUp.duration(500)} style={styles.logoHeader}>
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.greetingText}>
+          {firstName ? `Hey, ${firstName}` : 'Ready to train'}
+        </Text>
+        <Text style={styles.tierText}>{getEquipmentLabel(equipmentTier)}</Text>
       </Animated.View>
 
       {testWeek && (
@@ -221,12 +219,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 20 },
-  greeting: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  greetingLeft: {},
-  greetingText: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.text },
-  tierText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
-  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.primary },
+  logoHeader: { alignItems: 'center', marginBottom: 24 },
+  logoImage: { width: 180, height: 180, marginBottom: 8 },
+  greetingText: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center' },
+  tierText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2, textAlign: 'center' },
   testWeekBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#ffe0b2' },
   testWeekIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   testWeekContent: { flex: 1 },
