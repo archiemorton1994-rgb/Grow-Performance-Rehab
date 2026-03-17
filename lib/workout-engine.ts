@@ -1,4 +1,4 @@
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable } from './store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, UserProfile } from './store';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -66,6 +66,61 @@ function isDumbbellTier(tier: EquipmentTier): boolean {
   return tier === 'dumbbells' || tier === 'kettlebells';
 }
 
+/**
+ * Personalizes a suggestedLoad string based on the user's profile.
+ *
+ * Reference athlete in the exercise database: intermediate male, ~80 kg, muscle goal.
+ * Scale = (userBW / 80) × experienceFactor × sexFactor × goalFactor
+ *
+ * Exercises with non-numeric loads (Bodyweight, Band, Machine, Cardio) are returned unchanged.
+ * Numeric values are rounded to the nearest 2.5 kg with a minimum of 2.5 kg.
+ */
+function personalizeLoad(
+  rawLoad: string,
+  profile: UserProfile,
+  isUpperBodySession: boolean
+): string {
+  if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
+
+  const lower = rawLoad.toLowerCase();
+  if (
+    lower.includes('bodyweight') ||
+    lower.includes('band') ||
+    lower.includes('foam') ||
+    lower.includes('machine') ||
+    lower.includes('rower') ||
+    lower.includes('bike') ||
+    lower.includes('skip') ||
+    lower.includes('jog') ||
+    lower.includes('shuttle') ||
+    lower.includes('low intensity') ||
+    lower.includes('moderate pace') ||
+    lower.includes('circuit') ||
+    lower.includes('effort') ||
+    !(/\d/.test(rawLoad))
+  ) {
+    return rawLoad;
+  }
+
+  const REF_BW = 80;
+  const bwRatio = profile.bodyweightKg / REF_BW;
+
+  const expFactor: Record<string, number> = { beginner: 0.45, intermediate: 0.70, advanced: 1.0 };
+  const goalFactor: Record<string, number> = { strength: 1.08, muscle: 1.0, fat_loss: 0.72, fitness: 0.85, rehab: 0.50 };
+  const sexFactor = profile.sex === 'female' ? (isUpperBodySession ? 0.55 : 0.72) :
+                    profile.sex === 'other' ? 0.85 : 1.0;
+
+  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.70) * (goalFactor[profile.goal] ?? 1.0) * sexFactor;
+
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+
+  return rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
+    const num = parseFloat(match);
+    if (num <= 0) return match;
+    return String(roundTo2_5(num * scale));
+  });
+}
+
 function shouldSwapForComfort(template: ExerciseTemplate, painRegion?: PainRegion): boolean {
   if (!painRegion || !template.comfortVariant) return false;
   return template.comfortVariant.triggerRegions.includes(painRegion);
@@ -119,13 +174,23 @@ function applyComfortOrBadge(
  *   45 min → all prep + mechanical + neuro + KPI + 2 acc + prehab + finisher
  *   60 min → all 8 phases — full session
  */
+function applyPersonalization(ex: Exercise, profile: UserProfile | undefined, isUpperBody: boolean): Exercise {
+  if (!profile) return ex;
+  return {
+    ...ex,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody) : ex.swapLoad,
+  };
+}
+
 export function generateWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
-  readiness: ReadinessCheck
+  readiness: ReadinessCheck,
+  profile?: UserProfile
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness);
+    return generateConditioningWorkout(equipmentTier, readiness, profile);
   }
 
   const mainType = sessionType as MainSessionType;
@@ -220,17 +285,19 @@ export function generateWorkout(
     exercises.push(templateToExercise(cooldown[0]));
   }
 
-  return exercises;
+  const isUpperBody = mainType === 'bench';
+  return exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody));
 }
 
 function generateConditioningWorkout(
   equipmentTier: EquipmentTier,
-  readiness: ReadinessCheck
+  readiness: ReadinessCheck,
+  profile?: UserProfile
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  return templates.map((t) => templateToExercise(t));
+  return templates.map((t) => applyPersonalization(templateToExercise(t), profile, false));
 }
 
 export function generate1RMWorkout(

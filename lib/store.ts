@@ -78,8 +78,11 @@ export interface CompletedSession {
   isTestWeek?: boolean;
 }
 
+export type Sex = 'male' | 'female' | 'other';
+
 export interface UserProfile {
   name: string;
+  sex: Sex;
   experienceLevel: ExperienceLevel;
   goal: FitnessGoal;
   bodyweightKg: number;
@@ -123,6 +126,7 @@ export const useAppStore = create<AppState>()(
       testWeekFrequency: 12,
       userProfile: {
         name: '',
+        sex: 'male' as Sex,
         experienceLevel: 'beginner',
         goal: 'fitness',
         bodyweightKg: 75,

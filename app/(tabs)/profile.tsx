@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, useAppStore } from '@/lib/store';
+import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, Sex, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEquipmentIcon, getSessionLabel } from '@/lib/workout-engine';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
@@ -66,12 +66,14 @@ export default function ProfileScreen() {
   // Edit details local state
   const [editName, setEditName] = useState('');
   const [editWeight, setEditWeight] = useState('');
+  const [editSex, setEditSex] = useState<Sex>('male');
   const [editExp, setEditExp] = useState<ExperienceLevel>('beginner');
   const [editGoal, setEditGoal] = useState<FitnessGoal>('fitness');
 
   const openEdit = () => {
     setEditName(userProfile.name);
     setEditWeight(userProfile.bodyweightKg > 0 ? String(userProfile.bodyweightKg) : '');
+    setEditSex(userProfile.sex ?? 'male');
     setEditExp(userProfile.experienceLevel);
     setEditGoal(userProfile.goal);
     setActiveModal('edit');
@@ -81,6 +83,7 @@ export default function ProfileScreen() {
     setUserProfile({
       name: editName.trim(),
       bodyweightKg: parseFloat(editWeight) || 0,
+      sex: editSex,
       experienceLevel: editExp,
       goal: editGoal,
     });
@@ -165,6 +168,11 @@ export default function ProfileScreen() {
                 <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
               </View>
             )}
+            {userProfile.sex && userProfile.sex !== 'male' && (
+              <View style={[styles.tag, { backgroundColor: '#f3e8ff' }]}>
+                <Text style={[styles.tagText, { color: '#7e22ce' }]}>{userProfile.sex === 'female' ? 'Female' : 'Other'}</Text>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -233,6 +241,22 @@ export default function ProfileScreen() {
               keyboardType="decimal-pad"
               returnKeyType="done"
             />
+
+            <Text style={styles.inputLabel}>Biological Sex</Text>
+            <Text style={styles.inputHint}>Used to calibrate starting weights for your sessions</Text>
+            <View style={styles.optionGroup}>
+              {([{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }] as { value: Sex; label: string }[]).map(opt => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setEditSex(opt.value)}
+                  style={[styles.optionChip, editSex === opt.value && styles.optionChipActive]}
+                >
+                  <Text style={[styles.optionChipText, editSex === opt.value && styles.optionChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
             <Text style={styles.inputLabel}>Experience Level</Text>
             <View style={styles.optionGroup}>
@@ -530,7 +554,8 @@ const styles = StyleSheet.create({
   subSectionTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 10, marginTop: 16 },
 
   // Edit form
-  inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 6, marginTop: 12 },
+  inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 4, marginTop: 12 },
+  inputHint: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginBottom: 6 },
   input: {
     height: 48, borderRadius: 12, backgroundColor: Colors.surfaceTertiary,
     paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_500Medium', color: Colors.text,

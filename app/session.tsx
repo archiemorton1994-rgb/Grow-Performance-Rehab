@@ -258,15 +258,15 @@ export default function SessionScreen() {
     ? (params.timeAvailable as TimeAvailable) : '60';
   const isTestWeek = params.isTestWeek === 'true';
 
-  const { equipmentTier, completeSession, addOneRepMax } = useAppStore();
+  const { equipmentTier, completeSession, addOneRepMax, userProfile } = useAppStore();
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 
   const exercises = useMemo(() => {
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier);
     }
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable });
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek]);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [showCongratsModal, setShowCongratsModal] = useState(false);
