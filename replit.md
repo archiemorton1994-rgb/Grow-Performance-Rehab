@@ -1,7 +1,7 @@
 # Grow Performance & Rehab
 
 ## Overview
-A React Native mobile fitness app that removes decision fatigue by telling users exactly what to do each workout based on their equipment, pain levels, energy, and available time. Built with Expo, Expo Router, and Zustand. Programming principles inspired by Pain-Free Performance (Rusin), The World's Fittest Book (Edgley), and Rebuilding Milo (Horschig).
+A React Native mobile fitness app that removes decision fatigue by telling users exactly what to do each workout based on their equipment, pain levels, energy, and available time. Built with Expo, Expo Router, and Zustand.
 
 ## Architecture
 - **Frontend**: Expo (React Native) with Expo Router file-based routing
@@ -9,68 +9,89 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - **State**: Zustand with AsyncStorage persistence (no database needed)
 
 ## Key Features
-- **Equipment Tiers**: Bodyweight/Bands, Dumbbells/Kettlebells, Full Gym/Barbell (exercises are strictly tier-appropriate)
-- **3-Day Rotation**: Squat (Lower/Squat), Bench (Upper/Horizontal Push), Deadlift (Full Body/Hinge)
-- **Readiness Check**: Multi-step pre-workout assessment (aches, granular pain region, energy, time available)
-- **11 Granular Pain Regions**: Front/Rear Shoulder, Elbow/Wrist, Neck, Lower/Upper Back, Core/Ribs, Knee, Hip/Groin, Ankle/Achilles, Calf/Shin
-- **Session Type Selection**: Home screen lets users choose Lower Body / Upper Body / Full Body session (suggested badge highlights the rotation-recommended next session)
-- **8-Phase Session Structure** (Rusin / Edgley / Horschig principles):
-  1. **Prep** — active movement stretches relevant to session type (no breathing drills); hip flexor/90-90 for Lower, doorway chest/thoracic ext for Upper, cat-cow/adductor rockback for Full
-  2. **Mechanical Priming** — band activation, constant tension, 3×15-25 reps
-  3. **Neurological Priming** — jumps, explosive push-ups, KB swings, 3×1-5 reps
-  4. **KPI Lift** — main strength exercise with ramp-up + working sets
-  5. **Pump Accessories** — hypertrophy support, 2×15-25 reps (capped at 2 sets)
-  6. **Prehab** — joint health, 1 set
-  7. **Conditioning Finisher** — sled/bike/circuits, energy-scaled (2-10 min)
-  8. **Cool Down** — diaphragmatic breathing only (Full Body Stretch Sequence removed)
-- **Time-Based Session Scaling** (calibrated to actual time budgets):
-  - 30 min → 3 exercises: 1 mech + KPI + 1 accessory (~20-25 min of work)
-  - 45 min → 8 exercises: 1 prep + 1 mech + neuro + KPI + 2 acc + 1 prehab + finisher (~38-42 min)
-  - 60 min → 10 exercises: 1 prep + 2 mech + neuro + KPI + 2 acc + 1 prehab + finisher + cooldown (~52-58 min)
-- **Dynamic Workout Engine**: Multi-layer adaptation (equipment, pain region comfort swaps, energy volume, time scaling)
-- **Weight/Rep Logging**: Per-set weight (kg) and rep tracking during sessions
-- **1RM Test Weeks**: Every 4 or 6 cycles, a test week triggers with ramping protocols; results tracked in profile
-- **YouTube Video Links**: Each exercise card has a video button that opens a YouTube search for that exercise's proper form tutorial
-- **All loads in kg**
-- **App Icon**: Custom Grow Performance & Rehab branded icon (emerald green G-arrow-leaf motif)
+
+### Equipment (5 Tiers)
+- `bodyweight` — no equipment  
+- `bands` — resistance bands (maps to bodyweight exercise pool internally)  
+- `dumbbells` — dumbbells  
+- `kettlebells` — kettlebells (maps to dumbbells exercise pool internally)  
+- `fullgym` — full barbell/machine gym  
+- Internal tier mapping: `toInternalTier()` in `lib/exercise-db.ts` collapses 5→3 for exercise lookup
+
+### Session Types (4 options)
+- **Lower Body** (`squat`) — Quad/Glute/Hamstring focus, squat pattern KPI
+- **Upper Body** (`bench`) — Chest/Shoulder/Tricep focus, push pattern KPI
+- **Full Body** (`deadlift`) — Posterior chain focus, hinge pattern KPI
+- **Conditioning** (`conditioning`) — HIIT circuits, cardio, fat burn / cardiovascular focus
+
+### 8-Phase Session Structure
+1. **Cardio Warm-Up** (prep) — 1-2 min, mandatory on ALL session lengths including 30-min (safety)
+2. **Active Stretches** (prep) — 3 stretches for 30-min sessions, 1 for 45/60-min
+3. **Mechanical Priming** (mechanical) — band activation, constant tension
+4. **Neurological Priming** (neuro) — explosive jumps/swings, 45 and 60-min only
+5. **KPI Lift** (main) — main strength exercise with ramped warm-up sets + working sets
+6. **Pump Accessories** (accessory) — hypertrophy support
+7. **Prehab** (prehab) — joint health, 45 and 60-min only
+8. **Conditioning Finisher + Cooldown** (finisher/cooldown) — 60-min only
+
+### Time Scaling
+- **30 min** → Cardio warmup + 3 prep stretches + 1 mechanical + KPI + 1 accessory (SAFETY: always warms up)
+- **45 min** → All prep + mechanical + neuro + KPI + 2 accessories + prehab + finisher
+- **60 min** → Full 8 phases
+
+### Session UX
+- **Exercise Cards**: name, category pill, "N sets × reps", suggested load
+- **Buttons below name**: "Watch form" (YouTube search) + "Swap exercise" (swap modal)
+- **Rest Period**: displayed per category (e.g. "Rest 2-3 min between sets — full recovery is key")
+- **Per-set weight guides**: shown for KPI lift and accessories (e.g. "Set 1: Easy warm-up (~50% of working weight)")
+- **Dumbbell note**: "(each hand)" shown on dumbbell exercises to clarify load is per dumbbell
+- **Swap modal**: shows original → alternative exercise, user can confirm or keep original
+- **Congratulations modal**: shown on session complete with random motivational message + session stats
+- **KeyboardAvoidingView**: properly handles keyboard covering set inputs
+- **Progress bar**: tracks completed sets / total sets
+
+### Pain Adaptation (11 Regions)
+Front/Rear Shoulder, Elbow/Wrist, Neck, Lower/Upper Back, Core/Ribs, Knee, Hip/Groin, Ankle/Achilles, Calf/Shin
+- Exercises with a `comfortVariant` that matches the pain region are swapped automatically
+- Swap button allows manual exercise swapping too
+
+### Profile Screen
+- **Hero card**: editable name with avatar initial, experience level, goal tags
+- **Stats**: total sessions, day streak, this week count
+- **Milestone progress**: badge system for 1, 5, 10, 25, 50, 100, 150, 200 sessions
+- **Strength KPIs**: best 1RM per lift with improvement trend ("PB" badge)
+- **Settings**: equipment (modal with all 5 tiers), experience level, fitness goal, test week frequency
+- **Recent sessions**: last 8 sessions with type, date, duration, top weight
+
+### 1RM Test Weeks
+- Triggered every 12 or 18 sessions (configurable)
+- Ramping protocol per session type and equipment tier
+- Results tracked with history and trend display on profile
 
 ## File Structure
 ```
 app/
   _layout.tsx           - Root layout with providers and onboarding redirect
-  onboarding.tsx        - Equipment tier selection
-  readiness.tsx         - Pre-workout readiness check (aches, pain region, energy, time)
-  session.tsx           - Active workout with per-set weight/rep logging, video modal
+  session.tsx           - Session screen (8-phase workout display, set logging)
+  readiness.tsx         - Pre-workout readiness check
   (tabs)/
-    _layout.tsx         - Tab navigation (NativeTabs + classic fallback)
-    index.tsx           - Home screen (stats, test week banner, start session hero)
-    workouts.tsx        - Program timeline with rotation + test week markers
-    profile.tsx         - Settings, equipment, test freq, strength stats, history
-
+    index.tsx           - Home screen (4 session type cards)
+    workouts.tsx        - Training plan/schedule view
+    profile.tsx         - Profile, stats, settings
 lib/
-  store.ts              - Zustand store (PainRegion, TimeAvailable, SetLog, ExerciseLog, OneRepMax types)
-  exercise-db.ts        - Complete exercise database per equipment tier (warmups, mains, accessories, finishers, 1RM protocols)
-  workout-engine.ts     - Workout generation with multi-layer adaptation
-  query-client.ts       - React Query client configuration
-
+  store.ts              - Zustand store (state, all actions)
+  exercise-db.ts        - Full exercise database (all 8 phases, 3 session types, 3 internal tiers + conditioning)
+  workout-engine.ts     - Session generation logic, helper functions
 constants/
-  colors.ts             - Design system colors (emerald green primary)
-
-server/
-  index.ts              - Express server
-  routes.ts             - API routes
+  colors.ts             - Emerald green (#2f6b46) design system
 ```
 
-## Design System
-- Primary: #2f6b46 (emerald green)
-- Font: Inter (400, 500, 600, 700 weights)
-- Clean, minimalist iOS-inspired design
-- Adaptation badges: comfort (purple), volume (blue)
-- Test week accent: #e65100 (orange)
+## Design
+- Primary color: Emerald green `#2f6b46`
+- Font: Inter (400, 500, 600, 700)
+- All loads displayed in kg
+- Clean card-based UI, no unnecessary text, icon-first design
 
-## Dependencies
-- zustand (state management with persistence)
-- @react-native-async-storage/async-storage
-- expo-haptics, expo-router, @expo/vector-icons
-- react-native-reanimated (animations)
-- react-native-keyboard-controller
+## Workflows
+- `Start Backend` — Express on port 5000 (API + landing page)
+- `Start Frontend` — Expo on port 8081 (mobile web preview)

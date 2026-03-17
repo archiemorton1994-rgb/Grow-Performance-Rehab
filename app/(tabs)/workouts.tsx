@@ -22,12 +22,14 @@ const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
   squat: 'fitness',
   bench: 'body',
   deadlift: 'barbell',
+  conditioning: 'flame-outline',
 };
 
 const SESSION_COLORS: Record<SessionType, { bg: string; accent: string }> = {
   squat: { bg: Colors.primaryMuted, accent: Colors.primary },
   bench: { bg: '#e8f0fe', accent: '#4285f4' },
   deadlift: { bg: '#fce8e6', accent: '#ea4335' },
+  conditioning: { bg: '#fbe9e7', accent: '#e65100' },
 };
 
 export default function WorkoutsScreen() {

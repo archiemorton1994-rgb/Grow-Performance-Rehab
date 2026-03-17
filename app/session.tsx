@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,13 @@ import {
   TextInput,
   Modal,
   Linking,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
 import { EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, useAppStore } from '@/lib/store';
 import {
@@ -25,78 +26,106 @@ import {
   getSessionLabel,
   getSessionSubtitle,
   getPainRegionLabel,
+  getRestPeriod,
+  getWeightGuide,
 } from '@/lib/workout-engine';
+
+const CONGRATS_MESSAGES = [
+  "Absolutely smashed it! Every rep, every set — you showed up and delivered.",
+  "That's what dedication looks like. Be proud of what you just achieved!",
+  "Another session in the books. Your future self is thanking you right now.",
+  "You did the work when it would have been easier not to. That's the difference maker.",
+  "Champion effort today. Progress doesn't happen by accident — it's built session by session.",
+  "Brilliant work! Consistency like this is what transforms bodies and builds strength.",
+  "One step closer to your goals. Every session counts — and you just added another.",
+];
 
 interface ExerciseSetData {
   sets: SetLog[];
+  swapped: boolean;
 }
 
-function SetRow({ setNum, data, onChange }: {
+function SetRow({ setNum, data, onChange, weightGuide }: {
   setNum: number;
   data: SetLog;
   onChange: (updated: SetLog) => void;
+  weightGuide?: string;
 }) {
   return (
-    <View style={styles.setRow}>
-      <Text style={styles.setLabel}>Set {setNum}</Text>
-      <View style={styles.setInputs}>
-        <View style={styles.inputGroup}>
-          <TextInput
-            style={styles.setInput}
-            placeholder="0"
-            placeholderTextColor={Colors.textTertiary}
-            keyboardType="numeric"
-            value={data.weight > 0 ? String(data.weight) : ''}
-            onChangeText={(t) => {
-              const w = parseFloat(t) || 0;
-              onChange({ ...data, weight: w });
-            }}
-            testID={`set-${setNum}-weight`}
-          />
-          <Text style={styles.inputUnit}>kg</Text>
+    <View>
+      {weightGuide && (
+        <View style={styles.weightGuideRow}>
+          <Ionicons name="information-circle-outline" size={12} color={Colors.primary} />
+          <Text style={styles.weightGuideText}>{weightGuide}</Text>
         </View>
-        <View style={styles.inputGroup}>
-          <TextInput
-            style={styles.setInput}
-            placeholder="0"
-            placeholderTextColor={Colors.textTertiary}
-            keyboardType="numeric"
-            value={data.reps > 0 ? String(data.reps) : ''}
-            onChangeText={(t) => {
-              const r = parseInt(t) || 0;
-              onChange({ ...data, reps: r });
-            }}
-            testID={`set-${setNum}-reps`}
-          />
-          <Text style={styles.inputUnit}>reps</Text>
+      )}
+      <View style={styles.setRow}>
+        <Text style={styles.setLabel}>Set {setNum}</Text>
+        <View style={styles.setInputs}>
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.setInput}
+              placeholder="0"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              value={data.weight > 0 ? String(data.weight) : ''}
+              onChangeText={(t) => {
+                const w = parseFloat(t) || 0;
+                onChange({ ...data, weight: w });
+              }}
+              testID={`set-${setNum}-weight`}
+            />
+            <Text style={styles.inputUnit}>kg</Text>
+          </View>
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.setInput}
+              placeholder="0"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              value={data.reps > 0 ? String(data.reps) : ''}
+              onChangeText={(t) => {
+                const r = parseInt(t) || 0;
+                onChange({ ...data, reps: r });
+              }}
+              testID={`set-${setNum}-reps`}
+            />
+            <Text style={styles.inputUnit}>reps</Text>
+          </View>
         </View>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onChange({ ...data, completed: !data.completed });
+          }}
+          style={[styles.setCheck, data.completed && styles.setCheckDone]}
+          testID={`set-${setNum}-check`}
+        >
+          {data.completed && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+        </Pressable>
       </View>
-      <Pressable
-        onPress={() => {
-          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onChange({ ...data, completed: !data.completed });
-        }}
-        style={[styles.setCheck, data.completed && styles.setCheckDone]}
-        testID={`set-${setNum}-check`}
-      >
-        {data.completed && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
-      </Pressable>
     </View>
   );
 }
 
-function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress }: {
+function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onSwapPress, isDumbbellSession }: {
   exercise: Exercise;
   index: number;
   setData: ExerciseSetData;
   onSetChange: (setIndex: number, updated: SetLog) => void;
   onVideoPress: () => void;
+  onSwapPress: () => void;
+  isDumbbellSession: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
+  const weightGuides = getWeightGuide(exercise.category, exercise.sets);
+  const restPeriod = getRestPeriod(exercise.category);
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Prep' },
+    prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Warm-Up' },
     mechanical: { bg: '#e0f2f1', text: '#00695c', label: 'Activation' },
     neuro:      { bg: '#f3e5f5', text: '#7b1fa2', label: 'Power Primer' },
     main:       { bg: Colors.primaryMuted, text: Colors.primaryDark, label: 'KPI Lift' },
@@ -107,49 +136,65 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress }: {
   };
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
+  const showDumbbellNote = isDumbbellSession &&
+    (exercise.name.toLowerCase().includes('dumbbell') || exercise.name.toLowerCase().includes(' db ') || exercise.name.startsWith('DB ')) &&
+    exercise.suggestedLoad.includes('kg');
+
+  const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
+  const repsLabel = exercise.reps;
 
   return (
-    <Animated.View entering={FadeInDown.delay(80 + index * 40).duration(400)}>
+    <Animated.View entering={FadeInDown.delay(60 + index * 35).duration(350)}>
       <View style={[styles.exerciseCard, allDone && styles.exerciseCardDone]}>
-        <Pressable
-          onPress={() => setExpanded(!expanded)}
-          style={styles.exerciseHeader}
-        >
-          <View style={styles.exerciseLeft}>
-            <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
-              {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
-            </View>
-            <View style={styles.exerciseInfo}>
-              <View style={styles.exerciseNameRow}>
-                <Text style={[styles.exerciseName, allDone && styles.exerciseNameDone]} numberOfLines={1}>
-                  {exercise.name}
-                </Text>
-                {exercise.badge && (
-                  <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
-                    <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
-                      {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.exerciseMeta}>
-                <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
-                  <Text style={[styles.categoryText, { color: cat.text }]}>
-                    {cat.label}
+        <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
+          <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
+            {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+          </View>
+          <View style={styles.exerciseInfo}>
+            <View style={styles.exerciseNameRow}>
+              <Text style={[styles.exerciseName, allDone && styles.exerciseNameDone]} numberOfLines={2}>
+                {exercise.name}
+              </Text>
+              {exercise.badge && (
+                <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
+                  <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
+                    {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
                   </Text>
                 </View>
-                <Text style={styles.metaText}>{exercise.sets}x{exercise.reps}</Text>
-                <Text style={styles.metaText}>{exercise.suggestedLoad}</Text>
-              </View>
+              )}
             </View>
+            <View style={styles.exerciseMeta}>
+              <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+              </View>
+              <Text style={styles.metaText}>{setsLabel} × {repsLabel}</Text>
+            </View>
+            <Text style={styles.loadText}>{exercise.suggestedLoad}</Text>
+            {showDumbbellNote && (
+              <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
+            )}
           </View>
-          <View style={styles.headerActions}>
-            <Pressable onPress={onVideoPress} hitSlop={8} style={styles.videoBtn} testID={`video-${index}`}>
-              <Ionicons name="videocam-outline" size={18} color={Colors.textSecondary} />
-            </Pressable>
-            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} />
-          </View>
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} style={styles.chevron} />
         </Pressable>
+
+        <View style={styles.actionRow}>
+          <Pressable onPress={onVideoPress} style={styles.actionBtn} testID={`video-${index}`}>
+            <Ionicons name="play-circle-outline" size={15} color={Colors.textSecondary} />
+            <Text style={styles.actionBtnText}>Watch form</Text>
+          </Pressable>
+          {exercise.hasSwap && !setData.swapped && (
+            <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
+              <Ionicons name="swap-horizontal-outline" size={15} color={Colors.textSecondary} />
+              <Text style={styles.actionBtnText}>Swap exercise</Text>
+            </Pressable>
+          )}
+          {setData.swapped && (
+            <View style={[styles.actionBtn, { backgroundColor: '#fff3e0' }]}>
+              <Ionicons name="checkmark-circle-outline" size={15} color="#e65100" />
+              <Text style={[styles.actionBtnText, { color: '#e65100' }]}>Swapped</Text>
+            </View>
+          )}
+        </View>
 
         {expanded && (
           <View style={styles.setsContainer}>
@@ -157,16 +202,29 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress }: {
               <Ionicons name="bulb-outline" size={14} color={Colors.primary} />
               <Text style={styles.cueText}>{exercise.cue}</Text>
             </View>
-            <View style={styles.setHeader}>
-              <Text style={styles.setHeaderLabel}>Set</Text>
-              <View style={styles.setHeaderInputs}>
-                <Text style={styles.setHeaderLabel}>Weight</Text>
-                <Text style={styles.setHeaderLabel}>Reps</Text>
-              </View>
-              <Text style={styles.setHeaderLabel}>Done</Text>
+
+            <View style={styles.restContainer}>
+              <Ionicons name="timer-outline" size={12} color={Colors.textTertiary} />
+              <Text style={styles.restText}>{restPeriod}</Text>
             </View>
+
+            <View style={styles.setHeaderRow}>
+              <Text style={styles.setHeaderItem}>Set</Text>
+              <View style={styles.setHeaderInputs}>
+                <Text style={styles.setHeaderItem}>Weight (kg)</Text>
+                <Text style={styles.setHeaderItem}>Reps</Text>
+              </View>
+              <Text style={styles.setHeaderItem}>Done</Text>
+            </View>
+
             {setData.sets.map((s, si) => (
-              <SetRow key={si} setNum={si + 1} data={s} onChange={(u) => onSetChange(si, u)} />
+              <SetRow
+                key={si}
+                setNum={si + 1}
+                data={s}
+                onChange={(u) => onSetChange(si, u)}
+                weightGuide={weightGuides[si]}
+              />
             ))}
           </View>
         )}
@@ -186,7 +244,7 @@ export default function SessionScreen() {
     isTestWeek: string;
   }>();
 
-  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
+  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning'];
   const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
   const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
 
@@ -201,6 +259,7 @@ export default function SessionScreen() {
   const isTestWeek = params.isTestWeek === 'true';
 
   const { equipmentTier, completeSession, addOneRepMax } = useAppStore();
+  const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 
   const exercises = useMemo(() => {
     if (isTestWeek) {
@@ -210,6 +269,10 @@ export default function SessionScreen() {
   }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
+  const [showCongratsModal, setShowCongratsModal] = useState(false);
+  const [congratsMessage] = useState(() =>
+    CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
+  );
 
   React.useEffect(() => {
     setExerciseData(
@@ -220,11 +283,13 @@ export default function SessionScreen() {
           reps: 0,
           completed: false,
         })),
+        swapped: false,
       }))
     );
   }, [exercises]);
 
   const [videoModalExercise, setVideoModalExercise] = useState<string | null>(null);
+  const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const handleSetChange = useCallback((exerciseIndex: number, setIndex: number, updated: SetLog) => {
@@ -237,10 +302,33 @@ export default function SessionScreen() {
     });
   }, []);
 
+  const handleSwapConfirm = useCallback((index: number) => {
+    setExerciseData(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], swapped: true };
+      return next;
+    });
+    setSwapModal(null);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
+    if (data.swapped && exercise.swapName) {
+      return {
+        ...exercise,
+        name: exercise.swapName,
+        cue: exercise.swapCue ?? exercise.cue,
+        suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
+        hasSwap: false,
+      };
+    }
+    return exercise;
+  };
+
   if (exerciseData.length === 0) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + webTopInset, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontFamily: 'Inter_500Medium', color: Colors.textSecondary }}>Loading...</Text>
+        <Text style={{ fontFamily: 'Inter_500Medium', color: Colors.textSecondary }}>Loading session...</Text>
       </View>
     );
   }
@@ -287,8 +375,8 @@ export default function SessionScreen() {
       exerciseLogs,
       isTestWeek,
     });
-    router.dismissAll();
-    router.replace('/(tabs)');
+
+    setShowCongratsModal(true);
   };
 
   const handleExit = () => {
@@ -303,8 +391,14 @@ export default function SessionScreen() {
     }
   };
 
+  const keyboardBehavior = Platform.OS === 'ios' ? 'padding' : 'height';
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top + webTopInset }]}
+      behavior={keyboardBehavior}
+      keyboardVerticalOffset={insets.top + webTopInset}
+    >
       <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
         <Pressable onPress={handleExit} style={styles.closeButton} testID="session-exit">
           <Ionicons name="close" size={24} color={Colors.text} />
@@ -314,7 +408,7 @@ export default function SessionScreen() {
             {isTestWeek ? '1RM Test' : getSessionLabel(sessionType)}
           </Text>
           <Text style={styles.sessionSub}>
-            {isTestWeek ? `${getSessionLabel(sessionType)} - Max Effort` : getSessionSubtitle(sessionType)}
+            {isTestWeek ? `${getSessionLabel(sessionType)} — Max Effort` : getSessionSubtitle(sessionType)}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -322,9 +416,9 @@ export default function SessionScreen() {
 
       <View style={styles.progressBar}>
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
         </View>
-        <Text style={styles.progressText}>{completedSetsCount}/{totalSets} sets</Text>
+        <Text style={styles.progressText}>{completedSetsCount}/{totalSets} sets completed</Text>
       </View>
 
       {(hasAches || energy !== 'normal' || isTestWeek) && (
@@ -347,7 +441,7 @@ export default function SessionScreen() {
             <View style={[styles.adaptTag, { backgroundColor: Colors.badgeVolume }]}>
               <Ionicons name="flash-outline" size={12} color={Colors.badgeVolumeText} />
               <Text style={[styles.adaptTagText, { color: Colors.badgeVolumeText }]}>
-                {energy === 'low' ? 'Reduced' : 'Extra'} volume
+                {energy === 'low' ? 'Reduced volume' : 'Extra volume'}
               </Text>
             </View>
           )}
@@ -356,20 +450,31 @@ export default function SessionScreen() {
 
       <ScrollView
         style={styles.exerciseList}
-        contentContainerStyle={[styles.exerciseListContent, { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100 }]}
+        contentContainerStyle={[
+          styles.exerciseListContent,
+          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 110 },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
-        {exercises.map((exercise, index) => (
-          <ExerciseCard
-            key={exercise.id + index}
-            exercise={exercise}
-            index={index}
-            setData={exerciseData[index]}
-            onSetChange={(si, u) => handleSetChange(index, si, u)}
-            onVideoPress={() => setVideoModalExercise(exercise.name)}
-          />
-        ))}
+        {exercises.map((exercise, index) => {
+          const data = exerciseData[index];
+          if (!data) return null;
+          const displayExercise = getDisplayExercise(exercise, data);
+          return (
+            <ExerciseCard
+              key={exercise.id + index}
+              exercise={displayExercise}
+              index={index}
+              setData={data}
+              onSetChange={(si, u) => handleSetChange(index, si, u)}
+              onVideoPress={() => setVideoModalExercise(displayExercise.name)}
+              onSwapPress={() => setSwapModal({ index, exercise })}
+              isDumbbellSession={isDumbbellSession}
+            />
+          );
+        })}
       </ScrollView>
 
       <View style={[styles.bottomAction, { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) }]}>
@@ -390,6 +495,7 @@ export default function SessionScreen() {
         </Pressable>
       </View>
 
+      {/* Video Modal */}
       <Modal visible={!!videoModalExercise} transparent animationType="fade" onRequestClose={() => setVideoModalExercise(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setVideoModalExercise(null)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
@@ -397,7 +503,7 @@ export default function SessionScreen() {
               <Ionicons name="play-circle-outline" size={36} color={Colors.primary} />
             </View>
             <Text style={styles.modalTitle}>{videoModalExercise}</Text>
-            <Text style={styles.modalDesc}>Watch a demonstration video to learn perfect form and technique.</Text>
+            <Text style={styles.modalDesc}>Watch a demonstration to learn perfect form and technique.</Text>
             <Pressable
               onPress={() => {
                 const query = encodeURIComponent((videoModalExercise || '') + ' exercise proper form tutorial');
@@ -414,7 +520,88 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+
+      {/* Swap Modal */}
+      <Modal visible={!!swapModal} transparent animationType="fade" onRequestClose={() => setSwapModal(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setSwapModal(null)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIcon, { backgroundColor: '#fff3e0' }]}>
+              <Ionicons name="swap-horizontal-outline" size={32} color="#e65100" />
+            </View>
+            <Text style={styles.modalTitle}>Swap Exercise</Text>
+            {swapModal && (
+              <>
+                <View style={styles.swapFrom}>
+                  <Text style={styles.swapFromLabel}>Replace</Text>
+                  <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                </View>
+                <View style={styles.swapArrow}>
+                  <Ionicons name="arrow-down" size={18} color={Colors.textTertiary} />
+                </View>
+                <View style={styles.swapTo}>
+                  <Text style={styles.swapToLabel}>With</Text>
+                  <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
+                  <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
+                  {swapModal.exercise.swapLoad && (
+                    <Text style={styles.swapToLoad}>{swapModal.exercise.swapLoad}</Text>
+                  )}
+                </View>
+                <Text style={styles.swapNote}>This alternative targets the same muscles with less demand.</Text>
+                <Pressable
+                  onPress={() => handleSwapConfirm(swapModal.index)}
+                  style={styles.swapConfirmBtn}
+                >
+                  <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
+                </Pressable>
+              </>
+            )}
+            <Pressable onPress={() => setSwapModal(null)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>Keep original</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Congratulations Modal */}
+      <Modal visible={showCongratsModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeIn.duration(500)} style={[styles.modalContent, styles.congratsModal]}>
+            <View style={styles.congratsIcon}>
+              <Ionicons name="trophy" size={44} color="#f59e0b" />
+            </View>
+            <Text style={styles.congratsTitle}>Session Complete!</Text>
+            <Text style={styles.congratsMessage}>{congratsMessage}</Text>
+            <View style={styles.congratsStats}>
+              <View style={styles.congratsStat}>
+                <Text style={styles.congratsStatValue}>{exercises.length}</Text>
+                <Text style={styles.congratsStatLabel}>Exercises</Text>
+              </View>
+              <View style={styles.congratsStatDivider} />
+              <View style={styles.congratsStat}>
+                <Text style={styles.congratsStatValue}>{totalSets}</Text>
+                <Text style={styles.congratsStatLabel}>Total Sets</Text>
+              </View>
+              <View style={styles.congratsStatDivider} />
+              <View style={styles.congratsStat}>
+                <Text style={styles.congratsStatValue}>{timeAvailable}</Text>
+                <Text style={styles.congratsStatLabel}>Minutes</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => {
+                setShowCongratsModal(false);
+                router.dismissAll();
+                router.replace('/(tabs)');
+              }}
+              style={styles.congratsButton}
+              testID="congrats-close"
+            >
+              <Text style={styles.congratsButtonText}>Back to Home</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -429,41 +616,48 @@ const styles = StyleSheet.create({
   progressTrack: { height: 4, backgroundColor: Colors.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
   progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
   progressText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
-  adaptationBar: { flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 10, gap: 8, justifyContent: 'center', flexWrap: 'wrap' },
+  adaptationBar: { flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 8, gap: 8, justifyContent: 'center', flexWrap: 'wrap' },
   adaptTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, gap: 4 },
   adaptTagText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   exerciseList: { flex: 1 },
-  exerciseListContent: { paddingHorizontal: 20, paddingTop: 8, gap: 10 },
+  exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
   exerciseCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderLight },
   exerciseCardDone: { backgroundColor: Colors.primarySurface, borderColor: Colors.primaryMuted },
-  exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  exerciseLeft: { flexDirection: 'row', flex: 1 },
-  checkCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 10, marginTop: 2 },
+  exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
   checkCircleDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   exerciseInfo: { flex: 1 },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  exerciseNameRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, flex: 1 },
   exerciseNameDone: { color: Colors.primaryDark },
   badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
   badgeText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   categoryPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  metaText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  videoBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.surfaceTertiary, alignItems: 'center', justifyContent: 'center' },
-  setsContainer: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  cueContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 34, marginBottom: 10 },
+  metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
+  dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.primary, marginTop: 2, fontStyle: 'italic' as const },
+  chevron: { marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: Colors.surfaceTertiary },
+  actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
   cueText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.primary, fontStyle: 'italic' as const, flex: 1 },
-  setHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 4 },
-  setHeaderLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, width: 36, textAlign: 'center' },
+  restContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: Colors.surfaceTertiary, borderRadius: 8 },
+  restText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
+  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
+  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, width: 36, textAlign: 'center' },
   setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8 },
+  weightGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
+  weightGuideText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.primary, flex: 1, fontStyle: 'italic' as const },
+  setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 },
   setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, width: 36 },
   setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  setInput: { width: 56, height: 36, borderRadius: 8, backgroundColor: Colors.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
+  setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: Colors.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, borderWidth: 1, borderColor: Colors.borderLight },
+  inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 30 },
   setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   setCheckDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.borderLight },
@@ -471,14 +665,36 @@ const styles = StyleSheet.create({
   completeButtonDisabled: { backgroundColor: Colors.surfaceTertiary },
   completeText: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
   completeTextDisabled: { color: Colors.textTertiary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', maxWidth: 320 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', maxWidth: 340 },
   modalIcon: { width: 64, height: 64, borderRadius: 16, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 4 },
-  modalSub: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.primary, marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 8 },
   modalDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
   youtubeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, gap: 8, marginBottom: 12, width: '100%', justifyContent: 'center' },
   youtubeButtonText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   modalClose: { paddingVertical: 10, paddingHorizontal: 32 },
   modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+  swapFrom: { width: '100%', padding: 12, backgroundColor: Colors.surfaceTertiary, borderRadius: 10, marginBottom: 4 },
+  swapFromLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, marginBottom: 2 },
+  swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  swapArrow: { paddingVertical: 4 },
+  swapTo: { width: '100%', padding: 12, backgroundColor: Colors.primarySurface, borderRadius: 10, borderWidth: 1, borderColor: Colors.primaryMuted, marginBottom: 12 },
+  swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.primary, marginBottom: 2 },
+  swapToName: { fontSize: 14, fontFamily: 'Inter_700Bold', color: Colors.primaryDark, marginBottom: 4 },
+  swapToCue: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, fontStyle: 'italic' as const, marginBottom: 4 },
+  swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.primary },
+  swapNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, textAlign: 'center', marginBottom: 16 },
+  swapConfirmBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
+  swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  congratsModal: { gap: 0 },
+  congratsIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#fef9c3', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  congratsTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 12 },
+  congratsMessage: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20, paddingHorizontal: 4 },
+  congratsStats: { flexDirection: 'row', backgroundColor: Colors.surfaceTertiary, borderRadius: 14, padding: 16, marginBottom: 20, width: '100%', alignItems: 'center' },
+  congratsStat: { flex: 1, alignItems: 'center' },
+  congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.primary },
+  congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginTop: 2 },
+  congratsStatDivider: { width: 1, height: 28, backgroundColor: Colors.border },
+  congratsButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
+  congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
 });

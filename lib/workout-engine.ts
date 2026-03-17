@@ -2,6 +2,7 @@ import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable } fr
 import {
   ExerciseCategory,
   ExerciseTemplate,
+  CARDIO_WARMUP,
   getPrep,
   getMechanical,
   getNeuro,
@@ -10,6 +11,7 @@ import {
   getPrehab,
   getFinisher,
   getCooldown,
+  getConditioningWorkout,
   get1RMProtocol,
 } from './exercise-db';
 
@@ -23,6 +25,11 @@ export interface Exercise {
   category: ExerciseCategory;
   badge?: 'comfort' | 'volume';
   videoId: string;
+  hasSwap: boolean;
+  swapName?: string;
+  swapCue?: string;
+  swapLoad?: string;
+  isDumbbellExercise?: boolean;
 }
 
 interface ReadinessCheck {
@@ -32,7 +39,9 @@ interface ReadinessCheck {
   timeAvailable: TimeAvailable;
 }
 
-function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume'): Exercise {
+type MainSessionType = Exclude<SessionType, 'conditioning'>;
+
+function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
   return {
     id: t.id,
     name: t.name,
@@ -43,7 +52,16 @@ function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume'): 
     category: t.category,
     badge,
     videoId: t.videoId,
+    hasSwap: !!t.comfortVariant,
+    swapName: t.comfortVariant?.name,
+    swapCue: t.comfortVariant?.cue,
+    swapLoad: t.comfortVariant?.suggestedLoad,
+    isDumbbellExercise: isDumbbell,
   };
+}
+
+function isDumbbellTier(tier: EquipmentTier): boolean {
+  return tier === 'dumbbells' || tier === 'kettlebells';
 }
 
 function shouldSwapForComfort(template: ExerciseTemplate, painRegion?: PainRegion): boolean {
@@ -55,9 +73,11 @@ function applyComfortOrBadge(
   template: ExerciseTemplate,
   hasAches: boolean,
   painRegion: PainRegion | undefined,
+  tier: EquipmentTier,
   overrideSets?: number,
   overrideCategory?: ExerciseCategory
 ): Exercise {
+  const isDumbbell = isDumbbellTier(tier);
   if (hasAches && shouldSwapForComfort(template, painRegion) && template.comfortVariant) {
     const cv = template.comfortVariant;
     return {
@@ -70,9 +90,11 @@ function applyComfortOrBadge(
       category: overrideCategory ?? template.category,
       badge: 'comfort',
       videoId: template.videoId,
+      hasSwap: false,
+      isDumbbellExercise: isDumbbell,
     };
   }
-  const ex = templateToExercise(template);
+  const ex = templateToExercise(template, undefined, isDumbbell);
   if (overrideSets !== undefined) ex.sets = overrideSets;
   if (overrideCategory !== undefined) ex.category = overrideCategory;
   return ex;
@@ -81,18 +103,18 @@ function applyComfortOrBadge(
 /**
  * SESSION STRUCTURE (8 phases):
  *
- * 1. Pre-Training Preparation  (prep)        — breathing, mobility
+ * 1. Pre-Training Preparation  (prep)        — cardio warmup + active mobility
  * 2. Mechanical Priming        (mechanical)   — bands, activation, constant tension
  * 3. Neurological Priming      (neuro)        — explosive movement, 1-5 reps
  * 4. KPI Lift                  (main)         — main strength exercise with ramp + work sets
  * 5. Pump Accessories          (accessory)    — hypertrophy support, 15-25 reps
  * 6. Prehab                    (prehab)       — joint health, holds
  * 7. Conditioning Finisher     (finisher)     — 2-10 min, energy-scaled (optional)
- * 8. Post-Training Cool Down   (cooldown)     — breathing + stretch
+ * 8. Post-Training Cool Down   (cooldown)     — breathing
  *
  * Time scaling:
- *   30 min → mechanical + KPI + 1 accessory               (4 phases, no prep/neuro/prehab/finisher/cooldown)
- *   45 min → prep + mechanical + neuro + KPI + 2 acc + prehab + finisher  (7 phases)
+ *   30 min → cardio + 3 prep stretches + mechanical + KPI + 1 accessory (SAFETY: always warm up)
+ *   45 min → all prep + mechanical + neuro + KPI + 2 acc + prehab + finisher
  *   60 min → all 8 phases — full session
  */
 export function generateWorkout(
@@ -100,39 +122,45 @@ export function generateWorkout(
   equipmentTier: EquipmentTier,
   readiness: ReadinessCheck
 ): Exercise[] {
+  if (sessionType === 'conditioning') {
+    return generateConditioningWorkout(equipmentTier, readiness);
+  }
+
+  const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
 
-  // Time budgets (including rest periods):
-  //   30 min → ~20-25 min of work: 1 mech + KPI + 1 acc                   = 3 exercises
-  //   45 min → ~38-42 min of work: 1 prep + 1 mech + neuro + KPI + 2 acc + 1 prehab + finisher  = 8 exercises
-  //   60 min → ~52-58 min of work: 1 prep + 2 mech + neuro + KPI + 2 acc + 1 prehab + finisher + cooldown = 10 exercises
+  // ── 1. Cardio Warm-Up (ALL sessions including 30 min — safety requirement) ──
+  exercises.push(templateToExercise(CARDIO_WARMUP));
 
-  // ── 1. Pre-Training Preparation (45 and 60 min only — 1 exercise) ────────
-  if (timeAvailable !== '30') {
-    const prep = getPrep(sessionType, equipmentTier);
+  // ── 2. Pre-Training Prep (3 stretches for ALL sessions — safety) ─────────
+  const prep = getPrep(mainType, equipmentTier);
+  if (timeAvailable === '30') {
+    // All 3 prep stretches for 30-min safety
+    for (const p of prep) exercises.push(templateToExercise(p));
+  } else {
+    // 45/60 min: 1 prep exercise (first stretch, more time spent on full session)
     exercises.push(templateToExercise(prep[0]));
   }
 
-  // ── 2. Mechanical Priming (all lengths — 1 exercise for 30/45, 2 for 60) ─
-  const mechanical = getMechanical(sessionType, equipmentTier);
+  // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
+  const mechanical = getMechanical(mainType, equipmentTier);
   if (timeAvailable === '60') {
-    for (const m of mechanical) exercises.push(templateToExercise(m));
+    for (const m of mechanical) exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
   } else {
-    exercises.push(templateToExercise(mechanical[0]));
+    exercises.push(templateToExercise(mechanical[0], undefined, isDumbbellTier(equipmentTier)));
   }
 
-  // ── 3. Neurological Priming (45 and 60 min only) ────────────────────────
+  // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
   if (timeAvailable !== '30') {
-    const neuroTemplate = getNeuro(sessionType, equipmentTier);
-    exercises.push(applyComfortOrBadge(neuroTemplate, hasAches, painRegion));
+    const neuroTemplate = getNeuro(mainType, equipmentTier);
+    exercises.push(applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier));
   }
 
-  // ── 4. KPI Lift ──────────────────────────────────────────────────────────
-  const mainTemplate = getMainLift(sessionType, equipmentTier);
+  // ── 5. KPI Lift ──────────────────────────────────────────────────────────
+  const mainTemplate = getMainLift(mainType, equipmentTier);
   let baseSets = mainTemplate.sets;
-  // Scale sets to time: 30 min → fewer, 60 min → more
   if (timeAvailable === '30') baseSets = Math.max(baseSets - 1, 3);
   if (energy === 'low') baseSets = Math.max(baseSets - 1, 2);
   if (energy === 'high') baseSets = baseSets + 1;
@@ -149,40 +177,42 @@ export function generateWorkout(
       category: 'main',
       badge: 'comfort',
       videoId: mainTemplate.videoId,
+      hasSwap: false,
+      isDumbbellExercise: isDumbbellTier(equipmentTier),
     });
   } else {
     const badge = energy !== 'normal' ? 'volume' as const : undefined;
-    exercises.push({ ...templateToExercise(mainTemplate, badge), sets: baseSets });
+    const ex = templateToExercise(mainTemplate, badge, isDumbbellTier(equipmentTier));
+    ex.sets = baseSets;
+    exercises.push(ex);
   }
 
-  // ── 5. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
-  const allAccessories = getAccessories(sessionType, equipmentTier);
+  // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
+  const allAccessories = getAccessories(mainType, equipmentTier);
   const accCount = timeAvailable === '30' ? 1 : 2;
-  const accessoriesToInclude = allAccessories.slice(0, accCount);
 
-  for (const acc of accessoriesToInclude) {
-    // Reduce sets to 2 for accessories to keep time tight
-    const accEx = applyComfortOrBadge(acc, hasAches, painRegion);
+  for (const acc of allAccessories.slice(0, accCount)) {
+    const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
     accEx.sets = Math.min(accEx.sets, 2);
     exercises.push(accEx);
   }
 
-  // ── 6. Prehab (45 and 60 min only — 1 exercise) ─────────────────────────
+  // ── 7. Prehab (45 and 60 min only) ──────────────────────────────────────
   if (timeAvailable !== '30') {
-    const prehab = getPrehab(sessionType, equipmentTier);
+    const prehab = getPrehab(mainType, equipmentTier);
     const phEx = templateToExercise(prehab[0]);
     phEx.sets = 1;
     exercises.push(phEx);
   }
 
-  // ── 7. Conditioning Finisher (45 and 60 min only) ────────────────────────
+  // ── 8. Conditioning Finisher (45 and 60 min only) ────────────────────────
   if (timeAvailable !== '30') {
-    const finisher = getFinisher(sessionType, equipmentTier, finisherKey);
+    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
     const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
     exercises.push(templateToExercise(finisher, finBadge));
   }
 
-  // ── 8. Cool Down (60 min only) ────────────────────────────────────────────
+  // ── 9. Cool Down (60 min only) ────────────────────────────────────────────
   if (timeAvailable === '60') {
     const cooldown = getCooldown();
     exercises.push(templateToExercise(cooldown[0]));
@@ -191,12 +221,71 @@ export function generateWorkout(
   return exercises;
 }
 
+function generateConditioningWorkout(
+  equipmentTier: EquipmentTier,
+  readiness: ReadinessCheck
+): Exercise[] {
+  const { energy } = readiness;
+  const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
+  const templates = getConditioningWorkout(equipmentTier, energyKey);
+  return templates.map((t) => templateToExercise(t));
+}
+
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
 ): Exercise[] {
-  const protocol = get1RMProtocol(sessionType, equipmentTier);
+  if (sessionType === 'conditioning') return [];
+  const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
   return protocol.map((t) => templateToExercise(t));
+}
+
+export function getRestPeriod(category: ExerciseCategory): string {
+  switch (category) {
+    case 'prep': return 'Breathe deeply — no rest needed';
+    case 'mechanical': return 'Rest 30–45 sec between sets';
+    case 'neuro': return 'Rest 45–60 sec between sets — full recovery before each';
+    case 'main': return 'Rest 2–3 min between sets — full recovery is key';
+    case 'accessory': return 'Rest 60–90 sec between sets';
+    case 'prehab': return 'Rest 30–45 sec between sets';
+    case 'finisher': return 'Follow the circuit timing';
+    case 'cooldown': return 'Breathe slowly throughout';
+    default: return 'Rest as needed';
+  }
+}
+
+export function getWeightGuide(category: ExerciseCategory, sets: number): string[] {
+  if (category === 'main') {
+    if (sets <= 3) return [
+      'Set 1: Easy warm-up (~50% of working weight)',
+      'Set 2: Build (~70%) — feel the movement',
+      'Set 3: Working weight — challenging but controlled',
+    ];
+    if (sets === 4) return [
+      'Set 1: Easy warm-up (~50% of working weight)',
+      'Set 2: Build (~65%) — feel the movement',
+      'Set 3: Working weight (~80%) — stop well before failure',
+      'Set 4: Match Set 3 or slightly heavier if form was perfect',
+    ];
+    return [
+      'Set 1: Light warm-up (~40% of working weight)',
+      'Set 2: Build (~60%) — feel the pattern',
+      'Set 3: Build (~75%) — approaching working weight',
+      ...Array.from({ length: sets - 3 }, (_, i) =>
+        `Set ${i + 4}: Working weight — controlled, never grinding`
+      ),
+    ];
+  }
+  if (category === 'accessory') {
+    return Array.from({ length: sets }, (_, i) =>
+      i === 0
+        ? 'Set 1: Start moderate — perfect form first'
+        : i === sets - 1
+          ? `Set ${i + 1}: Match or +2 kg if previous set felt easy`
+          : `Set ${i + 1}: Maintain or small increase if form is perfect`
+    );
+  }
+  return [];
 }
 
 export function getSessionLabel(type: SessionType): string {
@@ -204,6 +293,7 @@ export function getSessionLabel(type: SessionType): string {
     case 'squat': return 'Lower Body';
     case 'bench': return 'Upper Body';
     case 'deadlift': return 'Full Body';
+    case 'conditioning': return 'Conditioning';
   }
 }
 
@@ -212,6 +302,7 @@ export function getSessionSubtitle(type: SessionType): string {
     case 'squat': return 'Squat pattern — quads, glutes, hamstrings';
     case 'bench': return 'Push pattern — chest, shoulders, triceps';
     case 'deadlift': return 'Hinge pattern — posterior chain, back, core';
+    case 'conditioning': return 'Fat burn — high calorie, cardio focus';
   }
 }
 
@@ -220,14 +311,27 @@ export function getSessionIcon(type: SessionType): string {
     case 'squat': return 'fitness';
     case 'bench': return 'body';
     case 'deadlift': return 'barbell';
+    case 'conditioning': return 'flame';
   }
 }
 
 export function getEquipmentLabel(tier: EquipmentTier): string {
   switch (tier) {
-    case 'bodyweight': return 'Bodyweight / Bands';
-    case 'dumbbells': return 'Dumbbells / Kettlebells';
-    case 'fullgym': return 'Full Gym / Barbell';
+    case 'bodyweight': return 'Bodyweight';
+    case 'bands': return 'Resistance Bands';
+    case 'dumbbells': return 'Dumbbells';
+    case 'kettlebells': return 'Kettlebells';
+    case 'fullgym': return 'Full Gym';
+  }
+}
+
+export function getEquipmentIcon(tier: EquipmentTier): string {
+  switch (tier) {
+    case 'bodyweight': return 'person-outline';
+    case 'bands': return 'git-compare-outline';
+    case 'dumbbells': return 'barbell-outline';
+    case 'kettlebells': return 'fitness-outline';
+    case 'fullgym': return 'business-outline';
   }
 }
 

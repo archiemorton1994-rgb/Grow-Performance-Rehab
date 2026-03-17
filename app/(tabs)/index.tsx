@@ -52,6 +52,15 @@ const SESSION_OPTIONS: {
     color: '#9c27b0',
     bg: '#f3e5f5',
   },
+  {
+    type: 'conditioning',
+    label: 'Conditioning',
+    subtitle: 'Cardio & fat burn',
+    muscles: 'Full Body · Cardiovascular',
+    icon: 'flame-outline',
+    color: '#e65100',
+    bg: '#fbe9e7',
+  },
 ];
 
 export default function HomeScreen() {
@@ -63,19 +72,28 @@ export default function HomeScreen() {
     getStreakDays,
     getThisWeekCount,
     isTestWeekDue,
+    userProfile,
   } = useAppStore();
 
   const suggestedSession = getCurrentSessionType();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const testWeek = isTestWeekDue();
+  const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
 
   const handleSelect = (sessionType: SessionType) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({
-      pathname: '/readiness',
-      params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
-    });
+    if (sessionType === 'conditioning') {
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType, isTestWeek: 'false' },
+      });
+    } else {
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
+      });
+    }
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -94,11 +112,15 @@ export default function HomeScreen() {
     >
       <Animated.View entering={FadeInUp.duration(500)} style={styles.greeting}>
         <View style={styles.greetingLeft}>
-          <Text style={styles.greetingText}>Ready to grow</Text>
+          <Text style={styles.greetingText}>
+            {firstName ? `Hey, ${firstName}` : 'Ready to train'}
+          </Text>
           <Text style={styles.tierText}>{getEquipmentLabel(equipmentTier)}</Text>
         </View>
         <View style={styles.avatarCircle}>
-          <Ionicons name="body" size={22} color={Colors.primary} />
+          <Text style={styles.avatarInitial}>
+            {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
+          </Text>
         </View>
       </Animated.View>
 
@@ -121,14 +143,15 @@ export default function HomeScreen() {
         <Text style={styles.sectionSub}>Select what you want to train today</Text>
         <View style={styles.sessionCards}>
           {SESSION_OPTIONS.map((opt, i) => {
-            const isSuggested = opt.type === suggestedSession;
+            const isSuggested = opt.type === suggestedSession && opt.type !== 'conditioning';
             return (
-              <Animated.View key={opt.type} entering={FadeInDown.delay(200 + i * 80).duration(400)}>
+              <Animated.View key={opt.type} entering={FadeInDown.delay(200 + i * 70).duration(400)}>
                 <Pressable
                   onPress={() => handleSelect(opt.type)}
                   style={({ pressed }) => [
                     styles.sessionCard,
                     isSuggested && styles.sessionCardSuggested,
+                    opt.type === 'conditioning' && styles.sessionCardConditioning,
                     pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
                   ]}
                   testID={`session-${opt.type}`}
@@ -202,6 +225,7 @@ const styles = StyleSheet.create({
   greetingText: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.text },
   tierText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.primary },
   testWeekBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#ffe0b2' },
   testWeekIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   testWeekContent: { flex: 1 },
@@ -225,6 +249,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     borderWidth: 2,
     backgroundColor: Colors.primarySurface,
+  },
+  sessionCardConditioning: {
+    borderStyle: 'dashed' as const,
   },
   sessionIconWrap: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   sessionCardContent: { flex: 1 },
