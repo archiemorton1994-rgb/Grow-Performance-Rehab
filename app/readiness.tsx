@@ -13,18 +13,32 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, useAppStore } from '@/lib/store';
-import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, useAppStore } from '@/lib/store';
+import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 
-type Step = 'aches' | 'painCategory' | 'painRegion' | 'energy' | 'time';
+type Step = 'equipment' | 'aches' | 'painCategory' | 'painRegion' | 'energy' | 'time';
+
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+
+const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
+  bodyweight: 'No equipment needed',
+  bands: 'Resistance bands only',
+  dumbbells: 'Dumbbells available',
+  kettlebells: 'Kettlebells available',
+  fullgym: 'Full gym access',
+};
 
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string }>();
+  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string; equipment: string }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
 
-  const [step, setStep] = useState<Step>('aches');
+  const { equipmentTier: profileTier } = useAppStore();
+  const defaultTier = (ALL_TIERS.includes(params.equipment as EquipmentTier) ? params.equipment : profileTier) as EquipmentTier;
+
+  const [step, setStep] = useState<Step>('equipment');
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentTier>(defaultTier);
   const [hasAches, setHasAches] = useState(false);
   const [painCategory, setPainCategory] = useState<keyof typeof PAIN_CATEGORIES | undefined>();
   const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
@@ -32,6 +46,16 @@ export default function ReadinessScreen() {
 
   const hapticTap = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleEquipment = (tier: EquipmentTier) => {
+    hapticTap();
+    setSelectedEquipment(tier);
+    if (sessionType === 'conditioning') {
+      setStep('energy');
+    } else {
+      setStep('aches');
+    }
   };
 
   const handleAches = (val: boolean) => {
@@ -43,7 +67,7 @@ export default function ReadinessScreen() {
       if (isTestWeek) {
         router.push({
           pathname: '/session',
-          params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'true' },
+          params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: selectedEquipment },
         });
       } else {
         setStep('energy');
@@ -63,7 +87,7 @@ export default function ReadinessScreen() {
     if (isTestWeek) {
       router.push({
         pathname: '/session',
-        params: { sessionType, hasAches: 'true', painRegion: region, energy: 'normal', timeAvailable: '60', isTestWeek: 'true' },
+        params: { sessionType, hasAches: 'true', painRegion: region, energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: selectedEquipment },
       });
     } else {
       setStep('energy');
@@ -87,16 +111,21 @@ export default function ReadinessScreen() {
         energy: energy || 'normal',
         timeAvailable: time,
         isTestWeek: 'false',
+        equipment: selectedEquipment,
       },
     });
   };
 
   const goBack = () => {
     switch (step) {
-      case 'aches': router.back(); break;
+      case 'equipment': router.back(); break;
+      case 'aches': setStep('equipment'); break;
       case 'painCategory': setStep('aches'); break;
       case 'painRegion': setStep('painCategory'); break;
-      case 'energy': setStep(hasAches ? 'painRegion' : 'aches'); break;
+      case 'energy':
+        if (sessionType === 'conditioning') setStep('equipment');
+        else setStep(hasAches ? 'painRegion' : 'aches');
+        break;
       case 'time': setStep('energy'); break;
     }
   };
@@ -104,19 +133,29 @@ export default function ReadinessScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const getStepInfo = () => {
-    if (isTestWeek) {
-      const total = hasAches ? 3 : 1;
-      if (step === 'aches') return { num: 1, total };
-      if (step === 'painCategory') return { num: 2, total: 3 };
-      return { num: 3, total: 3 };
+    if (sessionType === 'conditioning') {
+      switch (step) {
+        case 'equipment': return { num: 1, total: 3 };
+        case 'energy': return { num: 2, total: 3 };
+        case 'time': return { num: 3, total: 3 };
+        default: return { num: 1, total: 3 };
+      }
     }
-    const total = hasAches ? 5 : 3;
+    if (isTestWeek) {
+      const total = hasAches ? 4 : 2;
+      if (step === 'equipment') return { num: 1, total };
+      if (step === 'aches') return { num: 2, total };
+      if (step === 'painCategory') return { num: 3, total: 4 };
+      return { num: 4, total: 4 };
+    }
+    const total = hasAches ? 6 : 4;
     switch (step) {
-      case 'aches': return { num: 1, total };
-      case 'painCategory': return { num: 2, total };
-      case 'painRegion': return { num: 3, total };
-      case 'energy': return { num: hasAches ? 4 : 2, total };
-      case 'time': return { num: hasAches ? 5 : 3, total };
+      case 'equipment': return { num: 1, total };
+      case 'aches': return { num: 2, total };
+      case 'painCategory': return { num: 3, total };
+      case 'painRegion': return { num: 4, total };
+      case 'energy': return { num: hasAches ? 5 : 3, total };
+      case 'time': return { num: hasAches ? 6 : 4, total };
     }
   };
 
@@ -144,6 +183,50 @@ export default function ReadinessScreen() {
 
   const renderStep = () => {
     switch (step) {
+      case 'equipment':
+        return (
+          <Animated.View key="equipment" entering={FadeInDown.duration(400)} style={styles.stepContent}>
+            <View style={styles.questionIcon}>
+              <Ionicons name="barbell-outline" size={28} color={Colors.primary} />
+            </View>
+            <Text style={styles.question}>What equipment do you have?</Text>
+            <Text style={styles.questionSub}>Your session is built around this</Text>
+            <View style={styles.areaButtons}>
+              {ALL_TIERS.map((tier) => {
+                const isActive = selectedEquipment === tier;
+                return (
+                  <Pressable
+                    key={tier}
+                    onPress={() => handleEquipment(tier)}
+                    style={({ pressed }) => [
+                      styles.areaButton,
+                      isActive && styles.areaButtonActive,
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                    ]}
+                    testID={`equipment-${tier}`}
+                  >
+                    <View style={[styles.areaIconWrap, { backgroundColor: isActive ? Colors.primary : Colors.primaryMuted }]}>
+                      <Ionicons
+                        name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                        size={22}
+                        color={isActive ? Colors.textInverse : Colors.primary}
+                      />
+                    </View>
+                    <View style={styles.areaCatContent}>
+                      <Text style={[styles.areaLabel, isActive && { color: Colors.primary }]}>{getEquipmentLabel(tier)}</Text>
+                      <Text style={styles.areaSublabel}>{TIER_DESCRIPTIONS[tier]}</Text>
+                    </View>
+                    {isActive
+                      ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+                      : <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                    }
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        );
+
       case 'aches':
         return (
           <Animated.View key="aches" entering={FadeInDown.duration(400)} style={styles.stepContent}>
@@ -358,6 +441,7 @@ const styles = StyleSheet.create({
   bigButtonText: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   areaButtons: { width: '100%', gap: 10 },
   areaButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
+  areaButtonActive: { borderColor: Colors.primary, borderWidth: 2, backgroundColor: Colors.primarySurface },
   areaIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   areaLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   areaCatContent: { flex: 1 },

@@ -86,12 +86,12 @@ export default function HomeScreen() {
     if (sessionType === 'conditioning') {
       router.push({
         pathname: '/readiness',
-        params: { sessionType, isTestWeek: 'false' },
+        params: { sessionType, isTestWeek: 'false', equipment: equipmentTier },
       });
     } else {
       router.push({
         pathname: '/readiness',
-        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
+        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false', equipment: equipmentTier },
       });
     }
   };

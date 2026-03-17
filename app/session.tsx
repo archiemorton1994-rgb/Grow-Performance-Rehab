@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, useAppStore } from '@/lib/store';
 import {
   Exercise,
   generateWorkout,
@@ -242,6 +242,7 @@ export default function SessionScreen() {
     energy: string;
     timeAvailable: string;
     isTestWeek: string;
+    equipment: string;
   }>();
 
   const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning'];
@@ -258,7 +259,12 @@ export default function SessionScreen() {
     ? (params.timeAvailable as TimeAvailable) : '60';
   const isTestWeek = params.isTestWeek === 'true';
 
-  const { equipmentTier, completeSession, addOneRepMax, userProfile } = useAppStore();
+  const { equipmentTier: storeEquipmentTier, completeSession, addOneRepMax, userProfile } = useAppStore();
+  const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+  const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
+    ? (params.equipment as EquipmentTier)
+    : storeEquipmentTier;
+
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 
   const exercises = useMemo(() => {

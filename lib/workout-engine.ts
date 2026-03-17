@@ -194,6 +194,49 @@ function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; acc
   return { mainSetsDelta: Math.round(avgMain), accSetsDelta: Math.round(avgAcc) };
 }
 
+/**
+ * Standard kettlebell weights in kg — used for rounding load values.
+ * Skips 18, 22 etc. to reflect real KB product ranges.
+ */
+const KB_WEIGHTS = [4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48];
+
+function nearestKbWeight(kg: number): number {
+  return KB_WEIGHTS.reduce((prev, curr) =>
+    Math.abs(curr - kg) < Math.abs(prev - kg) ? curr : prev
+  );
+}
+
+function relabelForKettlebell(text: string): string {
+  return text
+    .replace(/\bDumbbells?\b/g, 'Kettlebell')
+    .replace(/\bDB\b/g, 'KB');
+}
+
+function relabelLoadForKettlebell(load: string): string {
+  const labelled = relabelForKettlebell(load);
+  return labelled.replace(/\d+(?:\.\d+)?/g, (match) => {
+    const num = parseFloat(match);
+    if (num < 4 || num > 100) return match;
+    return String(nearestKbWeight(num));
+  });
+}
+
+/**
+ * Post-processes the exercise list to use KB terminology when the user's
+ * equipment tier is 'kettlebells'. Names, cues, and loads all get relabelled.
+ */
+function applyKettlebellNaming(exercises: Exercise[]): Exercise[] {
+  return exercises.map((ex) => ({
+    ...ex,
+    name: relabelForKettlebell(ex.name),
+    cue: relabelForKettlebell(ex.cue),
+    suggestedLoad: relabelLoadForKettlebell(ex.suggestedLoad),
+    swapName: ex.swapName ? relabelForKettlebell(ex.swapName) : ex.swapName,
+    swapCue: ex.swapCue ? relabelForKettlebell(ex.swapCue) : ex.swapCue,
+    swapLoad: ex.swapLoad ? relabelLoadForKettlebell(ex.swapLoad) : ex.swapLoad,
+  }));
+}
+
 function applyPersonalization(ex: Exercise, profile: UserProfile | undefined, isUpperBody: boolean): Exercise {
   if (!profile) return ex;
   return {
@@ -224,15 +267,13 @@ export function generateWorkout(
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min — safety requirement) ──
   exercises.push(templateToExercise(CARDIO_WARMUP));
 
-  // ── 2. Pre-Training Prep (3 stretches for ALL sessions — safety) ─────────
+  // ── 2. Pre-Training Prep ─────────────────────────────────────────────────
+  //   30 min → all 3 stretches (safety warmup — never skip)
+  //   45 min → first 2 stretches
+  //   60 min → all 3 stretches
   const prep = getPrep(mainType, equipmentTier);
-  if (timeAvailable === '30') {
-    // All 3 prep stretches for 30-min safety
-    for (const p of prep) exercises.push(templateToExercise(p));
-  } else {
-    // 45/60 min: 1 prep exercise (first stretch, more time spent on full session)
-    exercises.push(templateToExercise(prep[0]));
-  }
+  const prepCount = timeAvailable === '45' ? 2 : 3;
+  for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
   // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
   const mechanical = getMechanical(mainType, equipmentTier);
@@ -310,7 +351,8 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  return exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody));
+  return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
 function generateConditioningWorkout(
@@ -321,7 +363,8 @@ function generateConditioningWorkout(
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  return templates.map((t) => applyPersonalization(templateToExercise(t), profile, false));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false));
+  return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
 export function generate1RMWorkout(
