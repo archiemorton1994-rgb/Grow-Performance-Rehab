@@ -351,15 +351,13 @@ export default function SessionScreen() {
       const mainExIndex = exercises.findIndex(e => e.category === 'main');
       if (mainExIndex >= 0) {
         const mainSets = exerciseData[mainExIndex].sets;
-        const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0)
-          ?? mainSets.find(s => s.completed && s.weight > 0);
-        if (amrapSet && amrapSet.weight > 0) {
-          const reps = amrapSet.reps > 0 ? amrapSet.reps : 1;
-          const estimatedMax = Math.round(amrapSet.weight * (1 + reps / 30));
+        const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0);
+        if (amrapSet) {
+          const estimatedMax = Math.round(amrapSet.weight * (1 + amrapSet.reps / 30));
           addOneRepMax({
             lift: sessionType,
             weight: estimatedMax,
-            reps,
+            reps: amrapSet.reps,
             date: new Date().toISOString(),
             unit: 'kg',
           });
