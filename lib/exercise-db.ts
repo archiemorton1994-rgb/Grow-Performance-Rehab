@@ -26,44 +26,44 @@ export interface ExerciseTemplate {
 const PREP: Record<SessionType, Record<EquipmentTier, ExerciseTemplate[]>> = {
   squat: {
     bodyweight: [
-      { id: 'sq-prep-bw-1', name: 'Box Breathing', sets: 2, reps: '5 breaths (4-4-4-4)', cue: 'Inhale 4s, hold 4s, exhale 4s, hold 4s — diaphragm only', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'sq-prep-bw-2', name: '90/90 Hip Stretch', sets: 2, reps: '30s each side', cue: 'Sit tall, both shins at 90°, breathe into hip tension (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin'], videoId: '' },
+      { id: 'sq-prep-bw-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-prep-bw-2', name: '90/90 Hip Switch', sets: 2, reps: '6 slow each side', cue: 'Control the transition through both hip positions — no rushing (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin'], videoId: '' },
     ],
     dumbbells: [
-      { id: 'sq-prep-db-1', name: 'Box Breathing', sets: 2, reps: '5 breaths (4-4-4-4)', cue: 'Inhale 4s, hold 4s, exhale 4s, hold 4s — diaphragm only', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'sq-prep-db-2', name: '90/90 Hip Stretch', sets: 2, reps: '30s each side', cue: 'Sit tall, both shins at 90°, breathe into hip tension (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin'], videoId: '' },
+      { id: 'sq-prep-db-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-prep-db-2', name: 'Cossack Squat Flow', sets: 2, reps: '6 each side', cue: 'Heel down, chest tall, shift side to side — ankles and hips open up (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'ankle_achilles', 'knee'], videoId: '' },
     ],
     fullgym: [
-      { id: 'sq-prep-fg-1', name: 'Box Breathing', sets: 2, reps: '5 breaths (4-4-4-4)', cue: 'Inhale 4s, hold 4s, exhale 4s, hold 4s — diaphragm only', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'sq-prep-fg-2', name: 'Ankle Dorsiflexion Drill', sets: 2, reps: '10 each', cue: 'Knee over toe against wall, heel stays down (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '' },
+      { id: 'sq-prep-fg-1', name: 'Ankle Dorsiflexion Drill', sets: 2, reps: '10 each', cue: 'Knee over toe against wall, heel stays down — improve squat depth (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '' },
+      { id: 'sq-prep-fg-2', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis — stretch the hip flexor before loading', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
     ],
   },
   bench: {
     bodyweight: [
-      { id: 'bn-prep-bw-1', name: 'Diaphragmatic Breathing', sets: 2, reps: '6 deep breaths', cue: 'Belly rise on inhale, ribs down on exhale, brace the core', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'bn-prep-bw-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
+      { id: 'bn-prep-bw-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-prep-bw-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
     ],
     dumbbells: [
-      { id: 'bn-prep-db-1', name: 'Diaphragmatic Breathing', sets: 2, reps: '6 deep breaths', cue: 'Belly rise on inhale, ribs down on exhale, brace the core', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'bn-prep-db-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
+      { id: 'bn-prep-db-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-prep-db-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
     ],
     fullgym: [
-      { id: 'bn-prep-fg-1', name: 'Diaphragmatic Breathing', sets: 2, reps: '6 deep breaths', cue: 'Belly rise on inhale, ribs down on exhale, brace the core', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs'], videoId: '' },
-      { id: 'bn-prep-fg-2', name: 'Shoulder CARs (Controlled Articular Rotations)', sets: 2, reps: '3 slow circles each arm', cue: 'Full shoulder range, move only the shoulder — spine neutral (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+      { id: 'bn-prep-fg-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-prep-fg-2', name: 'Shoulder CARs (Controlled Articular Rotations)', sets: 2, reps: '3 slow circles each arm', cue: 'Full shoulder range, move only the shoulder — spine neutral throughout (Rusin)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
     ],
   },
   deadlift: {
     bodyweight: [
-      { id: 'dl-prep-bw-1', name: 'Crocodile Breathing', sets: 2, reps: '5 breaths', cue: 'Face down, belly pushes into floor on inhale — full 360° expansion', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
-      { id: 'dl-prep-bw-2', name: 'Child\'s Pose', sets: 2, reps: '30s', cue: 'Arms extended, breathe into lower back, let hips drop (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+      { id: 'dl-prep-bw-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
+      { id: 'dl-prep-bw-2', name: 'Child\'s Pose', sets: 2, reps: '30s', cue: 'Arms extended, let hips drop — breathe into lower back and lats (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
     ],
     dumbbells: [
-      { id: 'dl-prep-db-1', name: 'Crocodile Breathing', sets: 2, reps: '5 breaths', cue: 'Face down, belly pushes into floor on inhale — full 360° expansion', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
-      { id: 'dl-prep-db-2', name: 'Child\'s Pose', sets: 2, reps: '30s', cue: 'Arms extended, breathe into lower back, let hips drop (Horschig)', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+      { id: 'dl-prep-db-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
+      { id: 'dl-prep-db-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
     ],
     fullgym: [
-      { id: 'dl-prep-fg-1', name: 'Crocodile Breathing', sets: 2, reps: '5 breaths', cue: 'Face down, belly pushes into floor on inhale — full 360° expansion', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
-      { id: 'dl-prep-fg-2', name: 'Adductor Rockback', sets: 2, reps: '8 each', cue: 'Wide stance, rock into each hip, breathe at end range', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'dl-prep-fg-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
+      { id: 'dl-prep-fg-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
     ],
   },
 };
@@ -409,8 +409,7 @@ const FINISHERS: Record<SessionType, Record<EquipmentTier, { easy: ExerciseTempl
 // Recovery. 3-8 min. Same across all sessions/tiers.
 
 const COOLDOWN: ExerciseTemplate[] = [
-  { id: 'cooldown-1', name: 'Diaphragmatic Breathing', sets: 1, reps: '2 min (slow deep breaths)', cue: 'Inhale through nose 4s, exhale through mouth 6s — down-regulate nervous system', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['core_ribs'], videoId: '' },
-  { id: 'cooldown-2', name: 'Full Body Stretch Sequence', sets: 1, reps: '3-5 min hold each', cue: 'Quad, hip flexor, hamstring, lat, chest — 30-45s per area, breathe', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: [], videoId: '' },
+  { id: 'cooldown-1', name: 'Diaphragmatic Breathing', sets: 1, reps: '3 min (slow deep breaths)', cue: 'Inhale through nose 4s, exhale through mouth 6s — down-regulate nervous system, let heart rate drop', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['core_ribs'], videoId: '' },
 ];
 
 // ─── 1RM TEST PROTOCOL ────────────────────────────────────────────────────────

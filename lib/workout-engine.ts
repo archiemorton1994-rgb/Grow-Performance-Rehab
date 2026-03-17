@@ -104,18 +104,23 @@ export function generateWorkout(
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
 
-  // ── 1. Pre-Training Preparation (45 and 60 min only) ────────────────────
+  // Time budgets (including rest periods):
+  //   30 min → ~20-25 min of work: 1 mech + KPI + 1 acc                   = 3 exercises
+  //   45 min → ~38-42 min of work: 1 prep + 1 mech + neuro + KPI + 2 acc + 1 prehab + finisher  = 8 exercises
+  //   60 min → ~52-58 min of work: 1 prep + 2 mech + neuro + KPI + 2 acc + 1 prehab + finisher + cooldown = 10 exercises
+
+  // ── 1. Pre-Training Preparation (45 and 60 min only — 1 exercise) ────────
   if (timeAvailable !== '30') {
     const prep = getPrep(sessionType, equipmentTier);
-    for (const p of prep) {
-      exercises.push(templateToExercise(p));
-    }
+    exercises.push(templateToExercise(prep[0]));
   }
 
-  // ── 2. Mechanical Priming (all session lengths) ──────────────────────────
+  // ── 2. Mechanical Priming (all lengths — 1 exercise for 30/45, 2 for 60) ─
   const mechanical = getMechanical(sessionType, equipmentTier);
-  for (const m of mechanical) {
-    exercises.push(templateToExercise(m));
+  if (timeAvailable === '60') {
+    for (const m of mechanical) exercises.push(templateToExercise(m));
+  } else {
+    exercises.push(templateToExercise(mechanical[0]));
   }
 
   // ── 3. Neurological Priming (45 and 60 min only) ────────────────────────
@@ -127,6 +132,8 @@ export function generateWorkout(
   // ── 4. KPI Lift ──────────────────────────────────────────────────────────
   const mainTemplate = getMainLift(sessionType, equipmentTier);
   let baseSets = mainTemplate.sets;
+  // Scale sets to time: 30 min → fewer, 60 min → more
+  if (timeAvailable === '30') baseSets = Math.max(baseSets - 1, 3);
   if (energy === 'low') baseSets = Math.max(baseSets - 1, 2);
   if (energy === 'high') baseSets = baseSets + 1;
 
@@ -148,24 +155,24 @@ export function generateWorkout(
     exercises.push({ ...templateToExercise(mainTemplate, badge), sets: baseSets });
   }
 
-  // ── 5. Pump Accessories ──────────────────────────────────────────────────
+  // ── 5. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
   const allAccessories = getAccessories(sessionType, equipmentTier);
-  const accessoriesToInclude = timeAvailable === '30'
-    ? allAccessories.slice(0, 1)
-    : timeAvailable === '45'
-      ? allAccessories.slice(0, 2)
-      : allAccessories;
+  const accCount = timeAvailable === '30' ? 1 : 2;
+  const accessoriesToInclude = allAccessories.slice(0, accCount);
 
   for (const acc of accessoriesToInclude) {
-    exercises.push(applyComfortOrBadge(acc, hasAches, painRegion));
+    // Reduce sets to 2 for accessories to keep time tight
+    const accEx = applyComfortOrBadge(acc, hasAches, painRegion);
+    accEx.sets = Math.min(accEx.sets, 2);
+    exercises.push(accEx);
   }
 
-  // ── 6. Prehab (45 and 60 min only) ──────────────────────────────────────
+  // ── 6. Prehab (45 and 60 min only — 1 exercise) ─────────────────────────
   if (timeAvailable !== '30') {
     const prehab = getPrehab(sessionType, equipmentTier);
-    for (const ph of prehab) {
-      exercises.push(templateToExercise(ph));
-    }
+    const phEx = templateToExercise(prehab[0]);
+    phEx.sets = 1;
+    exercises.push(phEx);
   }
 
   // ── 7. Conditioning Finisher (45 and 60 min only) ────────────────────────
@@ -178,9 +185,7 @@ export function generateWorkout(
   // ── 8. Cool Down (60 min only) ────────────────────────────────────────────
   if (timeAvailable === '60') {
     const cooldown = getCooldown();
-    for (const cd of cooldown) {
-      exercises.push(templateToExercise(cd));
-    }
+    exercises.push(templateToExercise(cooldown[0]));
   }
 
   return exercises;
@@ -196,17 +201,17 @@ export function generate1RMWorkout(
 
 export function getSessionLabel(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Squat Day';
-    case 'bench': return 'Bench Day';
-    case 'deadlift': return 'Deadlift Day';
+    case 'squat': return 'Lower Body';
+    case 'bench': return 'Upper Body';
+    case 'deadlift': return 'Full Body';
   }
 }
 
 export function getSessionSubtitle(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Lower Body — Squat Pattern';
-    case 'bench': return 'Upper Body — Horizontal Push';
-    case 'deadlift': return 'Full Body — Hinge Pattern';
+    case 'squat': return 'Squat pattern — quads, glutes, hamstrings';
+    case 'bench': return 'Push pattern — chest, shoulders, triceps';
+    case 'deadlift': return 'Hinge pattern — posterior chain, back, core';
   }
 }
 

@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -391,17 +392,26 @@ export default function SessionScreen() {
 
       <Modal visible={!!videoModalExercise} transparent animationType="fade" onRequestClose={() => setVideoModalExercise(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setVideoModalExercise(null)}>
-          <View style={styles.modalContent}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalIcon}>
-              <Ionicons name="videocam-outline" size={32} color={Colors.primary} />
+              <Ionicons name="play-circle-outline" size={36} color={Colors.primary} />
             </View>
             <Text style={styles.modalTitle}>{videoModalExercise}</Text>
-            <Text style={styles.modalSub}>Video demo coming soon</Text>
-            <Text style={styles.modalDesc}>Exercise demonstration videos will be added in a future update.</Text>
-            <Pressable onPress={() => setVideoModalExercise(null)} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>Got it</Text>
+            <Text style={styles.modalDesc}>Watch a demonstration video to learn perfect form and technique.</Text>
+            <Pressable
+              onPress={() => {
+                const query = encodeURIComponent((videoModalExercise || '') + ' exercise proper form tutorial');
+                Linking.openURL('https://www.youtube.com/results?search_query=' + query);
+              }}
+              style={styles.youtubeButton}
+            >
+              <Ionicons name="logo-youtube" size={20} color="#fff" />
+              <Text style={styles.youtubeButtonText}>Watch on YouTube</Text>
             </Pressable>
-          </View>
+            <Pressable onPress={() => setVideoModalExercise(null)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>Close</Text>
+            </Pressable>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -467,6 +477,8 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 4 },
   modalSub: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.primary, marginBottom: 8 },
   modalDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
-  modalClose: { backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 32 },
-  modalCloseText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  youtubeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, gap: 8, marginBottom: 12, width: '100%', justifyContent: 'center' },
+  youtubeButtonText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  modalClose: { paddingVertical: 10, paddingHorizontal: 32 },
+  modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
 });
