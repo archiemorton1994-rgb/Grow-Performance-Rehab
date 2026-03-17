@@ -216,7 +216,7 @@ function relabelLoadForKettlebell(load: string): string {
   const labelled = relabelForKettlebell(load);
   return labelled.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
-    if (num < 8 || num > 100) return match;
+    if (num > 100) return match;
     return String(nearestKbWeight(num));
   });
 }
