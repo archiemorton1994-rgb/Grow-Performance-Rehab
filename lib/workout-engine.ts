@@ -195,10 +195,10 @@ function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; acc
 }
 
 /**
- * Standard kettlebell weights in kg — used for rounding load values.
- * Skips 18, 22 etc. to reflect real KB product ranges.
+ * Standard kettlebell weights in kg — the required set per project spec.
+ * 8 kg minimum (no 4/6), 40 kg maximum (no 48+).
  */
-const KB_WEIGHTS = [4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 48];
+const KB_WEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40];
 
 function nearestKbWeight(kg: number): number {
   return KB_WEIGHTS.reduce((prev, curr) =>
@@ -216,7 +216,7 @@ function relabelLoadForKettlebell(load: string): string {
   const labelled = relabelForKettlebell(load);
   return labelled.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
-    if (num < 4 || num > 100) return match;
+    if (num < 8 || num > 100) return match;
     return String(nearestKbWeight(num));
   });
 }
