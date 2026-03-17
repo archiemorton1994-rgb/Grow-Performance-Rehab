@@ -18,7 +18,6 @@ import { getEquipmentLabel } from '@/lib/workout-engine';
 const SESSION_OPTIONS: {
   type: SessionType;
   label: string;
-  subtitle: string;
   muscles: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
@@ -27,7 +26,6 @@ const SESSION_OPTIONS: {
   {
     type: 'squat',
     label: 'Lower Body',
-    subtitle: 'Squat pattern',
     muscles: 'Quads · Glutes · Hamstrings',
     icon: 'footsteps-outline',
     color: Colors.primary,
@@ -36,7 +34,6 @@ const SESSION_OPTIONS: {
   {
     type: 'bench',
     label: 'Upper Body',
-    subtitle: 'Push pattern',
     muscles: 'Chest · Shoulders · Triceps',
     icon: 'hand-right-outline',
     color: '#4285f4',
@@ -45,7 +42,6 @@ const SESSION_OPTIONS: {
   {
     type: 'deadlift',
     label: 'Full Body',
-    subtitle: 'Hinge pattern',
     muscles: 'Posterior Chain · Back · Core',
     icon: 'barbell-outline',
     color: '#9c27b0',
@@ -54,7 +50,6 @@ const SESSION_OPTIONS: {
   {
     type: 'conditioning',
     label: 'Conditioning',
-    subtitle: 'Cardio & fat burn',
     muscles: 'Full Body · Cardiovascular',
     icon: 'flame-outline',
     color: '#e65100',
