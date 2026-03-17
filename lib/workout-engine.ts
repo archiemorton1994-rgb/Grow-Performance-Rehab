@@ -42,6 +42,8 @@ interface ReadinessCheck {
 type MainSessionType = Exclude<SessionType, 'conditioning'>;
 
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
+  // Prefer explicit swapAlternative for user-initiated swaps; fall back to comfortVariant
+  const swap = t.swapAlternative ?? t.comfortVariant;
   return {
     id: t.id,
     name: t.name,
@@ -52,10 +54,10 @@ function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', i
     category: t.category,
     badge,
     videoId: t.videoId,
-    hasSwap: !!t.comfortVariant,
-    swapName: t.comfortVariant?.name,
-    swapCue: t.comfortVariant?.cue,
-    swapLoad: t.comfortVariant?.suggestedLoad,
+    hasSwap: !!(t.swapAlternative || t.comfortVariant),
+    swapName: swap?.name,
+    swapCue: swap?.cue,
+    swapLoad: swap?.suggestedLoad,
     isDumbbellExercise: isDumbbell,
   };
 }

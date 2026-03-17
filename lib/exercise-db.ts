@@ -21,6 +21,11 @@ export interface ExerciseTemplate {
   category: ExerciseCategory;
   targetRegions: PainRegion[];
   videoId: string;
+  swapAlternative?: {
+    name: string;
+    cue: string;
+    suggestedLoad: string;
+  };
   comfortVariant?: {
     name: string;
     cue: string;
@@ -43,53 +48,53 @@ export const CARDIO_WARMUP: ExerciseTemplate = {
 const PREP: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = {
   squat: {
     bodyweight: [
-      { id: 'sq-prep-bw-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'sq-prep-bw-2', name: '90/90 Hip Switch', sets: 2, reps: '6 slow each side', cue: 'Control the transition through both hip positions — no rushing', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin'], videoId: '' },
-      { id: 'sq-prep-bw-3', name: "World's Greatest Stretch", sets: 2, reps: '5 each side', cue: 'Lunge forward, elbow to floor, reach arm to sky — pause at each position, feel the full-body stretch', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'upper_back', 'lower_back'], videoId: '' },
+      { id: 'sq-prep-bw-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: 'Couch Stretch', cue: 'Back foot on bench/wall, front knee on ground — deeper hip flexor stretch', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-bw-2', name: '90/90 Hip Switch', sets: 2, reps: '6 slow each side', cue: 'Control the transition through both hip positions — no rushing', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin'], videoId: '', swapAlternative: { name: 'Pigeon Pose Flow', cue: 'Front shin horizontal, breathe into outer hip — hold then pulse 5 reps', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-bw-3', name: "World's Greatest Stretch", sets: 2, reps: '5 each side', cue: 'Lunge forward, elbow to floor, reach arm to sky — pause at each position, feel the full-body stretch', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'upper_back', 'lower_back'], videoId: '', swapAlternative: { name: 'Hip Circle (Standing)', cue: 'Hands on hips, draw large slow circles each direction — open the hip joint', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'sq-prep-db-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'sq-prep-db-2', name: 'Cossack Squat Flow', sets: 2, reps: '6 each side', cue: 'Heel down, chest tall, shift side to side — ankles and hips open up', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'ankle_achilles', 'knee'], videoId: '' },
-      { id: 'sq-prep-db-3', name: 'Ankle Circles + Dorsiflexion Drill', sets: 2, reps: '10 circles + 10 wall touches each', cue: 'Slow ankle circles each direction, then knee-over-toe against wall — improve squat depth and ankle mobility', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '' },
+      { id: 'sq-prep-db-1', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis under — feel the front of the hip open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: 'Couch Stretch', cue: 'Back foot on bench/wall, front knee on ground — deeper hip flexor stretch', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-db-2', name: 'Cossack Squat Flow', sets: 2, reps: '6 each side', cue: 'Heel down, chest tall, shift side to side — ankles and hips open up', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'ankle_achilles', 'knee'], videoId: '', swapAlternative: { name: '90/90 Hip Switch', cue: 'Sit on floor, switch between both hip positions slowly — full hip capsule prep', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-db-3', name: 'Ankle Circles + Dorsiflexion Drill', sets: 2, reps: '10 circles + 10 wall touches each', cue: 'Slow ankle circles each direction, then knee-over-toe against wall — improve squat depth and ankle mobility', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '', swapAlternative: { name: 'Calf Raise + Slow Lower', cue: 'Rise all the way up, 3s eccentric — ankle strength and mobility', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'sq-prep-fg-1', name: 'Ankle Dorsiflexion Drill', sets: 2, reps: '10 each', cue: 'Knee over toe against wall, heel stays down — improve squat depth', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '' },
-      { id: 'sq-prep-fg-2', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis — stretch the hip flexor before loading', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'sq-prep-fg-3', name: 'Banded Hip Circle', sets: 2, reps: '10 each direction', cue: 'Band around knees, feet hip-width, draw large circles with hips — warm up hip capsule before squatting', suggestedLoad: 'Light band', category: 'prep', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+      { id: 'sq-prep-fg-1', name: 'Ankle Dorsiflexion Drill', sets: 2, reps: '10 each', cue: 'Knee over toe against wall, heel stays down — improve squat depth', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['ankle_achilles', 'knee'], videoId: '', swapAlternative: { name: 'Ankle Circles + Heel Rocks', cue: 'Circles each direction, then rock heel to toe — full ankle prep', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-fg-2', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '30s each side', cue: 'Deep lunge, back knee down, tuck pelvis — stretch the hip flexor before loading', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: 'Couch Stretch', cue: 'Back foot elevated, front knee forward — intense hip flexor opener', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-prep-fg-3', name: 'Banded Hip Circle', sets: 2, reps: '10 each direction', cue: 'Band around knees, feet hip-width, draw large circles with hips — warm up hip capsule before squatting', suggestedLoad: 'Light band', category: 'prep', targetRegions: ['hip_groin', 'knee'], videoId: '', swapAlternative: { name: 'Goblet Squat Stretch', cue: 'Hold a light KB, squat deep and pry knees out — perfect hip and ankle opener', suggestedLoad: '8–12 kg' } },
     ],
   },
   bench: {
     bodyweight: [
-      { id: 'bn-prep-bw-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-prep-bw-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
-      { id: 'bn-prep-bw-3', name: 'Neck Rolls + Shoulder Circles', sets: 2, reps: '5 each direction', cue: 'Slow controlled circles — neck first, then big arm circles forward and backward. Wake up the shoulder girdle', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['neck', 'front_shoulder', 'rear_shoulder'], videoId: '' },
+      { id: 'bn-prep-bw-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '', swapAlternative: { name: 'Cross-Body Shoulder Stretch', cue: 'Pull arm across chest, hold 30s — posterior shoulder capsule opener', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-bw-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '', swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under body — feel thoracic rotation open up', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-bw-3', name: 'Neck Rolls + Shoulder Circles', sets: 2, reps: '5 each direction', cue: 'Slow controlled circles — neck first, then big arm circles forward and backward. Wake up the shoulder girdle', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['neck', 'front_shoulder', 'rear_shoulder'], videoId: '', swapAlternative: { name: 'Wall Slide', cue: 'Back flat on wall, arms at 90°, slide up — elbows and wrists stay on wall', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'bn-prep-db-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-prep-db-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
-      { id: 'bn-prep-db-3', name: 'Wall Slide', sets: 2, reps: '10 slow reps', cue: 'Back flat on wall, arms bent at 90° slide up — keep elbows and wrists on wall throughout. Shoulder health', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-prep-db-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '', swapAlternative: { name: 'Cross-Body Shoulder Stretch', cue: 'Pull arm across chest, hold 30s — posterior shoulder capsule opener', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-db-2', name: 'Thoracic Extension on Floor', sets: 2, reps: '8 reps', cue: 'Arms overhead, arch upper back only — no lumbar extension, feel the spine open', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'front_shoulder'], videoId: '', swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under — thoracic rotation each side', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-db-3', name: 'Wall Slide', sets: 2, reps: '10 slow reps', cue: 'Back flat on wall, arms bent at 90° slide up — keep elbows and wrists on wall throughout. Shoulder health', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder', 'upper_back'], videoId: '', swapAlternative: { name: 'Shoulder CARs', cue: 'Slow full shoulder circles — controlled articular rotation for joint health', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'bn-prep-fg-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-prep-fg-2', name: 'Shoulder CARs (Controlled Articular Rotations)', sets: 2, reps: '3 slow circles each arm', cue: 'Full shoulder range, move only the shoulder — spine neutral throughout', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
-      { id: 'bn-prep-fg-3', name: 'Band Pull-Apart (Warm-Up)', sets: 2, reps: '15 controlled', cue: 'Arms straight, pull band to chest — squeeze shoulder blades 1s at end. Prime the rear delts and rotator cuff', suggestedLoad: 'Light band', category: 'prep', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-prep-fg-1', name: 'Doorway Chest Opener', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel the pec stretch and breathe into it', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'upper_back'], videoId: '', swapAlternative: { name: 'Cross-Body Shoulder Stretch', cue: 'Pull arm across chest — rear deltoid and capsule stretch', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-fg-2', name: 'Shoulder CARs (Controlled Articular Rotations)', sets: 2, reps: '3 slow circles each arm', cue: 'Full shoulder range, move only the shoulder — spine neutral throughout', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '', swapAlternative: { name: 'Wall Slide', cue: 'Back on wall, arms at 90°, slide overhead — perfect scapular prep', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-prep-fg-3', name: 'Band Pull-Apart (Warm-Up)', sets: 2, reps: '15 controlled', cue: 'Arms straight, pull band to chest — squeeze shoulder blades 1s at end. Prime the rear delts and rotator cuff', suggestedLoad: 'Light band', category: 'prep', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '', swapAlternative: { name: 'Face Pull (light cable)', cue: 'Pull to forehead, external rotate at top — rotator cuff activation', suggestedLoad: 'Light cable' } },
     ],
   },
   deadlift: {
     bodyweight: [
-      { id: 'dl-prep-bw-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
-      { id: 'dl-prep-bw-2', name: "Child's Pose", sets: 2, reps: '30s', cue: 'Arms extended, let hips drop — breathe into lower back and lats', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
-      { id: 'dl-prep-bw-3', name: 'Standing Hamstring Reach', sets: 2, reps: '8 each side', cue: 'Stand on one leg, hinge forward reaching for floor — feel the back of your thigh lengthen. Slow and controlled', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+      { id: 'dl-prep-bw-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '', swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under — thoracic rotation prep for hinge', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-bw-2', name: "Child's Pose", sets: 2, reps: '30s', cue: 'Arms extended, let hips drop — breathe into lower back and lats', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '', swapAlternative: { name: 'Seated Forward Fold', cue: 'Legs straight, reach for feet — hamstring and lower back stretch', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-bw-3', name: 'Standing Hamstring Reach', sets: 2, reps: '8 each side', cue: 'Stand on one leg, hinge forward reaching for floor — feel the back of your thigh lengthen. Slow and controlled', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'hip_groin'], videoId: '', swapAlternative: { name: 'Inchworm', cue: 'Walk hands out to push-up, walk feet to hands — full-body warm-up chain', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'dl-prep-db-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
-      { id: 'dl-prep-db-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'dl-prep-db-3', name: 'Hip Circle (Standing)', sets: 2, reps: '10 each direction', cue: 'Hands on hips, draw large circles — move slowly and feel the hip joint open. Loosen up before hinging', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'dl-prep-db-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '', swapAlternative: { name: 'Prone Cobra', cue: 'Face down, lift chest with hands at sides — spinal extension and glute squeeze', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-db-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: 'Butterfly Stretch', cue: 'Soles of feet together, press knees toward floor — inner thigh and hip opener', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-db-3', name: 'Hip Circle (Standing)', sets: 2, reps: '10 each direction', cue: 'Hands on hips, draw large circles — move slowly and feel the hip joint open. Loosen up before hinging', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: '90/90 Hip Switch', cue: 'Sit on floor, transition between hip positions slowly — full hip capsule prep', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'dl-prep-fg-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
-      { id: 'dl-prep-fg-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'dl-prep-fg-3', name: 'Kneeling Thoracic Rotation', sets: 2, reps: '8 each side', cue: 'Kneeling, hand behind head, rotate open to the ceiling — improve thoracic mobility for a better hinge position', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'lower_back'], videoId: '' },
+      { id: 'dl-prep-fg-1', name: 'Cat-Cow Flow', sets: 2, reps: '8 slow reps', cue: 'Full spinal flexion and extension — pause at each end, breathe through movement', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['lower_back', 'upper_back'], videoId: '', swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under — thoracic rotation for deadlift prep', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-fg-2', name: 'Adductor Rockback', sets: 2, reps: '8 each side', cue: 'Wide stance, rock into each hip — breathe at end range, open the groin', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['hip_groin', 'lower_back'], videoId: '', swapAlternative: { name: 'Wide-Stance Hip Hinge Stretch', cue: 'Stand wide, hinge forward and hold — hamstrings and inner thighs open', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-prep-fg-3', name: 'Kneeling Thoracic Rotation', sets: 2, reps: '8 each side', cue: 'Kneeling, hand behind head, rotate open to the ceiling — improve thoracic mobility for a better hinge position', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: ['upper_back', 'lower_back'], videoId: '', swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under — same thoracic work, different position', suggestedLoad: 'Bodyweight' } },
     ],
   },
 };
@@ -100,46 +105,64 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
   squat: {
     bodyweight: [
       { id: 'sq-mech-bw-1', name: 'Banded Clamshell', sets: 3, reps: '20 each', cue: 'Heels together, rotate top knee up — constant tension', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Fire Hydrant', cue: 'All fours, lift knee out to side keeping 90° bend — glute activation same pattern', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, stay low, step side to side — glute activation without hip rotation', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
-      { id: 'sq-mech-bw-2', name: 'Glute Bridge Pulse', sets: 3, reps: '25 pulses', cue: 'Small pulsing reps at top — feel the glutes burn, no rest', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-mech-bw-2', name: 'Glute Bridge Pulse', sets: 3, reps: '25 pulses', cue: 'Small pulsing reps at top — feel the glutes burn, no rest', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Glute Bridge', cue: 'One foot up, drive through the working leg — more glute demand per rep', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
       { id: 'sq-mech-db-1', name: 'Banded Clamshell', sets: 3, reps: '20 each', cue: 'Heels together, rotate top knee up — constant tension', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Fire Hydrant', cue: 'All fours, lift knee out to the side — same glute activation, no band needed', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, stay low, step side to side — glute activation without hip rotation', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
-      { id: 'sq-mech-db-2', name: 'Goblet Squat Primer', sets: 3, reps: '15 slow', cue: '3s down, pause 1s, drive up — just activation weight', suggestedLoad: '8–12 kg per hand', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+      { id: 'sq-mech-db-2', name: 'Goblet Squat Primer', sets: 3, reps: '15 slow', cue: '3s down, pause 1s, drive up — just activation weight', suggestedLoad: '8–12 kg per hand', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Sumo Squat Hold', cue: 'Wide stance, feet turned out, hold bottom position 30s — hip and groin opener before squatting', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
       { id: 'sq-mech-fg-1', name: 'Banded Clamshell', sets: 3, reps: '20 each', cue: 'Heels together, rotate top knee up — constant tension', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Fire Hydrant', cue: 'All fours, lift knee out to the side — glute activation alternative', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, stay low, step side to side — glute activation without hip rotation', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
-      { id: 'sq-mech-fg-2', name: 'Goblet Squat Primer', sets: 3, reps: '15 slow', cue: '3s down, pause 1s, drive up — just activation weight', suggestedLoad: '12–16 kg per hand', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+      { id: 'sq-mech-fg-2', name: 'Goblet Squat Primer', sets: 3, reps: '15 slow', cue: '3s down, pause 1s, drive up — just activation weight', suggestedLoad: '12–16 kg per hand', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Belt Squat (light)', cue: 'Plates suspended, walk in, squat — no spinal load, perfect activation', suggestedLoad: '20–40 kg' } },
     ],
   },
   bench: {
     bodyweight: [
-      { id: 'bn-mech-bw-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-mech-bw-2', name: 'Scapular Push-Up', sets: 3, reps: '15', cue: 'Arms straight, protract scaps forward then retract back — no elbow bend', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+      { id: 'bn-mech-bw-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Prone Y-T-W Raise', cue: 'Face down, lift arms in Y then T then W positions — squeeze each for 1s', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-mech-bw-2', name: 'Scapular Push-Up', sets: 3, reps: '15', cue: 'Arms straight, protract scaps forward then retract back — no elbow bend', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'Wall Slide', cue: 'Back flat on wall, slide arms up — scapular activation in opposite direction', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'bn-mech-db-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-mech-db-2', name: 'Light DB External Rotation', sets: 3, reps: '15 each', cue: 'Elbow pinned to side, rotate out slowly — constant tension', suggestedLoad: '2–4 kg per hand', category: 'mechanical', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+      { id: 'bn-mech-db-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Prone Y-T-W Raise', cue: 'Face down, arms in Y-T-W positions — rotator cuff and rear delt activation', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-mech-db-2', name: 'Light DB External Rotation', sets: 3, reps: '15 each', cue: 'Elbow pinned to side, rotate out slowly — constant tension', suggestedLoad: '2–4 kg per hand', category: 'mechanical', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'Prone Shoulder External Rotation', cue: 'Face down on bench, elbow at 90°, rotate arm up — bodyweight rotator cuff activation', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'bn-mech-fg-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-mech-fg-2', name: 'Face Pull', sets: 3, reps: '15', cue: 'Pull to forehead, externally rotate at end position', suggestedLoad: 'Light cable', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-mech-fg-1', name: 'Band Pull-Apart', sets: 3, reps: '20', cue: 'Arms straight, squeeze shoulder blades — pause 1s at chest', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Cable Face Pull', cue: 'Pull to forehead, external rotate at top — rotator cuff primer', suggestedLoad: 'Light cable' } },
+      { id: 'bn-mech-fg-2', name: 'Face Pull', sets: 3, reps: '15', cue: 'Pull to forehead, externally rotate at end position', suggestedLoad: 'Light cable', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Band Pull-Apart', cue: 'Arms straight, pull to chest — rear delt and scapular activation', suggestedLoad: 'Light band' } },
     ],
   },
   deadlift: {
     bodyweight: [
-      { id: 'dl-mech-bw-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'dl-mech-bw-2', name: 'Bird Dog', sets: 3, reps: '10 each', cue: 'Opposite arm + leg, spine neutral — squeeze glute as leg extends', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['lower_back', 'core_ribs'], videoId: '' },
+      { id: 'dl-mech-bw-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Glute Bridge', cue: 'One leg up, drive through working heel — more glute demand each side', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-mech-bw-2', name: 'Bird Dog', sets: 3, reps: '10 each', cue: 'Opposite arm + leg, spine neutral — squeeze glute as leg extends', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['lower_back', 'core_ribs'], videoId: '',
+        swapAlternative: { name: 'Dead Bug', cue: 'Flat back, lower opposite arm and leg toward floor — brace hard throughout', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'dl-mech-db-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'dl-mech-db-2', name: 'KB Deadbug', sets: 3, reps: '10 each', cue: 'Press KB to ceiling, extend opposite leg — low back flat into floor', suggestedLoad: '4–8 kg per hand', category: 'mechanical', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+      { id: 'dl-mech-db-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'DB Hip Thrust (activation)', cue: 'Light DB on hips, squeeze at top for 2s — prime the glutes before the main lift', suggestedLoad: '8–12 kg' } },
+      { id: 'dl-mech-db-2', name: 'KB Deadbug', sets: 3, reps: '10 each', cue: 'Press KB to ceiling, extend opposite leg — low back flat into floor', suggestedLoad: '4–8 kg per hand', category: 'mechanical', targetRegions: ['core_ribs', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Dead Bug', cue: 'Same pattern without weight — lower opposite arm and leg, keep low back flat', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'dl-mech-fg-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
-      { id: 'dl-mech-fg-2', name: 'Banded Good Morning', sets: 3, reps: '15', cue: 'Band around neck, hinge at hips — feel hamstrings load at bottom', suggestedLoad: 'Medium band', category: 'mechanical', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+      { id: 'dl-mech-fg-1', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, squeeze top for 2s — feel the posterior chain fire', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Hip Thrust (light bar)', cue: 'Barbell across hips, drive up and squeeze — activation before the main hinge', suggestedLoad: '20–40 kg' } },
+      { id: 'dl-mech-fg-2', name: 'Banded Good Morning', sets: 3, reps: '15', cue: 'Band around neck, hinge at hips — feel hamstrings load at bottom', suggestedLoad: 'Medium band', category: 'mechanical', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Glute Ham Raise (partial)', cue: 'Anchor feet, lower torso partway — hamstring activation without full load', suggestedLoad: 'Bodyweight' } },
     ],
   },
 };
@@ -256,22 +279,26 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         comfortVariant: { name: 'Supported Reverse Lunge', cue: 'Hand on wall for balance — knee pain management', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-bw-2', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, full hip extension — squeeze 2s at top', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         comfortVariant: { name: 'Banded Clamshell', cue: 'Side-lying, controlled hip abduction', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'lower_back'] } },
-      { id: 'sq-acc-bw-3', name: 'Banded Lateral Walk', sets: 3, reps: '15 each direction', cue: 'Stay low, knees out — continuous tension on band', suggestedLoad: 'Medium band', category: 'accessory', targetRegions: ['hip_groin', 'knee'], videoId: '' },
-      { id: 'sq-acc-bw-4', name: 'Wall Sit', sets: 2, reps: '45s', cue: 'Thighs parallel, back flat — breathe steadily', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['knee'], videoId: '' },
+      { id: 'sq-acc-bw-3', name: 'Banded Lateral Walk', sets: 3, reps: '15 each direction', cue: 'Stay low, knees out — continuous tension on band', suggestedLoad: 'Medium band', category: 'accessory', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Lateral Step-Up', cue: 'Step sideways onto a box or step — glute and hip abductor load through range', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-acc-bw-4', name: 'Wall Sit', sets: 2, reps: '45s', cue: 'Thighs parallel, back flat — breathe steadily', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['knee'], videoId: '',
+        swapAlternative: { name: 'Isometric Split Squat Hold', cue: 'Lunge position, hold still at 90° — single-leg quad endurance version', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
       { id: 'sq-acc-db-1', name: 'DB Bulgarian Split Squat', sets: 3, reps: '15 each', cue: 'Upright torso, front knee tracks toe — pump reps, lighter weight', suggestedLoad: '8–14 kg per hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
         comfortVariant: { name: 'DB Supported Split Squat', cue: 'One hand on rack, reduce load for knee sensitivity', suggestedLoad: '6–10 kg per hand', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-db-2', name: 'DB Hip Thrust', sets: 3, reps: '15', cue: 'DB on hips, full extension — 2s squeeze at top', suggestedLoad: '16–24 kg per hand', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         comfortVariant: { name: 'Glute Bridge', cue: 'Bodyweight, higher reps — hip pain management', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
-      { id: 'sq-acc-db-3', name: 'DB Step-Up', sets: 3, reps: '12 each', cue: 'Drive through top foot, stand fully — no push off back leg', suggestedLoad: '10–16 kg per hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '' },
+      { id: 'sq-acc-db-3', name: 'DB Step-Up', sets: 3, reps: '12 each', cue: 'Drive through top foot, stand fully — no push off back leg', suggestedLoad: '10–16 kg per hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'DB Reverse Lunge', cue: 'Step back, control the descent — same muscles, better balance accessibility', suggestedLoad: '8–14 kg per hand' } },
     ],
     fullgym: [
       { id: 'sq-acc-fg-1', name: 'Dumbbell Walking Lunge', sets: 3, reps: '12 each', cue: 'DBs at sides, controlled steps, upright torso — pump focus', suggestedLoad: '10–18 kg each hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
         comfortVariant: { name: 'Bodyweight Reverse Lunge', cue: 'BW only, focus on control and range', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-fg-2', name: 'Leg Press', sets: 3, reps: '15–20', cue: 'Full ROM, dont lock knees at top — slow 3s down', suggestedLoad: '80–120 kg', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
         comfortVariant: { name: 'Leg Press (Partial ROM)', cue: 'Top half of range only — reduces knee compression', suggestedLoad: '60–80 kg', triggerRegions: ['knee'] } },
-      { id: 'sq-acc-fg-3', name: 'Barbell Hip Thrust', sets: 3, reps: '15', cue: 'Full extension, 2s pause at top — squeeze glutes hard', suggestedLoad: '40–70 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-acc-fg-3', name: 'Barbell Hip Thrust', sets: 3, reps: '15', cue: 'Full extension, 2s pause at top — squeeze glutes hard', suggestedLoad: '40–70 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'DB Hip Thrust', cue: 'Same movement with dumbbells — easier to set up, same glute stimulus', suggestedLoad: '20–32 kg per hand' } },
     ],
   },
   bench: {
@@ -282,21 +309,24 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         comfortVariant: { name: 'Band Pull-Apart', cue: 'High reps, light band — shoulder health', suggestedLoad: 'Light band', triggerRegions: ['rear_shoulder', 'upper_back', 'elbow_wrist'] } },
       { id: 'bn-acc-bw-3', name: 'Pike Push-Up', sets: 3, reps: '12', cue: 'Hips high, head through arms at bottom — vertical push pattern', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['front_shoulder'], videoId: '',
         comfortVariant: { name: 'Banded Lateral Raise', cue: 'Light band, controlled — shoulder sensitive alternative', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck'] } },
-      { id: 'bn-acc-bw-4', name: 'Prone Y-T-W Raise', sets: 2, reps: '10 each', cue: 'Face down, lift arms in Y, T, W — squeeze each position for 1s', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+      { id: 'bn-acc-bw-4', name: 'Prone Y-T-W Raise', sets: 2, reps: '10 each', cue: 'Face down, lift arms in Y, T, W — squeeze each position for 1s', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Band Pull-Apart (high reps)', cue: 'Light band, 30 reps — same rear delt and rhomboid stimulus standing', suggestedLoad: 'Light band' } },
     ],
     dumbbells: [
       { id: 'bn-acc-db-1', name: 'DB Single-Arm Row', sets: 3, reps: '15 each', cue: 'Pull to hip, squeeze lat — slow 3s down', suggestedLoad: '14–22 kg per hand', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
         comfortVariant: { name: 'Band Pull-Apart', cue: 'Light resistance, high reps — shoulder health', suggestedLoad: 'Light band', triggerRegions: ['rear_shoulder', 'upper_back', 'elbow_wrist'] } },
       { id: 'bn-acc-db-2', name: 'DB Lateral Raise', sets: 3, reps: '15–20', cue: 'Slight forward lean, thumbs up — slow and controlled', suggestedLoad: '4–8 kg per hand', category: 'accessory', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '',
         comfortVariant: { name: 'Cable/Band Lateral Raise', cue: 'Pull-through path, less impingement risk', suggestedLoad: '2–4 kg per hand', triggerRegions: ['front_shoulder', 'rear_shoulder'] } },
-      { id: 'bn-acc-db-3', name: 'DB Tricep Overhead Extension', sets: 3, reps: '15', cue: 'Elbows forward, full ROM — slow negative', suggestedLoad: '8–14 kg per hand', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '' },
+      { id: 'bn-acc-db-3', name: 'DB Tricep Overhead Extension', sets: 3, reps: '15', cue: 'Elbows forward, full ROM — slow negative', suggestedLoad: '8–14 kg per hand', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '',
+        swapAlternative: { name: 'DB Skull Crusher', cue: 'Lie flat, lower DBs to temples — same tricep long head with different elbow angle', suggestedLoad: '6–10 kg per hand' } },
     ],
     fullgym: [
       { id: 'bn-acc-fg-1', name: 'Barbell Bent-Over Row', sets: 3, reps: '12–15', cue: 'Flat back, pull to sternum — pump weight, faster reps', suggestedLoad: '40–60 kg', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
         comfortVariant: { name: 'Cable Face Pull', cue: 'Light weight, high reps, external rotation at top', suggestedLoad: '10–15 kg', triggerRegions: ['rear_shoulder', 'upper_back', 'lower_back'] } },
       { id: 'bn-acc-fg-2', name: 'Overhead Press', sets: 3, reps: '10–12', cue: 'Brace core, press through ceiling — pump weight', suggestedLoad: '30–45 kg', category: 'accessory', targetRegions: ['front_shoulder'], videoId: '',
         comfortVariant: { name: 'Landmine Press', cue: 'Angled press, shoulder-friendly arc', suggestedLoad: '15–25 kg', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck'] } },
-      { id: 'bn-acc-fg-3', name: 'Cable Tricep Pushdown', sets: 3, reps: '20', cue: 'Elbows pinned, full extension at bottom — constant tension', suggestedLoad: '15–25 kg', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '' },
+      { id: 'bn-acc-fg-3', name: 'Cable Tricep Pushdown', sets: 3, reps: '20', cue: 'Elbows pinned, full extension at bottom — constant tension', suggestedLoad: '15–25 kg', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '',
+        swapAlternative: { name: 'Overhead Cable Tricep Extension', cue: 'Cable behind head, extend to ceiling — hits long head more, great stretch', suggestedLoad: '10–18 kg' } },
     ],
   },
   deadlift: {
@@ -305,22 +335,26 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         comfortVariant: { name: 'Supine Glute Squeeze', cue: 'Lying, squeeze and hold 5s — hip/back sensitivity', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-bw-2', name: 'Superman Hold', sets: 3, reps: '10 (3s holds)', cue: 'Lift arms and legs, squeeze back — lower back hypertrophy', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['upper_back', 'lower_back'], videoId: '',
         comfortVariant: { name: 'Bird Dog', cue: 'Opposite arm and leg, stable spine — back-friendly', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'upper_back'] } },
-      { id: 'dl-acc-bw-3', name: 'Bear Crawl', sets: 3, reps: '20 steps forward', cue: 'Knees hover 2cm off ground, move contralateral limbs — tight core', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['core_ribs', 'front_shoulder'], videoId: '' },
-      { id: 'dl-acc-bw-4', name: 'Banded Good Morning', sets: 3, reps: '20', cue: 'Band around neck, hinge — feel hamstrings stretch and load', suggestedLoad: 'Medium band', category: 'accessory', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+      { id: 'dl-acc-bw-3', name: 'Bear Crawl', sets: 3, reps: '20 steps forward', cue: 'Knees hover 2cm off ground, move contralateral limbs — tight core', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['core_ribs', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Dead Bug', cue: 'Flat back, lower opposite arm and leg — same core anti-extension, floor-based', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-acc-bw-4', name: 'Banded Good Morning', sets: 3, reps: '20', cue: 'Band around neck, hinge — feel hamstrings stretch and load', suggestedLoad: 'Medium band', category: 'accessory', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Romanian Deadlift (bodyweight)', cue: 'Hinge at hips, reach for floor — same hamstring loading without any load', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
       { id: 'dl-acc-db-1', name: 'DB Hip Thrust', sets: 3, reps: '15', cue: 'DB on hips, full extension, 2s squeeze — posterior chain pump', suggestedLoad: '16–24 kg per hand', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         comfortVariant: { name: 'Glute Bridge', cue: 'Bodyweight, higher reps, controlled', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-db-2', name: 'DB Bent-Over Row', sets: 3, reps: '15 each', cue: 'Flat back, pull to hip, squeeze lat — pump focus', suggestedLoad: '14–20 kg per hand', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
         comfortVariant: { name: 'Chest-Supported DB Row', cue: 'Incline bench — removes low back stress', suggestedLoad: '10–14 kg per hand', triggerRegions: ['lower_back', 'upper_back'] } },
-      { id: 'dl-acc-db-3', name: 'KB Swing', sets: 3, reps: '20', cue: 'Hip snap, arms are ropes — bell floats to chest height', suggestedLoad: '14–20 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'dl-acc-db-3', name: 'KB Swing', sets: 3, reps: '20', cue: 'Hip snap, arms are ropes — bell floats to chest height', suggestedLoad: '14–20 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'DB Deadlift (light, fast reps)', cue: 'Lighter than working weight, explosive concentric — power endurance version of the hinge', suggestedLoad: '12–18 kg per hand' } },
     ],
     fullgym: [
       { id: 'dl-acc-fg-1', name: 'Barbell Hip Thrust', sets: 3, reps: '15', cue: 'Full extension, 2s pause, squeeze — posterior chain pump', suggestedLoad: '40–70 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         comfortVariant: { name: 'Bodyweight Glute Bridge', cue: 'BW, higher reps, no spinal load', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-fg-2', name: 'Pendlay Row', sets: 3, reps: '12', cue: 'Dead stop each rep, explosive pull — back strength support', suggestedLoad: '40–60 kg', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
         comfortVariant: { name: 'Seated Cable Row', cue: 'Upright torso, removes lower back demand', suggestedLoad: '30–45 kg', triggerRegions: ['lower_back', 'upper_back'] } },
-      { id: 'dl-acc-fg-3', name: 'Farmers Carry', sets: 3, reps: '40m', cue: 'Tall posture, grip tight, brace core — walk with purpose', suggestedLoad: '24–36 kg per hand', category: 'accessory', targetRegions: ['core_ribs', 'upper_back'], videoId: '' },
+      { id: 'dl-acc-fg-3', name: 'Farmers Carry', sets: 3, reps: '40m', cue: 'Tall posture, grip tight, brace core — walk with purpose', suggestedLoad: '24–36 kg per hand', category: 'accessory', targetRegions: ['core_ribs', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Suitcase Carry (single arm)', cue: 'One heavy dumbbell, resist lateral lean — oblique and core demand', suggestedLoad: '24–40 kg one hand' } },
     ],
   },
 };
@@ -330,44 +364,62 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
 const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = {
   squat: {
     bodyweight: [
-      { id: 'sq-ph-bw-1', name: 'Standing Calf Raise', sets: 2, reps: '20', cue: 'Full range — rise to toes, lower slowly (ankle health)', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
-      { id: 'sq-ph-bw-2', name: 'Hip Flexor Stretch', sets: 2, reps: '30s each', cue: 'Deep lunge, back knee down, tuck pelvis — breathe into hip flexor', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-ph-bw-1', name: 'Standing Calf Raise', sets: 2, reps: '20', cue: 'Full range — rise to toes, lower slowly (ankle health)', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '',
+        swapAlternative: { name: 'Heel Drop (Eccentric)', cue: 'Heels off step edge, lower 3s — eccentric load for Achilles health', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-ph-bw-2', name: 'Hip Flexor Stretch', sets: 2, reps: '30s each', cue: 'Deep lunge, back knee down, tuck pelvis — breathe into hip flexor', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Pigeon Pose', cue: 'Front shin horizontal, breathe into outer hip — deeper hip prehab stretch', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'sq-ph-db-1', name: 'Standing Calf Raise', sets: 2, reps: '20', cue: 'Full range — rise to toes, lower slowly (ankle health)', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
-      { id: 'sq-ph-db-2', name: 'Adductor Side-Lying Stretch', sets: 2, reps: '30s each', cue: 'Side-lying, top leg long, breathe into inner thigh', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+      { id: 'sq-ph-db-1', name: 'Standing Calf Raise', sets: 2, reps: '20', cue: 'Full range — rise to toes, lower slowly (ankle health)', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '',
+        swapAlternative: { name: 'Seated Calf Raise', cue: 'Seated, weight on knees — targets soleus specifically', suggestedLoad: '10–16 kg' } },
+      { id: 'sq-ph-db-2', name: 'Adductor Side-Lying Stretch', sets: 2, reps: '30s each', cue: 'Side-lying, top leg long, breathe into inner thigh', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Butterfly Stretch', cue: 'Seated, soles together, press knees toward floor — inner thigh and groin prehab', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'sq-ph-fg-1', name: 'Standing Calf Raise (loaded)', sets: 2, reps: '15', cue: 'Hold DB, full range — rise and lower with 3s eccentric', suggestedLoad: '10–16 kg', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
-      { id: 'sq-ph-fg-2', name: 'Hip Flexor Stretch', sets: 2, reps: '30s each', cue: 'Deep lunge, back knee down, tuck pelvis — breathe into hip flexor', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'sq-ph-fg-1', name: 'Standing Calf Raise (loaded)', sets: 2, reps: '15', cue: 'Hold DB, full range — rise and lower with 3s eccentric', suggestedLoad: '10–16 kg', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Calf Raise', cue: 'One leg, full range — double the load demand on each calf', suggestedLoad: 'Bodyweight' } },
+      { id: 'sq-ph-fg-2', name: 'Hip Flexor Stretch', sets: 2, reps: '30s each', cue: 'Deep lunge, back knee down, tuck pelvis — breathe into hip flexor', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Couch Stretch', cue: 'Rear foot elevated, front knee tracking — intense hip flexor prehab', suggestedLoad: 'Bodyweight' } },
     ],
   },
   bench: {
     bodyweight: [
-      { id: 'bn-ph-bw-1', name: 'Doorway Chest Stretch', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel pec stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
-      { id: 'bn-ph-bw-2', name: 'Prone Shoulder External Rotation', sets: 2, reps: '12 each', cue: 'Face down, elbow at 90°, rotate arm up — rotator cuff health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '' },
+      { id: 'bn-ph-bw-1', name: 'Doorway Chest Stretch', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — feel pec stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Cross-Body Shoulder Stretch', cue: 'Pull arm across chest — rear deltoid and posterior capsule prehab', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-ph-bw-2', name: 'Prone Shoulder External Rotation', sets: 2, reps: '12 each', cue: 'Face down, elbow at 90°, rotate arm up — rotator cuff health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Wall Slide', cue: 'Back on wall, arms slide up — scapular control and shoulder health', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'bn-ph-db-1', name: 'DB Shoulder External Rotation', sets: 2, reps: '12 each', cue: 'Elbow at 90°, rotate out slowly — rotator cuff health', suggestedLoad: '2–4 kg per hand', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '' },
-      { id: 'bn-ph-db-2', name: 'Thoracic Extension (foam roll)', sets: 2, reps: '30s at each level', cue: 'Roll thoracic spine section by section — upper back mobility', suggestedLoad: 'Foam roller', category: 'prehab', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
+      { id: 'bn-ph-db-1', name: 'DB Shoulder External Rotation', sets: 2, reps: '12 each', cue: 'Elbow at 90°, rotate out slowly — rotator cuff health', suggestedLoad: '2–4 kg per hand', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Prone Shoulder External Rotation', cue: 'Face down, elbow at 90° — bodyweight version of the same rotator cuff drill', suggestedLoad: 'Bodyweight' } },
+      { id: 'bn-ph-db-2', name: 'Thoracic Extension (foam roll)', sets: 2, reps: '30s at each level', cue: 'Roll thoracic spine section by section — upper back mobility', suggestedLoad: 'Foam roller', category: 'prehab', targetRegions: ['upper_back', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Thread-the-Needle Rotation', cue: 'All fours, thread one arm under — thoracic mobility without foam roller', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'bn-ph-fg-1', name: 'Cable External Rotation', sets: 2, reps: '12 each', cue: 'Elbow pinned, rotate arm out — shoulder joint health', suggestedLoad: '3–6 kg', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '' },
-      { id: 'bn-ph-fg-2', name: 'Thoracic Extension (foam roll)', sets: 2, reps: '30s at each level', cue: 'Roll thoracic spine section by section — upper back mobility', suggestedLoad: 'Foam roller', category: 'prehab', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
+      { id: 'bn-ph-fg-1', name: 'Cable External Rotation', sets: 2, reps: '12 each', cue: 'Elbow pinned, rotate arm out — shoulder joint health', suggestedLoad: '3–6 kg', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Band External Rotation', cue: 'Elbow pinned to side, rotate out against band — rotator cuff prehab', suggestedLoad: 'Light band' } },
+      { id: 'bn-ph-fg-2', name: 'Thoracic Extension (foam roll)', sets: 2, reps: '30s at each level', cue: 'Roll thoracic spine section by section — upper back mobility', suggestedLoad: 'Foam roller', category: 'prehab', targetRegions: ['upper_back', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Cat-Cow Flow', cue: 'Full spinal flexion and extension — thoracic mobility without foam roller', suggestedLoad: 'Bodyweight' } },
     ],
   },
   deadlift: {
     bodyweight: [
-      { id: 'dl-ph-bw-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
-      { id: 'dl-ph-bw-2', name: 'Pigeon Pose', sets: 2, reps: '30s each', cue: 'Front shin parallel, breathe into outer hip — hip capsule stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'dl-ph-bw-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Seated Forward Fold', cue: 'Legs straight, reach forward — hamstring prehab stretch from the floor', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-ph-bw-2', name: 'Pigeon Pose', sets: 2, reps: '30s each', cue: 'Front shin parallel, breathe into outer hip — hip capsule stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Figure-4 Stretch', cue: 'On back, cross ankle over knee, pull toward chest — hip external rotator prehab', suggestedLoad: 'Bodyweight' } },
     ],
     dumbbells: [
-      { id: 'dl-ph-db-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
-      { id: 'dl-ph-db-2', name: 'Adductor Side-Lying Stretch', sets: 2, reps: '30s each', cue: 'Side-lying, top leg long — breathe into inner thigh', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'calf_shin'], videoId: '' },
+      { id: 'dl-ph-db-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Lying Hamstring Stretch', cue: 'On back, pull one leg toward chest — same hamstring prehab in a relaxed position', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-ph-db-2', name: 'Adductor Side-Lying Stretch', sets: 2, reps: '30s each', cue: 'Side-lying, top leg long — breathe into inner thigh', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'calf_shin'], videoId: '',
+        swapAlternative: { name: 'Butterfly Stretch', cue: 'Seated, soles together, press knees toward floor — inner thigh prehab', suggestedLoad: 'Bodyweight' } },
     ],
     fullgym: [
-      { id: 'dl-ph-fg-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
-      { id: 'dl-ph-fg-2', name: 'Pigeon Pose', sets: 2, reps: '30s each', cue: 'Front shin parallel, breathe into outer hip — hip capsule stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+      { id: 'dl-ph-fg-1', name: 'Standing Hamstring Stretch', sets: 2, reps: '30s each', cue: 'Foot on low surface, hinge forward — feel posterior chain lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Nordic Hamstring Curl (slow eccentric)', cue: 'Ankles secured, lower your body slowly — strong eccentric hamstring prehab', suggestedLoad: 'Bodyweight' } },
+      { id: 'dl-ph-fg-2', name: 'Pigeon Pose', sets: 2, reps: '30s each', cue: 'Front shin parallel, breathe into outer hip — hip capsule stretch', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Figure-4 Stretch', cue: 'On back, ankle over knee, pull toward chest — hip prehab with less hip flexion demand', suggestedLoad: 'Bodyweight' } },
     ],
   },
 };
