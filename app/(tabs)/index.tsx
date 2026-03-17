@@ -27,28 +27,28 @@ const SESSION_OPTIONS: {
 }[] = [
   {
     type: 'squat',
-    label: 'Lower Body',
+    label: 'Squat',
     subtitle: 'Squat pattern',
     muscles: 'Quads · Glutes · Hamstrings',
-    icon: 'trending-down-outline',
+    icon: 'footsteps-outline',
     color: Colors.primary,
     bg: Colors.primaryMuted,
   },
   {
     type: 'bench',
-    label: 'Upper Body',
+    label: 'Bench',
     subtitle: 'Push pattern',
     muscles: 'Chest · Shoulders · Triceps',
-    icon: 'arrow-up-outline',
+    icon: 'hand-right-outline',
     color: '#4285f4',
     bg: '#e8f0fe',
   },
   {
     type: 'deadlift',
-    label: 'Full Body',
+    label: 'Deadlift',
     subtitle: 'Hinge pattern',
     muscles: 'Posterior Chain · Back · Core',
-    icon: 'body-outline',
+    icon: 'barbell-outline',
     color: '#9c27b0',
     bg: '#f3e5f5',
   },
@@ -118,9 +118,10 @@ export default function HomeScreen() {
           <Text style={styles.tierText}>{getEquipmentLabel(equipmentTier)}</Text>
         </View>
         <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>
-            {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
-          </Text>
+          {userProfile.name
+            ? <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
+            : <Ionicons name="person-outline" size={20} color={Colors.primary} />
+          }
         </View>
       </Animated.View>
 

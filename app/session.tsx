@@ -167,7 +167,7 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onS
               <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
                 <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
               </View>
-              <Text style={styles.metaText}>{setsLabel} × {repsLabel}</Text>
+              <Text style={styles.metaText}>{setsLabel} × {repsLabel} reps</Text>
             </View>
             <Text style={styles.loadText}>{exercise.suggestedLoad}</Text>
             {showDumbbellNote && (

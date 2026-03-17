@@ -432,9 +432,9 @@ export function getWeightGuide(category: ExerciseCategory, sets: number): string
 
 export function getSessionLabel(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Lower Body';
-    case 'bench': return 'Upper Body';
-    case 'deadlift': return 'Full Body';
+    case 'squat': return 'Squat';
+    case 'bench': return 'Bench';
+    case 'deadlift': return 'Deadlift';
     case 'conditioning': return 'Conditioning';
   }
 }
