@@ -1,4 +1,4 @@
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, UserProfile } from './store';
+import { EquipmentTier, EnergyLevel, FitnessGoal, PainRegion, SessionType, TimeAvailable, UserProfile } from './store';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -110,7 +110,10 @@ function personalizeLoad(
   const sexFactor = profile.sex === 'female' ? (isUpperBodySession ? 0.55 : 0.72) :
                     profile.sex === 'other' ? 0.85 : 1.0;
 
-  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.70) * (goalFactor[profile.goal] ?? 1.0) * sexFactor;
+  const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
+  const avgGoalFactor = activeGoals.reduce((sum, g) => sum + (goalFactor[g] ?? 1.0), 0) / activeGoals.length;
+
+  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.70) * avgGoalFactor * sexFactor;
 
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
 
@@ -174,6 +177,23 @@ function applyComfortOrBadge(
  *   45 min → all prep + mechanical + neuro + KPI + 2 acc + prehab + finisher
  *   60 min → all 8 phases — full session
  */
+/**
+ * Returns set-count adjustments based on the user's goal mix.
+ *
+ * mainSetsDelta: added to the KPI lift base sets (strength → +1, rehab → -1)
+ * accSetsDelta:  added to each accessory set count (muscle/fat_loss → +1, strength/rehab → -1)
+ *
+ * When two goals are selected the deltas are averaged and rounded.
+ */
+function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; accSetsDelta: number } {
+  const mainDelta: Record<FitnessGoal, number> = { strength: 1, muscle: 0, fat_loss: 0, fitness: 0, rehab: -1 };
+  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1 };
+  const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
+  const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
+  const avgAcc  = active.reduce((s, g) => s + (accDelta[g]  ?? 0), 0) / active.length;
+  return { mainSetsDelta: Math.round(avgMain), accSetsDelta: Math.round(avgAcc) };
+}
+
 function applyPersonalization(ex: Exercise, profile: UserProfile | undefined, isUpperBody: boolean): Exercise {
   if (!profile) return ex;
   return {
@@ -197,6 +217,9 @@ export function generateWorkout(
   const exercises: Exercise[] = [];
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
+  const { mainSetsDelta, accSetsDelta } = profile
+    ? getGoalVolumeDeltas(profile.goals)
+    : { mainSetsDelta: 0, accSetsDelta: 0 };
 
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min — safety requirement) ──
   exercises.push(templateToExercise(CARDIO_WARMUP));
@@ -227,10 +250,11 @@ export function generateWorkout(
 
   // ── 5. KPI Lift ──────────────────────────────────────────────────────────
   const mainTemplate = getMainLift(mainType, equipmentTier);
-  let baseSets = mainTemplate.sets;
+  let baseSets = mainTemplate.sets + mainSetsDelta;
   if (timeAvailable === '30') baseSets = Math.max(baseSets - 1, 3);
   if (energy === 'low') baseSets = Math.max(baseSets - 1, 2);
   if (energy === 'high') baseSets = baseSets + 1;
+  baseSets = Math.max(baseSets, 2);
 
   if (hasAches && shouldSwapForComfort(mainTemplate, painRegion) && mainTemplate.comfortVariant) {
     const cv = mainTemplate.comfortVariant;
@@ -260,7 +284,7 @@ export function generateWorkout(
 
   for (const acc of allAccessories.slice(0, accCount)) {
     const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
-    accEx.sets = Math.min(accEx.sets, 2);
+    accEx.sets = Math.max(1, Math.min(accEx.sets + accSetsDelta, 4));
     exercises.push(accEx);
   }
 

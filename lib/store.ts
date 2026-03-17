@@ -84,7 +84,7 @@ export interface UserProfile {
   name: string;
   sex: Sex;
   experienceLevel: ExperienceLevel;
-  goal: FitnessGoal;
+  goals: FitnessGoal[];
   bodyweightKg: number;
 }
 
@@ -128,7 +128,7 @@ export const useAppStore = create<AppState>()(
         name: '',
         sex: 'male' as Sex,
         experienceLevel: 'beginner',
-        goal: 'fitness',
+        goals: ['fitness'],
         bodyweightKg: 75,
       },
 

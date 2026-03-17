@@ -68,15 +68,26 @@ export default function ProfileScreen() {
   const [editWeight, setEditWeight] = useState('');
   const [editSex, setEditSex] = useState<Sex>('male');
   const [editExp, setEditExp] = useState<ExperienceLevel>('beginner');
-  const [editGoal, setEditGoal] = useState<FitnessGoal>('fitness');
+  const [editGoals, setEditGoals] = useState<FitnessGoal[]>(['fitness']);
 
   const openEdit = () => {
     setEditName(userProfile.name);
     setEditWeight(userProfile.bodyweightKg > 0 ? String(userProfile.bodyweightKg) : '');
     setEditSex(userProfile.sex ?? 'male');
     setEditExp(userProfile.experienceLevel);
-    setEditGoal(userProfile.goal);
+    setEditGoals(userProfile.goals?.length ? userProfile.goals : ['fitness']);
     setActiveModal('edit');
+  };
+
+  const toggleEditGoal = (g: FitnessGoal) => {
+    setEditGoals(prev => {
+      if (prev.includes(g)) {
+        const next = prev.filter(x => x !== g);
+        return next.length > 0 ? next : [g];
+      }
+      if (prev.length >= 2) return [prev[1], g];
+      return [...prev, g];
+    });
   };
 
   const saveEdit = () => {
@@ -85,7 +96,7 @@ export default function ProfileScreen() {
       bodyweightKg: parseFloat(editWeight) || 0,
       sex: editSex,
       experienceLevel: editExp,
-      goal: editGoal,
+      goals: editGoals,
     });
     setActiveModal(null);
   };
@@ -132,7 +143,10 @@ export default function ProfileScreen() {
 
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
-  const goalLabel = GOAL_OPTIONS.find(g => g.value === userProfile.goal)?.label ?? 'Fitness';
+  const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
+  const goalLabel = activeGoals
+    .map(g => GOAL_OPTIONS.find(o => o.value === g)?.label ?? 'Fitness')
+    .join(' + ');
 
   const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }[] = [
     { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
@@ -160,9 +174,14 @@ export default function ProfileScreen() {
             <View style={styles.tag}>
               <Text style={styles.tagText}>{expLabel}</Text>
             </View>
-            <View style={[styles.tag, { backgroundColor: Colors.primaryMuted }]}>
-              <Text style={[styles.tagText, { color: Colors.primaryDark }]}>{goalLabel}</Text>
-            </View>
+            {activeGoals.map(g => {
+              const opt = GOAL_OPTIONS.find(o => o.value === g);
+              return (
+                <View key={g} style={[styles.tag, { backgroundColor: Colors.primaryMuted }]}>
+                  <Text style={[styles.tagText, { color: Colors.primaryDark }]}>{opt?.label ?? g}</Text>
+                </View>
+              );
+            })}
             {userProfile.bodyweightKg > 0 && (
               <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
                 <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
@@ -273,20 +292,24 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>Primary Goal</Text>
+            <Text style={styles.inputLabel}>Goals</Text>
+            <Text style={styles.inputHint}>Pick up to 2 — they shape your weights and volume</Text>
             <View style={styles.goalGroup}>
-              {GOAL_OPTIONS.map(opt => (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => setEditGoal(opt.value)}
-                  style={[styles.goalChip, editGoal === opt.value && styles.goalChipActive]}
-                >
-                  <Ionicons name={opt.icon} size={16} color={editGoal === opt.value ? Colors.primary : Colors.textTertiary} />
-                  <Text style={[styles.goalChipText, editGoal === opt.value && styles.goalChipTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
+              {GOAL_OPTIONS.map(opt => {
+                const isActive = editGoals.includes(opt.value);
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => toggleEditGoal(opt.value)}
+                    style={[styles.goalChip, isActive && styles.goalChipActive]}
+                  >
+                    <Ionicons name={opt.icon} size={16} color={isActive ? Colors.primary : Colors.textTertiary} />
+                    <Text style={[styles.goalChipText, isActive && styles.goalChipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <Pressable onPress={saveEdit} style={styles.saveBtn}>
