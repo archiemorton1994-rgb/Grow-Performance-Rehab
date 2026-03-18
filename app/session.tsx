@@ -178,9 +178,9 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onS
         </Pressable>
 
         <View style={styles.actionRow}>
-          <Pressable onPress={onVideoPress} style={styles.actionBtn} testID={`video-${index}`}>
-            <Ionicons name="play-circle-outline" size={15} color={Colors.textSecondary} />
-            <Text style={styles.actionBtnText}>Watch form</Text>
+          <Pressable onPress={onVideoPress} style={[styles.actionBtn, styles.actionBtnYoutube]} testID={`video-${index}`}>
+            <Ionicons name="logo-youtube" size={15} color="#FF0000" />
+            <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
           </Pressable>
           {exercise.hasSwap && !setData.swapped && (
             <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
@@ -295,7 +295,10 @@ export default function SessionScreen() {
     );
   }, [exercises]);
 
-  const [videoModalExercise, setVideoModalExercise] = useState<string | null>(null);
+  const openYouTube = (exerciseName: string) => {
+    const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
+    Linking.openURL('https://www.youtube.com/results?search_query=' + query);
+  };
   const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -478,7 +481,7 @@ export default function SessionScreen() {
               index={index}
               setData={data}
               onSetChange={(si, u) => handleSetChange(index, si, u)}
-              onVideoPress={() => setVideoModalExercise(displayExercise.name)}
+              onVideoPress={() => openYouTube(displayExercise.name)}
               onSwapPress={() => setSwapModal({ index, exercise })}
               isDumbbellSession={isDumbbellSession}
             />
@@ -503,32 +506,6 @@ export default function SessionScreen() {
           </Text>
         </Pressable>
       </View>
-
-      {/* Video Modal */}
-      <Modal visible={!!videoModalExercise} transparent animationType="fade" onRequestClose={() => setVideoModalExercise(null)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setVideoModalExercise(null)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalIcon}>
-              <Ionicons name="play-circle-outline" size={36} color={Colors.primary} />
-            </View>
-            <Text style={styles.modalTitle}>{videoModalExercise}</Text>
-            <Text style={styles.modalDesc}>Watch a demonstration to learn perfect form and technique.</Text>
-            <Pressable
-              onPress={() => {
-                const query = encodeURIComponent((videoModalExercise || '') + ' exercise proper form tutorial');
-                Linking.openURL('https://www.youtube.com/results?search_query=' + query);
-              }}
-              style={styles.youtubeButton}
-            >
-              <Ionicons name="logo-youtube" size={20} color="#fff" />
-              <Text style={styles.youtubeButtonText}>Watch on YouTube</Text>
-            </Pressable>
-            <Pressable onPress={() => setVideoModalExercise(null)} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Swap Modal */}
       <Modal visible={!!swapModal} transparent animationType="fade" onRequestClose={() => setSwapModal(null)}>
@@ -650,6 +627,7 @@ const styles = StyleSheet.create({
   chevron: { marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: Colors.surfaceTertiary },
+  actionBtnYoutube: { backgroundColor: '#FFF0F0', borderWidth: 1, borderColor: '#FFCCCC' },
   actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
   setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
   cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
