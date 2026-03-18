@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -48,6 +48,16 @@ export default function ReadinessScreen() {
   const [painCategory, setPainCategory] = useState<keyof typeof PAIN_CATEGORIES | undefined>();
   const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
   const [energy, setEnergy] = useState<EnergyLevel | undefined>();
+
+  const BYPASS_TYPES: SessionType[] = ['prehab', 'flexibility'];
+  useEffect(() => {
+    if (BYPASS_TYPES.includes(sessionType)) {
+      router.replace({
+        pathname: '/session',
+        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: defaultTier },
+      });
+    }
+  }, []);
 
   const hapticTap = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

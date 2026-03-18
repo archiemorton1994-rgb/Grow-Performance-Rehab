@@ -23,9 +23,8 @@ const EXPERIENCE_OPTIONS: {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { value: 'beginner', label: 'Beginner', description: 'New to training or returning after a long break', icon: 'leaf-outline' },
-  { value: 'intermediate', label: 'Intermediate', description: '1–3 years of consistent training', icon: 'trending-up-outline' },
-  { value: 'advanced', label: 'Advanced', description: '3+ years, comfortable with main lifts', icon: 'barbell-outline' },
+  { value: 'beginner', label: 'New to the gym', description: 'Building the basics — we start safe and simple', icon: 'leaf-outline' },
+  { value: 'intermediate', label: 'Experienced gym-goer', description: '1+ years of consistent training', icon: 'barbell-outline' },
 ];
 
 const ALL_TIERS: { tier: EquipmentTier; icon: keyof typeof Ionicons.glyphMap; description: string }[] = [

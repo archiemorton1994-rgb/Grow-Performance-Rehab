@@ -23,6 +23,8 @@ const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
   bench: 'body',
   deadlift: 'barbell',
   conditioning: 'flame-outline',
+  prehab: 'shield-checkmark-outline',
+  flexibility: 'leaf-outline',
 };
 
 const SESSION_COLORS: Record<SessionType, { bg: string; accent: string }> = {
@@ -30,6 +32,8 @@ const SESSION_COLORS: Record<SessionType, { bg: string; accent: string }> = {
   bench: { bg: '#e8f0fe', accent: '#4285f4' },
   deadlift: { bg: '#fce8e6', accent: '#ea4335' },
   conditioning: { bg: '#fbe9e7', accent: '#e65100' },
+  prehab: { bg: '#fff3e0', accent: '#e65100' },
+  flexibility: { bg: '#e8f5e9', accent: '#2e7d32' },
 };
 
 export default function WorkoutsScreen() {
