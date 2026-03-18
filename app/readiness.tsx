@@ -11,10 +11,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, useAppStore } from '@/lib/store';
-import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 
 type Step = 'equipment' | 'aches' | 'painCategory' | 'painRegion' | 'energy' | 'time';
 
@@ -30,20 +30,25 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
 
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string; equipment: string }>();
+  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
 
-  const { equipmentTier: profileTier, userProfile } = useAppStore();
-  const defaultTier = (ALL_TIERS.includes(params.equipment as EquipmentTier) ? params.equipment : profileTier) as EquipmentTier;
+  const { equipmentTiers, userProfile } = useAppStore();
 
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
     ? ['bodyweight', 'bands']
     : ALL_TIERS;
 
+  const initialTiers = (equipmentTiers && equipmentTiers.length > 0)
+    ? equipmentTiers.filter(t => availableTiers.includes(t))
+    : ['bodyweight' as EquipmentTier];
+
   const [step, setStep] = useState<Step>('equipment');
-  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentTier>(defaultTier);
+  const [selectedEquipments, setSelectedEquipments] = useState<EquipmentTier[]>(
+    initialTiers.length > 0 ? initialTiers : ['bodyweight']
+  );
   const [hasAches, setHasAches] = useState(false);
   const [painCategory, setPainCategory] = useState<keyof typeof PAIN_CATEGORIES | undefined>();
   const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
@@ -52,9 +57,10 @@ export default function ReadinessScreen() {
   const BYPASS_TYPES: SessionType[] = ['prehab', 'flexibility'];
   useEffect(() => {
     if (BYPASS_TYPES.includes(sessionType)) {
+      const tier = getEffectiveTier(selectedEquipments);
       router.replace({
         pathname: '/session',
-        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: defaultTier },
+        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: tier },
       });
     }
   }, []);
@@ -63,9 +69,27 @@ export default function ReadinessScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleEquipment = (tier: EquipmentTier) => {
+  const handleTierToggle = (tier: EquipmentTier) => {
+    if (!availableTiers.includes(tier)) return;
     hapticTap();
-    setSelectedEquipment(tier);
+    setSelectedEquipments((prev) => {
+      if (tier === 'fullgym') {
+        if (prev.includes('fullgym')) {
+          return prev.filter(t => t !== 'fullgym');
+        } else {
+          return [...TIER_ORDER];
+        }
+      }
+      if (prev.includes(tier)) {
+        const next = prev.filter(t => t !== tier);
+        return next.length > 0 ? next : [tier];
+      }
+      return [...prev, tier];
+    });
+  };
+
+  const handleEquipmentNext = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (sessionType === 'conditioning') {
       setStep('energy');
     } else {
@@ -82,7 +106,7 @@ export default function ReadinessScreen() {
       if (isTestWeek) {
         router.push({
           pathname: '/session',
-          params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: selectedEquipment },
+          params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: getEffectiveTier(selectedEquipments) },
         });
       } else {
         setStep('energy');
@@ -102,7 +126,7 @@ export default function ReadinessScreen() {
     if (isTestWeek) {
       router.push({
         pathname: '/session',
-        params: { sessionType, hasAches: 'true', painRegion: region, energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: selectedEquipment },
+        params: { sessionType, hasAches: 'true', painRegion: region, energy: 'normal', timeAvailable: '60', isTestWeek: 'true', equipment: getEffectiveTier(selectedEquipments) },
       });
     } else {
       setStep('energy');
@@ -126,7 +150,7 @@ export default function ReadinessScreen() {
         energy: energy || 'normal',
         timeAvailable: time,
         isTestWeek: 'false',
-        equipment: selectedEquipment,
+        equipment: getEffectiveTier(selectedEquipments),
       },
     });
   };
@@ -196,6 +220,8 @@ export default function ReadinessScreen() {
     calf_shin: 'trending-down-outline',
   };
 
+  const effectiveTier = getEffectiveTier(selectedEquipments);
+
   const renderStep = () => {
     switch (step) {
       case 'equipment':
@@ -205,21 +231,28 @@ export default function ReadinessScreen() {
               <Ionicons name="barbell-outline" size={28} color={Colors.primary} />
             </View>
             <Text style={styles.question}>What equipment do you have?</Text>
-            <Text style={styles.questionSub}>Your session is built around this</Text>
+            <Text style={styles.questionSub}>Check everything available today</Text>
             {isBeginnerExperience && (
               <View style={styles.beginnerNote}>
                 <Ionicons name="shield-checkmark-outline" size={14} color={Colors.primary} />
                 <Text style={styles.beginnerNoteText}>Bodyweight and bands — perfect for building safe foundations</Text>
               </View>
             )}
+            {selectedEquipments.length > 0 && (
+              <View style={styles.effectiveTierBadge}>
+                <Text style={styles.effectiveTierText}>
+                  Best match: <Text style={{ fontFamily: 'Inter_600SemiBold', color: Colors.primary }}>{getEquipmentLabel(effectiveTier)}</Text>
+                </Text>
+              </View>
+            )}
             <View style={styles.areaButtons}>
               {ALL_TIERS.map((tier) => {
                 const isAvailable = availableTiers.includes(tier);
-                const isActive = selectedEquipment === tier;
+                const isActive = selectedEquipments.includes(tier);
                 return (
                   <Pressable
                     key={tier}
-                    onPress={() => isAvailable && handleEquipment(tier)}
+                    onPress={() => handleTierToggle(tier)}
                     style={({ pressed }) => [
                       styles.areaButton,
                       isActive && styles.areaButtonActive,
@@ -241,14 +274,28 @@ export default function ReadinessScreen() {
                     </View>
                     {!isAvailable
                       ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
-                      : isActive
-                        ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
-                        : <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                      : (
+                        <View style={[styles.checkbox, isActive && styles.checkboxSelected]}>
+                          {isActive && <Ionicons name="checkmark" size={13} color={Colors.textInverse} />}
+                        </View>
+                      )
                     }
                   </Pressable>
                 );
               })}
             </View>
+            <Pressable
+              onPress={handleEquipmentNext}
+              disabled={selectedEquipments.length === 0}
+              style={({ pressed }) => [
+                styles.nextButton,
+                selectedEquipments.length === 0 && styles.nextButtonDisabled,
+                pressed && selectedEquipments.length > 0 && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <Text style={[styles.nextButtonText, selectedEquipments.length === 0 && styles.nextButtonTextDisabled]}>Next</Text>
+              <Ionicons name="arrow-forward" size={18} color={selectedEquipments.length > 0 ? Colors.textInverse : Colors.textTertiary} />
+            </Pressable>
           </Animated.View>
         );
 
@@ -455,10 +502,12 @@ const styles = StyleSheet.create({
   progressTrack: { height: 4, backgroundColor: Colors.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
   progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
   stepIndicator: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
-  stepContent: { flex: 1, paddingHorizontal: 24, paddingTop: 40, alignItems: 'center' },
+  stepContent: { flex: 1, paddingHorizontal: 24, paddingTop: 32, alignItems: 'center', paddingBottom: 20 },
   questionIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   question: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 6 },
-  questionSub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 36 },
+  questionSub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+  effectiveTierBadge: { backgroundColor: Colors.primaryMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  effectiveTierText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
   bigButtons: { flexDirection: 'row', gap: 14, width: '100%' },
   bigButton: { flex: 1, paddingVertical: 28, borderRadius: 16, alignItems: 'center', gap: 10 },
   bigButtonOutline: { backgroundColor: Colors.surface, borderWidth: 2, borderColor: Colors.border },
@@ -468,12 +517,18 @@ const styles = StyleSheet.create({
   areaButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
   areaButtonActive: { borderColor: Colors.primary, borderWidth: 2, backgroundColor: Colors.primarySurface },
   areaButtonLocked: { opacity: 0.5, borderColor: Colors.borderLight },
-  beginnerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  beginnerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight, width: '100%' },
   beginnerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.primaryDark },
   areaIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   areaLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   areaCatContent: { flex: 1 },
   areaSublabel: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 1 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  checkboxSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary },
+  nextButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, gap: 8, width: '100%', marginTop: 16 },
+  nextButtonDisabled: { backgroundColor: Colors.surfaceTertiary },
+  nextButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  nextButtonTextDisabled: { color: Colors.textTertiary },
   energyButtons: { width: '100%', gap: 10 },
   energyButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
   energyIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },

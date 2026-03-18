@@ -15,8 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, Sex, useAppStore } from '@/lib/store';
-import { getEquipmentLabel, getEquipmentIcon, getSessionLabel } from '@/lib/workout-engine';
+import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getEquipmentLabel, getEquipmentIcon, getSessionLabel, getEffectiveTier } from '@/lib/workout-engine';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 const LIFTS: SessionType[] = ['squat', 'bench', 'deadlift'];
@@ -42,8 +42,8 @@ type ActiveModal = 'edit' | 'progress' | 'records' | 'history' | 'equipment' | '
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const {
-    equipmentTier,
-    setEquipmentTier,
+    equipmentTiers,
+    setEquipmentTiers,
     completedCount,
     completedSessions,
     getStreakDays,
@@ -55,8 +55,10 @@ export default function ProfileScreen() {
     setTestWeekFrequency,
     userProfile,
     setUserProfile,
+    getEffectiveTier: storeGetEffectiveTier,
   } = useAppStore();
 
+  const effectiveTier = storeGetEffectiveTier();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -70,6 +72,9 @@ export default function ProfileScreen() {
   const [editExp, setEditExp] = useState<ExperienceLevel>('beginner');
   const [editGoals, setEditGoals] = useState<FitnessGoal[]>(['fitness']);
 
+  // Equipment multi-select local state (for modal)
+  const [editTiers, setEditTiers] = useState<EquipmentTier[]>(['bodyweight']);
+
   const openEdit = () => {
     setEditName(userProfile.name);
     setEditWeight(userProfile.bodyweightKg > 0 ? String(userProfile.bodyweightKg) : '');
@@ -77,6 +82,11 @@ export default function ProfileScreen() {
     setEditExp(userProfile.experienceLevel);
     setEditGoals(userProfile.goals?.length ? userProfile.goals : ['fitness']);
     setActiveModal('edit');
+  };
+
+  const openEquipment = () => {
+    setEditTiers(equipmentTiers && equipmentTiers.length > 0 ? [...equipmentTiers] : ['bodyweight']);
+    setActiveModal('equipment');
   };
 
   const toggleEditGoal = (g: FitnessGoal) => {
@@ -87,6 +97,28 @@ export default function ProfileScreen() {
       }
       if (prev.length >= 2) return [prev[1], g];
       return [...prev, g];
+    });
+  };
+
+  const toggleEditTier = (tier: EquipmentTier) => {
+    const isLocked = userProfile.experienceLevel === 'beginner' && !['bodyweight', 'bands'].includes(tier);
+    if (isLocked) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    setEditTiers((prev) => {
+      if (tier === 'fullgym') {
+        if (prev.includes('fullgym')) {
+          return prev.filter(t => t !== 'fullgym');
+        } else {
+          const available = userProfile.experienceLevel === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
+          return available as EquipmentTier[];
+        }
+      }
+      if (prev.includes(tier)) {
+        const next = prev.filter(t => t !== tier);
+        return next.length > 0 ? next : [tier];
+      }
+      return [...prev, tier];
     });
   };
 
@@ -101,9 +133,8 @@ export default function ProfileScreen() {
     setActiveModal(null);
   };
 
-  const handleTierChange = (tier: EquipmentTier) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEquipmentTier(tier);
+  const saveEquipment = () => {
+    setEquipmentTiers(editTiers);
     setActiveModal(null);
   };
 
@@ -148,12 +179,12 @@ export default function ProfileScreen() {
     .map(g => GOAL_OPTIONS.find(o => o.value === g)?.label ?? 'Fitness')
     .join(' + ');
 
-  const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }[] = [
+  const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string; onPress?: () => void }[] = [
     { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
     { id: 'progress', label: 'My Progress', icon: 'trophy-outline', color: '#f59e0b', bg: '#fef9c3' },
     { id: 'records', label: 'Strength KPIs', icon: 'barbell-outline', color: '#9c27b0', bg: '#f3e5f5' },
     { id: 'history', label: 'Session History', icon: 'time-outline', color: '#4285f4', bg: '#e8f0fe' },
-    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(equipmentTier) as any, color: '#00695c', bg: '#e0f2f1' },
+    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(effectiveTier) as any, color: '#00695c', bg: '#e0f2f1', onPress: openEquipment },
     { id: 'settings', label: 'Settings', icon: 'settings-outline', color: Colors.textSecondary, bg: Colors.surfaceTertiary },
   ];
 
@@ -219,7 +250,11 @@ export default function ProfileScreen() {
         {NAV_BUTTONS.map((btn, i) => (
           <Pressable
             key={btn.id}
-            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveModal(btn.id); }}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (btn.onPress) btn.onPress();
+              else setActiveModal(btn.id);
+            }}
             style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
           >
             <View style={[styles.navIcon, { backgroundColor: btn.bg }]}>
@@ -471,13 +506,15 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Equipment Modal */}
+      {/* Equipment Modal — multi-select */}
       <Modal visible={activeModal === 'equipment'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Equipment</Text>
-            <Text style={styles.sheetSub}>Choose what you have available for your workouts</Text>
+            <Text style={styles.sheetSub}>
+              Select everything available to you — we use the best match for each session
+            </Text>
             {userProfile.experienceLevel === 'beginner' && (
               <View style={styles.upgradeNote}>
                 <Ionicons name="information-circle-outline" size={15} color={Colors.primary} />
@@ -486,25 +523,45 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
+            {editTiers.length > 0 && (
+              <View style={styles.effectiveBadge}>
+                <Text style={styles.effectiveBadgeText}>
+                  Best match: <Text style={{ fontFamily: 'Inter_600SemiBold', color: Colors.primary }}>{getEquipmentLabel(getEffectiveTier(editTiers))}</Text>
+                </Text>
+              </View>
+            )}
             {ALL_TIERS.map(tier => {
-              const isActive = tier === equipmentTier;
+              const isActive = editTiers.includes(tier);
               const isLocked = userProfile.experienceLevel === 'beginner' && !['bodyweight', 'bands'].includes(tier);
               return (
                 <Pressable
                   key={tier}
-                  onPress={() => !isLocked && handleTierChange(tier)}
+                  onPress={() => toggleEditTier(tier)}
                   style={[styles.equipRow, isActive && styles.equipRowActive, isLocked && styles.equipRowLocked]}
                   testID={`tier-${tier}`}
                 >
-                  <Ionicons name={getEquipmentIcon(tier) as any} size={22} color={isActive ? Colors.primary : isLocked ? Colors.textTertiary : Colors.textTertiary} />
-                  <Text style={[styles.equipLabel, isActive && styles.equipLabelActive, isLocked && styles.equipLabelLocked]}>{getEquipmentLabel(tier)}</Text>
+                  <Ionicons
+                    name={getEquipmentIcon(tier) as any}
+                    size={22}
+                    color={isActive ? Colors.primary : isLocked ? Colors.textTertiary : Colors.textSecondary}
+                  />
+                  <Text style={[styles.equipLabel, isActive && styles.equipLabelActive, isLocked && styles.equipLabelLocked]}>
+                    {getEquipmentLabel(tier)}
+                  </Text>
                   {isLocked
                     ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
-                    : isActive && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                    : (
+                      <View style={[styles.equipCheckbox, isActive && styles.equipCheckboxActive]}>
+                        {isActive && <Ionicons name="checkmark" size={13} color={Colors.textInverse} />}
+                      </View>
+                    )
                   }
                 </Pressable>
               );
             })}
+            <Pressable onPress={saveEquipment} style={[styles.saveBtn, { marginTop: 16 }]}>
+              <Text style={styles.saveBtnText}>Save Equipment</Text>
+            </Pressable>
             <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
@@ -587,7 +644,6 @@ const styles = StyleSheet.create({
   navIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   navLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
 
-  // Sheet / Modal base
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 12 },
   sheetScroll: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
@@ -597,7 +653,6 @@ const styles = StyleSheet.create({
   sheetSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 16 },
   subSectionTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 10, marginTop: 16 },
 
-  // Edit form
   inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 4, marginTop: 12 },
   inputHint: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginBottom: 6 },
   input: {
@@ -616,7 +671,6 @@ const styles = StyleSheet.create({
   goalChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
   goalChipTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
 
-  // Progress
   milestoneCard: { backgroundColor: Colors.primarySurface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.primaryMuted, marginBottom: 4 },
   milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   milestoneLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, flex: 1 },
@@ -628,7 +682,6 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: '#92400e' },
   badgeTextLocked: { color: Colors.textTertiary },
 
-  // KPI Records
   ormCard: { backgroundColor: Colors.surfaceTertiary, borderRadius: 14, padding: 14, marginBottom: 10 },
   ormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   ormLift: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
@@ -646,7 +699,6 @@ const styles = StyleSheet.create({
   ormDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   ormEmpty: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
 
-  // History
   emptyState: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginTop: 10 },
   emptySubText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
@@ -662,17 +714,19 @@ const styles = StyleSheet.create({
   histMeta2: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
   histWeight: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
 
-  // Equipment
   equipRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
   equipRowActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
   equipRowLocked: { opacity: 0.45 },
   equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: Colors.text },
   equipLabelActive: { fontFamily: 'Inter_600SemiBold', color: Colors.primaryDark },
   equipLabelLocked: { color: Colors.textTertiary },
+  equipCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  equipCheckboxActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
   upgradeNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
   upgradeNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.primaryDark, lineHeight: 17 },
+  effectiveBadge: { backgroundColor: Colors.primaryMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  effectiveBadgeText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
 
-  // Settings
   settingItemLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 2 },
   settingItemSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 12 },
   settingDivider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 16 },
@@ -684,7 +738,6 @@ const styles = StyleSheet.create({
   resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.errorLight },
   resetText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.error },
 
-  // Shared
   saveBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 15, borderRadius: 13, alignItems: 'center', marginTop: 20 },
   saveBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
   cancelBtn: { paddingVertical: 12, alignItems: 'center' },

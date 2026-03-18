@@ -12,8 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, ExperienceLevel, useAppStore } from '@/lib/store';
-import { getEquipmentLabel } from '@/lib/workout-engine';
+import { EquipmentTier, ExperienceLevel, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 
 type OnboardingStep = 'experience' | 'equipment';
 
@@ -44,8 +44,8 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<OnboardingStep>('experience');
   const [selectedExperience, setSelectedExperience] = useState<ExperienceLevel | null>(null);
-  const [selectedTier, setSelectedTier] = useState<EquipmentTier | null>(null);
-  const { setEquipmentTier, setOnboardingComplete, setUserProfile } = useAppStore();
+  const [selectedTiers, setSelectedTiers] = useState<EquipmentTier[]>([]);
+  const { setEquipmentTiers, setOnboardingComplete, setUserProfile } = useAppStore();
 
   const hapticTap = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -54,8 +54,11 @@ export default function OnboardingScreen() {
   const handleExperienceSelect = (exp: ExperienceLevel) => {
     hapticTap();
     setSelectedExperience(exp);
-    if (exp === 'beginner') setSelectedTier('bodyweight');
-    else setSelectedTier(null);
+    if (exp === 'beginner') {
+      setSelectedTiers(['bodyweight']);
+    } else {
+      setSelectedTiers([]);
+    }
   };
 
   const handleExperienceContinue = () => {
@@ -65,15 +68,31 @@ export default function OnboardingScreen() {
     setStep('equipment');
   };
 
-  const handleTierSelect = (tier: EquipmentTier) => {
+  const handleTierToggle = (tier: EquipmentTier) => {
+    if (!selectedExperience) return;
+    const available = getAvailableTiers(selectedExperience);
+    if (!available.includes(tier)) return;
     hapticTap();
-    setSelectedTier(tier);
+
+    setSelectedTiers((prev) => {
+      if (tier === 'fullgym') {
+        if (prev.includes('fullgym')) {
+          return prev.filter(t => t !== 'fullgym');
+        } else {
+          return [...TIER_ORDER];
+        }
+      }
+      if (prev.includes(tier)) {
+        return prev.filter(t => t !== tier);
+      }
+      return [...prev, tier];
+    });
   };
 
   const handleTierContinue = () => {
-    if (!selectedTier || !selectedExperience) return;
+    if (selectedTiers.length === 0 || !selectedExperience) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEquipmentTier(selectedTier);
+    setEquipmentTiers(selectedTiers);
     setOnboardingComplete(true);
     router.replace('/(tabs)');
   };
@@ -162,6 +181,8 @@ export default function OnboardingScreen() {
     );
   }
 
+  const canContinue = selectedTiers.length > 0;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20) }]}>
       <View style={styles.topBar}>
@@ -179,8 +200,8 @@ export default function OnboardingScreen() {
         <Text style={styles.title}>Your equipment</Text>
         <Text style={styles.subtitle}>
           {isBeginnerRestricted
-            ? 'Starting with bodyweight or bands — perfect for building foundations safely'
-            : 'Choose what you have access to'}
+            ? 'Select what you have access to'
+            : 'Check everything available to you'}
         </Text>
         {isBeginnerRestricted && (
           <View style={styles.restrictedBanner}>
@@ -190,16 +211,21 @@ export default function OnboardingScreen() {
             </Text>
           </View>
         )}
+        {selectedTiers.length > 0 && (
+          <Text style={styles.selectionHint}>
+            Best match: <Text style={{ color: Colors.primary, fontFamily: 'Inter_600SemiBold' }}>{getEquipmentLabel(getEffectiveTier(selectedTiers))}</Text>
+          </Text>
+        )}
       </Animated.View>
 
       <View style={styles.options}>
         {ALL_TIERS.map((item, index) => {
           const isAvailable = availableTiers.includes(item.tier);
-          const isSelected = selectedTier === item.tier;
+          const isSelected = selectedTiers.includes(item.tier);
           return (
             <Animated.View key={item.tier} entering={FadeInDown.delay(100 + index * 80).duration(400)}>
               <Pressable
-                onPress={() => isAvailable && handleTierSelect(item.tier)}
+                onPress={() => handleTierToggle(item.tier)}
                 style={({ pressed }) => [
                   styles.option,
                   isSelected && styles.optionSelected,
@@ -225,8 +251,8 @@ export default function OnboardingScreen() {
                 {!isAvailable
                   ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
                   : (
-                    <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                      {isSelected && <View style={styles.radioInner} />}
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                      {isSelected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
                     </View>
                   )
                 }
@@ -239,20 +265,20 @@ export default function OnboardingScreen() {
       <View style={styles.footer}>
         <Pressable
           onPress={handleTierContinue}
-          disabled={!selectedTier}
+          disabled={!canContinue}
           style={({ pressed }) => [
             styles.continueButton,
-            !selectedTier && styles.continueButtonDisabled,
-            pressed && selectedTier && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            !canContinue && styles.continueButtonDisabled,
+            pressed && canContinue && { opacity: 0.9, transform: [{ scale: 0.98 }] },
           ]}
         >
-          <Text style={[styles.continueText, !selectedTier && styles.continueTextDisabled]}>
+          <Text style={[styles.continueText, !canContinue && styles.continueTextDisabled]}>
             Get Started
           </Text>
           <Ionicons
             name="arrow-forward"
             size={20}
-            color={selectedTier ? Colors.textInverse : Colors.textTertiary}
+            color={canContinue ? Colors.textInverse : Colors.textTertiary}
           />
         </Pressable>
       </View>
@@ -297,7 +323,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 20,
   },
   iconContainer: {
     width: 64,
@@ -320,6 +346,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  selectionHint: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.textSecondary,
+    marginTop: 8,
   },
   restrictedBanner: {
     flexDirection: 'row',
@@ -415,6 +447,20 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+    backgroundColor: Colors.primary,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  checkboxSelected: {
+    borderColor: Colors.primary,
     backgroundColor: Colors.primary,
   },
   footer: {

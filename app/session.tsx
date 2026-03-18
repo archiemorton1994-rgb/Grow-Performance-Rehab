@@ -260,11 +260,11 @@ export default function SessionScreen() {
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
-  const { equipmentTier: storeEquipmentTier, completeSession, addOneRepMax, userProfile } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
-    : storeEquipmentTier;
+    : getEffectiveTier();
 
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 

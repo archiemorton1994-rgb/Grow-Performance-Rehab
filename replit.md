@@ -10,13 +10,17 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 
 ## Key Features
 
-### Equipment (5 Tiers)
+### Equipment (5 Tiers — Multi-Select)
 - `bodyweight` — no equipment  
 - `bands` — resistance bands (maps to bodyweight exercise pool internally)  
 - `dumbbells` — dumbbells  
 - `kettlebells` — kettlebells (maps to dumbbells exercise pool internally)  
 - `fullgym` — full barbell/machine gym  
-- Internal tier mapping: `toInternalTier()` in `lib/exercise-db.ts` collapses 5→3 for exercise lookup
+- Users select **multiple** tiers they have access to; `getEffectiveTier()` derives the best (highest) single tier for session generation
+- Full gym checkbox selects all; individual unticks retain others
+- Beginners restricted to bodyweight + bands only
+- Store field: `equipmentTiers: EquipmentTier[]` (replaces old single `equipmentTier`)
+- Internal tier mapping: `getInternalTier()` in `lib/store.ts` collapses 5→3 for exercise lookup
 
 ### Session Types (6 options)
 - **Lower Body** (`squat`) — Quad/Glute/Hamstring focus, squat pattern KPI

@@ -89,9 +89,11 @@ export interface UserProfile {
   bodyweightKg: number;
 }
 
+export const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+
 interface AppState {
   onboardingComplete: boolean;
-  equipmentTier: EquipmentTier;
+  equipmentTiers: EquipmentTier[];
   completedCount: number;
   completedSessions: CompletedSession[];
   oneRepMaxes: OneRepMax[];
@@ -99,7 +101,7 @@ interface AppState {
   userProfile: UserProfile;
 
   setOnboardingComplete: (complete: boolean) => void;
-  setEquipmentTier: (tier: EquipmentTier) => void;
+  setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
@@ -111,6 +113,7 @@ interface AppState {
   getStreakDays: () => number;
   getThisWeekCount: () => number;
   getBestORM: (lift: SessionType) => OneRepMax | null;
+  getEffectiveTier: () => EquipmentTier;
   getInternalTier: () => 'bodyweight' | 'dumbbells' | 'fullgym';
 }
 
@@ -120,7 +123,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       onboardingComplete: false,
-      equipmentTier: 'bodyweight',
+      equipmentTiers: ['bodyweight'],
       completedCount: 0,
       completedSessions: [],
       oneRepMaxes: [],
@@ -134,7 +137,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
-      setEquipmentTier: (tier) => set({ equipmentTier: tier }),
+      setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       setUserProfile: (profile) => set((state) => ({
         userProfile: { ...state.userProfile, ...profile },
@@ -221,16 +224,37 @@ export const useAppStore = create<AppState>()(
         return lifts.reduce((best, curr) => curr.weight > best.weight ? curr : best);
       },
 
+      getEffectiveTier: () => {
+        const { equipmentTiers } = get();
+        if (!equipmentTiers || equipmentTiers.length === 0) return 'bodyweight';
+        let bestIdx = 0;
+        for (const t of equipmentTiers) {
+          const idx = TIER_ORDER.indexOf(t);
+          if (idx > bestIdx) bestIdx = idx;
+        }
+        return TIER_ORDER[bestIdx];
+      },
+
       getInternalTier: () => {
-        const { equipmentTier } = get();
-        if (equipmentTier === 'bands' || equipmentTier === 'bodyweight') return 'bodyweight';
-        if (equipmentTier === 'kettlebells' || equipmentTier === 'dumbbells') return 'dumbbells';
+        const effective = get().getEffectiveTier();
+        if (effective === 'bands' || effective === 'bodyweight') return 'bodyweight';
+        if (effective === 'kettlebells' || effective === 'dumbbells') return 'dumbbells';
         return 'fullgym';
       },
     }),
     {
       name: 'grow-app-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persistedState: any, version: number) => {
+        if (persistedState && persistedState.equipmentTier && !persistedState.equipmentTiers) {
+          persistedState.equipmentTiers = [persistedState.equipmentTier as EquipmentTier];
+        }
+        if (!persistedState.equipmentTiers || persistedState.equipmentTiers.length === 0) {
+          persistedState.equipmentTiers = ['bodyweight'];
+        }
+        return persistedState;
+      },
+      version: 2,
     }
   )
 );

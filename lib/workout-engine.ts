@@ -507,3 +507,15 @@ export function getPainRegionLabel(region: PainRegion): string {
   };
   return labels[region];
 }
+
+
+export function getEffectiveTier(tiers: EquipmentTier[]): EquipmentTier {
+  const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+  if (!tiers || tiers.length === 0) return 'bodyweight';
+  let bestIdx = 0;
+  for (const t of tiers) {
+    const idx = TIER_ORDER.indexOf(t);
+    if (idx > bestIdx) bestIdx = idx;
+  }
+  return TIER_ORDER[bestIdx];
+}

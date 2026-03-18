@@ -38,7 +38,8 @@ const SESSION_COLORS: Record<SessionType, { bg: string; accent: string }> = {
 
 export default function WorkoutsScreen() {
   const insets = useSafeAreaInsets();
-  const { completedCount, equipmentTier, completedSessions, isTestWeekDue, testWeekFrequency } = useAppStore();
+  const { completedCount, getEffectiveTier, completedSessions, isTestWeekDue, testWeekFrequency } = useAppStore();
+  const equipmentTier = getEffectiveTier();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const testWeek = isTestWeekDue();
 

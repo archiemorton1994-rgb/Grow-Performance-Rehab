@@ -81,7 +81,8 @@ const SESSION_OPTIONS: {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const {
-    equipmentTier,
+    equipmentTiers,
+    getEffectiveTier,
     completedCount,
     getCurrentSessionType,
     getStreakDays,
@@ -90,6 +91,7 @@ export default function HomeScreen() {
     userProfile,
   } = useAppStore();
 
+  const effectiveTier = getEffectiveTier();
   const suggestedSession = getCurrentSessionType();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
@@ -101,23 +103,27 @@ export default function HomeScreen() {
     if (sessionType === 'prehab' || sessionType === 'flexibility') {
       router.push({
         pathname: '/session',
-        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier },
+        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: effectiveTier },
       });
     } else if (sessionType === 'conditioning') {
       router.push({
         pathname: '/readiness',
-        params: { sessionType, isTestWeek: 'false', equipment: equipmentTier },
+        params: { sessionType, isTestWeek: 'false' },
       });
     } else {
       router.push({
         pathname: '/readiness',
-        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false', equipment: equipmentTier },
+        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
       });
     }
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+
+  const tierLabel = equipmentTiers.length > 1
+    ? `${getEquipmentLabel(effectiveTier)} + ${equipmentTiers.length - 1} more`
+    : getEquipmentLabel(effectiveTier);
 
   return (
     <ScrollView
@@ -136,7 +142,7 @@ export default function HomeScreen() {
           <Text style={styles.greetingText}>
             {firstName ? `Hey, ${firstName}` : 'Ready to train'}
           </Text>
-          <Text style={styles.tierText}>{getEquipmentLabel(equipmentTier)}</Text>
+          <Text style={styles.tierText}>{tierLabel}</Text>
         </View>
         {testWeek && (
           <View style={styles.testWeekPill}>
