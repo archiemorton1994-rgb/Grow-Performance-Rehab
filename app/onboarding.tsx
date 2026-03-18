@@ -5,6 +5,9 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,10 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, ExperienceLevel, TIER_ORDER, useAppStore } from '@/lib/store';
+import { EquipmentTier, ExperienceLevel, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 
-type OnboardingStep = 'experience' | 'equipment';
+type OnboardingStep = 'experience' | 'equipment' | 'oneRepMax';
 
 const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
@@ -40,12 +43,64 @@ function getAvailableTiers(experience: ExperienceLevel): EquipmentTier[] {
   return ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 }
 
+function OrmInput({
+  label,
+  icon,
+  value,
+  onChangeText,
+  testID,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  onChangeText: (v: string) => void;
+  testID?: string;
+}) {
+  return (
+    <View style={ormStyles.row}>
+      <View style={ormStyles.iconWrap}>
+        <Ionicons name={icon} size={20} color={Colors.primary} />
+      </View>
+      <View style={ormStyles.labelWrap}>
+        <Text style={ormStyles.label}>{label}</Text>
+      </View>
+      <View style={ormStyles.inputWrap}>
+        <TextInput
+          style={ormStyles.input}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+          placeholder="—"
+          placeholderTextColor={Colors.textTertiary}
+          returnKeyType="next"
+          selectTextOnFocus
+          testID={testID}
+        />
+        <Text style={ormStyles.unit}>kg</Text>
+      </View>
+    </View>
+  );
+}
+
+const ormStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  iconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  labelWrap: { flex: 1 },
+  label: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  input: { width: 72, height: 40, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface, textAlign: 'center', fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, paddingHorizontal: 8 },
+  unit: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 22 },
+});
+
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<OnboardingStep>('experience');
   const [selectedExperience, setSelectedExperience] = useState<ExperienceLevel | null>(null);
   const [selectedTiers, setSelectedTiers] = useState<EquipmentTier[]>([]);
-  const { setEquipmentTiers, setOnboardingComplete, setUserProfile } = useAppStore();
+  const [ormSquat, setOrmSquat] = useState('');
+  const [ormBench, setOrmBench] = useState('');
+  const [ormDeadlift, setOrmDeadlift] = useState('');
+  const { setEquipmentTiers, setOnboardingComplete, setUserProfile, addOneRepMax } = useAppStore();
 
   const hapticTap = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -93,6 +148,33 @@ export default function OnboardingScreen() {
     if (selectedTiers.length === 0 || !selectedExperience) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setEquipmentTiers(selectedTiers);
+    if (selectedExperience === 'beginner') {
+      setOnboardingComplete(true);
+      router.replace('/(tabs)');
+    } else {
+      setStep('oneRepMax');
+    }
+  };
+
+  const handleOneRepMaxContinue = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const today = new Date().toISOString().split('T')[0];
+    const lifts: { lift: SessionType; value: string }[] = [
+      { lift: 'squat', value: ormSquat },
+      { lift: 'bench', value: ormBench },
+      { lift: 'deadlift', value: ormDeadlift },
+    ];
+    for (const { lift, value } of lifts) {
+      const kg = parseFloat(value);
+      if (kg > 0) {
+        addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+      }
+    }
+    setOnboardingComplete(true);
+    router.replace('/(tabs)');
+  };
+
+  const handleOneRepMaxSkip = () => {
     setOnboardingComplete(true);
     router.replace('/(tabs)');
   };
@@ -100,6 +182,8 @@ export default function OnboardingScreen() {
   const goBack = () => {
     if (step === 'equipment') {
       setStep('experience');
+    } else if (step === 'oneRepMax') {
+      setStep('equipment');
     }
   };
 
@@ -181,6 +265,88 @@ export default function OnboardingScreen() {
     );
   }
 
+  if (step === 'oneRepMax') {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + webTopInset}
+      >
+        <View style={[styles.container, { paddingTop: insets.top + webTopInset, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20) }]}>
+          <View style={styles.topBar}>
+            <Pressable onPress={goBack} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            </Pressable>
+            <View style={styles.stepPills}>
+              <View style={[styles.stepPill, styles.stepPillDone]} />
+              <View style={[styles.stepPill, styles.stepPillDone]} />
+              <View style={[styles.stepPill, styles.stepPillActive]} />
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            <Animated.View entering={FadeInUp.delay(50).duration(400)} style={[styles.header, { marginTop: 20 }]}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="trophy-outline" size={32} color={Colors.primary} />
+              </View>
+              <Text style={styles.title}>Your 1-rep maxes</Text>
+              <Text style={styles.subtitle}>
+                Enter your best single-rep lifts so we can suggest accurate weights from day one.
+              </Text>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(150).duration(400)} style={styles.ormContainer}>
+              <OrmInput
+                label="Squat"
+                icon="trending-up-outline"
+                value={ormSquat}
+                onChangeText={setOrmSquat}
+                testID="orm-squat"
+              />
+              <OrmInput
+                label="Bench Press"
+                icon="barbell-outline"
+                value={ormBench}
+                onChangeText={setOrmBench}
+                testID="orm-bench"
+              />
+              <OrmInput
+                label="Deadlift"
+                icon="arrow-up-outline"
+                value={ormDeadlift}
+                onChangeText={setOrmDeadlift}
+                testID="orm-deadlift"
+              />
+              <Text style={styles.ormHint}>Leave blank if you are not sure — you can always add these later.</Text>
+            </Animated.View>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <Pressable
+              onPress={handleOneRepMaxContinue}
+              style={({ pressed }) => [
+                styles.continueButton,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              ]}
+              testID="orm-continue"
+            >
+              <Text style={styles.continueText}>Get Started</Text>
+              <Ionicons name="arrow-forward" size={20} color={Colors.textInverse} />
+            </Pressable>
+            <Pressable onPress={handleOneRepMaxSkip} style={styles.skipButton} testID="orm-skip">
+              <Text style={styles.skipText}>Skip for now</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   const canContinue = selectedTiers.length > 0;
 
   return (
@@ -192,6 +358,9 @@ export default function OnboardingScreen() {
         <View style={styles.stepPills}>
           <View style={[styles.stepPill, styles.stepPillDone]} />
           <View style={[styles.stepPill, styles.stepPillActive]} />
+          {selectedExperience !== 'beginner' && (
+            <View style={[styles.stepPill, styles.stepPillPending]} />
+          )}
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -273,7 +442,7 @@ export default function OnboardingScreen() {
           ]}
         >
           <Text style={[styles.continueText, !canContinue && styles.continueTextDisabled]}>
-            Get Started
+            {selectedExperience === 'beginner' ? 'Get Started' : 'Continue'}
           </Text>
           <Ionicons
             name="arrow-forward"
@@ -486,5 +655,32 @@ const styles = StyleSheet.create({
   },
   continueTextDisabled: {
     color: Colors.textTertiary,
+  },
+  stepPillPending: {
+    backgroundColor: Colors.borderLight,
+  },
+  ormContainer: {
+    marginTop: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  ormHint: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: 14,
+  },
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  skipText: {
+    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.textSecondary,
   },
 });
