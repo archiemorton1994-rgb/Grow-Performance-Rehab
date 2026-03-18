@@ -764,6 +764,17 @@ export default function SessionScreen() {
                     <Text style={styles.feedbackSavedText}>Weights adjusted for next session</Text>
                   </View>
                 )}
+                <Pressable
+                  onPress={() => {
+                    setShowCongratsModal(false);
+                    router.dismissAll();
+                    router.replace('/(tabs)');
+                  }}
+                  style={styles.congratsButton}
+                  testID="congrats-close"
+                >
+                  <Text style={styles.congratsButtonText}>Back to Home</Text>
+                </Pressable>
                 <View style={styles.feedbackButtonRow}>
                   <Pressable
                     onPress={() => setFeedbackStep('rating')}
@@ -782,17 +793,6 @@ export default function SessionScreen() {
                     <Text style={styles.feedbackSecondaryText}>Too easy?</Text>
                   </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => {
-                    setShowCongratsModal(false);
-                    router.dismissAll();
-                    router.replace('/(tabs)');
-                  }}
-                  style={styles.congratsButton}
-                  testID="congrats-close"
-                >
-                  <Text style={styles.congratsButtonText}>Back to Home</Text>
-                </Pressable>
               </>
             )}
 
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
   feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: Colors.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
   feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.primary, flex: 1 },
-  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginBottom: 14 },
+  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
   feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: Colors.primarySurface, borderWidth: 1, borderColor: Colors.primaryMuted },
   feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
   feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 14 },
