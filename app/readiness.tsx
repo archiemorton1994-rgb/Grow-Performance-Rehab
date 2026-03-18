@@ -34,8 +34,13 @@ export default function ReadinessScreen() {
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
 
-  const { equipmentTier: profileTier } = useAppStore();
+  const { equipmentTier: profileTier, userProfile } = useAppStore();
   const defaultTier = (ALL_TIERS.includes(params.equipment as EquipmentTier) ? params.equipment : profileTier) as EquipmentTier;
+
+  const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
+  const availableTiers: EquipmentTier[] = isBeginnerExperience
+    ? ['bodyweight', 'bands']
+    : ALL_TIERS;
 
   const [step, setStep] = useState<Step>('equipment');
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentTier>(defaultTier);
@@ -191,34 +196,44 @@ export default function ReadinessScreen() {
             </View>
             <Text style={styles.question}>What equipment do you have?</Text>
             <Text style={styles.questionSub}>Your session is built around this</Text>
+            {isBeginnerExperience && (
+              <View style={styles.beginnerNote}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={Colors.primary} />
+                <Text style={styles.beginnerNoteText}>Bodyweight and bands — perfect for building safe foundations</Text>
+              </View>
+            )}
             <View style={styles.areaButtons}>
               {ALL_TIERS.map((tier) => {
+                const isAvailable = availableTiers.includes(tier);
                 const isActive = selectedEquipment === tier;
                 return (
                   <Pressable
                     key={tier}
-                    onPress={() => handleEquipment(tier)}
+                    onPress={() => isAvailable && handleEquipment(tier)}
                     style={({ pressed }) => [
                       styles.areaButton,
                       isActive && styles.areaButtonActive,
-                      pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                      !isAvailable && styles.areaButtonLocked,
+                      pressed && isAvailable && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                     ]}
                     testID={`equipment-${tier}`}
                   >
-                    <View style={[styles.areaIconWrap, { backgroundColor: isActive ? Colors.primary : Colors.primaryMuted }]}>
+                    <View style={[styles.areaIconWrap, { backgroundColor: isActive ? Colors.primary : isAvailable ? Colors.primaryMuted : Colors.surfaceTertiary }]}>
                       <Ionicons
                         name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
                         size={22}
-                        color={isActive ? Colors.textInverse : Colors.primary}
+                        color={isActive ? Colors.textInverse : isAvailable ? Colors.primary : Colors.textTertiary}
                       />
                     </View>
                     <View style={styles.areaCatContent}>
-                      <Text style={[styles.areaLabel, isActive && { color: Colors.primary }]}>{getEquipmentLabel(tier)}</Text>
-                      <Text style={styles.areaSublabel}>{TIER_DESCRIPTIONS[tier]}</Text>
+                      <Text style={[styles.areaLabel, isActive && { color: Colors.primary }, !isAvailable && { color: Colors.textTertiary }]}>{getEquipmentLabel(tier)}</Text>
+                      <Text style={styles.areaSublabel}>{isAvailable ? TIER_DESCRIPTIONS[tier] : 'Update experience level in profile to unlock'}</Text>
                     </View>
-                    {isActive
-                      ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
-                      : <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+                    {!isAvailable
+                      ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
+                      : isActive
+                        ? <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+                        : <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
                     }
                   </Pressable>
                 );
@@ -442,6 +457,9 @@ const styles = StyleSheet.create({
   areaButtons: { width: '100%', gap: 10 },
   areaButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight },
   areaButtonActive: { borderColor: Colors.primary, borderWidth: 2, backgroundColor: Colors.primarySurface },
+  areaButtonLocked: { opacity: 0.5, borderColor: Colors.borderLight },
+  beginnerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  beginnerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.primaryDark },
   areaIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   areaLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
   areaCatContent: { flex: 1 },

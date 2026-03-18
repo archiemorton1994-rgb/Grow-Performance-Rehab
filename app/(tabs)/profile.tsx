@@ -478,13 +478,30 @@ export default function ProfileScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Equipment</Text>
             <Text style={styles.sheetSub}>Choose what you have available for your workouts</Text>
+            {userProfile.experienceLevel === 'beginner' && (
+              <View style={styles.upgradeNote}>
+                <Ionicons name="information-circle-outline" size={15} color={Colors.primary} />
+                <Text style={styles.upgradeNoteText}>
+                  Beginner mode: Bodyweight and bands only. Update your experience level in Edit Details to unlock all equipment.
+                </Text>
+              </View>
+            )}
             {ALL_TIERS.map(tier => {
               const isActive = tier === equipmentTier;
+              const isLocked = userProfile.experienceLevel === 'beginner' && !['bodyweight', 'bands'].includes(tier);
               return (
-                <Pressable key={tier} onPress={() => handleTierChange(tier)} style={[styles.equipRow, isActive && styles.equipRowActive]} testID={`tier-${tier}`}>
-                  <Ionicons name={getEquipmentIcon(tier) as any} size={22} color={isActive ? Colors.primary : Colors.textTertiary} />
-                  <Text style={[styles.equipLabel, isActive && styles.equipLabelActive]}>{getEquipmentLabel(tier)}</Text>
-                  {isActive && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+                <Pressable
+                  key={tier}
+                  onPress={() => !isLocked && handleTierChange(tier)}
+                  style={[styles.equipRow, isActive && styles.equipRowActive, isLocked && styles.equipRowLocked]}
+                  testID={`tier-${tier}`}
+                >
+                  <Ionicons name={getEquipmentIcon(tier) as any} size={22} color={isActive ? Colors.primary : isLocked ? Colors.textTertiary : Colors.textTertiary} />
+                  <Text style={[styles.equipLabel, isActive && styles.equipLabelActive, isLocked && styles.equipLabelLocked]}>{getEquipmentLabel(tier)}</Text>
+                  {isLocked
+                    ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
+                    : isActive && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                  }
                 </Pressable>
               );
             })}
@@ -648,8 +665,12 @@ const styles = StyleSheet.create({
   // Equipment
   equipRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
   equipRowActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  equipRowLocked: { opacity: 0.45 },
   equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: Colors.text },
   equipLabelActive: { fontFamily: 'Inter_600SemiBold', color: Colors.primaryDark },
+  equipLabelLocked: { color: Colors.textTertiary },
+  upgradeNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  upgradeNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.primaryDark, lineHeight: 17 },
 
   // Settings
   settingItemLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 2 },

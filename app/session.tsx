@@ -257,7 +257,8 @@ export default function SessionScreen() {
     ? (params.energy as EnergyLevel) : 'normal';
   const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
     ? (params.timeAvailable as TimeAvailable) : '60';
-  const isTestWeek = params.isTestWeek === 'true';
+  const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
+  const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
   const { equipmentTier: storeEquipmentTier, completeSession, addOneRepMax, userProfile } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
