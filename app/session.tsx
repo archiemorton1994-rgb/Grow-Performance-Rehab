@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -45,12 +45,53 @@ interface ExerciseSetData {
   swapped: boolean;
 }
 
-function SetRow({ setNum, data, onChange, weightGuide }: {
+function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
+  const lower = suggestedLoad.toLowerCase();
+  return (
+    lower.startsWith('bodyweight') ||
+    lower.includes('band') ||
+    lower === 'low intensity'
+  );
+}
+
+function isRepsTimeBased(repsStr: string): boolean {
+  const lower = repsStr.toLowerCase();
+  return lower.includes('min') || lower.includes('sec');
+}
+
+function SetRow({
+  setNum,
+  data,
+  onChange,
+  weightGuide,
+  isBandExercise,
+  isTimeExercise,
+  disabled,
+}: {
   setNum: number;
   data: SetLog;
   onChange: (updated: SetLog) => void;
   weightGuide?: string;
+  isBandExercise?: boolean;
+  isTimeExercise?: boolean;
+  disabled?: boolean;
 }) {
+  const [weightText, setWeightText] = useState(() =>
+    data.weight > 0 ? String(data.weight) : ''
+  );
+
+  const handleWeightChange = (t: string) => {
+    setWeightText(t);
+    const w = parseFloat(t) || 0;
+    onChange({ ...data, weight: w });
+  };
+
+  const handleWeightBlur = () => {
+    const w = parseFloat(weightText) || 0;
+    setWeightText(w > 0 ? String(w) : '');
+    onChange({ ...data, weight: w });
+  };
+
   return (
     <View>
       {weightGuide && (
@@ -62,25 +103,26 @@ function SetRow({ setNum, data, onChange, weightGuide }: {
       <View style={styles.setRow}>
         <Text style={styles.setLabel}>Set {setNum}</Text>
         <View style={styles.setInputs}>
+          {!isBandExercise && (
+            <View style={styles.inputGroup}>
+              <TextInput
+                style={[styles.setInput, disabled && styles.setInputDisabled]}
+                placeholder="0"
+                placeholderTextColor={Colors.textTertiary}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                value={weightText}
+                onChangeText={handleWeightChange}
+                onBlur={handleWeightBlur}
+                editable={!disabled}
+                testID={`set-${setNum}-weight`}
+              />
+              <Text style={styles.inputUnit}>kg</Text>
+            </View>
+          )}
           <View style={styles.inputGroup}>
             <TextInput
-              style={styles.setInput}
-              placeholder="0"
-              placeholderTextColor={Colors.textTertiary}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-              value={data.weight > 0 ? String(data.weight) : ''}
-              onChangeText={(t) => {
-                const w = parseFloat(t) || 0;
-                onChange({ ...data, weight: w });
-              }}
-              testID={`set-${setNum}-weight`}
-            />
-            <Text style={styles.inputUnit}>kg</Text>
-          </View>
-          <View style={styles.inputGroup}>
-            <TextInput
-              style={styles.setInput}
+              style={[styles.setInput, disabled && styles.setInputDisabled]}
               placeholder="0"
               placeholderTextColor={Colors.textTertiary}
               keyboardType="number-pad"
@@ -90,17 +132,19 @@ function SetRow({ setNum, data, onChange, weightGuide }: {
                 const r = parseInt(t) || 0;
                 onChange({ ...data, reps: r });
               }}
+              editable={!disabled}
               testID={`set-${setNum}-reps`}
             />
-            <Text style={styles.inputUnit}>reps</Text>
+            <Text style={styles.inputUnit}>{isTimeExercise ? 'min' : 'reps'}</Text>
           </View>
         </View>
         <Pressable
           onPress={() => {
+            if (disabled) return;
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onChange({ ...data, completed: !data.completed });
           }}
-          style={[styles.setCheck, data.completed && styles.setCheckDone]}
+          style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
           testID={`set-${setNum}-check`}
         >
           {data.completed && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
@@ -110,7 +154,17 @@ function SetRow({ setNum, data, onChange, weightGuide }: {
   );
 }
 
-function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onSwapPress, isDumbbellSession }: {
+function ExerciseCard({
+  exercise,
+  index,
+  setData,
+  onSetChange,
+  onVideoPress,
+  onSwapPress,
+  isDumbbellSession,
+  isLocked,
+  onCardLayout,
+}: {
   exercise: Exercise;
   index: number;
   setData: ExerciseSetData;
@@ -118,11 +172,16 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onS
   onVideoPress: () => void;
   onSwapPress: () => void;
   isDumbbellSession: boolean;
+  isLocked: boolean;
+  onCardLayout?: (y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
   const weightGuides = getWeightGuide(exercise.category, exercise.sets);
   const restPeriod = getRestPeriod(exercise.category);
+
+  const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
+  const isTimeExercise = isRepsTimeBased(exercise.reps);
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
     prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Warm-Up' },
@@ -142,92 +201,129 @@ function ExerciseCard({ exercise, index, setData, onSetChange, onVideoPress, onS
 
   const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
   const repsLabel = exercise.reps;
+  const repDisplay = isTimeExercise ? repsLabel : `${repsLabel} reps`;
 
   return (
-    <Animated.View entering={FadeInDown.delay(60 + index * 35).duration(350)}>
-      <View style={[styles.exerciseCard, allDone && styles.exerciseCardDone]}>
-        <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
-          <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
-            {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+    <Animated.View
+      entering={FadeInDown.delay(60 + index * 35).duration(350)}
+      onLayout={onCardLayout ? (e) => onCardLayout(e.nativeEvent.layout.y) : undefined}
+    >
+      <View style={[
+        styles.exerciseCard,
+        allDone && !isLocked && styles.exerciseCardDone,
+        isLocked && styles.exerciseCardLocked,
+      ]}>
+
+        {/* ── Locked state: compact header only ────────────────────────────── */}
+        {isLocked && (
+          <View style={styles.lockedHeader}>
+            <View style={styles.lockIconWrap}>
+              <Ionicons name="lock-closed" size={14} color={Colors.textTertiary} />
+            </View>
+            <View style={styles.lockedInfo}>
+              <Text style={styles.lockedName} numberOfLines={1}>{exercise.name}</Text>
+              <View style={styles.lockedMeta}>
+                <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                  <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+                </View>
+                <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.exerciseInfo}>
-            <View style={styles.exerciseNameRow}>
-              <Text style={[styles.exerciseName, allDone && styles.exerciseNameDone]} numberOfLines={2}>
-                {exercise.name}
-              </Text>
-              {exercise.badge && (
-                <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
-                  <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
-                    {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
+        )}
+
+        {/* ── Unlocked state: full card ─────────────────────────────────────── */}
+        {!isLocked && (
+          <Animated.View entering={FadeIn.duration(350)}>
+            <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
+              <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
+                {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+              </View>
+              <View style={styles.exerciseInfo}>
+                <View style={styles.exerciseNameRow}>
+                  <Text style={[styles.exerciseName, allDone && styles.exerciseNameDone]} numberOfLines={2}>
+                    {exercise.name}
                   </Text>
+                  {exercise.badge && (
+                    <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
+                      <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
+                        {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.exerciseMeta}>
+                  <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                    <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+                  </View>
+                  <Text style={styles.metaText}>{setsLabel} × {repDisplay}</Text>
+                </View>
+                <Text style={styles.loadText}>{exercise.suggestedLoad}</Text>
+                {showDumbbellNote && (
+                  <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
+                )}
+              </View>
+              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} style={styles.chevron} />
+            </Pressable>
+
+            <View style={styles.actionRow}>
+              <Pressable onPress={onVideoPress} style={[styles.actionBtn, styles.actionBtnYoutube]} testID={`video-${index}`}>
+                <Ionicons name="logo-youtube" size={15} color="#FF0000" />
+                <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
+              </Pressable>
+              {exercise.hasSwap && !setData.swapped && (
+                <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
+                  <Ionicons name="swap-horizontal-outline" size={15} color={Colors.textSecondary} />
+                  <Text style={styles.actionBtnText}>Swap exercise</Text>
+                </Pressable>
+              )}
+              {setData.swapped && (
+                <View style={[styles.actionBtn, { backgroundColor: '#fff3e0' }]}>
+                  <Ionicons name="checkmark-circle-outline" size={15} color="#e65100" />
+                  <Text style={[styles.actionBtnText, { color: '#e65100' }]}>Swapped</Text>
                 </View>
               )}
             </View>
-            <View style={styles.exerciseMeta}>
-              <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
-                <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+
+            {expanded && (
+              <View style={styles.setsContainer}>
+                <View style={styles.cueContainer}>
+                  <Ionicons name="bulb-outline" size={14} color={Colors.primary} />
+                  <Text style={styles.cueText}>{exercise.cue}</Text>
+                </View>
+
+                <View style={styles.restContainer}>
+                  <Ionicons name="timer-outline" size={12} color={Colors.textTertiary} />
+                  <Text style={styles.restText}>{restPeriod}</Text>
+                </View>
+
+                <View style={styles.setHeaderRow}>
+                  <Text style={styles.setHeaderItem}>Set</Text>
+                  <View style={styles.setHeaderInputs}>
+                    {!isBandExercise && (
+                      <Text style={styles.setHeaderItem}>Weight (kg)</Text>
+                    )}
+                    <Text style={styles.setHeaderItem}>{isTimeExercise ? 'Time' : 'Reps'}</Text>
+                  </View>
+                  <Text style={styles.setHeaderItem}>Done</Text>
+                </View>
+
+                {setData.sets.map((s, si) => (
+                  <SetRow
+                    key={si}
+                    setNum={si + 1}
+                    data={s}
+                    onChange={(u) => onSetChange(si, u)}
+                    weightGuide={weightGuides[si]}
+                    isBandExercise={isBandExercise}
+                    isTimeExercise={isTimeExercise}
+                  />
+                ))}
               </View>
-              <Text style={styles.metaText}>{setsLabel} × {repsLabel} reps</Text>
-            </View>
-            <Text style={styles.loadText}>{exercise.suggestedLoad}</Text>
-            {showDumbbellNote && (
-              <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
             )}
-          </View>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} style={styles.chevron} />
-        </Pressable>
-
-        <View style={styles.actionRow}>
-          <Pressable onPress={onVideoPress} style={[styles.actionBtn, styles.actionBtnYoutube]} testID={`video-${index}`}>
-            <Ionicons name="logo-youtube" size={15} color="#FF0000" />
-            <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
-          </Pressable>
-          {exercise.hasSwap && !setData.swapped && (
-            <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
-              <Ionicons name="swap-horizontal-outline" size={15} color={Colors.textSecondary} />
-              <Text style={styles.actionBtnText}>Swap exercise</Text>
-            </Pressable>
-          )}
-          {setData.swapped && (
-            <View style={[styles.actionBtn, { backgroundColor: '#fff3e0' }]}>
-              <Ionicons name="checkmark-circle-outline" size={15} color="#e65100" />
-              <Text style={[styles.actionBtnText, { color: '#e65100' }]}>Swapped</Text>
-            </View>
-          )}
-        </View>
-
-        {expanded && (
-          <View style={styles.setsContainer}>
-            <View style={styles.cueContainer}>
-              <Ionicons name="bulb-outline" size={14} color={Colors.primary} />
-              <Text style={styles.cueText}>{exercise.cue}</Text>
-            </View>
-
-            <View style={styles.restContainer}>
-              <Ionicons name="timer-outline" size={12} color={Colors.textTertiary} />
-              <Text style={styles.restText}>{restPeriod}</Text>
-            </View>
-
-            <View style={styles.setHeaderRow}>
-              <Text style={styles.setHeaderItem}>Set</Text>
-              <View style={styles.setHeaderInputs}>
-                <Text style={styles.setHeaderItem}>Weight (kg)</Text>
-                <Text style={styles.setHeaderItem}>Reps</Text>
-              </View>
-              <Text style={styles.setHeaderItem}>Done</Text>
-            </View>
-
-            {setData.sets.map((s, si) => (
-              <SetRow
-                key={si}
-                setNum={si + 1}
-                data={s}
-                onChange={(u) => onSetChange(si, u)}
-                weightGuide={weightGuides[si]}
-              />
-            ))}
-          </View>
+          </Animated.View>
         )}
+
       </View>
     </Animated.View>
   );
@@ -281,7 +377,12 @@ export default function SessionScreen() {
     CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
   );
 
-  React.useEffect(() => {
+  // Sequential unlock state
+  const [unlockedUntil, setUnlockedUntil] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const cardYPositions = useRef<Record<number, number>>({});
+
+  useEffect(() => {
     setExerciseData(
       exercises.map((ex) => ({
         sets: Array.from({ length: ex.sets }, (_, i) => ({
@@ -293,7 +394,28 @@ export default function SessionScreen() {
         swapped: false,
       }))
     );
+    setUnlockedUntil(0);
+    cardYPositions.current = {};
   }, [exercises]);
+
+  // Auto-advance unlock when the current exercise is fully complete
+  useEffect(() => {
+    if (exerciseData.length === 0) return;
+    if (unlockedUntil >= exerciseData.length) return;
+    const currentDone = exerciseData[unlockedUntil]?.sets.every(s => s.completed);
+    if (currentDone) {
+      const nextIndex = unlockedUntil + 1;
+      setUnlockedUntil(nextIndex);
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Scroll to the newly unlocked exercise after animation starts
+      setTimeout(() => {
+        const y = cardYPositions.current[nextIndex];
+        if (y !== undefined && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: Math.max(0, y - 16), animated: true });
+        }
+      }, 350);
+    }
+  }, [exerciseData, unlockedUntil]);
 
   const openYouTube = (exerciseName: string) => {
     const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
@@ -461,6 +583,7 @@ export default function SessionScreen() {
       )}
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.exerciseList}
         contentContainerStyle={[
           styles.exerciseListContent,
@@ -474,6 +597,7 @@ export default function SessionScreen() {
           const data = exerciseData[index];
           if (!data) return null;
           const displayExercise = getDisplayExercise(exercise, data);
+          const isLocked = index > unlockedUntil;
           return (
             <ExerciseCard
               key={exercise.id + index}
@@ -484,6 +608,8 @@ export default function SessionScreen() {
               onVideoPress={() => openYouTube(displayExercise.name)}
               onSwapPress={() => setSwapModal({ index, exercise })}
               isDumbbellSession={isDumbbellSession}
+              isLocked={isLocked}
+              onCardLayout={(y) => { cardYPositions.current[index] = y; }}
             />
           );
         })}
@@ -609,6 +735,7 @@ const styles = StyleSheet.create({
   exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
   exerciseCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderLight },
   exerciseCardDone: { backgroundColor: Colors.primarySurface, borderColor: Colors.primaryMuted },
+  exerciseCardLocked: { backgroundColor: Colors.surfaceTertiary, borderColor: Colors.borderLight, opacity: 0.65 },
   exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
   checkCircleDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
@@ -644,9 +771,18 @@ const styles = StyleSheet.create({
   setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: Colors.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, borderWidth: 1, borderColor: Colors.borderLight },
+  setInputDisabled: { opacity: 0.45 },
   inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 30 },
   setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   setCheckDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  setCheckDisabled: { opacity: 0.3 },
+  // Locked card styles
+  lockedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  lockIconWrap: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  lockedInfo: { flex: 1 },
+  lockedName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginBottom: 4 },
+  lockedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.borderLight },
   completeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, gap: 8 },
   completeButtonDisabled: { backgroundColor: Colors.surfaceTertiary },

@@ -407,35 +407,49 @@ export function getRestPeriod(category: ExerciseCategory): string {
 export function getWeightGuide(category: ExerciseCategory, sets: number): string[] {
   if (category === 'main') {
     if (sets <= 3) return [
-      'Set 1: Easy warm-up (~50% of working weight)',
-      'Set 2: Build (~70%) — feel the movement',
-      'Set 3: Working weight — challenging but controlled',
+      'Set 1: Light warm-up — roughly half your target weight',
+      'Set 2: Build up — feel the movement (~70%)',
+      'Set 3: Your target weight — challenging but in full control',
     ];
     if (sets === 4) return [
-      'Set 1: Easy warm-up (~50% of working weight)',
-      'Set 2: Build (~65%) — feel the movement',
-      'Set 3: Working weight (~80%) — stop well before failure',
-      'Set 4: Match Set 3 or slightly heavier if form was perfect',
+      'Set 1: Light warm-up — roughly half your target weight',
+      'Set 2: Build up — feel the movement (~65%)',
+      'Set 3: Your target weight — stop well before failure',
+      'Set 4: Match Set 3, or go a little heavier if form was perfect',
     ];
     return [
-      'Set 1: Light warm-up (~40% of working weight)',
-      'Set 2: Build (~60%) — feel the pattern',
-      'Set 3: Build (~75%) — approaching working weight',
+      'Set 1: Very light warm-up (~40% of your target weight)',
+      'Set 2: Build up — feel the movement pattern (~60%)',
+      'Set 3: Getting close — approaching your target weight (~75%)',
       ...Array.from({ length: sets - 3 }, (_, i) =>
-        `Set ${i + 4}: Working weight — controlled, never grinding`
+        `Set ${i + 4}: Your target weight — controlled, never grinding through bad form`
       ),
     ];
   }
   if (category === 'accessory') {
     return Array.from({ length: sets }, (_, i) =>
       i === 0
-        ? 'Set 1: Start moderate — perfect form first'
+        ? 'Set 1: Start at a comfortable weight — nail the technique first'
         : i === sets - 1
-          ? `Set ${i + 1}: Match or +2 kg if previous set felt easy`
-          : `Set ${i + 1}: Maintain or small increase if form is perfect`
+          ? `Set ${i + 1}: Match or add 2 kg if the previous set felt easy`
+          : `Set ${i + 1}: Keep the same weight or increase slightly if form is solid`
     );
   }
   return [];
+}
+
+/**
+ * Applies a stored "too easy" multiplier to a personalised load string.
+ * Used by the post-session feedback flow to adjust future session weights.
+ */
+export function applyFeedbackMultiplier(load: string, multiplier: number): string {
+  if (multiplier === 1 || !(/\d/.test(load))) return load;
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  return load.replace(/\d+(?:\.\d+)?/g, (match) => {
+    const num = parseFloat(match);
+    if (num <= 0) return match;
+    return String(roundTo2_5(num * multiplier));
+  });
 }
 
 export function getSessionLabel(type: SessionType): string {
