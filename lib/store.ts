@@ -44,6 +44,11 @@ export const PAIN_CATEGORIES = {
   },
 };
 
+export interface ExerciseFeedback {
+  thumbs: 'up' | 'down' | null;
+  multiplier: number;
+}
+
 export interface SetLog {
   setNumber: number;
   weight: number;
@@ -99,6 +104,7 @@ interface AppState {
   oneRepMaxes: OneRepMax[];
   testWeekFrequency: TestWeekFrequency;
   userProfile: UserProfile;
+  exerciseFeedback: Record<string, ExerciseFeedback>;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -107,6 +113,8 @@ interface AppState {
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
   resetProgress: () => void;
+  setExerciseFeedback: (exerciseId: string, thumbs: 'up' | 'down' | null) => void;
+  applyTooEasyAdjustment: (exerciseIds: string[]) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -135,6 +143,7 @@ export const useAppStore = create<AppState>()(
         goals: ['fitness'],
         bodyweightKg: 75,
       },
+      exerciseFeedback: {},
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -161,6 +170,28 @@ export const useAppStore = create<AppState>()(
         completedCount: 0,
         completedSessions: [],
         oneRepMaxes: [],
+      }),
+
+      setExerciseFeedback: (exerciseId, thumbs) => set((state) => ({
+        exerciseFeedback: {
+          ...state.exerciseFeedback,
+          [exerciseId]: {
+            thumbs,
+            multiplier: state.exerciseFeedback[exerciseId]?.multiplier ?? 1.0,
+          },
+        },
+      })),
+
+      applyTooEasyAdjustment: (exerciseIds) => set((state) => {
+        const updated = { ...state.exerciseFeedback };
+        for (const id of exerciseIds) {
+          const current = updated[id]?.multiplier ?? 1.0;
+          updated[id] = {
+            thumbs: updated[id]?.thumbs ?? null,
+            multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
+          };
+        }
+        return { exerciseFeedback: updated };
       }),
 
       getCurrentSessionType: () => {
@@ -252,9 +283,12 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.equipmentTiers || persistedState.equipmentTiers.length === 0) {
           persistedState.equipmentTiers = ['bodyweight'];
         }
+        if (!persistedState.exerciseFeedback) {
+          persistedState.exerciseFeedback = {};
+        }
         return persistedState;
       },
-      version: 2,
+      version: 3,
     }
   )
 );

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, useAppStore } from '@/lib/store';
 import {
   Exercise,
   generateWorkout,
@@ -397,7 +397,7 @@ export default function SessionScreen() {
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -405,11 +405,14 @@ export default function SessionScreen() {
 
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 
+  // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
+  const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
+
   const exercises = useMemo(() => {
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier);
     }
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current);
   }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
@@ -417,6 +420,10 @@ export default function SessionScreen() {
   const [congratsMessage] = useState(() =>
     CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
   );
+  const [feedbackStep, setFeedbackStep] = useState<'congrats' | 'rating' | 'tooEasy'>('congrats');
+  const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
+  const [tooEasySelected, setTooEasySelected] = useState<Set<string>>(new Set());
+  const [tooEasySaved, setTooEasySaved] = useState(false);
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -551,6 +558,10 @@ export default function SessionScreen() {
       isTestWeek,
     });
 
+    setFeedbackStep('congrats');
+    setThumbsRatings({});
+    setTooEasySelected(new Set());
+    setTooEasySaved(false);
     setShowCongratsModal(true);
   };
 
@@ -722,38 +733,184 @@ export default function SessionScreen() {
       <Modal visible={showCongratsModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <Animated.View entering={FadeIn.duration(500)} style={[styles.modalContent, styles.congratsModal]}>
-            <View style={styles.congratsIcon}>
-              <Ionicons name="trophy" size={44} color="#f59e0b" />
-            </View>
-            <Text style={styles.congratsTitle}>Session Complete!</Text>
-            <Text style={styles.congratsMessage}>{congratsMessage}</Text>
-            <View style={styles.congratsStats}>
-              <View style={styles.congratsStat}>
-                <Text style={styles.congratsStatValue}>{exercises.length}</Text>
-                <Text style={styles.congratsStatLabel}>Exercises</Text>
-              </View>
-              <View style={styles.congratsStatDivider} />
-              <View style={styles.congratsStat}>
-                <Text style={styles.congratsStatValue}>{totalSets}</Text>
-                <Text style={styles.congratsStatLabel}>Total Sets</Text>
-              </View>
-              <View style={styles.congratsStatDivider} />
-              <View style={styles.congratsStat}>
-                <Text style={styles.congratsStatValue}>{timeAvailable}</Text>
-                <Text style={styles.congratsStatLabel}>Minutes</Text>
-              </View>
-            </View>
-            <Pressable
-              onPress={() => {
-                setShowCongratsModal(false);
-                router.dismissAll();
-                router.replace('/(tabs)');
-              }}
-              style={styles.congratsButton}
-              testID="congrats-close"
-            >
-              <Text style={styles.congratsButtonText}>Back to Home</Text>
-            </Pressable>
+
+            {/* ── Congrats Step ────────────────────────────────────────────── */}
+            {feedbackStep === 'congrats' && (
+              <>
+                <View style={styles.congratsIcon}>
+                  <Ionicons name="trophy" size={44} color="#f59e0b" />
+                </View>
+                <Text style={styles.congratsTitle}>Session Complete!</Text>
+                <Text style={styles.congratsMessage}>{congratsMessage}</Text>
+                <View style={styles.congratsStats}>
+                  <View style={styles.congratsStat}>
+                    <Text style={styles.congratsStatValue}>{exercises.length}</Text>
+                    <Text style={styles.congratsStatLabel}>Exercises</Text>
+                  </View>
+                  <View style={styles.congratsStatDivider} />
+                  <View style={styles.congratsStat}>
+                    <Text style={styles.congratsStatValue}>{totalSets}</Text>
+                    <Text style={styles.congratsStatLabel}>Total Sets</Text>
+                  </View>
+                  <View style={styles.congratsStatDivider} />
+                  <View style={styles.congratsStat}>
+                    <Text style={styles.congratsStatValue}>{timeAvailable}</Text>
+                    <Text style={styles.congratsStatLabel}>Minutes</Text>
+                  </View>
+                </View>
+                {tooEasySaved && (
+                  <View style={styles.feedbackSavedBanner}>
+                    <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                    <Text style={styles.feedbackSavedText}>Weights adjusted for next session</Text>
+                  </View>
+                )}
+                <View style={styles.feedbackButtonRow}>
+                  <Pressable
+                    onPress={() => setFeedbackStep('rating')}
+                    style={styles.feedbackSecondaryBtn}
+                    testID="open-rate-modal"
+                  >
+                    <Ionicons name="thumbs-up-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.feedbackSecondaryText}>Rate exercises</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setFeedbackStep('tooEasy')}
+                    style={styles.feedbackSecondaryBtn}
+                    testID="open-too-easy-modal"
+                  >
+                    <Ionicons name="trending-up-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.feedbackSecondaryText}>Too easy?</Text>
+                  </Pressable>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    setShowCongratsModal(false);
+                    router.dismissAll();
+                    router.replace('/(tabs)');
+                  }}
+                  style={styles.congratsButton}
+                  testID="congrats-close"
+                >
+                  <Text style={styles.congratsButtonText}>Back to Home</Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* ── Rating Step ──────────────────────────────────────────────── */}
+            {feedbackStep === 'rating' && (
+              <>
+                <View style={[styles.modalIcon, { backgroundColor: Colors.primaryMuted }]}>
+                  <Ionicons name="thumbs-up-outline" size={28} color={Colors.primary} />
+                </View>
+                <Text style={styles.modalTitle}>Rate Exercises</Text>
+                <Text style={styles.feedbackSubtitle}>How did each exercise feel?</Text>
+                <ScrollView style={styles.feedbackScroll} showsVerticalScrollIndicator={false}>
+                  {exercises.map((ex) => (
+                    <View key={ex.id} style={styles.ratingRow}>
+                      <Text style={styles.ratingName} numberOfLines={2}>{ex.name}</Text>
+                      <View style={styles.ratingButtons}>
+                        <Pressable
+                          onPress={() => setThumbsRatings((prev) => ({ ...prev, [ex.id]: 'up' }))}
+                          style={[styles.thumbBtn, thumbsRatings[ex.id] === 'up' && styles.thumbBtnActive]}
+                          testID={`thumb-up-${ex.id}`}
+                        >
+                          <Ionicons
+                            name="thumbs-up"
+                            size={18}
+                            color={thumbsRatings[ex.id] === 'up' ? Colors.textInverse : Colors.textSecondary}
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setThumbsRatings((prev) => ({ ...prev, [ex.id]: 'down' }))}
+                          style={[styles.thumbBtn, styles.thumbBtnDown, thumbsRatings[ex.id] === 'down' && styles.thumbBtnDownActive]}
+                          testID={`thumb-down-${ex.id}`}
+                        >
+                          <Ionicons
+                            name="thumbs-down"
+                            size={18}
+                            color={thumbsRatings[ex.id] === 'down' ? Colors.textInverse : Colors.textSecondary}
+                          />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+                <Pressable
+                  onPress={() => {
+                    Object.entries(thumbsRatings).forEach(([id, thumbs]) => {
+                      setExerciseFeedback(id, thumbs);
+                    });
+                    setFeedbackStep('congrats');
+                  }}
+                  style={styles.congratsButton}
+                  testID="submit-ratings"
+                >
+                  <Text style={styles.congratsButtonText}>Submit Ratings</Text>
+                </Pressable>
+                <Pressable onPress={() => setFeedbackStep('congrats')} style={styles.modalClose}>
+                  <Text style={styles.modalCloseText}>Skip</Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* ── Too Easy Step ────────────────────────────────────────────── */}
+            {feedbackStep === 'tooEasy' && (
+              <>
+                <View style={[styles.modalIcon, { backgroundColor: '#fff3e0' }]}>
+                  <Ionicons name="trending-up-outline" size={28} color="#e65100" />
+                </View>
+                <Text style={styles.modalTitle}>Too Easy?</Text>
+                <Text style={styles.feedbackSubtitle}>Select exercises to increase weight next session</Text>
+                <ScrollView style={styles.feedbackScroll} showsVerticalScrollIndicator={false}>
+                  {exercises.map((ex) => {
+                    const selected = tooEasySelected.has(ex.id);
+                    return (
+                      <Pressable
+                        key={ex.id}
+                        onPress={() => {
+                          setTooEasySelected((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(ex.id)) next.delete(ex.id);
+                            else next.add(ex.id);
+                            return next;
+                          });
+                        }}
+                        style={[styles.checklistRow, selected && styles.checklistRowSelected]}
+                        testID={`tooEasy-${ex.id}`}
+                      >
+                        <View style={[styles.checklistBox, selected && styles.checklistBoxSelected]}>
+                          {selected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+                        </View>
+                        <Text style={[styles.checklistName, selected && styles.checklistNameSelected]} numberOfLines={2}>
+                          {ex.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <Pressable
+                  onPress={() => {
+                    if (tooEasySelected.size > 0) {
+                      applyTooEasyAdjustment(Array.from(tooEasySelected));
+                      setTooEasySaved(true);
+                      setTimeout(() => setTooEasySaved(false), 4000);
+                    }
+                    setTooEasySelected(new Set());
+                    setFeedbackStep('congrats');
+                  }}
+                  style={[styles.congratsButton, tooEasySelected.size === 0 && styles.congratsButtonMuted]}
+                  testID="confirm-too-easy"
+                >
+                  <Text style={styles.congratsButtonText}>
+                    {tooEasySelected.size > 0 ? `Adjust ${tooEasySelected.size} exercise${tooEasySelected.size > 1 ? 's' : ''}` : 'Confirm'}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => setFeedbackStep('congrats')} style={styles.modalClose}>
+                  <Text style={styles.modalCloseText}>Skip</Text>
+                </Pressable>
+              </>
+            )}
+
           </Animated.View>
         </View>
       </Modal>
@@ -867,6 +1024,27 @@ const styles = StyleSheet.create({
   congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.primary },
   congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginTop: 2 },
   congratsStatDivider: { width: 1, height: 28, backgroundColor: Colors.border },
-  congratsButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
+  congratsButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
+  congratsButtonMuted: { backgroundColor: Colors.surfaceTertiary },
   congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: Colors.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
+  feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.primary, flex: 1 },
+  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginBottom: 14 },
+  feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: Colors.primarySurface, borderWidth: 1, borderColor: Colors.primaryMuted },
+  feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
+  feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 14 },
+  feedbackScroll: { width: '100%', maxHeight: 260, marginBottom: 16 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderLight, gap: 8 },
+  ratingName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.text },
+  ratingButtons: { flexDirection: 'row', gap: 6 },
+  thumbBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceTertiary },
+  thumbBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  thumbBtnDown: { borderColor: Colors.border },
+  thumbBtnDownActive: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
+  checklistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: Colors.borderLight, gap: 10 },
+  checklistRowSelected: { backgroundColor: Colors.primarySurface },
+  checklistBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checklistBoxSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.text },
+  checklistNameSelected: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
 });
