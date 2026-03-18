@@ -13,6 +13,8 @@ import {
   getCooldown,
   getConditioningWorkout,
   get1RMProtocol,
+  getStandalonePrehabWorkout,
+  getStandaloneFlexibilityWorkout,
 } from './exercise-db';
 
 export interface Exercise {
@@ -39,7 +41,7 @@ interface ReadinessCheck {
   timeAvailable: TimeAvailable;
 }
 
-type MainSessionType = Exclude<SessionType, 'conditioning'>;
+type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility'>;
 
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
   // Prefer explicit swapAlternative for user-initiated swaps; fall back to comfortVariant
@@ -260,6 +262,12 @@ export function generateWorkout(
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(equipmentTier, readiness, profile);
   }
+  if (sessionType === 'prehab') {
+    return getStandalonePrehabWorkout().map((t) => templateToExercise(t));
+  }
+  if (sessionType === 'flexibility') {
+    return getStandaloneFlexibilityWorkout().map((t) => templateToExercise(t));
+  }
 
   const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
@@ -436,6 +444,8 @@ export function getSessionLabel(type: SessionType): string {
     case 'bench': return 'Upper Body';
     case 'deadlift': return 'Full Body';
     case 'conditioning': return 'Conditioning';
+    case 'prehab': return 'Prehab';
+    case 'flexibility': return 'Flexibility';
   }
 }
 
@@ -445,6 +455,8 @@ export function getSessionSubtitle(type: SessionType): string {
     case 'bench': return 'Push pattern — chest, shoulders, triceps';
     case 'deadlift': return 'Hinge pattern — posterior chain, back, core';
     case 'conditioning': return 'Fat burn — high calorie, cardio focus';
+    case 'prehab': return 'Joint health — full body injury prevention circuit';
+    case 'flexibility': return 'Stretch & mobility — full body long holds';
   }
 }
 
@@ -454,6 +466,8 @@ export function getSessionIcon(type: SessionType): string {
     case 'bench': return 'body';
     case 'deadlift': return 'barbell';
     case 'conditioning': return 'flame';
+    case 'prehab': return 'shield-checkmark';
+    case 'flexibility': return 'leaf';
   }
 }
 

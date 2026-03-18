@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ const SESSION_OPTIONS: {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
+  dashed?: boolean;
 }[] = [
   {
     type: 'squat',
@@ -54,6 +56,25 @@ const SESSION_OPTIONS: {
     icon: 'flame-outline',
     color: '#e65100',
     bg: '#fbe9e7',
+    dashed: true,
+  },
+  {
+    type: 'prehab',
+    label: 'Prehab',
+    muscles: 'Joint Health · Injury Prevention',
+    icon: 'shield-checkmark-outline',
+    color: '#00897b',
+    bg: '#e0f2f1',
+    dashed: true,
+  },
+  {
+    type: 'flexibility',
+    label: 'Flexibility',
+    muscles: 'Stretch · Mobility · Recovery',
+    icon: 'leaf-outline',
+    color: '#558b2f',
+    bg: '#f1f8e9',
+    dashed: true,
   },
 ];
 
@@ -77,7 +98,12 @@ export default function HomeScreen() {
 
   const handleSelect = (sessionType: SessionType) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (sessionType === 'conditioning') {
+    if (sessionType === 'prehab' || sessionType === 'flexibility') {
+      router.push({
+        pathname: '/session',
+        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier },
+      });
+    } else if (sessionType === 'conditioning') {
       router.push({
         pathname: '/readiness',
         params: { sessionType, isTestWeek: 'false', equipment: equipmentTier },
@@ -94,14 +120,16 @@ export default function HomeScreen() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   return (
-    <View
-      style={[
-        styles.container,
+    <ScrollView
+      style={[styles.container]}
+      contentContainerStyle={[
+        styles.content,
         {
           paddingTop: insets.top + webTopInset + 12,
-          paddingBottom: insets.bottom + webBottomInset + 8,
+          paddingBottom: insets.bottom + webBottomInset + 20,
         },
       ]}
+      showsVerticalScrollIndicator={false}
     >
       <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
         <View>
@@ -120,15 +148,15 @@ export default function HomeScreen() {
 
       <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.sessionCards}>
         {SESSION_OPTIONS.map((opt, i) => {
-          const isSuggested = opt.type === suggestedSession && opt.type !== 'conditioning';
+          const isSuggested = opt.type === suggestedSession && !['conditioning', 'prehab', 'flexibility'].includes(opt.type);
           return (
-            <Animated.View key={opt.type} entering={FadeInDown.delay(100 + i * 50).duration(350)} style={styles.cardWrapper}>
+            <Animated.View key={opt.type} entering={FadeInDown.delay(100 + i * 50).duration(350)}>
               <Pressable
                 onPress={() => handleSelect(opt.type)}
                 style={({ pressed }) => [
                   styles.sessionCard,
                   isSuggested && styles.sessionCardSuggested,
-                  opt.type === 'conditioning' && styles.sessionCardConditioning,
+                  opt.dashed && !isSuggested && styles.sessionCardDashed,
                   pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
                 ]}
                 testID={`session-${opt.type}`}
@@ -154,7 +182,7 @@ export default function HomeScreen() {
         })}
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(380).duration(400)} style={styles.statsRow}>
+      <Animated.View entering={FadeInDown.delay(480).duration(400)} style={styles.statsRow}>
         <View style={styles.statCard}>
           <View style={[styles.statIcon, { backgroundColor: Colors.primaryMuted }]}>
             <Ionicons name="flame-outline" size={18} color={Colors.primary} />
@@ -178,7 +206,7 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(480).duration(400)} style={styles.infoRow}>
+      <Animated.View entering={FadeInDown.delay(560).duration(400)} style={styles.infoRow}>
         <View style={styles.infoCard}>
           <Ionicons name="medical-outline" size={16} color={Colors.warning} />
           <Text style={styles.infoText}>Pain adaptive — 11 body regions</Text>
@@ -188,21 +216,20 @@ export default function HomeScreen() {
           <Text style={styles.infoText}>30 · 45 · 60 min options</Text>
         </View>
       </Animated.View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 20 },
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.text },
   tierText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
   testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff3e0', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#ffe0b2' },
   testWeekPillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: '#e65100' },
-  sessionCards: { flex: 1, gap: 8, marginBottom: 14 },
-  cardWrapper: { flex: 1 },
+  sessionCards: { gap: 8, marginBottom: 14 },
   sessionCard: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
@@ -218,7 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: Colors.primarySurface,
   },
-  sessionCardConditioning: {
+  sessionCardDashed: {
     borderStyle: 'dashed' as const,
   },
   sessionIconWrap: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

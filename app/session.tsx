@@ -245,7 +245,7 @@ export default function SessionScreen() {
     equipment: string;
   }>();
 
-  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning'];
+  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility'];
   const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
   const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
 

@@ -18,11 +18,13 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - `fullgym` — full barbell/machine gym  
 - Internal tier mapping: `toInternalTier()` in `lib/exercise-db.ts` collapses 5→3 for exercise lookup
 
-### Session Types (4 options)
+### Session Types (6 options)
 - **Lower Body** (`squat`) — Quad/Glute/Hamstring focus, squat pattern KPI
 - **Upper Body** (`bench`) — Chest/Shoulder/Tricep focus, push pattern KPI
 - **Full Body** (`deadlift`) — Posterior chain focus, hinge pattern KPI
 - **Conditioning** (`conditioning`) — HIIT circuits, cardio, fat burn / cardiovascular focus
+- **Prehab** (`prehab`) — Standalone joint-health circuit, bypasses readiness screen, 9 exercises (core stability, hip/shoulder health, ankle work)
+- **Flexibility** (`flexibility`) — Standalone long-hold stretching session, 10 exercises, bypasses readiness screen
 
 ### 8-Phase Session Structure
 1. **Cardio Warm-Up** (prep) — 1-2 min, mandatory on ALL session lengths including 30-min (safety)
@@ -63,6 +65,13 @@ Front/Rear Shoulder, Elbow/Wrist, Neck, Lower/Upper Back, Core/Ribs, Knee, Hip/G
 - **Settings**: equipment (modal with all 5 tiers), experience level, fitness goal, test week frequency
 - **Recent sessions**: last 8 sessions with type, date, duration, top weight
 
+### Onboarding Experience Screening
+- 2-step onboarding: experience level first, then equipment
+- **Beginners**: only Bodyweight and Bands available (Dumbbells/Kettlebells/Full Gym shown locked)
+- **Intermediate/Advanced**: all 5 tiers available
+- Beginner restriction banner explains users can unlock more equipment via profile later
+- Experience level saved to `userProfile.experienceLevel` on step 1
+
 ### 1RM Test Weeks
 - Triggered every 12 or 18 sessions (configurable)
 - Ramping protocol per session type and equipment tier
@@ -75,7 +84,7 @@ app/
   session.tsx           - Session screen (8-phase workout display, set logging)
   readiness.tsx         - Pre-workout readiness check
   (tabs)/
-    index.tsx           - Home screen (4 session type cards)
+    index.tsx           - Home screen (6 session type cards; Prehab/Flexibility go direct to session)
     workouts.tsx        - Training plan/schedule view
     profile.tsx         - Profile, stats, settings
 lib/

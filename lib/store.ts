@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
-export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning';
+export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility';
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';

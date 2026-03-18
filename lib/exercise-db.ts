@@ -2,7 +2,7 @@ import { EquipmentTier, SessionType, PainRegion } from './store';
 
 export type ExerciseCategory = 'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
 
-type MainSessionType = Exclude<SessionType, 'conditioning'>;
+type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility'>;
 type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
 
 export function toInternalTier(tier: EquipmentTier): InternalTier {
@@ -651,4 +651,43 @@ export function getConditioningWorkout(tier: EquipmentTier, energy: 'easy' | 'no
 
 export function get1RMProtocol(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
   return ORM_TEST[sessionType][toInternalTier(tier)];
+}
+
+// ─── STANDALONE PREHAB SESSION ────────────────────────────────────────────────
+// A targeted joint-health circuit. Equipment-agnostic (all bodyweight/band).
+
+const STANDALONE_PREHAB: ExerciseTemplate[] = [
+  { id: 'ph-s-1', name: 'Cardio Warm-Up (Easy Walk / Bike)', sets: 1, reps: '3 min', cue: 'Start easy — just get blood flowing to the joints before any movement', suggestedLoad: 'Low intensity', category: 'prep', targetRegions: [], videoId: '' },
+  { id: 'ph-s-2', name: 'Dead Bug', sets: 2, reps: '8 each side', cue: 'Low back pressed to floor throughout — reach opposite arm and leg, exhale fully. Core anti-extension', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'core_ribs'], videoId: '' },
+  { id: 'ph-s-3', name: 'Banded Clamshell', sets: 2, reps: '15 each side', cue: 'Band around knees, feet together — rotate top knee up, hold 1s, lower slowly. Glute med activation', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+  { id: 'ph-s-4', name: 'Band Pull-Apart', sets: 2, reps: '15 slow reps', cue: 'Arms straight, pull band to sternum — squeeze shoulder blades for 1s. Rotator cuff and rear-delt health', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['front_shoulder', 'rear_shoulder', 'upper_back'], videoId: '' },
+  { id: 'ph-s-5', name: 'Pallof Press (Isometric Hold)', sets: 2, reps: '20s each side', cue: 'Press hands away from body, resist rotation — tall spine, breathe. Anti-rotation core stability', suggestedLoad: 'Light band or cable', category: 'prehab', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+  { id: 'ph-s-6', name: 'Copenhagen Adductor Hold', sets: 2, reps: '20s each side', cue: 'Top leg on bench, bottom leg reaches — hold, squeeze inner thigh. Groin and adductor load', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+  { id: 'ph-s-7', name: 'Wall Slide', sets: 2, reps: '10 slow reps', cue: 'Back flat on wall, arms at 90° slide overhead — keep elbows and wrists touching wall. Shoulder health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+  { id: 'ph-s-8', name: 'Tibialis Raise', sets: 2, reps: '15 each side', cue: 'Heels on ground, lift toes toward shin — slow and controlled. Shin splint prevention and ankle health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
+  { id: 'ph-s-9', name: 'Supine Hip 90/90 Stretch', sets: 1, reps: '45s each side', cue: 'On back, figure-4 position — breathe deeply, let hip open. Hip capsule and piriformis', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+];
+
+export function getStandalonePrehabWorkout(): ExerciseTemplate[] {
+  return STANDALONE_PREHAB;
+}
+
+// ─── STANDALONE FLEXIBILITY SESSION ──────────────────────────────────────────
+// Long-hold stretching and mobility. No equipment needed.
+
+const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
+  { id: 'fl-s-1', name: 'Diaphragmatic Breathing', sets: 1, reps: '10 deep breaths', cue: 'Lie on back, hands on belly — breathe in for 4s, out for 6s. Activate parasympathetic system before stretching', suggestedLoad: 'Bodyweight', category: 'prep', targetRegions: [], videoId: '' },
+  { id: 'fl-s-2', name: 'Hip Flexor Kneeling Stretch', sets: 2, reps: '45s each side', cue: 'Deep lunge, back knee padded — tuck pelvis, hold for duration. Desk worker hip flexor release', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+  { id: 'fl-s-3', name: 'Doorway Chest Opener', sets: 2, reps: '45s each side', cue: 'Arm at 90°, step through doorway — breathe deeply into the pec stretch. Undo desk posture', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
+  { id: 'fl-s-4', name: 'Thread-the-Needle Rotation', sets: 2, reps: '6 each side, hold 3s', cue: 'All fours, thread one arm under body — feel thoracic rotation, breathe and settle deeper', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '' },
+  { id: 'fl-s-5', name: 'Pigeon Pose', sets: 2, reps: '60s each side', cue: 'Front shin as horizontal as comfortable — relax all weight into the pose, breathe through outer hip tension', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+  { id: 'fl-s-6', name: 'Supine Hamstring Stretch (Strap)', sets: 2, reps: '45s each leg', cue: 'Lie on back, loop towel or strap around foot — straighten knee until gentle tension. No forcing', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['knee', 'lower_back'], videoId: '' },
+  { id: 'fl-s-7', name: 'Child\'s Pose with Side Reach', sets: 2, reps: '30s each side', cue: 'From child\'s pose, walk hands to one side — feel the lat and QL stretch on the opposite hip', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['lower_back', 'upper_back'], videoId: '' },
+  { id: 'fl-s-8', name: 'Calf Stretch (Wall)', sets: 2, reps: '45s each side', cue: 'Foot against base of wall, heel down, lean in — straight-leg then bent-knee for soleus', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
+  { id: 'fl-s-9', name: 'Neck Side Stretch', sets: 2, reps: '30s each side', cue: 'Ear to shoulder, gentle hand pressure — do not pull. Breathe slowly, hold without bouncing', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['neck', 'upper_back'], videoId: '' },
+  { id: 'fl-s-10', name: 'Legs-Up-The-Wall', sets: 1, reps: '2 min', cue: 'Legs vertical against wall, arms relaxed — close eyes and breathe. Full body recovery and circulation', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['ankle_achilles', 'lower_back'], videoId: '' },
+];
+
+export function getStandaloneFlexibilityWorkout(): ExerciseTemplate[] {
+  return STANDALONE_FLEXIBILITY;
 }
