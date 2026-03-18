@@ -397,7 +397,7 @@ export default function SessionScreen() {
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -412,8 +412,10 @@ export default function SessionScreen() {
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier);
     }
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile]);
+    const bestOrm = getBestORM(sessionType);
+    const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [showCongratsModal, setShowCongratsModal] = useState(false);

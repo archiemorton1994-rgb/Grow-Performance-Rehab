@@ -74,6 +74,11 @@ function isDumbbellTier(tier: EquipmentTier): boolean {
  * Reference athlete in the exercise database: intermediate male, ~80 kg, muscle goal.
  * Scale = (userBW / 80) × experienceFactor × sexFactor × goalFactor
  *
+ * When `ormKg` is provided (stored 1RM for this session's main lift), the load for
+ * main-lift exercises is derived from the user's own 1RM using a goal-appropriate
+ * percentage (strength: 85%, muscle: 75%, fat_loss: 65%, fitness: 70%, rehab: 50%),
+ * which is far more accurate than the heuristic scaling approach.
+ *
  * Exercises with non-numeric loads (Bodyweight, Band, Machine, Cardio) are returned unchanged.
  * Numeric values are rounded to the nearest 2.5 kg with a minimum of 2.5 kg.
  */
@@ -82,7 +87,9 @@ function personalizeLoad(
   profile: UserProfile,
   isUpperBodySession: boolean,
   exerciseId?: string,
-  exerciseFeedback?: Record<string, ExerciseFeedback>
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  ormKg?: number,
+  isMainLift?: boolean
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -106,6 +113,26 @@ function personalizeLoad(
     return rawLoad;
   }
 
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const feedbackMult = (exerciseId && exerciseFeedback?.[exerciseId]?.multiplier)
+    ? exerciseFeedback[exerciseId].multiplier
+    : 1.0;
+
+  // ── 1RM-based load for the main KPI lift ────────────────────────────────
+  // When the user entered their 1RM during onboarding (or a test week), use it
+  // to calculate the working weight directly rather than relying on body-weight
+  // heuristics.  Goal-specific percentages mirror common periodisation practice.
+  if (ormKg && ormKg > 0 && isMainLift) {
+    const goalPct: Record<string, number> = {
+      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50,
+    };
+    const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
+    const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.70), 0) / activeGoals.length;
+    const targetKg = roundTo2_5(ormKg * avgPct * feedbackMult);
+    return `${targetKg} kg`;
+  }
+
+  // ── Heuristic scaling (fallback when no 1RM is available) ───────────────
   const REF_BW = 80;
   const bwRatio = profile.bodyweightKg / REF_BW;
 
@@ -118,11 +145,6 @@ function personalizeLoad(
   const avgGoalFactor = activeGoals.reduce((sum, g) => sum + (goalFactor[g] ?? 1.0), 0) / activeGoals.length;
 
   const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.70) * avgGoalFactor * sexFactor;
-
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
-  const feedbackMult = (exerciseId && exerciseFeedback?.[exerciseId]?.multiplier)
-    ? exerciseFeedback[exerciseId].multiplier
-    : 1.0;
 
   return rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
@@ -253,13 +275,15 @@ function applyPersonalization(
   ex: Exercise,
   profile: UserProfile | undefined,
   isUpperBody: boolean,
-  exerciseFeedback?: Record<string, ExerciseFeedback>
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  ormKg?: number
 ): Exercise {
   if (!profile) return ex;
+  const isMainLift = ex.category === 'main';
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift) : ex.swapLoad,
   };
 }
 
@@ -268,7 +292,8 @@ export function generateWorkout(
   equipmentTier: EquipmentTier,
   readiness: ReadinessCheck,
   profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  bestOrmKg?: number
 ): Exercise[] {
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback);
@@ -375,7 +400,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
