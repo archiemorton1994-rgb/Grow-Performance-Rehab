@@ -16,7 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, useAppStore } from '@/lib/store';
 import {
@@ -54,7 +54,8 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
   );
 }
 
-function isRepsTimeBased(repsStr: string): boolean {
+function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
+  if (sessionType === 'conditioning') return true;
   return /\bmin\b/.test(repsStr) || /\d+s\b/.test(repsStr);
 }
 
@@ -164,6 +165,7 @@ function ExerciseCard({
   onSwapPress,
   isDumbbellSession,
   exerciseState,
+  sessionType,
   onCardLayout,
 }: {
   exercise: Exercise;
@@ -174,6 +176,7 @@ function ExerciseCard({
   onSwapPress: () => void;
   isDumbbellSession: boolean;
   exerciseState: ExerciseState;
+  sessionType: SessionType;
   onCardLayout?: (y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
@@ -182,7 +185,20 @@ function ExerciseCard({
   const restPeriod = getRestPeriod(exercise.category);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
-  const isTimeExercise = isRepsTimeBased(exercise.reps);
+  const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
+
+  // Scale-up animation when card becomes active (future → active transition)
+  const isActive = exerciseState === 'active';
+  const unlockScale = useSharedValue(1);
+  useEffect(() => {
+    if (isActive) {
+      unlockScale.value = 0.96;
+      unlockScale.value = withSpring(1, { mass: 0.4, damping: 14, stiffness: 220 });
+    }
+  }, [isActive]);
+  const scaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: unlockScale.value }],
+  }));
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
     prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Warm-Up' },
@@ -204,7 +220,6 @@ function ExerciseCard({
   const repsLabel = exercise.reps;
   const repDisplay = isTimeExercise ? repsLabel : `${repsLabel} reps`;
 
-  const isActive = exerciseState === 'active';
   const isPast = exerciseState === 'past';
   const isFuture = exerciseState === 'future';
 
@@ -256,9 +271,10 @@ function ExerciseCard({
           </View>
         )}
 
-        {/* ── Active state: full interactive card ───────────────────────────── */}
+        {/* ── Active state: full interactive card with fade + scale-up ──────── */}
         {isActive && (
-          <Animated.View entering={FadeIn.duration(350)}>
+          <Animated.View entering={FadeIn.duration(320)}>
+          <Animated.View style={scaleStyle}>
             <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
               <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
                 {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
@@ -345,6 +361,7 @@ function ExerciseCard({
                 ))}
               </View>
             )}
+          </Animated.View>
           </Animated.View>
         )}
 
@@ -635,6 +652,7 @@ export default function SessionScreen() {
               onSwapPress={() => setSwapModal({ index, exercise })}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
+              sessionType={sessionType}
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
             />
           );
