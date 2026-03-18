@@ -45,6 +45,7 @@ export const PAIN_CATEGORIES = {
 };
 
 export interface ExerciseFeedback {
+  tooEasy: boolean;
   thumbs: 'up' | 'down' | null;
   multiplier: number;
 }
@@ -176,6 +177,7 @@ export const useAppStore = create<AppState>()(
         exerciseFeedback: {
           ...state.exerciseFeedback,
           [exerciseId]: {
+            tooEasy: state.exerciseFeedback[exerciseId]?.tooEasy ?? false,
             thumbs,
             multiplier: state.exerciseFeedback[exerciseId]?.multiplier ?? 1.0,
           },
@@ -187,6 +189,7 @@ export const useAppStore = create<AppState>()(
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
+            tooEasy: true,
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
