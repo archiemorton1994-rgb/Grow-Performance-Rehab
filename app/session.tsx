@@ -55,8 +55,7 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
 }
 
 function isRepsTimeBased(repsStr: string): boolean {
-  const lower = repsStr.toLowerCase();
-  return lower.includes('min') || lower.includes('sec');
+  return /\bmin\b/.test(repsStr) || /\d+s\b/.test(repsStr);
 }
 
 function SetRow({
@@ -81,15 +80,13 @@ function SetRow({
   );
 
   const handleWeightChange = (t: string) => {
-    setWeightText(t);
-    const w = parseFloat(t) || 0;
-    onChange({ ...data, weight: w });
+    setWeightText(t); // update local display only; parent updated on blur
   };
 
   const handleWeightBlur = () => {
     const w = parseFloat(weightText) || 0;
     setWeightText(w > 0 ? String(w) : '');
-    onChange({ ...data, weight: w });
+    onChange({ ...data, weight: w }); // flush to parent only on blur
   };
 
   return (
@@ -142,7 +139,9 @@ function SetRow({
           onPress={() => {
             if (disabled) return;
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onChange({ ...data, completed: !data.completed });
+            // Flush any in-progress decimal weight before toggling
+            const w = parseFloat(weightText) || data.weight;
+            onChange({ ...data, weight: w, completed: !data.completed });
           }}
           style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
           testID={`set-${setNum}-check`}
@@ -154,6 +153,8 @@ function SetRow({
   );
 }
 
+type ExerciseState = 'active' | 'past' | 'future';
+
 function ExerciseCard({
   exercise,
   index,
@@ -162,7 +163,7 @@ function ExerciseCard({
   onVideoPress,
   onSwapPress,
   isDumbbellSession,
-  isLocked,
+  exerciseState,
   onCardLayout,
 }: {
   exercise: Exercise;
@@ -172,7 +173,7 @@ function ExerciseCard({
   onVideoPress: () => void;
   onSwapPress: () => void;
   isDumbbellSession: boolean;
-  isLocked: boolean;
+  exerciseState: ExerciseState;
   onCardLayout?: (y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
@@ -203,6 +204,10 @@ function ExerciseCard({
   const repsLabel = exercise.reps;
   const repDisplay = isTimeExercise ? repsLabel : `${repsLabel} reps`;
 
+  const isActive = exerciseState === 'active';
+  const isPast = exerciseState === 'past';
+  const isFuture = exerciseState === 'future';
+
   return (
     <Animated.View
       entering={FadeInDown.delay(60 + index * 35).duration(350)}
@@ -210,12 +215,13 @@ function ExerciseCard({
     >
       <View style={[
         styles.exerciseCard,
-        allDone && !isLocked && styles.exerciseCardDone,
-        isLocked && styles.exerciseCardLocked,
+        isActive && allDone && styles.exerciseCardDone,
+        isPast && styles.exerciseCardPast,
+        isFuture && styles.exerciseCardLocked,
       ]}>
 
-        {/* ── Locked state: compact header only ────────────────────────────── */}
-        {isLocked && (
+        {/* ── Future state: locked with padlock ────────────────────────────── */}
+        {isFuture && (
           <View style={styles.lockedHeader}>
             <View style={styles.lockIconWrap}>
               <Ionicons name="lock-closed" size={14} color={Colors.textTertiary} />
@@ -232,8 +238,26 @@ function ExerciseCard({
           </View>
         )}
 
-        {/* ── Unlocked state: full card ─────────────────────────────────────── */}
-        {!isLocked && (
+        {/* ── Past state: collapsed with completion checkmark ───────────────── */}
+        {isPast && (
+          <View style={styles.pastHeader}>
+            <View style={styles.checkCircleDone}>
+              <Ionicons name="checkmark" size={14} color={Colors.textInverse} />
+            </View>
+            <View style={styles.lockedInfo}>
+              <Text style={styles.pastName} numberOfLines={1}>{exercise.name}</Text>
+              <View style={styles.lockedMeta}>
+                <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                  <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+                </View>
+                <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Active state: full interactive card ───────────────────────────── */}
+        {isActive && (
           <Animated.View entering={FadeIn.duration(350)}>
             <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
               <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
@@ -377,8 +401,8 @@ export default function SessionScreen() {
     CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
   );
 
-  // Sequential unlock state
-  const [unlockedUntil, setUnlockedUntil] = useState(0);
+  // Sequential exercise active index (active | past | future model)
+  const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const cardYPositions = useRef<Record<number, number>>({});
 
@@ -394,28 +418,28 @@ export default function SessionScreen() {
         swapped: false,
       }))
     );
-    setUnlockedUntil(0);
+    setActiveIndex(0);
     cardYPositions.current = {};
   }, [exercises]);
 
-  // Auto-advance unlock when the current exercise is fully complete
+  // Auto-advance to next exercise when current is fully complete
   useEffect(() => {
     if (exerciseData.length === 0) return;
-    if (unlockedUntil >= exerciseData.length) return;
-    const currentDone = exerciseData[unlockedUntil]?.sets.every(s => s.completed);
+    if (activeIndex >= exerciseData.length) return;
+    const currentDone = exerciseData[activeIndex]?.sets.every(s => s.completed);
     if (currentDone) {
-      const nextIndex = unlockedUntil + 1;
-      setUnlockedUntil(nextIndex);
+      const nextIndex = activeIndex + 1;
+      setActiveIndex(nextIndex);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Scroll to the newly unlocked exercise after animation starts
+      // Center-scroll to the newly active exercise after its animation starts
       setTimeout(() => {
         const y = cardYPositions.current[nextIndex];
         if (y !== undefined && scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ y: Math.max(0, y - 16), animated: true });
+          scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
         }
       }, 350);
     }
-  }, [exerciseData, unlockedUntil]);
+  }, [exerciseData, activeIndex]);
 
   const openYouTube = (exerciseName: string) => {
     const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
@@ -597,7 +621,9 @@ export default function SessionScreen() {
           const data = exerciseData[index];
           if (!data) return null;
           const displayExercise = getDisplayExercise(exercise, data);
-          const isLocked = index > unlockedUntil;
+          const exState: ExerciseState =
+            index < activeIndex ? 'past' :
+            index === activeIndex ? 'active' : 'future';
           return (
             <ExerciseCard
               key={exercise.id + index}
@@ -608,7 +634,7 @@ export default function SessionScreen() {
               onVideoPress={() => openYouTube(displayExercise.name)}
               onSwapPress={() => setSwapModal({ index, exercise })}
               isDumbbellSession={isDumbbellSession}
-              isLocked={isLocked}
+              exerciseState={exState}
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
             />
           );
@@ -776,13 +802,18 @@ const styles = StyleSheet.create({
   setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   setCheckDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   setCheckDisabled: { opacity: 0.3 },
-  // Locked card styles
+  // Card state styles
+  exerciseCardPast: { backgroundColor: Colors.surfaceTertiary, borderColor: Colors.borderLight, opacity: 0.80 },
+  // Locked/future card styles
   lockedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   lockIconWrap: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   lockedInfo: { flex: 1 },
   lockedName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginBottom: 4 },
   lockedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
+  // Past (completed) card styles
+  pastHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pastName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginBottom: 4 },
   bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.borderLight },
   completeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, gap: 8 },
   completeButtonDisabled: { backgroundColor: Colors.surfaceTertiary },
