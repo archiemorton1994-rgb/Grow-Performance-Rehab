@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -140,6 +142,20 @@ export default function OnboardingScreen() {
   const nameInputRef = useRef<TextInput>(null);
   const bwInputRef = useRef<TextInput>(null);
 
+  const handleNextRef = useRef<() => void>(() => {});
+  const handleBackRef = useRef<() => void>(() => {});
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -50) handleNextRef.current();
+        else if (gs.dx > 50) handleBackRef.current();
+      },
+    })
+  ).current;
+
   const checkScale = useSharedValue(0);
   const checkOpacity = useSharedValue(0);
   const celebTitleOpacity = useSharedValue(0);
@@ -243,6 +259,22 @@ export default function OnboardingScreen() {
     goTo(currentIndex - 1);
   }, [currentIndex, haptic, goTo]);
 
+  useEffect(() => {
+    handleNextRef.current = handleNext;
+    handleBackRef.current = handleBack;
+  }, [handleNext, handleBack]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentIndex > 0 && currentIndex < 8) {
+        handleBack();
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [currentIndex, handleBack]);
+
   const handleComplete = useCallback(() => {
     hapticMedium();
     setOnboardingComplete(true);
@@ -289,7 +321,7 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <View style={[styles.root, { backgroundColor: Colors.background }]}>
+      <View style={[styles.root, { backgroundColor: Colors.background }]} {...panResponder.panHandlers}>
         {/* ── Fixed Header ── */}
         <View style={[styles.header, { paddingTop: topPad + 10, paddingHorizontal: 20 }]}>
           {showBack ? (
@@ -623,7 +655,9 @@ export default function OnboardingScreen() {
                 Profile Built!
               </Animated.Text>
               <Animated.Text style={[styles.celebName, celebTitleStyle]}>
-                {name.trim() ? `Welcome, ${name.trim().split(' ')[0]}` : 'You\'re all set'}
+                {name.trim()
+                  ? `Your profile is ready, ${name.trim().split(' ')[0]}`
+                  : 'Your profile is ready'}
               </Animated.Text>
               <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
                 <CelebSummaryPill
@@ -648,7 +682,7 @@ export default function OnboardingScreen() {
                   ]}
                   testID="profile-built-cta"
                 >
-                  <Text style={styles.continueBtnText}>Let's Go</Text>
+                  <Text style={styles.continueBtnText}>Continue to create your account</Text>
                   <Ionicons name="arrow-forward" size={20} color={Colors.textInverse} />
                 </Pressable>
               </Animated.View>
@@ -662,6 +696,7 @@ export default function OnboardingScreen() {
             <Pressable
               onPress={handleNext}
               disabled={!canGo}
+              accessibilityState={{ disabled: !canGo }}
               style={({ pressed }) => [
                 styles.continueBtn,
                 !canGo && styles.continueBtnDisabled,
