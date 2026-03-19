@@ -142,7 +142,6 @@ export default function OnboardingScreen() {
 
   const handleNextRef = useRef<() => void>(() => {});
   const handleBackRef = useRef<() => void>(() => {});
-  const savedRef = useRef(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -227,20 +226,7 @@ export default function OnboardingScreen() {
       bodyweightKg: parseFloat(bodyweight) || 75,
     });
     setEquipmentTiers(equipment);
-    if (!savedRef.current) {
-      savedRef.current = true;
-      const today = new Date().toISOString().split('T')[0];
-      const lifts: { lift: SessionType; value: string }[] = [
-        { lift: 'squat', value: ormSquat },
-        { lift: 'bench', value: ormBench },
-        { lift: 'deadlift', value: ormDeadlift },
-      ];
-      for (const { lift, value } of lifts) {
-        const kg = parseFloat(value);
-        if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
-      }
-    }
-  }, [name, sex, experience, bodyweight, goals, equipment, ormSquat, ormBench, ormDeadlift, setUserProfile, setEquipmentTiers, addOneRepMax]);
+  }, [name, sex, experience, bodyweight, goals, equipment, setUserProfile, setEquipmentTiers]);
 
   const handleNext = useCallback(() => {
     if (!canContinue()) return;
@@ -279,9 +265,19 @@ export default function OnboardingScreen() {
 
   const handleComplete = useCallback(() => {
     hapticMedium();
+    const today = new Date().toISOString().split('T')[0];
+    const lifts: { lift: SessionType; value: string }[] = [
+      { lift: 'squat', value: ormSquat },
+      { lift: 'bench', value: ormBench },
+      { lift: 'deadlift', value: ormDeadlift },
+    ];
+    for (const { lift, value } of lifts) {
+      const kg = parseFloat(value);
+      if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+    }
     setOnboardingComplete(true);
     router.replace('/(tabs)');
-  }, [hapticMedium, setOnboardingComplete]);
+  }, [hapticMedium, ormSquat, ormBench, ormDeadlift, addOneRepMax, setOnboardingComplete]);
 
   const handleSkipLifts = useCallback(() => {
     haptic();
