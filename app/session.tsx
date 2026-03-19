@@ -194,6 +194,7 @@ function ExerciseCard({
   sessionType,
   onCardLayout,
   previousBest,
+  feedbackMultiplier,
 }: {
   exercise: Exercise;
   index: number;
@@ -206,6 +207,7 @@ function ExerciseCard({
   sessionType: SessionType;
   onCardLayout?: (y: number) => void;
   previousBest?: number;
+  feedbackMultiplier?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
@@ -316,6 +318,13 @@ function ExerciseCard({
                     <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
                       <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
                         {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
+                      </Text>
+                    </View>
+                  )}
+                  {feedbackMultiplier !== undefined && Math.abs(feedbackMultiplier - 1.0) > 0.001 && (
+                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? Colors.primaryMuted : '#fff3e0' }]}>
+                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? Colors.primaryDark : '#e65100' }]}>
+                        {feedbackMultiplier > 1.0 ? '↑ adjusted' : '↓ adjusted'}
                       </Text>
                     </View>
                   )}
@@ -765,6 +774,7 @@ export default function SessionScreen() {
               sessionType={sessionType}
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
               previousBest={previousBest[exercise.id]}
+              feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
             />
           );
         })}
@@ -979,7 +989,7 @@ export default function SessionScreen() {
                   <Ionicons name="trending-up-outline" size={28} color="#e65100" />
                 </View>
                 <Text style={styles.modalTitle}>Too Easy?</Text>
-                <Text style={styles.feedbackSubtitle}>Select exercises to increase weight next session</Text>
+                <Text style={styles.feedbackSubtitle}>Select exercises to make harder next session</Text>
                 <ScrollView style={styles.feedbackScroll} showsVerticalScrollIndicator={false}>
                   {exercises.map((ex) => {
                     const selected = tooEasySelected.has(ex.id);

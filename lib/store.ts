@@ -173,16 +173,26 @@ export const useAppStore = create<AppState>()(
         oneRepMaxes: [],
       }),
 
-      setExerciseFeedback: (exerciseId, thumbs) => set((state) => ({
-        exerciseFeedback: {
-          ...state.exerciseFeedback,
-          [exerciseId]: {
-            tooEasy: state.exerciseFeedback[exerciseId]?.tooEasy ?? false,
-            thumbs,
-            multiplier: state.exerciseFeedback[exerciseId]?.multiplier ?? 1.0,
+      setExerciseFeedback: (exerciseId, thumbs) => set((state) => {
+        const current = state.exerciseFeedback[exerciseId];
+        const currentMult = current?.multiplier ?? 1.0;
+        let newMult = currentMult;
+        if (thumbs === 'up') {
+          newMult = parseFloat(Math.min(1.5, currentMult + 0.03).toFixed(3));
+        } else if (thumbs === 'down') {
+          newMult = parseFloat(Math.max(0.70, currentMult - 0.05).toFixed(3));
+        }
+        return {
+          exerciseFeedback: {
+            ...state.exerciseFeedback,
+            [exerciseId]: {
+              tooEasy: current?.tooEasy ?? false,
+              thumbs,
+              multiplier: newMult,
+            },
           },
-        },
-      })),
+        };
+      }),
 
       applyTooEasyAdjustment: (exerciseIds) => set((state) => {
         const updated = { ...state.exerciseFeedback };
