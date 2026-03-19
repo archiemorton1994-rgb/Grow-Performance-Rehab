@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,60 @@ import {
   StyleSheet,
   Platform,
   ScrollView,
+  LayoutChangeEvent,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import Colors from '@/constants/colors';
 import { SessionType, useAppStore } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
+
+const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
+const WEEKLY_GOAL = 3;
+
+function getNextMilestone(count: number): number {
+  for (const m of MILESTONE_SESSIONS) {
+    if (m > count) return m;
+  }
+  return Math.ceil((count + 1) / 50) * 50;
+}
+
+function WeeklyRing({ weekCount }: { weekCount: number }) {
+  const size = 36;
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(weekCount / WEEKLY_GOAL, 1);
+  const strokeDashoffset = circumference * (1 - progress);
+
+  return (
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={Colors.borderLight}
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={Colors.primary}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
 
 const SESSION_OPTIONS: {
   type: SessionType;
@@ -118,6 +163,11 @@ export default function HomeScreen() {
     }
   };
 
+  const [milestoneTrackWidth, setMilestoneTrackWidth] = useState(0);
+  const handleMilestoneTrackLayout = (e: LayoutChangeEvent) => {
+    setMilestoneTrackWidth(e.nativeEvent.layout.width);
+  };
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
@@ -196,19 +246,37 @@ export default function HomeScreen() {
           <Text style={styles.statNumber}>{streak}</Text>
           <Text style={styles.statLabel}>Day Streak</Text>
         </View>
-        <View style={styles.statCard}>
-          <View style={[styles.statIcon, { backgroundColor: '#e8f0fe' }]}>
-            <Ionicons name="calendar-outline" size={18} color="#4285f4" />
+        <View style={[styles.statCard, styles.weekStatCard]}>
+          <View style={styles.weekStatTop}>
+            <View style={[styles.statIcon, { backgroundColor: '#e8f0fe', marginBottom: 0 }]}>
+              <Ionicons name="calendar-outline" size={18} color="#4285f4" />
+            </View>
+            <WeeklyRing weekCount={weekCount} />
           </View>
-          <Text style={styles.statNumber}>{weekCount}</Text>
+          <Text style={styles.statNumber}>{weekCount}/{WEEKLY_GOAL}</Text>
           <Text style={styles.statLabel}>This Week</Text>
         </View>
-        <View style={styles.statCard}>
-          <View style={[styles.statIcon, { backgroundColor: '#fce8e6' }]}>
-            <Ionicons name="trophy-outline" size={18} color="#ea4335" />
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(520).duration(400)} style={styles.milestoneCard}>
+        <View style={styles.milestoneCardTop}>
+          <View style={[styles.statIcon, { backgroundColor: Colors.primaryMuted, marginBottom: 0 }]}>
+            <Ionicons name="trophy-outline" size={18} color={Colors.primary} />
           </View>
-          <Text style={styles.statNumber}>{completedCount}</Text>
-          <Text style={styles.statLabel}>Total</Text>
+          <View style={styles.milestoneCardInfo}>
+            <Text style={styles.milestoneCardCount}>
+              {completedCount}/{getNextMilestone(completedCount)} sessions
+            </Text>
+            <Text style={styles.milestoneCardSub}>
+              {getNextMilestone(completedCount) - completedCount} to next milestone
+            </Text>
+          </View>
+        </View>
+        <View style={styles.milestoneBarTrack} onLayout={handleMilestoneTrackLayout}>
+          <View style={[
+            styles.milestoneBarFill,
+            { width: milestoneTrackWidth * Math.min(completedCount / getNextMilestone(completedCount), 1) },
+          ]} />
         </View>
       </Animated.View>
 
@@ -263,9 +331,18 @@ const styles = StyleSheet.create({
   sessionCardMuscles: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   statCard: { flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: Colors.borderLight },
+  weekStatCard: { gap: 0 },
+  weekStatTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   statIcon: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   statNumber: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text },
   statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 1 },
+  milestoneCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 10 },
+  milestoneCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  milestoneCardInfo: { flex: 1 },
+  milestoneCardCount: { fontSize: 14, fontFamily: 'Inter_700Bold', color: Colors.text },
+  milestoneCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 1 },
+  milestoneBarTrack: { height: 5, backgroundColor: Colors.surfaceTertiary, borderRadius: 3, overflow: 'hidden' },
+  milestoneBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
   infoRow: { gap: 8 },
   infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 11, padding: 10, borderWidth: 1, borderColor: Colors.borderLight, gap: 8 },
   infoText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, flex: 1 },

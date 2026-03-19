@@ -30,6 +30,22 @@ import {
   getWeightGuide,
 } from '@/lib/workout-engine';
 
+const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
+const MILESTONE_STREAKS = [3, 7, 14, 30];
+
+function getMilestoneMessage(count: number): string {
+  if (count === 1) return "Your first session — the hardest step is done!";
+  if (count === 5) return "5 sessions down — you're building real momentum!";
+  if (count === 10) return "10 sessions! Double digits — you're making this a habit.";
+  if (count === 25) return "That's your 25th session — you're building a habit!";
+  if (count === 50) return "50 sessions! You're halfway to triple digits. Incredible.";
+  if (count === 100) return "100 sessions! You've reached an elite level of consistency.";
+  if (count === 150) return "150 sessions — that's genuinely extraordinary dedication.";
+  if (count === 200) return "200 sessions! You are the definition of commitment.";
+  return `Session ${count} — keep going!`;
+}
+
+
 const CONGRATS_MESSAGES = [
   "Absolutely smashed it! Every rep, every set — you showed up and delivered.",
   "That's what dedication looks like. Be proud of what you just achieved!",
@@ -67,6 +83,7 @@ function SetRow({
   isBandExercise,
   isTimeExercise,
   disabled,
+  previousBest,
 }: {
   setNum: number;
   data: SetLog;
@@ -75,6 +92,7 @@ function SetRow({
   isBandExercise?: boolean;
   isTimeExercise?: boolean;
   disabled?: boolean;
+  previousBest?: number;
 }) {
   const [weightText, setWeightText] = useState(() =>
     data.weight > 0 ? String(data.weight) : ''
@@ -89,6 +107,8 @@ function SetRow({
     setWeightText(w > 0 ? String(w) : '');
     onChange({ ...data, weight: w }); // flush to parent only on blur
   };
+
+  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
 
   return (
     <View>
@@ -150,6 +170,12 @@ function SetRow({
           {data.completed && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
         </Pressable>
       </View>
+      {isNewRecord && (
+        <View style={styles.newRecordBadge}>
+          <Ionicons name="star" size={10} color="#fff" />
+          <Text style={styles.newRecordText}>New Record!</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -167,6 +193,7 @@ function ExerciseCard({
   exerciseState,
   sessionType,
   onCardLayout,
+  previousBest,
 }: {
   exercise: Exercise;
   index: number;
@@ -178,6 +205,7 @@ function ExerciseCard({
   exerciseState: ExerciseState;
   sessionType: SessionType;
   onCardLayout?: (y: number) => void;
+  previousBest?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
@@ -357,6 +385,7 @@ function ExerciseCard({
                     weightGuide={weightGuides[si]}
                     isBandExercise={isBandExercise}
                     isTimeExercise={isTimeExercise}
+                    previousBest={previousBest}
                   />
                 ))}
               </View>
@@ -397,7 +426,7 @@ export default function SessionScreen() {
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -407,6 +436,24 @@ export default function SessionScreen() {
 
   // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
   const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
+
+  // Compute per-exercise previous best weight from persisted sessions.
+  // useMemo re-runs when completedSessions changes (e.g. after async hydration completes)
+  // but NOT on keystrokes (keystroke state only updates exerciseData, not completedSessions).
+  const previousBest = useMemo<Record<string, number>>(() => {
+    const lookup: Record<string, number> = {};
+    for (const session of completedSessions) {
+      for (const exLog of session.exerciseLogs) {
+        const maxWeight = exLog.sets.reduce((m, s) => s.weight > m ? s.weight : m, 0);
+        if (maxWeight > 0) {
+          if (lookup[exLog.exerciseId] === undefined || maxWeight > lookup[exLog.exerciseId]) {
+            lookup[exLog.exerciseId] = maxWeight;
+          }
+        }
+      }
+    }
+    return lookup;
+  }, [completedSessions]);
 
   const exercises = useMemo(() => {
     if (isTestWeek) {
@@ -426,6 +473,9 @@ export default function SessionScreen() {
   const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
   const [tooEasySelected, setTooEasySelected] = useState<Set<string>>(new Set());
   const [tooEasySaved, setTooEasySaved] = useState(false);
+  const [isMilestone, setIsMilestone] = useState(false);
+  const [milestoneCount, setMilestoneCount] = useState(0);
+  const [streakMilestone, setStreakMilestone] = useState(0);
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -547,6 +597,50 @@ export default function SessionScreen() {
       sets: exerciseData[i].sets,
     }));
 
+    // Detect milestone before saving (completedCount is current, new count = completedCount + 1)
+    const newCount = completedCount + 1;
+    const hitsMilestone = MILESTONE_SESSIONS.includes(newCount);
+
+    // Compute pre-save streak and post-save streak deterministically from session dates.
+    // Only celebrate a streak milestone when this session actually extends the streak
+    // into a new milestone value (avoids repeat badge for a 2nd session on the same day).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    function computeStreakFromDates(dayTimestamps: Set<number>): number {
+      const sorted = Array.from(dayTimestamps).sort((a, b) => b - a);
+      let streak = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - i);
+        checkDate.setHours(0, 0, 0, 0);
+        if (sorted.includes(checkDate.getTime())) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    const preSaveDays = new Set(
+      completedSessions.map((s) => {
+        const d = new Date(s.date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      })
+    );
+    const postSaveDays = new Set(preSaveDays);
+    postSaveDays.add(today.getTime()); // include today's session
+
+    const preStreak = computeStreakFromDates(preSaveDays);
+    const postStreak = computeStreakFromDates(postSaveDays);
+
+    // Only show streak milestone badge when streak actually crosses into the milestone value
+    const hitsStreakMilestone = (postStreak > preStreak && MILESTONE_STREAKS.includes(postStreak))
+      ? postStreak
+      : 0;
+
     completeSession({
       sessionType,
       date: new Date().toISOString(),
@@ -560,6 +654,9 @@ export default function SessionScreen() {
       isTestWeek,
     });
 
+    setIsMilestone(hitsMilestone);
+    setMilestoneCount(newCount);
+    setStreakMilestone(hitsStreakMilestone);
     setFeedbackStep('congrats');
     setThumbsRatings({});
     setTooEasySelected(new Set());
@@ -667,6 +764,7 @@ export default function SessionScreen() {
               exerciseState={exState}
               sessionType={sessionType}
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
+              previousBest={previousBest[exercise.id]}
             />
           );
         })}
@@ -739,11 +837,24 @@ export default function SessionScreen() {
             {/* ── Congrats Step ────────────────────────────────────────────── */}
             {feedbackStep === 'congrats' && (
               <>
-                <View style={styles.congratsIcon}>
-                  <Ionicons name="trophy" size={44} color="#f59e0b" />
-                </View>
-                <Text style={styles.congratsTitle}>Session Complete!</Text>
-                <Text style={styles.congratsMessage}>{congratsMessage}</Text>
+                {isMilestone ? (
+                  <View style={styles.milestoneHeader}>
+                    <View style={styles.milestoneIconWrap}>
+                      <Ionicons name="trophy" size={52} color="#f59e0b" />
+                    </View>
+                    <Text style={styles.milestoneBadgeText}>MILESTONE</Text>
+                  </View>
+                ) : (
+                  <View style={styles.congratsIcon}>
+                    <Ionicons name="trophy" size={44} color="#f59e0b" />
+                  </View>
+                )}
+                <Text style={isMilestone ? styles.congratsTitleMilestone : styles.congratsTitle}>
+                  {isMilestone ? `Session ${milestoneCount}!` : 'Session Complete!'}
+                </Text>
+                <Text style={styles.congratsMessage}>
+                  {isMilestone ? getMilestoneMessage(milestoneCount) : congratsMessage}
+                </Text>
                 <View style={styles.congratsStats}>
                   <View style={styles.congratsStat}>
                     <Text style={styles.congratsStatValue}>{exercises.length}</Text>
@@ -760,6 +871,12 @@ export default function SessionScreen() {
                     <Text style={styles.congratsStatLabel}>Minutes</Text>
                   </View>
                 </View>
+                {streakMilestone > 0 && (
+                  <View style={styles.streakBadge}>
+                    <Text style={styles.streakBadgeIcon}>🔥</Text>
+                    <Text style={styles.streakBadgeText}>{streakMilestone}-day streak!</Text>
+                  </View>
+                )}
                 {tooEasySaved && (
                   <View style={styles.feedbackSavedBanner}>
                     <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
@@ -772,7 +889,7 @@ export default function SessionScreen() {
                     router.dismissAll();
                     router.replace('/(tabs)');
                   }}
-                  style={styles.congratsButton}
+                  style={[styles.congratsButton, isMilestone && styles.congratsButtonMilestone]}
                   testID="congrats-close"
                 >
                   <Text style={styles.congratsButtonText}>Back to Home</Text>
@@ -1049,4 +1166,17 @@ const styles = StyleSheet.create({
   checklistBoxSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.text },
   checklistNameSelected: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+  // New Record badge
+  newRecordBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#16a34a', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8, marginBottom: 2 },
+  newRecordText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 0.3 },
+  // Milestone congrats styles
+  milestoneHeader: { alignItems: 'center', marginBottom: 12 },
+  milestoneIconWrap: { width: 96, height: 96, borderRadius: 24, backgroundColor: '#fef9c3', borderWidth: 2, borderColor: '#fde68a', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  milestoneBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: Colors.primary, letterSpacing: 1.5, backgroundColor: Colors.primaryMuted, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  congratsTitleMilestone: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primaryDark, textAlign: 'center', marginBottom: 12 },
+  congratsButtonMilestone: { backgroundColor: Colors.primaryDark },
+  // Streak badge
+  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14, width: '100%', justifyContent: 'center' },
+  streakBadgeIcon: { fontSize: 18 },
+  streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#c2410c' },
 });
