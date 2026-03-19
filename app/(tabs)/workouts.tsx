@@ -115,7 +115,7 @@ function StrengthLineChart({ lift, orms }: { lift: SessionType; orms: { lift: Se
       .slice(-8);
   }, [lift, orms]);
 
-  const liftLabel = getSessionLabel(lift);
+  const liftLabel = lift.charAt(0).toUpperCase() + lift.slice(1);
   const colors = LIFT_COLORS[lift] ?? { line: Colors.primary, fill: Colors.primaryMuted };
 
   const handleLayout = (e: LayoutChangeEvent) => {
