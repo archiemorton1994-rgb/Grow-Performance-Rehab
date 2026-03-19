@@ -28,7 +28,7 @@ function RootLayoutNav() {
     if (!onboardingComplete) {
       setTimeout(() => router.replace("/onboarding"), 0);
     } else if (!isAuthenticated) {
-      setTimeout(() => router.replace("/auth/signup"), 0);
+      setTimeout(() => router.replace("/auth/signin"), 0);
     } else if (!hasActiveSubscription) {
       setTimeout(() => router.replace("/subscription"), 0);
     } else {

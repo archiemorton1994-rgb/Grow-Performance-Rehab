@@ -76,3 +76,8 @@ ensurePreviewReachable = "/status"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 60000
+
+[userenv]
+
+[userenv.development]
+EXPO_PUBLIC_RC_DEV_BYPASS = "true"

@@ -9,16 +9,24 @@ import React, {
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { router } from 'expo-router';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { apiRequest } from '@/lib/query-client';
 import { setAuthToken } from '@/lib/auth-token';
 
 const TOKEN_KEY = 'grow_auth_token';
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
+const RC_DEV_BYPASS = process.env.EXPO_PUBLIC_RC_DEV_BYPASS === 'true';
 
 export interface AuthUser {
   id: string;
   email: string;
+}
+
+interface SubscriptionStatus {
+  isActive: boolean;
+  isOnTrial: boolean;
+  expiryDate: string | null;
 }
 
 interface AuthContextValue {
@@ -27,6 +35,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   hasActiveSubscription: boolean;
   isOnTrial: boolean;
+  expiryDate: string | null;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -39,6 +48,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   hasActiveSubscription: false,
   isOnTrial: false,
+  expiryDate: null,
   signUp: async () => {},
   signIn: async () => {},
   signOut: async () => {},
@@ -93,15 +103,23 @@ function configureRevenueCat(userId?: string) {
   } catch {}
 }
 
-async function getSubscriptionStatus(): Promise<{ isActive: boolean; isOnTrial: boolean }> {
-  if (!RC_API_KEY) return { isActive: true, isOnTrial: false };
+async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  if (RC_DEV_BYPASS) {
+    if (__DEV__) console.warn('[Auth] RC_DEV_BYPASS active — subscription gate skipped');
+    return { isActive: true, isOnTrial: true, expiryDate: null };
+  }
+  if (!RC_API_KEY) {
+    return { isActive: false, isOnTrial: false, expiryDate: null };
+  }
   try {
     const info = await Purchases.getCustomerInfo();
     const active = Object.keys(info.entitlements.active).length > 0;
-    const onTrial = active && info.entitlements.active['premium']?.periodType === 'TRIAL';
-    return { isActive: active, isOnTrial: onTrial };
+    const entitlement = info.entitlements.active['premium'];
+    const onTrial = active && entitlement?.periodType === 'TRIAL';
+    const expiryDate = entitlement?.expirationDate ?? null;
+    return { isActive: active, isOnTrial: onTrial, expiryDate };
   } catch {
-    return { isActive: false, isOnTrial: false };
+    return { isActive: false, isOnTrial: false, expiryDate: null };
   }
 }
 
@@ -110,12 +128,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [isOnTrial, setIsOnTrial] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const appStateRef = useRef(AppState.currentState);
 
   const refreshSubscription = useCallback(async () => {
-    const { isActive, isOnTrial: trial } = await getSubscriptionStatus();
-    setHasActiveSubscription(isActive);
-    setIsOnTrial(trial);
+    const status = await getSubscriptionStatus();
+    setHasActiveSubscription(status.isActive);
+    setIsOnTrial(status.isOnTrial);
+    setExpiryDate(status.expiryDate);
   }, []);
 
   useEffect(() => {
@@ -174,9 +194,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setHasActiveSubscription(false);
     setIsOnTrial(false);
+    setExpiryDate(null);
     if (RC_API_KEY && rcConfigured) {
       try { await Purchases.logOut(); } catch {}
     }
+    router.replace('/auth/signin');
   }, []);
 
   return (
@@ -187,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         hasActiveSubscription,
         isOnTrial,
+        expiryDate,
         signUp,
         signIn,
         signOut,
@@ -200,4 +223,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+export function useSubscription(): SubscriptionStatus & { refresh: () => Promise<void> } {
+  const { hasActiveSubscription, isOnTrial, expiryDate, refreshSubscription } = useContext(AuthContext);
+  return {
+    isActive: hasActiveSubscription,
+    isOnTrial,
+    expiryDate,
+    refresh: refreshSubscription,
+  };
 }

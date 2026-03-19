@@ -4,18 +4,21 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { storage } from './storage';
 
-const JWT_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-in-prod';
+const JWT_SECRET = process.env.SESSION_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is required');
+}
 const JWT_EXPIRY = '30d';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function signToken(userId: string, email: string): string {
-  return jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  return jwt.sign({ userId, email }, JWT_SECRET!, { expiresIn: JWT_EXPIRY });
 }
 
 function verifyToken(token: string): { userId: string; email: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    return jwt.verify(token, JWT_SECRET!) as { userId: string; email: string };
   } catch {
     return null;
   }

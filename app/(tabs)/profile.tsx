@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +18,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
 import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, useSubscription } from '@/lib/auth-context';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
@@ -53,7 +54,8 @@ export default function ProfileScreen() {
     getEffectiveTier: storeGetEffectiveTier,
   } = useAppStore();
 
-  const { user, signOut, hasActiveSubscription, isOnTrial } = useAuth();
+  const { user, signOut } = useAuth();
+  const { isActive: hasActiveSubscription, isOnTrial, expiryDate } = useSubscription();
 
   const effectiveTier = storeGetEffectiveTier();
   const streak = getStreakDays();
@@ -155,6 +157,10 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
+    if (Platform.OS === 'web') {
+      signOut();
+      return;
+    }
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: signOut },
@@ -288,9 +294,28 @@ export default function ProfileScreen() {
           <Text style={styles.subStatusText}>{subscriptionLabel}</Text>
         </View>
         {hasActiveSubscription && (
-          <Text style={styles.subNote}>
-            {isOnTrial ? 'Trial ends after 1 month — cancel anytime' : 'Renews monthly — cancel anytime'}
-          </Text>
+          <>
+            <Text style={styles.subNote}>
+              {isOnTrial
+                ? 'Free trial — cancel anytime before it ends'
+                : expiryDate
+                  ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                  : 'Renews monthly — cancel anytime'}
+            </Text>
+            <Pressable
+              onPress={() => {
+                const url = Platform.OS === 'ios'
+                  ? 'itms-apps://apps.apple.com/account/subscriptions'
+                  : 'https://play.google.com/store/account/subscriptions';
+                Linking.openURL(url).catch(() => {});
+              }}
+              style={styles.manageSubBtn}
+              testID="manage-subscription-btn"
+            >
+              <Text style={styles.manageSubText}>Manage Subscription</Text>
+              <Ionicons name="open-outline" size={13} color={Colors.primary} />
+            </Pressable>
+          </>
         )}
       </Animated.View>
 
@@ -639,5 +664,7 @@ const styles = StyleSheet.create({
   subStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   subDot: { width: 8, height: 8, borderRadius: 4 },
   subStatusText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  subNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
+  subNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 10 },
+  manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
+  manageSubText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
 });

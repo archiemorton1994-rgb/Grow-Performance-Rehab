@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
@@ -25,7 +26,7 @@ const FEATURES = [
 
 export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
-  const { refreshSubscription, signOut } = useAuth();
+  const { refreshSubscription } = useAuth();
   const webTop = Platform.OS === 'web' ? 67 : 0;
 
   const [offering, setOffering] = useState<PurchasesPackage | null>(null);
@@ -159,8 +160,8 @@ export default function SubscriptionScreen() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={signOut} style={styles.signOutBtn}>
-          <Text style={styles.signOutText}>Sign out</Text>
+        <Pressable onPress={() => router.replace('/auth/signin')} style={styles.signOutBtn} testID="already-subscribed-link">
+          <Text style={styles.signOutText}>Already subscribed? Sign in</Text>
         </Pressable>
 
         <Text style={styles.legal}>
