@@ -36,8 +36,6 @@ import {
   useAppStore,
 } from '@/lib/store';
 
-const TOTAL_SCREENS = 9;
-
 const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
   label: string;
@@ -253,7 +251,7 @@ export default function OnboardingScreen() {
   }, [canContinue, hapticMedium, currentIndex, goTo, saveAndComplete]);
 
   const handleBack = useCallback(() => {
-    if (currentIndex <= 0 || currentIndex >= 8) return;
+    if (currentIndex <= 0) return;
     haptic();
     Keyboard.dismiss();
     goTo(currentIndex - 1);
@@ -266,7 +264,7 @@ export default function OnboardingScreen() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (currentIndex > 0 && currentIndex < 8) {
+      if (currentIndex > 0) {
         handleBack();
         return true;
       }
@@ -308,7 +306,7 @@ export default function OnboardingScreen() {
   const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
   const showProgress = currentIndex >= 1 && currentIndex <= 7;
   const progressFraction = showProgress ? (currentIndex) / 7 : 0;
-  const showBack = currentIndex > 0 && currentIndex < 8;
+  const showBack = currentIndex > 0;
   const showContinue = currentIndex < 8;
   const canGo = canContinue();
 
@@ -322,7 +320,7 @@ export default function OnboardingScreen() {
       keyboardVerticalOffset={0}
     >
       <View style={[styles.root, { backgroundColor: Colors.background }]} {...panResponder.panHandlers}>
-        {/* ── Fixed Header ── */}
+        {/* Header */}
         <View style={[styles.header, { paddingTop: topPad + 10, paddingHorizontal: 20 }]}>
           {showBack ? (
             <Pressable onPress={handleBack} style={styles.backBtn} testID="onboarding-back">
@@ -341,14 +339,10 @@ export default function OnboardingScreen() {
               />
             </View>
           )}
-          {showBack ? (
-            <View style={styles.backPlaceholder} />
-          ) : (
-            <View style={styles.backPlaceholder} />
-          )}
+          <View style={styles.backPlaceholder} />
         </View>
 
-        {/* ── Swipeable Content ── */}
+        {/* Scrollable screens */}
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -357,7 +351,7 @@ export default function OnboardingScreen() {
           showsHorizontalScrollIndicator={false}
           style={{ flex: 1 }}
         >
-          {/* ── Screen 0: Welcome ── */}
+          {/* Screen 0: Welcome */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <Animated.View entering={FadeInDown.duration(500)} style={styles.screenContent}>
               <View style={styles.welcomeIconWrap}>
@@ -380,14 +374,14 @@ export default function OnboardingScreen() {
             </Animated.View>
           </View>
 
-          {/* ── Screen 1: Name ── */}
+          {/* Screen 1: Name */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
                 <Ionicons name="person-circle-outline" size={56} color={Colors.primary} />
               </View>
               <Text style={styles.question}>What should we call you?</Text>
-              <Text style={styles.hint}>We'll personalise your experience</Text>
+              <Text style={styles.hint}>Personalises your experience</Text>
               <View style={styles.inputWrap}>
                 <TextInput
                   ref={nameInputRef}
@@ -406,7 +400,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* ── Screen 2: Biological Sex ── */}
+          {/* Screen 2: Biological Sex */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -444,7 +438,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* ── Screen 3: Experience ── */}
+          {/* Screen 3: Experience */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -487,7 +481,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* ── Screen 4: Bodyweight ── */}
+          {/* Screen 4: Bodyweight */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -514,7 +508,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* ── Screen 5: Goals ── */}
+          {/* Screen 5: Goals */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -547,7 +541,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* ── Screen 6: Equipment ── */}
+          {/* Screen 6: Equipment */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -560,18 +554,16 @@ export default function OnboardingScreen() {
               <Text style={styles.question}>What do you have access to?</Text>
               <Text style={styles.hint}>Select everything available to you</Text>
               <View style={styles.optionList}>
-                {EQUIPMENT_OPTIONS.map(opt => {
-                  const isAvailable = available.includes(opt.value);
+                {EQUIPMENT_OPTIONS.filter(opt => (available as string[]).includes(opt.value)).map(opt => {
                   const selected = equipment.includes(opt.value);
                   return (
                     <Pressable
                       key={opt.value}
-                      onPress={() => isAvailable && toggleEquipment(opt.value)}
+                      onPress={() => toggleEquipment(opt.value)}
                       style={({ pressed }) => [
                         styles.optionCard,
                         selected && styles.optionCardSelected,
-                        !isAvailable && styles.optionCardDisabled,
-                        pressed && isAvailable && styles.optionCardPressed,
+                        pressed && styles.optionCardPressed,
                       ]}
                       testID={`equipment-${opt.value}`}
                     >
@@ -579,14 +571,13 @@ export default function OnboardingScreen() {
                         <Ionicons
                           name={opt.icon}
                           size={22}
-                          color={!isAvailable ? Colors.textTertiary : selected ? Colors.textInverse : Colors.primary}
+                          color={selected ? Colors.textInverse : Colors.primary}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[
                           styles.optionLabel,
                           selected && styles.optionLabelSelected,
-                          !isAvailable && styles.optionLabelDisabled,
                         ]}>
                           {opt.label}
                         </Text>
@@ -595,7 +586,6 @@ export default function OnboardingScreen() {
                       <View style={[
                         styles.checkBox,
                         selected && styles.checkBoxSelected,
-                        !isAvailable && styles.checkBoxDisabled,
                       ]}>
                         {selected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
                       </View>
@@ -606,7 +596,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
 
-          {/* ── Screen 7: Key Lifts (optional) ── */}
+          {/* Screen 7: Key Lifts (optional) */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -640,12 +630,12 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
-                <Text style={styles.skipText}>Skip — I'll add these later</Text>
+                <Text style={styles.skipText}>Skip — add these later</Text>
               </Pressable>
             </ScrollView>
           </View>
 
-          {/* ── Screen 8: Profile Built! ── */}
+          {/* Screen 8: Profile Built! */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
@@ -690,7 +680,7 @@ export default function OnboardingScreen() {
           </View>
         </ScrollView>
 
-        {/* ── Fixed Footer ── */}
+        {/* Footer */}
         {showContinue && (
           <View style={[styles.footer, { paddingBottom: bottomPad + 16, paddingHorizontal: 24 }]}>
             <Pressable
@@ -845,7 +835,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primarySurface,
   },
   optionCardPressed: { opacity: 0.88 },
-  optionCardDisabled: { opacity: 0.45 },
   optionIcon: {
     width: 42,
     height: 42,
@@ -861,7 +850,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   optionLabelSelected: { color: Colors.primaryDark },
-  optionLabelDisabled: { color: Colors.textTertiary },
   optionDesc: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
@@ -898,7 +886,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  checkBoxDisabled: { borderColor: Colors.borderLight },
   inputWrap: { width: '100%' },
   textInput: {
     height: 54,
