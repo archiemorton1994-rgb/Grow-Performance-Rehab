@@ -142,6 +142,7 @@ export default function OnboardingScreen() {
 
   const handleNextRef = useRef<() => void>(() => {});
   const handleBackRef = useRef<() => void>(() => {});
+  const savedRef = useRef(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -226,15 +227,18 @@ export default function OnboardingScreen() {
       bodyweightKg: parseFloat(bodyweight) || 75,
     });
     setEquipmentTiers(equipment);
-    const today = new Date().toISOString().split('T')[0];
-    const lifts: { lift: SessionType; value: string }[] = [
-      { lift: 'squat', value: ormSquat },
-      { lift: 'bench', value: ormBench },
-      { lift: 'deadlift', value: ormDeadlift },
-    ];
-    for (const { lift, value } of lifts) {
-      const kg = parseFloat(value);
-      if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+    if (!savedRef.current) {
+      savedRef.current = true;
+      const today = new Date().toISOString().split('T')[0];
+      const lifts: { lift: SessionType; value: string }[] = [
+        { lift: 'squat', value: ormSquat },
+        { lift: 'bench', value: ormBench },
+        { lift: 'deadlift', value: ormDeadlift },
+      ];
+      for (const { lift, value } of lifts) {
+        const kg = parseFloat(value);
+        if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+      }
     }
   }, [name, sex, experience, bodyweight, goals, equipment, ormSquat, ormBench, ormDeadlift, setUserProfile, setEquipmentTiers, addOneRepMax]);
 
@@ -304,8 +308,8 @@ export default function OnboardingScreen() {
   }, [haptic]);
 
   const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
-  const showProgress = currentIndex >= 1 && currentIndex <= 7;
-  const progressFraction = showProgress ? (currentIndex) / 7 : 0;
+  const showProgress = currentIndex >= 1;
+  const progressFraction = showProgress ? Math.min(currentIndex / 8, 1) : 0;
   const showBack = currentIndex > 0;
   const showContinue = currentIndex < 8;
   const canGo = canContinue();
@@ -361,7 +365,7 @@ export default function OnboardingScreen() {
               <Text style={styles.welcomeTagline}>Performance & Rehab</Text>
               <View style={styles.welcomeDivider} />
               <Text style={styles.welcomeSubtitle}>
-                Let's build your training profile.{'\n'}Takes less than 2 minutes.
+                Build your training profile.{'\n'}Takes less than 2 minutes.
               </Text>
               <View style={styles.welcomePillRow}>
                 {['Personalised loads', 'Pain adaptive', 'Tracks progress'].map(p => (
