@@ -178,7 +178,7 @@ export default function ProfileScreen() {
 
   const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string; onPress?: () => void }[] = [
     { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
-    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(effectiveTier) as any, color: '#00695c', bg: '#e0f2f1', onPress: openEquipment },
+    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap, color: '#00695c', bg: '#e0f2f1', onPress: openEquipment },
     { id: 'settings', label: 'Settings', icon: 'settings-outline', color: Colors.textSecondary, bg: Colors.surfaceTertiary },
   ];
 

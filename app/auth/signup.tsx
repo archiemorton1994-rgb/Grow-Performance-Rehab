@@ -35,8 +35,9 @@ export default function SignUpScreen() {
     setLoading(true);
     try {
       await signUp(email.trim(), password);
-    } catch (err: any) {
-      Alert.alert('Sign up failed', err?.message ?? 'Please try again.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Please try again.';
+      Alert.alert('Sign up failed', msg);
     } finally {
       setLoading(false);
     }

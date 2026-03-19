@@ -34,8 +34,9 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       await signIn(email.trim(), password);
-    } catch (err: any) {
-      Alert.alert('Sign in failed', err?.message ?? 'Invalid email or password.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Invalid email or password.';
+      Alert.alert('Sign in failed', msg);
     } finally {
       setLoading(false);
     }

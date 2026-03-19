@@ -9,7 +9,6 @@ import React, {
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { router } from 'expo-router';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { apiRequest } from '@/lib/query-client';
 import { setAuthToken } from '@/lib/auth-token';
@@ -36,6 +35,7 @@ interface AuthContextValue {
   hasActiveSubscription: boolean;
   isOnTrial: boolean;
   expiryDate: string | null;
+  hasSignedOut: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -49,6 +49,7 @@ const AuthContext = createContext<AuthContextValue>({
   hasActiveSubscription: false,
   isOnTrial: false,
   expiryDate: null,
+  hasSignedOut: false,
   signUp: async () => {},
   signIn: async () => {},
   signOut: async () => {},
@@ -132,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [isOnTrial, setIsOnTrial] = useState(false);
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
+  const [hasSignedOut, setHasSignedOut] = useState(false);
   const appStateRef = useRef(AppState.currentState);
 
   const refreshSubscription = useCallback(async () => {
@@ -194,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     await clearToken();
+    setHasSignedOut(true);
     setUser(null);
     setHasActiveSubscription(false);
     setIsOnTrial(false);
@@ -201,7 +204,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (RC_API_KEY && rcConfigured) {
       try { await Purchases.logOut(); } catch {}
     }
-    router.replace('/auth/signin');
   }, []);
 
   return (
@@ -213,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasActiveSubscription,
         isOnTrial,
         expiryDate,
+        hasSignedOut,
         signUp,
         signIn,
         signOut,

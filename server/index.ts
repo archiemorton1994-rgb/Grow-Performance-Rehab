@@ -83,7 +83,15 @@ function setupRequestLogging(app: express.Application) {
 
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const isAuthRoute = path.startsWith('/api/auth');
+        const logBody = isAuthRoute
+          ? Object.fromEntries(
+              Object.entries(capturedJsonResponse).map(([k, v]) =>
+                k === 'token' ? [k, '[REDACTED]'] : [k, v]
+              )
+            )
+          : capturedJsonResponse;
+        logLine += ` :: ${JSON.stringify(logBody)}`;
       }
 
       if (logLine.length > 80) {

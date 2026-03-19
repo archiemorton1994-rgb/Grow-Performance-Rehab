@@ -20,7 +20,7 @@ SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
-  const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
+  const { isLoading, isAuthenticated, hasActiveSubscription, hasSignedOut } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
@@ -28,13 +28,16 @@ function RootLayoutNav() {
     if (!onboardingComplete) {
       setTimeout(() => router.replace("/onboarding"), 0);
     } else if (!isAuthenticated) {
-      setTimeout(() => router.replace("/auth/signin"), 0);
+      setTimeout(
+        () => router.replace(hasSignedOut ? "/auth/signin" : "/auth/signup"),
+        0,
+      );
     } else if (!hasActiveSubscription) {
       setTimeout(() => router.replace("/subscription"), 0);
     } else {
       setTimeout(() => router.replace("/(tabs)"), 0);
     }
-  }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription]);
+  }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription, hasSignedOut]);
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>

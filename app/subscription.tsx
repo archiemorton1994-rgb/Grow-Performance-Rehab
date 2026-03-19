@@ -65,9 +65,10 @@ export default function SubscriptionScreen() {
     try {
       await Purchases.purchasePackage(offering);
       await refreshSubscription();
-    } catch (err: any) {
-      if (!err?.userCancelled) {
-        Alert.alert('Purchase failed', err?.message ?? 'Please try again.');
+    } catch (err: unknown) {
+      const rcErr = err as { userCancelled?: boolean; message?: string };
+      if (!rcErr?.userCancelled) {
+        Alert.alert('Purchase failed', rcErr?.message ?? 'Please try again.');
       }
     } finally {
       setPurchasing(false);
