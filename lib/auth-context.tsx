@@ -89,7 +89,7 @@ async function clearToken() {
 }
 
 let rcConfigured = false;
-function configureRevenueCat(userId?: string) {
+async function configureRevenueCat(userId?: string) {
   if (!RC_API_KEY) return;
   try {
     if (!rcConfigured) {
@@ -98,7 +98,10 @@ function configureRevenueCat(userId?: string) {
       rcConfigured = true;
     }
     if (userId) {
-      Purchases.logIn(userId).catch(() => {});
+      const timeout = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('RC logIn timeout')), 5000)
+      );
+      await Promise.race([Purchases.logIn(userId), timeout]);
     }
   } catch {}
 }
@@ -139,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    configureRevenueCat();
+    void configureRevenueCat();
 
     (async () => {
       const token = await loadToken();
@@ -151,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const res = await apiRequest('GET', '/api/auth/me');
         const data = await res.json();
         setUser(data.user);
-        configureRevenueCat(data.user.id);
+        await configureRevenueCat(data.user.id);
         await refreshSubscription();
       } catch {
         await clearToken();
@@ -176,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     await storeToken(data.token);
     setUser(data.user);
-    configureRevenueCat(data.user.id);
+    await configureRevenueCat(data.user.id);
     await refreshSubscription();
   }, [refreshSubscription]);
 
@@ -185,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     await storeToken(data.token);
     setUser(data.user);
-    configureRevenueCat(data.user.id);
+    await configureRevenueCat(data.user.id);
     await refreshSubscription();
   }, [refreshSubscription]);
 
