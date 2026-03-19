@@ -1,5 +1,6 @@
 import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getAuthToken } from "./auth-token";
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
@@ -32,9 +33,14 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+  const token = getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(url.toString(), {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

@@ -8,6 +8,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
 import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
+import { useAuth } from '@/lib/auth-context';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
@@ -50,6 +52,8 @@ export default function ProfileScreen() {
     setUserProfile,
     getEffectiveTier: storeGetEffectiveTier,
   } = useAppStore();
+
+  const { user, signOut, hasActiveSubscription, isOnTrial } = useAuth();
 
   const effectiveTier = storeGetEffectiveTier();
   const streak = getStreakDays();
@@ -150,6 +154,15 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleSignOut = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
+  };
+
+  const subscriptionLabel = isOnTrial ? 'Free trial active' : hasActiveSubscription ? 'Grow Monthly — Active' : 'No active subscription';
+
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
@@ -164,7 +177,12 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Hero Card */}
       <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
         <View style={styles.avatarWrap}>
@@ -240,6 +258,43 @@ export default function ProfileScreen() {
           </Pressable>
         ))}
       </Animated.View>
+
+      {/* Account Section */}
+      <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.accountRow}>
+          <View style={styles.accountIcon}>
+            <Ionicons name="mail-outline" size={18} color={Colors.primary} />
+          </View>
+          <Text style={styles.accountEmail} numberOfLines={1}>
+            {user?.email ?? 'Not signed in'}
+          </Text>
+        </View>
+        <Pressable
+          onPress={handleSignOut}
+          style={styles.signOutBtn}
+          testID="sign-out-btn"
+        >
+          <Ionicons name="log-out-outline" size={16} color={Colors.error} />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+      </Animated.View>
+
+      {/* Subscription Section */}
+      <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[styles.sectionCard, { marginBottom: 0 }]}>
+        <Text style={styles.sectionTitle}>Subscription</Text>
+        <View style={styles.subStatusRow}>
+          <View style={[styles.subDot, { backgroundColor: hasActiveSubscription ? Colors.primary : Colors.error }]} />
+          <Text style={styles.subStatusText}>{subscriptionLabel}</Text>
+        </View>
+        {hasActiveSubscription && (
+          <Text style={styles.subNote}>
+            {isOnTrial ? 'Trial ends after 1 month — cancel anytime' : 'Renews monthly — cancel anytime'}
+          </Text>
+        )}
+      </Animated.View>
+
+      </ScrollView>
 
       {/* ─── MODALS ──────────────────────────────────────────── */}
 
@@ -437,7 +492,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 20 },
+  root: { flex: 1, backgroundColor: Colors.background },
+  scroll: { flex: 1 },
+  container: { paddingHorizontal: 20 },
   heroCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: Colors.surface, borderRadius: 18, padding: 18,
@@ -568,4 +625,19 @@ const styles = StyleSheet.create({
   saveBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
   cancelBtn: { paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
+
+  sectionCard: {
+    backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
+    marginTop: 12, borderWidth: 1, borderColor: Colors.borderLight,
+  },
+  sectionTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  accountIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+  accountEmail: { flex: 1, fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
+  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  signOutText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.error },
+  subStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  subDot: { width: 8, height: 8, borderRadius: 4 },
+  subStatusText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
+  subNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
 });

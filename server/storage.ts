@@ -1,36 +1,39 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 
-// modify the interface with any CRUD methods
-// you might need
+export interface AuthUser {
+  id: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+}
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUserById(id: string): Promise<AuthUser | undefined>;
+  getUserByEmail(email: string): Promise<AuthUser | undefined>;
+  createUser(email: string, passwordHash: string): Promise<AuthUser>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private users = new Map<string, AuthUser>();
 
-  constructor() {
-    this.users = new Map();
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
+  async getUserById(id: string): Promise<AuthUser | undefined> {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByEmail(email: string): Promise<AuthUser | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+      (u) => u.email.toLowerCase() === email.toLowerCase(),
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+  async createUser(email: string, passwordHash: string): Promise<AuthUser> {
+    const user: AuthUser = {
+      id: randomUUID(),
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      createdAt: new Date().toISOString(),
+    };
+    this.users.set(user.id, user);
     return user;
   }
 }
