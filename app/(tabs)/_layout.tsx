@@ -15,6 +15,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="train">
+        <Icon sf={{ default: "dumbbell", selected: "dumbbell.fill" }} />
+        <Label>Train</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="workouts">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Stats</Label>
@@ -68,6 +72,19 @@ function ClassicTabLayout() {
               <SymbolView name="house" tintColor={color} size={size || 24} />
             ) : (
               <Ionicons name="home-outline" size={size || 24} color={color} />
+            )
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="train"
+        options={{
+          title: "Train",
+          tabBarIcon: ({ color, size }) => (
+            Platform.OS === "ios" ? (
+              <SymbolView name="dumbbell" tintColor={color} size={size || 24} />
+            ) : (
+              <Ionicons name="barbell-outline" size={size || 24} color={color} />
             )
           ),
         }}
