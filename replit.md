@@ -120,6 +120,28 @@ constants/
 - All loads displayed in kg
 - Clean card-based UI, no unnecessary text, icon-first design
 
+## Authentication & Subscriptions
+
+### Email Auth
+- `POST /api/auth/signup` — creates user, returns JWT
+- `POST /api/auth/signin` — verifies password, returns JWT
+- `GET /api/auth/me` — validates JWT, returns user
+- JWT stored in expo-secure-store (native) / AsyncStorage (web)
+- Requires env secret: `SESSION_SECRET`
+
+### RevenueCat Subscription (£9.99/month + 1-month free trial)
+- Requires `EXPO_PUBLIC_REVENUECAT_API_KEY` env var (from RC dashboard → API Keys)
+- Expected entitlement name: `premium`
+- App gate order: onboarding → auth → subscription → tabs
+- Development bypass: set `EXPO_PUBLIC_RC_DEV_BYPASS=true` (development env only)
+
+### App Gate Flow (`app/_layout.tsx`)
+1. `!onboardingComplete` → `/onboarding`
+2. `!isAuthenticated && !hasSignedOut` → `/auth/signup` (new users)
+3. `!isAuthenticated && hasSignedOut` → `/auth/signin` (returning users)
+4. `!hasActiveSubscription` → `/subscription` (paywall)
+5. else → `/(tabs)` (main app)
+
 ## Workflows
 - `Start Backend` — Express on port 5000 (API + landing page)
 - `Start Frontend` — Expo on port 8081 (mobile web preview)
