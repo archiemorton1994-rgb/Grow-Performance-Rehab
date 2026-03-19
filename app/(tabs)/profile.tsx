@@ -8,18 +8,16 @@ import {
   Alert,
   TextInput,
   Modal,
-  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, SessionType, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
-import { getEquipmentLabel, getEquipmentIcon, getSessionLabel, getEffectiveTier } from '@/lib/workout-engine';
+import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
-const LIFTS: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string }[] = [
   { value: 'beginner', label: 'Beginner', desc: 'New to gym or returning after a long break' },
@@ -35,9 +33,7 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
   { value: 'rehab', label: 'Rehab & Recover', icon: 'medical-outline' },
 ];
 
-const SESSION_MILESTONES = [1, 5, 10, 25, 50, 100, 150, 200];
-
-type ActiveModal = 'edit' | 'progress' | 'records' | 'history' | 'equipment' | 'settings' | null;
+type ActiveModal = 'edit' | 'equipment' | 'settings' | null;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -45,12 +41,9 @@ export default function ProfileScreen() {
     equipmentTiers,
     setEquipmentTiers,
     completedCount,
-    completedSessions,
     getStreakDays,
     getThisWeekCount,
     resetProgress,
-    getBestORM,
-    oneRepMaxes,
     testWeekFrequency,
     setTestWeekFrequency,
     userProfile,
@@ -157,21 +150,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days} days ago`;
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  };
-
-  const earnedMilestones = SESSION_MILESTONES.filter(m => completedCount >= m);
-  const nextMilestone = SESSION_MILESTONES.find(m => m > completedCount) ?? null;
-  const milestoneProgress = nextMilestone ? completedCount / nextMilestone : 1;
-
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
@@ -181,9 +159,6 @@ export default function ProfileScreen() {
 
   const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string; onPress?: () => void }[] = [
     { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
-    { id: 'progress', label: 'My Progress', icon: 'trophy-outline', color: '#f59e0b', bg: '#fef9c3' },
-    { id: 'records', label: 'Strength KPIs', icon: 'barbell-outline', color: '#9c27b0', bg: '#f3e5f5' },
-    { id: 'history', label: 'Session History', icon: 'time-outline', color: '#4285f4', bg: '#e8f0fe' },
     { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(effectiveTier) as any, color: '#00695c', bg: '#e0f2f1', onPress: openEquipment },
     { id: 'settings', label: 'Settings', icon: 'settings-outline', color: Colors.textSecondary, bg: Colors.surfaceTertiary },
   ];
@@ -352,155 +327,6 @@ export default function ProfileScreen() {
             </Pressable>
             <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* My Progress Modal */}
-      <Modal visible={activeModal === 'progress'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
-        <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>My Progress</Text>
-            {nextMilestone !== null && (
-              <View style={styles.milestoneCard}>
-                <View style={styles.milestoneRow}>
-                  <Ionicons name="flag-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.milestoneLabel}>{completedCount} / {nextMilestone} sessions to next milestone</Text>
-                </View>
-                <View style={styles.milestoneTrack}>
-                  <View style={[styles.milestoneFill, { width: `${milestoneProgress * 100}%` as any }]} />
-                </View>
-              </View>
-            )}
-            <Text style={styles.subSectionTitle}>Earned Badges</Text>
-            {earnedMilestones.length === 0 ? (
-              <Text style={styles.emptyText}>Complete your first session to earn badges!</Text>
-            ) : (
-              <View style={styles.badgesGrid}>
-                {SESSION_MILESTONES.map(m => {
-                  const earned = completedCount >= m;
-                  return (
-                    <View key={m} style={[styles.badge, !earned && styles.badgeLocked]}>
-                      <Ionicons name="trophy" size={18} color={earned ? '#f59e0b' : Colors.textTertiary} />
-                      <Text style={[styles.badgeText, !earned && styles.badgeTextLocked]}>{m}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Strength KPIs Modal */}
-      <Modal visible={activeModal === 'records'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
-        <View style={styles.sheetOverlay}>
-          <ScrollView style={styles.sheetScroll} contentContainerStyle={[styles.sheetScrollContent, { paddingBottom: insets.bottom + 24 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Strength KPIs</Text>
-            {LIFTS.map(lift => {
-              const best = getBestORM(lift);
-              const history = oneRepMaxes
-                .filter(o => o.lift === lift)
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 5);
-              const isImproving = history.length >= 2 && history[0].weight > history[1].weight;
-              return (
-                <View key={lift} style={styles.ormCard}>
-                  <View style={styles.ormHeader}>
-                    <View>
-                      <Text style={styles.ormLift}>{getSessionLabel(lift)}</Text>
-                      <Text style={styles.ormSub}>KPI Lift</Text>
-                    </View>
-                    <View style={styles.ormRight}>
-                      <Text style={styles.ormBest}>{best ? `${best.weight} kg` : '—'}</Text>
-                      <Text style={styles.ormEstLabel}>Est. 1RM</Text>
-                      {isImproving && (
-                        <View style={styles.pbBadge}>
-                          <Ionicons name="trending-up" size={11} color={Colors.primary} />
-                          <Text style={styles.pbText}>PB</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  {history.length === 0 ? (
-                    <Text style={styles.ormEmpty}>Complete a strength test week to record your KPI</Text>
-                  ) : (
-                    <View style={styles.ormHistory}>
-                      {history.map((h, i) => {
-                        const prev = history[i + 1];
-                        const diff = prev ? h.weight - prev.weight : null;
-                        return (
-                          <View key={i} style={styles.ormRow}>
-                            <Text style={styles.ormWeight}>{h.weight} kg est.</Text>
-                            {h.reps !== undefined && (
-                              <Text style={styles.ormReps}>{h.reps} reps</Text>
-                            )}
-                            {diff !== null && diff !== 0 && (
-                              <Text style={[styles.ormDiff, { color: diff > 0 ? Colors.primary : '#e53e3e' }]}>
-                                {diff > 0 ? `+${diff}` : diff} kg
-                              </Text>
-                            )}
-                            <Text style={styles.ormDate}>{formatDate(h.date)}</Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>Close</Text>
-            </Pressable>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Session History Modal */}
-      <Modal visible={activeModal === 'history'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
-        <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Session History</Text>
-            {completedSessions.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="barbell-outline" size={32} color={Colors.textTertiary} />
-                <Text style={styles.emptyText}>No sessions yet</Text>
-                <Text style={styles.emptySubText}>Start your first workout to see history here</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
-                {completedSessions.slice(0, 20).map(session => {
-                  const topWeight = session.exerciseLogs
-                    ? Math.max(0, ...session.exerciseLogs.flatMap(l => l.sets.map(s => s.weight)))
-                    : 0;
-                  return (
-                    <View key={session.id} style={styles.histItem}>
-                      <View style={[styles.histDot, { backgroundColor: session.isTestWeek ? '#e65100' : Colors.primary }]} />
-                      <View style={styles.histContent}>
-                        <View style={styles.histTitleRow}>
-                          <Text style={styles.histTitle}>{getSessionLabel(session.sessionType)}</Text>
-                          {session.isTestWeek && <View style={styles.testBadge}><Text style={styles.testBadgeText}>Test</Text></View>}
-                        </View>
-                        <View style={styles.histMeta}>
-                          <Text style={styles.histDate}>{formatDate(session.date)}</Text>
-                          {session.timeAvailable && <Text style={styles.histMeta2}>{session.timeAvailable} min</Text>}
-                          {topWeight > 0 && <Text style={styles.histWeight}>{topWeight} kg top</Text>}
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-            <Pressable onPress={() => setActiveModal(null)} style={[styles.cancelBtn, { marginTop: 8 }]}>
-              <Text style={styles.cancelBtnText}>Close</Text>
             </Pressable>
           </View>
         </View>

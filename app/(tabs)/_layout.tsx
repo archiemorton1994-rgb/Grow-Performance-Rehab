@@ -16,8 +16,8 @@ function NativeTabLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="workouts">
-        <Icon sf={{ default: "dumbbell", selected: "dumbbell.fill" }} />
-        <Label>Workouts</Label>
+        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+        <Label>Stats</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
@@ -75,12 +75,12 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="workouts"
         options={{
-          title: "Workouts",
+          title: "Stats",
           tabBarIcon: ({ color, size }) => (
             Platform.OS === "ios" ? (
-              <SymbolView name="dumbbell" tintColor={color} size={size || 24} />
+              <SymbolView name="chart.bar" tintColor={color} size={size || 24} />
             ) : (
-              <Ionicons name="barbell-outline" size={size || 24} color={color} />
+              <Ionicons name="bar-chart-outline" size={size || 24} color={color} />
             )
           ),
         }}
