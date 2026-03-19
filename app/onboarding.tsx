@@ -1,24 +1,40 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Platform,
-  TextInput,
-  ScrollView,
+  Keyboard,
   KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import Colors from '@/constants/colors';
-import { EquipmentTier, ExperienceLevel, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
-import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
+import {
+  EquipmentTier,
+  ExperienceLevel,
+  FitnessGoal,
+  Sex,
+  SessionType,
+  TIER_ORDER,
+  useAppStore,
+} from '@/lib/store';
 
-type OnboardingStep = 'experience' | 'equipment' | 'oneRepMax';
+const TOTAL_SCREENS = 9;
 
 const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
@@ -26,138 +42,176 @@ const EXPERIENCE_OPTIONS: {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { value: 'beginner', label: 'New to the gym', description: 'Building the basics — we start safe and simple', icon: 'leaf-outline' },
-  { value: 'intermediate', label: 'Experienced gym-goer', description: '1+ years of consistent training', icon: 'barbell-outline' },
+  {
+    value: 'beginner',
+    label: 'Just getting started',
+    description: 'New to structured training',
+    icon: 'leaf-outline',
+  },
+  {
+    value: 'intermediate',
+    label: '1–3 years training',
+    description: 'Comfortable with the basics',
+    icon: 'barbell-outline',
+  },
+  {
+    value: 'advanced',
+    label: '3+ years, know my numbers',
+    description: 'Experienced lifter',
+    icon: 'trophy-outline',
+  },
 ];
 
-const ALL_TIERS: { tier: EquipmentTier; icon: keyof typeof Ionicons.glyphMap; description: string }[] = [
-  { tier: 'bodyweight', icon: 'body-outline', description: 'Home workouts with no gear' },
-  { tier: 'bands', icon: 'git-compare-outline', description: 'Resistance bands only' },
-  { tier: 'dumbbells', icon: 'barbell-outline', description: 'Adjustable dumbbells' },
-  { tier: 'kettlebells', icon: 'fitness-outline', description: 'Kettlebells available' },
-  { tier: 'fullgym', icon: 'business-outline', description: 'Squat rack, bench and barbell' },
-];
-
-function getAvailableTiers(experience: ExperienceLevel): EquipmentTier[] {
-  if (experience === 'beginner') return ['bodyweight', 'bands'];
-  return ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
-}
-
-function OrmInput({
-  label,
-  icon,
-  value,
-  onChangeText,
-  testID,
-}: {
+const SEX_OPTIONS: {
+  value: Sex;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  value: string;
-  onChangeText: (v: string) => void;
-  testID?: string;
-}) {
-  return (
-    <View style={ormStyles.row}>
-      <View style={ormStyles.iconWrap}>
-        <Ionicons name={icon} size={20} color={Colors.primary} />
-      </View>
-      <View style={ormStyles.labelWrap}>
-        <Text style={ormStyles.label}>{label}</Text>
-      </View>
-      <View style={ormStyles.inputWrap}>
-        <TextInput
-          style={ormStyles.input}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType="numeric"
-          placeholder="—"
-          placeholderTextColor={Colors.textTertiary}
-          returnKeyType="next"
-          selectTextOnFocus
-          testID={testID}
-        />
-        <Text style={ormStyles.unit}>kg</Text>
-      </View>
-    </View>
-  );
+}[] = [
+  { value: 'male', label: 'Male', icon: 'male-outline' },
+  { value: 'female', label: 'Female', icon: 'female-outline' },
+  { value: 'other', label: 'Prefer not to say', icon: 'person-outline' },
+];
+
+const GOAL_OPTIONS: {
+  value: FitnessGoal;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { value: 'strength', label: 'Build Strength', icon: 'barbell-outline' },
+  { value: 'muscle', label: 'Build Muscle', icon: 'body-outline' },
+  { value: 'fat_loss', label: 'Lose Fat', icon: 'flame-outline' },
+  { value: 'fitness', label: 'General Fitness', icon: 'heart-outline' },
+  { value: 'rehab', label: 'Rehabilitation', icon: 'medical-outline' },
+];
+
+const EQUIPMENT_OPTIONS: {
+  value: EquipmentTier;
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { value: 'bodyweight', label: 'Body Weight', description: 'No equipment needed', icon: 'body-outline' },
+  { value: 'bands', label: 'Resistance Bands', description: 'Bands and tubes', icon: 'git-compare-outline' },
+  { value: 'dumbbells', label: 'Dumbbells', description: 'Adjustable dumbbells', icon: 'barbell-outline' },
+  { value: 'kettlebells', label: 'Kettlebells', description: 'Kettlebells available', icon: 'fitness-outline' },
+  { value: 'fullgym', label: 'Full Gym', description: 'Squat rack + barbell', icon: 'business-outline' },
+];
+
+function experienceLabel(e: ExperienceLevel | null): string {
+  switch (e) {
+    case 'beginner': return 'Beginner';
+    case 'intermediate': return 'Intermediate';
+    case 'advanced': return 'Advanced';
+    default: return '';
+  }
 }
 
-const ormStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  labelWrap: { flex: 1 },
-  label: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  input: { width: 72, height: 40, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface, textAlign: 'center', fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, paddingHorizontal: 8 },
-  unit: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 22 },
-});
+function goalLabel(g: FitnessGoal | null): string {
+  const found = GOAL_OPTIONS.find(o => o.value === g);
+  return found?.label ?? '';
+}
+
+function equipmentLabel(tiers: EquipmentTier[]): string {
+  if (tiers.includes('fullgym')) return 'Full Gym';
+  if (tiers.includes('kettlebells')) return 'Kettlebells';
+  if (tiers.includes('dumbbells')) return 'Dumbbells';
+  if (tiers.includes('bands')) return 'Bands';
+  return 'Body Weight';
+}
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
-  const [step, setStep] = useState<OnboardingStep>('experience');
-  const [selectedExperience, setSelectedExperience] = useState<ExperienceLevel | null>(null);
-  const [selectedTiers, setSelectedTiers] = useState<EquipmentTier[]>([]);
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
+  const { setEquipmentTiers, setOnboardingComplete, setUserProfile, addOneRepMax } = useAppStore();
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const [name, setName] = useState('');
+  const [sex, setSex] = useState<Sex | null>(null);
+  const [experience, setExperience] = useState<ExperienceLevel | null>(null);
+  const [bodyweight, setBodyweight] = useState('');
+  const [goals, setGoals] = useState<FitnessGoal[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentTier[]>([]);
   const [ormSquat, setOrmSquat] = useState('');
   const [ormBench, setOrmBench] = useState('');
   const [ormDeadlift, setOrmDeadlift] = useState('');
-  const { setEquipmentTiers, setOnboardingComplete, setUserProfile, addOneRepMax } = useAppStore();
 
-  const hapticTap = () => {
+  const nameInputRef = useRef<TextInput>(null);
+  const bwInputRef = useRef<TextInput>(null);
+
+  const checkScale = useSharedValue(0);
+  const checkOpacity = useSharedValue(0);
+  const celebTitleOpacity = useSharedValue(0);
+  const celebSummaryOpacity = useSharedValue(0);
+
+  const webTop = Platform.OS === 'web' ? 67 : 0;
+  const webBottom = Platform.OS === 'web' ? 34 : 0;
+
+  const haptic = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, []);
 
-  const handleExperienceSelect = (exp: ExperienceLevel) => {
-    hapticTap();
-    setSelectedExperience(exp);
-    if (exp === 'beginner') {
-      setSelectedTiers(['bodyweight']);
-    } else {
-      setSelectedTiers([]);
-    }
-  };
-
-  const handleExperienceContinue = () => {
-    if (!selectedExperience) return;
+  const hapticMedium = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setUserProfile({ experienceLevel: selectedExperience });
-    setStep('equipment');
-  };
+  }, []);
 
-  const handleTierToggle = (tier: EquipmentTier) => {
-    if (!selectedExperience) return;
-    const available = getAvailableTiers(selectedExperience);
-    if (!available.includes(tier)) return;
-    hapticTap();
+  useEffect(() => {
+    if (experience === 'beginner') {
+      setEquipment(['bodyweight']);
+    } else if (experience !== null) {
+      setEquipment([]);
+    }
+  }, [experience]);
 
-    setSelectedTiers((prev) => {
-      if (tier === 'fullgym') {
-        if (prev.includes('fullgym')) {
-          return prev.filter(t => t !== 'fullgym');
-        } else {
-          return [...TIER_ORDER];
-        }
-      }
-      if (prev.includes(tier)) {
-        return prev.filter(t => t !== tier);
-      }
-      return [...prev, tier];
+  useEffect(() => {
+    if (currentIndex === 1) {
+      setTimeout(() => nameInputRef.current?.focus(), 350);
+    } else if (currentIndex === 4) {
+      setTimeout(() => bwInputRef.current?.focus(), 350);
+    } else if (currentIndex === 8) {
+      checkScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 180 }));
+      checkOpacity.value = withDelay(200, withTiming(1, { duration: 250 }));
+      celebTitleOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
+      celebSummaryOpacity.value = withDelay(900, withTiming(1, { duration: 400 }));
+    }
+  }, [currentIndex]);
+
+  const checkAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+    opacity: checkOpacity.value,
+  }));
+  const celebTitleStyle = useAnimatedStyle(() => ({ opacity: celebTitleOpacity.value }));
+  const celebSummaryStyle = useAnimatedStyle(() => ({ opacity: celebSummaryOpacity.value }));
+
+  const goTo = useCallback((index: number) => {
+    scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * index, animated: true });
+    setCurrentIndex(index);
+  }, [SCREEN_WIDTH]);
+
+  const canContinue = useCallback((): boolean => {
+    switch (currentIndex) {
+      case 0: return true;
+      case 1: return name.trim().length > 0;
+      case 2: return sex !== null;
+      case 3: return experience !== null;
+      case 4: return parseFloat(bodyweight) > 0;
+      case 5: return goals.length > 0;
+      case 6: return equipment.length > 0;
+      case 7: return true;
+      default: return false;
+    }
+  }, [currentIndex, name, sex, experience, bodyweight, goals, equipment]);
+
+  const saveAndComplete = useCallback(() => {
+    setUserProfile({
+      name: name.trim(),
+      sex: sex ?? 'other',
+      experienceLevel: experience ?? 'beginner',
+      goals: goals.length > 0 ? goals : ['fitness'],
+      bodyweightKg: parseFloat(bodyweight) || 75,
     });
-  };
-
-  const handleTierContinue = () => {
-    if (selectedTiers.length === 0 || !selectedExperience) return;
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEquipmentTiers(selectedTiers);
-    if (selectedExperience === 'beginner') {
-      setOnboardingComplete(true);
-      router.replace('/(tabs)');
-    } else {
-      setStep('oneRepMax');
-    }
-  };
-
-  const handleOneRepMaxContinue = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEquipmentTiers(equipment);
     const today = new Date().toISOString().split('T')[0];
     const lifts: { lift: SessionType; value: string }[] = [
       { lift: 'squat', value: ormSquat },
@@ -166,459 +220,637 @@ export default function OnboardingScreen() {
     ];
     for (const { lift, value } of lifts) {
       const kg = parseFloat(value);
-      if (kg > 0) {
-        addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+      if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+    }
+  }, [name, sex, experience, bodyweight, goals, equipment, ormSquat, ormBench, ormDeadlift, setUserProfile, setEquipmentTiers, addOneRepMax]);
+
+  const handleNext = useCallback(() => {
+    if (!canContinue()) return;
+    hapticMedium();
+    Keyboard.dismiss();
+    if (currentIndex < 7) {
+      goTo(currentIndex + 1);
+    } else if (currentIndex === 7) {
+      saveAndComplete();
+      goTo(8);
+    }
+  }, [canContinue, hapticMedium, currentIndex, goTo, saveAndComplete]);
+
+  const handleBack = useCallback(() => {
+    if (currentIndex <= 0 || currentIndex >= 8) return;
+    haptic();
+    Keyboard.dismiss();
+    goTo(currentIndex - 1);
+  }, [currentIndex, haptic, goTo]);
+
+  const handleComplete = useCallback(() => {
+    hapticMedium();
+    setOnboardingComplete(true);
+    router.replace('/(tabs)');
+  }, [hapticMedium, setOnboardingComplete]);
+
+  const handleSkipLifts = useCallback(() => {
+    haptic();
+    Keyboard.dismiss();
+    saveAndComplete();
+    goTo(8);
+  }, [haptic, saveAndComplete, goTo]);
+
+  const toggleGoal = useCallback((goal: FitnessGoal) => {
+    haptic();
+    setGoals(prev =>
+      prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal]
+    );
+  }, [haptic]);
+
+  const toggleEquipment = useCallback((tier: EquipmentTier) => {
+    haptic();
+    setEquipment(prev => {
+      if (tier === 'fullgym') {
+        return prev.includes('fullgym') ? prev.filter(t => t !== 'fullgym') : [...TIER_ORDER];
       }
-    }
-    setOnboardingComplete(true);
-    router.replace('/(tabs)');
-  };
+      return prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier];
+    });
+  }, [haptic]);
 
-  const handleOneRepMaxSkip = () => {
-    setOnboardingComplete(true);
-    router.replace('/(tabs)');
-  };
+  const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
+  const showProgress = currentIndex >= 1 && currentIndex <= 7;
+  const progressFraction = showProgress ? (currentIndex) / 7 : 0;
+  const showBack = currentIndex > 0 && currentIndex < 8;
+  const showContinue = currentIndex < 8;
+  const canGo = canContinue();
 
-  const goBack = () => {
-    if (step === 'equipment') {
-      setStep('experience');
-    } else if (step === 'oneRepMax') {
-      setStep('equipment');
-    }
-  };
-
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const availableTiers = selectedExperience ? getAvailableTiers(selectedExperience) : ALL_TIERS.map(t => t.tier);
-  const isBeginnerRestricted = selectedExperience === 'beginner';
-
-  if (step === 'experience') {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset + 40, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20) }]}>
-        <Animated.View entering={FadeInUp.delay(100).duration(600)} style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="leaf" size={32} color={Colors.primary} />
-          </View>
-          <Text style={styles.title}>Welcome to Grow</Text>
-          <Text style={styles.subtitle}>
-            How long have you been training?
-          </Text>
-        </Animated.View>
-
-        <View style={styles.options}>
-          {EXPERIENCE_OPTIONS.map((item, index) => {
-            const isSelected = selectedExperience === item.value;
-            return (
-              <Animated.View key={item.value} entering={FadeInDown.delay(200 + index * 100).duration(500)}>
-                <Pressable
-                  onPress={() => handleExperienceSelect(item.value)}
-                  style={({ pressed }) => [
-                    styles.option,
-                    isSelected && styles.optionSelected,
-                    pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                  ]}
-                >
-                  <View style={[styles.optionIcon, isSelected && styles.optionIconSelected]}>
-                    <Ionicons
-                      name={item.icon}
-                      size={24}
-                      color={isSelected ? Colors.textInverse : Colors.primary}
-                    />
-                  </View>
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionTitle, isSelected && styles.optionTitleSelected]}>
-                      {item.label}
-                    </Text>
-                    <Text style={[styles.optionDescription, isSelected && styles.optionDescSelected]}>
-                      {item.description}
-                    </Text>
-                  </View>
-                  <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                    {isSelected && <View style={styles.radioInner} />}
-                  </View>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
-
-        <View style={styles.footer}>
-          <Pressable
-            onPress={handleExperienceContinue}
-            disabled={!selectedExperience}
-            style={({ pressed }) => [
-              styles.continueButton,
-              !selectedExperience && styles.continueButtonDisabled,
-              pressed && selectedExperience && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-            ]}
-          >
-            <Text style={[styles.continueText, !selectedExperience && styles.continueTextDisabled]}>
-              Continue
-            </Text>
-            <Ionicons
-              name="arrow-forward"
-              size={20}
-              color={selectedExperience ? Colors.textInverse : Colors.textTertiary}
-            />
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
-  if (step === 'oneRepMax') {
-    return (
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top + webTopInset}
-      >
-        <View style={[styles.container, { paddingTop: insets.top + webTopInset, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20) }]}>
-          <View style={styles.topBar}>
-            <Pressable onPress={goBack} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color={Colors.text} />
-            </Pressable>
-            <View style={styles.stepPills}>
-              <View style={[styles.stepPill, styles.stepPillDone]} />
-              <View style={[styles.stepPill, styles.stepPillDone]} />
-              <View style={[styles.stepPill, styles.stepPillActive]} />
-            </View>
-            <View style={{ width: 40 }} />
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
-            <Animated.View entering={FadeInUp.delay(50).duration(400)} style={[styles.header, { marginTop: 20 }]}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="trophy-outline" size={32} color={Colors.primary} />
-              </View>
-              <Text style={styles.title}>Your 1-rep maxes</Text>
-              <Text style={styles.subtitle}>
-                Enter your best single-rep lifts so we can suggest accurate weights from day one.
-              </Text>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(150).duration(400)} style={styles.ormContainer}>
-              <OrmInput
-                label="Squat"
-                icon="trending-up-outline"
-                value={ormSquat}
-                onChangeText={setOrmSquat}
-                testID="orm-squat"
-              />
-              <OrmInput
-                label="Bench Press"
-                icon="barbell-outline"
-                value={ormBench}
-                onChangeText={setOrmBench}
-                testID="orm-bench"
-              />
-              <OrmInput
-                label="Deadlift"
-                icon="arrow-up-outline"
-                value={ormDeadlift}
-                onChangeText={setOrmDeadlift}
-                testID="orm-deadlift"
-              />
-              <Text style={styles.ormHint}>Leave blank if you are not sure — you can always add these later.</Text>
-            </Animated.View>
-          </ScrollView>
-
-          <View style={styles.footer}>
-            <Pressable
-              onPress={handleOneRepMaxContinue}
-              style={({ pressed }) => [
-                styles.continueButton,
-                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-              ]}
-              testID="orm-continue"
-            >
-              <Text style={styles.continueText}>Get Started</Text>
-              <Ionicons name="arrow-forward" size={20} color={Colors.textInverse} />
-            </Pressable>
-            <Pressable onPress={handleOneRepMaxSkip} style={styles.skipButton} testID="orm-skip">
-              <Text style={styles.skipText}>Skip for now</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  const canContinue = selectedTiers.length > 0;
+  const topPad = insets.top + webTop;
+  const bottomPad = insets.bottom + webBottom;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset, paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20) }]}>
-      <View style={styles.topBar}>
-        <Pressable onPress={goBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
-        <View style={styles.stepPills}>
-          <View style={[styles.stepPill, styles.stepPillDone]} />
-          <View style={[styles.stepPill, styles.stepPillActive]} />
-          {selectedExperience !== 'beginner' && (
-            <View style={[styles.stepPill, styles.stepPillPending]} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <View style={[styles.root, { backgroundColor: Colors.background }]}>
+        {/* ── Fixed Header ── */}
+        <View style={[styles.header, { paddingTop: topPad + 10, paddingHorizontal: 20 }]}>
+          {showBack ? (
+            <Pressable onPress={handleBack} style={styles.backBtn} testID="onboarding-back">
+              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            </Pressable>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
+          {showProgress && (
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progressFraction * 100}%` },
+                ]}
+              />
+            </View>
+          )}
+          {showBack ? (
+            <View style={styles.backPlaceholder} />
+          ) : (
+            <View style={styles.backPlaceholder} />
           )}
         </View>
-        <View style={{ width: 40 }} />
-      </View>
 
-      <Animated.View entering={FadeInUp.delay(50).duration(400)} style={[styles.header, { marginTop: 20 }]}>
-        <Text style={styles.title}>Your equipment</Text>
-        <Text style={styles.subtitle}>
-          {isBeginnerRestricted
-            ? 'Select what you have access to'
-            : 'Check everything available to you'}
-        </Text>
-        {isBeginnerRestricted && (
-          <View style={styles.restrictedBanner}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={Colors.primary} />
-            <Text style={styles.restrictedText}>
-              As a beginner, we recommend starting light. You can unlock more equipment in your profile later.
-            </Text>
+        {/* ── Swipeable Content ── */}
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          style={{ flex: 1 }}
+        >
+          {/* ── Screen 0: Welcome ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <Animated.View entering={FadeInDown.duration(500)} style={styles.screenContent}>
+              <View style={styles.welcomeIconWrap}>
+                <Ionicons name="leaf" size={48} color={Colors.primary} />
+              </View>
+              <Text style={styles.welcomeWordmark}>GROW</Text>
+              <Text style={styles.welcomeTagline}>Performance & Rehab</Text>
+              <View style={styles.welcomeDivider} />
+              <Text style={styles.welcomeSubtitle}>
+                Let's build your training profile.{'\n'}Takes less than 2 minutes.
+              </Text>
+              <View style={styles.welcomePillRow}>
+                {['Personalised loads', 'Pain adaptive', 'Tracks progress'].map(p => (
+                  <View key={p} style={styles.welcomePill}>
+                    <Ionicons name="checkmark" size={11} color={Colors.primary} />
+                    <Text style={styles.welcomePillText}>{p}</Text>
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          </View>
+
+          {/* ── Screen 1: Name ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="person-circle-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>What should we call you?</Text>
+              <Text style={styles.hint}>We'll personalise your experience</Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  ref={nameInputRef}
+                  style={styles.textInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your name"
+                  placeholderTextColor={Colors.textTertiary}
+                  returnKeyType="next"
+                  onSubmitEditing={handleNext}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  testID="name-input"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* ── Screen 2: Biological Sex ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="stats-chart-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>Your biological sex</Text>
+              <Text style={styles.hint}>Helps us calibrate your lifting loads</Text>
+              <View style={styles.optionList}>
+                {SEX_OPTIONS.map(opt => {
+                  const selected = sex === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => { haptic(); setSex(opt.value); }}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        pressed && styles.optionCardPressed,
+                      ]}
+                      testID={`sex-${opt.value}`}
+                    >
+                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
+                        <Ionicons name={opt.icon} size={22} color={selected ? Colors.textInverse : Colors.primary} />
+                      </View>
+                      <Text style={[styles.optionLabel, { flex: 1 }, selected && styles.optionLabelSelected]}>
+                        {opt.label}
+                      </Text>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Screen 3: Experience ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="barbell-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>How long have you been training?</Text>
+              <Text style={styles.hint}>Sets the right starting weights</Text>
+              <View style={styles.optionList}>
+                {EXPERIENCE_OPTIONS.map(opt => {
+                  const selected = experience === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => { haptic(); setExperience(opt.value); }}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        pressed && styles.optionCardPressed,
+                      ]}
+                      testID={`experience-${opt.value}`}
+                    >
+                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
+                        <Ionicons name={opt.icon} size={22} color={selected ? Colors.textInverse : Colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                          {opt.label}
+                        </Text>
+                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
+                          {opt.description}
+                        </Text>
+                      </View>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Screen 4: Bodyweight ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="scale-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>Your current bodyweight</Text>
+              <Text style={styles.hint}>Used to personalise your lifting loads</Text>
+              <View style={[styles.inputWrap, styles.numericInputWrap]}>
+                <TextInput
+                  ref={bwInputRef}
+                  style={[styles.textInput, styles.numericInput]}
+                  value={bodyweight}
+                  onChangeText={setBodyweight}
+                  placeholder="75"
+                  placeholderTextColor={Colors.textTertiary}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={handleNext}
+                  selectTextOnFocus
+                  testID="bodyweight-input"
+                />
+                <Text style={styles.unitLabel}>kg</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ── Screen 5: Goals ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="flag-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>What are you training for?</Text>
+              <Text style={styles.hint}>Select all that apply</Text>
+              <View style={styles.chipGrid}>
+                {GOAL_OPTIONS.map(opt => {
+                  const selected = goals.includes(opt.value);
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => toggleGoal(opt.value)}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      testID={`goal-${opt.value}`}
+                    >
+                      <Ionicons
+                        name={opt.icon}
+                        size={16}
+                        color={selected ? Colors.primary : Colors.textSecondary}
+                      />
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Screen 6: Equipment ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 16 }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.iconCircle}>
+                <Ionicons name="fitness-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>What do you have access to?</Text>
+              <Text style={styles.hint}>Select everything available to you</Text>
+              <View style={styles.optionList}>
+                {EQUIPMENT_OPTIONS.map(opt => {
+                  const isAvailable = available.includes(opt.value);
+                  const selected = equipment.includes(opt.value);
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => isAvailable && toggleEquipment(opt.value)}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        !isAvailable && styles.optionCardDisabled,
+                        pressed && isAvailable && styles.optionCardPressed,
+                      ]}
+                      testID={`equipment-${opt.value}`}
+                    >
+                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
+                        <Ionicons
+                          name={opt.icon}
+                          size={22}
+                          color={!isAvailable ? Colors.textTertiary : selected ? Colors.textInverse : Colors.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[
+                          styles.optionLabel,
+                          selected && styles.optionLabelSelected,
+                          !isAvailable && styles.optionLabelDisabled,
+                        ]}>
+                          {opt.label}
+                        </Text>
+                        <Text style={styles.optionDesc}>{opt.description}</Text>
+                      </View>
+                      <View style={[
+                        styles.checkBox,
+                        selected && styles.checkBoxSelected,
+                        !isAvailable && styles.checkBoxDisabled,
+                      ]}>
+                        {selected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* ── Screen 7: Key Lifts (optional) ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 24 }]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.iconCircle}>
+                <Ionicons name="podium-outline" size={56} color={Colors.primary} />
+              </View>
+              <Text style={styles.question}>Your best lifts</Text>
+              <Text style={styles.hint}>Optional — used to set starting weights precisely</Text>
+              <View style={styles.liftRows}>
+                <LiftInput
+                  label="Back Squat"
+                  value={ormSquat}
+                  onChangeText={setOrmSquat}
+                  testID="orm-squat"
+                />
+                <LiftInput
+                  label="Bench Press"
+                  value={ormBench}
+                  onChangeText={setOrmBench}
+                  testID="orm-bench"
+                />
+                <LiftInput
+                  label="Deadlift"
+                  value={ormDeadlift}
+                  onChangeText={setOrmDeadlift}
+                  testID="orm-deadlift"
+                />
+              </View>
+              <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
+                <Text style={styles.skipText}>Skip — I'll add these later</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+
+          {/* ── Screen 8: Profile Built! ── */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={[styles.screenContent, styles.celebContent]}>
+              <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
+                <Ionicons name="checkmark-circle" size={96} color={Colors.primary} />
+              </Animated.View>
+              <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
+                Profile Built!
+              </Animated.Text>
+              <Animated.Text style={[styles.celebName, celebTitleStyle]}>
+                {name.trim() ? `Welcome, ${name.trim().split(' ')[0]}` : 'You\'re all set'}
+              </Animated.Text>
+              <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
+                <CelebSummaryPill
+                  icon="barbell-outline"
+                  label={experienceLabel(experience)}
+                />
+                <CelebSummaryPill
+                  icon="flag-outline"
+                  label={goalLabel(goals[0] ?? null)}
+                />
+                <CelebSummaryPill
+                  icon="fitness-outline"
+                  label={equipmentLabel(equipment)}
+                />
+              </Animated.View>
+              <Animated.View style={[{ width: '100%', marginTop: 40 }, celebSummaryStyle]}>
+                <Pressable
+                  onPress={handleComplete}
+                  style={({ pressed }) => [
+                    styles.continueBtn,
+                    pressed && styles.continueBtnPressed,
+                  ]}
+                  testID="profile-built-cta"
+                >
+                  <Text style={styles.continueBtnText}>Let's Go</Text>
+                  <Ionicons name="arrow-forward" size={20} color={Colors.textInverse} />
+                </Pressable>
+              </Animated.View>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* ── Fixed Footer ── */}
+        {showContinue && (
+          <View style={[styles.footer, { paddingBottom: bottomPad + 16, paddingHorizontal: 24 }]}>
+            <Pressable
+              onPress={handleNext}
+              disabled={!canGo}
+              style={({ pressed }) => [
+                styles.continueBtn,
+                !canGo && styles.continueBtnDisabled,
+                pressed && canGo && styles.continueBtnPressed,
+              ]}
+              testID={currentIndex === 0 ? 'get-started-btn' : 'continue-btn'}
+            >
+              <Text style={[styles.continueBtnText, !canGo && styles.continueBtnTextDisabled]}>
+                {currentIndex === 0 ? 'Get Started' : currentIndex === 7 ? 'Save & Continue' : 'Continue'}
+              </Text>
+              <Ionicons
+                name={currentIndex === 0 ? 'chevron-forward' : 'arrow-forward'}
+                size={20}
+                color={canGo ? Colors.textInverse : Colors.textTertiary}
+              />
+            </Pressable>
           </View>
         )}
-        {selectedTiers.length > 0 && (
-          <Text style={styles.selectionHint}>
-            Best match: <Text style={{ color: Colors.primary, fontFamily: 'Inter_600SemiBold' }}>{getEquipmentLabel(getEffectiveTier(selectedTiers))}</Text>
-          </Text>
-        )}
-      </Animated.View>
-
-      <View style={styles.options}>
-        {ALL_TIERS.map((item, index) => {
-          const isAvailable = availableTiers.includes(item.tier);
-          const isSelected = selectedTiers.includes(item.tier);
-          return (
-            <Animated.View key={item.tier} entering={FadeInDown.delay(100 + index * 80).duration(400)}>
-              <Pressable
-                onPress={() => handleTierToggle(item.tier)}
-                style={({ pressed }) => [
-                  styles.option,
-                  isSelected && styles.optionSelected,
-                  !isAvailable && styles.optionLocked,
-                  pressed && isAvailable && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                ]}
-              >
-                <View style={[styles.optionIcon, isSelected && styles.optionIconSelected, !isAvailable && styles.optionIconLocked]}>
-                  <Ionicons
-                    name={item.icon}
-                    size={24}
-                    color={isSelected ? Colors.textInverse : isAvailable ? Colors.primary : Colors.textTertiary}
-                  />
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={[styles.optionTitle, isSelected && styles.optionTitleSelected, !isAvailable && styles.optionTitleLocked]}>
-                    {getEquipmentLabel(item.tier)}
-                  </Text>
-                  <Text style={[styles.optionDescription, isSelected && styles.optionDescSelected]}>
-                    {isAvailable ? item.description : 'Unlock after gaining experience'}
-                  </Text>
-                </View>
-                {!isAvailable
-                  ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
-                  : (
-                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                      {isSelected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
-                    </View>
-                  )
-                }
-              </Pressable>
-            </Animated.View>
-          );
-        })}
       </View>
+    </KeyboardAvoidingView>
+  );
+}
 
-      <View style={styles.footer}>
-        <Pressable
-          onPress={handleTierContinue}
-          disabled={!canContinue}
-          style={({ pressed }) => [
-            styles.continueButton,
-            !canContinue && styles.continueButtonDisabled,
-            pressed && canContinue && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-          ]}
-        >
-          <Text style={[styles.continueText, !canContinue && styles.continueTextDisabled]}>
-            {selectedExperience === 'beginner' ? 'Get Started' : 'Continue'}
-          </Text>
-          <Ionicons
-            name="arrow-forward"
-            size={20}
-            color={canContinue ? Colors.textInverse : Colors.textTertiary}
-          />
-        </Pressable>
+function LiftInput({
+  label, value, onChangeText, testID,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  testID?: string;
+}) {
+  return (
+    <View style={liftStyles.row}>
+      <View style={liftStyles.iconWrap}>
+        <Ionicons name="barbell-outline" size={20} color={Colors.primary} />
+      </View>
+      <Text style={liftStyles.label}>{label}</Text>
+      <View style={liftStyles.inputSide}>
+        <TextInput
+          style={liftStyles.input}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          placeholder="—"
+          placeholderTextColor={Colors.textTertiary}
+          selectTextOnFocus
+          testID={testID}
+        />
+        <Text style={liftStyles.unit}>kg</Text>
       </View>
     </View>
   );
 }
 
+function CelebSummaryPill({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  if (!label) return null;
+  return (
+    <View style={celebStyles.pill}>
+      <Ionicons name={icon} size={14} color={Colors.primary} />
+      <Text style={celebStyles.pillText}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: 24,
-  },
-  topBar: {
+  root: { flex: 1 },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    gap: 12,
+    paddingBottom: 10,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
-  stepPills: {
+  backPlaceholder: { width: 38 },
+  progressTrack: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  stepPill: {
-    width: 32,
     height: 4,
+    backgroundColor: Colors.surfaceTertiary,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
     borderRadius: 2,
   },
-  stepPillDone: {
-    backgroundColor: Colors.primary,
-  },
-  stepPillActive: {
-    backgroundColor: Colors.primary,
-    opacity: 0.4,
-  },
-  header: {
+  screen: { flexShrink: 0 },
+  screenContent: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 24,
+    paddingTop: 28,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+  screenScrollContent: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 28,
+  },
+  iconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  title: {
-    fontSize: 28,
+  question: {
+    fontSize: 26,
     fontFamily: 'Inter_700Bold',
     color: Colors.text,
+    textAlign: 'center',
+    lineHeight: 34,
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 15,
-    fontFamily: 'Inter_400Regular',
+  hint: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    marginBottom: 28,
   },
-  selectionHint: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-  restrictedBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: Colors.primaryMuted,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: Colors.primaryLight,
-  },
-  restrictedText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.primaryDark,
-    lineHeight: 19,
-  },
-  options: {
-    gap: 10,
-    flex: 1,
-  },
-  option: {
+  optionList: { width: '100%', gap: 10 },
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: Colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.borderLight,
+    gap: 12,
   },
-  optionSelected: {
+  optionCardSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primarySurface,
   },
-  optionLocked: {
-    opacity: 0.5,
-    borderColor: Colors.borderLight,
-  },
+  optionCardPressed: { opacity: 0.88 },
+  optionCardDisabled: { opacity: 0.45 },
   optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
   },
-  optionIconSelected: {
-    backgroundColor: Colors.primary,
-  },
-  optionIconLocked: {
-    backgroundColor: Colors.surfaceTertiary,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
+  optionIconSelected: { backgroundColor: Colors.primary },
+  optionLabel: {
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
     color: Colors.text,
-    marginBottom: 2,
   },
-  optionTitleSelected: {
-    color: Colors.primaryDark,
-  },
-  optionTitleLocked: {
-    color: Colors.textTertiary,
-  },
-  optionDescription: {
-    fontSize: 13,
+  optionLabelSelected: { color: Colors.primaryDark },
+  optionLabelDisabled: { color: Colors.textTertiary },
+  optionDesc: {
+    fontSize: 12,
     fontFamily: 'Inter_400Regular',
     color: Colors.textSecondary,
+    marginTop: 1,
   },
-  optionDescSelected: {
-    color: Colors.primaryLight,
-  },
+  optionDescSelected: { color: Colors.primary },
   radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
   },
-  radioSelected: {
-    borderColor: Colors.primary,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  radioSelected: { borderColor: Colors.primary },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: Colors.primary,
   },
-  checkbox: {
+  checkBox: {
     width: 22,
     height: 22,
     borderRadius: 6,
@@ -626,61 +858,226 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
   },
-  checkboxSelected: {
-    borderColor: Colors.primary,
+  checkBoxSelected: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  footer: {
-    paddingTop: 16,
-    justifyContent: 'flex-end',
+  checkBoxDisabled: { borderColor: Colors.borderLight },
+  inputWrap: { width: '100%' },
+  textInput: {
+    height: 54,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+    width: '100%',
   },
-  continueButton: {
+  numericInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  numericInput: { width: 140, textAlign: 'center' },
+  unitLabel: {
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.textSecondary,
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  chipSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryMuted,
+  },
+  chipText: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.textSecondary,
+  },
+  chipTextSelected: { color: Colors.primaryDark },
+  liftRows: { width: '100%', marginTop: 4 },
+  skipLink: { marginTop: 16, alignSelf: 'center', padding: 8 },
+  skipText: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  footer: { paddingTop: 12 },
+  continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: 16,
+    height: 54,
     gap: 8,
   },
-  continueButtonDisabled: {
-    backgroundColor: Colors.surfaceTertiary,
-  },
-  continueText: {
+  continueBtnDisabled: { backgroundColor: Colors.surfaceTertiary },
+  continueBtnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  continueBtnText: {
     fontSize: 17,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_700Bold',
     color: Colors.textInverse,
   },
-  continueTextDisabled: {
-    color: Colors.textTertiary,
-  },
-  stepPillPending: {
-    backgroundColor: Colors.borderLight,
-  },
-  ormContainer: {
-    marginTop: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  ormHint: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textTertiary,
+  continueBtnTextDisabled: { color: Colors.textTertiary },
+  celebContent: { justifyContent: 'center', paddingTop: 0 },
+  celebIconWrap: { marginBottom: 20 },
+  celebTitle: {
+    fontSize: 34,
+    fontFamily: 'Inter_700Bold',
+    color: Colors.text,
     textAlign: 'center',
-    paddingVertical: 14,
+    marginBottom: 8,
   },
-  skipButton: {
+  celebName: {
+    fontSize: 18,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  celebSummary: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  welcomeIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'center',
+    marginBottom: 20,
   },
-  skipText: {
+  welcomeWordmark: {
+    fontSize: 42,
+    fontFamily: 'Inter_700Bold',
+    color: Colors.primary,
+    letterSpacing: 6,
+  },
+  welcomeTagline: {
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
     color: Colors.textSecondary,
+    letterSpacing: 1.2,
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  welcomeDivider: {
+    width: 40,
+    height: 3,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 2,
+    marginBottom: 24,
+  },
+  welcomeSubtitle: {
+    fontSize: 17,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.text,
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 28,
+  },
+  welcomePillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  welcomePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 50,
+  },
+  welcomePillText: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.primaryDark,
+  },
+});
+
+const liftStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    gap: 12,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.text,
+  },
+  inputSide: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  input: {
+    width: 72,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    textAlign: 'center',
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.text,
+    paddingHorizontal: 8,
+  },
+  unit: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 22 },
+});
+
+const celebStyles = StyleSheet.create({
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 50,
+  },
+  pillText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: Colors.primaryDark,
   },
 });

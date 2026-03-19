@@ -45,6 +45,21 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - **45 min** → All prep + mechanical + neuro + KPI + 2 accessories + prehab + finisher
 - **60 min** → Full 8 phases
 
+### Profile Builder Onboarding (9-Screen Swipe Flow)
+On first launch, users are routed to `/onboarding` — a horizontal paged ScrollView with one question per screen:
+1. **Welcome** — GROW wordmark, "Performance & Rehab" tagline, feature pills
+2. **Name** — text input, auto-focuses
+3. **Biological Sex** — Male / Female / Prefer not to say (3 option cards)
+4. **Experience** — 3 options (beginner/intermediate/advanced) — all three are now selectable
+5. **Bodyweight** — numeric kg input
+6. **Goals** — multi-select chips (strength / muscle / fat_loss / fitness / rehab)
+7. **Equipment** — multi-select tiles with beginner restriction (bodyweight+bands only for beginners); fullgym selects all
+8. **Key Lifts** — optional squat/bench/deadlift 1RM inputs with skip link
+9. **Profile Built!** — animated checkmark, "Welcome [Name]" with summary pills, "Let's Go" CTA
+
+Data saved: `setUserProfile({ name, sex, experienceLevel, goals, bodyweightKg })`, `setEquipmentTiers()`, `addOneRepMax()` per lift.
+Navigation: programmatic via `scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * index })`, `scrollEnabled={false}`.
+
 ### Session UX
 - **Exercise Cards**: name, category pill, "N sets × reps", suggested load
 - **Buttons below name**: "Watch form" (YouTube search) + "Swap exercise" (swap modal)
