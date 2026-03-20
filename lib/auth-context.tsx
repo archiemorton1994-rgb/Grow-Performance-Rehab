@@ -36,8 +36,8 @@ interface AuthContextValue {
   isOnTrial: boolean;
   expiryDate: string | null;
   hasSignedOut: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  requestCode: (email: string) => Promise<void>;
+  verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
 }
@@ -50,8 +50,8 @@ const AuthContext = createContext<AuthContextValue>({
   isOnTrial: false,
   expiryDate: null,
   hasSignedOut: false,
-  signUp: async () => {},
-  signIn: async () => {},
+  requestCode: async () => {},
+  verifyCode: async () => {},
   signOut: async () => {},
   refreshSubscription: async () => {},
 });
@@ -176,20 +176,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [user, refreshSubscription]);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const res = await apiRequest('POST', '/api/auth/signup', { email, password });
-    const data = await res.json();
-    await storeToken(data.token);
-    setUser(data.user);
-    await configureRevenueCat(data.user.id);
-    await refreshSubscription();
-  }, [refreshSubscription]);
+  const requestCode = useCallback(async (email: string) => {
+    const res = await apiRequest('POST', '/api/auth/request-code', { email });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message ?? 'Failed to send code.');
+    }
+  }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const res = await apiRequest('POST', '/api/auth/signin', { email, password });
+  const verifyCode = useCallback(async (email: string, code: string) => {
+    const res = await apiRequest('POST', '/api/auth/verify-code', { email, code });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message ?? 'Verification failed.');
+    }
     const data = await res.json();
     await storeToken(data.token);
     setUser(data.user);
+    setHasSignedOut(false);
     await configureRevenueCat(data.user.id);
     await refreshSubscription();
   }, [refreshSubscription]);
@@ -216,8 +220,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isOnTrial,
         expiryDate,
         hasSignedOut,
-        signUp,
-        signIn,
+        requestCode,
+        verifyCode,
         signOut,
         refreshSubscription,
       }}

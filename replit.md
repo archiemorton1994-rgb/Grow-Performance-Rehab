@@ -122,12 +122,14 @@ constants/
 
 ## Authentication & Subscriptions
 
-### Email Auth
-- `POST /api/auth/signup` — creates user, returns JWT
-- `POST /api/auth/signin` — verifies password, returns JWT
+### Email OTP Auth (Passwordless)
+- `POST /api/auth/request-code` — generates 6-digit OTP for email (10-min expiry); logs to console in dev; sends via Resend in prod
+- `POST /api/auth/verify-code` — validates OTP, upserts user, returns JWT
 - `GET /api/auth/me` — validates JWT, returns user
-- JWT stored in expo-secure-store (native) / AsyncStorage (web)
+- JWT stored in expo-secure-store (native) / AsyncStorage (web); 30-day expiry
 - Requires env secret: `SESSION_SECRET`
+- For email sending in production: connect Resend via Replit integration (`RESEND_API_KEY` env var)
+- Dev testing: OTP printed to server console `[OTP] email@example.com → 123456`
 
 ### RevenueCat Subscription (£9.99/month + 1-month free trial)
 - Requires `EXPO_PUBLIC_REVENUECAT_API_KEY` env var (from RC dashboard → API Keys)
@@ -137,10 +139,9 @@ constants/
 
 ### App Gate Flow (`app/_layout.tsx`)
 1. `!onboardingComplete` → `/onboarding`
-2. `!isAuthenticated && !hasSignedOut` → `/auth/signup` (new users)
-3. `!isAuthenticated && hasSignedOut` → `/auth/signin` (returning users)
-4. `!hasActiveSubscription` → `/subscription` (paywall)
-5. else → `/(tabs)` (main app)
+2. `!isAuthenticated` → `/auth` (single OTP screen for new and returning users)
+3. `!hasActiveSubscription` → `/subscription` (paywall)
+4. else → `/(tabs)` (main app)
 
 ## Workflows
 - `Start Backend` — Express on port 5000 (API + landing page)
