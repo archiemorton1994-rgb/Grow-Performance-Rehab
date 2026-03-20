@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Text,
+  View,
   TextInput,
   Pressable,
   StyleSheet,
@@ -27,6 +28,7 @@ export default function OtpAuthScreen() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState<string | undefined>(undefined);
   const codeRef = useRef<TextInput>(null);
 
   const emailValid = EMAIL_RE.test(email.trim());
@@ -36,7 +38,8 @@ export default function OtpAuthScreen() {
     if (!emailValid || loading) return;
     setLoading(true);
     try {
-      await requestCode(email.trim());
+      const result = await requestCode(email.trim());
+      setDevCode(result.devCode);
       setStep('code');
       setTimeout(() => codeRef.current?.focus(), 150);
     } catch (err: unknown) {
@@ -68,10 +71,14 @@ export default function OtpAuthScreen() {
 
   const handleResend = async () => {
     setCode('');
+    setDevCode(undefined);
     setLoading(true);
     try {
-      await requestCode(email.trim());
-      Alert.alert('Code sent', 'A new code has been sent to your email.');
+      const result = await requestCode(email.trim());
+      setDevCode(result.devCode);
+      if (!result.devCode) {
+        Alert.alert('Code sent', 'A new code has been sent to your email.');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not resend code.';
       Alert.alert('Error', msg);
@@ -146,6 +153,13 @@ export default function OtpAuthScreen() {
               We sent a 6-digit code to{'\n'}
               <Text style={styles.emailHighlight}>{email.trim()}</Text>
             </Text>
+
+            {devCode && (
+              <View style={styles.devBanner}>
+                <Text style={styles.devBannerLabel}>Dev mode — your code:</Text>
+                <Text style={styles.devBannerCode}>{devCode}</Text>
+              </View>
+            )}
 
             <Text style={styles.label}>Login code</Text>
             <TextInput
@@ -228,4 +242,29 @@ const styles = StyleSheet.create({
   resendRow: { marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
   resendLink: { color: Colors.primary, fontFamily: 'Inter_600SemiBold' },
+
+  devBanner: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  devBannerLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#92400e',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  devBannerCode: {
+    fontSize: 30,
+    fontFamily: 'Inter_700Bold',
+    color: '#92400e',
+    letterSpacing: 8,
+  },
 });

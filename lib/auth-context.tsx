@@ -36,7 +36,7 @@ interface AuthContextValue {
   isOnTrial: boolean;
   expiryDate: string | null;
   hasSignedOut: boolean;
-  requestCode: (email: string) => Promise<void>;
+  requestCode: (email: string) => Promise<{ devCode?: string }>;
   verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
@@ -50,7 +50,7 @@ const AuthContext = createContext<AuthContextValue>({
   isOnTrial: false,
   expiryDate: null,
   hasSignedOut: false,
-  requestCode: async () => {},
+  requestCode: async () => ({}),
   verifyCode: async () => {},
   signOut: async () => {},
   refreshSubscription: async () => {},
@@ -176,12 +176,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [user, refreshSubscription]);
 
-  const requestCode = useCallback(async (email: string) => {
+  const requestCode = useCallback(async (email: string): Promise<{ devCode?: string }> => {
     const res = await apiRequest('POST', '/api/auth/request-code', { email });
     if (!res.ok) {
       const data = await res.json();
       throw new Error(data.message ?? 'Failed to send code.');
     }
+    const data = await res.json();
+    return { devCode: data.devCode };
   }, []);
 
   const verifyCode = useCallback(async (email: string, code: string) => {

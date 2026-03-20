@@ -89,7 +89,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Failed to send code. Please try again.' });
     }
 
-    return res.json({ message: 'Code sent.' });
+    const devCode = !IS_PRODUCTION && !resendClient ? code : undefined;
+    return res.json({ message: 'Code sent.', devCode });
   });
 
   app.post('/api/auth/verify-code', async (req: Request, res: Response) => {
