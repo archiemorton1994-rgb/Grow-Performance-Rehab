@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Text,
   TextInput,
@@ -47,17 +47,24 @@ export default function OtpAuthScreen() {
     }
   };
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCode = useCallback(async () => {
     if (!codeValid || loading) return;
     setLoading(true);
     try {
       await verifyCode(email.trim(), code.trim());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Incorrect code. Please try again.';
+      setCode('');
       Alert.alert('Invalid code', msg);
       setLoading(false);
     }
-  };
+  }, [codeValid, loading, verifyCode, email, code]);
+
+  useEffect(() => {
+    if (step === 'code' && code.length === 6 && !loading) {
+      handleVerifyCode();
+    }
+  }, [step, code, loading, handleVerifyCode]);
 
   const handleResend = async () => {
     setCode('');
