@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   PanResponder,
@@ -354,11 +355,11 @@ export default function OnboardingScreen() {
           {/* Screen 0: Welcome */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <Animated.View entering={FadeInDown.duration(500)} style={styles.screenContent}>
-              <View style={styles.welcomeIconWrap}>
-                <Ionicons name="leaf" size={48} color={Colors.primary} />
-              </View>
-              <Text style={styles.welcomeWordmark}>GROW</Text>
-              <Text style={styles.welcomeTagline}>Performance & Rehab</Text>
+              <Image
+                source={require('@/assets/images/logo.jpeg')}
+                style={styles.welcomeLogoImage}
+                resizeMode="cover"
+              />
               <View style={styles.welcomeDivider} />
               <Text style={styles.welcomeSubtitle}>
                 Build your training profile.{'\n'}Takes less than 2 minutes.
@@ -987,20 +988,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
   },
-  welcomeIconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  welcomeWordmark: {
-    fontSize: 42,
-    fontFamily: 'Inter_700Bold',
-    color: Colors.primary,
-    letterSpacing: 6,
+  welcomeLogoImage: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    marginBottom: 28,
   },
   welcomeTagline: {
     fontSize: 15,

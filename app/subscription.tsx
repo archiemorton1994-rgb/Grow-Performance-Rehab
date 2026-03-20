@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -96,15 +97,11 @@ export default function SubscriptionScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.logoRow}>
-          <View style={styles.logoMark}>
-            <Ionicons name="leaf" size={28} color={Colors.textInverse} />
-          </View>
-          <View>
-            <Text style={styles.wordmark}>GROW</Text>
-            <Text style={styles.tagline}>Performance & Rehab</Text>
-          </View>
-        </View>
+        <Image
+          source={require('@/assets/images/logo.jpeg')}
+          style={styles.logoImage}
+          resizeMode="cover"
+        />
 
         <Text style={styles.headline}>Everything you need{'\n'}to train smarter</Text>
 
@@ -178,14 +175,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 24, paddingTop: 24 },
 
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 32 },
-  logoMark: {
-    width: 52, height: 52, borderRadius: 16,
-    backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  logoImage: {
+    width: 96, height: 96, borderRadius: 48,
+    marginBottom: 28,
   },
-  wordmark: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.text, letterSpacing: 3 },
-  tagline: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
 
   headline: {
     fontSize: 30, fontFamily: 'Inter_700Bold', color: Colors.text,

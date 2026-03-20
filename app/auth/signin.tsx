@@ -10,10 +10,10 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
 
@@ -55,15 +55,11 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.logoRow}>
-          <View style={styles.logoMark}>
-            <Ionicons name="leaf" size={26} color={Colors.textInverse} />
-          </View>
-          <View>
-            <Text style={styles.wordmark}>GROW</Text>
-            <Text style={styles.tagline}>Performance & Rehab</Text>
-          </View>
-        </View>
+        <Image
+          source={require('@/assets/images/logo.jpeg')}
+          style={styles.logoImage}
+          resizeMode="cover"
+        />
 
         <Text style={styles.heading}>Welcome back</Text>
         <Text style={styles.sub}>Sign in to your account</Text>
@@ -130,14 +126,10 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   inner: { paddingHorizontal: 24 },
 
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 36 },
-  logoMark: {
-    width: 48, height: 48, borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  logoImage: {
+    width: 88, height: 88, borderRadius: 44,
+    marginBottom: 32,
   },
-  wordmark: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text, letterSpacing: 3 },
-  tagline: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
 
   heading: { fontSize: 28, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 4 },
   sub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 32 },
