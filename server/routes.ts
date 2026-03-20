@@ -13,6 +13,8 @@ const OTP_TTL_MS = 10 * 60 * 1000;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 const resendClient = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
@@ -40,10 +42,19 @@ function generateOtp(): string {
 }
 
 async function sendOtpEmail(email: string, code: string): Promise<void> {
-  if (!resendClient) {
+  if (!IS_PRODUCTION) {
     console.log(`[OTP] ${email} → ${code}`);
+  }
+
+  if (IS_PRODUCTION && !resendClient) {
+    console.error('[OTP] RESEND_API_KEY is not set. Email delivery is unavailable in production.');
+    throw new Error('Email service not configured. Set RESEND_API_KEY to enable OTP delivery.');
+  }
+
+  if (!resendClient) {
     return;
   }
+
   await resendClient.emails.send({
     from: 'Grow Performance <noreply@growperformance.app>',
     to: email,
