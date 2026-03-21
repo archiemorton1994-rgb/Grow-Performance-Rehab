@@ -8,6 +8,37 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
 
+function TrainTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={[
+        trainIconStyles.circle,
+        { backgroundColor: focused ? Colors.primary : Colors.primaryLight },
+        focused && trainIconStyles.circleFocused,
+      ]}
+    >
+      <Ionicons name="barbell" size={21} color="#fff" />
+    </View>
+  );
+}
+
+const trainIconStyles = StyleSheet.create({
+  circle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  circleFocused: {
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+});
+
 function NativeTabLayout() {
   return (
     <NativeTabs>
@@ -16,7 +47,7 @@ function NativeTabLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="train">
-        <Icon sf={{ default: "dumbbell", selected: "dumbbell.fill" }} />
+        <Icon sf={{ default: "dumbbell.fill", selected: "dumbbell.fill" }} />
         <Label>Train</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="workouts">
@@ -80,13 +111,8 @@ function ClassicTabLayout() {
         name="train"
         options={{
           title: "Train",
-          tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="dumbbell" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="barbell-outline" size={size || 24} color={color} />
-            )
-          ),
+          tabBarItemStyle: { paddingTop: 2 },
+          tabBarIcon: ({ focused }) => <TrainTabIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
