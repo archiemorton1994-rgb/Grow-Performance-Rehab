@@ -112,9 +112,11 @@ function WeeklyBarChart({
 
 function WeeklyVolumeChart({
   sessions,
+  weightUnit,
   C,
 }: {
   sessions: CompletedSession[];
+  weightUnit: 'kg' | 'lbs';
   C: ReturnType<typeof useColors>;
 }) {
   const [chartWidth, setChartWidth] = useState(280);
@@ -164,7 +166,7 @@ function WeeklyVolumeChart({
   return (
     <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
       <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>Weekly Volume</Text>
-      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 12 }}>Total kg lifted per week</Text>
+      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 12 }}>Total {weightUnit} lifted per week</Text>
       <View onLayout={handleLayout} style={{ width: '100%' }}>
         <Svg width={chartWidth} height={BAR_CHART_HEIGHT + 4}>
           {weeks.map((week, i) => {
@@ -190,8 +192,10 @@ function WeeklyVolumeChart({
         </Svg>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>0 kg</Text>
-        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>peak: {maxVal.toLocaleString()} kg</Text>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>0 {weightUnit}</Text>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          peak: {weightUnit === 'lbs' ? Math.round(maxVal * 2.20462).toLocaleString() : maxVal.toLocaleString()} {weightUnit}
+        </Text>
       </View>
     </View>
   );
@@ -486,7 +490,7 @@ export default function StatsScreen() {
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-        <WeeklyVolumeChart sessions={completedSessions} C={C} />
+        <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>

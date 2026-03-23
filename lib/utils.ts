@@ -7,19 +7,16 @@ export function formatWeight(kg: number, unit: WeightUnit): string {
   return `${kg} kg`;
 }
 
-export function formatWeightValue(kg: number, unit: WeightUnit): number {
-  if (unit === 'lbs') {
-    return parseFloat((kg * 2.20462).toFixed(1));
-  }
-  return kg;
-}
-
 export function kgToDisplayUnit(kg: number, unit: WeightUnit): number {
   return unit === 'lbs' ? parseFloat((kg * 2.20462).toFixed(1)) : kg;
 }
 
 export function displayUnitToKg(val: number, unit: WeightUnit): number {
   return unit === 'lbs' ? parseFloat((val / 2.20462).toFixed(2)) : val;
+}
+
+export function formatWeightValue(kg: number, unit: WeightUnit): number {
+  return kgToDisplayUnit(kg, unit);
 }
 
 export function formatDate(dateStr: string): string {
