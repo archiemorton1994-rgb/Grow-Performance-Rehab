@@ -378,7 +378,14 @@ export function generateWorkout(
     exercises.push(accEx);
   }
 
-  // ── 7. Prehab (45 and 60 min only) ──────────────────────────────────────
+  // ── 7. Conditioning Finisher (45 and 60 min only) ────────────────────────
+  if (timeAvailable !== '30') {
+    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
+    const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
+    exercises.push(templateToExercise(finisher, finBadge));
+  }
+
+  // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
   if (timeAvailable !== '30') {
     const prehab = getPrehab(mainType, equipmentTier);
     const phEx = templateToExercise(prehab[0]);
@@ -386,14 +393,7 @@ export function generateWorkout(
     exercises.push(phEx);
   }
 
-  // ── 8. Conditioning Finisher (45 and 60 min only) ────────────────────────
-  if (timeAvailable !== '30') {
-    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
-    const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
-    exercises.push(templateToExercise(finisher, finBadge));
-  }
-
-  // ── 9. Cool Down (60 min only) ────────────────────────────────────────────
+  // ── 9. Cool Down breathing (60 min only) ─────────────────────────────────
   if (timeAvailable === '60') {
     const cooldown = getCooldown();
     exercises.push(templateToExercise(cooldown[0]));
@@ -429,14 +429,14 @@ export function generate1RMWorkout(
 
 export function getRestPeriod(category: ExerciseCategory): string {
   switch (category) {
-    case 'prep': return 'Breathe deeply — no rest needed';
+    case 'prep': return 'No rest needed — move straight to the next stretch';
     case 'mechanical': return 'Rest 30–45 sec between sets';
     case 'neuro': return 'Rest 45–60 sec between sets — full recovery before each';
     case 'main': return 'Rest 2–3 min between sets — full recovery is key';
     case 'accessory': return 'Rest 60–90 sec between sets';
-    case 'prehab': return 'Rest 30–45 sec between sets';
-    case 'finisher': return 'Follow the circuit timing';
-    case 'cooldown': return 'Breathe slowly throughout';
+    case 'prehab': return 'Rest 30–45 sec between stretches';
+    case 'finisher': return 'Rest only if you need to — keep moving throughout';
+    case 'cooldown': return 'Breathe slowly — no rest needed';
     default: return 'Rest as needed';
   }
 }

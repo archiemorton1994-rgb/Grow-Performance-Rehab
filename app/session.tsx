@@ -378,7 +378,7 @@ function ExerciseCard({
                   <Text style={styles.setHeaderItem}>Set</Text>
                   <View style={styles.setHeaderInputs}>
                     {!isBandExercise && (
-                      <Text style={styles.setHeaderItem}>Weight (kg)</Text>
+                      <Text style={styles.setHeaderItem}>kg</Text>
                     )}
                     <Text style={styles.setHeaderItem}>{isTimeExercise ? 'Time' : 'Reps'}</Text>
                   </View>
