@@ -6,46 +6,36 @@ import { SymbolView } from "expo-symbols";
 import { Platform, StyleSheet, useColorScheme, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import Colors from "@/constants/colors";
+import { useColors } from "@/constants/colors";
 
 const TRAIN_ICON_ACTIVE = require("@/assets/train-tab-active.png");
 const TRAIN_ICON_INACTIVE = require("@/assets/train-tab-inactive.png");
 
 function TrainTabIcon({ focused }: { focused: boolean }) {
+  const C = useColors();
   return (
     <View
       style={[
-        trainIconStyles.circle,
-        focused ? trainIconStyles.circleActive : trainIconStyles.circleInactive,
+        {
+          width: 44, height: 44, borderRadius: 22,
+          alignItems: "center", justifyContent: "center",
+          transform: [{ translateY: -4 }],
+          backgroundColor: C.primary,
+          opacity: focused ? 1 : 0.55,
+          ...(focused ? {
+            shadowColor: C.primary,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.4,
+            shadowRadius: 6,
+            elevation: 6,
+          } : {}),
+        },
       ]}
     >
       <Ionicons name="barbell" size={21} color="#fff" />
     </View>
   );
 }
-
-const trainIconStyles = StyleSheet.create({
-  circle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    transform: [{ translateY: -4 }],
-  },
-  circleActive: {
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  circleInactive: {
-    backgroundColor: Colors.primary,
-    opacity: 0.55,
-  },
-});
 
 function NativeTabLayout() {
   return (
@@ -75,6 +65,7 @@ function NativeTabLayout() {
 }
 
 function ClassicTabLayout() {
+  const C = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isWeb = Platform.OS === "web";
@@ -83,14 +74,14 @@ function ClassicTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.light.tint,
-        tabBarInactiveTintColor: Colors.light.tabIconDefault,
+        tabBarActiveTintColor: C.light.tint,
+        tabBarInactiveTintColor: C.light.tabIconDefault,
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : isDark ? "#000" : "#fff",
           borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: isDark ? "#333" : Colors.border,
+          borderTopColor: isDark ? "#333" : C.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },

@@ -9,6 +9,7 @@ export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab';
+export type WeightUnit = 'kg' | 'lbs';
 
 export type PainRegion =
   | 'front_shoulder' | 'rear_shoulder' | 'elbow_wrist' | 'neck'
@@ -106,6 +107,9 @@ interface AppState {
   testWeekFrequency: TestWeekFrequency;
   userProfile: UserProfile;
   exerciseFeedback: Record<string, ExerciseFeedback>;
+  lastReadinessEnergy: EnergyLevel;
+  lastReadinessTime: TimeAvailable;
+  weightUnit: WeightUnit;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -116,6 +120,8 @@ interface AppState {
   resetProgress: () => void;
   setExerciseFeedback: (exerciseId: string, thumbs: 'up' | 'down' | null) => void;
   applyTooEasyAdjustment: (exerciseIds: string[]) => void;
+  setLastReadiness: (energy: EnergyLevel, time: TimeAvailable) => void;
+  setWeightUnit: (unit: WeightUnit) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -145,6 +151,9 @@ export const useAppStore = create<AppState>()(
         bodyweightKg: 75,
       },
       exerciseFeedback: {},
+      lastReadinessEnergy: 'normal',
+      lastReadinessTime: '45',
+      weightUnit: 'kg',
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -152,6 +161,8 @@ export const useAppStore = create<AppState>()(
       setUserProfile: (profile) => set((state) => ({
         userProfile: { ...state.userProfile, ...profile },
       })),
+      setLastReadiness: (energy, time) => set({ lastReadinessEnergy: energy, lastReadinessTime: time }),
+      setWeightUnit: (unit) => set({ weightUnit: unit }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -299,9 +310,18 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.exerciseFeedback) {
           persistedState.exerciseFeedback = {};
         }
+        if (!persistedState.lastReadinessEnergy) {
+          persistedState.lastReadinessEnergy = 'normal';
+        }
+        if (!persistedState.lastReadinessTime) {
+          persistedState.lastReadinessTime = '45';
+        }
+        if (!persistedState.weightUnit) {
+          persistedState.weightUnit = 'kg';
+        }
         return persistedState;
       },
-      version: 3,
+      version: 4,
     }
   )
 );

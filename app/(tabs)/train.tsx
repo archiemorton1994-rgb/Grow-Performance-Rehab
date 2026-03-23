@@ -12,9 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Colors from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore } from '@/lib/store';
 import { getSessionSubtitle, getEquipmentLabel } from '@/lib/workout-engine';
+import { daysSince } from '@/lib/utils';
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
@@ -34,15 +35,6 @@ const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
   conditioning: 'flame-outline',
   prehab: 'shield-checkmark-outline',
   flexibility: 'leaf-outline',
-};
-
-const SESSION_COLORS: Record<SessionType, { bg: string; accent: string }> = {
-  squat: { bg: Colors.primaryMuted, accent: Colors.primary },
-  bench: { bg: '#e8f0fe', accent: '#4285f4' },
-  deadlift: { bg: '#fce8e6', accent: '#ea4335' },
-  conditioning: { bg: '#fbe9e7', accent: '#e65100' },
-  prehab: { bg: '#fff3e0', accent: '#e65100' },
-  flexibility: { bg: '#e8f5e9', accent: '#2e7d32' },
 };
 
 function getContextMessage(
@@ -77,10 +69,21 @@ function getContextMessage(
   return "Momentum is building. Every session moves the needle.";
 }
 
+function getLastTrainedText(completedSessions: any[], sessionType: SessionType): string {
+  const matches = completedSessions.filter(s => s.sessionType === sessionType);
+  if (matches.length === 0) return 'Not done yet';
+  const days = daysSince(matches[0].date);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+}
+
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
+  const C = useColors();
   const {
     completedCount,
+    completedSessions,
     getEffectiveTier,
     isTestWeekDue,
     testWeekFrequency,
@@ -98,6 +101,9 @@ export default function TrainScreen() {
     () => getContextMessage(completedCount, testWeekFrequency, testWeek),
     [completedCount, testWeekFrequency, testWeek],
   );
+
+  const cyclePosition = completedCount % testWeekFrequency;
+  const cycleLength = testWeekFrequency;
 
   const timelineItems: {
     sessionType: SessionType;
@@ -120,10 +126,29 @@ export default function TrainScreen() {
     timelineItems.push({ sessionType, status, isTestMarker });
   }
 
+  const lastTrainedByType = useMemo(() => {
+    const result: Record<SessionType, string> = {} as any;
+    for (const type of SESSION_ORDER) {
+      result[type] = getLastTrainedText(completedSessions, type);
+    }
+    return result;
+  }, [completedSessions]);
+
+  const SESSION_COLORS = useMemo(() => ({
+    squat: { bg: C.primaryMuted, accent: C.primary },
+    bench: { bg: '#e8f0fe', accent: '#4285f4' },
+    deadlift: { bg: '#fce8e6', accent: '#ea4335' },
+    conditioning: { bg: '#fbe9e7', accent: '#e65100' },
+    prehab: { bg: '#fff3e0', accent: '#e65100' },
+    flexibility: { bg: '#e8f5e9', accent: '#2e7d32' },
+  }), [C]);
+
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
   };
+
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   return (
     <ScrollView
@@ -159,6 +184,30 @@ export default function TrainScreen() {
         </View>
       </Animated.View>
 
+      {/* Programme Arc */}
+      <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.arcCard}>
+        <View style={styles.arcHeader}>
+          <Text style={styles.arcLabel}>Session {cyclePosition + 1} of {cycleLength}</Text>
+          <Text style={styles.arcSublabel}>current cycle</Text>
+        </View>
+        <View style={styles.arcDots}>
+          {Array.from({ length: cycleLength }, (_, i) => {
+            const isDone = i < cyclePosition;
+            const isCur = i === cyclePosition;
+            return (
+              <View
+                key={i}
+                style={[
+                  styles.arcDot,
+                  isDone && styles.arcDotDone,
+                  isCur && styles.arcDotCurrent,
+                ]}
+              />
+            );
+          })}
+        </View>
+      </Animated.View>
+
       <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.contextRow}>
         <View style={styles.contextDot} />
         <Text style={styles.contextText}>{contextMessage}</Text>
@@ -180,7 +229,7 @@ export default function TrainScreen() {
                     isCurrent && styles.timelineDotCurrent,
                     isCurrent && testWeek && styles.timelineDotTest,
                   ]}>
-                    {isCompleted && <Ionicons name="checkmark" size={12} color={Colors.textInverse} />}
+                    {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
                     {isCurrent && (
                       <View style={[styles.currentPulse, testWeek && { backgroundColor: '#e65100' }]} />
                     )}
@@ -215,14 +264,19 @@ export default function TrainScreen() {
                     <Text style={styles.cardSub}>
                       {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
                     </Text>
+                    {!isCompleted && (
+                      <Text style={styles.cardRecency}>
+                        {lastTrainedByType[item.sessionType]}
+                      </Text>
+                    )}
                   </View>
                   {isCurrent && (
                     <View style={[styles.startPill, testWeek && styles.startPillTest]}>
-                      <Ionicons name="play" size={16} color={Colors.textInverse} />
+                      <Ionicons name="play" size={16} color={C.textInverse} />
                     </View>
                   )}
                   {isCompleted && (
-                    <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+                    <Ionicons name="checkmark-circle" size={22} color={C.primary} />
                   )}
                   {item.isTestMarker && !isCurrent && (
                     <View style={styles.testMarker}>
@@ -239,146 +293,86 @@ export default function TrainScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingHorizontal: 20 },
-  title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.text },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
-    marginTop: 2,
-    marginBottom: 20,
-  },
+function makeStyles(C: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    content: { paddingHorizontal: 20 },
+    title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
+    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 20 },
 
-  cycleInfo: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    alignItems: 'center',
-  },
-  cycleCard: { flex: 1, alignItems: 'center' },
-  cycleValue: {
-    fontSize: 17,
-    fontFamily: 'Inter_700Bold',
-    color: Colors.primary,
-  },
-  cycleNumber: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  cycleLabel: {
-    fontSize: 10,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  cycleDivider: { width: 1, height: 36, backgroundColor: Colors.border },
+    cycleInfo: {
+      flexDirection: 'row', backgroundColor: C.surface,
+      borderRadius: 16, padding: 18, marginBottom: 12,
+      borderWidth: 1, borderColor: C.borderLight, alignItems: 'center',
+    },
+    cycleCard: { flex: 1, alignItems: 'center' },
+    cycleValue: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.primary },
+    cycleNumber: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.primary },
+    cycleLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 3, textAlign: 'center' },
+    cycleDivider: { width: 1, height: 36, backgroundColor: C.border },
 
-  contextRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    gap: 8,
-    paddingHorizontal: 2,
-  },
-  contextDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
-    marginTop: 6,
-    flexShrink: 0,
-  },
-  contextText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
-    lineHeight: 19,
-  },
+    arcCard: {
+      backgroundColor: C.surface, borderRadius: 14,
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.borderLight, marginBottom: 12,
+    },
+    arcHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 10 },
+    arcLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+    arcSublabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    arcDots: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+    arcDot: {
+      width: 8, height: 8, borderRadius: 4,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1, borderColor: C.border,
+    },
+    arcDotDone: { backgroundColor: C.primary, borderColor: C.primary },
+    arcDotCurrent: { backgroundColor: C.primary, borderColor: C.primary, width: 10, height: 10, borderRadius: 5 },
 
-  timeline: {},
-  timelineRow: { flexDirection: 'row' },
-  timelineTrack: { width: 30, alignItems: 'center' },
-  timelineDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.surfaceTertiary,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  timelineDotDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  timelineDotCurrent: { backgroundColor: Colors.surface, borderColor: Colors.primary, borderWidth: 3 },
-  timelineDotTest: { borderColor: '#e65100' },
-  currentPulse: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
-  timelineLine: { width: 2, flex: 1, backgroundColor: Colors.border, marginVertical: -2 },
-  timelineLineDone: { backgroundColor: Colors.primary },
+    contextRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20, gap: 8, paddingHorizontal: 2 },
+    contextDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary, marginTop: 6, flexShrink: 0 },
+    contextText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, lineHeight: 19 },
 
-  timelineCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    marginLeft: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  timelineCardCurrent: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  timelineCardTest: { borderColor: '#e65100' },
-  timelineCardDone: { opacity: 0.65 },
+    timeline: {},
+    timelineRow: { flexDirection: 'row' },
+    timelineTrack: { width: 30, alignItems: 'center' },
+    timelineDot: {
+      width: 20, height: 20, borderRadius: 10,
+      backgroundColor: C.surfaceTertiary, borderWidth: 2, borderColor: C.border,
+      alignItems: 'center', justifyContent: 'center', zIndex: 1,
+    },
+    timelineDotDone: { backgroundColor: C.primary, borderColor: C.primary },
+    timelineDotCurrent: { backgroundColor: C.surface, borderColor: C.primary, borderWidth: 3 },
+    timelineDotTest: { borderColor: '#e65100' },
+    currentPulse: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+    timelineLine: { width: 2, flex: 1, backgroundColor: C.border, marginVertical: -2 },
+    timelineLineDone: { backgroundColor: C.primary },
 
-  cardIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  cardContent: { flex: 1 },
-  cardTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
-  cardTitleDone: { textDecorationLine: 'line-through' as const, color: Colors.textSecondary },
-  cardSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 2 },
+    timelineCard: {
+      flex: 1, flexDirection: 'row', alignItems: 'center',
+      backgroundColor: C.surface, borderRadius: 14, padding: 14,
+      marginLeft: 12, marginBottom: 8, borderWidth: 1, borderColor: C.borderLight,
+    },
+    timelineCardCurrent: {
+      borderColor: C.primary, borderWidth: 2,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 5,
+    },
+    timelineCardTest: { borderColor: '#e65100' },
+    timelineCardDone: { opacity: 0.65 },
 
-  startPill: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 7,
-    elevation: 7,
-  },
-  startPillTest: { backgroundColor: '#e65100' },
+    cardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    cardContent: { flex: 1 },
+    cardTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    cardTitleDone: { textDecorationLine: 'line-through' as const, color: C.textSecondary },
+    cardSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    cardRecency: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
 
-  testMarker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#fff3e0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+    startPill: {
+      width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary,
+      alignItems: 'center', justifyContent: 'center',
+      shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 7, elevation: 7,
+    },
+    startPillTest: { backgroundColor: '#e65100' },
+    testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff3e0', alignItems: 'center', justifyContent: 'center' },
+  });
+}

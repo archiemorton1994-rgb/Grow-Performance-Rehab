@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Colors from '@/constants/colors';
-import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, useAppStore } from '@/lib/store';
+import { useColors } from '@/constants/colors';
+import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, WeightUnit, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
+import { router } from 'expo-router';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
@@ -40,6 +41,7 @@ type ActiveModal = 'edit' | 'equipment' | 'settings' | null;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const C = useColors();
   const {
     equipmentTiers,
     setEquipmentTiers,
@@ -52,6 +54,8 @@ export default function ProfileScreen() {
     userProfile,
     setUserProfile,
     getEffectiveTier: storeGetEffectiveTier,
+    weightUnit,
+    setWeightUnit,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -64,14 +68,11 @@ export default function ProfileScreen() {
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
-  // Edit details local state
   const [editName, setEditName] = useState('');
   const [editWeight, setEditWeight] = useState('');
   const [editSex, setEditSex] = useState<Sex>('male');
   const [editExp, setEditExp] = useState<ExperienceLevel>('beginner');
   const [editGoals, setEditGoals] = useState<FitnessGoal[]>(['fitness']);
-
-  // Equipment multi-select local state (for modal)
   const [editTiers, setEditTiers] = useState<EquipmentTier[]>(['bodyweight']);
 
   const openEdit = () => {
@@ -103,7 +104,6 @@ export default function ProfileScreen() {
     const isLocked = userProfile.experienceLevel === 'beginner' && !['bodyweight', 'bands'].includes(tier);
     if (isLocked) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     setEditTiers((prev) => {
       if (tier === 'fullgym') {
         if (prev.includes('fullgym')) {
@@ -157,30 +157,29 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    if (Platform.OS === 'web') {
-      signOut();
-      return;
-    }
+    if (Platform.OS === 'web') { signOut(); return; }
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
 
-  const subscriptionLabel = isOnTrial ? 'Free trial active' : hasActiveSubscription ? 'Grow Monthly — Active' : 'No active subscription';
+  const handleSendFeedback = () => {
+    Linking.openURL('mailto:feedback@growapp.com?subject=App Feedback').catch(() => {});
+  };
 
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
+  const firstGoalLabel = GOAL_OPTIONS.find(o => o.value === activeGoals[0])?.label ?? 'Fitness';
   const goalLabel = activeGoals
     .map(g => GOAL_OPTIONS.find(o => o.value === g)?.label ?? 'Fitness')
     .join(' + ');
 
-  const NAV_BUTTONS: { id: ActiveModal; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string; onPress?: () => void }[] = [
-    { id: 'edit', label: 'Edit Details', icon: 'person-outline', color: Colors.primary, bg: Colors.primaryMuted },
-    { id: 'equipment', label: 'Equipment', icon: getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap, color: '#00695c', bg: '#e0f2f1', onPress: openEquipment },
-    { id: 'settings', label: 'Settings', icon: 'settings-outline', color: Colors.textSecondary, bg: Colors.surfaceTertiary },
-  ];
+  const equipmentSubtitle = getEquipmentLabel(effectiveTier);
+  const editDetailsSubtitle = `${expLabel} · ${firstGoalLabel}`;
+
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
@@ -189,119 +188,150 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-      {/* Hero Card */}
-      <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>
-              {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.heroInfo}>
-          <Text style={styles.heroName}>{displayName}</Text>
-          <View style={styles.heroTags}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{expLabel}</Text>
+        <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarInitial}>
+                {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
+              </Text>
             </View>
-            {activeGoals.map(g => {
-              const opt = GOAL_OPTIONS.find(o => o.value === g);
-              return (
-                <View key={g} style={[styles.tag, { backgroundColor: Colors.primaryMuted }]}>
-                  <Text style={[styles.tagText, { color: Colors.primaryDark }]}>{opt?.label ?? g}</Text>
-                </View>
-              );
-            })}
-            {userProfile.bodyweightKg > 0 && (
-              <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
-                <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
-              </View>
-            )}
-            {userProfile.sex && userProfile.sex !== 'male' && (
-              <View style={[styles.tag, { backgroundColor: '#f3e8ff' }]}>
-                <Text style={[styles.tagText, { color: '#7e22ce' }]}>{userProfile.sex === 'female' ? 'Female' : 'Other'}</Text>
-              </View>
-            )}
           </View>
-        </View>
-      </Animated.View>
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroName}>{displayName}</Text>
+            <View style={styles.heroTags}>
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>{expLabel}</Text>
+              </View>
+              {activeGoals.map(g => {
+                const opt = GOAL_OPTIONS.find(o => o.value === g);
+                return (
+                  <View key={g} style={[styles.tag, { backgroundColor: C.primaryMuted }]}>
+                    <Text style={[styles.tagText, { color: C.primaryDark }]}>{opt?.label ?? g}</Text>
+                  </View>
+                );
+              })}
+              {userProfile.bodyweightKg > 0 && (
+                <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
+                  <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Animated.View>
 
-      {/* Stats Row */}
-      <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statVal}>{completedCount}</Text>
-          <Text style={styles.statLbl}>Sessions</Text>
-        </View>
-        <View style={styles.statDiv} />
-        <View style={styles.stat}>
-          <Text style={styles.statVal}>{streak}</Text>
-          <Text style={styles.statLbl}>Streak</Text>
-        </View>
-        <View style={styles.statDiv} />
-        <View style={styles.stat}>
-          <Text style={styles.statVal}>{weekCount}</Text>
-          <Text style={styles.statLbl}>This Week</Text>
-        </View>
-      </Animated.View>
+        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statVal}>{completedCount}</Text>
+            <Text style={styles.statLbl}>Sessions</Text>
+          </View>
+          <View style={styles.statDiv} />
+          <View style={styles.stat}>
+            <Text style={styles.statVal}>{streak}</Text>
+            <Text style={styles.statLbl}>Streak</Text>
+          </View>
+          <View style={styles.statDiv} />
+          <View style={styles.stat}>
+            <Text style={styles.statVal}>{weekCount}</Text>
+            <Text style={styles.statLbl}>This Week</Text>
+          </View>
+        </Animated.View>
 
-      {/* Nav Grid */}
-      <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.navGrid}>
-        {NAV_BUTTONS.map((btn, i) => (
+        <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.navGrid}>
           <Pressable
-            key={btn.id}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (btn.onPress) btn.onPress();
-              else setActiveModal(btn.id);
-            }}
+            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openEdit(); }}
             style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
           >
-            <View style={[styles.navIcon, { backgroundColor: btn.bg }]}>
-              <Ionicons name={btn.icon} size={22} color={btn.color} />
+            <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+              <Ionicons name="person-outline" size={22} color={C.primary} />
             </View>
-            <Text style={styles.navLabel}>{btn.label}</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>Edit Details</Text>
+              <Text style={styles.navSub}>{editDetailsSubtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
           </Pressable>
-        ))}
-      </Animated.View>
 
-      {/* Account Section */}
-      <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.accountRow}>
-          <View style={styles.accountIcon}>
-            <Ionicons name="mail-outline" size={18} color={Colors.primary} />
-          </View>
-          <Text style={styles.accountEmail} numberOfLines={1}>
-            {user?.email ?? 'Not signed in'}
-          </Text>
-        </View>
-        <Pressable
-          onPress={handleSignOut}
-          style={styles.signOutBtn}
-          testID="sign-out-btn"
-        >
-          <Ionicons name="log-out-outline" size={16} color={Colors.error} />
-          <Text style={styles.signOutText}>Sign out</Text>
-        </Pressable>
-      </Animated.View>
+          <Pressable
+            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openEquipment(); }}
+            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+          >
+            <View style={[styles.navIcon, { backgroundColor: '#e0f2f1' }]}>
+              <Ionicons name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap} size={22} color="#00695c" />
+            </View>
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>Equipment</Text>
+              <Text style={styles.navSub}>{equipmentSubtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+          </Pressable>
 
-      {/* Subscription Section */}
-      <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[styles.sectionCard, { marginBottom: 0 }]}>
-        <Text style={styles.sectionTitle}>Subscription</Text>
-        <View style={styles.subStatusRow}>
-          <View style={[styles.subDot, { backgroundColor: hasActiveSubscription ? Colors.primary : Colors.error }]} />
-          <Text style={styles.subStatusText}>{subscriptionLabel}</Text>
-        </View>
-        {hasActiveSubscription && (
-          <>
-            <Text style={styles.subNote}>
-              {isOnTrial
-                ? 'Free trial — cancel anytime before it ends'
-                : expiryDate
-                  ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
-                  : 'Renews monthly — cancel anytime'}
+          <Pressable
+            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveModal('settings'); }}
+            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+          >
+            <View style={[styles.navIcon, { backgroundColor: C.surfaceTertiary }]}>
+              <Ionicons name="settings-outline" size={22} color={C.textSecondary} />
+            </View>
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>Settings</Text>
+              <Text style={styles.navSub}>Test week · Units · Feedback</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+          </Pressable>
+        </Animated.View>
+
+        {/* Account Section */}
+        <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.accountRow}>
+            <View style={styles.accountIcon}>
+              <Ionicons name="mail-outline" size={18} color={C.primary} />
+            </View>
+            <Text style={styles.accountEmail} numberOfLines={1}>
+              {user?.email ?? 'Not signed in'}
             </Text>
+          </View>
+          <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">
+            <Ionicons name="log-out-outline" size={16} color={C.error} />
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* Subscription Section */}
+        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[styles.sectionCard, { marginBottom: 0 }]}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          {hasActiveSubscription ? (
+            <View style={styles.subActiveCard}>
+              <View style={styles.subActiveInfo}>
+                <Text style={styles.subActivePlan}>Grow Monthly</Text>
+                <Text style={styles.subActiveRenewal}>
+                  {isOnTrial
+                    ? 'Free trial — cancel anytime'
+                    : expiryDate
+                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                      : 'Active — renews monthly'}
+                </Text>
+              </View>
+              <View style={[styles.subActiveBadge, { backgroundColor: C.primaryMuted }]}>
+                <Text style={[styles.subActiveBadgeText, { color: C.primary }]}>
+                  {isOnTrial ? 'Trial' : 'Active'}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => router.push('/subscription')}
+              style={styles.subCtaCard}
+              testID="subscribe-cta"
+            >
+              <View>
+                <Text style={styles.subCtaTitle}>Subscribe to Grow</Text>
+                <Text style={styles.subCtaSub}>£9.99/month · cancel anytime</Text>
+              </View>
+              <Ionicons name="arrow-forward-circle" size={28} color="#fff" />
+            </Pressable>
+          )}
+          {hasActiveSubscription && (
             <Pressable
               onPress={() => {
                 const url = Platform.OS === 'ios'
@@ -313,15 +343,11 @@ export default function ProfileScreen() {
               testID="manage-subscription-btn"
             >
               <Text style={styles.manageSubText}>Manage Subscription</Text>
-              <Ionicons name="open-outline" size={13} color={Colors.primary} />
+              <Ionicons name="open-outline" size={13} color={C.primary} />
             </Pressable>
-          </>
-        )}
-      </Animated.View>
-
+          )}
+        </Animated.View>
       </ScrollView>
-
-      {/* ─── MODALS ──────────────────────────────────────────── */}
 
       {/* Edit Details Modal */}
       <Modal visible={activeModal === 'edit'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
@@ -336,7 +362,7 @@ export default function ProfileScreen() {
               value={editName}
               onChangeText={setEditName}
               placeholder="Your name"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={C.textTertiary}
               returnKeyType="next"
             />
 
@@ -346,7 +372,7 @@ export default function ProfileScreen() {
               value={editWeight}
               onChangeText={setEditWeight}
               placeholder="e.g. 80"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={C.textTertiary}
               keyboardType="decimal-pad"
               returnKeyType="done"
             />
@@ -393,7 +419,7 @@ export default function ProfileScreen() {
                     onPress={() => toggleEditGoal(opt.value)}
                     style={[styles.goalChip, isActive && styles.goalChipActive]}
                   >
-                    <Ionicons name={opt.icon} size={16} color={isActive ? Colors.primary : Colors.textTertiary} />
+                    <Ionicons name={opt.icon} size={16} color={isActive ? C.primary : C.textTertiary} />
                     <Text style={[styles.goalChipText, isActive && styles.goalChipTextActive]}>
                       {opt.label}
                     </Text>
@@ -412,7 +438,7 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Equipment Modal — multi-select */}
+      {/* Equipment Modal */}
       <Modal visible={activeModal === 'equipment'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
@@ -423,7 +449,7 @@ export default function ProfileScreen() {
             </Text>
             {userProfile.experienceLevel === 'beginner' && (
               <View style={styles.upgradeNote}>
-                <Ionicons name="information-circle-outline" size={15} color={Colors.primary} />
+                <Ionicons name="information-circle-outline" size={15} color={C.primary} />
                 <Text style={styles.upgradeNoteText}>
                   Beginner mode: Bodyweight and bands only. Update your experience level in Edit Details to unlock all equipment.
                 </Text>
@@ -432,7 +458,7 @@ export default function ProfileScreen() {
             {editTiers.length > 0 && (
               <View style={styles.effectiveBadge}>
                 <Text style={styles.effectiveBadgeText}>
-                  Best match: <Text style={{ fontFamily: 'Inter_600SemiBold', color: Colors.primary }}>{getEquipmentLabel(getEffectiveTier(editTiers))}</Text>
+                  Best match: <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>{getEquipmentLabel(getEffectiveTier(editTiers))}</Text>
                 </Text>
               </View>
             )}
@@ -449,16 +475,16 @@ export default function ProfileScreen() {
                   <Ionicons
                     name={getEquipmentIcon(tier) as any}
                     size={22}
-                    color={isActive ? Colors.primary : isLocked ? Colors.textTertiary : Colors.textSecondary}
+                    color={isActive ? C.primary : isLocked ? C.textTertiary : C.textSecondary}
                   />
                   <Text style={[styles.equipLabel, isActive && styles.equipLabelActive, isLocked && styles.equipLabelLocked]}>
                     {getEquipmentLabel(tier)}
                   </Text>
                   {isLocked
-                    ? <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
+                    ? <Ionicons name="lock-closed-outline" size={18} color={C.textTertiary} />
                     : (
                       <View style={[styles.equipCheckbox, isActive && styles.equipCheckboxActive]}>
-                        {isActive && <Ionicons name="checkmark" size={13} color={Colors.textInverse} />}
+                        {isActive && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
                       </View>
                     )
                   }
@@ -501,8 +527,34 @@ export default function ProfileScreen() {
 
             <View style={styles.settingDivider} />
 
+            <Text style={styles.settingItemLabel}>Weight Units</Text>
+            <Text style={styles.settingItemSub}>Used throughout the app for weight display</Text>
+            <View style={styles.freqRow}>
+              {(['kg', 'lbs'] as WeightUnit[]).map(unit => (
+                <Pressable
+                  key={unit}
+                  onPress={() => { setWeightUnit(unit); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.freqBtn, weightUnit === unit && styles.freqBtnActive]}
+                >
+                  <Text style={[styles.freqBtnText, weightUnit === unit && styles.freqBtnTextActive]}>
+                    {unit}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.settingDivider} />
+
+            <Pressable onPress={handleSendFeedback} style={styles.feedbackBtn}>
+              <Ionicons name="mail-outline" size={18} color={C.primary} />
+              <Text style={styles.feedbackText}>Send Feedback</Text>
+              <Ionicons name="open-outline" size={14} color={C.textTertiary} style={{ marginLeft: 'auto' }} />
+            </Pressable>
+
+            <View style={styles.settingDivider} />
+
             <Pressable onPress={handleReset} style={styles.resetBtn} testID="reset-progress">
-              <Ionicons name="refresh-outline" size={18} color={Colors.error} />
+              <Ionicons name="refresh-outline" size={18} color={C.error} />
               <Text style={styles.resetText}>Reset All Progress</Text>
             </Pressable>
 
@@ -516,155 +568,147 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flex: 1 },
-  container: { paddingHorizontal: 20 },
-  heroCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: Colors.surface, borderRadius: 18, padding: 18,
-    marginTop: 12, marginBottom: 14,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  avatarWrap: {},
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { fontSize: 24, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  heroInfo: { flex: 1 },
-  heroName: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 6 },
-  heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: Colors.surfaceTertiary, borderRadius: 6 },
-  tagText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  statsRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surface, borderRadius: 16, padding: 18,
-    marginBottom: 16, borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  stat: { flex: 1, alignItems: 'center' },
-  statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  statLbl: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginTop: 2 },
-  statDiv: { width: 1, height: 32, backgroundColor: Colors.border },
-  navGrid: { gap: 10 },
-  navBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  navIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+function makeStyles(C: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    scroll: { flex: 1 },
+    container: { paddingHorizontal: 20 },
+    heroCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      backgroundColor: C.surface, borderRadius: 18, padding: 18,
+      marginTop: 12, marginBottom: 14, borderWidth: 1, borderColor: C.borderLight,
+    },
+    avatarWrap: {},
+    avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+    avatarInitial: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.primary },
+    heroInfo: { flex: 1 },
+    heroName: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6 },
+    heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    tag: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: C.surfaceTertiary, borderRadius: 6 },
+    tagText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    statsRow: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: C.surface, borderRadius: 16, padding: 18,
+      marginBottom: 16, borderWidth: 1, borderColor: C.borderLight,
+    },
+    stat: { flex: 1, alignItems: 'center' },
+    statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
+    statLbl: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, textAlign: 'center' },
+    statDiv: { width: 1, height: 36, backgroundColor: C.border },
+    navGrid: { gap: 8, marginBottom: 16 },
+    navBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      backgroundColor: C.surface, borderRadius: 14, padding: 14,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    navIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    navBtnText: { flex: 1 },
+    navLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    sectionCard: {
+      backgroundColor: C.surface, borderRadius: 16, padding: 18,
+      marginBottom: 14, borderWidth: 1, borderColor: C.borderLight,
+    },
+    sectionTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+    accountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+    accountIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center' },
+    accountEmail: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 },
+    signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+    signOutText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
+    subActiveCard: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: C.primarySurface, borderRadius: 12, padding: 14,
+      borderWidth: 1, borderColor: C.primaryMuted, marginBottom: 12,
+    },
+    subActiveInfo: { flex: 1 },
+    subActivePlan: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    subActiveRenewal: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    subActiveBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+    subActiveBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+    subCtaCard: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: C.primary, borderRadius: 14, padding: 18,
+    },
+    subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+    subCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.8)', marginTop: 3 },
+    manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 12 },
-  sheetScroll: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-  sheetScrollContent: { paddingHorizontal: 24, paddingTop: 12 },
-  sheetHandle: { width: 40, height: 4, backgroundColor: Colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
-  sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 6 },
-  sheetSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 16 },
-  subSectionTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 10, marginTop: 16 },
+    sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 16 },
+    sheetHandle: { width: 36, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+    sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 20 },
+    sheetSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 16, marginTop: -12 },
 
-  inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 4, marginTop: 12 },
-  inputHint: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginBottom: 6 },
-  input: {
-    height: 48, borderRadius: 12, backgroundColor: Colors.surfaceTertiary,
-    paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_500Medium', color: Colors.text,
-    borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  optionGroup: { flexDirection: 'row', gap: 8 },
-  optionChip: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderLight, alignItems: 'center', backgroundColor: Colors.surfaceTertiary },
-  optionChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
-  optionChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  optionChipTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
-  goalGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  goalChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: Colors.borderLight, backgroundColor: Colors.surfaceTertiary },
-  goalChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
-  goalChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  goalChipTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+    inputLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 6, marginTop: 14 },
+    inputHint: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 8, marginTop: -4 },
+    input: {
+      backgroundColor: C.surfaceSecondary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, fontFamily: 'Inter_400Regular', color: C.text,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    optionGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    optionChip: {
+      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    },
+    optionChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    optionChipText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    optionChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    goalGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    goalChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    },
+    goalChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    goalChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    goalChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    saveBtn: { backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+    saveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    cancelBtn: { paddingVertical: 14, alignItems: 'center' },
+    cancelBtnText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
 
-  milestoneCard: { backgroundColor: Colors.primarySurface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.primaryMuted, marginBottom: 4 },
-  milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  milestoneLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, flex: 1 },
-  milestoneTrack: { height: 6, backgroundColor: Colors.primaryMuted, borderRadius: 3, overflow: 'hidden' },
-  milestoneFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
-  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badge: { alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, backgroundColor: '#fef9c3', gap: 2 },
-  badgeLocked: { backgroundColor: Colors.surfaceTertiary },
-  badgeText: { fontSize: 12, fontFamily: 'Inter_700Bold', color: '#92400e' },
-  badgeTextLocked: { color: Colors.textTertiary },
+    upgradeNote: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+      backgroundColor: C.primaryMuted, borderRadius: 8, padding: 10, marginBottom: 12,
+    },
+    upgradeNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    effectiveBadge: { backgroundColor: C.surfaceSecondary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12 },
+    effectiveBadgeText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    equipRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      paddingVertical: 12, paddingHorizontal: 4, borderRadius: 10,
+      borderBottomWidth: 1, borderBottomColor: C.borderLight,
+    },
+    equipRowActive: {},
+    equipRowLocked: { opacity: 0.5 },
+    equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    equipLabelActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    equipLabelLocked: { color: C.textTertiary },
+    equipCheckbox: {
+      width: 22, height: 22, borderRadius: 11,
+      borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center',
+    },
+    equipCheckboxActive: { backgroundColor: C.primary, borderColor: C.primary },
 
-  ormCard: { backgroundColor: Colors.surfaceTertiary, borderRadius: 14, padding: 14, marginBottom: 10 },
-  ormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  ormLift: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
-  ormSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-  ormRight: { alignItems: 'flex-end', gap: 4 },
-  ormBest: { fontSize: 20, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  ormEstLabel: { fontSize: 10, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-  pbBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.primaryMuted, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  pbText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
-  ormHistory: { gap: 5, borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: 8 },
-  ormRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ormWeight: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, flex: 1 },
-  ormReps: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-  ormDiff: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  ormDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-  ormEmpty: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-
-  emptyState: { alignItems: 'center', paddingVertical: 32 },
-  emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginTop: 10 },
-  emptySubText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  histItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  histDot: { width: 8, height: 8, borderRadius: 4 },
-  histContent: { flex: 1 },
-  histTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  histTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text },
-  testBadge: { backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
-  testBadgeText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: '#e65100' },
-  histMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  histDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-  histMeta2: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
-  histWeight: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
-
-  equipRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: 8 },
-  equipRowActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
-  equipRowLocked: { opacity: 0.45 },
-  equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: Colors.text },
-  equipLabelActive: { fontFamily: 'Inter_600SemiBold', color: Colors.primaryDark },
-  equipLabelLocked: { color: Colors.textTertiary },
-  equipCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  equipCheckboxActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
-  upgradeNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.primaryMuted, borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
-  upgradeNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.primaryDark, lineHeight: 17 },
-  effectiveBadge: { backgroundColor: Colors.primaryMuted, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 12, borderWidth: 1, borderColor: Colors.primaryLight },
-  effectiveBadgeText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-
-  settingItemLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 2 },
-  settingItemSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 12 },
-  settingDivider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 16 },
-  freqRow: { flexDirection: 'row', gap: 10 },
-  freqBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.borderLight, alignItems: 'center', backgroundColor: Colors.surfaceTertiary },
-  freqBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
-  freqBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  freqBtnTextActive: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
-  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: Colors.errorLight },
-  resetText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.error },
-
-  saveBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 15, borderRadius: 13, alignItems: 'center', marginTop: 20 },
-  saveBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
-  cancelBtn: { paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-
-  sectionCard: {
-    backgroundColor: Colors.surface, borderRadius: 16, padding: 16,
-    marginTop: 12, borderWidth: 1, borderColor: Colors.borderLight,
-  },
-  sectionTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  accountIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  accountEmail: { flex: 1, fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  signOutText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.error },
-  subStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  subDot: { width: 8, height: 8, borderRadius: 4 },
-  subStatusText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text },
-  subNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 10 },
-  manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6 },
-  manageSubText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
-});
+    settingItemLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
+    settingItemSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 10 },
+    settingDivider: { height: 1, backgroundColor: C.borderLight, marginVertical: 16 },
+    freqRow: { flexDirection: 'row', gap: 10 },
+    freqBtn: {
+      flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    },
+    freqBtnActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    freqBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    freqBtnTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    feedbackBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingVertical: 12,
+    },
+    feedbackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primary },
+    resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+    resetText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
+  });
+}

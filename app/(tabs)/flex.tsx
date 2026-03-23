@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Colors from '@/constants/colors';
-import { PainRegion, useAppStore, PAIN_CATEGORIES } from '@/lib/store';
+import { useColors } from '@/constants/colors';
+import { PainRegion, SessionType, useAppStore, PAIN_CATEGORIES } from '@/lib/store';
+import { daysSince } from '@/lib/utils';
+
+const LOWER_TYPES: SessionType[] = ['squat', 'deadlift'];
+const UPPER_TYPES: SessionType[] = ['bench'];
+
+function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility'): string {
+  const matches = completedSessions.filter(s => s.sessionType === sessionType);
+  if (matches.length === 0) return 'Not tried yet';
+  const days = daysSince(matches[0].date);
+  if (days === 0) return 'Done today';
+  if (days === 1) return 'Last done yesterday';
+  return `Last done ${days} days ago`;
+}
+
+function getSmartCategory(completedSessions: any[]): string | null {
+  const mainLifts = completedSessions.filter(s =>
+    ['squat', 'bench', 'deadlift'].includes(s.sessionType)
+  );
+  if (mainLifts.length === 0) return null;
+  const last = mainLifts[0].sessionType as SessionType;
+  if (LOWER_TYPES.includes(last)) return 'lower';
+  if (UPPER_TYPES.includes(last)) return 'upper';
+  return null;
+}
 
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
-  const { getEffectiveTier } = useAppStore();
+  const C = useColors();
+  const { getEffectiveTier, completedSessions } = useAppStore();
   const equipmentTier = getEffectiveTier();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
+  const smartCategory = useMemo(() => getSmartCategory(completedSessions), [completedSessions]);
   const [selectedRegion, setSelectedRegion] = useState<PainRegion | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(smartCategory);
+
+  const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
+  const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
 
   const hapticTap = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -47,6 +76,8 @@ export default function FlexScreen() {
       },
     });
   };
+
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   return (
     <ScrollView
@@ -78,6 +109,7 @@ export default function FlexScreen() {
           <Text style={styles.cardDesc}>
             A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day.
           </Text>
+          <Text style={styles.recencyText}>{prehabRecency}</Text>
           <Pressable
             style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
             onPress={() => startSession('prehab')}
@@ -103,6 +135,7 @@ export default function FlexScreen() {
           <Text style={styles.cardDesc}>
             Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days.
           </Text>
+          <Text style={styles.recencyText}>{flexRecency}</Text>
           <Pressable
             style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
             onPress={() => startSession('flexibility')}
@@ -128,15 +161,24 @@ export default function FlexScreen() {
           <Text style={styles.cardDesc}>
             Select a region that needs attention. The session focuses on protecting and strengthening that area.
           </Text>
+          {smartCategory && (
+            <View style={styles.suggestionBadge}>
+              <Ionicons name="bulb-outline" size={13} color={C.primary} />
+              <Text style={styles.suggestionText}>
+                Suggested based on your last session
+              </Text>
+            </View>
+          )}
 
           <View style={styles.areaSection}>
             <Text style={styles.areaLabel}>Select area</Text>
             {Object.entries(PAIN_CATEGORIES).map(([catKey, cat]) => {
               const isOpen = expandedCategory === catKey;
+              const isSuggested = catKey === smartCategory;
               return (
                 <View key={catKey}>
                   <Pressable
-                    style={[styles.categoryRow, isOpen && styles.categoryRowOpen]}
+                    style={[styles.categoryRow, isOpen && styles.categoryRowOpen, isSuggested && !isOpen && styles.categoryRowSuggested]}
                     onPress={() => {
                       hapticTap();
                       setExpandedCategory(isOpen ? null : catKey);
@@ -146,10 +188,15 @@ export default function FlexScreen() {
                     <Text style={[styles.categoryText, isOpen && styles.categoryTextOpen]}>
                       {cat.label}
                     </Text>
+                    {isSuggested && !isOpen && (
+                      <View style={styles.suggestPill}>
+                        <Text style={styles.suggestPillText}>Suggested</Text>
+                      </View>
+                    )}
                     <Ionicons
                       name={isOpen ? 'chevron-up' : 'chevron-down'}
                       size={14}
-                      color={isOpen ? Colors.primary : Colors.textSecondary}
+                      color={isOpen ? C.primary : C.textSecondary}
                     />
                   </Pressable>
                   {isOpen && (
@@ -199,142 +246,67 @@ export default function FlexScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingHorizontal: 20 },
+function makeStyles(C: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    content: { paddingHorizontal: 20 },
 
-  title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.text },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
-    marginTop: 2,
-    marginBottom: 24,
-  },
+    title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
+    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 24 },
 
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  cardIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  cardMeta: { flex: 1 },
-  cardTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: Colors.text },
-  cardDuration: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  cardDesc: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
-    lineHeight: 19,
-    marginBottom: 16,
-  },
+    card: {
+      backgroundColor: C.surface, borderRadius: 18, padding: 18,
+      marginBottom: 16, borderWidth: 1, borderColor: C.borderLight,
+    },
+    cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    cardIconWrap: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    cardMeta: { flex: 1 },
+    cardTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
+    cardDuration: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    cardDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 19, marginBottom: 8 },
+    recencyText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 14 },
 
-  startBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 13,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  startBtnOrange: {
-    backgroundColor: '#e65100',
-    shadowColor: '#e65100',
-  },
-  startBtnDisabled: {
-    backgroundColor: Colors.surfaceTertiary,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  startBtnText: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#fff',
-  },
+    startBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: C.primary, borderRadius: 12, paddingVertical: 13,
+      shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+    },
+    startBtnOrange: { backgroundColor: '#e65100', shadowColor: '#e65100' },
+    startBtnDisabled: { backgroundColor: C.surfaceTertiary, shadowOpacity: 0, elevation: 0 },
+    startBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: '#fff' },
 
-  areaSection: { marginBottom: 16 },
-  areaLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
+    suggestionBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primaryMuted, borderRadius: 8,
+      paddingHorizontal: 10, paddingVertical: 6, marginBottom: 14,
+    },
+    suggestionText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary },
 
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: Colors.surfaceSecondary,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  categoryRowOpen: {
-    backgroundColor: Colors.primaryMuted,
-    borderColor: Colors.primary,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.text,
-  },
-  categoryTextOpen: { color: Colors.primary, fontFamily: 'Inter_600SemiBold' },
+    areaSection: { marginBottom: 16 },
+    areaLabel: {
+      fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textSecondary,
+      textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8,
+    },
 
-  regionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap' as const,
-    gap: 6,
-    paddingHorizontal: 4,
-    paddingBottom: 8,
-    paddingTop: 4,
-  },
-  regionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: Colors.surfaceTertiary,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  regionChipSelected: {
-    backgroundColor: Colors.primaryMuted,
-    borderColor: Colors.primary,
-  },
-  regionText: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
-  },
-  regionTextSelected: { color: Colors.primary, fontFamily: 'Inter_600SemiBold' },
-});
+    categoryRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
+      backgroundColor: C.surfaceSecondary, marginBottom: 4, borderWidth: 1, borderColor: C.borderLight,
+    },
+    categoryRowOpen: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    categoryRowSuggested: { borderColor: C.primary },
+    categoryText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 },
+    categoryTextOpen: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    suggestPill: { backgroundColor: C.primaryMuted, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, marginRight: 6 },
+    suggestPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.primary },
+
+    regionGrid: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 6, paddingHorizontal: 4, paddingBottom: 8, paddingTop: 4 },
+    regionChip: {
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+      backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.border,
+    },
+    regionChipSelected: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    regionText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    regionTextSelected: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+  });
+}

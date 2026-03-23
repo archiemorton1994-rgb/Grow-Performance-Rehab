@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Text,
   View,
@@ -14,12 +14,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Colors from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function OtpAuthScreen() {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { requestCode, verifyCode } = useAuth();
   const webTop = Platform.OS === 'web' ? 67 : 0;
@@ -89,7 +91,7 @@ export default function OtpAuthScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
+      style={{ flex: 1, backgroundColor: C.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -119,7 +121,7 @@ export default function OtpAuthScreen() {
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={C.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -136,7 +138,7 @@ export default function OtpAuthScreen() {
               testID="otp-send"
             >
               {loading
-                ? <ActivityIndicator color={Colors.textInverse} />
+                ? <ActivityIndicator color={C.textInverse} />
                 : <Text style={styles.ctaText}>Send code</Text>
               }
             </Pressable>
@@ -144,7 +146,7 @@ export default function OtpAuthScreen() {
         ) : (
           <>
             <Pressable onPress={() => { setStep('email'); setCode(''); }} style={styles.backRow}>
-              <Ionicons name="chevron-back" size={18} color={Colors.primary} />
+              <Ionicons name="chevron-back" size={18} color={C.primary} />
               <Text style={styles.backText}>Change email</Text>
             </Pressable>
 
@@ -168,7 +170,7 @@ export default function OtpAuthScreen() {
               value={code}
               onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
               placeholder="000000"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={C.textTertiary}
               keyboardType="number-pad"
               returnKeyType="done"
               onSubmitEditing={handleVerifyCode}
@@ -183,7 +185,7 @@ export default function OtpAuthScreen() {
               testID="otp-verify"
             >
               {loading
-                ? <ActivityIndicator color={Colors.textInverse} />
+                ? <ActivityIndicator color={C.textInverse} />
                 : <Text style={styles.ctaText}>Continue</Text>
               }
             </Pressable>
@@ -201,7 +203,7 @@ export default function OtpAuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
   inner: { paddingHorizontal: 24 },
 
   logoImage: {
@@ -209,39 +211,39 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
 
-  heading: { fontSize: 28, fontFamily: 'Inter_700Bold', color: Colors.text, marginBottom: 4 },
-  sub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, marginBottom: 32, lineHeight: 22 },
-  emailHighlight: { fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  heading: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
+  sub: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 32, lineHeight: 22 },
+  emailHighlight: { fontFamily: 'Inter_600SemiBold', color: C.text },
 
-  label: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.text, marginBottom: 6, marginTop: 4 },
+  label: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 6, marginTop: 4 },
 
   input: {
-    height: 52, borderRadius: 14, backgroundColor: Colors.surface,
-    paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular', color: Colors.text,
-    borderWidth: 1.5, borderColor: Colors.borderLight,
+    height: 52, borderRadius: 14, backgroundColor: C.surface,
+    paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular', color: C.text,
+    borderWidth: 1.5, borderColor: C.borderLight,
   },
 
   codeInput: {
-    height: 64, borderRadius: 14, backgroundColor: Colors.surface,
-    paddingHorizontal: 20, fontSize: 32, fontFamily: 'Inter_700Bold', color: Colors.text,
-    borderWidth: 1.5, borderColor: Colors.borderLight,
+    height: 64, borderRadius: 14, backgroundColor: C.surface,
+    paddingHorizontal: 20, fontSize: 32, fontFamily: 'Inter_700Bold', color: C.text,
+    borderWidth: 1.5, borderColor: C.borderLight,
     letterSpacing: 12,
     textAlign: 'center',
   },
 
   cta: {
-    height: 54, borderRadius: 16, backgroundColor: Colors.primary,
+    height: 54, borderRadius: 16, backgroundColor: C.primary,
     alignItems: 'center', justifyContent: 'center', marginTop: 20,
   },
   ctaDisabled: { opacity: 0.45 },
-  ctaText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: Colors.textInverse },
+  ctaText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
   backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 2 },
-  backText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.primary },
+  backText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primary },
 
   resendRow: { marginTop: 20, alignItems: 'center' },
-  resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
-  resendLink: { color: Colors.primary, fontFamily: 'Inter_600SemiBold' },
+  resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+  resendLink: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
 
   devBanner: {
     backgroundColor: '#fef3c7',
@@ -267,4 +269,4 @@ const styles = StyleSheet.create({
     color: '#92400e',
     letterSpacing: 8,
   },
-});
+}); }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BackHandler,
   Image,
@@ -26,7 +26,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Colors from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import {
   EquipmentTier,
   ExperienceLevel,
@@ -121,6 +121,8 @@ function equipmentLabel(tiers: EquipmentTier[]): string {
 }
 
 export default function OnboardingScreen() {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
@@ -320,12 +322,12 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <View style={[styles.root, { backgroundColor: Colors.background }]} {...panResponder.panHandlers}>
+      <View style={[styles.root, { backgroundColor: C.background }]} {...panResponder.panHandlers}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: topPad + 10, paddingHorizontal: 20 }]}>
           {showBack ? (
             <Pressable onPress={handleBack} style={styles.backBtn} testID="onboarding-back">
-              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+              <Ionicons name="chevron-back" size={24} color={C.text} />
             </Pressable>
           ) : (
             <View style={styles.backPlaceholder} />
@@ -367,7 +369,7 @@ export default function OnboardingScreen() {
               <View style={styles.welcomePillRow}>
                 {['Personalised loads', 'Pain adaptive', 'Tracks progress'].map(p => (
                   <View key={p} style={styles.welcomePill}>
-                    <Ionicons name="checkmark" size={11} color={Colors.primary} />
+                    <Ionicons name="checkmark" size={11} color={C.primary} />
                     <Text style={styles.welcomePillText}>{p}</Text>
                   </View>
                 ))}
@@ -379,7 +381,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="person-circle-outline" size={56} color={Colors.primary} />
+                <Ionicons name="person-circle-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>What should we call you?</Text>
               <Text style={styles.hint}>Personalises your experience</Text>
@@ -390,7 +392,7 @@ export default function OnboardingScreen() {
                   value={name}
                   onChangeText={setName}
                   placeholder="Your name"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={C.textTertiary}
                   returnKeyType="next"
                   onSubmitEditing={handleNext}
                   autoCapitalize="words"
@@ -405,7 +407,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="stats-chart-outline" size={56} color={Colors.primary} />
+                <Ionicons name="stats-chart-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your biological sex</Text>
               <Text style={styles.hint}>Helps us calibrate your lifting loads</Text>
@@ -424,7 +426,7 @@ export default function OnboardingScreen() {
                       testID={`sex-${opt.value}`}
                     >
                       <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <Ionicons name={opt.icon} size={22} color={selected ? Colors.textInverse : Colors.primary} />
+                        <Ionicons name={opt.icon} size={22} color={selected ? C.textInverse : C.primary} />
                       </View>
                       <Text style={[styles.optionLabel, { flex: 1 }, selected && styles.optionLabelSelected]}>
                         {opt.label}
@@ -443,7 +445,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="barbell-outline" size={56} color={Colors.primary} />
+                <Ionicons name="barbell-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>How long have you been training?</Text>
               <Text style={styles.hint}>Sets the right starting weights</Text>
@@ -462,7 +464,7 @@ export default function OnboardingScreen() {
                       testID={`experience-${opt.value}`}
                     >
                       <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <Ionicons name={opt.icon} size={22} color={selected ? Colors.textInverse : Colors.primary} />
+                        <Ionicons name={opt.icon} size={22} color={selected ? C.textInverse : C.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
@@ -486,7 +488,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="scale-outline" size={56} color={Colors.primary} />
+                <Ionicons name="scale-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
               <Text style={styles.hint}>Used to personalise your lifting loads</Text>
@@ -497,7 +499,7 @@ export default function OnboardingScreen() {
                   value={bodyweight}
                   onChangeText={setBodyweight}
                   placeholder="75"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={C.textTertiary}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
                   onSubmitEditing={handleNext}
@@ -513,7 +515,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="flag-outline" size={56} color={Colors.primary} />
+                <Ionicons name="flag-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>What are you training for?</Text>
               <Text style={styles.hint}>Select all that apply</Text>
@@ -530,7 +532,7 @@ export default function OnboardingScreen() {
                       <Ionicons
                         name={opt.icon}
                         size={16}
-                        color={selected ? Colors.primary : Colors.textSecondary}
+                        color={selected ? C.primary : C.textSecondary}
                       />
                       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                         {opt.label}
@@ -550,7 +552,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <Ionicons name="fitness-outline" size={56} color={Colors.primary} />
+                <Ionicons name="fitness-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>What do you have access to?</Text>
               <Text style={styles.hint}>Select everything available to you</Text>
@@ -572,7 +574,7 @@ export default function OnboardingScreen() {
                         <Ionicons
                           name={opt.icon}
                           size={22}
-                          color={selected ? Colors.textInverse : Colors.primary}
+                          color={selected ? C.textInverse : C.primary}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -588,7 +590,7 @@ export default function OnboardingScreen() {
                         styles.checkBox,
                         selected && styles.checkBoxSelected,
                       ]}>
-                        {selected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+                        {selected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
                       </View>
                     </Pressable>
                   );
@@ -606,7 +608,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <Ionicons name="podium-outline" size={56} color={Colors.primary} />
+                <Ionicons name="podium-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
               <Text style={styles.hint}>Optional — used to set starting weights precisely</Text>
@@ -640,7 +642,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
-                <Ionicons name="checkmark-circle" size={96} color={Colors.primary} />
+                <Ionicons name="checkmark-circle" size={96} color={C.primary} />
               </Animated.View>
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
                 Profile Built!
@@ -674,7 +676,7 @@ export default function OnboardingScreen() {
                   testID="profile-built-cta"
                 >
                   <Text style={styles.continueBtnText}>Continue to create your account</Text>
-                  <Ionicons name="arrow-forward" size={20} color={Colors.textInverse} />
+                  <Ionicons name="arrow-forward" size={20} color={C.textInverse} />
                 </Pressable>
               </Animated.View>
             </View>
@@ -701,7 +703,7 @@ export default function OnboardingScreen() {
               <Ionicons
                 name={currentIndex === 0 ? 'chevron-forward' : 'arrow-forward'}
                 size={20}
-                color={canGo ? Colors.textInverse : Colors.textTertiary}
+                color={canGo ? C.textInverse : C.textTertiary}
               />
             </Pressable>
           </View>
@@ -719,10 +721,12 @@ function LiftInput({
   onChangeText: (v: string) => void;
   testID?: string;
 }) {
+  const C = useColors();
+  const liftStyles = useMemo(() => makeLiftStyles(C), [C]);
   return (
     <View style={liftStyles.row}>
       <View style={liftStyles.iconWrap}>
-        <Ionicons name="barbell-outline" size={20} color={Colors.primary} />
+        <Ionicons name="barbell-outline" size={20} color={C.primary} />
       </View>
       <Text style={liftStyles.label}>{label}</Text>
       <View style={liftStyles.inputSide}>
@@ -732,7 +736,7 @@ function LiftInput({
           onChangeText={onChangeText}
           keyboardType="decimal-pad"
           placeholder="—"
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={C.textTertiary}
           selectTextOnFocus
           testID={testID}
         />
@@ -743,16 +747,18 @@ function LiftInput({
 }
 
 function CelebSummaryPill({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const C = useColors();
+  const celebStyles = useMemo(() => makeCelebStyles(C), [C]);
   if (!label) return null;
   return (
     <View style={celebStyles.pill}>
-      <Ionicons name={icon} size={14} color={Colors.primary} />
+      <Ionicons name={icon} size={14} color={C.primary} />
       <Text style={celebStyles.pillText}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
   root: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -764,23 +770,23 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: C.borderLight,
   },
   backPlaceholder: { width: 38 },
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.surfaceTertiary,
+    backgroundColor: C.surfaceTertiary,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: C.primary,
     borderRadius: 2,
   },
   screen: { flexShrink: 0 },
@@ -799,7 +805,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -807,7 +813,7 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 26,
     fontFamily: 'Inter_700Bold',
-    color: Colors.text,
+    color: C.text,
     textAlign: 'center',
     lineHeight: 34,
     marginBottom: 8,
@@ -815,7 +821,7 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
     marginBottom: 28,
   },
@@ -823,81 +829,81 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: C.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderWidth: 1.5,
-    borderColor: Colors.borderLight,
+    borderColor: C.borderLight,
     gap: 12,
   },
   optionCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primarySurface,
+    borderColor: C.primary,
+    backgroundColor: C.primarySurface,
   },
   optionCardPressed: { opacity: 0.88 },
   optionIcon: {
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  optionIconSelected: { backgroundColor: Colors.primary },
+  optionIconSelected: { backgroundColor: C.primary },
   optionLabel: {
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
+    color: C.text,
   },
-  optionLabelSelected: { color: Colors.primaryDark },
+  optionLabelSelected: { color: C.primaryDark },
   optionDesc: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
     marginTop: 1,
   },
-  optionDescSelected: { color: Colors.primary },
+  optionDescSelected: { color: C.primary },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: { borderColor: Colors.primary },
+  radioSelected: { borderColor: C.primary },
   radioDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.primary,
+    backgroundColor: C.primary,
   },
   checkBox: {
     width: 22,
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkBoxSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
   inputWrap: { width: '100%' },
   textInput: {
     height: 54,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: C.border,
     borderRadius: 14,
     paddingHorizontal: 18,
     fontSize: 18,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
-    backgroundColor: Colors.surface,
+    color: C.text,
+    backgroundColor: C.surface,
     width: '100%',
   },
   numericInputWrap: {
@@ -910,7 +916,7 @@ const styles = StyleSheet.create({
   unitLabel: {
     fontSize: 18,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
   },
   chipGrid: {
     flexDirection: 'row',
@@ -927,25 +933,25 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 50,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: C.border,
+    backgroundColor: C.surface,
   },
   chipSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: C.primary,
+    backgroundColor: C.primaryMuted,
   },
   chipText: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
   },
-  chipTextSelected: { color: Colors.primaryDark },
+  chipTextSelected: { color: C.primaryDark },
   liftRows: { width: '100%', marginTop: 4 },
   skipLink: { marginTop: 16, alignSelf: 'center', padding: 8 },
   skipText: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
     textDecorationLine: 'underline',
   },
   footer: { paddingTop: 12 },
@@ -953,32 +959,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: C.primary,
     borderRadius: 16,
     height: 54,
     gap: 8,
   },
-  continueBtnDisabled: { backgroundColor: Colors.surfaceTertiary },
+  continueBtnDisabled: { backgroundColor: C.surfaceTertiary },
   continueBtnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   continueBtnText: {
     fontSize: 17,
     fontFamily: 'Inter_700Bold',
-    color: Colors.textInverse,
+    color: C.textInverse,
   },
-  continueBtnTextDisabled: { color: Colors.textTertiary },
+  continueBtnTextDisabled: { color: C.textTertiary },
   celebContent: { justifyContent: 'center', paddingTop: 0 },
   celebIconWrap: { marginBottom: 20 },
   celebTitle: {
     fontSize: 34,
     fontFamily: 'Inter_700Bold',
-    color: Colors.text,
+    color: C.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   celebName: {
     fontSize: 18,
     fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -997,7 +1003,7 @@ const styles = StyleSheet.create({
   welcomeTagline: {
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
-    color: Colors.textSecondary,
+    color: C.textSecondary,
     letterSpacing: 1.2,
     marginTop: 4,
     marginBottom: 24,
@@ -1005,14 +1011,14 @@ const styles = StyleSheet.create({
   welcomeDivider: {
     width: 40,
     height: 3,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     borderRadius: 2,
     marginBottom: 24,
   },
   welcomeSubtitle: {
     fontSize: 17,
     fontFamily: 'Inter_500Medium',
-    color: Colors.text,
+    color: C.text,
     textAlign: 'center',
     lineHeight: 26,
     marginBottom: 28,
@@ -1027,7 +1033,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 50,
@@ -1035,24 +1041,24 @@ const styles = StyleSheet.create({
   welcomePillText: {
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.primaryDark,
+    color: C.primaryDark,
   },
-});
+}); }
 
-const liftStyles = StyleSheet.create({
+function makeLiftStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: C.borderLight,
     gap: 12,
   },
   iconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1060,7 +1066,7 @@ const liftStyles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
+    color: C.text,
   },
   inputSide: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   input: {
@@ -1068,23 +1074,23 @@ const liftStyles = StyleSheet.create({
     height: 40,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+    borderColor: C.border,
+    backgroundColor: C.surface,
     textAlign: 'center',
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.text,
+    color: C.text,
     paddingHorizontal: 8,
   },
-  unit: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 22 },
-});
+  unit: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary, width: 22 },
+}); }
 
-const celebStyles = StyleSheet.create({
+function makeCelebStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: C.primaryMuted,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 50,
@@ -1092,6 +1098,6 @@ const celebStyles = StyleSheet.create({
   pillText: {
     fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
-    color: Colors.primaryDark,
+    color: C.primaryDark,
   },
-});
+}); }

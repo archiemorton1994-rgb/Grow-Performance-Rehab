@@ -16,8 +16,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import Colors from '@/constants/colors';
+import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
+import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, useAppStore } from '@/lib/store';
 import {
   Exercise,
@@ -75,6 +75,62 @@ function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   return /\bmin\b/.test(repsStr) || /\d+s\b/.test(repsStr);
 }
 
+const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
+  main: 120, neuro: 60, accessory: 60, mechanical: 45, prehab: 30,
+};
+
+function RestTimer({ category }: { category: Exercise['category'] }) {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const duration = REST_TIMER_DURATIONS[category] ?? 0;
+  const [secondsLeft, setSecondsLeft] = useState(duration);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isDone, setIsDone] = useState(false);
+
+  useEffect(() => {
+    if (!duration || !isRunning) return;
+    if (secondsLeft <= 0) {
+      setIsRunning(false);
+      setIsDone(true);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return;
+    }
+    const timerId = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearInterval(timerId);
+  }, [duration, isRunning, secondsLeft]);
+
+  if (!duration) return null;
+
+  const reset = () => { setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+
+  if (isDone) {
+    return (
+      <Pressable onPress={reset} style={styles.restTimerDone}>
+        <Ionicons name="checkmark-circle" size={14} color={C.primary} />
+        <Text style={styles.restTimerDoneText}>Rest done — tap to reset</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={() => setIsRunning((r) => !r)}
+      style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive]}
+    >
+      <Ionicons
+        name={isRunning ? 'pause-circle-outline' : 'timer-outline'}
+        size={14}
+        color={isRunning ? C.warning : C.textTertiary}
+      />
+      <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
+        {isRunning ? `Resting — ${mm}:${ss}` : `Start ${mm}:${ss} rest timer`}
+      </Text>
+    </Pressable>
+  );
+}
+
 function SetRow({
   setNum,
   data,
@@ -84,6 +140,7 @@ function SetRow({
   isTimeExercise,
   disabled,
   previousBest,
+  previousWeight,
 }: {
   setNum: number;
   data: SetLog;
@@ -93,28 +150,38 @@ function SetRow({
   isTimeExercise?: boolean;
   disabled?: boolean;
   previousBest?: number;
+  previousWeight?: number;
 }) {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [weightText, setWeightText] = useState(() =>
     data.weight > 0 ? String(data.weight) : ''
   );
 
+  const flashBg = useSharedValue(0);
+  const flashStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.13)']),
+    borderRadius: 6,
+  }));
+
   const handleWeightChange = (t: string) => {
-    setWeightText(t); // update local display only; parent updated on blur
+    setWeightText(t);
   };
 
   const handleWeightBlur = () => {
     const w = parseFloat(weightText) || 0;
     setWeightText(w > 0 ? String(w) : '');
-    onChange({ ...data, weight: w }); // flush to parent only on blur
+    onChange({ ...data, weight: w });
   };
 
   const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
+  const placeholder = previousWeight && previousWeight > 0 ? String(previousWeight) : '0';
 
   return (
-    <View>
+    <Animated.View style={flashStyle}>
       {weightGuide && (
         <View style={styles.weightGuideRow}>
-          <Ionicons name="information-circle-outline" size={12} color={Colors.primary} />
+          <Ionicons name="information-circle-outline" size={12} color={C.primary} />
           <Text style={styles.weightGuideText}>{weightGuide}</Text>
         </View>
       )}
@@ -125,8 +192,8 @@ function SetRow({
             <View style={styles.inputGroup}>
               <TextInput
                 style={[styles.setInput, disabled && styles.setInputDisabled]}
-                placeholder="0"
-                placeholderTextColor={Colors.textTertiary}
+                placeholder={placeholder}
+                placeholderTextColor={C.textTertiary}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
                 value={weightText}
@@ -142,7 +209,7 @@ function SetRow({
             <TextInput
               style={[styles.setInput, disabled && styles.setInputDisabled]}
               placeholder="0"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={C.textTertiary}
               keyboardType="number-pad"
               returnKeyType="done"
               value={data.reps > 0 ? String(data.reps) : ''}
@@ -159,15 +226,25 @@ function SetRow({
         <Pressable
           onPress={() => {
             if (disabled) return;
-            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            // Flush any in-progress decimal weight before toggling
+            const completing = !data.completed;
+            if (Platform.OS !== 'web') {
+              if (completing) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } else {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+            }
+            if (completing) {
+              flashBg.value = 1;
+              flashBg.value = withTiming(0, { duration: 700 });
+            }
             const w = parseFloat(weightText) || data.weight;
-            onChange({ ...data, weight: w, completed: !data.completed });
+            onChange({ ...data, weight: w, completed: completing });
           }}
           style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
           testID={`set-${setNum}-check`}
         >
-          {data.completed && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+          {data.completed && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
         </Pressable>
       </View>
       {isNewRecord && (
@@ -176,7 +253,7 @@ function SetRow({
           <Text style={styles.newRecordText}>New Record!</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -194,6 +271,7 @@ function ExerciseCard({
   sessionType,
   onCardLayout,
   previousBest,
+  previousSessionWeight,
   feedbackMultiplier,
 }: {
   exercise: Exercise;
@@ -207,8 +285,11 @@ function ExerciseCard({
   sessionType: SessionType;
   onCardLayout?: (y: number) => void;
   previousBest?: number;
+  previousSessionWeight?: number;
   feedbackMultiplier?: number;
 }) {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
   const weightGuides = getWeightGuide(exercise.category, exercise.sets);
@@ -234,14 +315,14 @@ function ExerciseCard({
     prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Warm-Up' },
     mechanical: { bg: '#e0f2f1', text: '#00695c', label: 'Activation' },
     neuro:      { bg: '#f3e5f5', text: '#7b1fa2', label: 'Power Primer' },
-    main:       { bg: Colors.primaryMuted, text: Colors.primaryDark, label: 'KPI Lift' },
-    accessory:  { bg: Colors.surfaceTertiary, text: Colors.textSecondary, label: 'Pump' },
+    main:       { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
+    accessory:  { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Pump' },
     prehab:     { bg: '#fff3e0', text: '#e65100', label: 'Prehab' },
     finisher:   { bg: '#fce8e6', text: '#c62828', label: 'Finisher' },
     cooldown:   { bg: '#e8f5e9', text: '#2e7d32', label: 'Cool Down' },
   };
 
-  const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
+  const cat = categoryColors[exercise.category] ?? categoryC.accessory;
   const showDumbbellNote = isDumbbellSession &&
     (exercise.name.toLowerCase().includes('dumbbell') || exercise.name.toLowerCase().includes(' db ') || exercise.name.startsWith('DB ')) &&
     exercise.suggestedLoad.includes('kg');
@@ -269,7 +350,7 @@ function ExerciseCard({
         {isFuture && (
           <View style={styles.lockedHeader}>
             <View style={styles.lockIconWrap}>
-              <Ionicons name="lock-closed" size={14} color={Colors.textTertiary} />
+              <Ionicons name="lock-closed" size={14} color={C.textTertiary} />
             </View>
             <View style={styles.lockedInfo}>
               <Text style={styles.lockedName} numberOfLines={1}>{exercise.name}</Text>
@@ -287,7 +368,7 @@ function ExerciseCard({
         {isPast && (
           <View style={styles.pastHeader}>
             <View style={styles.checkCircleDone}>
-              <Ionicons name="checkmark" size={14} color={Colors.textInverse} />
+              <Ionicons name="checkmark" size={14} color={C.textInverse} />
             </View>
             <View style={styles.lockedInfo}>
               <Text style={styles.pastName} numberOfLines={1}>{exercise.name}</Text>
@@ -307,7 +388,7 @@ function ExerciseCard({
           <Animated.View style={scaleStyle}>
             <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
               <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
-                {allDone && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+                {allDone && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
               </View>
               <View style={styles.exerciseInfo}>
                 <View style={styles.exerciseNameRow}>
@@ -315,15 +396,15 @@ function ExerciseCard({
                     {exercise.name}
                   </Text>
                   {exercise.badge && (
-                    <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: Colors.badgeComfort } : { backgroundColor: Colors.badgeVolume }]}>
-                      <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: Colors.badgeComfortText } : { color: Colors.badgeVolumeText }]}>
+                    <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: C.badgeComfort } : { backgroundColor: C.badgeVolume }]}>
+                      <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: C.badgeComfortText } : { color: C.badgeVolumeText }]}>
                         {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
                       </Text>
                     </View>
                   )}
                   {feedbackMultiplier !== undefined && Math.abs(feedbackMultiplier - 1.0) > 0.001 && (
-                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? Colors.primaryMuted : '#fff3e0' }]}>
-                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? Colors.primaryDark : '#e65100' }]}>
+                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? C.primaryMuted : '#fff3e0' }]}>
+                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? C.primaryDark : '#e65100' }]}>
                         {feedbackMultiplier > 1.0 ? '↑ adjusted' : '↓ adjusted'}
                       </Text>
                     </View>
@@ -340,7 +421,7 @@ function ExerciseCard({
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
               </View>
-              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} style={styles.chevron} />
+              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.textTertiary} style={styles.chevron} />
             </Pressable>
 
             <View style={styles.actionRow}>
@@ -350,7 +431,7 @@ function ExerciseCard({
               </Pressable>
               {exercise.hasSwap && !setData.swapped && (
                 <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
-                  <Ionicons name="swap-horizontal-outline" size={15} color={Colors.textSecondary} />
+                  <Ionicons name="swap-horizontal-outline" size={15} color={C.textSecondary} />
                   <Text style={styles.actionBtnText}>Swap exercise</Text>
                 </Pressable>
               )}
@@ -365,14 +446,15 @@ function ExerciseCard({
             {expanded && (
               <View style={styles.setsContainer}>
                 <View style={styles.cueContainer}>
-                  <Ionicons name="bulb-outline" size={14} color={Colors.primary} />
+                  <Ionicons name="bulb-outline" size={14} color={C.primary} />
                   <Text style={styles.cueText}>{exercise.cue}</Text>
                 </View>
 
                 <View style={styles.restContainer}>
-                  <Ionicons name="timer-outline" size={12} color={Colors.textTertiary} />
+                  <Ionicons name="timer-outline" size={12} color={C.textTertiary} />
                   <Text style={styles.restText}>{restPeriod}</Text>
                 </View>
+                <RestTimer category={exercise.category} />
 
                 <View style={styles.setHeaderRow}>
                   <Text style={styles.setHeaderItem}>Set</Text>
@@ -395,6 +477,7 @@ function ExerciseCard({
                     isBandExercise={isBandExercise}
                     isTimeExercise={isTimeExercise}
                     previousBest={previousBest}
+                    previousWeight={previousSessionWeight}
                   />
                 ))}
               </View>
@@ -435,6 +518,8 @@ export default function SessionScreen() {
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
@@ -464,6 +549,22 @@ export default function SessionScreen() {
     return lookup;
   }, [completedSessions]);
 
+  // Per-exercise average weight from the most recent session — used as kg placeholder pre-fill
+  const previousSessionWeights = useMemo<Record<string, number>>(() => {
+    const lookup: Record<string, number> = {};
+    // completedSessions is newest-first
+    for (const session of completedSessions) {
+      for (const exLog of session.exerciseLogs) {
+        if (lookup[exLog.exerciseId] !== undefined) continue;
+        const completedSets = exLog.sets.filter((s) => s.completed && s.weight > 0);
+        if (completedSets.length === 0) continue;
+        const avg = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
+        lookup[exLog.exerciseId] = Math.round(avg * 10) / 10;
+      }
+    }
+    return lookup;
+  }, [completedSessions]);
+
   const exercises = useMemo(() => {
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier);
@@ -485,6 +586,16 @@ export default function SessionScreen() {
   const [isMilestone, setIsMilestone] = useState(false);
   const [milestoneCount, setMilestoneCount] = useState(0);
   const [streakMilestone, setStreakMilestone] = useState(0);
+  const [testWeekOrmData, setTestWeekOrmData] = useState<{ prev: number | null; next: number } | null>(null);
+
+  // Elapsed session timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useEffect(() => {
+    const timerId = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timerId);
+  }, []);
+  const elapsedMM = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+  const elapsedSS = String(elapsedSeconds % 60).padStart(2, '0');
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -569,7 +680,7 @@ export default function SessionScreen() {
   if (exerciseData.length === 0) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + webTopInset, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontFamily: 'Inter_500Medium', color: Colors.textSecondary }}>Loading session...</Text>
+        <Text style={{ fontFamily: 'Inter_500Medium', color: C.textSecondary }}>Loading session...</Text>
       </View>
     );
   }
@@ -589,6 +700,8 @@ export default function SessionScreen() {
         const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0);
         if (amrapSet) {
           const estimatedMax = Math.round(amrapSet.weight * (1 + amrapSet.reps / 30));
+          const prevOrm = getBestORM(sessionType);
+          setTestWeekOrmData({ prev: prevOrm?.weight ?? null, next: estimatedMax });
           addOneRepMax({
             lift: sessionType,
             weight: estimatedMax,
@@ -695,7 +808,7 @@ export default function SessionScreen() {
     >
       <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
         <Pressable onPress={handleExit} style={styles.closeButton} testID="session-exit">
-          <Ionicons name="close" size={24} color={Colors.text} />
+          <Ionicons name="close" size={24} color={C.text} />
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
@@ -705,7 +818,10 @@ export default function SessionScreen() {
             {isTestWeek ? `${getSessionLabel(sessionType)} — AMRAP @ 90%` : getSessionSubtitle(sessionType)}
           </Text>
         </View>
-        <View style={{ width: 40 }} />
+        <View style={styles.elapsedTimer}>
+          <Ionicons name="time-outline" size={12} color={C.textTertiary} />
+          <Text style={styles.elapsedTimerText}>{elapsedMM}:{elapsedSS}</Text>
+        </View>
       </Animated.View>
 
       <View style={styles.progressBar}>
@@ -724,17 +840,17 @@ export default function SessionScreen() {
             </View>
           )}
           {hasAches && painRegion && (
-            <View style={[styles.adaptTag, { backgroundColor: Colors.badgeComfort }]}>
-              <Ionicons name="medical-outline" size={12} color={Colors.badgeComfortText} />
-              <Text style={[styles.adaptTagText, { color: Colors.badgeComfortText }]}>
+            <View style={[styles.adaptTag, { backgroundColor: C.badgeComfort }]}>
+              <Ionicons name="medical-outline" size={12} color={C.badgeComfortText} />
+              <Text style={[styles.adaptTagText, { color: C.badgeComfortText }]}>
                 {getPainRegionLabel(painRegion)}
               </Text>
             </View>
           )}
           {energy !== 'normal' && !isTestWeek && (
-            <View style={[styles.adaptTag, { backgroundColor: Colors.badgeVolume }]}>
-              <Ionicons name="flash-outline" size={12} color={Colors.badgeVolumeText} />
-              <Text style={[styles.adaptTagText, { color: Colors.badgeVolumeText }]}>
+            <View style={[styles.adaptTag, { backgroundColor: C.badgeVolume }]}>
+              <Ionicons name="flash-outline" size={12} color={C.badgeVolumeText} />
+              <Text style={[styles.adaptTagText, { color: C.badgeVolumeText }]}>
                 {energy === 'low' ? 'Reduced volume' : 'Extra volume'}
               </Text>
             </View>
@@ -774,6 +890,7 @@ export default function SessionScreen() {
               sessionType={sessionType}
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
               previousBest={previousBest[exercise.id]}
+              previousSessionWeight={previousSessionWeights[exercise.id]}
               feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
             />
           );
@@ -791,7 +908,7 @@ export default function SessionScreen() {
           ]}
           testID="complete-session"
         >
-          <Ionicons name="checkmark-circle" size={22} color={allDone ? Colors.textInverse : Colors.textTertiary} />
+          <Ionicons name="checkmark-circle" size={22} color={allDone ? C.textInverse : C.textTertiary} />
           <Text style={[styles.completeText, !allDone && styles.completeTextDisabled]}>
             {isTestWeek ? 'Save Strength Results' : 'Complete Session'}
           </Text>
@@ -813,7 +930,7 @@ export default function SessionScreen() {
                   <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
                 </View>
                 <View style={styles.swapArrow}>
-                  <Ionicons name="arrow-down" size={18} color={Colors.textTertiary} />
+                  <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
                 </View>
                 <View style={styles.swapTo}>
                   <Text style={styles.swapToLabel}>With</Text>
@@ -887,9 +1004,36 @@ export default function SessionScreen() {
                     <Text style={styles.streakBadgeText}>{streakMilestone}-day streak!</Text>
                   </View>
                 )}
+                {isTestWeek && testWeekOrmData && (
+                  <View style={styles.ormCompareCard}>
+                    <Text style={styles.ormCompareTitle}>
+                      {getSessionLabel(sessionType)} Strength Test
+                    </Text>
+                    <View style={styles.ormCompareRow}>
+                      <View style={styles.ormCompareItem}>
+                        <Text style={styles.ormCompareLabel}>Previous</Text>
+                        <Text style={styles.ormCompareValue}>
+                          {testWeekOrmData.prev ? `${testWeekOrmData.prev} kg` : '—'}
+                        </Text>
+                      </View>
+                      <Ionicons name="arrow-forward" size={18} color={C.textTertiary} />
+                      <View style={styles.ormCompareItem}>
+                        <Text style={styles.ormCompareLabel}>New 1RM</Text>
+                        <Text style={[styles.ormCompareValue, styles.ormCompareNew]}>
+                          {testWeekOrmData.next} kg
+                        </Text>
+                      </View>
+                    </View>
+                    {testWeekOrmData.prev !== null && testWeekOrmData.next > testWeekOrmData.prev && (
+                      <View style={styles.ormPbBadge}>
+                        <Text style={styles.ormPbBadgeText}>🏆 New Personal Best!</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
                 {tooEasySaved && (
                   <View style={styles.feedbackSavedBanner}>
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                    <Ionicons name="checkmark-circle" size={16} color={C.primary} />
                     <Text style={styles.feedbackSavedText}>Weights adjusted for next session</Text>
                   </View>
                 )}
@@ -910,7 +1054,7 @@ export default function SessionScreen() {
                     style={styles.feedbackSecondaryBtn}
                     testID="open-rate-modal"
                   >
-                    <Ionicons name="thumbs-up-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="thumbs-up-outline" size={16} color={C.primary} />
                     <Text style={styles.feedbackSecondaryText}>Rate exercises</Text>
                   </Pressable>
                   <Pressable
@@ -918,7 +1062,7 @@ export default function SessionScreen() {
                     style={styles.feedbackSecondaryBtn}
                     testID="open-too-easy-modal"
                   >
-                    <Ionicons name="trending-up-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="trending-up-outline" size={16} color={C.primary} />
                     <Text style={styles.feedbackSecondaryText}>Too easy?</Text>
                   </Pressable>
                 </View>
@@ -928,8 +1072,8 @@ export default function SessionScreen() {
             {/* ── Rating Step ──────────────────────────────────────────────── */}
             {feedbackStep === 'rating' && (
               <>
-                <View style={[styles.modalIcon, { backgroundColor: Colors.primaryMuted }]}>
-                  <Ionicons name="thumbs-up-outline" size={28} color={Colors.primary} />
+                <View style={[styles.modalIcon, { backgroundColor: C.primaryMuted }]}>
+                  <Ionicons name="thumbs-up-outline" size={28} color={C.primary} />
                 </View>
                 <Text style={styles.modalTitle}>Rate Exercises</Text>
                 <Text style={styles.feedbackSubtitle}>How did each exercise feel?</Text>
@@ -946,7 +1090,7 @@ export default function SessionScreen() {
                           <Ionicons
                             name="thumbs-up"
                             size={18}
-                            color={thumbsRatings[ex.id] === 'up' ? Colors.textInverse : Colors.textSecondary}
+                            color={thumbsRatings[ex.id] === 'up' ? C.textInverse : C.textSecondary}
                           />
                         </Pressable>
                         <Pressable
@@ -957,7 +1101,7 @@ export default function SessionScreen() {
                           <Ionicons
                             name="thumbs-down"
                             size={18}
-                            color={thumbsRatings[ex.id] === 'down' ? Colors.textInverse : Colors.textSecondary}
+                            color={thumbsRatings[ex.id] === 'down' ? C.textInverse : C.textSecondary}
                           />
                         </Pressable>
                       </View>
@@ -1008,7 +1152,7 @@ export default function SessionScreen() {
                         testID={`tooEasy-${ex.id}`}
                       >
                         <View style={[styles.checklistBox, selected && styles.checklistBoxSelected]}>
-                          {selected && <Ionicons name="checkmark" size={14} color={Colors.textInverse} />}
+                          {selected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
                         </View>
                         <Text style={[styles.checklistName, selected && styles.checklistNameSelected]} numberOfLines={2}>
                           {ex.name}
@@ -1047,146 +1191,166 @@ export default function SessionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   closeButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   sessionInfo: { flex: 1, alignItems: 'center' },
-  sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.text },
-  sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary },
+  sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
+  sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
   progressBar: { paddingHorizontal: 24, marginBottom: 4 },
-  progressTrack: { height: 4, backgroundColor: Colors.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
-  progressFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 2 },
-  progressText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
+  progressTrack: { height: 4, backgroundColor: C.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
+  progressFill: { height: '100%', backgroundColor: C.primary, borderRadius: 2 },
+  progressText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
   adaptationBar: { flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 8, gap: 8, justifyContent: 'center', flexWrap: 'wrap' },
   adaptTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, gap: 4 },
   adaptTagText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   exerciseList: { flex: 1 },
   exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
-  exerciseCard: { backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.borderLight },
-  exerciseCardDone: { backgroundColor: Colors.primarySurface, borderColor: Colors.primaryMuted },
-  exerciseCardLocked: { backgroundColor: Colors.surfaceTertiary, borderColor: Colors.borderLight, opacity: 0.65 },
+  exerciseCard: { backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.borderLight },
+  exerciseCardDone: { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
+  exerciseCardLocked: { backgroundColor: C.surfaceTertiary, borderColor: C.borderLight, opacity: 0.65 },
   exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
-  checkCircleDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  checkCircleDone: { backgroundColor: C.primary, borderColor: C.primary },
   exerciseInfo: { flex: 1 },
   exerciseNameRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.text, flex: 1 },
-  exerciseNameDone: { color: Colors.primaryDark },
+  exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1 },
+  exerciseNameDone: { color: C.primaryDark },
   badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
   badgeText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   categoryPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
-  dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.primary, marginTop: 2, fontStyle: 'italic' as const },
+  metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+  loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+  dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, marginTop: 2, fontStyle: 'italic' as const },
   chevron: { marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: Colors.surfaceTertiary },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surfaceTertiary },
   actionBtnYoutube: { backgroundColor: '#FFF0F0', borderWidth: 1, borderColor: '#FFCCCC' },
-  actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+  setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.borderLight },
   cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
-  cueText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.primary, fontStyle: 'italic' as const, flex: 1 },
-  restContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: Colors.surfaceTertiary, borderRadius: 8 },
-  restText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
+  cueText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
+  restContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: C.surfaceTertiary, borderRadius: 8 },
+  restText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
-  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
+  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
   setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
   weightGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
-  weightGuideText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.primary, flex: 1, fontStyle: 'italic' as const },
+  weightGuideText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1, fontStyle: 'italic' as const },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 },
-  setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, width: 36 },
+  setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, width: 36 },
   setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: Colors.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.text, borderWidth: 1, borderColor: Colors.borderLight },
+  setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: C.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, borderWidth: 1, borderColor: C.borderLight },
   setInputDisabled: { opacity: 0.45 },
-  inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, width: 30 },
-  setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  setCheckDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, width: 30 },
+  setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  setCheckDone: { backgroundColor: C.primary, borderColor: C.primary },
   setCheckDisabled: { opacity: 0.3 },
   // Card state styles
-  exerciseCardPast: { backgroundColor: Colors.surfaceTertiary, borderColor: Colors.borderLight, opacity: 0.80 },
+  exerciseCardPast: { backgroundColor: C.surfaceTertiary, borderColor: C.borderLight, opacity: 0.80 },
   // Locked/future card styles
   lockedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lockIconWrap: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  lockIconWrap: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   lockedInfo: { flex: 1 },
-  lockedName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginBottom: 4 },
+  lockedName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 4 },
   lockedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary },
+  lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
   // Past (completed) card styles
   pastHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pastName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary, marginBottom: 4 },
-  bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  completeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, gap: 8 },
-  completeButtonDisabled: { backgroundColor: Colors.surfaceTertiary },
-  completeText: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
-  completeTextDisabled: { color: Colors.textTertiary },
+  pastName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 4 },
+  bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: C.background, borderTopWidth: 1, borderTopColor: C.borderLight },
+  completeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, gap: 8 },
+  completeButtonDisabled: { backgroundColor: C.surfaceTertiary },
+  completeText: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+  completeTextDisabled: { color: C.textTertiary },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: Colors.surface, borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', maxWidth: 340 },
-  modalIcon: { width: 64, height: 64, borderRadius: 16, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 8 },
-  modalDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 20 },
+  modalContent: { backgroundColor: C.surface, borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', maxWidth: 340 },
+  modalIcon: { width: 64, height: 64, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text, textAlign: 'center', marginBottom: 8 },
+  modalDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 20 },
   youtubeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, gap: 8, marginBottom: 12, width: '100%', justifyContent: 'center' },
   youtubeButtonText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   modalClose: { paddingVertical: 10, paddingHorizontal: 32 },
-  modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: Colors.textSecondary },
-  swapFrom: { width: '100%', padding: 12, backgroundColor: Colors.surfaceTertiary, borderRadius: 10, marginBottom: 4 },
-  swapFromLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, marginBottom: 2 },
-  swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: Colors.text },
+  modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+  swapFrom: { width: '100%', padding: 12, backgroundColor: C.surfaceTertiary, borderRadius: 10, marginBottom: 4 },
+  swapFromLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, marginBottom: 2 },
+  swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
   swapArrow: { paddingVertical: 4 },
-  swapTo: { width: '100%', padding: 12, backgroundColor: Colors.primarySurface, borderRadius: 10, borderWidth: 1, borderColor: Colors.primaryMuted, marginBottom: 12 },
-  swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.primary, marginBottom: 2 },
-  swapToName: { fontSize: 14, fontFamily: 'Inter_700Bold', color: Colors.primaryDark, marginBottom: 4 },
-  swapToCue: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, fontStyle: 'italic' as const, marginBottom: 4 },
-  swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.primary },
-  swapNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, textAlign: 'center', marginBottom: 16 },
-  swapConfirmBtn: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
-  swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
+  swapTo: { width: '100%', padding: 12, backgroundColor: C.primarySurface, borderRadius: 10, borderWidth: 1, borderColor: C.primaryMuted, marginBottom: 12 },
+  swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primary, marginBottom: 2 },
+  swapToName: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
+  swapToCue: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, fontStyle: 'italic' as const, marginBottom: 4 },
+  swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+  swapNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, textAlign: 'center', marginBottom: 16 },
+  swapConfirmBtn: { width: '100%', backgroundColor: C.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
+  swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
   congratsModal: { gap: 0 },
   congratsIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#fef9c3', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  congratsTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.text, textAlign: 'center', marginBottom: 12 },
-  congratsMessage: { fontSize: 14, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20, paddingHorizontal: 4 },
-  congratsStats: { flexDirection: 'row', backgroundColor: Colors.surfaceTertiary, borderRadius: 14, padding: 16, marginBottom: 20, width: '100%', alignItems: 'center' },
+  congratsTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text, textAlign: 'center', marginBottom: 12 },
+  congratsMessage: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20, paddingHorizontal: 4 },
+  congratsStats: { flexDirection: 'row', backgroundColor: C.surfaceTertiary, borderRadius: 14, padding: 16, marginBottom: 20, width: '100%', alignItems: 'center' },
   congratsStat: { flex: 1, alignItems: 'center' },
-  congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: Colors.primary },
-  congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.textTertiary, marginTop: 2 },
-  congratsStatDivider: { width: 1, height: 28, backgroundColor: Colors.border },
-  congratsButton: { width: '100%', backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
-  congratsButtonMuted: { backgroundColor: Colors.surfaceTertiary },
-  congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: Colors.textInverse },
-  feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: Colors.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
-  feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.primary, flex: 1 },
+  congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
+  congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
+  congratsStatDivider: { width: 1, height: 28, backgroundColor: C.border },
+  congratsButton: { width: '100%', backgroundColor: C.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
+  congratsButtonMuted: { backgroundColor: C.surfaceTertiary },
+  congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+  feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
+  feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
   feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
-  feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: Colors.primarySurface, borderWidth: 1, borderColor: Colors.primaryMuted },
-  feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: Colors.primary },
-  feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: Colors.textSecondary, textAlign: 'center', marginBottom: 14 },
+  feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
+  feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 14 },
   feedbackScroll: { width: '100%', maxHeight: 260, marginBottom: 16 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderLight, gap: 8 },
-  ratingName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.text },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderLight, gap: 8 },
+  ratingName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
   ratingButtons: { flexDirection: 'row', gap: 6 },
-  thumbBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surfaceTertiary },
-  thumbBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  thumbBtnDown: { borderColor: Colors.border },
+  thumbBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceTertiary },
+  thumbBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
+  thumbBtnDown: { borderColor: C.border },
   thumbBtnDownActive: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
-  checklistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: Colors.borderLight, gap: 10 },
-  checklistRowSelected: { backgroundColor: Colors.primarySurface },
-  checklistBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checklistBoxSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: Colors.text },
-  checklistNameSelected: { color: Colors.primaryDark, fontFamily: 'Inter_600SemiBold' },
+  checklistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: C.borderLight, gap: 10 },
+  checklistRowSelected: { backgroundColor: C.primarySurface },
+  checklistBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checklistBoxSelected: { backgroundColor: C.primary, borderColor: C.primary },
+  checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
+  checklistNameSelected: { color: C.primaryDark, fontFamily: 'Inter_600SemiBold' },
   // New Record badge
   newRecordBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#16a34a', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8, marginBottom: 2 },
   newRecordText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 0.3 },
   // Milestone congrats styles
   milestoneHeader: { alignItems: 'center', marginBottom: 12 },
   milestoneIconWrap: { width: 96, height: 96, borderRadius: 24, backgroundColor: '#fef9c3', borderWidth: 2, borderColor: '#fde68a', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  milestoneBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: Colors.primary, letterSpacing: 1.5, backgroundColor: Colors.primaryMuted, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
-  congratsTitleMilestone: { fontSize: 26, fontFamily: 'Inter_700Bold', color: Colors.primaryDark, textAlign: 'center', marginBottom: 12 },
-  congratsButtonMilestone: { backgroundColor: Colors.primaryDark },
+  milestoneBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary, letterSpacing: 1.5, backgroundColor: C.primaryMuted, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  congratsTitleMilestone: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark, textAlign: 'center', marginBottom: 12 },
+  congratsButtonMilestone: { backgroundColor: C.primaryDark },
   // Streak badge
   streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14, width: '100%', justifyContent: 'center' },
   streakBadgeIcon: { fontSize: 18 },
   streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#c2410c' },
-});
+  // Elapsed timer in top bar
+  elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
+  elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+  // Rest timer
+  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignSelf: 'flex-start' },
+  restTimerBtnActive: { backgroundColor: '#fff8ec', borderColor: C.warning },
+  restTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+  restTimerTextActive: { color: C.warning },
+  restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted, alignSelf: 'flex-start' },
+  restTimerDoneText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+  // Test week ORM comparison card in congrats modal
+  ormCompareCard: { width: '100%', backgroundColor: C.primarySurface, borderRadius: 12, borderWidth: 1, borderColor: C.primaryMuted, padding: 14, marginBottom: 14 },
+  ormCompareTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary, textAlign: 'center', marginBottom: 12, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  ormCompareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  ormCompareItem: { alignItems: 'center', flex: 1 },
+  ormCompareLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 4 },
+  ormCompareValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+  ormCompareNew: { color: C.primary, fontSize: 22 },
+  ormPbBadge: { marginTop: 10, alignItems: 'center' },
+  ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+}); }
