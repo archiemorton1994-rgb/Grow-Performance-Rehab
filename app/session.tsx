@@ -122,19 +122,24 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
   }
 
   return (
-    <Pressable
-      onPress={() => setIsRunning((r) => !r)}
-      style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive]}
-    >
-      <Ionicons
-        name={isRunning ? 'pause-circle-outline' : 'timer-outline'}
-        size={14}
-        color={isRunning ? C.warning : C.textTertiary}
-      />
-      <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-        {isRunning ? `Resting — ${mm}:${ss}` : `Start ${mm}:${ss} rest timer`}
-      </Text>
-    </Pressable>
+    <View style={styles.restTimerRow}>
+      <Pressable
+        onPress={() => setIsRunning((r) => !r)}
+        style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
+      >
+        <Ionicons
+          name={isRunning ? 'pause-circle-outline' : 'timer-outline'}
+          size={14}
+          color={isRunning ? C.warning : C.textTertiary}
+        />
+        <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
+          {isRunning ? `Resting — ${mm}:${ss}` : `Start ${mm}:${ss} rest timer`}
+        </Text>
+      </Pressable>
+      <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+        <Ionicons name="refresh-outline" size={14} color={C.textTertiary} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -161,16 +166,9 @@ function SetRow({
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const prefillWeight = !isBandExercise && data.weight === 0 && previousWeight && previousWeight > 0 ? previousWeight : null;
   const [weightText, setWeightText] = useState(() =>
-    data.weight > 0 ? String(data.weight) : (prefillWeight ? String(prefillWeight) : '')
+    data.weight > 0 ? String(data.weight) : ''
   );
-
-  useEffect(() => {
-    if (prefillWeight) {
-      onChange({ ...data, weight: prefillWeight });
-    }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const flashBg = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({
@@ -1351,8 +1349,10 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
   elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   // Rest timer
-  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignSelf: 'flex-start' },
+  restTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10 },
+  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight },
   restTimerBtnActive: { backgroundColor: '#fff8ec', borderColor: C.warning },
+  restTimerResetBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
   restTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   restTimerTextActive: { color: C.warning },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted, alignSelf: 'flex-start' },
