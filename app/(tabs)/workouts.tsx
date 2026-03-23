@@ -15,7 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { CompletedSession, EnergyLevel, SessionType, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
-import { formatDate, formatWeight } from '@/lib/utils';
+import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const BAR_CHART_HEIGHT = 120;
 const LINE_CHART_HEIGHT = 90;
@@ -194,7 +194,7 @@ function WeeklyVolumeChart({
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>0 {weightUnit}</Text>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-          peak: {weightUnit === 'lbs' ? Math.round(maxVal * 2.20462).toLocaleString() : maxVal.toLocaleString()} {weightUnit}
+          peak: {kgToDisplayUnit(maxVal, weightUnit).toLocaleString()} {weightUnit}
         </Text>
       </View>
     </View>
