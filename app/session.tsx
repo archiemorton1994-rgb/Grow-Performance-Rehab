@@ -169,8 +169,14 @@ function SetRow({
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+
+  const kgToDisplay = (kg: number) =>
+    weightUnit === 'lbs' ? parseFloat((kg * 2.20462).toFixed(1)) : kg;
+  const displayToKg = (val: number) =>
+    weightUnit === 'lbs' ? parseFloat((val / 2.20462).toFixed(2)) : val;
+
   const [weightText, setWeightText] = useState(() =>
-    data.weight > 0 ? String(data.weight) : ''
+    data.weight > 0 ? String(kgToDisplay(data.weight)) : ''
   );
 
   const flashBg = useSharedValue(0);
@@ -184,13 +190,13 @@ function SetRow({
   };
 
   const handleWeightBlur = () => {
-    const w = parseFloat(weightText) || 0;
-    setWeightText(w > 0 ? String(w) : '');
-    onChange({ ...data, weight: w });
+    const displayVal = parseFloat(weightText) || 0;
+    setWeightText(displayVal > 0 ? String(displayVal) : '');
+    onChange({ ...data, weight: displayToKg(displayVal) });
   };
 
   const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
-  const placeholder = previousWeight && previousWeight > 0 ? String(previousWeight) : '0';
+  const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplay(previousWeight)) : '0';
 
   return (
     <Animated.View style={flashStyle}>
@@ -253,7 +259,8 @@ function SetRow({
               flashBg.value = 1;
               flashBg.value = withTiming(0, { duration: 700 });
             }
-            const w = parseFloat(weightText) || data.weight;
+            const displayVal = parseFloat(weightText);
+            const w = displayVal > 0 ? displayToKg(displayVal) : data.weight;
             onChange({ ...data, weight: w, completed: completing });
           }}
           style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
@@ -309,7 +316,7 @@ function ExerciseCard({
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
   const allDone = setData.sets.every(s => s.completed);
-  const weightGuides = getWeightGuide(exercise.category, exercise.sets);
+  const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit);
   const restPeriod = getRestPeriod(exercise.category);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);

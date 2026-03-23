@@ -441,7 +441,7 @@ export function getRestPeriod(category: ExerciseCategory): string {
   }
 }
 
-export function getWeightGuide(category: ExerciseCategory, sets: number): string[] {
+export function getWeightGuide(category: ExerciseCategory, sets: number, weightUnit: 'kg' | 'lbs' = 'kg'): string[] {
   if (category === 'main') {
     if (sets <= 3) return [
       'Set 1: Light warm-up — roughly half your target weight',
@@ -468,7 +468,7 @@ export function getWeightGuide(category: ExerciseCategory, sets: number): string
       i === 0
         ? 'Set 1: Start at a comfortable weight — nail the technique first'
         : i === sets - 1
-          ? `Set ${i + 1}: Match or add 2 kg if the previous set felt easy`
+          ? `Set ${i + 1}: Match or add ${weightUnit === 'lbs' ? '5 lbs' : '2 kg'} if the previous set felt easy`
           : `Set ${i + 1}: Keep the same weight or increase slightly if form is solid`
     );
   }
