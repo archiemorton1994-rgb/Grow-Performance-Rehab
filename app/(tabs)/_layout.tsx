@@ -54,6 +54,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person", selected: "person.fill" }} />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="train">
         <Icon src={{ default: TRAIN_ICON_INACTIVE, selected: TRAIN_ICON_ACTIVE }} />
         <Label>Train</Label>
@@ -65,10 +69,6 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="workouts">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Stats</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -120,6 +120,19 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            Platform.OS === "ios" ? (
+              <SymbolView name="person" tintColor={color} size={size || 24} />
+            ) : (
+              <Ionicons name="person-outline" size={size || 24} color={color} />
+            )
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="train"
         options={{
           title: "Train",
@@ -149,19 +162,6 @@ function ClassicTabLayout() {
               <SymbolView name="chart.bar" tintColor={color} size={size || 24} />
             ) : (
               <Ionicons name="bar-chart-outline" size={size || 24} color={color} />
-            )
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="person" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="person-outline" size={size || 24} color={color} />
             )
           ),
         }}
