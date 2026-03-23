@@ -160,7 +160,7 @@ export default function SubscriptionScreen() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => router.replace('/auth/signin')} style={styles.signOutBtn} testID="already-subscribed-link">
+        <Pressable onPress={() => router.replace('/auth')} style={styles.signOutBtn} testID="already-subscribed-link">
           <Text style={styles.signOutText}>Already subscribed? Sign in</Text>
         </Pressable>
 

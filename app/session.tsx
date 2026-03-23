@@ -76,7 +76,7 @@ function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
 }
 
 const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
-  main: 120, neuro: 60, accessory: 60, mechanical: 45, prehab: 30,
+  main: 120, neuro: 60, accessory: 60, mechanical: 45,
 };
 
 function RestTimer({ category }: { category: Exercise['category'] }) {
@@ -86,6 +86,8 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const pulseScale = useSharedValue(1);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
 
   useEffect(() => {
     if (!duration || !isRunning) return;
@@ -93,6 +95,9 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
       setIsRunning(false);
       setIsDone(true);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
+        pulseScale.value = withTiming(1, { duration: 180 });
+      });
       return;
     }
     const timerId = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
@@ -107,10 +112,12 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
 
   if (isDone) {
     return (
-      <Pressable onPress={reset} style={styles.restTimerDone}>
-        <Ionicons name="checkmark-circle" size={14} color={C.primary} />
-        <Text style={styles.restTimerDoneText}>Rest done — tap to reset</Text>
-      </Pressable>
+      <Animated.View style={pulseStyle}>
+        <Pressable onPress={reset} style={styles.restTimerDone}>
+          <Ionicons name="checkmark-circle" size={14} color={C.primary} />
+          <Text style={styles.restTimerDoneText}>Rest done — tap to reset</Text>
+        </Pressable>
+      </Animated.View>
     );
   }
 
@@ -154,9 +161,16 @@ function SetRow({
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const prefillWeight = !isBandExercise && data.weight === 0 && previousWeight && previousWeight > 0 ? previousWeight : null;
   const [weightText, setWeightText] = useState(() =>
-    data.weight > 0 ? String(data.weight) : ''
+    data.weight > 0 ? String(data.weight) : (prefillWeight ? String(prefillWeight) : '')
   );
+
+  useEffect(() => {
+    if (prefillWeight) {
+      onChange({ ...data, weight: prefillWeight });
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const flashBg = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({
@@ -322,7 +336,7 @@ function ExerciseCard({
     cooldown:   { bg: '#e8f5e9', text: '#2e7d32', label: 'Cool Down' },
   };
 
-  const cat = categoryColors[exercise.category] ?? categoryC.accessory;
+  const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
   const showDumbbellNote = isDumbbellSession &&
     (exercise.name.toLowerCase().includes('dumbbell') || exercise.name.toLowerCase().includes(' db ') || exercise.name.startsWith('DB ')) &&
     exercise.suggestedLoad.includes('kg');

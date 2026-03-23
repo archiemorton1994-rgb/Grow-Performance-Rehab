@@ -127,7 +127,7 @@ export default function TrainScreen() {
   }
 
   const lastTrainedByType = useMemo(() => {
-    const result: Record<SessionType, string> = {} as any;
+    const result = {} as Record<SessionType, string>;
     for (const type of SESSION_ORDER) {
       result[type] = getLastTrainedText(completedSessions, type);
     }
