@@ -19,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, useAppStore } from '@/lib/store';
-import { formatWeight } from '@/lib/utils';
+import { formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
@@ -170,13 +170,8 @@ function SetRow({
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const kgToDisplay = (kg: number) =>
-    weightUnit === 'lbs' ? parseFloat((kg * 2.20462).toFixed(1)) : kg;
-  const displayToKg = (val: number) =>
-    weightUnit === 'lbs' ? parseFloat((val / 2.20462).toFixed(2)) : val;
-
   const [weightText, setWeightText] = useState(() =>
-    data.weight > 0 ? String(kgToDisplay(data.weight)) : ''
+    data.weight > 0 ? String(kgToDisplayUnit(data.weight, weightUnit)) : ''
   );
 
   const flashBg = useSharedValue(0);
@@ -192,11 +187,11 @@ function SetRow({
   const handleWeightBlur = () => {
     const displayVal = parseFloat(weightText) || 0;
     setWeightText(displayVal > 0 ? String(displayVal) : '');
-    onChange({ ...data, weight: displayToKg(displayVal) });
+    onChange({ ...data, weight: displayUnitToKg(displayVal, weightUnit) });
   };
 
   const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
-  const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplay(previousWeight)) : '0';
+  const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplayUnit(previousWeight, weightUnit)) : '0';
 
   return (
     <Animated.View style={flashStyle}>
@@ -260,7 +255,7 @@ function SetRow({
               flashBg.value = withTiming(0, { duration: 700 });
             }
             const displayVal = parseFloat(weightText);
-            const w = displayVal > 0 ? displayToKg(displayVal) : data.weight;
+            const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
             onChange({ ...data, weight: w, completed: completing });
           }}
           style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}

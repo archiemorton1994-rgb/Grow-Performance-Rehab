@@ -14,6 +14,14 @@ export function formatWeightValue(kg: number, unit: WeightUnit): number {
   return kg;
 }
 
+export function kgToDisplayUnit(kg: number, unit: WeightUnit): number {
+  return unit === 'lbs' ? parseFloat((kg * 2.20462).toFixed(1)) : kg;
+}
+
+export function displayUnitToKg(val: number, unit: WeightUnit): number {
+  return unit === 'lbs' ? parseFloat((val / 2.20462).toFixed(2)) : val;
+}
+
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
