@@ -146,8 +146,11 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
+  // ClassicTabLayout is used on all platforms to ensure the branded emerald
+  // green circle Train tab icon renders correctly everywhere.
+  // On iOS it still uses BlurView for a native translucent appearance.
+  // NativeTabLayout is kept for reference but not active — NativeTabs filters
+  // out custom View children so a branded circle icon cannot be injected there.
+  void isLiquidGlassAvailable; // keep import alive for future use
   return <ClassicTabLayout />;
 }
