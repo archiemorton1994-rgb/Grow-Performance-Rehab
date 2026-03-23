@@ -4,7 +4,8 @@ export function formatWeight(kg: number, unit: WeightUnit): string {
   if (unit === 'lbs') {
     return `${(kg * 2.20462).toFixed(1)} lbs`;
   }
-  return `${kg} kg`;
+  const rounded = Math.round(kg * 10) / 10;
+  return `${rounded} kg`;
 }
 
 export function kgToDisplayUnit(kg: number, unit: WeightUnit): number {
