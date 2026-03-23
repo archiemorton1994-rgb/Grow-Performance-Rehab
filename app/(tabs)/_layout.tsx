@@ -16,8 +16,7 @@ function TrainTabIcon({ focused }: { focused: boolean }) {
     <View
       style={[
         trainIconStyles.circle,
-        { backgroundColor: focused ? Colors.primary : Colors.primaryLight },
-        focused && trainIconStyles.circleFocused,
+        focused ? trainIconStyles.circleActive : trainIconStyles.circleInactive,
       ]}
     >
       <Ionicons name="barbell" size={21} color="#fff" />
@@ -32,13 +31,19 @@ const trainIconStyles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    transform: [{ translateY: -4 }],
   },
-  circleFocused: {
+  circleActive: {
+    backgroundColor: Colors.primary,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
+  },
+  circleInactive: {
+    backgroundColor: Colors.primary,
+    opacity: 0.55,
   },
 });
 
@@ -114,7 +119,7 @@ function ClassicTabLayout() {
         name="train"
         options={{
           title: "Train",
-          tabBarItemStyle: { paddingTop: 2 },
+          tabBarItemStyle: { overflow: "visible" },
           tabBarIcon: ({ focused }) => <TrainTabIcon focused={focused} />,
         }}
       />
