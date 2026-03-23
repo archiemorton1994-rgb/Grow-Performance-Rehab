@@ -429,13 +429,13 @@ export function generate1RMWorkout(
 
 export function getRestPeriod(category: ExerciseCategory): string {
   switch (category) {
-    case 'prep': return 'No rest needed — move straight to the next stretch';
+    case 'prep': return 'Move between exercises without rest — breathe into each stretch';
     case 'mechanical': return 'Rest 30–45 sec between sets';
     case 'neuro': return 'Rest 45–60 sec between sets — full recovery before each';
     case 'main': return 'Rest 2–3 min between sets — full recovery is key';
     case 'accessory': return 'Rest 60–90 sec between sets';
-    case 'prehab': return 'Rest 30–45 sec between stretches';
-    case 'finisher': return 'Rest only if you need to — keep moving throughout';
+    case 'prehab': return 'Rest 30–45 sec between sets';
+    case 'finisher': return 'Rest only if you need to — keep moving';
     case 'cooldown': return 'Breathe slowly — no rest needed';
     default: return 'Rest as needed';
   }

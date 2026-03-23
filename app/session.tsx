@@ -1092,7 +1092,7 @@ const styles = StyleSheet.create({
   restContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: Colors.surfaceTertiary, borderRadius: 8 },
   restText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: Colors.textTertiary },
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
-  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, width: 36, textAlign: 'center' },
+  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: Colors.textTertiary, textAlign: 'center' },
   setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
   weightGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
   weightGuideText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: Colors.primary, flex: 1, fontStyle: 'italic' as const },
