@@ -8,6 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import Colors from "@/constants/colors";
 
+const TRAIN_ICON_ACTIVE = require("@/assets/train-tab-active.png");
+const TRAIN_ICON_INACTIVE = require("@/assets/train-tab-inactive.png");
+
 function TrainTabIcon({ focused }: { focused: boolean }) {
   return (
     <View
@@ -47,7 +50,7 @@ function NativeTabLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="train">
-        <Icon sf={{ default: "dumbbell.fill", selected: "dumbbell.fill" }} />
+        <Icon src={{ default: TRAIN_ICON_INACTIVE, selected: TRAIN_ICON_ACTIVE }} />
         <Label>Train</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="workouts">
@@ -146,11 +149,8 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  // ClassicTabLayout is used on all platforms to ensure the branded emerald
-  // green circle Train tab icon renders correctly everywhere.
-  // On iOS it still uses BlurView for a native translucent appearance.
-  // NativeTabLayout is kept for reference but not active — NativeTabs filters
-  // out custom View children so a branded circle icon cannot be injected there.
-  void isLiquidGlassAvailable; // keep import alive for future use
+  if (isLiquidGlassAvailable()) {
+    return <NativeTabLayout />;
+  }
   return <ClassicTabLayout />;
 }
