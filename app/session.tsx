@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, useAppStore } from '@/lib/store';
+import { formatWeight } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
@@ -153,6 +154,7 @@ function SetRow({
   disabled,
   previousBest,
   previousWeight,
+  weightUnit = 'kg',
 }: {
   setNum: number;
   data: SetLog;
@@ -163,6 +165,7 @@ function SetRow({
   disabled?: boolean;
   previousBest?: number;
   previousWeight?: number;
+  weightUnit?: WeightUnit;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -214,7 +217,7 @@ function SetRow({
                 editable={!disabled}
                 testID={`set-${setNum}-weight`}
               />
-              <Text style={styles.inputUnit}>kg</Text>
+              <Text style={styles.inputUnit}>{weightUnit}</Text>
             </View>
           )}
           <View style={styles.inputGroup}>
@@ -285,6 +288,7 @@ function ExerciseCard({
   previousBest,
   previousSessionWeight,
   feedbackMultiplier,
+  weightUnit = 'kg',
 }: {
   exercise: Exercise;
   index: number;
@@ -299,6 +303,7 @@ function ExerciseCard({
   previousBest?: number;
   previousSessionWeight?: number;
   feedbackMultiplier?: number;
+  weightUnit?: WeightUnit;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -472,7 +477,7 @@ function ExerciseCard({
                   <Text style={styles.setHeaderItem}>Set</Text>
                   <View style={styles.setHeaderInputs}>
                     {!isBandExercise && (
-                      <Text style={styles.setHeaderItem}>kg</Text>
+                      <Text style={styles.setHeaderItem}>{weightUnit}</Text>
                     )}
                     <Text style={styles.setHeaderItem}>{isTimeExercise ? 'Time' : 'Reps'}</Text>
                   </View>
@@ -490,6 +495,7 @@ function ExerciseCard({
                     isTimeExercise={isTimeExercise}
                     previousBest={previousBest}
                     previousWeight={previousSessionWeight}
+                    weightUnit={weightUnit}
                   />
                 ))}
               </View>
@@ -532,7 +538,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -904,6 +910,7 @@ export default function SessionScreen() {
               previousBest={previousBest[exercise.id]}
               previousSessionWeight={previousSessionWeights[exercise.id]}
               feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
+              weightUnit={weightUnit}
             />
           );
         })}
@@ -1025,14 +1032,14 @@ export default function SessionScreen() {
                       <View style={styles.ormCompareItem}>
                         <Text style={styles.ormCompareLabel}>Previous</Text>
                         <Text style={styles.ormCompareValue}>
-                          {testWeekOrmData.prev ? `${testWeekOrmData.prev} kg` : '—'}
+                          {testWeekOrmData.prev ? formatWeight(testWeekOrmData.prev, weightUnit) : '—'}
                         </Text>
                       </View>
                       <Ionicons name="arrow-forward" size={18} color={C.textTertiary} />
                       <View style={styles.ormCompareItem}>
                         <Text style={styles.ormCompareLabel}>New 1RM</Text>
                         <Text style={[styles.ormCompareValue, styles.ormCompareNew]}>
-                          {testWeekOrmData.next} kg
+                          {formatWeight(testWeekOrmData.next, weightUnit)}
                         </Text>
                       </View>
                     </View>
