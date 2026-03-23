@@ -58,6 +58,10 @@ function NativeTabLayout() {
         <Icon src={{ default: TRAIN_ICON_INACTIVE, selected: TRAIN_ICON_ACTIVE }} />
         <Label>Train</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="flex">
+        <Icon sf={{ default: "leaf", selected: "leaf.fill" }} />
+        <Label>Flex</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="workouts">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Stats</Label>
@@ -121,6 +125,19 @@ function ClassicTabLayout() {
           title: "Train",
           tabBarItemStyle: { overflow: "visible" },
           tabBarIcon: ({ focused }) => <TrainTabIcon focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="flex"
+        options={{
+          title: "Flex",
+          tabBarIcon: ({ color, size }) => (
+            Platform.OS === "ios" ? (
+              <SymbolView name="leaf" tintColor={color} size={size || 24} />
+            ) : (
+              <Ionicons name="leaf-outline" size={size || 24} color={color} />
+            )
+          ),
         }}
       />
       <Tabs.Screen
