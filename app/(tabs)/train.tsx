@@ -19,6 +19,17 @@ import { daysSince } from '@/lib/utils';
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
+const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility'];
+
+const SESSION_META: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
+  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline',          color: '#2f6b46', bg: '#e8f2ec' },
+  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline',             color: '#4285f4', bg: '#e8f0fe' },
+  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline',          color: '#9c27b0', bg: '#f3e5f5' },
+  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline',            color: '#e65100', bg: '#fbe9e7' },
+  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline', color: '#00897b', bg: '#e0f2f1' },
+  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline',             color: '#558b2f', bg: '#f1f8e9' },
+};
+
 const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
   squat: 'Lower Body Strength',
   bench: 'Upper Body Press',
@@ -148,6 +159,11 @@ export default function TrainScreen() {
     router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
   };
 
+  const handleSelect = (sessionType: SessionType) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+  };
+
   const styles = useMemo(() => makeStyles(C), [C]);
 
   return (
@@ -162,8 +178,40 @@ export default function TrainScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Your Program</Text>
-      <Text style={styles.subtitle}>
+      <Text style={styles.title}>Train</Text>
+      <Text style={styles.subtitle}>Choose a session to start</Text>
+
+      {/* Session selection cards */}
+      <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
+        {ALL_SESSION_TYPES.map((type) => {
+          const meta = SESSION_META[type];
+          return (
+            <Pressable
+              key={type}
+              onPress={() => handleSelect(type)}
+              style={({ pressed }) => [
+                styles.sessionCard,
+                pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+              ]}
+              testID={`train-session-${type}`}
+            >
+              <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
+                <Ionicons name={meta.icon} size={22} color={meta.color} />
+              </View>
+              <Text style={styles.sessionCardLabel} numberOfLines={1}>{meta.label}</Text>
+              <Text style={styles.sessionCardSub} numberOfLines={1}>{meta.subtitle}</Text>
+            </Pressable>
+          );
+        })}
+      </Animated.View>
+
+      <View style={styles.programDivider}>
+        <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
+        <Text style={styles.programDividerText}>Your Program</Text>
+        <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
+      </View>
+
+      <Text style={styles.programSubtitle}>
         Squat · Bench · Deadlift · {getEquipmentLabel(equipmentTier)}
       </Text>
 
@@ -298,7 +346,22 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     container: { flex: 1, backgroundColor: C.background },
     content: { paddingHorizontal: 20 },
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
-    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 20 },
+    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 16 },
+
+    sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+    sessionCard: {
+      width: '47%', backgroundColor: C.surface,
+      borderRadius: 14, padding: 14,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    sessionCardIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
+    sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    programDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+    programDividerLine: { flex: 1, height: 1 },
+    programDividerText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.6 },
+    programSubtitle: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 14 },
 
     cycleInfo: {
       flexDirection: 'row', backgroundColor: C.surface,
