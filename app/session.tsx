@@ -449,10 +449,10 @@ function ExerciseCard({
                   </View>
                   <Text style={styles.metaText}>{setsLabel} × {repDisplay}</Text>
                 </View>
-                {exercise.category === 'main' && !isBandExercise && (
+                {!isBandExercise && (
                   <Text style={styles.targetWeightLabel}>Target weight: </Text>
                 )}
-                <Text style={[styles.loadText, exercise.category === 'main' && !isBandExercise && styles.loadTextMain]}>{exercise.suggestedLoad}</Text>
+                <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>{exercise.suggestedLoad}</Text>
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
@@ -507,7 +507,7 @@ function ExerciseCard({
                     previousBest={previousBest}
                     previousWeight={previousSessionWeight}
                     weightUnit={weightUnit}
-                    onCompleted={() => setTimerTrigger((n) => n + 1)}
+                    onCompleted={si === setData.sets.length - 1 ? () => setTimerTrigger((n) => n + 1) : undefined}
                   />
                 ))}
               </View>

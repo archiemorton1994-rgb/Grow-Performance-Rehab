@@ -479,16 +479,20 @@ export function getWeightGuide(category: ExerciseCategory, sets: number, weightU
       `Set 3: Approach set${w(0.875)} — close to working weight, stay sharp`,
       `Set 4: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} — your one quality set`,
     ];
-    // 5+ sets: ramp up progressively, only the final set is the true working weight
+    // 5+ sets: ramp progressively; penultimate set is always ~87.5%, final set is working weight
     const rampGuides: string[] = [
       `Set 1: Very light warm-up${w(0.4)} — just waking up the pattern`,
       `Set 2: Build up${w(0.55)} — comfortable, focus on form`,
-      `Set 3: Getting close${w(0.7)} — start to feel the weight`,
     ];
-    for (let i = 3; i < sets - 1; i++) {
-      const pct = 0.7 + (0.175 * (i - 2) / (sets - 3));
-      rampGuides.push(`Set ${i + 1}: Approach set${w(Math.min(pct, 0.9))} — nearly there`);
+    // Middle sets ramp from 70% up to ~75% (before the fixed penultimate ~87.5%)
+    const middleCount = sets - 4; // sets after Set 2 and before penultimate and final
+    for (let i = 0; i < middleCount; i++) {
+      const pct = 0.7 + (0.05 * i);
+      rampGuides.push(`Set ${i + 3}: Getting close${w(Math.min(pct, 0.8))} — building confidence`);
     }
+    // Penultimate set: always ~87.5%
+    rampGuides.push(`Set ${sets - 1}: Approach set${w(0.875)} — close to working weight, stay sharp`);
+    // Final set: working weight
     rampGuides.push(
       `Set ${sets}: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} — your one quality set, full control`
     );
