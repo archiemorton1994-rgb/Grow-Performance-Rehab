@@ -540,9 +540,9 @@ function ExerciseCard({
                   <Text style={styles.cueText}>{exercise.cue}</Text>
                 </View>
 
-                {exercise.id === 'cardio-warmup' && <CardioWarmupTimer />}
+                {(exercise.id === 'cardio-warmup' || (exercise.category === 'prep' && index === 0)) && <CardioWarmupTimer />}
 
-                {exercise.id !== 'cardio-warmup' && <RestTimer category={exercise.category} trigger={timerTrigger} />}
+                {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && <RestTimer category={exercise.category} trigger={timerTrigger} />}
 
                 <View style={styles.setHeaderRow}>
                   <Text style={styles.setHeaderItem}>Set</Text>
@@ -800,10 +800,11 @@ export default function SessionScreen() {
     );
   }
 
-  const allDone = exerciseData.every(ed => ed.sets.every(s => s.completed));
+  const isPrehabOrFlex = sessionType === 'prehab' || sessionType === 'flexibility';
+  const allDone = isPrehabOrFlex || exerciseData.every(ed => ed.sets.every(s => s.completed));
   const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
   const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
-  const progress = totalSets > 0 ? completedSetsCount / totalSets : 0;
+  const progress = isPrehabOrFlex ? 1 : (totalSets > 0 ? completedSetsCount / totalSets : 0);
 
   const handleComplete = () => {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -828,12 +829,14 @@ export default function SessionScreen() {
       }
     }
 
-    const exerciseLogs: ExerciseLog[] = exercises.map((ex, i) => ({
-      exerciseId: ex.id,
-      exerciseName: ex.name,
-      sets: exerciseData[i].sets,
-      note: exerciseNotes[i] || undefined,
-    }));
+    const exerciseLogs: ExerciseLog[] = isPrehabOrFlex
+      ? []
+      : exercises.map((ex, i) => ({
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          sets: exerciseData[i].sets,
+          note: exerciseNotes[i] || undefined,
+        }));
 
     // Detect milestone before saving (completedCount is current, new count = completedCount + 1)
     const newCount = completedCount + 1;
@@ -965,7 +968,7 @@ export default function SessionScreen() {
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
         </View>
-        <Text style={styles.progressText}>{completedSetsCount}/{totalSets} sets completed</Text>
+        <Text style={styles.progressText}>{isPrehabOrFlex ? 'Complete when ready' : `${completedSetsCount}/${totalSets} sets completed`}</Text>
       </View>
 
       {(hasAches || energy !== 'normal' || isTestWeek) && (
