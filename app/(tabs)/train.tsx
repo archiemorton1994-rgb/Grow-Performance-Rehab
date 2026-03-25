@@ -161,7 +161,22 @@ export default function TrainScreen() {
 
   const handleSelect = (sessionType: SessionType) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+    if (sessionType === 'prehab' || sessionType === 'flexibility') {
+      router.push({
+        pathname: '/session',
+        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier },
+      });
+    } else if (sessionType === 'conditioning') {
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType, isTestWeek: 'false' },
+      });
+    } else {
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
+      });
+    }
   };
 
   const styles = useMemo(() => makeStyles(C), [C]);
