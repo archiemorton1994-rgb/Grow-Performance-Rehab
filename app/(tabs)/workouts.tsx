@@ -468,46 +468,60 @@ export default function StatsScreen() {
       <Text style={styles.title}>Stats</Text>
       <Text style={styles.subtitle}>Your training progress at a glance</Text>
 
-      <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.statRow}>
-        <View style={styles.statCell}>
-          <Text style={styles.statValue}>{completedCount}</Text>
-          <Text style={styles.statLabel}>Total Sessions</Text>
-        </View>
-        <View style={styles.statDiv} />
-        <View style={styles.statCell}>
-          <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>Day Streak</Text>
-        </View>
-        <View style={styles.statDiv} />
-        <View style={styles.statCell}>
-          <Text style={styles.statValue}>{weekCount}</Text>
-          <Text style={styles.statLabel}>This Week</Text>
-        </View>
-      </Animated.View>
+      {completedSessions.length === 0 && (
+        <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.emptyState}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="barbell-outline" size={44} color={C.textTertiary} />
+          </View>
+          <Text style={styles.emptyTitle}>No sessions yet</Text>
+          <Text style={styles.emptySub}>Complete your first session to start seeing your progress charts and personal bests here.</Text>
+        </Animated.View>
+      )}
 
-      <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-        <WeeklyBarChart sessions={completedSessions} C={C} />
-      </Animated.View>
+      {completedSessions.length > 0 && (
+        <>
+          <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.statRow}>
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statLabel}>Total Sessions</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{streak}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{weekCount}</Text>
+              <Text style={styles.statLabel}>This Week</Text>
+            </View>
+          </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-        <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
-      </Animated.View>
+          <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+            <WeeklyBarChart sessions={completedSessions} C={C} />
+          </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>
-        <Text style={styles.sectionTitle}>Strength Progression</Text>
-        <Text style={styles.sectionSub}>Estimated 1RM — tap a dot for details</Text>
-        {(['squat', 'bench', 'deadlift'] as SessionType[]).map(lift => (
-          <StrengthLineChart key={lift} lift={lift} orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
-        ))}
-      </Animated.View>
+          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
+          </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.sectionBlock}>
-        <Text style={styles.sectionTitle}>Session History</Text>
-        <Text style={styles.sectionSub}>Tap a row to see exercise details</Text>
-        <View style={{ marginTop: 8 }}>
-          <SessionHistoryList sessions={completedSessions} weightUnit={weightUnit} C={C} />
-        </View>
-      </Animated.View>
+          <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Strength Progression</Text>
+            <Text style={styles.sectionSub}>Estimated 1RM — tap a dot for details</Text>
+            {(['squat', 'bench', 'deadlift'] as SessionType[]).map(lift => (
+              <StrengthLineChart key={lift} lift={lift} orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
+            ))}
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Session History</Text>
+            <Text style={styles.sectionSub}>Tap a row to see exercise details</Text>
+            <View style={{ marginTop: 8 }}>
+              <SessionHistoryList sessions={completedSessions} weightUnit={weightUnit} C={C} />
+            </View>
+          </Animated.View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -531,5 +545,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sectionBlock: { marginBottom: 20 },
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
     sectionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 },
+
+    emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },
+    emptyIconWrap: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.surfaceTertiary, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    emptyTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 10, textAlign: 'center' },
+    emptySub: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 21 },
   });
 }

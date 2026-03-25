@@ -377,6 +377,7 @@ function ExerciseCard({
         isActive && allDone && styles.exerciseCardDone,
         isPast && styles.exerciseCardPast,
         isFuture && styles.exerciseCardLocked,
+        !isFuture && { borderLeftWidth: 4, borderLeftColor: cat.text },
       ]}>
 
         {/* ── Future state: locked with padlock ────────────────────────────── */}

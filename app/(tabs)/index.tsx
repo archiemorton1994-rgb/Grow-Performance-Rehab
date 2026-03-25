@@ -29,13 +29,13 @@ function getNextMilestone(count: number): number {
   return Math.ceil((count + 1) / 50) * 50;
 }
 
-const SESSION_TYPE_META: Record<SessionType, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  squat: { label: 'Lower Body', icon: 'fitness-outline', color: '#2f6b46', bg: '#e8f2ec' },
-  bench: { label: 'Upper Body', icon: 'body-outline', color: '#4285f4', bg: '#e8f0fe' },
-  deadlift: { label: 'Full Body', icon: 'barbell-outline', color: '#9c27b0', bg: '#f3e5f5' },
-  conditioning: { label: 'Conditioning', icon: 'flame-outline', color: '#e65100', bg: '#fbe9e7' },
-  prehab: { label: 'Prehab', icon: 'shield-checkmark-outline', color: '#00897b', bg: '#e0f2f1' },
-  flexibility: { label: 'Flexibility', icon: 'leaf-outline', color: '#558b2f', bg: '#f1f8e9' },
+const SESSION_TYPE_META: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
+  squat: { label: 'Lower Body', subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline', color: '#2f6b46', bg: '#e8f2ec' },
+  bench: { label: 'Upper Body', subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline', color: '#4285f4', bg: '#e8f0fe' },
+  deadlift: { label: 'Full Body', subtitle: 'Back · Hips · Legs', icon: 'barbell-outline', color: '#9c27b0', bg: '#f3e5f5' },
+  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina', icon: 'flame-outline', color: '#e65100', bg: '#fbe9e7' },
+  prehab: { label: 'Prehab', subtitle: 'Joint health & Mobility', icon: 'shield-checkmark-outline', color: '#00897b', bg: '#e0f2f1' },
+  flexibility: { label: 'Flexibility', subtitle: 'Stretching & Recovery', icon: 'leaf-outline', color: '#558b2f', bg: '#f1f8e9' },
 };
 
 const PRIMARY_SESSIONS: SessionType[] = ['squat', 'bench', 'deadlift'];
@@ -154,6 +154,9 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
+            {!small && (
+              <Text style={styles.sessionCardSubtitle}>{meta.subtitle}</Text>
+            )}
           </View>
           <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
         </Pressable>
@@ -327,6 +330,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sessionCardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     sessionCardLabel: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
     sessionCardLabelSmall: { fontSize: 15 },
+    sessionCardSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
     suggestedBadge: { backgroundColor: C.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
     suggestedBadgeText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: C.textInverse, letterSpacing: 0.5 },
 
