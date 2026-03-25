@@ -264,22 +264,47 @@ export default function HomeScreen() {
       <Animated.View entering={FadeInDown.delay(560).duration(400)}>
         {lastSession ? (
           <View style={styles.lastSessionCard}>
-            <View style={styles.lastSessionLeft}>
+            <View style={styles.lastSessionTop}>
               <View style={[styles.lastSessionIcon, { backgroundColor: SESSION_TYPE_META[lastSession.sessionType].bg }]}>
                 <Ionicons name={SESSION_TYPE_META[lastSession.sessionType].icon} size={18} color={SESSION_TYPE_META[lastSession.sessionType].color} />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.lastSessionTitle}>Last: {SESSION_TYPE_META[lastSession.sessionType].label}</Text>
                 <Text style={styles.lastSessionDate}>{formatDate(lastSession.date)}</Text>
               </View>
             </View>
-            <Pressable
-              onPress={() => handleSelect(lastSession.sessionType)}
-              style={({ pressed }) => [styles.repeatBtn, pressed && { opacity: 0.8 }]}
-            >
-              <Ionicons name="refresh" size={14} color={C.primary} />
-              <Text style={styles.repeatBtnText}>Repeat</Text>
-            </Pressable>
+            <View style={styles.repeatActions}>
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push({
+                    pathname: '/session',
+                    params: {
+                      sessionType: lastSession.sessionType,
+                      hasAches: lastSession.hadAches ? 'true' : 'false',
+                      painRegion: lastSession.painRegion || '',
+                      energy: lastSession.energy,
+                      timeAvailable: lastSession.timeAvailable,
+                      isTestWeek: 'false',
+                      equipment: lastSession.equipmentTier,
+                    },
+                  });
+                }}
+                style={({ pressed }) => [styles.repeatBtnFilled, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
+                testID="repeat-same-settings"
+              >
+                <Ionicons name="flash" size={14} color="#fff" />
+                <Text style={styles.repeatBtnFilledText}>Same settings</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleSelect(lastSession.sessionType)}
+                style={({ pressed }) => [styles.repeatBtnOutline, pressed && { opacity: 0.8 }]}
+                testID="repeat-customise"
+              >
+                <Ionicons name="options-outline" size={14} color={C.primary} />
+                <Text style={styles.repeatBtnOutlineText}>Customise</Text>
+              </Pressable>
+            </View>
           </View>
         ) : (
           <View style={styles.firstSessionCard}>
@@ -355,21 +380,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     milestoneBarFill: { height: '100%', backgroundColor: C.primary, borderRadius: 3 },
 
     lastSessionCard: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: C.surface, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
+      paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    lastSessionLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    lastSessionTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     lastSessionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
     lastSessionTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
     lastSessionDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
-    repeatBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      borderWidth: 1, borderColor: C.primary,
-      borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+    repeatActions: { flexDirection: 'row', gap: 8 },
+    repeatBtnFilled: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+      backgroundColor: C.primary, borderRadius: 10, paddingVertical: 9,
     },
-    repeatBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    repeatBtnFilledText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
+    repeatBtnOutline: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+      borderWidth: 1.5, borderColor: C.primary,
+      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9,
+    },
+    repeatBtnOutlineText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
     firstSessionCard: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
