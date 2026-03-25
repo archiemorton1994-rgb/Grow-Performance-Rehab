@@ -1523,14 +1523,6 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   restTimerTextActive: { color: '#fff' },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
   restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  // Cardio warmup timer
-  cardioTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff3e0', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#ffe0b2' },
-  cardioTimerIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  cardioTimerLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: '#bf360c', marginBottom: 2 },
-  cardioTimerCountdown: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#e65100' },
-  cardioTimerToggle: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center' },
-  cardioTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.primarySurface, borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: C.primaryMuted },
-  cardioTimerDoneText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   // Per-exercise note input
   noteInputRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.borderLight },
   noteInput: { height: 36, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, paddingHorizontal: 10, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.text },
