@@ -90,9 +90,10 @@ export default function HomeScreen() {
   const handleRepeatCustomise = () => {
     if (!lastSession) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const isStrength = lastSession.sessionType === 'squat' || lastSession.sessionType === 'bench' || lastSession.sessionType === 'deadlift';
     router.push({
       pathname: '/readiness',
-      params: { sessionType: lastSession.sessionType, isTestWeek: 'false' },
+      params: { sessionType: lastSession.sessionType, isTestWeek: isStrength && testWeek ? 'true' : 'false' },
     });
   };
 
