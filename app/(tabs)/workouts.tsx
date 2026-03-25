@@ -404,17 +404,31 @@ function SessionHistoryList({
                 <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={C.textTertiary} />
               </View>
             </Pressable>
-            {isExpanded && heaviestSets.length > 0 && (
+            {isExpanded && (heaviestSets.length > 0 || session.exerciseLogs.some(el => el.note)) && (
               <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
-                {heaviestSets.map((ex, idx) => (
-                  <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-                    <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>{ex.name}</Text>
-                    <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>{formatWeight(ex.weight, weightUnit)}</Text>
-                  </View>
-                ))}
-                {session.exerciseLogs.filter(el => el.note).map((el, idx) => (
-                  <View key={'note-' + idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 6, paddingBottom: 2 }}>
-                    <Ionicons name="create-outline" size={13} color={C.textTertiary} />
+                {heaviestSets.length === 0 && (
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, paddingVertical: 4 }}>No weight data recorded</Text>
+                )}
+                {heaviestSets.map((ex, idx) => {
+                  const logEntry = session.exerciseLogs.find(el => el.exerciseName === ex.name);
+                  return (
+                    <View key={idx}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>{ex.name}</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>{formatWeight(ex.weight, weightUnit)}</Text>
+                      </View>
+                      {logEntry?.note ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, paddingBottom: 4 }}>
+                          <Ionicons name="create-outline" size={12} color={C.textTertiary} />
+                          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, flex: 1, fontStyle: 'italic' }}>{logEntry.note}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+                {session.exerciseLogs.filter(el => el.note && !heaviestSets.find(h => h.name === el.exerciseName)).map((el, idx) => (
+                  <View key={'note-only-' + idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 5, paddingVertical: 4 }}>
+                    <Ionicons name="create-outline" size={12} color={C.textTertiary} />
                     <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, flex: 1, fontStyle: 'italic' }}>
                       {el.exerciseName}: {el.note}
                     </Text>
@@ -422,17 +436,9 @@ function SessionHistoryList({
                 ))}
               </View>
             )}
-            {isExpanded && heaviestSets.length === 0 && (
+            {isExpanded && heaviestSets.length === 0 && !session.exerciseLogs.some(el => el.note) && (
               <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                 <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No weight data recorded</Text>
-                {session.exerciseLogs.filter(el => el.note).map((el, idx) => (
-                  <View key={'note-' + idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 6 }}>
-                    <Ionicons name="create-outline" size={13} color={C.textTertiary} />
-                    <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, flex: 1, fontStyle: 'italic' }}>
-                      {el.exerciseName}: {el.note}
-                    </Text>
-                  </View>
-                ))}
               </View>
             )}
           </View>

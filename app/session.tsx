@@ -181,27 +181,32 @@ function CardioWarmupTimer() {
 
   if (isDone) {
     return (
-      <Pressable onPress={reset} style={styles.cardioTimerDone}>
-        <Ionicons name="checkmark-circle" size={18} color={C.primary} />
-        <Text style={styles.cardioTimerDoneText}>Warm-up complete — tap to restart</Text>
-      </Pressable>
+      <Animated.View>
+        <Pressable onPress={reset} style={styles.restTimerDone}>
+          <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+          <Text style={styles.restTimerDoneText}>Warm-up complete — tap to reset</Text>
+        </Pressable>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={styles.cardioTimerRow}>
-      <View style={styles.cardioTimerIcon}>
-        <Ionicons name="flame" size={18} color="#e65100" />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.cardioTimerLabel}>5-min Cardio Warm-Up</Text>
-        <Text style={styles.cardioTimerCountdown}>{mm}:{ss} remaining</Text>
-      </View>
-      <Pressable onPress={() => setIsRunning((r) => !r)} style={styles.cardioTimerToggle}>
-        <Ionicons name={isRunning ? 'pause' : 'play'} size={18} color="#e65100" />
+    <View style={styles.restTimerRow}>
+      <Pressable
+        onPress={() => setIsRunning((r) => !r)}
+        style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
+      >
+        <Ionicons
+          name={isRunning ? 'pause-circle' : 'flame'}
+          size={18}
+          color={isRunning ? '#fff' : C.primary}
+        />
+        <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
+          {isRunning ? `Warm-up — ${mm}:${ss}` : `Cardio timer — ${mm}:${ss}`}
+        </Text>
       </Pressable>
-      <Pressable onPress={reset} style={styles.cardioTimerToggle}>
-        <Ionicons name="refresh" size={16} color={C.textSecondary} />
+      <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+        <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
     </View>
   );
