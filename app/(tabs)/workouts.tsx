@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Platform,
   LayoutChangeEvent,
   Pressable,
+  TextInput,
+  Alert,
 } from 'react-native';
 import Svg, { Rect, Line, Circle, Path, Text as SvgText, G } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +17,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { CompletedSession, EnergyLevel, SessionType, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
-import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
+import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 
 const BAR_CHART_HEIGHT = 120;
 const LINE_CHART_HEIGHT = 90;
@@ -458,6 +460,243 @@ function SessionHistoryList({
   );
 }
 
+const LIFT_LABELS: Record<string, string> = {
+  squat: 'Squat',
+  bench: 'Bench',
+  deadlift: 'Deadlift',
+};
+
+const LIFT_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
+
+function PBHistorySection({
+  orms,
+  weightUnit,
+  C,
+}: {
+  orms: { lift: SessionType; weight: number; date: string }[];
+  weightUnit: 'kg' | 'lbs';
+  C: ReturnType<typeof useColors>;
+}) {
+  const strengthOrms = useMemo(
+    () => orms.filter(o => LIFT_TYPES.includes(o.lift as SessionType)),
+    [orms]
+  );
+
+  if (strengthOrms.length === 0) {
+    return (
+      <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', marginBottom: 10 }}>
+        <Ionicons name="trophy-outline" size={28} color={C.textTertiary} />
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 8 }}>No strength tests yet</Text>
+        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 4, textAlign: 'center' }}>Save your first PB using the calculator below</Text>
+      </View>
+    );
+  }
+
+  const allTimeBests: Record<string, number> = {};
+  for (const o of strengthOrms) {
+    if (!allTimeBests[o.lift] || o.weight > allTimeBests[o.lift]) {
+      allTimeBests[o.lift] = o.weight;
+    }
+  }
+
+  const grouped: Record<string, typeof strengthOrms> = { squat: [], bench: [], deadlift: [] };
+  for (const o of strengthOrms) {
+    if (grouped[o.lift]) {
+      grouped[o.lift].push(o);
+    }
+  }
+  for (const lift of LIFT_TYPES) {
+    grouped[lift] = grouped[lift].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  const liftsWithData = LIFT_TYPES.filter(lift => grouped[lift].length > 0);
+
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.borderLight, overflow: 'hidden', marginBottom: 10 }}>
+      {liftsWithData.map((lift, liftIdx) => {
+        const entries = grouped[lift];
+        const best = allTimeBests[lift];
+        return (
+          <View key={lift}>
+            {liftIdx > 0 && <View style={{ height: 1, backgroundColor: C.borderLight }} />}
+            <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
+                {LIFT_LABELS[lift]}
+              </Text>
+              {entries.map((entry, i) => {
+                const isAllTimeBest = entry.weight === best;
+                return (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 }}>
+                    {isAllTimeBest ? (
+                      <Ionicons name="trophy" size={14} color="#f59e0b" />
+                    ) : (
+                      <View style={{ width: 14 }} />
+                    )}
+                    <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+                      {formatDate(entry.date)}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: isAllTimeBest ? C.primary : C.text }}>
+                      {formatWeight(entry.weight, weightUnit)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={{ height: 8 }} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function OneRMCalculator({
+  weightUnit,
+  addOneRepMax,
+  C,
+}: {
+  weightUnit: 'kg' | 'lbs';
+  addOneRepMax: (orm: { lift: SessionType; weight: number; date: string; unit: 'kg' }) => void;
+  C: ReturnType<typeof useColors>;
+}) {
+  const [weightInput, setWeightInput] = useState('');
+  const [repsInput, setRepsInput] = useState('');
+  const [selectedLift, setSelectedLift] = useState<SessionType>('squat');
+  const [result, setResult] = useState<number | null>(null);
+
+  const calculate = useCallback(() => {
+    const w = parseFloat(weightInput);
+    const r = parseInt(repsInput, 10);
+    if (!w || !r || w <= 0 || r <= 0 || r > 30) {
+      Alert.alert('Invalid input', 'Enter a valid weight and rep count (1–30).');
+      return;
+    }
+    const weightInKg = displayUnitToKg(w, weightUnit);
+    const orm = weightInKg * (1 + r / 30);
+    setResult(parseFloat(orm.toFixed(2)));
+  }, [weightInput, repsInput, weightUnit]);
+
+  const savePB = useCallback(() => {
+    if (result === null) return;
+    addOneRepMax({ lift: selectedLift, weight: result, date: new Date().toISOString(), unit: 'kg' });
+    Alert.alert('Saved!', `${LIFT_LABELS[selectedLift]} PB of ${formatWeight(result, weightUnit)} saved.`);
+    setWeightInput('');
+    setRepsInput('');
+    setResult(null);
+  }, [result, selectedLift, weightUnit, addOneRepMax]);
+
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.borderLight }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Ionicons name="calculator-outline" size={18} color={C.primary} />
+        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>1RM Calculator</Text>
+      </View>
+      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 }}>
+        Epley formula — enter the weight you lifted and how many reps
+      </Text>
+
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Weight ({weightUnit})
+          </Text>
+          <TextInput
+            style={{
+              height: 44, borderRadius: 10, borderWidth: 1.5, borderColor: C.border,
+              backgroundColor: C.surfaceTertiary, paddingHorizontal: 12,
+              fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
+            }}
+            value={weightInput}
+            onChangeText={setWeightInput}
+            placeholder="0"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Reps
+          </Text>
+          <TextInput
+            style={{
+              height: 44, borderRadius: 10, borderWidth: 1.5, borderColor: C.border,
+              backgroundColor: C.surfaceTertiary, paddingHorizontal: 12,
+              fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
+            }}
+            value={repsInput}
+            onChangeText={setRepsInput}
+            placeholder="0"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="number-pad"
+            returnKeyType="done"
+          />
+        </View>
+      </View>
+
+      <Pressable
+        onPress={calculate}
+        style={({ pressed }) => ({
+          backgroundColor: pressed ? C.primaryDark : C.primary,
+          borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12,
+        })}
+      >
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: '#fff' }}>Calculate</Text>
+      </Pressable>
+
+      {result !== null && (
+        <View style={{ backgroundColor: C.primarySurface, borderRadius: 12, padding: 14, borderWidth: 1.5, borderColor: C.primaryMuted, marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary, marginBottom: 4, textAlign: 'center' }}>
+            Estimated 1RM
+          </Text>
+          <Text style={{ fontSize: 32, fontFamily: 'Inter_700Bold', color: C.primary, textAlign: 'center' }}>
+            {formatWeight(result, weightUnit)}
+          </Text>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' }}>
+              Save as Personal Best for
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+              {LIFT_TYPES.map(lift => (
+                <Pressable
+                  key={lift}
+                  onPress={() => setSelectedLift(lift)}
+                  style={{
+                    flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+                    backgroundColor: selectedLift === lift ? C.primary : C.surfaceTertiary,
+                    borderWidth: 1.5,
+                    borderColor: selectedLift === lift ? C.primary : C.borderLight,
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 12, fontFamily: 'Inter_700Bold',
+                    color: selectedLift === lift ? '#fff' : C.textSecondary,
+                  }}>
+                    {LIFT_LABELS[lift]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              onPress={savePB}
+              style={({ pressed }) => ({
+                marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                paddingVertical: 11, borderRadius: 10,
+                backgroundColor: pressed ? C.surfaceTertiary : C.surface,
+                borderWidth: 1.5, borderColor: C.primary,
+              })}
+            >
+              <Ionicons name="trophy-outline" size={16} color={C.primary} />
+              <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primary }}>Save as {LIFT_LABELS[selectedLift]} PB</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -468,6 +707,7 @@ export default function StatsScreen() {
     getStreakDays,
     getThisWeekCount,
     weightUnit,
+    addOneRepMax,
   } = useAppStore();
 
   const streak = getStreakDays();
@@ -535,7 +775,17 @@ export default function StatsScreen() {
             ))}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.sectionBlock}>
+          <Animated.View entering={FadeInDown.delay(170).duration(400)} style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Personal Bests</Text>
+            <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+            <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(190).duration(400)} style={styles.sectionBlock}>
+            <OneRMCalculator weightUnit={weightUnit} addOneRepMax={addOneRepMax} C={C} />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.sectionBlock}>
             <Text style={styles.sectionTitle}>Session History</Text>
             <Text style={styles.sectionSub}>Tap a row to see exercise details</Text>
             <View style={{ marginTop: 8 }}>
