@@ -412,11 +412,27 @@ function SessionHistoryList({
                     <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>{formatWeight(ex.weight, weightUnit)}</Text>
                   </View>
                 ))}
+                {session.exerciseLogs.filter(el => el.note).map((el, idx) => (
+                  <View key={'note-' + idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 6, paddingBottom: 2 }}>
+                    <Ionicons name="create-outline" size={13} color={C.textTertiary} />
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, flex: 1, fontStyle: 'italic' }}>
+                      {el.exerciseName}: {el.note}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
             {isExpanded && heaviestSets.length === 0 && (
               <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                 <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No weight data recorded</Text>
+                {session.exerciseLogs.filter(el => el.note).map((el, idx) => (
+                  <View key={'note-' + idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: 6 }}>
+                    <Ionicons name="create-outline" size={13} color={C.textTertiary} />
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, flex: 1, fontStyle: 'italic' }}>
+                      {el.exerciseName}: {el.note}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
           </View>

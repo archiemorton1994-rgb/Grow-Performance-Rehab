@@ -62,6 +62,7 @@ export interface ExerciseLog {
   exerciseId: string;
   exerciseName: string;
   sets: SetLog[];
+  note?: string;
 }
 
 export interface OneRepMax {
@@ -321,7 +322,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 4,
+      version: 5,
     }
   )
 );

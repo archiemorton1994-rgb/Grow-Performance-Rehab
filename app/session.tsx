@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
-  Alert,
   TextInput,
   Modal,
   Linking,
@@ -149,6 +148,60 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
       </Pressable>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
+      </Pressable>
+    </View>
+  );
+}
+
+function CardioWarmupTimer() {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const DURATION = 5 * 60;
+  const [secondsLeft, setSecondsLeft] = useState(DURATION);
+  const [isRunning, setIsRunning] = useState(true);
+  const [isDone, setIsDone] = useState(false);
+
+  useEffect(() => {
+    if (!isRunning || secondsLeft <= 0) return;
+    const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearInterval(id);
+  }, [isRunning, secondsLeft]);
+
+  useEffect(() => {
+    if (secondsLeft <= 0 && isRunning) {
+      setIsRunning(false);
+      setIsDone(true);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [secondsLeft, isRunning]);
+
+  const reset = () => { setSecondsLeft(DURATION); setIsRunning(true); setIsDone(false); };
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+
+  if (isDone) {
+    return (
+      <Pressable onPress={reset} style={styles.cardioTimerDone}>
+        <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+        <Text style={styles.cardioTimerDoneText}>Warm-up complete — tap to restart</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.cardioTimerRow}>
+      <View style={styles.cardioTimerIcon}>
+        <Ionicons name="flame" size={18} color="#e65100" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardioTimerLabel}>5-min Cardio Warm-Up</Text>
+        <Text style={styles.cardioTimerCountdown}>{mm}:{ss} remaining</Text>
+      </View>
+      <Pressable onPress={() => setIsRunning((r) => !r)} style={styles.cardioTimerToggle}>
+        <Ionicons name={isRunning ? 'pause' : 'play'} size={18} color="#e65100" />
+      </Pressable>
+      <Pressable onPress={reset} style={styles.cardioTimerToggle}>
+        <Ionicons name="refresh" size={16} color={C.textSecondary} />
       </Pressable>
     </View>
   );
@@ -304,6 +357,8 @@ function ExerciseCard({
   previousSessionWeight,
   feedbackMultiplier,
   weightUnit = 'kg',
+  note = '',
+  onNoteChange,
 }: {
   exercise: Exercise;
   index: number;
@@ -319,6 +374,8 @@ function ExerciseCard({
   previousSessionWeight?: number;
   feedbackMultiplier?: number;
   weightUnit?: WeightUnit;
+  note?: string;
+  onNoteChange?: (text: string) => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -483,7 +540,9 @@ function ExerciseCard({
                   <Text style={styles.cueText}>{exercise.cue}</Text>
                 </View>
 
-                <RestTimer category={exercise.category} trigger={timerTrigger} />
+                {exercise.id === 'cardio-warmup' && <CardioWarmupTimer />}
+
+                {exercise.id !== 'cardio-warmup' && <RestTimer category={exercise.category} trigger={timerTrigger} />}
 
                 <View style={styles.setHeaderRow}>
                   <Text style={styles.setHeaderItem}>Set</Text>
@@ -511,6 +570,20 @@ function ExerciseCard({
                     onCompleted={si === setData.sets.length - 1 ? () => setTimerTrigger((n) => n + 1) : undefined}
                   />
                 ))}
+
+                <View style={styles.noteInputRow}>
+                  <TextInput
+                    style={styles.noteInput}
+                    placeholder="Note (optional)"
+                    placeholderTextColor={C.textTertiary}
+                    value={note}
+                    onChangeText={onNoteChange}
+                    returnKeyType="done"
+                    multiline={false}
+                    maxLength={160}
+                    testID={`note-${index}`}
+                  />
+                </View>
               </View>
             )}
           </Animated.View>
@@ -606,6 +679,8 @@ export default function SessionScreen() {
   }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
+  const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
+  const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [showCongratsModal, setShowCongratsModal] = useState(false);
   const [congratsMessage] = useState(() =>
     CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
@@ -645,6 +720,7 @@ export default function SessionScreen() {
         swapped: false,
       }))
     );
+    setExerciseNotes(exercises.map(() => ''));
     setActiveIndex(0);
     cardYPositions.current = {};
   }, [exercises]);
@@ -681,6 +757,14 @@ export default function SessionScreen() {
       const ex = { ...next[exerciseIndex], sets: [...next[exerciseIndex].sets] };
       ex.sets[setIndex] = updated;
       next[exerciseIndex] = ex;
+      return next;
+    });
+  }, []);
+
+  const handleNoteChange = useCallback((exerciseIndex: number, text: string) => {
+    setExerciseNotes(prev => {
+      const next = [...prev];
+      next[exerciseIndex] = text;
       return next;
     });
   }, []);
@@ -748,6 +832,7 @@ export default function SessionScreen() {
       exerciseId: ex.id,
       exerciseName: ex.name,
       sets: exerciseData[i].sets,
+      note: exerciseNotes[i] || undefined,
     }));
 
     // Detect milestone before saving (completedCount is current, new count = completedCount + 1)
@@ -820,13 +905,34 @@ export default function SessionScreen() {
   const handleExit = () => {
     const hasProgress = exerciseData.some(ed => ed.sets.some(s => s.completed));
     if (hasProgress) {
-      Alert.alert('Leave Session?', 'Your progress will not be saved.', [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-      ]);
+      setShowAbandonModal(true);
     } else {
       router.back();
     }
+  };
+
+  const handleSaveAndExit = () => {
+    const exerciseLogs: ExerciseLog[] = exercises.map((ex, i) => ({
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      sets: exerciseData[i]?.sets ?? [],
+      note: exerciseNotes[i] || undefined,
+    }));
+    completeSession({
+      sessionType,
+      date: new Date().toISOString(),
+      equipmentTier,
+      hadAches: hasAches,
+      painRegion,
+      energy,
+      timeAvailable,
+      exerciseCount: exercises.length,
+      exerciseLogs,
+      isTestWeek,
+    });
+    setShowAbandonModal(false);
+    router.dismissAll();
+    router.replace('/(tabs)');
   };
 
   const keyboardBehavior = Platform.OS === 'ios' ? 'padding' : 'height';
@@ -924,6 +1030,8 @@ export default function SessionScreen() {
               previousSessionWeight={previousSessionWeights[exercise.id]}
               feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
               weightUnit={weightUnit}
+              note={exerciseNotes[index] ?? ''}
+              onNoteChange={(text) => handleNoteChange(index, text)}
             />
           );
         })}
@@ -946,6 +1054,38 @@ export default function SessionScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {/* Abandon Modal */}
+      <Modal visible={showAbandonModal} transparent animationType="fade" onRequestClose={() => setShowAbandonModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAbandonModal(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIcon, { backgroundColor: '#fce8e6' }]}>
+              <Ionicons name="exit-outline" size={32} color="#c62828" />
+            </View>
+            <Text style={styles.modalTitle}>Leave Session?</Text>
+            <Text style={styles.modalDesc}>You've logged some sets. What would you like to do?</Text>
+            <Pressable
+              onPress={handleSaveAndExit}
+              style={[styles.abandonBtn, styles.abandonBtnSave]}
+              testID="abandon-save"
+            >
+              <Ionicons name="save-outline" size={18} color={C.textInverse} />
+              <Text style={styles.abandonBtnSaveText}>Save & exit</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { setShowAbandonModal(false); router.back(); }}
+              style={[styles.abandonBtn, styles.abandonBtnDiscard]}
+              testID="abandon-discard"
+            >
+              <Ionicons name="trash-outline" size={18} color="#c62828" />
+              <Text style={styles.abandonBtnDiscardText}>Discard session</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowAbandonModal(false)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>Keep going</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Swap Modal */}
       <Modal visible={!!swapModal} transparent animationType="fade" onRequestClose={() => setSwapModal(null)}>
@@ -1375,6 +1515,23 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   restTimerTextActive: { color: '#fff' },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
   restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  // Cardio warmup timer
+  cardioTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff3e0', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#ffe0b2' },
+  cardioTimerIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  cardioTimerLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: '#bf360c', marginBottom: 2 },
+  cardioTimerCountdown: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#e65100' },
+  cardioTimerToggle: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ffe0b2', alignItems: 'center', justifyContent: 'center' },
+  cardioTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.primarySurface, borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: C.primaryMuted },
+  cardioTimerDoneText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  // Per-exercise note input
+  noteInputRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.borderLight },
+  noteInput: { height: 36, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, paddingHorizontal: 10, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.text },
+  // Abandon modal
+  abandonBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', paddingVertical: 14, borderRadius: 12, marginBottom: 8 },
+  abandonBtnSave: { backgroundColor: C.primary },
+  abandonBtnSaveText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+  abandonBtnDiscard: { backgroundColor: '#fce8e6', borderWidth: 1, borderColor: '#ef9a9a' },
+  abandonBtnDiscardText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: '#c62828' },
   // Target weight label on KPI lift
   targetWeightLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 1 },
   loadTextMain: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDark },
