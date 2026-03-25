@@ -90,11 +90,17 @@ export default function HomeScreen() {
   const handleRepeatCustomise = () => {
     if (!lastSession) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const isStrength = lastSession.sessionType === 'squat' || lastSession.sessionType === 'bench' || lastSession.sessionType === 'deadlift';
-    router.push({
-      pathname: '/readiness',
-      params: { sessionType: lastSession.sessionType, isTestWeek: isStrength && testWeek ? 'true' : 'false' },
-    });
+    const type = lastSession.sessionType;
+    if (type === 'prehab' || type === 'flexibility') {
+      router.push({
+        pathname: '/session',
+        params: { sessionType: type, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: effectiveTier },
+      });
+    } else if (type === 'conditioning') {
+      router.push({ pathname: '/readiness', params: { sessionType: type, isTestWeek: 'false' } });
+    } else {
+      router.push({ pathname: '/readiness', params: { sessionType: type, isTestWeek: testWeek ? 'true' : 'false' } });
+    }
   };
 
   return (
