@@ -80,7 +80,7 @@ const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
   main: 120, neuro: 60, accessory: 60, mechanical: 45,
 };
 
-function RestTimer({ category }: { category: Exercise['category'] }) {
+function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; trigger?: number }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const duration = REST_TIMER_DURATIONS[category] ?? 0;
@@ -89,6 +89,16 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
   const [isDone, setIsDone] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
+
+  // Auto-start when trigger increments (i.e. a set was just completed)
+  useEffect(() => {
+    if (trigger > 0 && duration > 0) {
+      setSecondsLeft(duration);
+      setIsDone(false);
+      setIsRunning(true);
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [trigger]);
 
   useEffect(() => {
     if (!duration || !isRunning) return;
@@ -115,8 +125,8 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
     return (
       <Animated.View style={pulseStyle}>
         <Pressable onPress={reset} style={styles.restTimerDone}>
-          <Ionicons name="checkmark-circle" size={14} color={C.primary} />
-          <Text style={styles.restTimerDoneText}>Rest done — tap to reset</Text>
+          <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+          <Text style={styles.restTimerDoneText}>Rest complete — tap to reset</Text>
         </Pressable>
       </Animated.View>
     );
@@ -129,16 +139,16 @@ function RestTimer({ category }: { category: Exercise['category'] }) {
         style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
       >
         <Ionicons
-          name={isRunning ? 'pause-circle-outline' : 'timer-outline'}
-          size={14}
-          color={isRunning ? C.warning : C.textTertiary}
+          name={isRunning ? 'pause-circle' : 'timer'}
+          size={18}
+          color={isRunning ? '#fff' : C.primary}
         />
         <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-          {isRunning ? `Resting — ${mm}:${ss}` : `Start ${mm}:${ss} rest timer`}
+          {isRunning ? `Resting — ${mm}:${ss}` : `Rest timer — ${mm}:${ss}`}
         </Text>
       </Pressable>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
-        <Ionicons name="refresh-outline" size={14} color={C.textTertiary} />
+        <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
     </View>
   );
@@ -155,6 +165,7 @@ function SetRow({
   previousBest,
   previousWeight,
   weightUnit = 'kg',
+  onCompleted,
 }: {
   setNum: number;
   data: SetLog;
@@ -166,6 +177,7 @@ function SetRow({
   previousBest?: number;
   previousWeight?: number;
   weightUnit?: WeightUnit;
+  onCompleted?: () => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -257,11 +269,12 @@ function SetRow({
             const displayVal = parseFloat(weightText);
             const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
             onChange({ ...data, weight: w, completed: completing });
+            if (completing) onCompleted?.();
           }}
           style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
           testID={`set-${setNum}-check`}
         >
-          {data.completed && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+          {data.completed && <Ionicons name="checkmark" size={20} color={C.textInverse} />}
         </Pressable>
       </View>
       {isNewRecord && (
@@ -310,8 +323,9 @@ function ExerciseCard({
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
+  const [timerTrigger, setTimerTrigger] = useState(0);
   const allDone = setData.sets.every(s => s.completed);
-  const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit);
+  const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit, exercise.suggestedLoad);
   const restPeriod = getRestPeriod(exercise.category);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
@@ -435,7 +449,10 @@ function ExerciseCard({
                   </View>
                   <Text style={styles.metaText}>{setsLabel} × {repDisplay}</Text>
                 </View>
-                <Text style={styles.loadText}>{exercise.suggestedLoad}</Text>
+                {exercise.category === 'main' && !isBandExercise && (
+                  <Text style={styles.targetWeightLabel}>Target weight: </Text>
+                )}
+                <Text style={[styles.loadText, exercise.category === 'main' && !isBandExercise && styles.loadTextMain]}>{exercise.suggestedLoad}</Text>
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
@@ -448,17 +465,13 @@ function ExerciseCard({
                 <Ionicons name="logo-youtube" size={15} color="#FF0000" />
                 <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
               </Pressable>
-              {exercise.hasSwap && !setData.swapped && (
-                <Pressable onPress={onSwapPress} style={styles.actionBtn} testID={`swap-${index}`}>
-                  <Ionicons name="swap-horizontal-outline" size={15} color={C.textSecondary} />
-                  <Text style={styles.actionBtnText}>Swap exercise</Text>
+              {exercise.hasSwap && (
+                <Pressable onPress={onSwapPress} style={[styles.actionBtn, setData.swapped && styles.actionBtnSwapped]} testID={`swap-${index}`}>
+                  <Ionicons name="swap-horizontal-outline" size={15} color={setData.swapped ? C.primary : C.textSecondary} />
+                  <Text style={[styles.actionBtnText, setData.swapped && { color: C.primary }]}>
+                    {setData.swapped ? 'Swap again' : 'Swap exercise'}
+                  </Text>
                 </Pressable>
-              )}
-              {setData.swapped && (
-                <View style={[styles.actionBtn, { backgroundColor: '#fff3e0' }]}>
-                  <Ionicons name="checkmark-circle-outline" size={15} color="#e65100" />
-                  <Text style={[styles.actionBtnText, { color: '#e65100' }]}>Swapped</Text>
-                </View>
               )}
             </View>
 
@@ -469,11 +482,7 @@ function ExerciseCard({
                   <Text style={styles.cueText}>{exercise.cue}</Text>
                 </View>
 
-                <View style={styles.restContainer}>
-                  <Ionicons name="timer-outline" size={12} color={C.textTertiary} />
-                  <Text style={styles.restText}>{restPeriod}</Text>
-                </View>
-                <RestTimer category={exercise.category} />
+                <RestTimer category={exercise.category} trigger={timerTrigger} />
 
                 <View style={styles.setHeaderRow}>
                   <Text style={styles.setHeaderItem}>Set</Text>
@@ -498,6 +507,7 @@ function ExerciseCard({
                     previousBest={previousBest}
                     previousWeight={previousSessionWeight}
                     weightUnit={weightUnit}
+                    onCompleted={() => setTimerTrigger((n) => n + 1)}
                   />
                 ))}
               </View>
@@ -691,7 +701,7 @@ export default function SessionScreen() {
         name: exercise.swapName,
         cue: exercise.swapCue ?? exercise.cue,
         suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
-        hasSwap: false,
+        hasSwap: true, // Keep swap available — allow unlimited swaps back to original
       };
     }
     return exercise;
@@ -1254,8 +1264,6 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.borderLight },
   cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
   cueText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
-  restContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: C.surfaceTertiary, borderRadius: 8 },
-  restText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
   setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
   setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
@@ -1268,7 +1276,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: C.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, borderWidth: 1, borderColor: C.borderLight },
   setInputDisabled: { opacity: 0.45 },
   inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, width: 30 },
-  setCheck: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  setCheck: { width: 44, height: 44, borderRadius: 22, borderWidth: 2.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   setCheckDone: { backgroundColor: C.primary, borderColor: C.primary },
   setCheckDisabled: { opacity: 0.3 },
   // Card state styles
@@ -1358,14 +1366,19 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
   elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   // Rest timer
-  restTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10 },
-  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight },
-  restTimerBtnActive: { backgroundColor: '#fff8ec', borderColor: C.warning },
-  restTimerResetBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
-  restTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-  restTimerTextActive: { color: C.warning },
-  restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted, alignSelf: 'flex-start' },
-  restTimerDoneText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+  restTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primaryMuted },
+  restTimerBtnActive: { backgroundColor: C.primary, borderColor: C.primaryDark },
+  restTimerResetBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
+  restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  restTimerTextActive: { color: '#fff' },
+  restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
+  restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  // Target weight label on KPI lift
+  targetWeightLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 1 },
+  loadTextMain: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+  // Swapped-again action button
+  actionBtnSwapped: { backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
   // Test week ORM comparison card in congrats modal
   ormCompareCard: { width: '100%', backgroundColor: C.primarySurface, borderRadius: 12, borderWidth: 1, borderColor: C.primaryMuted, padding: 14, marginBottom: 14 },
   ormCompareTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary, textAlign: 'center', marginBottom: 12, textTransform: 'uppercase' as const, letterSpacing: 0.5 },

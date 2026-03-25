@@ -401,7 +401,16 @@ export function generateWorkout(
 
   const isUpperBody = mainType === 'bench';
   const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg));
-  return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+  const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+
+  // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
+  const seenNames = new Set<string>();
+  return kettlebelled.filter((ex) => {
+    const key = ex.name.toLowerCase().trim();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
 }
 
 function generateConditioningWorkout(
@@ -441,27 +450,49 @@ export function getRestPeriod(category: ExerciseCategory): string {
   }
 }
 
-export function getWeightGuide(category: ExerciseCategory, sets: number, weightUnit: 'kg' | 'lbs' = 'kg'): string[] {
+export function getWeightGuide(category: ExerciseCategory, sets: number, weightUnit: 'kg' | 'lbs' = 'kg', suggestedLoad?: string): string[] {
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const unit = weightUnit === 'lbs' ? 'lbs' : 'kg';
+
+  // Try to extract the target weight number from the personalised load string
+  let targetKg: number | null = null;
+  if (suggestedLoad) {
+    const numMatch = suggestedLoad.match(/(\d+(?:\.\d+)?)/);
+    if (numMatch) targetKg = parseFloat(numMatch[1]);
+  }
+
+  const w = (pct: number): string => {
+    if (targetKg === null) return '';
+    const val = roundTo2_5(targetKg * pct);
+    return ` (~${val} ${unit})`;
+  };
+
   if (category === 'main') {
     if (sets <= 3) return [
-      'Set 1: Light warm-up — roughly half your target weight',
-      'Set 2: Build up — feel the movement (~70%)',
-      'Set 3: Your target weight — challenging but in full control',
+      `Set 1: Light warm-up${w(0.5)} — easy, just feel the pattern`,
+      `Set 2: Build up${w(0.7)} — approaching working weight`,
+      `Set 3: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} — challenging but fully controlled`,
     ];
     if (sets === 4) return [
-      'Set 1: Light warm-up — roughly half your target weight',
-      'Set 2: Build up — feel the movement (~65%)',
-      'Set 3: Your target weight — stop well before failure',
-      'Set 4: Match Set 3, or go a little heavier if form was perfect',
+      `Set 1: Light warm-up${w(0.5)} — easy, just feel the pattern`,
+      `Set 2: Build up${w(0.65)} — getting into position`,
+      `Set 3: Approach set${w(0.875)} — close to working weight, stay sharp`,
+      `Set 4: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} — your one quality set`,
     ];
-    return [
-      'Set 1: Very light warm-up (~40% of your target weight)',
-      'Set 2: Build up — feel the movement pattern (~60%)',
-      'Set 3: Getting close — approaching your target weight (~75%)',
-      ...Array.from({ length: sets - 3 }, (_, i) =>
-        `Set ${i + 4}: Your target weight — controlled, never grinding through bad form`
-      ),
+    // 5+ sets: ramp up progressively, only the final set is the true working weight
+    const rampGuides: string[] = [
+      `Set 1: Very light warm-up${w(0.4)} — just waking up the pattern`,
+      `Set 2: Build up${w(0.55)} — comfortable, focus on form`,
+      `Set 3: Getting close${w(0.7)} — start to feel the weight`,
     ];
+    for (let i = 3; i < sets - 1; i++) {
+      const pct = 0.7 + (0.175 * (i - 2) / (sets - 3));
+      rampGuides.push(`Set ${i + 1}: Approach set${w(Math.min(pct, 0.9))} — nearly there`);
+    }
+    rampGuides.push(
+      `Set ${sets}: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} — your one quality set, full control`
+    );
+    return rampGuides;
   }
   if (category === 'accessory') {
     return Array.from({ length: sets }, (_, i) =>
