@@ -111,11 +111,13 @@ interface AppState {
   lastReadinessEnergy: EnergyLevel;
   lastReadinessTime: TimeAvailable;
   weightUnit: WeightUnit;
+  lastWeightPromptedAt: number | null;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
+  setLastWeightPromptedAt: (ts: number) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
   resetProgress: () => void;
@@ -155,6 +157,7 @@ export const useAppStore = create<AppState>()(
       lastReadinessEnergy: 'normal',
       lastReadinessTime: '45',
       weightUnit: 'kg',
+      lastWeightPromptedAt: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -162,6 +165,7 @@ export const useAppStore = create<AppState>()(
       setUserProfile: (profile) => set((state) => ({
         userProfile: { ...state.userProfile, ...profile },
       })),
+      setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setLastReadiness: (energy, time) => set({ lastReadinessEnergy: energy, lastReadinessTime: time }),
       setWeightUnit: (unit) => set({ weightUnit: unit }),
 
@@ -320,9 +324,12 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.weightUnit) {
           persistedState.weightUnit = 'kg';
         }
+        if (!('lastWeightPromptedAt' in persistedState)) {
+          persistedState.lastWeightPromptedAt = null;
+        }
         return persistedState;
       },
-      version: 5,
+      version: 6,
     }
   )
 );

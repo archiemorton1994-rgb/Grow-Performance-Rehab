@@ -19,6 +19,7 @@ import { useColors } from '@/constants/colors';
 import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, WeightUnit, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
+import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { router } from 'expo-router';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
@@ -37,7 +38,7 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
   { value: 'rehab', label: 'Rehab & Recover', icon: 'medical-outline' },
 ];
 
-type ActiveModal = 'edit' | 'equipment' | 'settings' | null;
+type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | null;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -67,6 +68,26 @@ export default function ProfileScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+
+  const [bwText, setBwText] = useState('');
+
+  const openBodyweight = () => {
+    const display = userProfile.bodyweightKg > 0
+      ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
+      : '';
+    setBwText(display);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveModal('bodyweight');
+  };
+
+  const saveBodyweight = () => {
+    const val = parseFloat(bwText);
+    if (val > 0) {
+      setUserProfile({ bodyweightKg: displayUnitToKg(val, weightUnit) });
+    }
+    setActiveModal(null);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
   const [editName, setEditName] = useState('');
   const [editWeight, setEditWeight] = useState('');
@@ -212,7 +233,7 @@ export default function ProfileScreen() {
               })}
               {userProfile.bodyweightKg > 0 && (
                 <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
-                  <Text style={[styles.tagText, { color: '#1565c0' }]}>{userProfile.bodyweightKg} kg</Text>
+                  <Text style={[styles.tagText, { color: '#1565c0' }]}>{kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}</Text>
                 </View>
               )}
             </View>
@@ -261,6 +282,25 @@ export default function ProfileScreen() {
             <View style={styles.navBtnText}>
               <Text style={styles.navLabel}>Equipment</Text>
               <Text style={styles.navSub}>{equipmentSubtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+          </Pressable>
+
+          <Pressable
+            onPress={openBodyweight}
+            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+            testID="open-bodyweight"
+          >
+            <View style={[styles.navIcon, { backgroundColor: '#e8f0fe' }]}>
+              <Ionicons name="scale-outline" size={22} color="#1565c0" />
+            </View>
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>Body Weight</Text>
+              <Text style={styles.navSub}>
+                {userProfile.bodyweightKg > 0
+                  ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit} — tap to update`
+                  : 'Not set — tap to add'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
           </Pressable>
@@ -501,6 +541,43 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* Body Weight Modal */}
+      <Modal visible={activeModal === 'bodyweight'} transparent animationType="fade" onRequestClose={() => setActiveModal(null)}>
+        <Pressable style={styles.bwOverlay} onPress={() => setActiveModal(null)}>
+          <Pressable style={styles.bwCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.bwIconWrap}>
+              <Ionicons name="scale-outline" size={28} color="#1565c0" />
+            </View>
+            <Text style={styles.bwTitle}>Body Weight</Text>
+            <Text style={styles.bwSub}>
+              {userProfile.bodyweightKg > 0
+                ? `Current: ${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}`
+                : 'Enter your body weight to calibrate session loads'}
+            </Text>
+            <View style={styles.bwInputRow}>
+              <TextInput
+                style={styles.bwInput}
+                value={bwText}
+                onChangeText={setBwText}
+                placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
+                placeholderTextColor={C.textTertiary}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={saveBodyweight}
+                autoFocus
+              />
+              <Text style={styles.bwUnit}>{weightUnit}</Text>
+            </View>
+            <Pressable onPress={saveBodyweight} style={styles.bwSaveBtn} testID="save-bodyweight">
+              <Text style={styles.bwSaveBtnText}>Save</Text>
+            </Pressable>
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Settings Modal */}
       <Modal visible={activeModal === 'settings'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
         <View style={styles.sheetOverlay}>
@@ -710,5 +787,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     feedbackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primary },
     resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
     resetText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
+
+    // Body weight quick-edit modal
+    bwOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    bwCard: { width: '100%', backgroundColor: C.surface, borderRadius: 20, padding: 24, alignItems: 'center' },
+    bwIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: '#e8f0fe', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    bwTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6, textAlign: 'center' },
+    bwSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
+    bwInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20, alignSelf: 'stretch' },
+    bwInput: {
+      flex: 1, height: 48, backgroundColor: C.surfaceTertiary, borderRadius: 12,
+      borderWidth: 1.5, borderColor: '#1565c0', paddingHorizontal: 14,
+      fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
+    },
+    bwUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
+    bwSaveBtn: { width: '100%', backgroundColor: '#1565c0', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
+    bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
   });
 }
