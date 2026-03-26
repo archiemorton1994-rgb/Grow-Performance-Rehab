@@ -162,6 +162,9 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
     return () => clearInterval(timerId);
   }, [duration, isRunning, secondsLeft]);
 
+  // Cancel notification on unmount (navigating away mid-rest)
+  useEffect(() => () => { cancelNotif(); }, []);
+
   if (!duration) return null;
 
   const reset = () => { cancelNotif(); setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
@@ -173,6 +176,17 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
     pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
       pulseScale.value = withTiming(1, { duration: 180 });
     });
+  };
+  const togglePause = () => {
+    if (isRunning) {
+      // Pausing: cancel the scheduled notification
+      cancelNotif();
+      setIsRunning(false);
+    } else {
+      // Resuming: reschedule notification for remaining time
+      if (secondsLeft > 0) scheduleNotif(secondsLeft);
+      setIsRunning(true);
+    }
   };
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
   const ss = String(secondsLeft % 60).padStart(2, '0');
@@ -191,7 +205,7 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
   return (
     <View style={styles.restTimerRow}>
       <Pressable
-        onPress={() => setIsRunning((r) => !r)}
+        onPress={togglePause}
         style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
       >
         <Ionicons
@@ -845,6 +859,7 @@ export default function SessionScreen() {
 
   const handleSwapConfirm = useCallback((index: number) => {
     setExerciseData(prev => {
+      if (prev[index]?.swapped) return prev;
       const next = [...prev];
       next[index] = { ...next[index], swapped: true };
       return next;
