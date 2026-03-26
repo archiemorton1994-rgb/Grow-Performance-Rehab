@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import * as fs from "fs";
 import * as path from "path";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 const app = express();
 const log = console.log;
@@ -237,6 +238,18 @@ function setupErrorHandler(app: express.Application) {
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
+
+  if (process.env.NODE_ENV === "development") {
+    const METRO_PORT = process.env.METRO_PORT || "8082";
+    app.use(
+      createProxyMiddleware({
+        pathFilter: (pathname: string) => !pathname.startsWith("/api"),
+        target: `http://localhost:${METRO_PORT}`,
+        changeOrigin: false,
+        ws: true,
+      })
+    );
+  }
 
   configureExpoAndLanding(app);
 
