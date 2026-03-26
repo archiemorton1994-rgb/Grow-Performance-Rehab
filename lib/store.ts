@@ -112,12 +112,14 @@ interface AppState {
   lastReadinessTime: TimeAvailable;
   weightUnit: WeightUnit;
   lastWeightPromptedAt: number | null;
+  hasHydrated: boolean;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   setLastWeightPromptedAt: (ts: number) => void;
+  setHasHydrated: (hydrated: boolean) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
   resetProgress: () => void;
@@ -158,6 +160,7 @@ export const useAppStore = create<AppState>()(
       lastReadinessTime: '45',
       weightUnit: 'kg',
       lastWeightPromptedAt: null,
+      hasHydrated: false,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -166,6 +169,7 @@ export const useAppStore = create<AppState>()(
         userProfile: { ...state.userProfile, ...profile },
       })),
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time) => set({ lastReadinessEnergy: energy, lastReadinessTime: time }),
       setWeightUnit: (unit) => set({ weightUnit: unit }),
 
@@ -305,6 +309,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'grow-app-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) state.setHasHydrated(true);
+      },
       migrate: (persistedState: any, version: number) => {
         if (persistedState && persistedState.equipmentTier && !persistedState.equipmentTiers) {
           persistedState.equipmentTiers = [persistedState.equipmentTier as EquipmentTier];

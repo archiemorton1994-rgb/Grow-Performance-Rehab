@@ -50,6 +50,7 @@ export default function HomeScreen() {
     setUserProfile,
     lastWeightPromptedAt,
     setLastWeightPromptedAt,
+    hasHydrated,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -76,15 +77,16 @@ export default function HomeScreen() {
   const [weightPromptText, setWeightPromptText] = useState('');
 
   useEffect(() => {
+    if (!hasHydrated) return;
     const shouldPrompt = !lastWeightPromptedAt || (Date.now() - lastWeightPromptedAt > SEVEN_DAYS_MS);
-    if (shouldPrompt) {
+    if (shouldPrompt && !showWeightPrompt) {
       const currentDisplay = userProfile.bodyweightKg > 0
         ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
         : '';
       setWeightPromptText(currentDisplay);
       setShowWeightPrompt(true);
     }
-  }, []);
+  }, [hasHydrated, lastWeightPromptedAt]);
 
   const dismissWeightPrompt = () => {
     setLastWeightPromptedAt(Date.now());
