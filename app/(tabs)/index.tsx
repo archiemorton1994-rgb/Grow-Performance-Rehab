@@ -1,12 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   Platform,
-  Modal,
-  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
-import { formatDate, getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
+import { formatDate, getTimeOfDayGreeting } from '@/lib/utils';
 
 const WEEKLY_GOAL = 3;
 
@@ -29,8 +27,6 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; subtitle: string; 
   prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline',  color: '#00897b', bg: '#e0f2f1' },
   flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline',              color: '#558b2f', bg: '#f1f8e9' },
 };
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -46,11 +42,6 @@ export default function HomeScreen() {
     getThisWeekCount,
     isTestWeekDue,
     userProfile,
-    weightUnit,
-    setUserProfile,
-    lastWeightPromptedAt,
-    setLastWeightPromptedAt,
-    hasHydrated,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -71,38 +62,6 @@ export default function HomeScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  // Weekly weight prompt state
-  const [showWeightPrompt, setShowWeightPrompt] = useState(false);
-  const [weightPromptText, setWeightPromptText] = useState('');
-
-  useEffect(() => {
-    if (!hasHydrated) return;
-    const shouldPrompt = !lastWeightPromptedAt || (Date.now() - lastWeightPromptedAt > SEVEN_DAYS_MS);
-    if (shouldPrompt && !showWeightPrompt) {
-      const currentDisplay = userProfile.bodyweightKg > 0
-        ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
-        : '';
-      setWeightPromptText(currentDisplay);
-      setShowWeightPrompt(true);
-    }
-  }, [hasHydrated, lastWeightPromptedAt]);
-
-  const dismissWeightPrompt = () => {
-    setLastWeightPromptedAt(Date.now());
-    setShowWeightPrompt(false);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const confirmWeightPrompt = () => {
-    const val = parseFloat(weightPromptText);
-    if (val > 0) {
-      setUserProfile({ bodyweightKg: displayUnitToKg(val, weightUnit) });
-    }
-    setLastWeightPromptedAt(Date.now());
-    setShowWeightPrompt(false);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
 
   const handleStartSuggested = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -252,48 +211,6 @@ export default function HomeScreen() {
         </Animated.View>
 
       </View>
-
-      {/* Weekly weight prompt modal */}
-      <Modal visible={showWeightPrompt} transparent animationType="fade" onRequestClose={dismissWeightPrompt}>
-        <Pressable style={styles.promptOverlay} onPress={dismissWeightPrompt}>
-          <Pressable style={styles.promptCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.promptIconWrap}>
-              <Ionicons name="scale-outline" size={28} color={C.primary} />
-            </View>
-            <Text style={styles.promptTitle}>Update Your Weight</Text>
-            <Text style={styles.promptSub}>
-              {userProfile.bodyweightKg > 0
-                ? `Your last recorded weight is ${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}. Still accurate?`
-                : 'Enter your body weight to help calibrate your sessions.'}
-            </Text>
-            <View style={styles.promptInputRow}>
-              <TextInput
-                style={styles.promptInput}
-                value={weightPromptText}
-                onChangeText={setWeightPromptText}
-                placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
-                placeholderTextColor={C.textTertiary}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                autoFocus
-              />
-              <Text style={styles.promptUnit}>{weightUnit}</Text>
-            </View>
-            <Pressable
-              onPress={confirmWeightPrompt}
-              style={styles.promptConfirmBtn}
-              testID="weight-prompt-confirm"
-            >
-              <Text style={styles.promptConfirmText}>
-                {parseFloat(weightPromptText) > 0 ? 'Save & Continue' : 'Skip for now'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={dismissWeightPrompt} style={styles.promptDismissBtn}>
-              <Text style={styles.promptDismissText}>Remind me later</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -365,23 +282,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.borderLight,
     },
     firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-
-    // Weekly weight prompt modal
-    promptOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-    promptCard: { width: '100%', backgroundColor: C.surface, borderRadius: 20, padding: 24, alignItems: 'center' },
-    promptIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: C.primarySurface, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    promptTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 8, textAlign: 'center' },
-    promptSub: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-    promptInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20, alignSelf: 'stretch' },
-    promptInput: {
-      flex: 1, height: 48, backgroundColor: C.surfaceTertiary, borderRadius: 12,
-      borderWidth: 1.5, borderColor: C.primary, paddingHorizontal: 14,
-      fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
-    },
-    promptUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
-    promptConfirmBtn: { width: '100%', backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
-    promptConfirmText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
-    promptDismissBtn: { paddingVertical: 10 },
-    promptDismissText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
   });
 }

@@ -82,11 +82,13 @@ export default function ProfileScreen() {
 
   const saveBodyweight = () => {
     const val = parseFloat(bwText);
+    const hasBwText = bwText.trim().length > 0;
+    if (hasBwText && !(val > 0)) return;
     if (val > 0) {
       setUserProfile({ bodyweightKg: displayUnitToKg(val, weightUnit) });
     }
     setActiveModal(null);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web' && val > 0) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const [editName, setEditName] = useState('');
@@ -556,7 +558,7 @@ export default function ProfileScreen() {
             </Text>
             <View style={styles.bwInputRow}>
               <TextInput
-                style={styles.bwInput}
+                style={[styles.bwInput, bwText.trim().length > 0 && !(parseFloat(bwText) > 0) && styles.bwInputError]}
                 value={bwText}
                 onChangeText={setBwText}
                 placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
@@ -568,7 +570,18 @@ export default function ProfileScreen() {
               />
               <Text style={styles.bwUnit}>{weightUnit}</Text>
             </View>
-            <Pressable onPress={saveBodyweight} style={styles.bwSaveBtn} testID="save-bodyweight">
+            {bwText.trim().length > 0 && !(parseFloat(bwText) > 0) && (
+              <Text style={styles.bwErrorText}>Please enter a positive number</Text>
+            )}
+            <Pressable
+              onPress={saveBodyweight}
+              style={[
+                styles.bwSaveBtn,
+                bwText.trim().length > 0 && !(parseFloat(bwText) > 0) && { backgroundColor: C.border, opacity: 0.7 },
+              ]}
+              disabled={bwText.trim().length > 0 && !(parseFloat(bwText) > 0)}
+              testID="save-bodyweight"
+            >
               <Text style={styles.bwSaveBtnText}>Save</Text>
             </Pressable>
             <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
@@ -800,6 +813,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1.5, borderColor: '#1565c0', paddingHorizontal: 14,
       fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
     },
+    bwInputError: { borderColor: C.error },
+    bwErrorText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.error, alignSelf: 'flex-start', marginBottom: 10, marginTop: 2 },
     bwUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
     bwSaveBtn: { width: '100%', backgroundColor: '#1565c0', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
     bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
