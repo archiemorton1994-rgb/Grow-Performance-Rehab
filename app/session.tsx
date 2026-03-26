@@ -10,7 +10,10 @@ import {
   Modal,
   Linking,
   KeyboardAvoidingView,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,12 +92,56 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
 
+  // Background timer tracking
+  const backgroundedAt = useRef<number | null>(null);
+  const notifIdRef = useRef<string | null>(null);
+
+  const cancelNotif = useCallback(async () => {
+    if (notifIdRef.current && Platform.OS !== 'web') {
+      await Notifications.cancelScheduledNotificationAsync(notifIdRef.current).catch(() => {});
+      notifIdRef.current = null;
+    }
+  }, []);
+
+  const scheduleNotif = useCallback(async (seconds: number) => {
+    if (Platform.OS === 'web') return;
+    await cancelNotif();
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      const id = await Notifications.scheduleNotificationAsync({
+        content: { title: 'Rest Complete', body: 'Time to hit your next set!', sound: true },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
+      });
+      notifIdRef.current = id;
+    } catch (_) {}
+  }, [cancelNotif]);
+
+  // AppState listener: subtract elapsed time when returning from background
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const handleChange = (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundedAt.current = Date.now();
+      } else if (nextState === 'active') {
+        if (backgroundedAt.current !== null && isRunning) {
+          const elapsed = Math.floor((Date.now() - backgroundedAt.current) / 1000);
+          setSecondsLeft((s) => Math.max(0, s - elapsed));
+        }
+        backgroundedAt.current = null;
+      }
+    };
+    const sub = AppState.addEventListener('change', handleChange);
+    return () => sub.remove();
+  }, [isRunning]);
+
   // Auto-start when trigger increments (i.e. a set was just completed)
   useEffect(() => {
     if (trigger > 0 && duration > 0) {
       setSecondsLeft(duration);
       setIsDone(false);
       setIsRunning(true);
+      scheduleNotif(duration);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }, [trigger]);
@@ -104,6 +151,7 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
     if (secondsLeft <= 0) {
       setIsRunning(false);
       setIsDone(true);
+      cancelNotif();
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
         pulseScale.value = withTiming(1, { duration: 180 });
@@ -116,7 +164,16 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
 
   if (!duration) return null;
 
-  const reset = () => { setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
+  const reset = () => { cancelNotif(); setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
+  const skip = () => {
+    cancelNotif();
+    setIsRunning(false);
+    setIsDone(true);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
+      pulseScale.value = withTiming(1, { duration: 180 });
+    });
+  };
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
   const ss = String(secondsLeft % 60).padStart(2, '0');
 
@@ -146,6 +203,11 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
           {isRunning ? `Resting — ${mm}:${ss}` : `Rest timer — ${mm}:${ss}`}
         </Text>
       </Pressable>
+      {isRunning && (
+        <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
+          <Text style={styles.restTimerSkipText}>Done resting</Text>
+        </Pressable>
+      )}
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
@@ -549,6 +611,13 @@ function ExerciseCard({
 
                 {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && <RestTimer category={exercise.category} trigger={timerTrigger} />}
 
+                {!isBandExercise && (exercise.category === 'main' || exercise.category === 'neuro') && (
+                  <View style={styles.spotterAdvisory}>
+                    <Ionicons name="shield-checkmark-outline" size={12} color={C.textTertiary} />
+                    <Text style={styles.spotterAdvisoryText}>Consider a spotter for heavy lifts</Text>
+                  </View>
+                )}
+
                 <View style={styles.setHeaderRow}>
                   <Text style={styles.setHeaderItem}>Set</Text>
                   <View style={styles.setHeaderInputs}>
@@ -572,14 +641,14 @@ function ExerciseCard({
                     previousBest={previousBest}
                     previousWeight={previousSessionWeight}
                     weightUnit={weightUnit}
-                    onCompleted={si === setData.sets.length - 1 ? () => setTimerTrigger((n) => n + 1) : undefined}
+                    onCompleted={() => setTimerTrigger((n) => n + 1)}
                   />
                 ))}
 
                 <View style={styles.noteInputRow}>
                   <TextInput
                     style={styles.noteInput}
-                    placeholder="Note (optional)"
+                    placeholder="Add a note…"
                     placeholderTextColor={C.textTertiary}
                     value={note}
                     onChangeText={onNoteChange}
@@ -1029,7 +1098,7 @@ export default function SessionScreen() {
               setData={data}
               onSetChange={(si, u) => handleSetChange(index, si, u)}
               onVideoPress={() => openYouTube(displayExercise.name)}
-              onSwapPress={() => setSwapModal({ index, exercise })}
+              onSwapPress={() => setSwapModal({ index, exercise: displayExercise })}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
@@ -1103,34 +1172,50 @@ export default function SessionScreen() {
               <Ionicons name="swap-horizontal-outline" size={32} color="#e65100" />
             </View>
             <Text style={styles.modalTitle}>Swap Exercise</Text>
-            {swapModal && (
-              <>
-                <View style={styles.swapFrom}>
-                  <Text style={styles.swapFromLabel}>Replace</Text>
-                  <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
-                </View>
-                <View style={styles.swapArrow}>
-                  <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
-                </View>
-                <View style={styles.swapTo}>
-                  <Text style={styles.swapToLabel}>With</Text>
-                  <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
-                  <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
-                  {swapModal.exercise.swapLoad && (
-                    <Text style={styles.swapToLoad}>{swapModal.exercise.swapLoad}</Text>
-                  )}
-                </View>
-                <Text style={styles.swapNote}>This alternative targets the same muscles with less demand.</Text>
-                <Pressable
-                  onPress={() => handleSwapConfirm(swapModal.index)}
-                  style={styles.swapConfirmBtn}
-                >
-                  <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
-                </Pressable>
-              </>
-            )}
+            {swapModal && (() => {
+              const alreadySwapped = exerciseData[swapModal.index]?.swapped ?? false;
+              if (alreadySwapped) {
+                return (
+                  <>
+                    <View style={styles.swapFrom}>
+                      <Text style={styles.swapFromLabel}>Current exercise</Text>
+                      <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                    </View>
+                    <Text style={[styles.swapNote, { marginTop: 16, textAlign: 'center' }]}>
+                      No further alternatives are available for this exercise. Keep going with the current one!
+                    </Text>
+                  </>
+                );
+              }
+              return (
+                <>
+                  <View style={styles.swapFrom}>
+                    <Text style={styles.swapFromLabel}>Replace</Text>
+                    <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                  </View>
+                  <View style={styles.swapArrow}>
+                    <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
+                  </View>
+                  <View style={styles.swapTo}>
+                    <Text style={styles.swapToLabel}>With</Text>
+                    <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
+                    <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
+                    {swapModal.exercise.swapLoad && (
+                      <Text style={styles.swapToLoad}>{swapModal.exercise.swapLoad}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.swapNote}>This alternative targets the same muscles with less demand.</Text>
+                  <Pressable
+                    onPress={() => handleSwapConfirm(swapModal.index)}
+                    style={styles.swapConfirmBtn}
+                  >
+                    <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
             <Pressable onPress={() => setSwapModal(null)} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>Keep original</Text>
+              <Text style={styles.modalCloseText}>{exerciseData[swapModal?.index ?? -1]?.swapped ? 'Close' : 'Keep original'}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1519,10 +1604,15 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primaryMuted },
   restTimerBtnActive: { backgroundColor: C.primary, borderColor: C.primaryDark },
   restTimerResetBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
+  restTimerSkipBtn: { paddingHorizontal: 12, height: 40, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
   restTimerTextActive: { color: '#fff' },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
   restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  // Spotter advisory
+  spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  spotterAdvisoryText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, fontStyle: 'italic' },
   // Per-exercise note input
   noteInputRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.borderLight },
   noteInput: { height: 36, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, paddingHorizontal: 10, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.text },

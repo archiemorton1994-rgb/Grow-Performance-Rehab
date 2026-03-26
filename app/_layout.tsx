@@ -15,8 +15,19 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { useAppStore } from "@/lib/store";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import * as Notifications from "expo-notifications";
 
 SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
