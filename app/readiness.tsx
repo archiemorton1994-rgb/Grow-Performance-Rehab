@@ -16,7 +16,7 @@ import { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 
-type Step = 'main' | 'painCategory' | 'painRegion';
+type Step = 'main' | 'painCategory' | 'painRegion' | 'prehabFocus';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
@@ -56,9 +56,10 @@ export default function ReadinessScreen() {
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
 
-  const BYPASS_TYPES: SessionType[] = ['prehab', 'flexibility'];
   useEffect(() => {
-    if (BYPASS_TYPES.includes(sessionType)) {
+    if (sessionType === 'prehab') {
+      setStep('prehabFocus');
+    } else if (sessionType === 'flexibility') {
       const tier = getEffectiveTier(selectedEquipments);
       router.replace({
         pathname: '/session',
@@ -165,9 +166,27 @@ export default function ReadinessScreen() {
     }
   };
 
+  const handlePrehabFocus = (region: PainRegion | 'fullbody') => {
+    hapticTap();
+    const tier = getEffectiveTier(selectedEquipments);
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType: 'prehab',
+        hasAches: region !== 'fullbody' ? 'true' : 'false',
+        painRegion: region !== 'fullbody' ? region : '',
+        energy: 'normal',
+        timeAvailable: '60',
+        isTestWeek: 'false',
+        equipment: tier,
+      },
+    });
+  };
+
   const goBack = () => {
     switch (step) {
       case 'main': router.back(); break;
+      case 'prehabFocus': router.back(); break;
       case 'painCategory': setStep('main'); break;
       case 'painRegion': setStep('painCategory'); break;
     }
@@ -361,6 +380,53 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
+  const ALL_PAIN_REGIONS: Array<{ id: PainRegion; label: string }> = (
+    Object.values(PAIN_CATEGORIES) as Array<{ label: string; regions: Array<{ id: PainRegion; label: string }> }>
+  ).flatMap((cat) => cat.regions);
+
+  const renderPrehabFocus = () => (
+    <Animated.View key="prehabFocus" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.stepContent, { alignItems: 'stretch' }]}
+      >
+        <View style={[styles.questionIcon, { alignSelf: 'center' }]}>
+          <Ionicons name="body-outline" size={28} color={C.primary} />
+        </View>
+        <Text style={[styles.question, { textAlign: 'center' }]}>Which area to target?</Text>
+        <Text style={[styles.questionSub, { textAlign: 'center' }]}>Your circuit will focus on this region</Text>
+        <View style={styles.areaButtons}>
+          <Pressable
+            key="fullbody"
+            onPress={() => handlePrehabFocus('fullbody')}
+            style={({ pressed }) => [styles.areaButton, { borderColor: C.primary, backgroundColor: C.primarySurface }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+            testID="prehab-fullbody"
+          >
+            <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted }]}>
+              <Ionicons name="flash-outline" size={22} color={C.primary} />
+            </View>
+            <Text style={[styles.areaLabel, { flex: 1, color: C.primary }]}>Full body circuit</Text>
+            <Ionicons name="chevron-forward" size={18} color={C.primary} />
+          </Pressable>
+          {ALL_PAIN_REGIONS.map((r) => (
+            <Pressable
+              key={r.id}
+              onPress={() => handlePrehabFocus(r.id)}
+              style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+              testID={`prehab-region-${r.id}`}
+            >
+              <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.primary} />
+              </View>
+              <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </Animated.View>
+  );
+
   const renderPainCategory = () => (
     <Animated.View key="painCat" entering={FadeInDown.duration(350)} style={styles.stepContent}>
       <View style={styles.questionIcon}>
@@ -454,6 +520,7 @@ export default function ReadinessScreen() {
       )}
 
       {step === 'main' && renderMain()}
+      {step === 'prehabFocus' && renderPrehabFocus()}
       {step === 'painCategory' && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           {renderPainCategory()}

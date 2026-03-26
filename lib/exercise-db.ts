@@ -699,6 +699,101 @@ export function getStandalonePrehabWorkout(): ExerciseTemplate[] {
   return STANDALONE_PREHAB;
 }
 
+// ─── REGION-SPECIFIC PREHAB ────────────────────────────────────────────────────
+// Curated circuits targeting each of the 11 pain regions.
+// Equipment-agnostic (all bodyweight / light band).
+
+const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
+  rear_shoulder: [
+    { id: 'ph-r-rs-1', name: 'Band Pull-Apart', sets: 3, reps: '15 slow reps', cue: 'Arms straight at shoulder height — pull band to sternum, squeeze shoulder blades for 1s. Rear-delt and rotator cuff activation', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+    { id: 'ph-r-rs-2', name: 'Face Pull (band)', sets: 3, reps: '12 reps', cue: 'Pull band to forehead, elbows high and wide, externally rotate at end — feel rear delt and external rotators fire', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+    { id: 'ph-r-rs-3', name: 'Prone Y Raise', sets: 2, reps: '10 slow reps', cue: 'Face down, arms in Y shape overhead — lift slowly, squeeze lower traps and rear delts. Control the descent', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '' },
+    { id: 'ph-r-rs-4', name: 'Wall Slide', sets: 2, reps: '10 slow reps', cue: 'Back flat on wall, arms at 90° — slide overhead keeping elbows and wrists in contact. Scapular control', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['rear_shoulder', 'front_shoulder'], videoId: '' },
+    { id: 'ph-r-rs-5', name: 'Cross-Body Shoulder Stretch', sets: 2, reps: '30s each side', cue: 'Pull arm across chest at shoulder height — feel posterior capsule and rear delt. No twisting the torso', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['rear_shoulder'], videoId: '' },
+  ],
+  front_shoulder: [
+    { id: 'ph-r-fs-1', name: 'Doorway Chest Stretch', sets: 2, reps: '30s each side', cue: 'Arm at 90°, step through doorway — breathe deeply into the pec and anterior delt stretch. No leaning forward', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'upper_back'], videoId: '' },
+    { id: 'ph-r-fs-2', name: 'Prone Shoulder External Rotation', sets: 3, reps: '12 each side', cue: 'Face down, elbow at 90°, rotate forearm upward — rotator cuff health, counteracts internal rotation dominance', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+    { id: 'ph-r-fs-3', name: 'Band Pull-Apart', sets: 3, reps: '15 slow reps', cue: 'Arms straight, pull band to sternum — opens chest and activates rear structures to offset front shoulder load', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['front_shoulder', 'rear_shoulder', 'upper_back'], videoId: '' },
+    { id: 'ph-r-fs-4', name: 'Pec Minor Stretch (doorway)', sets: 2, reps: '30s each side', cue: 'Arm higher (120°) in doorway — targets the pec minor specifically. Breathe into the stretch, feel coracoid area open', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder'], videoId: '' },
+    { id: 'ph-r-fs-5', name: 'Shoulder CAR (Controlled Articular Rotation)', sets: 2, reps: '5 slow circles each side', cue: 'Full active shoulder circle — reach as far as possible in every direction. No compensating with trunk. Joint health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '' },
+  ],
+  elbow_wrist: [
+    { id: 'ph-r-ew-1', name: 'Wrist Flexor Stretch', sets: 2, reps: '30s each side', cue: 'Arm extended, palm up, gently pull fingers back — feel medial forearm and flexor tendons. Never force', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['elbow_wrist'], videoId: '' },
+    { id: 'ph-r-ew-2', name: 'Wrist Extensor Stretch', sets: 2, reps: '30s each side', cue: 'Arm extended, palm down, gently pull fingers toward you — targets extensors and lateral elbow (common extensor tendon)', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['elbow_wrist'], videoId: '' },
+    { id: 'ph-r-ew-3', name: 'Wrist Circles', sets: 2, reps: '10 each direction', cue: 'Slow full-range circles — lubricate the joint, mobilise all planes. Go to end range in each direction', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['elbow_wrist'], videoId: '' },
+    { id: 'ph-r-ew-4', name: 'Band Finger Extension', sets: 2, reps: '20 reps', cue: 'Loop band around fingers, spread against resistance — strengthens extensors to balance grip dominance and reduce lateral elbow load', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['elbow_wrist'], videoId: '' },
+    { id: 'ph-r-ew-5', name: 'Forearm Supination / Pronation', sets: 2, reps: '15 each direction', cue: 'Elbow at 90°, slowly rotate palm up then down — radioulnar joint mobility and bicep tendon health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['elbow_wrist'], videoId: '' },
+  ],
+  neck: [
+    { id: 'ph-r-nk-1', name: 'Chin Tuck', sets: 3, reps: '10 reps, hold 3s each', cue: 'Gently retract chin straight back (not down) — feel a lengthening at the base of skull. Deep cervical flexor activation', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['neck', 'upper_back'], videoId: '' },
+    { id: 'ph-r-nk-2', name: 'Neck Side Stretch', sets: 2, reps: '30s each side', cue: 'Ear toward shoulder, opposite hand resting gently on head — never pull. Breathe slowly, feel upper trap and SCM lengthen', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['neck'], videoId: '' },
+    { id: 'ph-r-nk-3', name: 'Levator Scapulae Stretch', sets: 2, reps: '30s each side', cue: 'Turn head 45°, tuck chin toward armpit, hand on back of head for gentle assist — targets the levator scapulae', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['neck', 'upper_back'], videoId: '' },
+    { id: 'ph-r-nk-4', name: 'Upper Trap Stretch', sets: 2, reps: '30s each side', cue: 'Sit, grip edge of chair, tilt head to opposite side — feel the upper trap lengthen. Keep shoulder down throughout', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['neck', 'upper_back'], videoId: '' },
+    { id: 'ph-r-nk-5', name: 'Thoracic Cat-Cow', sets: 2, reps: '10 slow reps', cue: 'All fours, full spinal flexion and extension — frees cervicothoracic junction which contributes to neck loading', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['neck', 'upper_back'], videoId: '' },
+  ],
+  lower_back: [
+    { id: 'ph-r-lb-1', name: 'Dead Bug', sets: 3, reps: '8 each side', cue: 'Low back pressed to floor throughout — reach opposite arm and leg, exhale fully at end. Anti-extension deep core', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'core_ribs'], videoId: '' },
+    { id: 'ph-r-lb-2', name: 'Bird Dog', sets: 3, reps: '8 each side, hold 3s', cue: 'All fours, extend opposite arm and leg — keep back flat (no hiking or rotating). Multifidus and lumbar stabilisers', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'core_ribs'], videoId: '' },
+    { id: 'ph-r-lb-3', name: 'Cat-Cow', sets: 2, reps: '10 slow cycles', cue: 'All fours — exhale into full flexion, inhale into extension. Move from the lumbar spine, slow and controlled', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'core_ribs'], videoId: '' },
+    { id: 'ph-r-lb-4', name: 'Hip Flexor Stretch', sets: 2, reps: '45s each side', cue: 'Deep lunge, back knee padded — tuck pelvis, breathe into hip flexor. Tight hip flexors drive anterior pelvic tilt and lower back pain', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+    { id: 'ph-r-lb-5', name: 'Glute Bridge', sets: 3, reps: '15 reps, hold 2s at top', cue: 'Feet flat, push through heels — squeeze glutes at top, keep ribs down. Glute strength directly offloads lower back', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['lower_back', 'hip_groin'], videoId: '' },
+  ],
+  upper_back: [
+    { id: 'ph-r-ub-1', name: 'Band Pull-Apart', sets: 3, reps: '15 slow reps', cue: 'Arms at shoulder height, pull band to sternum — squeeze mid-traps and rhomboids for 1s. Scapular retraction pattern', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '' },
+    { id: 'ph-r-ub-2', name: 'Thread-the-Needle Rotation', sets: 2, reps: '8 each side, hold 3s', cue: 'All fours, thread one arm under the body — breathe into the thoracic rotation. Go deeper with each breath', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '' },
+    { id: 'ph-r-ub-3', name: 'Book Opener (thoracic rotation)', sets: 2, reps: '8 each side', cue: 'Side-lying, knees stacked, sweep top arm to opposite side — follow with eyes, breathe into the stretch. T-spine rotation', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['upper_back'], videoId: '' },
+    { id: 'ph-r-ub-4', name: 'Prone T-Spine Extension', sets: 2, reps: '10 slow reps', cue: 'Face down, arms in T shape — lift chest and arms slowly, hold 2s. Thoracic extensors and rear delt', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '' },
+    { id: 'ph-r-ub-5', name: 'Wall Slide', sets: 2, reps: '10 slow reps', cue: 'Back flat on wall, arms overhead — keep full contact throughout the slide. Scapular upward rotation and serratus anterior', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['upper_back', 'front_shoulder'], videoId: '' },
+  ],
+  core_ribs: [
+    { id: 'ph-r-cr-1', name: 'Dead Bug', sets: 3, reps: '8 each side', cue: 'Low back stays glued to floor — reach and extend opposite limbs, exhale fully. TVA and anti-extension control', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+    { id: 'ph-r-cr-2', name: 'Pallof Press (Isometric Hold)', sets: 3, reps: '20s each side', cue: 'Band at sternum height, press hands forward and hold — resist rotation, breathe. Anti-rotation oblique and TVA work', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+    { id: 'ph-r-cr-3', name: 'McGill Side Plank', sets: 2, reps: '20s each side', cue: 'Elbow under shoulder, knees bent — lift hips into alignment, breathe normally. QL and oblique lateral stability', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+    { id: 'ph-r-cr-4', name: 'Bird Dog', sets: 3, reps: '8 each side, hold 3s', cue: 'All fours, opposite arm and leg — keep spine perfectly neutral, no rotation. Deep core and multifidus', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['core_ribs', 'lower_back'], videoId: '' },
+    { id: 'ph-r-cr-5', name: 'Hollow Body Hold', sets: 3, reps: '20s', cue: 'On back, arms overhead, legs straight — press lower back to floor, lift shoulders and legs slightly. Full core compression', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['core_ribs'], videoId: '' },
+  ],
+  knee: [
+    { id: 'ph-r-kn-1', name: 'Terminal Knee Extension (band)', sets: 3, reps: '15 each side', cue: 'Band behind knee, stand on one leg — straighten knee fully against band resistance, hold 1s. VMO isolation', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['knee'], videoId: '' },
+    { id: 'ph-r-kn-2', name: 'Slow Step-Down', sets: 3, reps: '10 each side', cue: 'Stand on step, lower opposite heel to floor in 3s — control the knee tracking. Eccentric quad and patella prehab', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['knee'], videoId: '' },
+    { id: 'ph-r-kn-3', name: 'VMO Wall Sit', sets: 3, reps: '30s', cue: 'Narrow stance, toes forward, 90° knee angle — hold, feel inner quad working. VMO and quad endurance', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['knee'], videoId: '' },
+    { id: 'ph-r-kn-4', name: 'Banded Clamshell', sets: 3, reps: '15 each side', cue: 'Band above knees, feet together — rotate top knee up, hold 1s, lower slowly. Glute med activation improves knee tracking', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['knee', 'hip_groin'], videoId: '' },
+    { id: 'ph-r-kn-5', name: 'Quad Set (isometric)', sets: 2, reps: '10 reps, hold 10s each', cue: 'Lie flat, roll under knee — contract quad, press knee down, hold. Wakes VMO without load on the joint', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['knee'], videoId: '' },
+  ],
+  hip_groin: [
+    { id: 'ph-r-hg-1', name: 'Banded Clamshell', sets: 3, reps: '15 each side', cue: 'Band above knees, feet together — rotate top knee up, hold 1s, lower slowly. Glute med and external hip rotator activation', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+    { id: 'ph-r-hg-2', name: 'Copenhagen Adductor Hold', sets: 3, reps: '20s each side', cue: 'Top leg on chair or bench, bottom leg reaches — squeeze inner thigh to hold. Adductor strength and groin prehab', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin'], videoId: '' },
+    { id: 'ph-r-hg-3', name: 'Hip Flexor Stretch', sets: 2, reps: '45s each side', cue: 'Deep lunge, back knee padded, tuck pelvis — breathe into hip flexor. Anterior hip and iliopsoas length', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin', 'lower_back'], videoId: '' },
+    { id: 'ph-r-hg-4', name: '90/90 Hip Stretch', sets: 2, reps: '45s each side', cue: 'On back, figure-4 position — breathe deeply, let hip open. Piriformis and external hip rotator prehab', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['hip_groin'], videoId: '' },
+    { id: 'ph-r-hg-5', name: 'Lateral Band Walk', sets: 2, reps: '15 steps each direction', cue: 'Band around ankles, slight squat position — step sideways keeping toes forward. Glute med and hip abductor strength', suggestedLoad: 'Light band', category: 'prehab', targetRegions: ['hip_groin', 'knee'], videoId: '' },
+  ],
+  ankle_achilles: [
+    { id: 'ph-r-aa-1', name: 'Heel Drop (eccentric)', sets: 3, reps: '15 each side', cue: 'Heels off step edge, lift on both then lower on one in 3–5s — eccentric Achilles tendon loading. The gold standard', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
+    { id: 'ph-r-aa-2', name: 'Tibialis Raise', sets: 3, reps: '20 reps', cue: 'Heels on wall, lift toes and forefoot toward shin — slow and controlled. Shin splint prevention and dorsiflexion prehab', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
+    { id: 'ph-r-aa-3', name: 'Single-Leg Balance', sets: 3, reps: '30s each side', cue: 'Stand on one leg, eyes open then close for extra challenge — proprioception and ankle stability. Small adjustments are normal', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles'], videoId: '' },
+    { id: 'ph-r-aa-4', name: 'Ankle Circles', sets: 2, reps: '10 each direction, each ankle', cue: 'Seated, foot off floor — slow full-range circles, reach maximum end range each direction. Joint lubrication', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles'], videoId: '' },
+    { id: 'ph-r-aa-5', name: 'Calf Stretch (wall)', sets: 2, reps: '45s each side', cue: 'Foot against base of wall, heel down — straight leg (gastroc) then bent knee (soleus). Both are needed for Achilles health', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['ankle_achilles', 'calf_shin'], videoId: '' },
+  ],
+  calf_shin: [
+    { id: 'ph-r-cs-1', name: 'Standing Calf Raise (slow eccentric)', sets: 3, reps: '15 reps (3s down)', cue: 'Rise to toes on both feet, lower on one in 3s — eccentric overload builds tendon and muscle resilience', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['calf_shin', 'ankle_achilles'], videoId: '' },
+    { id: 'ph-r-cs-2', name: 'Tibialis Raise', sets: 3, reps: '20 reps', cue: 'Heels on wall or ground, lift toes toward shin — tibialis anterior activation and shin splint prevention', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['calf_shin', 'ankle_achilles'], videoId: '' },
+    { id: 'ph-r-cs-3', name: 'Soleus Stretch', sets: 2, reps: '45s each side', cue: 'Against wall, knee bent, heel down — lean forward. Targets the deeper soleus, often missed in standard calf stretches', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['calf_shin', 'ankle_achilles'], videoId: '' },
+    { id: 'ph-r-cs-4', name: 'Single-Leg Calf Raise', sets: 3, reps: '12 each side', cue: 'One leg, full range — rise fully then lower slowly. Double the eccentric load on each calf compared to bilateral', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['calf_shin', 'ankle_achilles'], videoId: '' },
+    { id: 'ph-r-cs-5', name: 'Seated Toe Raise', sets: 2, reps: '20 reps', cue: 'Seated, heel on floor — lift toes and forefoot as high as possible. Tibialis anterior and anterior compartment', suggestedLoad: 'Bodyweight', category: 'prehab', targetRegions: ['calf_shin'], videoId: '' },
+  ],
+};
+
+const PREHAB_WARMUP: ExerciseTemplate = { id: 'ph-s-1', name: 'Cardio Warm-Up (Easy Walk / Bike)', sets: 1, reps: '3 min', cue: 'Start easy — just get blood flowing to the joints before any movement', suggestedLoad: 'Low intensity', category: 'prep', targetRegions: [], videoId: '' };
+const PREHAB_COOLDOWN: ExerciseTemplate = { id: 'ph-s-9', name: 'Supine Hip 90/90 Stretch', sets: 1, reps: '45s each side', cue: 'On back, figure-4 position — breathe deeply, let hip open. Hip capsule and piriformis', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: ['hip_groin', 'lower_back'], videoId: '' };
+
+export function getRegionPrehabWorkout(region: PainRegion): ExerciseTemplate[] {
+  return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN];
+}
+
+export function getRegionPrehabExercise(region: PainRegion): ExerciseTemplate {
+  return PREHAB_BY_REGION[region][0];
+}
+
 // ─── STANDALONE FLEXIBILITY SESSION ──────────────────────────────────────────
 // Long-hold stretching and mobility. No equipment needed.
 

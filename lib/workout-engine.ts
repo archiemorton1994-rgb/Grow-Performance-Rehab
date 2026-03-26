@@ -15,6 +15,8 @@ import {
   get1RMProtocol,
   getStandalonePrehabWorkout,
   getStandaloneFlexibilityWorkout,
+  getRegionPrehabWorkout,
+  getRegionPrehabExercise,
 } from './exercise-db';
 
 export interface Exercise {
@@ -299,7 +301,10 @@ export function generateWorkout(
     return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback);
   }
   if (sessionType === 'prehab') {
-    return getStandalonePrehabWorkout().map((t) => templateToExercise(t));
+    const prehabExercises = readiness?.painRegion
+      ? getRegionPrehabWorkout(readiness.painRegion)
+      : getStandalonePrehabWorkout();
+    return prehabExercises.map((t) => templateToExercise(t));
   }
   if (sessionType === 'flexibility') {
     return getStandaloneFlexibilityWorkout().map((t) => templateToExercise(t));
@@ -387,8 +392,10 @@ export function generateWorkout(
 
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
   if (timeAvailable !== '30') {
-    const prehab = getPrehab(mainType, equipmentTier);
-    const phEx = templateToExercise(prehab[0]);
+    const prehabTemplate = readiness?.painRegion
+      ? getRegionPrehabExercise(readiness.painRegion)
+      : getPrehab(mainType, equipmentTier)[0];
+    const phEx = templateToExercise(prehabTemplate);
     phEx.sets = 1;
     exercises.push(phEx);
   }
