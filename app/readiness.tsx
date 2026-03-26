@@ -173,7 +173,7 @@ export default function ReadinessScreen() {
       pathname: '/session',
       params: {
         sessionType: 'prehab',
-        hasAches: region !== 'fullbody' ? 'true' : 'false',
+        hasAches: 'false',
         painRegion: region !== 'fullbody' ? region : '',
         energy: 'normal',
         timeAvailable: '60',
@@ -393,7 +393,7 @@ export default function ReadinessScreen() {
         <View style={[styles.questionIcon, { alignSelf: 'center' }]}>
           <Ionicons name="body-outline" size={28} color={C.primary} />
         </View>
-        <Text style={[styles.question, { textAlign: 'center' }]}>Which area to target?</Text>
+        <Text style={[styles.question, { textAlign: 'center' }]}>What area to target today?</Text>
         <Text style={[styles.questionSub, { textAlign: 'center' }]}>Your circuit will focus on this region</Text>
         <View style={styles.areaButtons}>
           <Pressable
