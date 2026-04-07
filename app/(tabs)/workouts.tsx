@@ -230,7 +230,7 @@ function StrengthLineChart({
 
   const LIFT_COLORS: Record<string, { line: string; fill: string }> = {
     squat: { line: C.primary, fill: C.primaryMuted },
-    bench: { line: '#4285f4', fill: '#e8f0fe' },
+    bench: { line: C.badgeVolumeText, fill: C.badgeVolume },
     deadlift: { line: '#ea4335', fill: '#fce8e6' },
   };
 
