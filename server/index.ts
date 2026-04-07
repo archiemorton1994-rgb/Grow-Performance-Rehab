@@ -243,7 +243,10 @@ function setupErrorHandler(app: express.Application) {
     const METRO_PORT = process.env.METRO_PORT || "8082";
     app.use(
       createProxyMiddleware({
-        pathFilter: (pathname: string) => !pathname.startsWith("/api"),
+        pathFilter: (pathname: string) =>
+          !pathname.startsWith("/api") &&
+          pathname !== "/privacy" &&
+          pathname !== "/terms",
         target: `http://localhost:${METRO_PORT}`,
         changeOrigin: false,
         ws: true,

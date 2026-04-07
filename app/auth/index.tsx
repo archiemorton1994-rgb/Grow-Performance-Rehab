@@ -110,9 +110,9 @@ export default function OtpAuthScreen() {
 
         {step === 'email' ? (
           <>
-            <Text style={styles.heading}>Sign in to Grow</Text>
+            <Text style={styles.heading}>Welcome to Grow</Text>
             <Text style={styles.sub}>
-              Enter your email and we{'\u2019'}ll send you a login code.
+              Enter your email to create an account or sign in.
             </Text>
 
             <Text style={styles.label}>Email address</Text>
@@ -127,7 +127,7 @@ export default function OtpAuthScreen() {
               autoCorrect={false}
               returnKeyType="send"
               onSubmitEditing={handleSendCode}
-              autoFocus
+              autoFocus={Platform.OS !== 'web'}
               testID="otp-email"
             />
 

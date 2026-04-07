@@ -368,7 +368,7 @@ export default function ProfileScreen() {
             >
               <View>
                 <Text style={styles.subCtaTitle}>Subscribe to Grow</Text>
-                <Text style={styles.subCtaSub}>£9.99/month · cancel anytime</Text>
+                <Text style={styles.subCtaSub}>£7.99/month · cancel anytime</Text>
               </View>
               <Ionicons name="arrow-forward-circle" size={28} color="#fff" />
             </Pressable>

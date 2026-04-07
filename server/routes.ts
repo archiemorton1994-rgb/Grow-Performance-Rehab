@@ -143,6 +143,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ user: { id: user.id, email: user.email } });
   });
 
+  const legalPageHtml = (title: string, body: string) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — Grow Performance & Rehab</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 680px; margin: 48px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.7; }
+    h1 { color: #2f6b46; font-size: 28px; margin-bottom: 8px; }
+    p.updated { color: #888; font-size: 14px; margin-bottom: 32px; }
+    h2 { color: #2f6b46; font-size: 18px; margin-top: 32px; }
+    p { color: #444; }
+    a { color: #2f6b46; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <p class="updated">Last updated: April 2025</p>
+  ${body}
+  <p style="margin-top:48px;color:#888;font-size:13px">Grow Performance &amp; Rehab · <a href="mailto:hello@growperformance.app">hello@growperformance.app</a></p>
+</body>
+</html>`;
+
+  app.get('/privacy', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(legalPageHtml('Privacy Policy', `
+      <p><strong>Placeholder — update with your real Privacy Policy before App Store submission.</strong></p>
+      <h2>1. Information We Collect</h2>
+      <p>We collect your email address for authentication purposes only. Workout data you enter is stored securely on our servers and is not shared with third parties.</p>
+      <h2>2. How We Use Your Information</h2>
+      <p>Your email is used solely to deliver login codes and to identify your account. We do not sell or share your personal information.</p>
+      <h2>3. Data Retention</h2>
+      <p>You may delete your account at any time by contacting us. All associated data will be permanently removed within 30 days.</p>
+      <h2>4. Subscriptions</h2>
+      <p>Subscription billing is handled by Apple (App Store). We do not store payment card details.</p>
+      <h2>5. Contact</h2>
+      <p>Questions? Email us at <a href="mailto:hello@growperformance.app">hello@growperformance.app</a>.</p>
+    `));
+  });
+
+  app.get('/terms', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(legalPageHtml('Terms of Service', `
+      <p><strong>Placeholder — update with your real Terms of Service before App Store submission.</strong></p>
+      <h2>1. Acceptance</h2>
+      <p>By using Grow Performance & Rehab you agree to these Terms. If you do not agree, do not use the app.</p>
+      <h2>2. Subscriptions</h2>
+      <p>Grow is a subscription service priced at £7.99/month. A 14-day free trial is offered to new subscribers. Subscriptions renew automatically unless cancelled at least 24 hours before the renewal date.</p>
+      <h2>3. Health Disclaimer</h2>
+      <p>Grow provides fitness programming for informational purposes only. Always consult a qualified healthcare professional before starting a new exercise programme, particularly if you have any pain or medical conditions.</p>
+      <h2>4. Limitation of Liability</h2>
+      <p>We are not liable for any injury, loss, or damage arising from use of the app or reliance on its content.</p>
+      <h2>5. Changes</h2>
+      <p>We may update these Terms from time to time. Continued use of the app after changes constitutes acceptance.</p>
+      <h2>6. Contact</h2>
+      <p>Questions? Email us at <a href="mailto:hello@growperformance.app">hello@growperformance.app</a>.</p>
+    `));
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

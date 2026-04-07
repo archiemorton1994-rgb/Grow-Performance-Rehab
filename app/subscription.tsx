@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
 } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
+import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
@@ -24,6 +25,15 @@ const FEATURES = [
   { icon: 'body-outline' as const, title: '11-region pain adaptation', desc: 'Smart exercise swaps around your pain zones' },
   { icon: 'trending-up-outline' as const, title: 'Progress tracking & strength tests', desc: 'Monitor your 1RM progress over time' },
 ];
+
+function getLegalUrls() {
+  try {
+    const base = getApiUrl().replace(/\/$/, '');
+    return { privacyUrl: `${base}/privacy`, termsUrl: `${base}/terms` };
+  } catch {
+    return { privacyUrl: 'https://growperformance.app/privacy', termsUrl: 'https://growperformance.app/terms' };
+  }
+}
 
 export default function SubscriptionScreen() {
   const C = useColors();
@@ -36,6 +46,8 @@ export default function SubscriptionScreen() {
   const [loadingOffering, setLoadingOffering] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  const { privacyUrl, termsUrl } = useMemo(() => getLegalUrls(), []);
 
   useEffect(() => {
     if (!RC_API_KEY) {
@@ -91,7 +103,7 @@ export default function SubscriptionScreen() {
     }
   }, [refreshSubscription]);
 
-  const priceString = offering?.product?.priceString ?? '£9.99';
+  const priceString = offering?.product?.priceString ?? '£7.99';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTop }]}>
@@ -124,17 +136,17 @@ export default function SubscriptionScreen() {
         <View style={styles.planCard}>
           <View style={styles.planCardTop}>
             <View>
-              <Text style={styles.planName}>Monthly</Text>
+              <Text style={styles.planName}>Grow Monthly</Text>
               {loadingOffering
                 ? <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
                 : <Text style={styles.planPrice}>{priceString}<Text style={styles.planPer}> / month</Text></Text>
               }
             </View>
             <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>1 month free</Text>
+              <Text style={styles.trialBadgeText}>14-day free trial</Text>
             </View>
           </View>
-          <Text style={styles.planSub}>Cancel anytime. No commitment.</Text>
+          <Text style={styles.planSub}>Try free for 14 days, then {priceString}/month. Cancel anytime.</Text>
         </View>
 
         <Pressable
@@ -145,7 +157,7 @@ export default function SubscriptionScreen() {
         >
           {purchasing
             ? <ActivityIndicator color={C.textInverse} />
-            : <Text style={styles.ctaBtnText}>Start Free Trial</Text>
+            : <Text style={styles.ctaBtnText}>Start 14-Day Free Trial</Text>
           }
         </Pressable>
 
@@ -160,13 +172,18 @@ export default function SubscriptionScreen() {
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => router.replace('/auth')} style={styles.signOutBtn} testID="already-subscribed-link">
-          <Text style={styles.signOutText}>Already subscribed? Sign in</Text>
-        </Pressable>
-
         <Text style={styles.legal}>
-          By subscribing you agree to our Terms of Service and Privacy Policy.
-          Payment will be charged to your account. Subscription automatically renews unless cancelled.
+          {'By continuing you agree to our '}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL(termsUrl)}>
+            Terms of Service
+          </Text>
+          {' and '}
+          <Text style={styles.legalLink} onPress={() => Linking.openURL(privacyUrl)}>
+            Privacy Policy
+          </Text>
+          {'. Subscription renews at '}
+          {priceString}
+          {'/month unless cancelled at least 24 hours before the end of the current period.'}
         </Text>
       </ScrollView>
     </View>
@@ -205,7 +222,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     backgroundColor: C.surface, borderRadius: 18, padding: 20,
     borderWidth: 2, borderColor: C.primary, marginBottom: 20,
   },
-  planCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  planCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   planName: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 2 },
   planPrice: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text },
   planPer: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary },
@@ -221,16 +238,17 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
   ctaBtnLoading: { opacity: 0.7 },
-  ctaBtnText: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.textInverse },
+  ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
-  restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 8 },
+  restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
   restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-
-  signOutBtn: { alignItems: 'center', paddingVertical: 8, marginBottom: 20 },
-  signOutText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary },
 
   legal: {
     fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary,
     textAlign: 'center', lineHeight: 16,
+  },
+  legalLink: {
+    fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary,
+    textDecorationLine: 'underline',
   },
 }); }
