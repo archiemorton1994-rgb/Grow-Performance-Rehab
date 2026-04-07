@@ -21,13 +21,13 @@ const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility'];
 
-const SESSION_META: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline',          color: '#2f6b46', bg: '#e8f2ec' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline',             color: '#4285f4', bg: '#e8f0fe' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline',          color: '#9c27b0', bg: '#f3e5f5' },
-  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline',            color: '#e65100', bg: '#fbe9e7' },
-  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline', color: '#00897b', bg: '#e0f2f1' },
-  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline',             color: '#558b2f', bg: '#f1f8e9' },
+const SESSION_META_LABELS: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
+  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline' },
+  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline' },
+  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
+  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
+  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
 };
 
 const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
@@ -148,9 +148,18 @@ export default function TrainScreen() {
     return result;
   }, [completedSessions]);
 
+  const SESSION_META = useMemo(() => ({
+    squat:        { ...SESSION_META_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
+    bench:        { ...SESSION_META_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
+    deadlift:     { ...SESSION_META_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
+    conditioning: { ...SESSION_META_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
+    prehab:       { ...SESSION_META_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
+    flexibility:  { ...SESSION_META_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
+  }), [C]);
+
   const SESSION_COLORS = useMemo(() => ({
     squat: { bg: C.primaryMuted, accent: C.primary },
-    bench: { bg: '#e8f0fe', accent: '#4285f4' },
+    bench: { bg: C.badgeVolume, accent: C.badgeVolumeText },
     deadlift: { bg: '#fce8e6', accent: '#ea4335' },
     conditioning: { bg: '#fbe9e7', accent: '#e65100' },
     prehab: { bg: '#fff3e0', accent: '#e65100' },
@@ -455,7 +464,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     timelineCardCurrent: {
       borderColor: C.primary, borderWidth: 2,
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 5,
+      shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10,
+      elevation: Platform.OS !== 'web' ? 5 : 0,
     },
     timelineCardTest: { borderColor: '#e65100' },
     timelineCardDone: { opacity: 0.65 },
@@ -470,7 +480,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     startPill: {
       width: 40, height: 40, borderRadius: 20, backgroundColor: C.primary,
       alignItems: 'center', justifyContent: 'center',
-      shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 7, elevation: 7,
+      shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 7,
+      elevation: Platform.OS !== 'web' ? 7 : 0,
     },
     startPillTest: { backgroundColor: '#e65100' },
     testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff3e0', alignItems: 'center', justifyContent: 'center' },

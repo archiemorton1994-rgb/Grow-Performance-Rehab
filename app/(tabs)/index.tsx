@@ -18,13 +18,17 @@ import { formatDate, getTimeOfDayGreeting } from '@/lib/utils';
 
 const WEEKLY_GOAL = 3;
 
-const SESSION_TYPE_META: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline',           color: '#2f6b46', bg: '#e8f2ec' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline',              color: '#4285f4', bg: '#e8f0fe' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline',           color: '#9c27b0', bg: '#f3e5f5' },
-  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline',             color: '#e65100', bg: '#fbe9e7' },
-  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline',  color: '#00897b', bg: '#e0f2f1' },
-  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline',              color: '#558b2f', bg: '#f1f8e9' },
+const SESSION_TYPE_LABELS: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
+  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline' },
+  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline' },
+  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
+  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
+  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
+};
+
+const GOAL_LABELS: Record<string, string> = {
+  strength: 'Strength', muscle: 'Muscle', fat_loss: 'Fat Loss', fitness: 'Fitness', rehab: 'Rehab & Recovery',
 };
 
 export default function HomeScreen() {
@@ -57,7 +61,17 @@ export default function HomeScreen() {
     ? `${getEquipmentLabel(effectiveTier)} + ${equipmentTiers.length - 1} more`
     : getEquipmentLabel(effectiveTier);
 
+  const SESSION_TYPE_META = useMemo(() => ({
+    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
+    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
+    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
+    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
+    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
+    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
+  }), [C]);
+
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
+  const primaryGoalLabel = GOAL_LABELS[userProfile.goals?.[0] ?? 'fitness'] ?? 'Fitness';
 
   // Auto-progression indicator: show when completedCount >= 15 (autoMult >= 1.05)
   const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
@@ -164,14 +178,19 @@ export default function HomeScreen() {
         {/* Stats strip / Welcome card */}
         {completedCount === 0 ? (
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.welcomeCard}>
-            <View style={styles.welcomeIconWrap}>
-              <Ionicons name="sparkles" size={24} color={C.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.welcomeTitle}>Welcome to Grow</Text>
-              <Text style={styles.welcomeSub}>
-                Your profile is set up. Complete your first session to start building momentum.
-              </Text>
+            <Text style={styles.welcomeTitle}>
+              {firstName ? `Welcome, ${firstName}` : 'Welcome to Grow'}
+            </Text>
+            <Text style={styles.welcomeSub}>Your profile is set up and your first session is ready.</Text>
+            <View style={styles.welcomePills}>
+              <View style={styles.welcomePill}>
+                <Ionicons name="barbell-outline" size={12} color={C.primary} />
+                <Text style={styles.welcomePillText}>{getEquipmentLabel(effectiveTier)}</Text>
+              </View>
+              <View style={styles.welcomePill}>
+                <Ionicons name="flame-outline" size={12} color={C.primary} />
+                <Text style={styles.welcomePillText}>{primaryGoalLabel}</Text>
+              </View>
             </View>
           </Animated.View>
         ) : (
@@ -252,7 +271,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todayCard: {
       backgroundColor: C.surface, borderRadius: 20,
       padding: 20, borderWidth: 1.5, borderColor: C.primary,
-      shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+      shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12,
+      elevation: Platform.OS !== 'web' ? 4 : 0,
     },
     todayCardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
     todayLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
@@ -313,16 +333,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     welcomeCard: {
-      flexDirection: 'row', alignItems: 'flex-start', gap: 14,
       backgroundColor: C.primarySurface, borderRadius: 16,
-      paddingHorizontal: 16, paddingVertical: 14,
+      paddingHorizontal: 16, paddingVertical: 16,
       borderWidth: 1, borderColor: C.primaryMuted,
     },
-    welcomeIconWrap: {
-      width: 44, height: 44, borderRadius: 12,
-      backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    welcomeTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
+    welcomeSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18, marginBottom: 12 },
+    welcomePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    welcomePill: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      backgroundColor: C.primaryMuted, borderRadius: 20,
+      paddingHorizontal: 10, paddingVertical: 5,
     },
-    welcomeTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
-    welcomeSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18 },
+    welcomePillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
   });
 }
