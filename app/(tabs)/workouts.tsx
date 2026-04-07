@@ -23,14 +23,24 @@ const BAR_CHART_HEIGHT = 120;
 const LINE_CHART_HEIGHT = 90;
 const HISTORY_PAGE_SIZE = 30;
 
-const SESSION_TYPE_COLORS: Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-  squat: { bg: '#e8f2ec', icon: 'fitness-outline', color: '#2f6b46' },
-  bench: { bg: '#e8f0fe', icon: 'body-outline', color: '#4285f4' },
-  deadlift: { bg: '#f3e5f5', icon: 'barbell-outline', color: '#9c27b0' },
-  conditioning: { bg: '#fbe9e7', icon: 'flame-outline', color: '#e65100' },
-  prehab: { bg: '#e0f2f1', icon: 'shield-checkmark-outline', color: '#00897b' },
-  flexibility: { bg: '#f1f8e9', icon: 'leaf-outline', color: '#558b2f' },
-};
+function formatSessionDuration(seconds: number): string {
+  const totalMins = Math.round(seconds / 60);
+  if (totalMins < 60) return `${totalMins}m`;
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> {
+  return {
+    squat:        { bg: C.primaryMuted,    icon: 'fitness-outline',          color: C.primary },
+    bench:        { bg: C.badgeVolume,     icon: 'body-outline',             color: C.badgeVolumeText },
+    deadlift:     { bg: '#f3e5f5',         icon: 'barbell-outline',          color: '#9c27b0' },
+    conditioning: { bg: '#fbe9e7',         icon: 'flame-outline',            color: '#e65100' },
+    prehab:       { bg: '#e0f2f1',         icon: 'shield-checkmark-outline', color: '#00897b' },
+    flexibility:  { bg: '#f1f8e9',         icon: 'leaf-outline',             color: '#558b2f' },
+  };
+}
 
 const ENERGY_COLORS: Record<EnergyLevel, string> = {
   low: '#9ca5a0',
@@ -137,20 +147,21 @@ function WeeklyVolumeChart({
         const d = new Date(s.date);
         return d >= weekStart && d < weekEnd && strengthTypes.includes(s.sessionType);
       });
-      let vol = 0;
+      let volKg = 0;
       for (const s of weekSessions) {
         for (const ex of s.exerciseLogs) {
           for (const set of ex.sets) {
             if (set.completed && set.weight > 0) {
-              vol += set.weight * set.reps;
+              volKg += set.weight * set.reps;
             }
           }
         }
       }
-      result.push({ label: '', volume: Math.round(vol) });
+      // Convert to display unit so bar heights and labels are consistent
+      result.push({ label: '', volume: Math.round(kgToDisplayUnit(volKg, weightUnit)) });
     }
     return result;
-  }, [sessions]);
+  }, [sessions, weightUnit]);
 
   const maxVol = Math.max(...weeks.map(w => w.volume), 1);
   const barWidth = chartWidth / weeks.length;
@@ -180,7 +191,7 @@ function WeeklyVolumeChart({
             return (
               <React.Fragment key={i}>
                 <Rect x={x} y={y} width={bw} height={barH || 2} rx={4}
-                  fill={isLast ? '#4285f4' : '#e8f0fe'} />
+                  fill={isLast ? C.primary : C.primaryMuted} />
                 {isLast && (
                   <SvgText x={x + bw / 2} y={barAreaHeight + 16}
                     textAnchor="middle" fontSize={9} fill={C.textSecondary}>
@@ -196,7 +207,7 @@ function WeeklyVolumeChart({
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>0 {weightUnit}</Text>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-          peak: {kgToDisplayUnit(maxVal, weightUnit).toLocaleString()} {weightUnit}
+          peak: {maxVal.toLocaleString()} {weightUnit}
         </Text>
       </View>
     </View>
@@ -360,11 +371,12 @@ function SessionHistoryList({
   }
 
   const visibleSessions = sessions.slice(0, showCount);
+  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
 
   return (
     <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.borderLight, overflow: 'hidden' }}>
       {visibleSessions.map((session, i) => {
-        const meta = SESSION_TYPE_COLORS[session.sessionType];
+        const meta = sessionTypeColors[session.sessionType];
         const isExpanded = expanded === session.id;
         const heaviestSets = session.exerciseLogs
           .filter(el => el.sets.some(s => s.weight > 0))
@@ -395,6 +407,9 @@ function SessionHistoryList({
                 </Text>
                 <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 }}>
                   {formatDate(session.date)}
+                  {session.durationSeconds != null && session.durationSeconds > 0
+                    ? ` · ${formatSessionDuration(session.durationSeconds)}`
+                    : ''}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' as const, gap: 4 }}>

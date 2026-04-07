@@ -188,7 +188,7 @@ export default function ProfileScreen() {
   };
 
   const handleSendFeedback = () => {
-    Linking.openURL('mailto:feedback@growapp.com?subject=App Feedback').catch(() => {});
+    Linking.openURL('mailto:feedback@growperformance.app?subject=App Feedback').catch(() => {});
   };
 
   const displayName = userProfile.name || 'Set your name';

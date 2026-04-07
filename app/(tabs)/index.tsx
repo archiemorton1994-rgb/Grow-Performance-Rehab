@@ -88,38 +88,15 @@ export default function HomeScreen() {
     });
   };
 
-  const handleRepeatSameSettings = () => {
-    if (!lastSession) return;
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({
-      pathname: '/session',
-      params: {
-        sessionType: lastSession.sessionType,
-        hasAches: lastSession.hadAches ? 'true' : 'false',
-        painRegion: lastSession.painRegion || '',
-        energy: lastSession.energy,
-        timeAvailable: lastSession.timeAvailable,
-        isTestWeek: 'false',
-        equipment: lastSession.equipmentTier,
-      },
-    });
-  };
-
-  const handleRepeatCustomise = () => {
-    if (!lastSession) return;
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const type = lastSession.sessionType;
-    if (type === 'prehab' || type === 'flexibility') {
-      router.push({
-        pathname: '/session',
-        params: { sessionType: type, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: effectiveTier },
-      });
-    } else if (type === 'conditioning') {
-      router.push({ pathname: '/readiness', params: { sessionType: type, isTestWeek: 'false' } });
-    } else {
-      router.push({ pathname: '/readiness', params: { sessionType: type, isTestWeek: testWeek ? 'true' : 'false' } });
-    }
-  };
+  const lastSessionDurationLabel = lastSession?.durationSeconds && lastSession.durationSeconds > 0
+    ? (() => {
+        const mins = Math.round(lastSession.durationSeconds / 60);
+        if (mins < 60) return `${mins}m`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m > 0 ? `${h}h ${m}m` : `${h}h`;
+      })()
+    : null;
 
   return (
     <View
@@ -212,37 +189,21 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Last session repeat row */}
+        {/* Last session info strip (read-only) */}
         <Animated.View entering={FadeInDown.delay(180).duration(380)}>
           {lastSession ? (
             <View style={styles.lastCard}>
-              <View style={styles.lastCardTop}>
-                <View style={[styles.lastIcon, { backgroundColor: SESSION_TYPE_META[lastSession.sessionType].bg }]}>
-                  <Ionicons name={SESSION_TYPE_META[lastSession.sessionType].icon} size={16} color={SESSION_TYPE_META[lastSession.sessionType].color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.lastTitle}>Last: {SESSION_TYPE_META[lastSession.sessionType].label}</Text>
-                  <Text style={styles.lastDate}>{formatDate(lastSession.date)}</Text>
-                </View>
+              <View style={[styles.lastIcon, { backgroundColor: SESSION_TYPE_META[lastSession.sessionType].bg }]}>
+                <Ionicons name={SESSION_TYPE_META[lastSession.sessionType].icon} size={16} color={SESSION_TYPE_META[lastSession.sessionType].color} />
               </View>
-              <View style={styles.repeatRow}>
-                <Pressable
-                  onPress={handleRepeatSameSettings}
-                  style={({ pressed }) => [styles.repeatBtnFilled, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
-                  testID="repeat-same-settings"
-                >
-                  <Ionicons name="flash" size={14} color="#fff" />
-                  <Text style={styles.repeatBtnFilledText}>Same settings</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleRepeatCustomise}
-                  style={({ pressed }) => [styles.repeatBtnOutline, pressed && { opacity: 0.8 }]}
-                  testID="repeat-customise"
-                >
-                  <Ionicons name="options-outline" size={14} color={C.primary} />
-                  <Text style={styles.repeatBtnOutlineText}>Customise</Text>
-                </Pressable>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lastTitle}>Last: {SESSION_TYPE_META[lastSession.sessionType].label}</Text>
+                <Text style={styles.lastDate}>
+                  {formatDate(lastSession.date)}
+                  {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
+                </Text>
               </View>
+              <Ionicons name="checkmark-circle" size={18} color={C.primary} style={{ opacity: 0.5 }} />
             </View>
           ) : (
             <View style={styles.firstCard}>
@@ -303,26 +264,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     statDivider: { width: 1, backgroundColor: C.border, marginVertical: 4 },
 
     lastCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
       backgroundColor: C.surface, borderRadius: 16,
-      paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    lastCardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-    lastIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    lastTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
+    lastIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    lastTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
     lastDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
-    repeatRow: { flexDirection: 'row', gap: 8 },
-    repeatBtnFilled: {
-      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-      backgroundColor: C.primary, borderRadius: 10, paddingVertical: 9,
-    },
-    repeatBtnFilledText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
-    repeatBtnOutline: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
-      borderWidth: 1.5, borderColor: C.primary,
-      borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9,
-    },
-    repeatBtnOutlineText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
     firstCard: {
       flexDirection: 'row', alignItems: 'center', gap: 10,

@@ -796,6 +796,8 @@ export default function SessionScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const cardYPositions = useRef<Record<number, number>>({});
+  const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current); }, []);
 
   useEffect(() => {
     setExerciseData(
@@ -972,6 +974,8 @@ export default function SessionScreen() {
       ? postStreak
       : 0;
 
+    const capturedDuration = elapsedSeconds;
+
     completeSession({
       sessionType,
       date: new Date().toISOString(),
@@ -983,17 +987,19 @@ export default function SessionScreen() {
       exerciseCount: exercises.length,
       exerciseLogs,
       isTestWeek,
+      durationSeconds: capturedDuration,
     });
 
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
-    setSessionDurationSeconds(elapsedSeconds);
+    setSessionDurationSeconds(capturedDuration);
     setFeedbackStep('congrats');
     setThumbsRatings({});
     setTooEasySelected(new Set());
     setTooEasySaved(false);
-    setTimeout(() => setShowCongratsModal(true), 400);
+    const congratsTimer = setTimeout(() => setShowCongratsModal(true), 400);
+    congratsTimerRef.current = congratsTimer;
   };
 
   const handleExit = () => {

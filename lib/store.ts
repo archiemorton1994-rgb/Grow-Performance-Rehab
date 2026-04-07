@@ -85,6 +85,7 @@ export interface CompletedSession {
   exerciseCount: number;
   exerciseLogs: ExerciseLog[];
   isTestWeek?: boolean;
+  durationSeconds?: number;
 }
 
 export type Sex = 'male' | 'female' | 'other';
@@ -242,7 +243,6 @@ export const useAppStore = create<AppState>()(
         const { completedSessions } = get();
         if (completedSessions.length === 0) return 0;
 
-        let streak = 0;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -256,9 +256,16 @@ export const useAppStore = create<AppState>()(
 
         const sortedDays = Array.from(uniqueDays).sort((a, b) => b - a);
 
+        // Allow streak to survive if the user hasn't trained yet today — start
+        // counting from yesterday so the streak isn't zeroed out at midnight.
+        const todayMs = today.getTime();
+        const hasTodaySession = uniqueDays.has(todayMs);
+        const startOffset = hasTodaySession ? 0 : 1;
+
+        let streak = 0;
         for (let i = 0; i < sortedDays.length; i++) {
           const checkDate = new Date(today);
-          checkDate.setDate(checkDate.getDate() - i);
+          checkDate.setDate(checkDate.getDate() - (i + startOffset));
           checkDate.setHours(0, 0, 0, 0);
 
           if (sortedDays.includes(checkDate.getTime())) {
