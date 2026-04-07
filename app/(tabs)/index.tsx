@@ -59,6 +59,10 @@ export default function HomeScreen() {
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
 
+  // Auto-progression indicator: show when completedCount >= 15 (autoMult > 1.05)
+  const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
+  const showProgressionNote = autoMult > 1.05;
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -141,6 +145,12 @@ export default function HomeScreen() {
               <Ionicons name={suggestedMeta.icon} size={32} color={suggestedMeta.color} />
             </View>
           </View>
+          {showProgressionNote && (
+            <View style={styles.progressionChip}>
+              <Ionicons name="trending-up" size={12} color={C.primary} />
+              <Text style={styles.progressionChipText}>Weights have increased since last session</Text>
+            </View>
+          )}
           <Pressable
             onPress={handleStartSuggested}
             style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
@@ -240,6 +250,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14,
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+
+    progressionChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      marginBottom: 10,
+    },
+    progressionChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
 
     statsStrip: {
       flexDirection: 'row', backgroundColor: C.surface,

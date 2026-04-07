@@ -91,7 +91,8 @@ function personalizeLoad(
   exerciseId?: string,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
-  isMainLift?: boolean
+  isMainLift?: boolean,
+  completedCount: number = 0
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -120,6 +121,11 @@ function personalizeLoad(
     ? exerciseFeedback[exerciseId].multiplier
     : 1.0;
 
+  // ── Auto session-count multiplier (+1% per 3 sessions, max +20%) ─────────
+  const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
+  // Combine feedback and auto progression, capped at the existing 1.5 max
+  const combinedMult = Math.min(1.5, feedbackMult * autoMult);
+
   // ── 1RM-based load for the main KPI lift ────────────────────────────────
   // When the user entered their 1RM during onboarding (or a test week), use it
   // to calculate the working weight directly rather than relying on body-weight
@@ -130,7 +136,7 @@ function personalizeLoad(
     };
     const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
     const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.70), 0) / activeGoals.length;
-    const targetKg = roundTo2_5(ormKg * avgPct * feedbackMult);
+    const targetKg = roundTo2_5(ormKg * avgPct * combinedMult);
     return `${targetKg} kg`;
   }
 
@@ -151,7 +157,7 @@ function personalizeLoad(
   return rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
     if (num <= 0) return match;
-    return String(roundTo2_5(num * scale * feedbackMult));
+    return String(roundTo2_5(num * scale * combinedMult));
   });
 }
 
@@ -278,14 +284,15 @@ function applyPersonalization(
   profile: UserProfile | undefined,
   isUpperBody: boolean,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  ormKg?: number
+  ormKg?: number,
+  completedCount: number = 0
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount) : ex.swapLoad,
   };
 }
 
@@ -295,10 +302,11 @@ export function generateWorkout(
   readiness: ReadinessCheck,
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  bestOrmKg?: number
+  bestOrmKg?: number,
+  completedCount: number = 0
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -407,7 +415,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -424,12 +432,13 @@ function generateConditioningWorkout(
   equipmentTier: EquipmentTier,
   readiness: ReadinessCheck,
   profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  completedCount: number = 0
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 

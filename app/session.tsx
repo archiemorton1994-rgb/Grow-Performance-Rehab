@@ -763,8 +763,8 @@ export default function SessionScreen() {
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM]);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
