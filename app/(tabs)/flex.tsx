@@ -4,7 +4,7 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  ScrollView,
+  Modal,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -13,11 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { PainRegion, SessionType, useAppStore, PAIN_CATEGORIES } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
 import { daysSince } from '@/lib/utils';
 
-const LOWER_TYPES: SessionType[] = ['squat', 'deadlift'];
-const UPPER_TYPES: SessionType[] = ['bench'];
+type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
 
 function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility'): string {
   const matches = completedSessions.filter(s => s.sessionType === sessionType);
@@ -28,285 +27,305 @@ function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexi
   return `Last done ${days} days ago`;
 }
 
-function getSmartCategory(completedSessions: any[]): string | null {
-  const mainLifts = completedSessions.filter(s =>
-    ['squat', 'bench', 'deadlift'].includes(s.sessionType)
-  );
-  if (mainLifts.length === 0) return null;
-  const last = mainLifts[0].sessionType as SessionType;
-  if (LOWER_TYPES.includes(last)) return 'lower';
-  if (UPPER_TYPES.includes(last)) return 'upper';
-  return null;
-}
+const SESSION_INFO: Record<NonNullable<ModalType>, {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconBg: string;
+  iconColor: string;
+  duration: string;
+  description: string;
+  cta: string;
+  sessionType: 'prehab' | 'flexibility';
+}> = {
+  recovery: {
+    title: 'Recovery',
+    icon: 'shield-checkmark',
+    iconBg: '#e8f5e9',
+    iconColor: '#2e7d32',
+    duration: 'Full-body joint circuit · 20–30 min',
+    description: 'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
+    cta: 'Start Recovery',
+    sessionType: 'prehab',
+  },
+  mobility: {
+    title: 'Mobility',
+    icon: 'leaf',
+    iconBg: '#e8f5e9',
+    iconColor: '#2e7d32',
+    duration: 'Full-body stretch session · 30–40 min',
+    description: 'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
+    cta: 'Start Mobility',
+    sessionType: 'flexibility',
+  },
+  prehab: {
+    title: 'Targeted Prehab',
+    icon: 'fitness',
+    iconBg: '#fff3e0',
+    iconColor: '#e65100',
+    duration: 'Area-focused circuit · 20–30 min',
+    description: 'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
+    cta: 'Choose Area & Start',
+    sessionType: 'prehab',
+  },
+};
 
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const { getEffectiveTier, completedSessions } = useAppStore();
-  const equipmentTier = getEffectiveTier();
+  const { completedSessions } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  const smartCategory = useMemo(() => getSmartCategory(completedSessions), [completedSessions]);
-  const [selectedRegion, setSelectedRegion] = useState<PainRegion | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(smartCategory);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
   const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
 
-  const hapticTap = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const startSession = (
-    sessionType: 'prehab' | 'flexibility',
-    hasAches = false,
-    painRegion?: PainRegion,
-  ) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({
-      pathname: '/session',
-      params: {
-        sessionType,
-        hasAches: hasAches ? 'true' : 'false',
-        painRegion: painRegion ?? '',
-        energy: 'normal',
-        timeAvailable: '60',
-        isTestWeek: 'false',
-        equipment: equipmentTier,
-      },
-    });
-  };
-
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const openModal = (type: NonNullable<ModalType>) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveModal(type);
+  };
+
+  const closeModal = () => setActiveModal(null);
+
+  const handleStart = (sessionType: 'prehab' | 'flexibility') => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    closeModal();
+    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+  };
+
+  const ROWS: Array<{
+    key: NonNullable<ModalType>;
+    title: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    iconBg: string;
+    iconColor: string;
+    recency: string;
+  }> = [
+    {
+      key: 'recovery',
+      title: 'Recovery',
+      subtitle: 'Full-body joint circuit · 20–30 min',
+      icon: 'shield-checkmark',
+      iconBg: '#e8f5e9',
+      iconColor: '#2e7d32',
+      recency: prehabRecency,
+    },
+    {
+      key: 'mobility',
+      title: 'Mobility',
+      subtitle: 'Full-body stretch session · 30–40 min',
+      icon: 'leaf',
+      iconBg: '#e8f5e9',
+      iconColor: '#2e7d32',
+      recency: flexRecency,
+    },
+    {
+      key: 'prehab',
+      title: 'Targeted Prehab',
+      subtitle: 'Area-focused circuit · 20–30 min',
+      icon: 'fitness',
+      iconBg: '#fff3e0',
+      iconColor: '#e65100',
+      recency: prehabRecency,
+    },
+  ];
+
+  const activeInfo = activeModal ? SESSION_INFO[activeModal] : null;
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + webTopInset + 16,
-          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>Rest & Restore</Text>
-      <Text style={styles.subtitle}>Recovery, mobility, and prehab sessions</Text>
+    <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
+      <View style={[styles.header, { paddingBottom: 8 }]}>
+        <Text style={styles.title}>Rest & Restore</Text>
+        <Text style={styles.subtitle}>Recovery, mobility, and prehab sessions</Text>
+      </View>
 
-      {/* Recovery */}
-      <Animated.View entering={FadeInDown.delay(0).duration(400)}>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIconWrap, { backgroundColor: '#e8f5e9' }]}>
-              <Ionicons name="shield-checkmark" size={22} color="#2e7d32" />
-            </View>
-            <View style={styles.cardMeta}>
-              <Text style={styles.cardTitle}>Recovery</Text>
-              <Text style={styles.cardDuration}>Full-body joint circuit · 20–30 min</Text>
-            </View>
-          </View>
-          <Text style={styles.cardDesc}>
-            A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day.
-          </Text>
-          <Text style={styles.recencyText}>{prehabRecency}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => startSession('prehab')}
-          >
-            <Ionicons name="play" size={15} color="#fff" />
-            <Text style={styles.startBtnText}>Start Recovery</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+      <View style={styles.navGrid}>
+        {ROWS.map((row, i) => (
+          <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)}>
+            <Pressable
+              onPress={() => openModal(row.key)}
+              style={({ pressed }) => [
+                styles.navBtn,
+                pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+              ]}
+              testID={`flex-row-${row.key}`}
+            >
+              <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
+                <Ionicons name={row.icon} size={22} color={row.iconColor} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>{row.title}</Text>
+                <Text style={styles.navSub}>{row.subtitle}</Text>
+                <Text style={styles.navRecency}>{row.recency}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+          </Animated.View>
+        ))}
+      </View>
 
-      {/* Mobility */}
-      <Animated.View entering={FadeInDown.delay(80).duration(400)}>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIconWrap, { backgroundColor: '#e8f5e9' }]}>
-              <Ionicons name="leaf" size={22} color="#2e7d32" />
-            </View>
-            <View style={styles.cardMeta}>
-              <Text style={styles.cardTitle}>Mobility</Text>
-              <Text style={styles.cardDuration}>Full-body stretch session · 30–40 min</Text>
-            </View>
-          </View>
-          <Text style={styles.cardDesc}>
-            Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days.
-          </Text>
-          <Text style={styles.recencyText}>{flexRecency}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => startSession('flexibility')}
-          >
-            <Ionicons name="play" size={15} color="#fff" />
-            <Text style={styles.startBtnText}>Start Mobility</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+      <Modal
+        visible={activeModal !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <View style={styles.sheetOverlay}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={styles.sheetHandle} />
 
-      {/* Targeted Prehab */}
-      <Animated.View entering={FadeInDown.delay(160).duration(400)}>
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIconWrap, { backgroundColor: '#fff3e0' }]}>
-              <Ionicons name="fitness" size={22} color="#e65100" />
-            </View>
-            <View style={styles.cardMeta}>
-              <Text style={styles.cardTitle}>Targeted Prehab</Text>
-              <Text style={styles.cardDuration}>Area-focused circuit · 20–30 min</Text>
-            </View>
-          </View>
-          <Text style={styles.cardDesc}>
-            Select a region that needs attention. The session focuses on protecting and strengthening that area.
-          </Text>
-          {smartCategory && (
-            <View style={styles.suggestionBadge}>
-              <Ionicons name="bulb-outline" size={13} color={C.primary} />
-              <Text style={styles.suggestionText}>
-                Suggested based on your last session
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.areaSection}>
-            <Text style={styles.areaLabel}>Select area</Text>
-            {Object.entries(PAIN_CATEGORIES).map(([catKey, cat]) => {
-              const isOpen = expandedCategory === catKey;
-              const isSuggested = catKey === smartCategory;
-              return (
-                <View key={catKey}>
-                  <Pressable
-                    style={[styles.categoryRow, isOpen && styles.categoryRowOpen, isSuggested && !isOpen && styles.categoryRowSuggested]}
-                    onPress={() => {
-                      hapticTap();
-                      setExpandedCategory(isOpen ? null : catKey);
-                      if (isOpen) setSelectedRegion(null);
-                    }}
-                  >
-                    <Text style={[styles.categoryText, isOpen && styles.categoryTextOpen]}>
-                      {cat.label}
-                    </Text>
-                    {isSuggested && !isOpen && (
-                      <View style={styles.suggestPill}>
-                        <Text style={styles.suggestPillText}>Suggested</Text>
-                      </View>
-                    )}
-                    <Ionicons
-                      name={isOpen ? 'chevron-up' : 'chevron-down'}
-                      size={14}
-                      color={isOpen ? C.primary : C.textSecondary}
-                    />
-                  </Pressable>
-                  {isOpen && (
-                    <View style={styles.regionGrid}>
-                      {cat.regions.map((r) => {
-                        const isSelected = selectedRegion === r.id;
-                        return (
-                          <Pressable
-                            key={r.id}
-                            style={[styles.regionChip, isSelected && styles.regionChipSelected]}
-                            onPress={() => {
-                              hapticTap();
-                              setSelectedRegion(isSelected ? null : r.id as PainRegion);
-                            }}
-                          >
-                            <Text style={[styles.regionText, isSelected && styles.regionTextSelected]}>
-                              {r.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  )}
+          {activeInfo && (
+            <>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
+                  <Ionicons name={activeInfo.icon} size={26} color={activeInfo.iconColor} />
                 </View>
-              );
-            })}
-          </View>
+                <View style={styles.sheetHeaderText}>
+                  <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
+                  <Text style={styles.sheetDuration}>{activeInfo.duration}</Text>
+                </View>
+                <Pressable
+                  onPress={closeModal}
+                  style={styles.closeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={C.textSecondary} />
+                </Pressable>
+              </View>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.startBtn,
-              styles.startBtnOrange,
-              !selectedRegion && styles.startBtnDisabled,
-              pressed && !!selectedRegion && { opacity: 0.85 },
-            ]}
-            onPress={() => selectedRegion && startSession('prehab', true, selectedRegion)}
-            disabled={!selectedRegion}
-          >
-            <Ionicons name="play" size={15} color="#fff" />
-            <Text style={styles.startBtnText}>
-              {selectedRegion ? 'Start Targeted Prehab' : 'Choose an area above'}
-            </Text>
-          </Pressable>
+              <Text style={styles.sheetDesc}>{activeInfo.description}</Text>
+
+              <Pressable
+                onPress={() => handleStart(activeInfo.sessionType)}
+                style={({ pressed }) => [
+                  styles.startBtn,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                ]}
+                testID={`flex-start-${activeModal}`}
+              >
+                <Ionicons name="play" size={16} color="#fff" />
+                <Text style={styles.startBtnText}>{activeInfo.cta}</Text>
+              </Pressable>
+            </>
+          )}
         </View>
-      </Animated.View>
-    </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.background },
-    content: { paddingHorizontal: 20 },
+    root: { flex: 1, backgroundColor: C.background },
 
-    title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
-    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 24 },
-
-    card: {
-      backgroundColor: C.surface, borderRadius: 18, padding: 18,
-      marginBottom: 16, borderWidth: 1, borderColor: C.borderLight,
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
     },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-    cardIconWrap: { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-    cardMeta: { flex: 1 },
-    cardTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
-    cardDuration: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
-    cardDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 19, marginBottom: 8 },
-    recencyText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 14 },
+    title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
+    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
+
+    navGrid: {
+      marginHorizontal: 16,
+      marginTop: 20,
+      backgroundColor: C.surface,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      overflow: 'hidden',
+    },
+    navBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+    },
+    navIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    navBtnText: { flex: 1 },
+    navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
+    navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    navRecency: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
+
+    sheetOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    sheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 16,
+    },
+    sheetIconWrap: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetHeaderText: { flex: 1 },
+    sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    sheetDuration: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 3 },
+    closeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: C.surfaceTertiary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    sheetDesc: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      lineHeight: 21,
+      marginBottom: 24,
+    },
 
     startBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      backgroundColor: C.primary, borderRadius: 12, paddingVertical: 13,
-      shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 5,
     },
-    startBtnOrange: { backgroundColor: '#e65100', shadowColor: '#e65100' },
-    startBtnDisabled: { backgroundColor: C.surfaceTertiary, shadowOpacity: 0, elevation: 0 },
-    startBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: '#fff' },
-
-    suggestionBadge: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      backgroundColor: C.primaryMuted, borderRadius: 8,
-      paddingHorizontal: 10, paddingVertical: 6, marginBottom: 14,
-    },
-    suggestionText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary },
-
-    areaSection: { marginBottom: 16 },
-    areaLabel: {
-      fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textSecondary,
-      textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8,
-    },
-
-    categoryRow: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10,
-      backgroundColor: C.surfaceSecondary, marginBottom: 4, borderWidth: 1, borderColor: C.borderLight,
-    },
-    categoryRowOpen: { backgroundColor: C.primaryMuted, borderColor: C.primary },
-    categoryRowSuggested: { borderColor: C.primary },
-    categoryText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 },
-    categoryTextOpen: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
-    suggestPill: { backgroundColor: C.primaryMuted, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, marginRight: 6 },
-    suggestPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.primary },
-
-    regionGrid: { flexDirection: 'row', flexWrap: 'wrap' as const, gap: 6, paddingHorizontal: 4, paddingBottom: 8, paddingTop: 4 },
-    regionChip: {
-      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
-      backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.border,
-    },
-    regionChipSelected: { backgroundColor: C.primaryMuted, borderColor: C.primary },
-    regionText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    regionTextSelected: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
   });
 }

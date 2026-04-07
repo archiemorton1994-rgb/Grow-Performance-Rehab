@@ -122,17 +122,20 @@ export default function TrainScreen() {
     isTestMarker: boolean;
   }[] = [];
 
-  for (let i = 0; i < 9; i++) {
+  const timelineLength = Math.min(testWeekFrequency, 9);
+  const cyclePos = completedCount % timelineLength;
+
+  for (let i = 0; i < timelineLength; i++) {
     const sessionType = SESSION_ORDER[i % 3];
     let status: 'completed' | 'current' | 'upcoming';
-    if (i < completedCount % 9) {
+    if (i < cyclePos) {
       status = 'completed';
-    } else if (i === completedCount % 9) {
+    } else if (i === cyclePos) {
       status = 'current';
     } else {
       status = 'upcoming';
     }
-    const sessionNumber = completedCount - (completedCount % 9) + i + 1;
+    const sessionNumber = completedCount - cyclePos + i + 1;
     const isTestMarker = sessionNumber % testWeekFrequency === 0;
     timelineItems.push({ sessionType, status, isTestMarker });
   }
