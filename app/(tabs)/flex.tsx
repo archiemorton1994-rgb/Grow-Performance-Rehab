@@ -173,8 +173,8 @@ export default function FlexScreen() {
         animationType="slide"
         onRequestClose={closeModal}
       >
-        <View style={styles.sheetOverlay}>
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+        <Pressable style={styles.sheetOverlay} onPress={closeModal}>
+        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
           <View style={styles.sheetHandle} />
 
           {activeInfo && (
@@ -211,8 +211,8 @@ export default function FlexScreen() {
               </Pressable>
             </>
           )}
-        </View>
-        </View>
+        </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
