@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -31,7 +30,7 @@ const SESSION_TYPE_META: Record<SessionType, { label: string; subtitle: string; 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = insets.bottom + 50;
   const {
     equipmentTiers,
     getEffectiveTier,
