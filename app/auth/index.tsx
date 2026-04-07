@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +55,7 @@ export default function OtpAuthScreen() {
 
   const handleVerifyCode = useCallback(async () => {
     if (!codeValid || loading) return;
+    Keyboard.dismiss();
     setLoading(true);
     try {
       await verifyCode(email.trim(), code.trim());

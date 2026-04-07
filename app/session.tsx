@@ -483,7 +483,7 @@ function ExerciseCard({
   }));
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    prep:       { bg: '#e3f2fd', text: '#1565c0', label: 'Warm-Up' },
+    prep:       { bg: C.primaryMuted, text: C.primary, label: 'Warm-Up' },
     mechanical: { bg: '#e0f2f1', text: '#00695c', label: 'Activation' },
     neuro:      { bg: '#f3e5f5', text: '#7b1fa2', label: 'Power Primer' },
     main:       { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
@@ -784,6 +784,7 @@ export default function SessionScreen() {
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0);
   useEffect(() => {
     const timerId = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(timerId);
@@ -987,6 +988,7 @@ export default function SessionScreen() {
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
+    setSessionDurationSeconds(elapsedSeconds);
     setFeedbackStep('congrats');
     setThumbsRatings({});
     setTooEasySelected(new Set());
@@ -1274,8 +1276,12 @@ export default function SessionScreen() {
                   </View>
                   <View style={styles.congratsStatDivider} />
                   <View style={styles.congratsStat}>
-                    <Text style={styles.congratsStatValue}>{timeAvailable}</Text>
-                    <Text style={styles.congratsStatLabel}>Minutes</Text>
+                    <Text style={styles.congratsStatValue}>
+                      {sessionDurationSeconds >= 3600
+                        ? `${Math.floor(sessionDurationSeconds / 3600)}h ${Math.floor((sessionDurationSeconds % 3600) / 60)}m`
+                        : `${Math.floor(sessionDurationSeconds / 60)}m`}
+                    </Text>
+                    <Text style={styles.congratsStatLabel}>Duration</Text>
                   </View>
                 </View>
                 {streakMilestone > 0 && (

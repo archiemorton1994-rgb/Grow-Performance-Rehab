@@ -360,7 +360,7 @@ export default function ProfileScreen() {
                     ? expiryDate
                       ? (() => {
                           const daysLeft = Math.max(0, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-                          return daysLeft > 0 ? `${daysLeft}d left` : 'Trial';
+                          return daysLeft > 0 ? `${daysLeft} days remaining` : 'Trial';
                         })()
                       : 'Trial'
                     : 'Active'}
