@@ -150,7 +150,7 @@ export default function OtpAuthScreen() {
               <Text style={styles.backText}>Change email</Text>
             </Pressable>
 
-            <Text style={styles.heading}>Check your email</Text>
+            <Text style={styles.heading}>Check your inbox</Text>
             <Text style={styles.sub}>
               We sent a 6-digit code to{'\n'}
               <Text style={styles.emailHighlight}>{email.trim()}</Text>
