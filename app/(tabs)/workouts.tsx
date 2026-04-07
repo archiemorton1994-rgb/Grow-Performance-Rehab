@@ -360,6 +360,7 @@ function SessionHistoryList({
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCount, setShowCount] = useState(HISTORY_PAGE_SIZE);
+  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
 
   if (sessions.length === 0) {
     return (
@@ -371,7 +372,6 @@ function SessionHistoryList({
   }
 
   const visibleSessions = sessions.slice(0, showCount);
-  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
 
   return (
     <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.borderLight, overflow: 'hidden' }}>
