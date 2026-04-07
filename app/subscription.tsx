@@ -26,6 +26,15 @@ const FEATURES = [
   { icon: 'trending-up-outline' as const, title: 'Progress tracking & strength tests', desc: 'Monitor your 1RM progress over time' },
 ];
 
+const INCLUDED_ITEMS = [
+  'Unlimited sessions across all 6 session types',
+  '5 equipment tiers — bodyweight to full gym',
+  'Auto load progression every 3 sessions',
+  'Per-set kg logging with smart defaults',
+  'Strength test weeks with 1RM tracking',
+  'Pain-aware exercise swaps (11 regions)',
+];
+
 function getLegalUrls() {
   try {
     const base = getApiUrl().replace(/\/$/, '');
@@ -133,6 +142,16 @@ export default function SubscriptionScreen() {
           ))}
         </View>
 
+        <View style={styles.includedCard}>
+          <Text style={styles.includedTitle}>What's included</Text>
+          {INCLUDED_ITEMS.map((item) => (
+            <View key={item} style={styles.includedRow}>
+              <Ionicons name="checkmark-circle" size={16} color={C.primary} style={{ marginTop: 1 }} />
+              <Text style={styles.includedText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+
         <View style={styles.planCard}>
           <View style={styles.planCardTop}>
             <View>
@@ -217,6 +236,14 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   },
   featureTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
   featureDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+  includedCard: {
+    backgroundColor: C.surface, borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: C.borderLight, marginBottom: 20, gap: 10,
+  },
+  includedTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  includedText: { flex: 1, fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, lineHeight: 20 },
 
   planCard: {
     backgroundColor: C.surface, borderRadius: 18, padding: 20,

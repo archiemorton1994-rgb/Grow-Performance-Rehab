@@ -991,7 +991,7 @@ export default function SessionScreen() {
     setThumbsRatings({});
     setTooEasySelected(new Set());
     setTooEasySaved(false);
-    setShowCongratsModal(true);
+    setTimeout(() => setShowCongratsModal(true), 400);
   };
 
   const handleExit = () => {

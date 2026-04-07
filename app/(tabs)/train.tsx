@@ -234,132 +234,146 @@ export default function TrainScreen() {
         <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
       </View>
 
-      <Text style={styles.programSubtitle}>
-        Squat · Bench · Deadlift · {getEquipmentLabel(equipmentTier)}
-      </Text>
+      {completedCount === 0 ? (
+        <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.emptyState}>
+          <View style={styles.emptyStateIconWrap}>
+            <Ionicons name="barbell-outline" size={34} color={C.primary} />
+          </View>
+          <Text style={styles.emptyStateTitle}>Your program starts here</Text>
+          <Text style={styles.emptyStateSub}>
+            Complete your first session from the Home tab to begin your progress timeline — Squat · Bench · Deadlift on {getEquipmentLabel(equipmentTier)}.
+          </Text>
+        </Animated.View>
+      ) : (
+        <>
+          <Text style={styles.programSubtitle}>
+            Squat · Bench · Deadlift · {getEquipmentLabel(equipmentTier)}
+          </Text>
 
-      <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.cycleInfo}>
-        <View style={styles.cycleCard}>
-          <Text style={styles.cycleValue}>Cycle {cycleNumber}</Text>
-          <Text style={styles.cycleLabel}>of your program</Text>
-        </View>
-        <View style={styles.cycleDivider} />
-        <View style={styles.cycleCard}>
-          <Text style={styles.cycleNumber}>{completedCount}</Text>
-          <Text style={styles.cycleLabel}>sessions completed</Text>
-        </View>
-        <View style={styles.cycleDivider} />
-        <View style={styles.cycleCard}>
-          <Text style={styles.cycleNumber}>{sessionsToTest}</Text>
-          <Text style={styles.cycleLabel}>until test week</Text>
-        </View>
-      </Animated.View>
+          <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.cycleInfo}>
+            <View style={styles.cycleCard}>
+              <Text style={styles.cycleValue}>Cycle {cycleNumber}</Text>
+              <Text style={styles.cycleLabel}>of your program</Text>
+            </View>
+            <View style={styles.cycleDivider} />
+            <View style={styles.cycleCard}>
+              <Text style={styles.cycleNumber}>{completedCount}</Text>
+              <Text style={styles.cycleLabel}>sessions completed</Text>
+            </View>
+            <View style={styles.cycleDivider} />
+            <View style={styles.cycleCard}>
+              <Text style={styles.cycleNumber}>{sessionsToTest}</Text>
+              <Text style={styles.cycleLabel}>until test week</Text>
+            </View>
+          </Animated.View>
 
-      {/* Programme Arc */}
-      <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.arcCard}>
-        <View style={styles.arcHeader}>
-          <Text style={styles.arcLabel}>Session {cyclePosition + 1} of {cycleLength}</Text>
-          <Text style={styles.arcSublabel}>current cycle</Text>
-        </View>
-        <View style={styles.arcDots}>
-          {Array.from({ length: cycleLength }, (_, i) => {
-            const isDone = i < cyclePosition;
-            const isCur = i === cyclePosition;
-            return (
-              <View
-                key={i}
-                style={[
-                  styles.arcDot,
-                  isDone && styles.arcDotDone,
-                  isCur && styles.arcDotCurrent,
-                ]}
-              />
-            );
-          })}
-        </View>
-      </Animated.View>
+          {/* Programme Arc */}
+          <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.arcCard}>
+            <View style={styles.arcHeader}>
+              <Text style={styles.arcLabel}>Session {cyclePosition + 1} of {cycleLength}</Text>
+              <Text style={styles.arcSublabel}>current cycle</Text>
+            </View>
+            <View style={styles.arcDots}>
+              {Array.from({ length: cycleLength }, (_, i) => {
+                const isDone = i < cyclePosition;
+                const isCur = i === cyclePosition;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.arcDot,
+                      isDone && styles.arcDotDone,
+                      isCur && styles.arcDotCurrent,
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.contextRow}>
-        <View style={styles.contextDot} />
-        <Text style={styles.contextText}>{contextMessage}</Text>
-      </Animated.View>
+          <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.contextRow}>
+            <View style={styles.contextDot} />
+            <Text style={styles.contextText}>{contextMessage}</Text>
+          </Animated.View>
 
-      <View style={styles.timeline}>
-        {timelineItems.map((item, index) => {
-          const colors = SESSION_COLORS[item.sessionType];
-          const isCurrent = item.status === 'current';
-          const isCompleted = item.status === 'completed';
+          <View style={styles.timeline}>
+            {timelineItems.map((item, index) => {
+              const colors = SESSION_COLORS[item.sessionType];
+              const isCurrent = item.status === 'current';
+              const isCompleted = item.status === 'completed';
 
-          return (
-            <Animated.View key={index} entering={FadeInDown.delay(120 + index * 40).duration(400)}>
-              <View style={styles.timelineRow}>
-                <View style={styles.timelineTrack}>
-                  <View style={[
-                    styles.timelineDot,
-                    isCompleted && styles.timelineDotDone,
-                    isCurrent && styles.timelineDotCurrent,
-                    isCurrent && testWeek && styles.timelineDotTest,
-                  ]}>
-                    {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
-                    {isCurrent && (
-                      <View style={[styles.currentPulse, testWeek && { backgroundColor: '#e65100' }]} />
-                    )}
-                  </View>
-                  {index < timelineItems.length - 1 && (
-                    <View style={[styles.timelineLine, isCompleted && styles.timelineLineDone]} />
-                  )}
-                </View>
-
-                <Pressable
-                  onPress={() => isCurrent ? handleStart(item.sessionType, testWeek) : null}
-                  disabled={!isCurrent}
-                  style={({ pressed }) => [
-                    styles.timelineCard,
-                    isCurrent && styles.timelineCardCurrent,
-                    isCurrent && testWeek && styles.timelineCardTest,
-                    isCompleted && styles.timelineCardDone,
-                    pressed && isCurrent && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                  ]}
-                >
-                  <View style={[styles.cardIcon, { backgroundColor: colors.bg }]}>
-                    <Ionicons
-                      name={isCurrent && testWeek ? 'trophy' : SESSION_ICONS[item.sessionType]}
-                      size={20}
-                      color={isCurrent && testWeek ? '#e65100' : colors.accent}
-                    />
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>
-                      {SESSION_DISPLAY_NAMES[item.sessionType]}
-                    </Text>
-                    <Text style={styles.cardSub}>
-                      {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
-                    </Text>
-                    {!isCompleted && (
-                      <Text style={styles.cardRecency}>
-                        {lastTrainedByType[item.sessionType]}
-                      </Text>
-                    )}
-                  </View>
-                  {isCurrent && (
-                    <View style={[styles.startPill, testWeek && styles.startPillTest]}>
-                      <Ionicons name="play" size={16} color={C.textInverse} />
+              return (
+                <Animated.View key={index} entering={FadeInDown.delay(120 + index * 40).duration(400)}>
+                  <View style={styles.timelineRow}>
+                    <View style={styles.timelineTrack}>
+                      <View style={[
+                        styles.timelineDot,
+                        isCompleted && styles.timelineDotDone,
+                        isCurrent && styles.timelineDotCurrent,
+                        isCurrent && testWeek && styles.timelineDotTest,
+                      ]}>
+                        {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
+                        {isCurrent && (
+                          <View style={[styles.currentPulse, testWeek && { backgroundColor: '#e65100' }]} />
+                        )}
+                      </View>
+                      {index < timelineItems.length - 1 && (
+                        <View style={[styles.timelineLine, isCompleted && styles.timelineLineDone]} />
+                      )}
                     </View>
-                  )}
-                  {isCompleted && (
-                    <Ionicons name="checkmark-circle" size={22} color={C.primary} />
-                  )}
-                  {item.isTestMarker && !isCurrent && (
-                    <View style={styles.testMarker}>
-                      <Ionicons name="trophy-outline" size={14} color="#e65100" />
-                    </View>
-                  )}
-                </Pressable>
-              </View>
-            </Animated.View>
-          );
-        })}
-      </View>
+
+                    <Pressable
+                      onPress={() => isCurrent ? handleStart(item.sessionType, testWeek) : null}
+                      disabled={!isCurrent}
+                      style={({ pressed }) => [
+                        styles.timelineCard,
+                        isCurrent && styles.timelineCardCurrent,
+                        isCurrent && testWeek && styles.timelineCardTest,
+                        isCompleted && styles.timelineCardDone,
+                        pressed && isCurrent && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                      ]}
+                    >
+                      <View style={[styles.cardIcon, { backgroundColor: colors.bg }]}>
+                        <Ionicons
+                          name={isCurrent && testWeek ? 'trophy' : SESSION_ICONS[item.sessionType]}
+                          size={20}
+                          color={isCurrent && testWeek ? '#e65100' : colors.accent}
+                        />
+                      </View>
+                      <View style={styles.cardContent}>
+                        <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>
+                          {SESSION_DISPLAY_NAMES[item.sessionType]}
+                        </Text>
+                        <Text style={styles.cardSub}>
+                          {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
+                        </Text>
+                        {!isCompleted && (
+                          <Text style={styles.cardRecency}>
+                            {lastTrainedByType[item.sessionType]}
+                          </Text>
+                        )}
+                      </View>
+                      {isCurrent && (
+                        <View style={[styles.startPill, testWeek && styles.startPillTest]}>
+                          <Ionicons name="play" size={16} color={C.textInverse} />
+                        </View>
+                      )}
+                      {isCompleted && (
+                        <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                      )}
+                      {item.isTestMarker && !isCurrent && (
+                        <View style={styles.testMarker}>
+                          <Ionicons name="trophy-outline" size={14} color="#e65100" />
+                        </View>
+                      )}
+                    </Pressable>
+                  </View>
+                </Animated.View>
+              );
+            })}
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -460,5 +474,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     startPillTest: { backgroundColor: '#e65100' },
     testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff3e0', alignItems: 'center', justifyContent: 'center' },
+
+    emptyState: {
+      backgroundColor: C.primarySurface, borderRadius: 16,
+      padding: 24, marginTop: 4, marginBottom: 16,
+      borderWidth: 1, borderColor: C.primaryMuted,
+      alignItems: 'center',
+    },
+    emptyStateIconWrap: {
+      width: 64, height: 64, borderRadius: 20,
+      backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyStateTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 8, textAlign: 'center' },
+    emptyStateSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 19 },
   });
 }

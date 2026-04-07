@@ -234,8 +234,8 @@ export default function ProfileScreen() {
                 );
               })}
               {userProfile.bodyweightKg > 0 && (
-                <View style={[styles.tag, { backgroundColor: '#e8f0fe' }]}>
-                  <Text style={[styles.tagText, { color: '#1565c0' }]}>{kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}</Text>
+                <View style={[styles.tag, { backgroundColor: C.primaryMuted }]}>
+                  <Text style={[styles.tagText, { color: C.primary }]}>{kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}</Text>
                 </View>
               )}
             </View>
@@ -293,8 +293,8 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
             testID="open-bodyweight"
           >
-            <View style={[styles.navIcon, { backgroundColor: '#e8f0fe' }]}>
-              <Ionicons name="scale-outline" size={22} color="#1565c0" />
+            <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+              <Ionicons name="scale-outline" size={22} color={C.primary} />
             </View>
             <View style={styles.navBtnText}>
               <Text style={styles.navLabel}>Body Weight</Text>
@@ -356,7 +356,14 @@ export default function ProfileScreen() {
               </View>
               <View style={[styles.subActiveBadge, { backgroundColor: C.primaryMuted }]}>
                 <Text style={[styles.subActiveBadgeText, { color: C.primary }]}>
-                  {isOnTrial ? 'Trial' : 'Active'}
+                  {isOnTrial
+                    ? expiryDate
+                      ? (() => {
+                          const daysLeft = Math.max(0, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                          return daysLeft > 0 ? `${daysLeft}d left` : 'Trial';
+                        })()
+                      : 'Trial'
+                    : 'Active'}
                 </Text>
               </View>
             </View>
@@ -548,7 +555,7 @@ export default function ProfileScreen() {
         <Pressable style={styles.bwOverlay} onPress={() => setActiveModal(null)}>
           <Pressable style={styles.bwCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.bwIconWrap}>
-              <Ionicons name="scale-outline" size={28} color="#1565c0" />
+              <Ionicons name="scale-outline" size={28} color={C.primary} />
             </View>
             <Text style={styles.bwTitle}>Body Weight</Text>
             <Text style={styles.bwSub}>
@@ -804,19 +811,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // Body weight quick-edit modal
     bwOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
     bwCard: { width: '100%', backgroundColor: C.surface, borderRadius: 20, padding: 24, alignItems: 'center' },
-    bwIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: '#e8f0fe', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    bwIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
     bwTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6, textAlign: 'center' },
     bwSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 20, lineHeight: 18 },
     bwInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20, alignSelf: 'stretch' },
     bwInput: {
       flex: 1, height: 48, backgroundColor: C.surfaceTertiary, borderRadius: 12,
-      borderWidth: 1.5, borderColor: '#1565c0', paddingHorizontal: 14,
+      borderWidth: 1.5, borderColor: C.primary, paddingHorizontal: 14,
       fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.text, textAlign: 'center',
     },
     bwInputError: { borderColor: C.error },
     bwErrorText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.error, alignSelf: 'flex-start', marginBottom: 10, marginTop: 2 },
     bwUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
-    bwSaveBtn: { width: '100%', backgroundColor: '#1565c0', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
+    bwSaveBtn: { width: '100%', backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
     bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
   });
 }

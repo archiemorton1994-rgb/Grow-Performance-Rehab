@@ -161,23 +161,37 @@ export default function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Stats strip */}
-        <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{streak}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{WEEKLY_GOAL}</Text></Text>
-            <Text style={styles.statLabel}>This Week</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{completedCount}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </Animated.View>
+        {/* Stats strip / Welcome card */}
+        {completedCount === 0 ? (
+          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.welcomeCard}>
+            <View style={styles.welcomeIconWrap}>
+              <Ionicons name="sparkles" size={24} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.welcomeTitle}>Welcome to Grow</Text>
+              <Text style={styles.welcomeSub}>
+                Your profile is set up. Complete your first session to start building momentum.
+              </Text>
+            </View>
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{streak}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{WEEKLY_GOAL}</Text></Text>
+              <Text style={styles.statLabel}>This Week</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Last session repeat row */}
         <Animated.View entering={FadeInDown.delay(180).duration(380)}>
@@ -297,5 +311,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.borderLight,
     },
     firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    welcomeCard: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+      backgroundColor: C.primarySurface, borderRadius: 16,
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderWidth: 1, borderColor: C.primaryMuted,
+    },
+    welcomeIconWrap: {
+      width: 44, height: 44, borderRadius: 12,
+      backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    welcomeTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
+    welcomeSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18 },
   });
 }

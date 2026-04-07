@@ -667,6 +667,7 @@ export default function OnboardingScreen() {
                 />
               </Animated.View>
               <Animated.View style={[{ width: '100%', marginTop: 40 }, celebSummaryStyle]}>
+                <Text style={styles.profileReadySub}>Your first session is ready</Text>
                 <Pressable
                   onPress={handleComplete}
                   style={({ pressed }) => [
@@ -675,7 +676,7 @@ export default function OnboardingScreen() {
                   ]}
                   testID="profile-built-cta"
                 >
-                  <Text style={styles.continueBtnText}>Continue to create your account</Text>
+                  <Text style={styles.continueBtnText}>Start Training</Text>
                   <Ionicons name="arrow-forward" size={20} color={C.textInverse} />
                 </Pressable>
               </Animated.View>
@@ -972,6 +973,13 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     color: C.textInverse,
   },
   continueBtnTextDisabled: { color: C.textTertiary },
+  profileReadySub: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: C.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
   celebContent: { justifyContent: 'center', paddingTop: 0 },
   celebIconWrap: { marginBottom: 20 },
   celebTitle: {
