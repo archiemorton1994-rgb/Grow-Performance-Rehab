@@ -445,6 +445,7 @@ function generateConditioningWorkout(
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
+  _completedCount: number = 0
 ): Exercise[] {
   if (sessionType === 'conditioning') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);

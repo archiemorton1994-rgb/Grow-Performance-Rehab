@@ -59,9 +59,9 @@ export default function HomeScreen() {
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
 
-  // Auto-progression indicator: show when completedCount >= 15 (autoMult > 1.05)
+  // Auto-progression indicator: show when completedCount >= 15 (autoMult >= 1.05)
   const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
-  const showProgressionNote = autoMult > 1.05;
+  const showProgressionNote = autoMult >= 1.05;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);

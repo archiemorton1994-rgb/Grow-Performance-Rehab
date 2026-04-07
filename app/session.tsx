@@ -759,7 +759,7 @@ export default function SessionScreen() {
 
   const exercises = useMemo(() => {
     if (isTestWeek) {
-      return generate1RMWorkout(sessionType, equipmentTier);
+      return generate1RMWorkout(sessionType, equipmentTier, completedCount);
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
