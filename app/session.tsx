@@ -81,9 +81,12 @@ function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
 }
 
 function parseRepsToSeconds(repsStr: string): number {
-  // "X min" or "Xmin" — minutes only (not bare "m")
+  // "X min" or "Xmin" — explicit minutes token
   const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
   if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
+  // "Xm" or "X m" — bare m as minutes (only called when we KNOW the context is time, e.g. cardio warmup)
+  const bareMinMatch = repsStr.match(/^(\d+(?:\.\d+)?)\s*m\b/);
+  if (bareMinMatch) return Math.round(parseFloat(bareMinMatch[1]) * 60);
   // "Xs" or "X s" — seconds
   const secMatch = repsStr.match(/(\d+)\s*s\b/);
   if (secMatch) return parseInt(secMatch[1], 10);
