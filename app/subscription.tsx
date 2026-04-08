@@ -29,10 +29,12 @@ const FEATURES = [
 const INCLUDED_ITEMS = [
   'Unlimited sessions across all 6 session types',
   '5 equipment tiers — bodyweight to full gym',
-  'Auto load progression every 3 sessions',
-  'Per-set kg logging with smart defaults',
+  'Per-set weight logging with auto-progression',
+  'Per-exercise load tracking across sessions',
   'Strength test weeks with 1RM tracking',
-  'Pain-aware exercise swaps (11 regions)',
+  'Pain-aware exercise swaps (11 body regions)',
+  'Readiness-adjusted volume every session',
+  'Session resume — pick up where you left off',
 ];
 
 function getLegalUrls() {

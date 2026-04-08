@@ -131,11 +131,13 @@ constants/
 - For email sending in production: connect Resend via Replit integration (`RESEND_API_KEY` env var)
 - Dev testing: OTP printed to server console `[OTP] email@example.com → 123456`
 
-### RevenueCat Subscription (£9.99/month + 1-month free trial)
+### RevenueCat Subscription (£7.99/month + 14-day free trial)
 - Requires `EXPO_PUBLIC_REVENUECAT_API_KEY` env var (from RC dashboard → API Keys)
 - Expected entitlement name: `premium`
 - App gate order: onboarding → auth → subscription → tabs
 - Development bypass: set `EXPO_PUBLIC_RC_DEV_BYPASS=true` (development env only)
+- In-app review prompt triggers after user's 5th session (one-time, via expo-store-review)
+- `reviewPromptShown` persisted in Zustand store (v9)
 
 ### App Gate Flow (`app/_layout.tsx`)
 1. `!onboardingComplete` → `/onboarding`

@@ -143,6 +143,8 @@ interface AppState {
   /** Maximum weight (kg) logged per exercise name in any past session.
    *  Used by the workout engine to auto-progress load by +2.5 kg per session. */
   lastLoggedWeights: Record<string, number>;
+  /** Whether the App Store review prompt has already been shown to this user. */
+  reviewPromptShown: boolean;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -160,6 +162,7 @@ interface AppState {
   setActiveSession: (session: ActiveSession) => void;
   clearActiveSession: () => void;
   updateLastLoggedWeights: (weights: Record<string, number>) => void;
+  setReviewPromptShown: (shown: boolean) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -196,6 +199,7 @@ export const useAppStore = create<AppState>()(
       hasHydrated: false,
       activeSession: null,
       lastLoggedWeights: {},
+      reviewPromptShown: false,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -212,6 +216,7 @@ export const useAppStore = create<AppState>()(
       updateLastLoggedWeights: (weights) => set((state) => ({
         lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
       })),
+      setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -386,9 +391,12 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.lastLoggedWeights) {
           persistedState.lastLoggedWeights = {};
         }
+        if (!('reviewPromptShown' in persistedState)) {
+          persistedState.reviewPromptShown = false;
+        }
         return persistedState;
       },
-      version: 8,
+      version: 9,
     }
   )
 );

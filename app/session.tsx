@@ -14,6 +14,7 @@ import {
   AppStateStatus,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as StoreReview from 'expo-store-review';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -783,7 +784,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -1249,6 +1250,19 @@ export default function SessionScreen() {
       isTestWeek,
       durationSeconds: capturedDuration,
     });
+
+    if (newCount === 5 && !reviewPromptShown) {
+      setReviewPromptShown(true);
+      setTimeout(async () => {
+        try {
+          const available = await StoreReview.isAvailableAsync();
+          if (available) {
+            await StoreReview.requestReview();
+          }
+        } catch {
+        }
+      }, 3000);
+    }
 
     sessionTerminatedRef.current = true;
     clearActiveSession();
