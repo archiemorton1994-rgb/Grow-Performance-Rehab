@@ -871,6 +871,9 @@ export default function SessionScreen() {
   const exerciseNotesRef = useRef<string[]>([]);
   const activeIndexRef = useRef<number>(0);
   const exerciseIdsRef = useRef<string[]>([]);
+  // Ref to always-current activeSession (used in effects whose deps don't include activeSession)
+  const activeSessionRef = useRef(activeSession);
+  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
   // Guard: prevent autosave/background writes after session is completed or discarded
   const sessionTerminatedRef = useRef(false);
   // Guard: ensure we only restore from activeSession once
@@ -935,17 +938,16 @@ export default function SessionScreen() {
   const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current); }, []);
 
-  useEffect(() => {
-    if (hasRestoredRef.current) return;
-    const stored = activeSession;
-    const currentIds = exercises.map(ex => ex.id);
+  // Helper: attempt to restore stored session state onto loaded exercises.
+  // Returns true if restored, false if not (caller decides fallback).
+  const tryRestoreFromStored = (exs: typeof exercises, stored: typeof activeSession): boolean => {
+    if (hasRestoredRef.current || !stored || exs.length === 0) return false;
+    const currentIds = exs.map(ex => ex.id);
     const idsMatch =
-      stored !== null &&
       Array.isArray(stored.exerciseIds) &&
       stored.exerciseIds.length === currentIds.length &&
       stored.exerciseIds.every((id, i) => id === currentIds[i]);
     const canRestore =
-      stored !== null &&
       stored.sessionType === sessionType &&
       stored.equipmentTier === equipmentTier &&
       stored.hasAches === hasAches &&
@@ -953,41 +955,50 @@ export default function SessionScreen() {
       stored.energy === energy &&
       stored.timeAvailable === timeAvailable &&
       stored.isTestWeek === isTestWeek &&
-      exercises.length > 0 &&
-      stored.exerciseData.length === exercises.length &&
+      stored.exerciseData.length === exs.length &&
       idsMatch;
+    if (!canRestore) return false;
+    hasRestoredRef.current = true;
+    const timeSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
+    const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
+    setElapsedSeconds(restoredElapsed);
+    elapsedSecondsRef.current = restoredElapsed;
+    setExerciseData(stored.exerciseData as ExerciseSetData[]);
+    setExerciseNotes(stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => ''));
+    setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
+    return true;
+  };
 
-    if (canRestore && stored) {
-      hasRestoredRef.current = true;
-      const timeSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
-      const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
-      setElapsedSeconds(restoredElapsed);
-      elapsedSecondsRef.current = restoredElapsed;
-      setExerciseData(stored.exerciseData as ExerciseSetData[]);
-      setExerciseNotes(
-        stored.exerciseNotes.length === exercises.length
-          ? stored.exerciseNotes
-          : exercises.map(() => '')
-      );
-      setActiveIndex(Math.min(stored.activeIndex, exercises.length - 1));
-    } else {
-      setExerciseData(
-        exercises.map((ex) => ({
-          sets: Array.from({ length: ex.sets }, (_, i) => ({
-            setNumber: i + 1,
-            weight: 0,
-            reps: 0,
-            completed: false,
-          })),
-          swapCount: 0,
-        }))
-      );
+  // Primary restore: runs when exercises are computed (normal app flow).
+  // Reads activeSession via ref to avoid rerunning on every autosave.
+  useEffect(() => {
+    if (exercises.length === 0) return;
+    const restored = tryRestoreFromStored(exercises, activeSessionRef.current);
+    if (!restored) {
+      setExerciseData(exercises.map((ex) => ({
+        sets: Array.from({ length: ex.sets }, (_, i) => ({
+          setNumber: i + 1,
+          weight: 0,
+          reps: 0,
+          completed: false,
+        })),
+        swapCount: 0,
+      })));
       setExerciseNotes(exercises.map(() => ''));
       setActiveIndex(0);
     }
     cardYPositions.current = {};
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exercises, activeSession]);
+  }, [exercises]);
+
+  // Late-hydration restore: runs only when activeSession arrives after exercises.
+  // Only attempts restore (no fresh-init fallback, exercises already initialised).
+  useEffect(() => {
+    if (!hasRestoredRef.current && exercises.length > 0 && activeSession !== null) {
+      tryRestoreFromStored(exercises, activeSession);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession]);
 
   // Auto-advance to next exercise when current is fully complete
   useEffect(() => {
