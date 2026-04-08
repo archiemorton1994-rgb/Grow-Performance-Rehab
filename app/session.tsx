@@ -870,12 +870,14 @@ export default function SessionScreen() {
   const exerciseDataRef = useRef<ExerciseSetData[]>([]);
   const exerciseNotesRef = useRef<string[]>([]);
   const activeIndexRef = useRef<number>(0);
+  const exerciseIdsRef = useRef<string[]>([]);
   // Guard: prevent autosave/background writes after session is completed or discarded
   const sessionTerminatedRef = useRef(false);
   // Guard: ensure we only restore from activeSession once
   const hasRestoredRef = useRef(false);
   useEffect(() => { exerciseDataRef.current = exerciseData; }, [exerciseData]);
   useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
+  useEffect(() => { exerciseIdsRef.current = exercises.map(ex => ex.id); }, [exercises]);
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -889,6 +891,17 @@ export default function SessionScreen() {
       if (data.length === 0) return;
       const notes = exerciseNotesRef.current;
       const idx = activeIndexRef.current;
+      const ids = exerciseIdsRef.current;
+      // Require minimal engagement before creating a resume snapshot (prevents
+      // a resume card just from opening the session and backgrounding)
+      const hasMinimalProgress =
+        idx > 0 ||
+        data.some(ed =>
+          ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
+          ed.swapCount > 0
+        ) ||
+        notes.some(n => n.length > 0);
+      if (!hasMinimalProgress) return;
       const completedSetsCount = data.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
       const totalSets = data.reduce((sum, ed) => sum + ed.sets.length, 0);
       setActiveSession({
@@ -907,6 +920,7 @@ export default function SessionScreen() {
         totalSets,
         sessionName: getSessionLabel(sessionType),
         elapsedSeconds: elapsedSecondsRef.current,
+        exerciseIds: ids,
       });
     };
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
@@ -924,6 +938,12 @@ export default function SessionScreen() {
   useEffect(() => {
     if (hasRestoredRef.current) return;
     const stored = activeSession;
+    const currentIds = exercises.map(ex => ex.id);
+    const idsMatch =
+      stored !== null &&
+      Array.isArray(stored.exerciseIds) &&
+      stored.exerciseIds.length === currentIds.length &&
+      stored.exerciseIds.every((id, i) => id === currentIds[i]);
     const canRestore =
       stored !== null &&
       stored.sessionType === sessionType &&
@@ -934,7 +954,8 @@ export default function SessionScreen() {
       stored.timeAvailable === timeAvailable &&
       stored.isTestWeek === isTestWeek &&
       exercises.length > 0 &&
-      stored.exerciseData.length === exercises.length;
+      stored.exerciseData.length === exercises.length &&
+      idsMatch;
 
     if (canRestore && stored) {
       hasRestoredRef.current = true;
@@ -1015,6 +1036,7 @@ export default function SessionScreen() {
       totalSets,
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds: elapsedSecondsRef.current,
+      exerciseIds: exercises.map(ex => ex.id),
     });
   }, [exerciseData, exerciseNotes, activeIndex]);
 
@@ -1244,6 +1266,7 @@ export default function SessionScreen() {
       totalSets,
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds,
+      exerciseIds: exercises.map(ex => ex.id),
     });
     setShowAbandonModal(false);
     router.dismissAll();
