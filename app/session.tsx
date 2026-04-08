@@ -1252,11 +1252,11 @@ export default function SessionScreen() {
     });
 
     if (newCount === 5 && !reviewPromptShown) {
-      setReviewPromptShown(true);
       setTimeout(async () => {
         try {
           const available = await StoreReview.isAvailableAsync();
           if (available) {
+            setReviewPromptShown(true);
             await StoreReview.requestReview();
           }
         } catch {
