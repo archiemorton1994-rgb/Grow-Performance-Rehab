@@ -870,6 +870,10 @@ export default function SessionScreen() {
   const exerciseDataRef = useRef<ExerciseSetData[]>([]);
   const exerciseNotesRef = useRef<string[]>([]);
   const activeIndexRef = useRef<number>(0);
+  // Guard: prevent autosave/background writes after session is completed or discarded
+  const sessionTerminatedRef = useRef(false);
+  // Guard: ensure we only restore from activeSession once
+  const hasRestoredRef = useRef(false);
   useEffect(() => { exerciseDataRef.current = exerciseData; }, [exerciseData]);
   useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
 
@@ -880,6 +884,7 @@ export default function SessionScreen() {
   // Background save: persist state whenever app is backgrounded or goes inactive
   useEffect(() => {
     const saveSnapshot = () => {
+      if (sessionTerminatedRef.current) return;
       const data = exerciseDataRef.current;
       if (data.length === 0) return;
       const notes = exerciseNotesRef.current;
@@ -917,6 +922,7 @@ export default function SessionScreen() {
   useEffect(() => () => { if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current); }, []);
 
   useEffect(() => {
+    if (hasRestoredRef.current) return;
     const stored = activeSession;
     const canRestore =
       stored !== null &&
@@ -927,9 +933,11 @@ export default function SessionScreen() {
       stored.energy === energy &&
       stored.timeAvailable === timeAvailable &&
       stored.isTestWeek === isTestWeek &&
+      exercises.length > 0 &&
       stored.exerciseData.length === exercises.length;
 
     if (canRestore && stored) {
+      hasRestoredRef.current = true;
       const timeSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
       const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
       setElapsedSeconds(restoredElapsed);
@@ -957,7 +965,8 @@ export default function SessionScreen() {
       setActiveIndex(0);
     }
     cardYPositions.current = {};
-  }, [exercises]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercises, activeSession]);
 
   // Auto-advance to next exercise when current is fully complete
   useEffect(() => {
@@ -980,6 +989,7 @@ export default function SessionScreen() {
 
   // Auto-save in-progress state whenever data changes (sets, swaps, or notes)
   useEffect(() => {
+    if (sessionTerminatedRef.current) return;
     if (exerciseData.length === 0) return;
     const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
@@ -1188,6 +1198,7 @@ export default function SessionScreen() {
       durationSeconds: capturedDuration,
     });
 
+    sessionTerminatedRef.current = true;
     clearActiveSession();
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
@@ -1378,7 +1389,7 @@ export default function SessionScreen() {
               <Text style={styles.abandonBtnSaveText}>Save & exit</Text>
             </Pressable>
             <Pressable
-              onPress={() => { clearActiveSession(); setShowAbandonModal(false); router.back(); }}
+              onPress={() => { sessionTerminatedRef.current = true; clearActiveSession(); setShowAbandonModal(false); router.back(); }}
               style={[styles.abandonBtn, styles.abandonBtnDiscard]}
               testID="abandon-discard"
             >
