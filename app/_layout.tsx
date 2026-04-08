@@ -195,6 +195,16 @@ function RootLayoutNav() {
     }
   }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription]);
 
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      if (isAuthenticated && hasActiveSubscription) {
+        router.push('/(tabs)');
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, hasActiveSubscription]);
+
   return (
     <>
       <Stack screenOptions={{ headerBackTitle: "Back" }}>

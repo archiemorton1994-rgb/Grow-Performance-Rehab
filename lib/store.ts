@@ -145,6 +145,10 @@ interface AppState {
   lastLoggedWeights: Record<string, number>;
   /** Whether the App Store review prompt has already been shown to this user. */
   reviewPromptShown: boolean;
+  /** Whether the daily workout reminder is enabled. */
+  reminderEnabled: boolean;
+  /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
+  reminderTime: string;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -163,6 +167,8 @@ interface AppState {
   clearActiveSession: () => void;
   updateLastLoggedWeights: (weights: Record<string, number>) => void;
   setReviewPromptShown: (shown: boolean) => void;
+  setReminderEnabled: (enabled: boolean) => void;
+  setReminderTime: (time: string) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -200,6 +206,8 @@ export const useAppStore = create<AppState>()(
       activeSession: null,
       lastLoggedWeights: {},
       reviewPromptShown: false,
+      reminderEnabled: false,
+      reminderTime: '07:00',
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -217,6 +225,8 @@ export const useAppStore = create<AppState>()(
         lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
       })),
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
+      setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
+      setReminderTime: (time) => set({ reminderTime: time }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -394,9 +404,15 @@ export const useAppStore = create<AppState>()(
         if (!('reviewPromptShown' in persistedState)) {
           persistedState.reviewPromptShown = false;
         }
+        if (!('reminderEnabled' in persistedState)) {
+          persistedState.reminderEnabled = false;
+        }
+        if (!('reminderTime' in persistedState)) {
+          persistedState.reminderTime = '07:00';
+        }
         return persistedState;
       },
-      version: 9,
+      version: 10,
     }
   )
 );

@@ -9,6 +9,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Switch,
   Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,14 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EquipmentTier, ExperienceLevel, FitnessGoal, Sex, TIER_ORDER, WeightUnit, useAppStore } from '@/lib/store';
+import {
+  isNotificationsSupported,
+  requestNotificationPermission,
+  scheduleWorkoutReminder,
+  cancelWorkoutReminder,
+  formatReminderTime,
+  REMINDER_TIME_OPTIONS,
+} from '@/lib/notifications';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -57,6 +66,10 @@ export default function ProfileScreen() {
     getEffectiveTier: storeGetEffectiveTier,
     weightUnit,
     setWeightUnit,
+    reminderEnabled,
+    setReminderEnabled,
+    reminderTime,
+    setReminderTime,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -197,6 +210,36 @@ export default function ProfileScreen() {
     Linking.openURL('mailto:feedback@growperformance.app?subject=App Feedback').catch(() => {});
   };
 
+  const handleReminderToggle = async (value: boolean) => {
+    if (!isNotificationsSupported()) return;
+    if (value) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        Alert.alert(
+          'Notifications Disabled',
+          'Please enable notifications for Grow in your device Settings to use workout reminders.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      setReminderEnabled(true);
+      await scheduleWorkoutReminder(reminderTime);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      setReminderEnabled(false);
+      await cancelWorkoutReminder();
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleReminderTimeChange = async (time: string) => {
+    setReminderTime(time);
+    if (reminderEnabled) {
+      await scheduleWorkoutReminder(time);
+    }
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
@@ -322,7 +365,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.navBtnText}>
               <Text style={styles.navLabel}>Settings</Text>
-              <Text style={styles.navSub}>Test week · Units · Feedback</Text>
+              <Text style={styles.navSub}>Reminders · Units · Feedback</Text>
             </View>
             <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
           </Pressable>
@@ -620,6 +663,50 @@ export default function ProfileScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Settings</Text>
 
+            <Text style={styles.settingItemLabel}>Workout Reminders</Text>
+            <Text style={styles.settingItemSub}>Get a daily nudge to keep your training on track</Text>
+            {isNotificationsSupported() ? (
+              <>
+                <View style={styles.reminderToggleRow}>
+                  <Text style={styles.reminderToggleLabel}>
+                    {reminderEnabled ? `Daily at ${formatReminderTime(reminderTime)}` : 'Off'}
+                  </Text>
+                  <Switch
+                    value={reminderEnabled}
+                    onValueChange={handleReminderToggle}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor="#fff"
+                    testID="reminder-toggle"
+                  />
+                </View>
+                {reminderEnabled && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.timeScroll}
+                    contentContainerStyle={styles.timeScrollContent}
+                  >
+                    {REMINDER_TIME_OPTIONS.map(t => (
+                      <Pressable
+                        key={t}
+                        onPress={() => handleReminderTimeChange(t)}
+                        style={[styles.timeChip, reminderTime === t && styles.timeChipActive]}
+                        testID={`reminder-time-${t}`}
+                      >
+                        <Text style={[styles.timeChipText, reminderTime === t && styles.timeChipTextActive]}>
+                          {formatReminderTime(t)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
+              </>
+            ) : (
+              <Text style={styles.reminderWebNote}>Reminders are available on iOS and Android only.</Text>
+            )}
+
+            <View style={styles.settingDivider} />
+
             <Text style={styles.settingItemLabel}>Test Week Frequency</Text>
             <Text style={styles.settingItemSub}>How often to trigger a strength test week</Text>
             <View style={styles.freqRow}>
@@ -815,6 +902,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     freqBtnActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
     freqBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     freqBtnTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    reminderToggleRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingVertical: 4, marginBottom: 8,
+    },
+    reminderToggleLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text },
+    timeScroll: { marginBottom: 4 },
+    timeScrollContent: { gap: 8, paddingRight: 4 },
+    timeChip: {
+      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    },
+    timeChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    timeChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    timeChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    reminderWebNote: {
+      fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary,
+      marginBottom: 4,
+    },
     feedbackBtn: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
       paddingVertical: 12,
