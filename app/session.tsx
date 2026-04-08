@@ -12,9 +12,13 @@ import {
   KeyboardAvoidingView,
   AppState,
   AppStateStatus,
+  Share,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -853,6 +857,9 @@ export default function SessionScreen() {
   const [milestoneCount, setMilestoneCount] = useState(0);
   const [streakMilestone, setStreakMilestone] = useState(0);
   const [testWeekOrmData, setTestWeekOrmData] = useState<{ prev: number | null; next: number } | null>(null);
+  const [shareCardData, setShareCardData] = useState<WorkoutShareCardData | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const shareCardRef = useRef<View>(null);
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -1172,6 +1179,31 @@ export default function SessionScreen() {
           note: exerciseNotes[i] || undefined,
         }));
 
+    // Compute share card data BEFORE updating lastLoggedWeights so we can detect new PBs.
+    let bestNewPb: { exerciseName: string; weightKg: number } | null = null;
+    let totalVolumeKg = 0;
+    if (!isPrehabOrFlex && exerciseLogs.length > 0) {
+      for (const log of exerciseLogs) {
+        const completedWeightedSets = log.sets.filter((s) => s.completed && !s.skipped && s.weight > 0);
+        const completedWeights = completedWeightedSets.map((s) => s.weight);
+        if (completedWeights.length > 0) {
+          const maxThisSession = Math.max(...completedWeights);
+          const prevBest = lastLoggedWeights[log.exerciseId] ?? 0;
+          if (maxThisSession > prevBest) {
+            if (!bestNewPb || maxThisSession > bestNewPb.weightKg) {
+              bestNewPb = { exerciseName: log.exerciseName, weightKg: maxThisSession };
+            }
+          }
+        }
+        // Volume = weight × reps for all completed weighted sets
+        for (const s of log.sets) {
+          if (s.completed && !s.skipped && s.weight > 0 && s.reps > 0) {
+            totalVolumeKg += s.weight * s.reps;
+          }
+        }
+      }
+    }
+
     // Extract per-exercise max weight from this session and persist to store.
     // These are used by the workout engine on the NEXT session to apply a
     // deterministic +2.5 kg micro-increment per exercise (progressive overload).
@@ -1270,12 +1302,55 @@ export default function SessionScreen() {
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
     setSessionDurationSeconds(capturedDuration);
+    setShareCardData({
+      sessionLabel: getSessionLabel(sessionType),
+      sessionSubtitle: getSessionSubtitle(sessionType),
+      totalVolumeKg,
+      totalSets: exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0),
+      durationSeconds: capturedDuration,
+      newPb: bestNewPb,
+      streakDays: postStreak,
+      isTestWeek,
+      weightUnit,
+    });
     setFeedbackStep('rating');
     setThumbsRatings({});
     setTooEasySelected(new Set());
     setTooEasySaved(false);
     const congratsTimer = setTimeout(() => setShowCongratsModal(true), 400);
     congratsTimerRef.current = congratsTimer;
+  };
+
+  const handleShare = async () => {
+    if (!shareCardData || isSharing) return;
+    setIsSharing(true);
+    try {
+      if (Platform.OS === 'web') {
+        const volDisplay = shareCardData.weightUnit === 'lbs'
+          ? `${Math.round(shareCardData.totalVolumeKg * 2.2046).toLocaleString()} lbs`
+          : `${Math.round(shareCardData.totalVolumeKg).toLocaleString()} kg`;
+        const durMin = Math.round(shareCardData.durationSeconds / 60);
+        let msg = `${shareCardData.sessionLabel} — Session Complete! 💪\n${shareCardData.totalSets} sets · ${volDisplay} moved · ${durMin} min`;
+        if (shareCardData.newPb) {
+          const pbDisplay = shareCardData.weightUnit === 'lbs'
+            ? `${Math.round(shareCardData.newPb.weightKg * 2.2046)} lbs`
+            : `${Math.round(shareCardData.newPb.weightKg)} kg`;
+          msg += `\n🏆 New PB — ${shareCardData.newPb.exerciseName} ${pbDisplay}`;
+        }
+        if (shareCardData.streakDays >= 2) msg += `\n🔥 ${shareCardData.streakDays}-day streak`;
+        msg += '\n\ngrowperformance.app';
+        await Share.share({ message: msg });
+      } else {
+        const uri = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'tmpfile' });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share Your Workout' });
+        }
+      }
+    } catch {
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const handleExit = () => {
@@ -1325,6 +1400,13 @@ export default function SessionScreen() {
       behavior={keyboardBehavior}
       keyboardVerticalOffset={insets.top + webTopInset}
     >
+      {/* Off-screen share card rendered for capture */}
+      {shareCardData && (
+        <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
+          <WorkoutShareCard ref={shareCardRef} {...shareCardData} />
+        </View>
+      )}
+
       <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
         <Pressable onPress={handleExit} style={styles.closeButton} testID="session-exit">
           <Ionicons name="close" size={24} color={C.text} />
@@ -1675,6 +1757,17 @@ export default function SessionScreen() {
                     <Ionicons name="trending-up-outline" size={16} color={C.primary} />
                     <Text style={styles.feedbackSecondaryText}>Too easy?</Text>
                   </Pressable>
+                  <Pressable
+                    onPress={handleShare}
+                    style={[styles.feedbackSecondaryBtn, isSharing && { opacity: 0.5 }]}
+                    disabled={isSharing}
+                    testID="share-workout"
+                  >
+                    <Ionicons name="share-outline" size={16} color={C.primary} />
+                    <Text style={styles.feedbackSecondaryText}>
+                      {isSharing ? 'Sharing…' : 'Share'}
+                    </Text>
+                  </Pressable>
                 </View>
               </>
             )}
@@ -1910,7 +2003,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
   feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
   feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
-  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
+  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10, flexWrap: 'wrap' },
   feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
   feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 14 },
