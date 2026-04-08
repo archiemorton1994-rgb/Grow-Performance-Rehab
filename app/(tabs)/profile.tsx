@@ -144,10 +144,14 @@ export default function ProfileScreen() {
     });
   };
 
+  const editWeightValid = editWeight.trim() === '' || parseFloat(editWeight) > 0;
+  const editWeightNumeric = editWeight.trim() !== '' && !isNaN(parseFloat(editWeight)) && parseFloat(editWeight) > 0;
+
   const saveEdit = () => {
+    if (!editWeightValid) return;
     setUserProfile({
       name: editName.trim(),
-      bodyweightKg: parseFloat(editWeight) || 0,
+      bodyweightKg: editWeightNumeric ? parseFloat(editWeight) : userProfile.bodyweightKg,
       sex: editSex,
       experienceLevel: editExp,
       goals: editGoals,
@@ -417,7 +421,7 @@ export default function ProfileScreen() {
 
             <Text style={styles.inputLabel}>Bodyweight (kg)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !editWeightValid && { borderColor: C.error }]}
               value={editWeight}
               onChangeText={setEditWeight}
               placeholder="e.g. 80"
@@ -425,6 +429,11 @@ export default function ProfileScreen() {
               keyboardType="decimal-pad"
               returnKeyType="done"
             />
+            {!editWeightValid && (
+              <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.error, marginTop: -6, marginBottom: 6 }}>
+                Please enter a valid weight (e.g. 80)
+              </Text>
+            )}
 
             <Text style={styles.inputLabel}>Biological Sex</Text>
             <Text style={styles.inputHint}>Used to calibrate starting weights for your sessions</Text>
@@ -477,7 +486,11 @@ export default function ProfileScreen() {
               })}
             </View>
 
-            <Pressable onPress={saveEdit} style={styles.saveBtn}>
+            <Pressable
+              onPress={saveEdit}
+              disabled={!editWeightValid}
+              style={[styles.saveBtn, !editWeightValid && { opacity: 0.4 }]}
+            >
               <Text style={styles.saveBtnText}>Save Details</Text>
             </Pressable>
             <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>

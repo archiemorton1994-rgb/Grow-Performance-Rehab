@@ -42,11 +42,13 @@ function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<SessionTy
   };
 }
 
-const ENERGY_COLORS: Record<EnergyLevel, string> = {
-  low: '#9ca5a0',
-  normal: '#2f6b46',
-  high: '#3d8a5c',
-};
+function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, string> {
+  return {
+    low:    C.textTertiary,
+    normal: C.primary,
+    high:   C.primaryLight,
+  };
+}
 
 function WeeklyBarChart({
   sessions,
@@ -174,7 +176,16 @@ function WeeklyVolumeChart({
   };
 
   const maxVal = Math.max(...weeks.map(w => w.volume));
-  if (maxVal === 0) return null;
+  if (maxVal === 0) {
+    return (
+      <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center' }}>
+        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 4 }}>Weekly Volume</Text>
+        <Ionicons name="barbell-outline" size={28} color={C.textTertiary} style={{ marginVertical: 8 }} />
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No volume data yet</Text>
+        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 }}>Log your first strength session to start tracking</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
@@ -361,6 +372,7 @@ function SessionHistoryList({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCount, setShowCount] = useState(HISTORY_PAGE_SIZE);
   const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
+  const energyColors = useMemo(() => getEnergyColors(C), [C]);
 
   if (sessions.length === 0) {
     return (
@@ -413,8 +425,8 @@ function SessionHistoryList({
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' as const, gap: 4 }}>
-                <View style={{ backgroundColor: ENERGY_COLORS[session.energy] + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: ENERGY_COLORS[session.energy] }}>
+                <View style={{ backgroundColor: energyColors[session.energy] + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: energyColors[session.energy] }}>
                     {session.energy.charAt(0).toUpperCase() + session.energy.slice(1)}
                   </Text>
                 </View>

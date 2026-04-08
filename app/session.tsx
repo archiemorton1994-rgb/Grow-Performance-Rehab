@@ -483,14 +483,14 @@ function ExerciseCard({
   }));
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    prep:       { bg: C.primaryMuted, text: C.primary, label: 'Warm-Up' },
-    mechanical: { bg: '#e0f2f1', text: '#00695c', label: 'Activation' },
-    neuro:      { bg: '#f3e5f5', text: '#7b1fa2', label: 'Power Primer' },
-    main:       { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
-    accessory:  { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Pump' },
-    prehab:     { bg: '#fff3e0', text: '#e65100', label: 'Prehab' },
-    finisher:   { bg: '#fce8e6', text: '#c62828', label: 'Finisher' },
-    cooldown:   { bg: '#e8f5e9', text: '#2e7d32', label: 'Cool Down' },
+    prep:       { bg: C.primaryMuted,         text: C.primary,                    label: 'Warm-Up' },
+    mechanical: { bg: C.categoryMechanical,   text: C.categoryMechanicalText,     label: 'Activation' },
+    neuro:      { bg: C.categoryNeuro,        text: C.categoryNeuroText,          label: 'Power Primer' },
+    main:       { bg: C.primaryMuted,         text: C.primaryDark,                label: 'KPI Lift' },
+    accessory:  { bg: C.surfaceTertiary,      text: C.textSecondary,              label: 'Pump' },
+    prehab:     { bg: C.categoryPrehab,       text: C.categoryPrehabText,         label: 'Prehab' },
+    finisher:   { bg: C.categoryFinisher,     text: C.categoryFinisherText,       label: 'Finisher' },
+    cooldown:   { bg: C.categoryCooldown,     text: C.categoryCooldownText,       label: 'Cool Down' },
   };
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
@@ -575,8 +575,8 @@ function ExerciseCard({
                     </View>
                   )}
                   {feedbackMultiplier !== undefined && Math.abs(feedbackMultiplier - 1.0) > 0.001 && (
-                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? C.primaryMuted : '#fff3e0' }]}>
-                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? C.primaryDark : '#e65100' }]}>
+                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? C.primaryMuted : C.categoryPrehab }]}>
+                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? C.primaryDark : C.categoryPrehabText }]}>
                         {feedbackMultiplier > 1.0 ? '↑ adjusted' : '↓ adjusted'}
                       </Text>
                     </View>
@@ -1071,9 +1071,9 @@ export default function SessionScreen() {
       {(hasAches || energy !== 'normal' || isTestWeek) && (
         <View style={styles.adaptationBar}>
           {isTestWeek && (
-            <View style={[styles.adaptTag, { backgroundColor: '#fff3e0' }]}>
-              <Ionicons name="trophy-outline" size={12} color="#e65100" />
-              <Text style={[styles.adaptTagText, { color: '#e65100' }]}>Test Week</Text>
+            <View style={[styles.adaptTag, { backgroundColor: C.categoryPrehab }]}>
+              <Ionicons name="trophy-outline" size={12} color={C.categoryPrehabText} />
+              <Text style={[styles.adaptTagText, { color: C.categoryPrehabText }]}>Test Week</Text>
             </View>
           )}
           {hasAches && painRegion && (
@@ -1159,8 +1159,8 @@ export default function SessionScreen() {
       <Modal visible={showAbandonModal} transparent animationType="fade" onRequestClose={() => setShowAbandonModal(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowAbandonModal(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalIcon, { backgroundColor: '#fce8e6' }]}>
-              <Ionicons name="exit-outline" size={32} color="#c62828" />
+            <View style={[styles.modalIcon, { backgroundColor: C.categoryFinisher }]}>
+              <Ionicons name="exit-outline" size={32} color={C.categoryFinisherText} />
             </View>
             <Text style={styles.modalTitle}>Leave Session?</Text>
             <Text style={styles.modalDesc}>You've logged some sets. What would you like to do?</Text>
@@ -1177,7 +1177,7 @@ export default function SessionScreen() {
               style={[styles.abandonBtn, styles.abandonBtnDiscard]}
               testID="abandon-discard"
             >
-              <Ionicons name="trash-outline" size={18} color="#c62828" />
+              <Ionicons name="trash-outline" size={18} color={C.categoryFinisherText} />
               <Text style={styles.abandonBtnDiscardText}>Discard session</Text>
             </Pressable>
             <Pressable onPress={() => setShowAbandonModal(false)} style={styles.modalClose}>
@@ -1191,8 +1191,8 @@ export default function SessionScreen() {
       <Modal visible={!!swapModal} transparent animationType="fade" onRequestClose={() => setSwapModal(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setSwapModal(null)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalIcon, { backgroundColor: '#fff3e0' }]}>
-              <Ionicons name="swap-horizontal-outline" size={32} color="#e65100" />
+            <View style={[styles.modalIcon, { backgroundColor: C.categoryPrehab }]}>
+              <Ionicons name="swap-horizontal-outline" size={32} color={C.categoryPrehabText} />
             </View>
             <Text style={styles.modalTitle}>Swap Exercise</Text>
             {swapModal && (() => {
@@ -1421,8 +1421,8 @@ export default function SessionScreen() {
             {/* ── Too Easy Step ────────────────────────────────────────────── */}
             {feedbackStep === 'tooEasy' && (
               <>
-                <View style={[styles.modalIcon, { backgroundColor: '#fff3e0' }]}>
-                  <Ionicons name="trending-up-outline" size={28} color="#e65100" />
+                <View style={[styles.modalIcon, { backgroundColor: C.categoryPrehab }]}>
+                  <Ionicons name="trending-up-outline" size={28} color={C.categoryPrehabText} />
                 </View>
                 <Text style={styles.modalTitle}>Too Easy?</Text>
                 <Text style={styles.feedbackSubtitle}>Select exercises to make harder next session</Text>
@@ -1647,8 +1647,8 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   abandonBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', paddingVertical: 14, borderRadius: 12, marginBottom: 8 },
   abandonBtnSave: { backgroundColor: C.primary },
   abandonBtnSaveText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  abandonBtnDiscard: { backgroundColor: '#fce8e6', borderWidth: 1, borderColor: '#ef9a9a' },
-  abandonBtnDiscardText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: '#c62828' },
+  abandonBtnDiscard: { backgroundColor: C.categoryFinisher, borderWidth: 1, borderColor: C.categoryFinisherText + '55' },
+  abandonBtnDiscardText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.categoryFinisherText },
   // Target weight label on KPI lift
   targetWeightLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 1 },
   loadTextMain: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDark },

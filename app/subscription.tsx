@@ -53,28 +53,33 @@ export default function SubscriptionScreen() {
 
   const [offering, setOffering] = useState<PurchasesPackage | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(true);
+  const [offeringError, setOfferingError] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
   const { privacyUrl, termsUrl } = useMemo(() => getLegalUrls(), []);
 
-  useEffect(() => {
+  const fetchOffering = useCallback(async () => {
     if (!RC_API_KEY) {
       setLoadingOffering(false);
       return;
     }
-    (async () => {
-      try {
-        const offerings = await Purchases.getOfferings();
-        const monthly = offerings.current?.monthly ?? offerings.current?.availablePackages[0] ?? null;
-        setOffering(monthly);
-      } catch {
-        setOffering(null);
-      } finally {
-        setLoadingOffering(false);
-      }
-    })();
+    setLoadingOffering(true);
+    setOfferingError(false);
+    try {
+      const offerings = await Purchases.getOfferings();
+      const monthly = offerings.current?.monthly ?? offerings.current?.availablePackages[0] ?? null;
+      setOffering(monthly);
+      if (!monthly) setOfferingError(true);
+    } catch {
+      setOffering(null);
+      setOfferingError(true);
+    } finally {
+      setLoadingOffering(false);
+    }
   }, []);
+
+  useEffect(() => { fetchOffering(); }, [fetchOffering]);
 
   const handlePurchase = useCallback(async () => {
     if (!RC_API_KEY) {
@@ -154,11 +159,20 @@ export default function SubscriptionScreen() {
 
         <View style={styles.planCard}>
           <View style={styles.planCardTop}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.planName}>Grow Monthly</Text>
               {loadingOffering
                 ? <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
-                : <Text style={styles.planPrice}>{priceString}<Text style={styles.planPer}> / month</Text></Text>
+                : offeringError
+                  ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                      <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>Price unavailable</Text>
+                      <Pressable onPress={fetchOffering} style={{ backgroundColor: C.primaryMuted, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                        <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Retry</Text>
+                      </Pressable>
+                    </View>
+                  )
+                  : <Text style={styles.planPrice}>{priceString}<Text style={styles.planPer}> / month</Text></Text>
               }
             </View>
             <View style={styles.trialBadge}>

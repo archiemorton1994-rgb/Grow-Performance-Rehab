@@ -135,9 +135,11 @@ function WeeklyWeightPrompt() {
               {isValidInput ? 'Save & Continue' : 'Skip'}
             </Text>
           </Pressable>
-          <Pressable onPress={dismiss} style={styles.dismissBtn}>
-            <Text style={styles.dismissText}>Skip for this week</Text>
-          </Pressable>
+          {userProfile.bodyweightKg > 0 && (
+            <Pressable onPress={dismiss} style={styles.dismissBtn}>
+              <Text style={styles.dismissText}>Skip for this week</Text>
+            </Pressable>
+          )}
         </Pressable>
       </Pressable>
     </Modal>

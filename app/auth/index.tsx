@@ -248,10 +248,10 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   resendLink: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
 
   devBanner: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: C.warningLight,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#f59e0b',
+    borderColor: C.warning,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -260,7 +260,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   devBannerLabel: {
     fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
-    color: '#92400e',
+    color: C.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -268,7 +268,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   devBannerCode: {
     fontSize: 30,
     fontFamily: 'Inter_700Bold',
-    color: '#92400e',
+    color: C.warning,
     letterSpacing: 8,
   },
 }); }

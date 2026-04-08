@@ -31,6 +31,17 @@ const LightColors = {
   badgeVolume: '#d5e8f5',
   badgeVolumeText: '#2a5f8f',
 
+  categoryMechanical: '#e0f2f1',
+  categoryMechanicalText: '#00695c',
+  categoryNeuro: '#f3e5f5',
+  categoryNeuroText: '#7b1fa2',
+  categoryPrehab: '#fff3e0',
+  categoryPrehabText: '#e65100',
+  categoryFinisher: '#fce8e6',
+  categoryFinisherText: '#c62828',
+  categoryCooldown: '#e8f5e9',
+  categoryCooldownText: '#2e7d32',
+
   light: {
     text: '#1a1d1b',
     background: '#fafbfa',
@@ -70,6 +81,17 @@ const DarkColors = {
   badgeComfortText: '#c9a0f5',
   badgeVolume: '#1a2d40',
   badgeVolumeText: '#7ab5e8',
+
+  categoryMechanical: '#0e2420',
+  categoryMechanicalText: '#4db6ac',
+  categoryNeuro: '#220e2e',
+  categoryNeuroText: '#ce93d8',
+  categoryPrehab: '#251a07',
+  categoryPrehabText: '#ff9a4d',
+  categoryFinisher: '#2a0e0b',
+  categoryFinisherText: '#ef9a9a',
+  categoryCooldown: '#0e2415',
+  categoryCooldownText: '#81c784',
 
   light: {
     text: '#e8edea',
