@@ -16,9 +16,10 @@ import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { daysSince } from '@/lib/utils';
 
-type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
+type ModalType = 'recovery' | 'mobility' | 'prehab' | 'conditioning' | null;
+type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
 
-function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility'): string {
+function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility' | 'conditioning'): string {
   const matches = completedSessions.filter(s => s.sessionType === sessionType);
   if (matches.length === 0) return 'Not tried yet';
   const days = daysSince(matches[0].date);
@@ -27,7 +28,7 @@ function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexi
   return `Last done ${days} days ago`;
 }
 
-const SESSION_INFO: Record<NonNullable<ModalType>, {
+const SESSION_INFO: Record<Exclude<ModalType, 'conditioning' | null>, {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconBg: string;
@@ -69,16 +70,55 @@ const SESSION_INFO: Record<NonNullable<ModalType>, {
   },
 };
 
+const CONDITIONING_LEVELS: Array<{
+  key: ConditioningLevel;
+  label: string;
+  description: string;
+  energy: string;
+  timeAvailable: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}> = [
+  {
+    key: 'beginner',
+    label: 'Beginner',
+    description: 'Steady pace · 30 min',
+    energy: 'low',
+    timeAvailable: '30',
+    icon: 'walk',
+    color: '#4caf50',
+  },
+  {
+    key: 'intermediate',
+    label: 'Intermediate',
+    description: 'Moderate intensity · 45 min',
+    energy: 'normal',
+    timeAvailable: '45',
+    icon: 'bicycle',
+    color: '#ff9800',
+  },
+  {
+    key: 'advanced',
+    label: 'Advanced',
+    description: 'High intensity · 60 min',
+    energy: 'high',
+    timeAvailable: '60',
+    icon: 'flame',
+    color: '#f44336',
+  },
+];
+
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const { completedSessions } = useAppStore();
+  const { completedSessions, getEffectiveTier } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
   const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
+  const condRecency = useMemo(() => getFlexRecency(completedSessions, 'conditioning'), [completedSessions]);
 
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -93,6 +133,24 @@ export default function FlexScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
     router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+  };
+
+  const handleConditioningStart = (level: typeof CONDITIONING_LEVELS[number]) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    closeModal();
+    const equipment = getEffectiveTier();
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType: 'conditioning',
+        hasAches: 'false',
+        painRegion: '',
+        energy: level.energy,
+        timeAvailable: level.timeAvailable,
+        isTestWeek: 'false',
+        equipment,
+      },
+    });
   };
 
   const ROWS: Array<{
@@ -131,20 +189,29 @@ export default function FlexScreen() {
       iconColor: '#e65100',
       recency: prehabRecency,
     },
+    {
+      key: 'conditioning',
+      title: 'Conditioning',
+      subtitle: 'HIIT & cardio circuit · 30–60 min',
+      icon: 'thunderstorm',
+      iconBg: '#fce4ec',
+      iconColor: '#c62828',
+      recency: condRecency,
+    },
   ];
 
-  const activeInfo = activeModal ? SESSION_INFO[activeModal] : null;
+  const activeInfo = activeModal && activeModal !== 'conditioning' ? SESSION_INFO[activeModal] : null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
       <View style={[styles.header, { paddingBottom: 8 }]}>
         <Text style={styles.title}>Rest & Restore</Text>
-        <Text style={styles.subtitle}>Recovery, mobility, and prehab sessions</Text>
+        <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
       </View>
 
       <View style={styles.navGrid}>
         {ROWS.map((row, i) => (
-          <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)}>
+          <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)} style={styles.navBtnWrap}>
             <Pressable
               onPress={() => openModal(row.key)}
               style={({ pressed }) => [
@@ -167,51 +234,110 @@ export default function FlexScreen() {
         ))}
       </View>
 
+      {/* Standard session sheet (recovery / mobility / prehab) */}
       <Modal
-        visible={activeModal !== null}
+        visible={activeModal !== null && activeModal !== 'conditioning'}
         transparent
         animationType="slide"
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.sheetHandle} />
+          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
 
-          {activeInfo && (
-            <>
-              <View style={styles.sheetHeader}>
-                <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
-                  <Ionicons name={activeInfo.icon} size={26} color={activeInfo.iconColor} />
+            {activeInfo && (
+              <>
+                <View style={styles.sheetHeader}>
+                  <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
+                    <Ionicons name={activeInfo.icon} size={26} color={activeInfo.iconColor} />
+                  </View>
+                  <View style={styles.sheetHeaderText}>
+                    <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
+                    <Text style={styles.sheetDuration}>{activeInfo.duration}</Text>
+                  </View>
+                  <Pressable
+                    onPress={closeModal}
+                    style={styles.closeBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={20} color={C.textSecondary} />
+                  </Pressable>
                 </View>
-                <View style={styles.sheetHeaderText}>
-                  <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
-                  <Text style={styles.sheetDuration}>{activeInfo.duration}</Text>
-                </View>
+
+                <Text style={styles.sheetDesc}>{activeInfo.description}</Text>
+
                 <Pressable
-                  onPress={closeModal}
-                  style={styles.closeBtn}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => handleStart(activeInfo.sessionType)}
+                  style={({ pressed }) => [
+                    styles.startBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID={`flex-start-${activeModal}`}
                 >
-                  <Ionicons name="close" size={20} color={C.textSecondary} />
+                  <Ionicons name="play" size={16} color="#fff" />
+                  <Text style={styles.startBtnText}>{activeInfo.cta}</Text>
                 </Pressable>
-              </View>
-
-              <Text style={styles.sheetDesc}>{activeInfo.description}</Text>
-
-              <Pressable
-                onPress={() => handleStart(activeInfo.sessionType)}
-                style={({ pressed }) => [
-                  styles.startBtn,
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-                ]}
-                testID={`flex-start-${activeModal}`}
-              >
-                <Ionicons name="play" size={16} color="#fff" />
-                <Text style={styles.startBtnText}>{activeInfo.cta}</Text>
-              </Pressable>
-            </>
-          )}
+              </>
+            )}
+          </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Conditioning level-selection sheet */}
+      <Modal
+        visible={activeModal === 'conditioning'}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={closeModal}>
+          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeader}>
+              <View style={[styles.sheetIconWrap, { backgroundColor: '#fce4ec' }]}>
+                <Ionicons name="thunderstorm" size={26} color="#c62828" />
+              </View>
+              <View style={styles.sheetHeaderText}>
+                <Text style={styles.sheetTitle}>Conditioning</Text>
+                <Text style={styles.sheetDuration}>HIIT & cardio circuit · choose intensity</Text>
+              </View>
+              <Pressable
+                onPress={closeModal}
+                style={styles.closeBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={C.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.sheetDesc}>
+              Pick your intensity. Your session will be matched to your equipment and the selected level — from a steady aerobic circuit to a high-intensity HIIT blast.
+            </Text>
+
+            <View style={styles.levelList}>
+              {CONDITIONING_LEVELS.map((level) => (
+                <Pressable
+                  key={level.key}
+                  onPress={() => handleConditioningStart(level)}
+                  style={({ pressed }) => [
+                    styles.levelBtn,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID={`flex-conditioning-${level.key}`}
+                >
+                  <View style={[styles.levelIconWrap, { backgroundColor: level.color + '22' }]}>
+                    <Ionicons name={level.icon} size={20} color={level.color} />
+                  </View>
+                  <View style={styles.levelTextWrap}>
+                    <Text style={styles.levelLabel}>{level.label}</Text>
+                    <Text style={styles.levelDesc}>{level.description}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={16} color={level.color} />
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -232,17 +358,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     navGrid: {
       marginHorizontal: 16,
       marginTop: 20,
+      marginBottom: 24,
       backgroundColor: C.surface,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: C.borderLight,
       overflow: 'hidden',
     },
+    navBtnWrap: {},
     navBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingVertical: 20,
       gap: 14,
       borderBottomWidth: 1,
       borderBottomColor: C.borderLight,
@@ -327,5 +455,30 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       elevation: 5,
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+
+    levelList: {
+      gap: 10,
+    },
+    levelBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      backgroundColor: C.surfaceSecondary,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    levelIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    levelTextWrap: { flex: 1 },
+    levelLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
+    levelDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
   });
 }

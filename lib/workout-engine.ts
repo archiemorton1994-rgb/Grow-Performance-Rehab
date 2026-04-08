@@ -17,6 +17,7 @@ import {
   getStandaloneFlexibilityWorkout,
   getRegionPrehabWorkout,
   getRegionPrehabExercise,
+  getGoalConditioningBlock,
 } from './exercise-db';
 
 export interface Exercise {
@@ -391,7 +392,10 @@ export function generateWorkout(
 
   // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
   const allAccessories = getAccessories(mainType, equipmentTier);
-  const accCount = timeAvailable === '30' ? 1 : 2;
+  const hasFatLoss = profile?.goals?.includes('fat_loss') ?? false;
+  // Fat-loss users on longer sessions: drop one accessory — the conditioning
+  // block in step 7 replaces it, keeping total exercise count the same.
+  const accCount = timeAvailable === '30' ? 1 : (hasFatLoss ? 1 : 2);
 
   for (const acc of allAccessories.slice(0, accCount)) {
     const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
@@ -399,11 +403,20 @@ export function generateWorkout(
     exercises.push(accEx);
   }
 
-  // ── 7. Conditioning Finisher (45 and 60 min only) ────────────────────────
+  // ── 7. Finisher / Goal-Conditioning Block (45 and 60 min only) ───────────
   if (timeAvailable !== '30') {
-    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
     const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
-    exercises.push(templateToExercise(finisher, finBadge));
+    if (hasFatLoss) {
+      // Replace single finisher with a 2-exercise conditioning circuit.
+      const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey);
+      if (__DEV__) {
+        console.log('[workout-engine] Fat-loss conditioning block injected:', condBlock.map(e => e.name));
+      }
+      for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
+    } else {
+      const finisher = getFinisher(mainType, equipmentTier, finisherKey);
+      exercises.push(templateToExercise(finisher, finBadge));
+    }
   }
 
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────

@@ -739,6 +739,60 @@ export function getConditioningWorkout(tier: EquipmentTier, energy: 'easy' | 'no
   return CONDITIONING_WORKOUTS[toInternalTier(tier)][energy];
 }
 
+// ─── GOAL-DRIVEN CONDITIONING BLOCK ──────────────────────────────────────────
+// Short 2-exercise circuits injected into strength sessions for users with a
+// fat-loss goal. These replace the last accessory + standard finisher to keep
+// session duration the same while adding a caloric and cardiovascular stimulus.
+
+const GOAL_CONDITIONING_BLOCKS: Record<InternalTier, { easy: ExerciseTemplate[]; normal: ExerciseTemplate[]; hard: ExerciseTemplate[] }> = {
+  bodyweight: {
+    easy: [
+      { id: 'gcond-bw-e-1', name: 'Mountain Climbers', sets: 3, reps: '30s — 30s rest', cue: 'Hips level, drive knees to chest alternately — moderate controlled pace, breathe steadily', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-e-2', name: 'Bodyweight Squat Pulse', sets: 3, reps: '20 pulses — 30s rest', cue: 'Stay at parallel, small pulsing reps — quad burn, keep chest tall', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    normal: [
+      { id: 'gcond-bw-n-1', name: 'Burpee', sets: 3, reps: '10 — 30s rest', cue: 'Jump back to plank, chest to floor, drive up and jump — full extension at top every rep', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-n-2', name: 'Jump Squat', sets: 3, reps: '10 — 30s rest', cue: 'Squat to parallel, explode upward — land soft through toes to heel, immediately back down', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    hard: [
+      { id: 'gcond-bw-h-1', name: 'Burpee', sets: 4, reps: '12 — 20s rest', cue: 'Full burpee — chest to floor, jump at top with arms overhead. Go as fast as you can maintain form', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-h-2', name: 'Alternating Jump Lunge', sets: 4, reps: '10 each leg — 20s rest', cue: 'Lunge down, drive both legs and switch in the air — land in opposite lunge, absorb through the front heel', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+  },
+  dumbbells: {
+    easy: [
+      { id: 'gcond-db-e-1', name: 'KB / DB Swing', sets: 4, reps: '15 — 45s rest', cue: 'Hip hinge and snap, bell to chest height — squeeze glutes at top, let it fall back between legs under control', suggestedLoad: '12–16 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-e-2', name: 'Goblet Squat (continuous)', sets: 3, reps: '15 — 30s rest', cue: 'Hold dumbbell or KB at chest, full depth — steady breathing rhythm, no resting at the top', suggestedLoad: '10–16 kg', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    normal: [
+      { id: 'gcond-db-n-1', name: 'KB / DB Swing', sets: 4, reps: '20 — 30s rest', cue: 'Explosive hip drive — pack the lats, bell floats to chest, hips lock at top. Power conditioning', suggestedLoad: '14–20 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-n-2', name: 'DB Thruster', sets: 4, reps: '10 — 30s rest', cue: 'Front rack, squat deep, drive up and press overhead in one motion — no pause between squat and press', suggestedLoad: '8–14 kg per hand', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    hard: [
+      { id: 'gcond-db-h-1', name: 'KB / DB Swing', sets: 5, reps: '20 — 20s rest', cue: 'Max power hip snap — challenge your swings with a heavier bell than usual. Track heart rate recovery', suggestedLoad: '16–24 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-h-2', name: 'DB Thruster', sets: 5, reps: '12 — 20s rest', cue: 'Heavy front rack squat into press — this is the hardest variation, keep form locked throughout all reps', suggestedLoad: '10–16 kg per hand', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+  },
+  fullgym: {
+    easy: [
+      { id: 'gcond-fg-e-1', name: 'Rowing Machine', sets: 3, reps: '3 min steady — 60s rest', cue: 'Damper 4–5, legs then hips then arms in sequence — smooth stroke, aim for 24 spm and conversational pace', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-e-2', name: 'Assault Bike (Moderate)', sets: 3, reps: '2 min steady — 60s rest', cue: 'Arms and legs together, 70% max effort — keep cadence consistent, this should feel hard but sustainable', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    normal: [
+      { id: 'gcond-fg-n-1', name: 'Rowing Intervals', sets: 5, reps: '30s hard / 30s easy', cue: 'Pull hard for 30s (aim 500m pace –5%), easy paddle for 30s recovery — repeat without stopping', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-n-2', name: 'Sled Push', sets: 4, reps: '20m — 45s rest', cue: 'Low position, drive through legs, arms extended — keep chest up and take short powerful steps', suggestedLoad: '50–70 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+    hard: [
+      { id: 'gcond-fg-h-1', name: 'Assault Bike Sprints', sets: 6, reps: '20s all-out / 40s rest', cue: 'Maximum effort for 20s — both arms and legs, no pacing. Full recovery before the next sprint', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-h-2', name: 'Sled Push', sets: 5, reps: '20m — 30s rest', cue: 'Heavy sled, explosive drive — minimal rest keeps heart rate elevated. Sprint back after each push', suggestedLoad: '70–100 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
+    ],
+  },
+};
+
+export function getGoalConditioningBlock(tier: EquipmentTier, energy: 'easy' | 'normal' | 'hard'): ExerciseTemplate[] {
+  return GOAL_CONDITIONING_BLOCKS[toInternalTier(tier)][energy];
+}
+
 export function get1RMProtocol(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
   return ORM_TEST[sessionType][toInternalTier(tier)];
 }
