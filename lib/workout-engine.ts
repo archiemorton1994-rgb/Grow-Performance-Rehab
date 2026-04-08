@@ -426,11 +426,15 @@ export function generateWorkout(
   const allAccessories = getAccessories(mainType, equipmentTier);
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
   // general conditioning capacity. Both benefit from a conditioning circuit
-  // finisher that replaces the second accessory on 45+ min sessions.
-  // 30-min sessions always keep exactly 1 accessory regardless of goal —
-  // removing it would eliminate the only KPI-support accessory entirely.
+  // that replaces one accessory, keeping total exercise count the same.
+  //  30-min + conditioning goal : 0 accessories (2 conditioning exs replace the 1)
+  //  30-min + other goals       : 1 accessory (no finisher)
+  //  45/60-min + conditioning   : 1 accessory (2 conditioning exs replace the 2nd)
+  //  45/60-min + other goals    : 2 accessories + standard single finisher
   const hasConditioningGoal = (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
-  const accCount = timeAvailable === '30' ? 1 : (hasConditioningGoal ? 1 : 2);
+  const accCount = timeAvailable === '30'
+    ? (hasConditioningGoal ? 0 : 1)
+    : (hasConditioningGoal ? 1 : 2);
 
   for (const acc of allAccessories.slice(0, accCount)) {
     const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
@@ -446,9 +450,9 @@ export function generateWorkout(
   // (30-min sessions remain tight with 1 accessory + KPI lift, no finisher).
   const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
   if (hasConditioningGoal) {
-    const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey);
+    const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey, profile?.experienceLevel);
     if (__DEV__) {
-      console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness):', condBlock.map(e => e.name));
+      console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness, level=' + (profile?.experienceLevel ?? 'intermediate') + '):', condBlock.map(e => e.name));
     }
     for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
   } else if (timeAvailable !== '30') {
@@ -499,6 +503,36 @@ function generateConditioningWorkout(
   const templates = getConditioningWorkout(equipmentTier, energyKey);
   const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+}
+
+/** Named conditioning intensity levels, mapped from the Flex tab level picker. */
+export type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
+
+const CONDITIONING_LEVEL_TO_READINESS: Record<ConditioningLevel, Pick<ReadinessCheck, 'energy' | 'timeAvailable'>> = {
+  beginner:     { energy: 'low',    timeAvailable: '30' },
+  intermediate: { energy: 'normal', timeAvailable: '45' },
+  advanced:     { energy: 'high',   timeAvailable: '60' },
+};
+
+/**
+ * Generate a standalone conditioning session directly from a named intensity
+ * level. Provides a clean, level-first API so callers do not need to map
+ * energy/timeAvailable manually — the engine handles that internally.
+ */
+export function generateWorkoutForConditioningLevel(
+  level: ConditioningLevel,
+  equipmentTier: EquipmentTier,
+  profile?: UserProfile,
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  completedCount: number = 0,
+  lastLoggedWeights?: Record<string, number>
+): Exercise[] {
+  const readiness: ReadinessCheck = {
+    hasAches: false,
+    painRegion: undefined,
+    ...CONDITIONING_LEVEL_TO_READINESS[level],
+  };
+  return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights);
 }
 
 export function generate1RMWorkout(

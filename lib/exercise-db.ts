@@ -789,8 +789,23 @@ const GOAL_CONDITIONING_BLOCKS: Record<InternalTier, { easy: ExerciseTemplate[];
   },
 };
 
-export function getGoalConditioningBlock(tier: EquipmentTier, energy: 'easy' | 'normal' | 'hard'): ExerciseTemplate[] {
-  return GOAL_CONDITIONING_BLOCKS[toInternalTier(tier)][energy];
+export function getGoalConditioningBlock(
+  tier: EquipmentTier,
+  energy: 'easy' | 'normal' | 'hard',
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
+): ExerciseTemplate[] {
+  const base = GOAL_CONDITIONING_BLOCKS[toInternalTier(tier)][energy];
+  // Scale sets based on experience level so beginners work at lower volume
+  // (−1 set, min 1) and advanced athletes at higher volume (+1 set).
+  return base.map((t) => ({
+    ...t,
+    sets:
+      experienceLevel === 'beginner'
+        ? Math.max(1, t.sets - 1)
+        : experienceLevel === 'advanced'
+        ? t.sets + 1
+        : t.sets,
+  }));
 }
 
 export function get1RMProtocol(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
