@@ -181,7 +181,7 @@ function WeeklyVolumeChart({
       <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center' }}>
         <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 4 }}>Weekly Volume</Text>
         <Ionicons name="barbell-outline" size={28} color={C.textTertiary} style={{ marginVertical: 8 }} />
-        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No volume data yet</Text>
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No volume yet</Text>
         <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 }}>Log your first strength session to start tracking</Text>
       </View>
     );

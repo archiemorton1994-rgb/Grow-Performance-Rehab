@@ -144,14 +144,16 @@ export default function ProfileScreen() {
     });
   };
 
-  const editWeightValid = editWeight.trim() === '' || parseFloat(editWeight) > 0;
-  const editWeightNumeric = editWeight.trim() !== '' && !isNaN(parseFloat(editWeight)) && parseFloat(editWeight) > 0;
+  const editWeightTrimmed = editWeight.trim();
+  const editWeightParsed = /^\d+(\.\d+)?$/.test(editWeightTrimmed) ? parseFloat(editWeightTrimmed) : NaN;
+  const editWeightValid = editWeightTrimmed === '' || (!isNaN(editWeightParsed) && editWeightParsed > 0);
+  const editWeightNumeric = !isNaN(editWeightParsed) && editWeightParsed > 0;
 
   const saveEdit = () => {
     if (!editWeightValid) return;
     setUserProfile({
       name: editName.trim(),
-      bodyweightKg: editWeightNumeric ? parseFloat(editWeight) : userProfile.bodyweightKg,
+      bodyweightKg: editWeightNumeric ? editWeightParsed : userProfile.bodyweightKg,
       sex: editSex,
       experienceLevel: editExp,
       goals: editGoals,

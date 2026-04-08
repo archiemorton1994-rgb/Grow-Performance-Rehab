@@ -73,8 +73,10 @@ function WeeklyWeightPrompt() {
     }
   }, [isReadyToPrompt, lastWeightPromptedAt]);
 
-  const isValidInput = parseFloat(weightText) > 0;
-  const hasText = weightText.trim().length > 0;
+  const trimmed = weightText.trim();
+  const parsedWeight = /^\d+(\.\d+)?$/.test(trimmed) ? parseFloat(trimmed) : NaN;
+  const isValidInput = !isNaN(parsedWeight) && parsedWeight > 0;
+  const hasText = trimmed.length > 0;
   const inputInvalid = hasText && !isValidInput;
   // When no weight has ever been set, require a valid value — cannot skip or confirm empty
   const canConfirm = neverSetWeight ? isValidInput : !inputInvalid;
@@ -89,7 +91,7 @@ function WeeklyWeightPrompt() {
   const confirm = () => {
     if (!canConfirm) return;
     if (isValidInput) {
-      setUserProfile({ bodyweightKg: displayUnitToKg(parseFloat(weightText), weightUnit) });
+      setUserProfile({ bodyweightKg: displayUnitToKg(parsedWeight, weightUnit) });
     }
     setLastWeightPromptedAt(Date.now());
     setShowPrompt(false);
