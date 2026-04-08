@@ -855,9 +855,12 @@ export default function SessionScreen() {
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const elapsedSecondsRef = useRef(0);
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0);
   useEffect(() => {
-    const timerId = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    const timerId = setInterval(() => {
+      setElapsedSeconds((s) => { elapsedSecondsRef.current = s + 1; return s + 1; });
+    }, 1000);
     return () => clearInterval(timerId);
   }, []);
   const elapsedMM = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
@@ -884,6 +887,10 @@ export default function SessionScreen() {
       stored.exerciseData.length === exercises.length;
 
     if (canRestore && stored) {
+      const timeSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
+      const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
+      setElapsedSeconds(restoredElapsed);
+      elapsedSecondsRef.current = restoredElapsed;
       setExerciseData(stored.exerciseData as ExerciseSetData[]);
       setExerciseNotes(
         stored.exerciseNotes.length === exercises.length
@@ -954,6 +961,7 @@ export default function SessionScreen() {
       completedSetsCount,
       totalSets,
       sessionName: getSessionLabel(sessionType),
+      elapsedSeconds: elapsedSecondsRef.current,
     });
   }, [exerciseData, exerciseNotes, activeIndex]);
 
@@ -1181,6 +1189,7 @@ export default function SessionScreen() {
       completedSetsCount,
       totalSets,
       sessionName: getSessionLabel(sessionType),
+      elapsedSeconds,
     });
     setShowAbandonModal(false);
     router.dismissAll();

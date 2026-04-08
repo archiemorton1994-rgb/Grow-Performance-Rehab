@@ -79,6 +79,7 @@ export interface ActiveSession {
   completedSetsCount: number;
   totalSets: number;
   sessionName: string;
+  elapsedSeconds: number;
 }
 
 export interface ExerciseLog {
