@@ -173,42 +173,51 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>> = {
   squat: {
     bodyweight: {
       id: 'sq-neuro-bw', name: 'Squat Jump', sets: 3, reps: '5 explosive', cue: 'Full squat, explode through hips — land soft, absorb with whole leg', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Broad Jump', cue: 'Horizontal power — hinge back, explode forward, land soft', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Step-Over High Knee March', cue: 'Exaggerated marching, drive knee up with intention — no impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles', 'hip_groin'] },
     },
     dumbbells: {
       id: 'sq-neuro-db', name: 'Box Jump (Step-Down)', sets: 3, reps: '5 jumps', cue: 'Jump to box, step down — reset each rep', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Squat Jump', cue: 'Full squat, explode up, land soft — same stimulus without a box', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Broad Jump', cue: 'Horizontal jump, land in athletic position, walk back — lower impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] },
     },
     fullgym: {
       id: 'sq-neuro-fg', name: 'Box Jump (Step-Down)', sets: 3, reps: '5 jumps', cue: 'Jump to box, step down — reset each rep', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Depth Drop', cue: 'Step off box, absorb landing — reactive power primer without upward jump demand', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Squat Jump', cue: 'Bodyweight, full depth, land soft — no box needed', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] },
     },
   },
   bench: {
     bodyweight: {
       id: 'bn-neuro-bw', name: 'Explosive Push-Up', sets: 3, reps: '5 explosive', cue: 'Push hard enough to leave floor — land with bent elbows', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+      swapAlternative: { name: 'Clap Push-Up', cue: 'Explosive push, clap hands at top, reset — max upper body power output', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Band Punch-Out', cue: 'Band in front, explosive punch extensions — 10 fast reps', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
     dumbbells: {
       id: 'bn-neuro-db', name: 'Explosive Push-Up', sets: 3, reps: '5 explosive', cue: 'Push hard enough to leave floor — land with bent elbows', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+      swapAlternative: { name: 'Clap Push-Up', cue: 'Explosive push, clap hands at top, reset — max upper body power output', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Band Punch-Out', cue: 'Band in front, explosive punch extensions — 10 fast reps', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
     fullgym: {
       id: 'bn-neuro-fg', name: 'Med Ball Chest Pass (Wall)', sets: 3, reps: '5 explosive', cue: 'Press and release explosively, catch and reload — full intent', suggestedLoad: '4–6 kg ball', category: 'neuro', targetRegions: ['front_shoulder'], videoId: '',
+      swapAlternative: { name: 'Plyo Push-Up (Hands on Bench)', cue: 'Hands on low bench, explode off — less wrist impact than full plyo', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Explosive Push-Up', cue: 'Push hard enough to leave floor, land soft — no ball needed', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
   },
   deadlift: {
     bodyweight: {
       id: 'dl-neuro-bw', name: 'Broad Jump', sets: 3, reps: '3 explosive', cue: 'Hinge back, swing arms, explode forward — land in athletic hinge', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['hip_groin', 'knee'], videoId: '',
+      swapAlternative: { name: 'Vertical Jump', cue: 'Dip and explode straight up — max effort, land soft and absorb', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Standing Long Step', cue: 'Controlled split-stance hinge — slower, focus on hip drive, no impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles', 'hip_groin'] },
     },
     dumbbells: {
       id: 'dl-neuro-db', name: 'KB Swing (Explosive)', sets: 3, reps: '5 powerful', cue: 'Hip snap — bell goes where hips send it, not arm pull', suggestedLoad: '16–20 kg', category: 'neuro', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+      swapAlternative: { name: 'DB Power Clean', cue: 'Hinge down, explosive pull to front rack — hip snap drives the weight up', suggestedLoad: '10–16 kg per hand' },
       comfortVariant: { name: 'Broad Jump', cue: 'Hinge back, swing arms, explode forward — land soft, no load', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'knee'] },
     },
     fullgym: {
       id: 'dl-neuro-fg', name: 'KB Swing (Explosive)', sets: 3, reps: '5 powerful', cue: 'Hip snap — bell goes where hips send it, not arm pull', suggestedLoad: '20–28 kg', category: 'neuro', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+      swapAlternative: { name: 'Power Clean (Light)', cue: 'Barbell power clean — explosive hip extension drives the bar up to front rack', suggestedLoad: '40–60 kg' },
       comfortVariant: { name: 'Broad Jump', cue: 'Hinge back, swing arms, explode forward — land soft, no load', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'knee'] },
     },
   },
@@ -221,16 +230,19 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
     bodyweight: {
       id: 'sq-main-bw', name: 'Bodyweight Squat', sets: 4, reps: '15–20 reps', cue: 'Chest up, knees track toes, full depth — 3s eccentric on working sets', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: ['knee', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'Step-Up (Bodyweight)', cue: 'Drive through top foot, stand fully — knee-friendly unilateral option', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Tempo Box Squat', cue: '3s down to box, 2s pause, drive up — remove bottom ROM pressure', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'hip_groin', 'ankle_achilles'] },
     },
     dumbbells: {
       id: 'sq-main-db', name: 'Goblet Squat', sets: 4, reps: '10–12 reps', cue: 'Elbows inside knees, vertical torso — build weight each set', suggestedLoad: '16–28 kg per hand', category: 'main', targetRegions: ['knee', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'DB Sumo Squat', cue: 'Wide stance, toes out, DB between legs — targets inner thigh and glute differently', suggestedLoad: '16–24 kg' },
       comfortVariant: { name: 'Tempo Goblet Squat', cue: '3s eccentric, pause at bottom, stand tall — lighter load', suggestedLoad: '12–16 kg per hand', triggerRegions: ['knee', 'hip_groin', 'ankle_achilles'] },
     },
     fullgym: {
       id: 'sq-main-fg', name: 'Back Squat', sets: 5, reps: '5–6 reps', cue: 'Brace hard, break hips and knees together — build to your working weight across 3 warm-up sets, then 2 heavy working sets', suggestedLoad: '60–90 kg', category: 'main', targetRegions: ['knee', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'Front Squat', cue: 'Bar in front rack, elbows high, vertical torso — reduce 20% load, same lower body stimulus', suggestedLoad: '45–70 kg' },
       comfortVariant: { name: 'Pause Squat / Safety Bar', cue: '2s pause in hole, controlled ascent — reduce load by 20%', suggestedLoad: '40–65 kg', triggerRegions: ['knee', 'hip_groin', 'lower_back', 'ankle_achilles'] },
     },
   },
@@ -238,16 +250,19 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
     bodyweight: {
       id: 'bn-main-bw', name: 'Push-Up', sets: 4, reps: '12–15 reps', cue: 'Elbows 45°, full lockout — add a pause at bottom on your heavier sets', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: ['front_shoulder', 'elbow_wrist'],
       videoId: '',
+      swapAlternative: { name: 'Wide Push-Up', cue: 'Hands wider than shoulders — shifts load more to chest, less tricep', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Incline Push-Up', cue: 'Hands elevated, reduce shoulder demand — perfect form priority', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
     dumbbells: {
       id: 'bn-main-db', name: 'Dumbbell Bench Press', sets: 4, reps: '8–10 reps', cue: 'Neutral grip option, full ROM — build to a challenging weight across warm-up sets', suggestedLoad: '16–28 kg per hand', category: 'main', targetRegions: ['front_shoulder', 'elbow_wrist'],
       videoId: '',
+      swapAlternative: { name: 'DB Incline Press', cue: 'Bench at 30–45°, same pressing motion — upper chest emphasis', suggestedLoad: '14–22 kg per hand' },
       comfortVariant: { name: 'Floor Dumbbell Press', cue: 'Floor limits depth — protects shoulder end-range', suggestedLoad: '12–20 kg per hand', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
     fullgym: {
       id: 'bn-main-fg', name: 'Barbell Bench Press', sets: 5, reps: '5–6 reps', cue: 'Retract scaps, arch, leg drive — build to your working weight across 3 warm-up sets, then 2 heavy working sets', suggestedLoad: '50–80 kg', category: 'main', targetRegions: ['front_shoulder', 'elbow_wrist'],
       videoId: '',
+      swapAlternative: { name: 'Dumbbell Bench Press', cue: 'DBs allow full ROM and independent arm movement — same pattern, no bar', suggestedLoad: '20–32 kg per hand' },
       comfortVariant: { name: 'Close-Grip Bench Press', cue: 'Elbows tucked, reduced shoulder stress — lighter load', suggestedLoad: '40–60 kg', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
     },
   },
@@ -255,16 +270,19 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
     bodyweight: {
       id: 'dl-main-bw', name: 'Single-Leg Hinge', sets: 4, reps: '10 reps each side', cue: 'Hinge at hip, flat back, reach for floor — squeeze glute at top', suggestedLoad: 'Bodyweight', category: 'main', targetRegions: ['lower_back', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'Good Morning', cue: 'Bar across shoulders (or hands clasped), hinge forward — feel hamstrings stretch at bottom', suggestedLoad: 'Bodyweight' },
       comfortVariant: { name: 'Supported Hip Hinge', cue: 'Hands on wall, feel hamstring stretch — remove balance demand', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'hip_groin', 'knee'] },
     },
     dumbbells: {
       id: 'dl-main-db', name: 'Romanian Deadlift', sets: 4, reps: '8–10 reps', cue: 'Push hips back, DBs track close to legs — build to a challenging weight across warm-up sets', suggestedLoad: '18–28 kg per hand', category: 'main', targetRegions: ['lower_back', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'DB Sumo Deadlift', cue: 'Wide stance, toes out, DBs between legs — more inner thigh and glute drive', suggestedLoad: '16–26 kg per hand' },
       comfortVariant: { name: 'Single-Leg DB RDL', cue: 'One leg, lighter load — better hip dissociation', suggestedLoad: '10–16 kg per hand', triggerRegions: ['lower_back', 'hip_groin', 'knee'] },
     },
     fullgym: {
       id: 'dl-main-fg', name: 'Barbell Deadlift', sets: 5, reps: '4–5 reps', cue: 'Wedge into bar, push floor away — build to your working weight across 3 warm-up sets, then 2 heavy working sets', suggestedLoad: '80–130 kg', category: 'main', targetRegions: ['lower_back', 'hip_groin'],
       videoId: '',
+      swapAlternative: { name: 'Sumo Deadlift', cue: 'Wide stance, toes out, grip inside legs — same weight, more hip, less lower back', suggestedLoad: '75–120 kg' },
       comfortVariant: { name: 'Trap Bar Deadlift', cue: 'Neutral grip, more upright torso — reduce spinal stress', suggestedLoad: '60–100 kg', triggerRegions: ['lower_back', 'hip_groin', 'knee'] },
     },
   },
@@ -276,8 +294,10 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
   squat: {
     bodyweight: [
       { id: 'sq-acc-bw-1', name: 'Reverse Lunge', sets: 3, reps: '15 each', cue: 'Step back, knee lightly taps floor, drive through front foot', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Step-Up', cue: 'Drive through top foot, stand tall — same glute/quad stimulus, less knee demand', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Supported Reverse Lunge', cue: 'Hand on wall for balance — knee pain management', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-bw-2', name: 'Glute Bridge', sets: 3, reps: '20', cue: 'Drive through heels, full hip extension — squeeze 2s at top', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Glute Bridge', cue: 'One foot up, drive through working heel — more demand each side', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Banded Clamshell', cue: 'Side-lying, controlled hip abduction', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'sq-acc-bw-3', name: 'Banded Lateral Walk', sets: 3, reps: '15 each direction', cue: 'Stay low, knees out — continuous tension on band', suggestedLoad: 'Medium band', category: 'accessory', targetRegions: ['hip_groin', 'knee'], videoId: '',
         swapAlternative: { name: 'Lateral Step-Up', cue: 'Step sideways onto a box or step — glute and hip abductor load through range', suggestedLoad: 'Bodyweight' } },
@@ -286,16 +306,20 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
     ],
     dumbbells: [
       { id: 'sq-acc-db-1', name: 'DB Bulgarian Split Squat', sets: 3, reps: '15 each', cue: 'Upright torso, front knee tracks toe — pump reps, lighter weight', suggestedLoad: '8–14 kg per hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'DB Reverse Lunge', cue: 'Step back, control descent — same quad/glute pattern, no rear foot elevation', suggestedLoad: '8–14 kg per hand' },
         comfortVariant: { name: 'DB Supported Split Squat', cue: 'One hand on rack, reduce load for knee sensitivity', suggestedLoad: '6–10 kg per hand', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-db-2', name: 'DB Hip Thrust', sets: 3, reps: '15', cue: 'DB on hips, full extension — 2s squeeze at top', suggestedLoad: '16–24 kg per hand', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg DB Hip Thrust', cue: 'One leg up, drive through working leg — double glute demand per rep', suggestedLoad: '12–18 kg' },
         comfortVariant: { name: 'Glute Bridge', cue: 'Bodyweight, higher reps — hip pain management', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'sq-acc-db-3', name: 'DB Step-Up', sets: 3, reps: '12 each', cue: 'Drive through top foot, stand fully — no push off back leg', suggestedLoad: '10–16 kg per hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
         swapAlternative: { name: 'DB Reverse Lunge', cue: 'Step back, control the descent — same muscles, better balance accessibility', suggestedLoad: '8–14 kg per hand' } },
     ],
     fullgym: [
       { id: 'sq-acc-fg-1', name: 'Dumbbell Walking Lunge', sets: 3, reps: '12 each', cue: 'DBs at sides, controlled steps, upright torso — pump focus', suggestedLoad: '10–18 kg each hand', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'DB Bulgarian Split Squat', cue: 'Rear foot elevated, front knee tracks toe — more isolation and stretch', suggestedLoad: '8–14 kg per hand' },
         comfortVariant: { name: 'Bodyweight Reverse Lunge', cue: 'BW only, focus on control and range', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] } },
       { id: 'sq-acc-fg-2', name: 'Leg Press', sets: 3, reps: '15–20', cue: 'Full ROM, dont lock knees at top — slow 3s down', suggestedLoad: '80–120 kg', category: 'accessory', targetRegions: ['knee', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Hack Squat Machine', cue: 'Feet forward on plate, same quad focus as leg press but more upright', suggestedLoad: '60–100 kg' },
         comfortVariant: { name: 'Leg Press (Partial ROM)', cue: 'Top half of range only — reduces knee compression', suggestedLoad: '60–80 kg', triggerRegions: ['knee'] } },
       { id: 'sq-acc-fg-3', name: 'Barbell Hip Thrust', sets: 3, reps: '15', cue: 'Full extension, 2s pause at top — squeeze glutes hard', suggestedLoad: '40–70 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         swapAlternative: { name: 'DB Hip Thrust', cue: 'Same movement with dumbbells — easier to set up, same glute stimulus', suggestedLoad: '20–32 kg per hand' } },
@@ -304,26 +328,33 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
   bench: {
     bodyweight: [
       { id: 'bn-acc-bw-1', name: 'Diamond Push-Up', sets: 3, reps: '15–20', cue: 'Hands close together, elbows track back — feel the triceps', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['elbow_wrist', 'front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Tricep Dip (Chair)', cue: 'Hands on chair behind, bend and straighten elbows — bodyweight tricep press', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Knee Diamond Push-Up', cue: 'Knees down, reduce load — elbow/shoulder management', suggestedLoad: 'Bodyweight', triggerRegions: ['elbow_wrist', 'front_shoulder'] } },
       { id: 'bn-acc-bw-2', name: 'Inverted Row (Table/Bar)', sets: 3, reps: '15', cue: 'Pull chest to bar, squeeze back at top — body plank-straight', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Superman Hold', cue: 'Face down, lift arms and legs — posterior chain and back activation', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Band Pull-Apart', cue: 'High reps, light band — shoulder health', suggestedLoad: 'Light band', triggerRegions: ['rear_shoulder', 'upper_back', 'elbow_wrist'] } },
       { id: 'bn-acc-bw-3', name: 'Pike Push-Up', sets: 3, reps: '12', cue: 'Hips high, head through arms at bottom — vertical push pattern', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['front_shoulder'], videoId: '',
+        swapAlternative: { name: 'Wall Handstand Hold', cue: 'Kick up to wall, hold 20–30s — vertical pressing stability', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Banded Lateral Raise', cue: 'Light band, controlled — shoulder sensitive alternative', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck'] } },
       { id: 'bn-acc-bw-4', name: 'Prone Y-T-W Raise', sets: 2, reps: '10 each', cue: 'Face down, lift arms in Y, T, W — squeeze each position for 1s', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
         swapAlternative: { name: 'Band Pull-Apart (high reps)', cue: 'Light band, 30 reps — same rear delt and rhomboid stimulus standing', suggestedLoad: 'Light band' } },
     ],
     dumbbells: [
       { id: 'bn-acc-db-1', name: 'DB Single-Arm Row', sets: 3, reps: '15 each', cue: 'Pull to hip, squeeze lat — slow 3s down', suggestedLoad: '14–22 kg per hand', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'DB Chest-Supported Row', cue: 'Lie on incline bench, pull both DBs to hips — removes lower back demand', suggestedLoad: '12–18 kg per hand' },
         comfortVariant: { name: 'Band Pull-Apart', cue: 'Light resistance, high reps — shoulder health', suggestedLoad: 'Light band', triggerRegions: ['rear_shoulder', 'upper_back', 'elbow_wrist'] } },
       { id: 'bn-acc-db-2', name: 'DB Lateral Raise', sets: 3, reps: '15–20', cue: 'Slight forward lean, thumbs up — slow and controlled', suggestedLoad: '4–8 kg per hand', category: 'accessory', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'Prone DB Rear Delt Fly', cue: 'Face down on bench, arms wide — rear delt and upper back emphasis', suggestedLoad: '4–6 kg per hand' },
         comfortVariant: { name: 'Cable/Band Lateral Raise', cue: 'Pull-through path, less impingement risk', suggestedLoad: '2–4 kg per hand', triggerRegions: ['front_shoulder', 'rear_shoulder'] } },
       { id: 'bn-acc-db-3', name: 'DB Tricep Overhead Extension', sets: 3, reps: '15', cue: 'Elbows forward, full ROM — slow negative', suggestedLoad: '8–14 kg per hand', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '',
         swapAlternative: { name: 'DB Skull Crusher', cue: 'Lie flat, lower DBs to temples — same tricep long head with different elbow angle', suggestedLoad: '6–10 kg per hand' } },
     ],
     fullgym: [
       { id: 'bn-acc-fg-1', name: 'Barbell Bent-Over Row', sets: 3, reps: '12–15', cue: 'Flat back, pull to sternum — pump weight, faster reps', suggestedLoad: '40–60 kg', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'Pendlay Row', cue: 'Dead stop each rep, explosive pull — heavier and more powerful version of bent-over row', suggestedLoad: '40–60 kg' },
         comfortVariant: { name: 'Cable Face Pull', cue: 'Light weight, high reps, external rotation at top', suggestedLoad: '10–15 kg', triggerRegions: ['rear_shoulder', 'upper_back', 'lower_back'] } },
       { id: 'bn-acc-fg-2', name: 'Overhead Press', sets: 3, reps: '10–12', cue: 'Brace core, press through ceiling — pump weight', suggestedLoad: '30–45 kg', category: 'accessory', targetRegions: ['front_shoulder'], videoId: '',
+        swapAlternative: { name: 'DB Shoulder Press', cue: 'DBs at ear height, press overhead — independent arms, same deltoid stimulus', suggestedLoad: '14–22 kg per hand' },
         comfortVariant: { name: 'Landmine Press', cue: 'Angled press, shoulder-friendly arc', suggestedLoad: '15–25 kg', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck'] } },
       { id: 'bn-acc-fg-3', name: 'Cable Tricep Pushdown', sets: 3, reps: '20', cue: 'Elbows pinned, full extension at bottom — constant tension', suggestedLoad: '15–25 kg', category: 'accessory', targetRegions: ['elbow_wrist'], videoId: '',
         swapAlternative: { name: 'Overhead Cable Tricep Extension', cue: 'Cable behind head, extend to ceiling — hits long head more, great stretch', suggestedLoad: '10–18 kg' } },
@@ -332,8 +363,10 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
   deadlift: {
     bodyweight: [
       { id: 'dl-acc-bw-1', name: 'Glute Bridge March', sets: 3, reps: '15 each', cue: 'Hips level throughout, alternate legs — glutes stay engaged', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Glute Bridge', cue: 'One leg extended, drive through working heel — full single-leg loading', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Supine Glute Squeeze', cue: 'Lying, squeeze and hold 5s — hip/back sensitivity', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-bw-2', name: 'Superman Hold', sets: 3, reps: '10 (3s holds)', cue: 'Lift arms and legs, squeeze back — lower back hypertrophy', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['upper_back', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Reverse Hyperextension (floor)', cue: 'Face down, legs long, lift both legs — lower back and glute activation without back flexion', suggestedLoad: 'Bodyweight' },
         comfortVariant: { name: 'Bird Dog', cue: 'Opposite arm and leg, stable spine — back-friendly', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'upper_back'] } },
       { id: 'dl-acc-bw-3', name: 'Bear Crawl', sets: 3, reps: '20 steps forward', cue: 'Knees hover 2cm off ground, move contralateral limbs — tight core', suggestedLoad: 'Bodyweight', category: 'accessory', targetRegions: ['core_ribs', 'front_shoulder'], videoId: '',
         swapAlternative: { name: 'Dead Bug', cue: 'Flat back, lower opposite arm and leg — same core anti-extension, floor-based', suggestedLoad: 'Bodyweight' } },
@@ -342,16 +375,20 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
     ],
     dumbbells: [
       { id: 'dl-acc-db-1', name: 'DB Hip Thrust', sets: 3, reps: '15', cue: 'DB on hips, full extension, 2s squeeze — posterior chain pump', suggestedLoad: '16–24 kg per hand', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg DB Hip Thrust', cue: 'One leg, drive through working glute — double load demand per rep', suggestedLoad: '12–18 kg' },
         comfortVariant: { name: 'Glute Bridge', cue: 'Bodyweight, higher reps, controlled', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-db-2', name: 'DB Bent-Over Row', sets: 3, reps: '15 each', cue: 'Flat back, pull to hip, squeeze lat — pump focus', suggestedLoad: '14–20 kg per hand', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'DB Single-Arm Row', cue: 'Brace on bench, pull to hip — same lat stimulus with more stability', suggestedLoad: '14–20 kg per hand' },
         comfortVariant: { name: 'Chest-Supported DB Row', cue: 'Incline bench — removes low back stress', suggestedLoad: '10–14 kg per hand', triggerRegions: ['lower_back', 'upper_back'] } },
       { id: 'dl-acc-db-3', name: 'KB Swing', sets: 3, reps: '20', cue: 'Hip snap, arms are ropes — bell floats to chest height', suggestedLoad: '14–20 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
         swapAlternative: { name: 'DB Deadlift (light, fast reps)', cue: 'Lighter than working weight, explosive concentric — power endurance version of the hinge', suggestedLoad: '12–18 kg per hand' } },
     ],
     fullgym: [
       { id: 'dl-acc-fg-1', name: 'Barbell Hip Thrust', sets: 3, reps: '15', cue: 'Full extension, 2s pause, squeeze — posterior chain pump', suggestedLoad: '40–70 kg', category: 'accessory', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Single-Leg Barbell Hip Thrust', cue: 'One leg, full extension — double per-side demand', suggestedLoad: '30–50 kg' },
         comfortVariant: { name: 'Bodyweight Glute Bridge', cue: 'BW, higher reps, no spinal load', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
       { id: 'dl-acc-fg-2', name: 'Pendlay Row', sets: 3, reps: '12', cue: 'Dead stop each rep, explosive pull — back strength support', suggestedLoad: '40–60 kg', category: 'accessory', targetRegions: ['upper_back', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'T-Bar Row', cue: 'Chest pad or bent-over, narrow grip — same back stimulus, different loading angle', suggestedLoad: '30–50 kg' },
         comfortVariant: { name: 'Seated Cable Row', cue: 'Upright torso, removes lower back demand', suggestedLoad: '30–45 kg', triggerRegions: ['lower_back', 'upper_back'] } },
       { id: 'dl-acc-fg-3', name: 'Farmers Carry', sets: 3, reps: '40m', cue: 'Tall posture, grip tight, brace core — walk with purpose', suggestedLoad: '24–36 kg per hand', category: 'accessory', targetRegions: ['core_ribs', 'upper_back'], videoId: '',
         swapAlternative: { name: 'Suitcase Carry (single arm)', cue: 'One heavy dumbbell, resist lateral lean — oblique and core demand', suggestedLoad: '24–40 kg one hand' } },
