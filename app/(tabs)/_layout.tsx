@@ -1,6 +1,4 @@
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import { Platform, StyleSheet, useColorScheme, View } from "react-native";
@@ -8,63 +6,34 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { useColors } from "@/constants/colors";
 
-const TRAIN_ICON_ACTIVE = require("@/assets/train-tab-active.png");
-const TRAIN_ICON_INACTIVE = require("@/assets/train-tab-inactive.png");
-
 function TrainTabIcon({ focused }: { focused: boolean }) {
   const C = useColors();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const btnColor = isDark ? '#3d8a5c' : C.primary;
   return (
     <View
-      style={[
-        {
-          width: 44, height: 44, borderRadius: 22,
-          alignItems: "center", justifyContent: "center",
-          transform: [{ translateY: -4 }],
-          backgroundColor: C.primary,
-          opacity: focused ? 1 : 0.55,
-          ...(focused ? {
-            shadowColor: C.primary,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.4,
-            shadowRadius: 6,
-            elevation: 6,
-          } : {}),
-        },
-      ]}
+      style={{
+        width: 48, height: 48, borderRadius: 24,
+        alignItems: "center", justifyContent: "center",
+        transform: [{ translateY: -6 }],
+        backgroundColor: btnColor,
+        opacity: focused ? 1 : 0.7,
+        ...(focused ? {
+          shadowColor: btnColor,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.45,
+          shadowRadius: 8,
+          elevation: 8,
+        } : {}),
+      }}
     >
-      <Ionicons name="barbell" size={21} color="#fff" />
+      <Ionicons name="barbell" size={22} color="#fff" />
     </View>
   );
 }
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="train">
-        <Icon src={{ default: TRAIN_ICON_INACTIVE, selected: TRAIN_ICON_ACTIVE }} />
-        <Label>Train</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="flex">
-        <Icon sf={{ default: "leaf", selected: "leaf.fill" }} />
-        <Label>Flex</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="workouts">
-        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>Stats</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
-function ClassicTabLayout() {
+export default function TabLayout() {
   const C = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -74,8 +43,8 @@ function ClassicTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: C.light.tint,
-        tabBarInactiveTintColor: C.light.tabIconDefault,
+        tabBarActiveTintColor: isDark ? '#5da87a' : C.primary,
+        tabBarInactiveTintColor: isDark ? '#607068' : '#9ca5a0',
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
@@ -129,6 +98,7 @@ function ClassicTabLayout() {
           title: "Train",
           tabBarItemStyle: { overflow: "visible" },
           tabBarIcon: ({ focused }) => <TrainTabIcon focused={focused} />,
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
         }}
       />
       <Tabs.Screen
@@ -159,11 +129,4 @@ function ClassicTabLayout() {
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
 }

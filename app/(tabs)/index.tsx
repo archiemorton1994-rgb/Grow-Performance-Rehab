@@ -36,7 +36,6 @@ export default function HomeScreen() {
   const C = useColors();
   const tabBarHeight = insets.bottom + 50;
   const {
-    equipmentTiers,
     getEffectiveTier,
     completedCount,
     completedSessions,
@@ -57,17 +56,13 @@ export default function HomeScreen() {
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
-  const tierLabel = equipmentTiers.length > 1
-    ? `${getEquipmentLabel(effectiveTier)} + ${equipmentTiers.length - 1} more`
-    : getEquipmentLabel(effectiveTier);
-
   const SESSION_TYPE_META = useMemo(() => ({
-    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
-    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
-    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
-    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
-    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
-    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
+    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,               bg: C.primaryMuted },
+    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,       bg: C.badgeVolume },
+    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: C.categoryNeuroText,     bg: C.categoryNeuro },
+    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: C.categoryPrehabText,    bg: C.categoryPrehab },
+    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: C.categoryMechanicalText, bg: C.categoryMechanical },
+    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: C.categoryCooldownText,  bg: C.categoryCooldown },
   }), [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
@@ -114,7 +109,6 @@ export default function HomeScreen() {
         <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingText} numberOfLines={1}>{greetingText}</Text>
-            <Text style={styles.tierText}>{tierLabel}</Text>
           </View>
           {testWeek && (
             <View style={styles.testWeekPill}>
@@ -225,7 +219,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
-    tierText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
     testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff3e0', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#ffe0b2' },
     testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#e65100' },
 
