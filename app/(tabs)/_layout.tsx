@@ -1,4 +1,6 @@
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
+import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import { Platform, StyleSheet, useColorScheme, View } from "react-native";
@@ -33,7 +35,34 @@ function TrainTabIcon({ focused }: { focused: boolean }) {
   );
 }
 
-export default function TabLayout() {
+function NativeTabLayout() {
+  return (
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
+        <Label>Home</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person", selected: "person.fill" }} />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="train">
+        <Icon sf={{ default: "figure.strengthtraining.traditional", selected: "figure.strengthtraining.traditional" }} />
+        <Label>Train</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="flex">
+        <Icon sf={{ default: "leaf", selected: "leaf.fill" }} />
+        <Label>Flex</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="workouts">
+        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+        <Label>Stats</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+}
+
+function ClassicTabLayout() {
   const C = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -129,4 +158,11 @@ export default function TabLayout() {
       />
     </Tabs>
   );
+}
+
+export default function TabLayout() {
+  if (isLiquidGlassAvailable()) {
+    return <NativeTabLayout />;
+  }
+  return <ClassicTabLayout />;
 }

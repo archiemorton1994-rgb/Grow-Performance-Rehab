@@ -57,12 +57,12 @@ export default function HomeScreen() {
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
   const SESSION_TYPE_META = useMemo(() => ({
-    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,               bg: C.primaryMuted },
-    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,       bg: C.badgeVolume },
-    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: C.categoryNeuroText,     bg: C.categoryNeuro },
-    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: C.categoryPrehabText,    bg: C.categoryPrehab },
-    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: C.categoryMechanicalText, bg: C.categoryMechanical },
-    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: C.categoryCooldownText,  bg: C.categoryCooldown },
+    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
+    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
+    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
+    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
+    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
+    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
   }), [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
