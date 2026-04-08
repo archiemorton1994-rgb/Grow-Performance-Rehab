@@ -75,15 +75,18 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
 
 function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   if (sessionType === 'conditioning') return true;
-  return /\bmin\b/.test(repsStr) || /\d+s\b/.test(repsStr);
+  // Matches: "2 min", "2min", "2m", "30s", "30 s"
+  return /\d+\s*(?:min\b|m\b)/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
 }
 
 function parseRepsToSeconds(repsStr: string): number {
-  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
+  // "X min" or "Xmin" or "Xm" — minutes
+  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*m(?:in\b|\b)/);
   if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
+  // "Xs" or "X s" — seconds
   const secMatch = repsStr.match(/(\d+)\s*s\b/);
   if (secMatch) return parseInt(secMatch[1], 10);
-  return 5 * 60;
+  return 5 * 60; // fallback 5 minutes
 }
 
 const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
@@ -352,7 +355,10 @@ function SetRow({
 
   const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
   const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplayUnit(previousWeight, weightUnit)) : '0';
-  const isZeroBlocked = !isTimeExercise && !isBandExercise && !data.completed && data.weight === 0 && data.reps === 0;
+  // Weighted: block if both weight and reps are 0. Bodyweight/band: block if reps are 0.
+  const isZeroBlocked = !isTimeExercise && !data.completed && (
+    isBandExercise ? data.reps === 0 : (data.weight === 0 && data.reps === 0)
+  );
 
   const handleToggleComplete = (completing: boolean) => {
     if (Platform.OS !== 'web') {
@@ -460,7 +466,7 @@ function SetRow({
         </Pressable>
       </View>
       {isZeroBlocked && (
-        <Text style={styles.zeroBlockHint}>Enter weight and reps first</Text>
+        <Text style={styles.zeroBlockHint}>{isBandExercise ? 'Enter reps first' : 'Enter weight and reps first'}</Text>
       )}
       {isNewRecord && (
         <View style={styles.newRecordBadge}>
