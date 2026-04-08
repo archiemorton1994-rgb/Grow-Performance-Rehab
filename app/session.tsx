@@ -783,7 +783,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -834,8 +834,8 @@ export default function SessionScreen() {
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount]);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
@@ -1170,6 +1170,24 @@ export default function SessionScreen() {
           sets: exerciseData[i].sets,
           note: exerciseNotes[i] || undefined,
         }));
+
+    // Extract per-exercise max weight from this session and persist to store.
+    // These are used by the workout engine on the NEXT session to apply a
+    // deterministic +2.5 kg micro-increment per exercise (progressive overload).
+    if (!isPrehabOrFlex && exerciseLogs.length > 0) {
+      const sessionWeights: Record<string, number> = {};
+      for (const log of exerciseLogs) {
+        const completedWeights = log.sets
+          .filter((s) => s.completed && !s.skipped && s.weight > 0)
+          .map((s) => s.weight);
+        if (completedWeights.length > 0) {
+          sessionWeights[log.exerciseName] = Math.max(...completedWeights);
+        }
+      }
+      if (Object.keys(sessionWeights).length > 0) {
+        updateLastLoggedWeights(sessionWeights);
+      }
+    }
 
     // Detect milestone before saving (completedCount is current, new count = completedCount + 1)
     const newCount = completedCount + 1;

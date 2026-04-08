@@ -140,6 +140,9 @@ interface AppState {
   lastWeightPromptedAt: number | null;
   hasHydrated: boolean;
   activeSession: ActiveSession | null;
+  /** Maximum weight (kg) logged per exercise name in any past session.
+   *  Used by the workout engine to auto-progress load by +2.5 kg per session. */
+  lastLoggedWeights: Record<string, number>;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -156,6 +159,7 @@ interface AppState {
   setWeightUnit: (unit: WeightUnit) => void;
   setActiveSession: (session: ActiveSession) => void;
   clearActiveSession: () => void;
+  updateLastLoggedWeights: (weights: Record<string, number>) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -191,6 +195,7 @@ export const useAppStore = create<AppState>()(
       lastWeightPromptedAt: null,
       hasHydrated: false,
       activeSession: null,
+      lastLoggedWeights: {},
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -204,6 +209,9 @@ export const useAppStore = create<AppState>()(
       setWeightUnit: (unit) => set({ weightUnit: unit }),
       setActiveSession: (session) => set({ activeSession: session }),
       clearActiveSession: () => set({ activeSession: null }),
+      updateLastLoggedWeights: (weights) => set((state) => ({
+        lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
+      })),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -375,9 +383,12 @@ export const useAppStore = create<AppState>()(
         if (!('activeSession' in persistedState)) {
           persistedState.activeSession = null;
         }
+        if (!persistedState.lastLoggedWeights) {
+          persistedState.lastLoggedWeights = {};
+        }
         return persistedState;
       },
-      version: 7,
+      version: 8,
     }
   )
 );

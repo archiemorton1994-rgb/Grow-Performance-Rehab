@@ -101,7 +101,9 @@ function personalizeLoad(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
   isMainLift?: boolean,
-  completedCount: number = 0
+  completedCount: number = 0,
+  exerciseName?: string,
+  lastLoggedWeights?: Record<string, number>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -140,9 +142,25 @@ function personalizeLoad(
   // baseline autoMult.
   const combinedMult = Math.min(1.5, feedbackMult * autoMult);
 
+  // ── Per-exercise progression: lastLoggedWeight + 2.5 kg per session ───────
+  // When a prior max weight is known for this exercise name, use it as the base
+  // and add a fixed 2.5 kg micro-increment. feedbackMult stacks multiplicatively
+  // so "too easy" (+7%) or thumb ratings compound with the baseline increment.
+  // This provides deterministic, per-exercise overload independent of session count.
+  const lastKg = exerciseName ? (lastLoggedWeights?.[exerciseName] ?? 0) : 0;
+  if (lastKg > 0) {
+    const progressedKg = roundTo2_5((lastKg + 2.5) * feedbackMult);
+    if (__DEV__) {
+      console.log(
+        `[personalizeLoad] ex=${exerciseName} lastKg=${lastKg} +2.5 × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
+      );
+    }
+    return `${progressedKg} kg`;
+  }
+
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
-      `[personalizeLoad] ex=${exerciseId} sessions=${completedCount}` +
+      `[personalizeLoad] ex=${exerciseId} (heuristic) sessions=${completedCount}` +
       ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
       ` combinedMult=${combinedMult.toFixed(3)}`
     );
@@ -307,14 +325,15 @@ function applyPersonalization(
   isUpperBody: boolean,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
-  completedCount: number = 0
+  completedCount: number = 0,
+  lastLoggedWeights?: Record<string, number>
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, ex.name, lastLoggedWeights),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, ex.name, lastLoggedWeights) : ex.swapLoad,
   };
 }
 
@@ -325,10 +344,11 @@ export function generateWorkout(
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   bestOrmKg?: number,
-  completedCount: number = 0
+  completedCount: number = 0,
+  lastLoggedWeights?: Record<string, number>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -405,10 +425,13 @@ export function generateWorkout(
 
   // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
   const allAccessories = getAccessories(mainType, equipmentTier);
-  const hasFatLoss = profile?.goals?.includes('fat_loss') ?? false;
-  // Fat-loss users on longer sessions: drop one accessory — the conditioning
-  // block in step 7 replaces it, keeping total exercise count the same.
-  const accCount = timeAvailable === '30' ? 1 : (hasFatLoss ? 1 : 2);
+  // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
+  // general conditioning capacity. Both benefit from a conditioning circuit
+  // finisher that replaces the second accessory on 45+ min sessions.
+  // 30-min sessions always keep exactly 1 accessory regardless of goal —
+  // removing it would eliminate the only KPI-support accessory entirely.
+  const hasConditioningGoal = (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
+  const accCount = timeAvailable === '30' ? 1 : (hasConditioningGoal ? 1 : 2);
 
   for (const acc of allAccessories.slice(0, accCount)) {
     const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
@@ -419,11 +442,11 @@ export function generateWorkout(
   // ── 7. Finisher / Goal-Conditioning Block (45 and 60 min only) ───────────
   if (timeAvailable !== '30') {
     const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
-    if (hasFatLoss) {
+    if (hasConditioningGoal) {
       // Replace single finisher with a 2-exercise conditioning circuit.
       const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey);
       if (__DEV__) {
-        console.log('[workout-engine] Fat-loss conditioning block injected:', condBlock.map(e => e.name));
+        console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness):', condBlock.map(e => e.name));
       }
       for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
     } else {
@@ -449,7 +472,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -467,12 +490,13 @@ function generateConditioningWorkout(
   readiness: ReadinessCheck,
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  completedCount: number = 0
+  completedCount: number = 0,
+  lastLoggedWeights?: Record<string, number>
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
