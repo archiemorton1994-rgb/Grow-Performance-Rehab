@@ -131,9 +131,22 @@ function personalizeLoad(
     : 1.0;
 
   // ── Auto session-count multiplier (+1% per 3 sessions, max +20%) ─────────
+  // This baseline increment applies every session regardless of feedback —
+  // it models the natural progressive overload across a training block.
   const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
-  // Combine feedback and auto progression, capped at the existing 1.5 max
+  // Combine feedback and auto progression, capped at the existing 1.5 max.
+  // feedbackMult: carries "too easy" (+7%), thumbs up (+3%), thumbs down (-5%)
+  // adjustments from prior sessions and stacks multiplicatively on top of the
+  // baseline autoMult.
   const combinedMult = Math.min(1.5, feedbackMult * autoMult);
+
+  if (__DEV__ && exerciseId && combinedMult !== 1.0) {
+    console.log(
+      `[personalizeLoad] ex=${exerciseId} sessions=${completedCount}` +
+      ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
+      ` combinedMult=${combinedMult.toFixed(3)}`
+    );
+  }
 
   // ── 1RM-based load for the main KPI lift ────────────────────────────────
   // When the user entered their 1RM during onboarding (or a test week), use it

@@ -113,6 +113,7 @@ export default function FlexScreen() {
   const C = useColors();
   const { completedSessions, getEffectiveTier } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
@@ -209,29 +210,35 @@ export default function FlexScreen() {
         <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
       </View>
 
-      <View style={styles.navGrid}>
-        {ROWS.map((row, i) => (
-          <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)} style={styles.navBtnWrap}>
-            <Pressable
-              onPress={() => openModal(row.key)}
-              style={({ pressed }) => [
-                styles.navBtn,
-                pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-              ]}
-              testID={`flex-row-${row.key}`}
-            >
-              <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                <Ionicons name={row.icon} size={22} color={row.iconColor} />
-              </View>
-              <View style={styles.navBtnText}>
-                <Text style={styles.navLabel}>{row.title}</Text>
-                <Text style={styles.navSub}>{row.subtitle}</Text>
-                <Text style={styles.navRecency}>{row.recency}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-            </Pressable>
-          </Animated.View>
-        ))}
+      {/* Outer border ring — flex:1 fills remaining height without overflow:hidden
+          so that child touch areas are never clipped by the container bounds. */}
+      <View style={[styles.navGrid, { marginBottom: 24 + webBottomInset }]}>
+        {/* Inner clip — overflow:hidden rounds the top/bottom of the card list.
+            It sits inside the flex:1 outer shell so it can grow to full height. */}
+        <View style={styles.navGridInner}>
+          {ROWS.map((row, i) => (
+            <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)} style={styles.navBtnWrap}>
+              <Pressable
+                onPress={() => openModal(row.key)}
+                style={({ pressed }) => [
+                  styles.navBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                ]}
+                testID={`flex-row-${row.key}`}
+              >
+                <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
+                  <Ionicons name={row.icon} size={22} color={row.iconColor} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>{row.title}</Text>
+                  <Text style={styles.navSub}>{row.subtitle}</Text>
+                  <Text style={styles.navRecency}>{row.recency}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          ))}
+        </View>
       </View>
 
       {/* Standard session sheet (recovery / mobility / prehab) */}
@@ -358,19 +365,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     navGrid: {
       marginHorizontal: 16,
       marginTop: 20,
-      marginBottom: 24,
-      backgroundColor: C.surface,
+      flex: 1,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: C.borderLight,
-      overflow: 'hidden',
     },
-    navBtnWrap: {},
+    navGridInner: {
+      flex: 1,
+      borderRadius: 17,
+      overflow: 'hidden',
+      backgroundColor: C.surface,
+    },
+    navBtnWrap: {
+      flex: 1,
+    },
     navBtn: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 20,
+      paddingVertical: 14,
       gap: 14,
       borderBottomWidth: 1,
       borderBottomColor: C.borderLight,
