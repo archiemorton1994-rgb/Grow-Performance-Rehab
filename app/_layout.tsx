@@ -28,6 +28,7 @@ import { useAppStore } from "@/lib/store";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useColors } from "@/constants/colors";
 import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
+import { scheduleWorkoutReminder } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -204,6 +205,15 @@ function RootLayoutNav() {
     });
     return () => sub.remove();
   }, [isAuthenticated, hasActiveSubscription]);
+
+  const { hasHydrated, reminderEnabled, reminderTime } = useAppStore();
+
+  useEffect(() => {
+    if (!hasHydrated || Platform.OS === 'web') return;
+    if (reminderEnabled) {
+      scheduleWorkoutReminder(reminderTime).catch(() => {});
+    }
+  }, [hasHydrated]);
 
   return (
     <>

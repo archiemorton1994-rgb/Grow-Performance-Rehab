@@ -39,7 +39,7 @@ export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
     content: {
       title: 'Grow — Time to Train',
       body,
-      data: { screen: 'train' },
+      data: { screen: 'train', url: 'growperformance:///(tabs)' },
       sound: true,
     },
     trigger: {
