@@ -61,7 +61,7 @@ const CONGRATS_MESSAGES = [
 
 interface ExerciseSetData {
   sets: SetLog[];
-  swapped: boolean;
+  swapCount: 0 | 1 | 2;
 }
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
@@ -76,6 +76,14 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
 function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   if (sessionType === 'conditioning') return true;
   return /\bmin\b/.test(repsStr) || /\d+s\b/.test(repsStr);
+}
+
+function parseRepsToSeconds(repsStr: string): number {
+  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
+  if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
+  const secMatch = repsStr.match(/(\d+)\s*s\b/);
+  if (secMatch) return parseInt(secMatch[1], 10);
+  return 5 * 60;
 }
 
 const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
@@ -232,10 +240,10 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
   );
 }
 
-function CardioWarmupTimer() {
+function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const DURATION = 5 * 60;
+  const DURATION = parseRepsToSeconds(repsStr);
   const [secondsLeft, setSecondsLeft] = useState(DURATION);
   const [isRunning, setIsRunning] = useState(true);
   const [isDone, setIsDone] = useState(false);
@@ -344,6 +352,55 @@ function SetRow({
 
   const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
   const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplayUnit(previousWeight, weightUnit)) : '0';
+  const isZeroBlocked = !isTimeExercise && !isBandExercise && !data.completed && data.weight === 0 && data.reps === 0;
+
+  const handleToggleComplete = (completing: boolean) => {
+    if (Platform.OS !== 'web') {
+      if (completing) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+    if (completing) {
+      flashBg.value = 1;
+      flashBg.value = withTiming(0, { duration: 700 });
+    }
+    const displayVal = parseFloat(weightText);
+    const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
+    onChange({ ...data, weight: w, completed: completing });
+    if (completing) onCompleted?.();
+  };
+
+  if (isTimeExercise) {
+    return (
+      <Animated.View style={flashStyle}>
+        {weightGuide && (
+          <View style={styles.weightGuideRow}>
+            <Ionicons name="information-circle-outline" size={12} color={C.primary} />
+            <Text style={styles.weightGuideText}>{weightGuide}</Text>
+          </View>
+        )}
+        <View style={styles.setRow}>
+          <Text style={styles.setLabel}>Set {setNum}</Text>
+          <Pressable
+            onPress={() => { if (!disabled) handleToggleComplete(!data.completed); }}
+            style={[styles.timeDoneBtn, data.completed && styles.timeDoneBtnDone]}
+            testID={`set-${setNum}-check`}
+          >
+            <Ionicons
+              name={data.completed ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={16}
+              color={data.completed ? C.textInverse : C.primary}
+            />
+            <Text style={[styles.timeDoneBtnText, data.completed && styles.timeDoneBtnTextDone]}>
+              {data.completed ? 'Done!' : 'Mark done'}
+            </Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={flashStyle}>
@@ -388,35 +445,23 @@ function SetRow({
               editable={!disabled}
               testID={`set-${setNum}-reps`}
             />
-            <Text style={styles.inputUnit}>{isTimeExercise ? 'min' : 'reps'}</Text>
+            <Text style={styles.inputUnit}>reps</Text>
           </View>
         </View>
         <Pressable
           onPress={() => {
-            if (disabled) return;
-            const completing = !data.completed;
-            if (Platform.OS !== 'web') {
-              if (completing) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              } else {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }
-            }
-            if (completing) {
-              flashBg.value = 1;
-              flashBg.value = withTiming(0, { duration: 700 });
-            }
-            const displayVal = parseFloat(weightText);
-            const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
-            onChange({ ...data, weight: w, completed: completing });
-            if (completing) onCompleted?.();
+            if (disabled || isZeroBlocked) return;
+            handleToggleComplete(!data.completed);
           }}
-          style={[styles.setCheck, data.completed && styles.setCheckDone, disabled && styles.setCheckDisabled]}
+          style={[styles.setCheck, data.completed && styles.setCheckDone, (disabled || isZeroBlocked) && styles.setCheckDisabled]}
           testID={`set-${setNum}-check`}
         >
           {data.completed && <Ionicons name="checkmark" size={20} color={C.textInverse} />}
         </Pressable>
       </View>
+      {isZeroBlocked && (
+        <Text style={styles.zeroBlockHint}>Enter weight and reps first</Text>
+      )}
       {isNewRecord && (
         <View style={styles.newRecordBadge}>
           <Ionicons name="star" size={10} color="#fff" />
@@ -436,6 +481,7 @@ function ExerciseCard({
   onSetChange,
   onVideoPress,
   onSwapPress,
+  onSkipExercise,
   isDumbbellSession,
   exerciseState,
   sessionType,
@@ -453,6 +499,7 @@ function ExerciseCard({
   onSetChange: (setIndex: number, updated: SetLog) => void;
   onVideoPress: () => void;
   onSwapPress: () => void;
+  onSkipExercise?: () => void;
   isDumbbellSession: boolean;
   exerciseState: ExerciseState;
   sessionType: SessionType;
@@ -611,10 +658,10 @@ function ExerciseCard({
                 <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
               </Pressable>
               {exercise.hasSwap && (
-                <Pressable onPress={onSwapPress} style={[styles.actionBtn, setData.swapped && styles.actionBtnSwapped]} testID={`swap-${index}`}>
-                  <Ionicons name="swap-horizontal-outline" size={15} color={setData.swapped ? C.primary : C.textSecondary} />
-                  <Text style={[styles.actionBtnText, setData.swapped && { color: C.primary }]}>
-                    {setData.swapped ? 'Swap again' : 'Swap exercise'}
+                <Pressable onPress={onSwapPress} style={[styles.actionBtn, setData.swapCount > 0 && styles.actionBtnSwapped]} testID={`swap-${index}`}>
+                  <Ionicons name="swap-horizontal-outline" size={15} color={setData.swapCount > 0 ? C.primary : C.textSecondary} />
+                  <Text style={[styles.actionBtnText, setData.swapCount > 0 && { color: C.primary }]}>
+                    {setData.swapCount === 0 ? 'Swap exercise' : 'Swap again'}
                   </Text>
                 </Pressable>
               )}
@@ -627,7 +674,7 @@ function ExerciseCard({
                   <Text style={styles.cueText}>{exercise.cue}</Text>
                 </View>
 
-                {(exercise.id === 'cardio-warmup' || (exercise.category === 'prep' && index === 0)) && <CardioWarmupTimer />}
+                {(exercise.id === 'cardio-warmup' || (exercise.category === 'prep' && index === 0)) && <CardioWarmupTimer repsStr={exercise.reps} />}
 
                 {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && <RestTimer category={exercise.category} trigger={timerTrigger} />}
 
@@ -638,16 +685,18 @@ function ExerciseCard({
                   </View>
                 )}
 
-                <View style={styles.setHeaderRow}>
-                  <Text style={styles.setHeaderItem}>Set</Text>
-                  <View style={styles.setHeaderInputs}>
-                    {!isBandExercise && (
-                      <Text style={styles.setHeaderItem}>{weightUnit}</Text>
-                    )}
-                    <Text style={styles.setHeaderItem}>{isTimeExercise ? 'Time' : 'Reps'}</Text>
+                {!isTimeExercise && (
+                  <View style={styles.setHeaderRow}>
+                    <Text style={styles.setHeaderItem}>Set</Text>
+                    <View style={styles.setHeaderInputs}>
+                      {!isBandExercise && (
+                        <Text style={styles.setHeaderItem}>{weightUnit}</Text>
+                      )}
+                      <Text style={styles.setHeaderItem}>Reps</Text>
+                    </View>
+                    <Text style={styles.setHeaderItem}>Done</Text>
                   </View>
-                  <Text style={styles.setHeaderItem}>Done</Text>
-                </View>
+                )}
 
                 {setData.sets.map((s, si) => (
                   <SetRow
@@ -664,6 +713,12 @@ function ExerciseCard({
                     onCompleted={() => setTimerTrigger((n) => n + 1)}
                   />
                 ))}
+
+                {!allDone && onSkipExercise && (
+                  <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
+                    <Text style={styles.skipExerciseLinkText}>Skip — couldn't do this exercise</Text>
+                  </Pressable>
+                )}
 
                 <View style={styles.noteInputRow}>
                   <TextInput
@@ -814,7 +869,7 @@ export default function SessionScreen() {
           reps: 0,
           completed: false,
         })),
-        swapped: false,
+        swapCount: 0,
       }))
     );
     setExerciseNotes(exercises.map(() => ''));
@@ -868,23 +923,48 @@ export default function SessionScreen() {
 
   const handleSwapConfirm = useCallback((index: number) => {
     setExerciseData(prev => {
-      if (prev[index]?.swapped) return prev;
+      const cur = prev[index]?.swapCount ?? 0;
+      if (cur >= 2) return prev;
       const next = [...prev];
-      next[index] = { ...next[index], swapped: true };
+      next[index] = { ...next[index], swapCount: (cur + 1) as 0 | 1 | 2 };
       return next;
     });
     setSwapModal(null);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
+  const handleSkipExercise = useCallback((index: number) => {
+    setExerciseData(prev => {
+      const next = [...prev];
+      const ex = next[index];
+      if (!ex) return prev;
+      next[index] = {
+        ...ex,
+        sets: ex.sets.map(s => ({ ...s, weight: 0, reps: 0, completed: true, skipped: true })),
+      };
+      return next;
+    });
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
-    if (data.swapped && exercise.swapName) {
+    const swapCount = data.swapCount ?? 0;
+    if (swapCount === 1 && exercise.swapName) {
       return {
         ...exercise,
         name: exercise.swapName,
         cue: exercise.swapCue ?? exercise.cue,
         suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
-        hasSwap: true, // Keep swap available — allow unlimited swaps back to original
+        hasSwap: true,
+      };
+    }
+    if (swapCount === 2 && exercise.swap2Name) {
+      return {
+        ...exercise,
+        name: exercise.swap2Name,
+        cue: exercise.swap2Cue ?? exercise.cue,
+        suggestedLoad: exercise.swap2Load ?? exercise.suggestedLoad,
+        hasSwap: true,
       };
     }
     return exercise;
@@ -1000,7 +1080,7 @@ export default function SessionScreen() {
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
     setSessionDurationSeconds(capturedDuration);
-    setFeedbackStep('congrats');
+    setFeedbackStep('rating');
     setThumbsRatings({});
     setTooEasySelected(new Set());
     setTooEasySaved(false);
@@ -1128,6 +1208,7 @@ export default function SessionScreen() {
               onSetChange={(si, u) => handleSetChange(index, si, u)}
               onVideoPress={() => openYouTube(displayExercise.name)}
               onSwapPress={() => setSwapModal({ index, exercise: displayExercise })}
+              onSkipExercise={() => handleSkipExercise(index)}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
@@ -1202,8 +1283,13 @@ export default function SessionScreen() {
             </View>
             <Text style={styles.modalTitle}>Swap Exercise</Text>
             {swapModal && (() => {
-              const alreadySwapped = exerciseData[swapModal.index]?.swapped ?? false;
-              if (alreadySwapped) {
+              const swapCount = exerciseData[swapModal.index]?.swapCount ?? 0;
+              const origExercise = exercises[swapModal.index];
+              const swap2Name = origExercise?.swap2Name;
+              const swap2Cue = origExercise?.swap2Cue;
+              const swap2Load = origExercise?.swap2Load;
+
+              if (swapCount === 2 || (swapCount === 1 && !swap2Name)) {
                 return (
                   <>
                     <View style={styles.swapFrom}>
@@ -1211,11 +1297,39 @@ export default function SessionScreen() {
                       <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
                     </View>
                     <Text style={[styles.swapNote, { marginTop: 16, textAlign: 'center' }]}>
-                      No further alternatives are available for this exercise. Keep going with the current one!
+                      No further alternatives are available for this exercise. Keep going!
                     </Text>
                   </>
                 );
               }
+
+              if (swapCount === 1 && swap2Name) {
+                return (
+                  <>
+                    <View style={styles.swapFrom}>
+                      <Text style={styles.swapFromLabel}>Replace</Text>
+                      <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                    </View>
+                    <View style={styles.swapArrow}>
+                      <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
+                    </View>
+                    <View style={styles.swapTo}>
+                      <Text style={styles.swapToLabel}>With</Text>
+                      <Text style={styles.swapToName}>{swap2Name}</Text>
+                      <Text style={styles.swapToCue}>{swap2Cue}</Text>
+                      {swap2Load && <Text style={styles.swapToLoad}>{swap2Load}</Text>}
+                    </View>
+                    <Text style={styles.swapNote}>A second alternative for this exercise.</Text>
+                    <Pressable
+                      onPress={() => handleSwapConfirm(swapModal.index)}
+                      style={styles.swapConfirmBtn}
+                    >
+                      <Text style={styles.swapConfirmText}>Swap again</Text>
+                    </Pressable>
+                  </>
+                );
+              }
+
               return (
                 <>
                   <View style={styles.swapFrom}>
@@ -1244,7 +1358,9 @@ export default function SessionScreen() {
               );
             })()}
             <Pressable onPress={() => setSwapModal(null)} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>{exerciseData[swapModal?.index ?? -1]?.swapped ? 'Close' : 'Keep original'}</Text>
+              <Text style={styles.modalCloseText}>
+                {(exerciseData[swapModal?.index ?? -1]?.swapCount ?? 0) > 0 ? 'Close' : 'Keep original'}
+              </Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1670,4 +1786,14 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   ormCompareNew: { color: C.primary, fontSize: 22 },
   ormPbBadge: { marginTop: 10, alignItems: 'center' },
   ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+  // Time-based exercise done button
+  timeDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: C.primaryMuted, backgroundColor: C.primarySurface, marginVertical: 8 },
+  timeDoneBtnDone: { backgroundColor: C.primary, borderColor: C.primary },
+  timeDoneBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  timeDoneBtnTextDone: { color: C.textInverse },
+  // Zero-block hint below set row
+  zeroBlockHint: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, fontStyle: 'italic', textAlign: 'center', marginTop: 2, paddingHorizontal: 8 },
+  // Skip exercise link
+  skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
+  skipExerciseLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
 }); }

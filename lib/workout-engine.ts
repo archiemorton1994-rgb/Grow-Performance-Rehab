@@ -33,6 +33,9 @@ export interface Exercise {
   swapName?: string;
   swapCue?: string;
   swapLoad?: string;
+  swap2Name?: string;
+  swap2Cue?: string;
+  swap2Load?: string;
   isDumbbellExercise?: boolean;
 }
 
@@ -46,8 +49,10 @@ interface ReadinessCheck {
 type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility'>;
 
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
-  // Prefer explicit swapAlternative for user-initiated swaps; fall back to comfortVariant
-  const swap = t.swapAlternative ?? t.comfortVariant;
+  // swap1 = swapAlternative (preferred) or comfortVariant
+  // swap2 = comfortVariant when swapAlternative is also present (gives two distinct alternatives)
+  const swap1 = t.swapAlternative ?? t.comfortVariant;
+  const swap2 = t.swapAlternative && t.comfortVariant ? t.comfortVariant : undefined;
   return {
     id: t.id,
     name: t.name,
@@ -58,10 +63,13 @@ function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', i
     category: t.category,
     badge,
     videoId: t.videoId,
-    hasSwap: !!(t.swapAlternative || t.comfortVariant),
-    swapName: swap?.name,
-    swapCue: swap?.cue,
-    swapLoad: swap?.suggestedLoad,
+    hasSwap: !!(swap1),
+    swapName: swap1?.name,
+    swapCue: swap1?.cue,
+    swapLoad: swap1?.suggestedLoad,
+    swap2Name: swap2?.name,
+    swap2Cue: swap2?.cue,
+    swap2Load: swap2?.suggestedLoad,
     isDumbbellExercise: isDumbbell,
   };
 }

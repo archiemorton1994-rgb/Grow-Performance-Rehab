@@ -56,6 +56,7 @@ export interface SetLog {
   weight: number;
   reps: number;
   completed: boolean;
+  skipped?: boolean;
 }
 
 export interface ExerciseLog {
