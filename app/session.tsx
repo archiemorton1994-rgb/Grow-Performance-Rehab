@@ -152,7 +152,10 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
       setIsRunning(false);
       setIsDone(true);
       cancelNotif();
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
         pulseScale.value = withTiming(1, { duration: 180 });
       });
@@ -247,7 +250,10 @@ function CardioWarmupTimer() {
     if (secondsLeft <= 0 && isRunning) {
       setIsRunning(false);
       setIsDone(true);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     }
   }, [secondsLeft, isRunning]);
 

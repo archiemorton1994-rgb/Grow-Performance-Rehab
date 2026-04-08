@@ -59,6 +59,7 @@ function WeeklyWeightPrompt() {
   const [weightText, setWeightText] = useState('');
 
   const isReadyToPrompt = hasHydrated && isAuthenticated;
+  const neverSetWeight = userProfile.bodyweightKg === 0;
 
   useEffect(() => {
     if (!isReadyToPrompt) return;
@@ -75,15 +76,18 @@ function WeeklyWeightPrompt() {
   const isValidInput = parseFloat(weightText) > 0;
   const hasText = weightText.trim().length > 0;
   const inputInvalid = hasText && !isValidInput;
+  // When no weight has ever been set, require a valid value — cannot skip or confirm empty
+  const canConfirm = neverSetWeight ? isValidInput : !inputInvalid;
 
   const dismiss = () => {
+    if (neverSetWeight) return; // no dismissal without a weight when never set
     setLastWeightPromptedAt(Date.now());
     setShowPrompt(false);
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const confirm = () => {
-    if (hasText && !isValidInput) return;
+    if (!canConfirm) return;
     if (isValidInput) {
       setUserProfile({ bodyweightKg: displayUnitToKg(parseFloat(weightText), weightUnit) });
     }
@@ -95,8 +99,8 @@ function WeeklyWeightPrompt() {
   const styles = useMemo(() => makePromptStyles(C), [C]);
 
   return (
-    <Modal visible={showPrompt} transparent animationType="fade" onRequestClose={dismiss}>
-      <Pressable style={styles.overlay} onPress={dismiss}>
+    <Modal visible={showPrompt} transparent animationType="fade" onRequestClose={neverSetWeight ? undefined : dismiss}>
+      <Pressable style={styles.overlay} onPress={neverSetWeight ? undefined : dismiss}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.iconWrap}>
             <Text style={styles.iconText}>⚖️</Text>
@@ -127,12 +131,12 @@ function WeeklyWeightPrompt() {
           )}
           <Pressable
             onPress={confirm}
-            style={[styles.confirmBtn, inputInvalid && styles.confirmBtnDisabled]}
-            disabled={inputInvalid}
+            style={[styles.confirmBtn, !canConfirm && styles.confirmBtnDisabled]}
+            disabled={!canConfirm}
             testID="weight-prompt-confirm"
           >
             <Text style={styles.confirmText}>
-              {isValidInput ? 'Save & Continue' : 'Skip'}
+              {isValidInput ? 'Save & Continue' : (neverSetWeight ? 'Enter your weight' : 'Skip')}
             </Text>
           </Pressable>
           {userProfile.bodyweightKg > 0 && (

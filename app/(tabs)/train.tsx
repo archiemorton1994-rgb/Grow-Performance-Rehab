@@ -149,21 +149,21 @@ export default function TrainScreen() {
   }, [completedSessions]);
 
   const SESSION_META = useMemo(() => ({
-    squat:        { ...SESSION_META_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
-    bench:        { ...SESSION_META_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
-    deadlift:     { ...SESSION_META_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
-    conditioning: { ...SESSION_META_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
-    prehab:       { ...SESSION_META_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
-    flexibility:  { ...SESSION_META_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
+    squat:        { ...SESSION_META_LABELS.squat,        color: C.primary,               bg: C.primaryMuted },
+    bench:        { ...SESSION_META_LABELS.bench,        color: C.badgeVolumeText,       bg: C.badgeVolume },
+    deadlift:     { ...SESSION_META_LABELS.deadlift,     color: C.categoryNeuroText,     bg: C.categoryNeuro },
+    conditioning: { ...SESSION_META_LABELS.conditioning, color: C.categoryPrehabText,    bg: C.categoryPrehab },
+    prehab:       { ...SESSION_META_LABELS.prehab,       color: C.categoryMechanicalText,bg: C.categoryMechanical },
+    flexibility:  { ...SESSION_META_LABELS.flexibility,  color: C.categoryCooldownText,  bg: C.categoryCooldown },
   }), [C]);
 
   const SESSION_COLORS = useMemo(() => ({
-    squat: { bg: C.primaryMuted, accent: C.primary },
-    bench: { bg: C.badgeVolume, accent: C.badgeVolumeText },
-    deadlift: { bg: '#fce8e6', accent: '#ea4335' },
-    conditioning: { bg: '#fbe9e7', accent: '#e65100' },
-    prehab: { bg: '#fff3e0', accent: '#e65100' },
-    flexibility: { bg: '#e8f5e9', accent: '#2e7d32' },
+    squat:        { bg: C.primaryMuted,       accent: C.primary },
+    bench:        { bg: C.badgeVolume,         accent: C.badgeVolumeText },
+    deadlift:     { bg: C.categoryNeuro,       accent: C.categoryNeuroText },
+    conditioning: { bg: C.categoryPrehab,      accent: C.categoryPrehabText },
+    prehab:       { bg: C.categoryMechanical,  accent: C.categoryMechanicalText },
+    flexibility:  { bg: C.categoryCooldown,    accent: C.categoryCooldownText },
   }), [C]);
 
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
@@ -323,7 +323,7 @@ export default function TrainScreen() {
                       ]}>
                         {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
                         {isCurrent && (
-                          <View style={[styles.currentPulse, testWeek && { backgroundColor: '#e65100' }]} />
+                          <View style={[styles.currentPulse, testWeek && { backgroundColor: C.categoryPrehabText }]} />
                         )}
                       </View>
                       {index < timelineItems.length - 1 && (
@@ -346,7 +346,7 @@ export default function TrainScreen() {
                         <Ionicons
                           name={isCurrent && testWeek ? 'trophy' : SESSION_ICONS[item.sessionType]}
                           size={20}
-                          color={isCurrent && testWeek ? '#e65100' : colors.accent}
+                          color={isCurrent && testWeek ? C.categoryPrehabText : colors.accent}
                         />
                       </View>
                       <View style={styles.cardContent}>
@@ -372,7 +372,7 @@ export default function TrainScreen() {
                       )}
                       {item.isTestMarker && !isCurrent && (
                         <View style={styles.testMarker}>
-                          <Ionicons name="trophy-outline" size={14} color="#e65100" />
+                          <Ionicons name="trophy-outline" size={14} color={C.categoryPrehabText} />
                         </View>
                       )}
                     </Pressable>
@@ -451,7 +451,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     timelineDotDone: { backgroundColor: C.primary, borderColor: C.primary },
     timelineDotCurrent: { backgroundColor: C.surface, borderColor: C.primary, borderWidth: 3 },
-    timelineDotTest: { borderColor: '#e65100' },
+    timelineDotTest: { borderColor: C.categoryPrehabText },
     currentPulse: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
     timelineLine: { width: 2, flex: 1, backgroundColor: C.border, marginVertical: -2 },
     timelineLineDone: { backgroundColor: C.primary },
@@ -467,7 +467,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10,
       elevation: Platform.OS !== 'web' ? 5 : 0,
     },
-    timelineCardTest: { borderColor: '#e65100' },
+    timelineCardTest: { borderColor: C.categoryPrehabText },
     timelineCardDone: { opacity: 0.65 },
 
     cardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
@@ -483,8 +483,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.45, shadowRadius: 7,
       elevation: Platform.OS !== 'web' ? 7 : 0,
     },
-    startPillTest: { backgroundColor: '#e65100' },
-    testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff3e0', alignItems: 'center', justifyContent: 'center' },
+    startPillTest: { backgroundColor: C.categoryPrehabText },
+    testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.categoryPrehab, alignItems: 'center', justifyContent: 'center' },
 
     emptyState: {
       backgroundColor: C.primarySurface, borderRadius: 16,
