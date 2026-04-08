@@ -783,7 +783,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -871,19 +871,36 @@ export default function SessionScreen() {
   useEffect(() => () => { if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current); }, []);
 
   useEffect(() => {
-    setExerciseData(
-      exercises.map((ex) => ({
-        sets: Array.from({ length: ex.sets }, (_, i) => ({
-          setNumber: i + 1,
-          weight: 0,
-          reps: 0,
-          completed: false,
-        })),
-        swapCount: 0,
-      }))
-    );
-    setExerciseNotes(exercises.map(() => ''));
-    setActiveIndex(0);
+    const stored = activeSession;
+    const canRestore =
+      stored !== null &&
+      stored.sessionType === sessionType &&
+      stored.equipmentTier === equipmentTier &&
+      stored.exerciseData.length === exercises.length;
+
+    if (canRestore && stored) {
+      setExerciseData(stored.exerciseData as ExerciseSetData[]);
+      setExerciseNotes(
+        stored.exerciseNotes.length === exercises.length
+          ? stored.exerciseNotes
+          : exercises.map(() => '')
+      );
+      setActiveIndex(Math.min(stored.activeIndex, exercises.length - 1));
+    } else {
+      setExerciseData(
+        exercises.map((ex) => ({
+          sets: Array.from({ length: ex.sets }, (_, i) => ({
+            setNumber: i + 1,
+            weight: 0,
+            reps: 0,
+            completed: false,
+          })),
+          swapCount: 0,
+        }))
+      );
+      setExerciseNotes(exercises.map(() => ''));
+      setActiveIndex(0);
+    }
     cardYPositions.current = {};
   }, [exercises]);
 
@@ -905,6 +922,31 @@ export default function SessionScreen() {
       }, 350);
     }
   }, [exerciseData, activeIndex]);
+
+  // Auto-save in-progress state whenever data changes (only if there's some progress)
+  useEffect(() => {
+    if (exerciseData.length === 0) return;
+    const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+    const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
+    const hasAnyProgress = exerciseData.some(ed => ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0));
+    if (!hasAnyProgress) return;
+    setActiveSession({
+      sessionType,
+      equipmentTier,
+      hasAches,
+      painRegion,
+      energy,
+      timeAvailable,
+      isTestWeek,
+      exerciseData,
+      exerciseNotes,
+      activeIndex,
+      savedAt: new Date().toISOString(),
+      completedSetsCount,
+      totalSets,
+      sessionName: getSessionLabel(sessionType),
+    });
+  }, [exerciseData, exerciseNotes, activeIndex]);
 
   const openYouTube = (exerciseName: string) => {
     const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
@@ -1086,6 +1128,7 @@ export default function SessionScreen() {
       durationSeconds: capturedDuration,
     });
 
+    clearActiveSession();
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
@@ -1108,23 +1151,23 @@ export default function SessionScreen() {
   };
 
   const handleSaveAndExit = () => {
-    const exerciseLogs: ExerciseLog[] = exercises.map((ex, i) => ({
-      exerciseId: ex.id,
-      exerciseName: ex.name,
-      sets: exerciseData[i]?.sets ?? [],
-      note: exerciseNotes[i] || undefined,
-    }));
-    completeSession({
+    const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+    const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
+    setActiveSession({
       sessionType,
-      date: new Date().toISOString(),
       equipmentTier,
-      hadAches: hasAches,
+      hasAches,
       painRegion,
       energy,
       timeAvailable,
-      exerciseCount: exercises.length,
-      exerciseLogs,
       isTestWeek,
+      exerciseData,
+      exerciseNotes,
+      activeIndex,
+      savedAt: new Date().toISOString(),
+      completedSetsCount,
+      totalSets,
+      sessionName: getSessionLabel(sessionType),
     });
     setShowAbandonModal(false);
     router.dismissAll();
@@ -1270,7 +1313,7 @@ export default function SessionScreen() {
               <Text style={styles.abandonBtnSaveText}>Save & exit</Text>
             </Pressable>
             <Pressable
-              onPress={() => { setShowAbandonModal(false); router.back(); }}
+              onPress={() => { clearActiveSession(); setShowAbandonModal(false); router.back(); }}
               style={[styles.abandonBtn, styles.abandonBtnDiscard]}
               testID="abandon-discard"
             >

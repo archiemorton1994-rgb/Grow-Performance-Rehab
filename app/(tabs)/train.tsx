@@ -98,6 +98,7 @@ export default function TrainScreen() {
     getEffectiveTier,
     isTestWeekDue,
     testWeekFrequency,
+    activeSession,
   } = useAppStore();
 
   const equipmentTier = getEffectiveTier();
@@ -166,6 +167,23 @@ export default function TrainScreen() {
     flexibility:  { bg: C.categoryCooldown,    accent: C.categoryCooldownText },
   }), [C]);
 
+  const handleResume = () => {
+    if (!activeSession) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType: activeSession.sessionType,
+        hasAches: activeSession.hasAches ? 'true' : 'false',
+        painRegion: activeSession.painRegion ?? '',
+        energy: activeSession.energy,
+        timeAvailable: activeSession.timeAvailable,
+        isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
+        equipment: activeSession.equipmentTier,
+      },
+    });
+  };
+
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
@@ -212,6 +230,28 @@ export default function TrainScreen() {
     >
       <Text style={styles.title}>Train</Text>
       <Text style={styles.subtitle}>Choose a session to start</Text>
+
+      {/* Resume banner */}
+      {activeSession && (
+        <Animated.View entering={FadeInDown.duration(350)} style={styles.resumeBanner}>
+          <View style={styles.resumeBannerLeft}>
+            <Ionicons name="time-outline" size={20} color="#b45309" />
+            <View>
+              <Text style={styles.resumeBannerTitle}>Session in progress</Text>
+              <Text style={styles.resumeBannerSub}>
+                {SESSION_META_LABELS[activeSession.sessionType]?.label} · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={handleResume}
+            style={({ pressed }) => [styles.resumeBannerBtn, pressed && { opacity: 0.85 }]}
+            testID="train-resume-session"
+          >
+            <Text style={styles.resumeBannerBtnText}>Resume</Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Session selection cards */}
       <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
@@ -393,6 +433,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     content: { paddingHorizontal: 20 },
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
     subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 16 },
+
+    resumeBanner: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: '#fef3c7', borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      marginBottom: 16, borderWidth: 1, borderColor: '#fde68a',
+    },
+    resumeBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    resumeBannerTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: '#92400e' },
+    resumeBannerSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: '#b45309', marginTop: 1 },
+    resumeBannerBtn: {
+      backgroundColor: '#b45309', borderRadius: 10,
+      paddingHorizontal: 14, paddingVertical: 8,
+    },
+    resumeBannerBtnText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
 
     sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     sessionCard: {

@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +45,8 @@ export default function HomeScreen() {
     getThisWeekCount,
     isTestWeekDue,
     userProfile,
+    activeSession,
+    clearActiveSession,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -83,6 +86,34 @@ export default function HomeScreen() {
     });
   };
 
+  const handleResume = () => {
+    if (!activeSession) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType: activeSession.sessionType,
+        hasAches: activeSession.hasAches ? 'true' : 'false',
+        painRegion: activeSession.painRegion ?? '',
+        energy: activeSession.energy,
+        timeAvailable: activeSession.timeAvailable,
+        isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
+        equipment: activeSession.equipmentTier,
+      },
+    });
+  };
+
+  const handleDiscardActiveSession = () => {
+    Alert.alert(
+      'Discard session?',
+      'Your in-progress session will be lost.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => clearActiveSession() },
+      ]
+    );
+  };
+
   const lastSessionDurationLabel = lastSession?.durationSeconds && lastSession.durationSeconds > 0
     ? (() => {
         const mins = Math.round(lastSession.durationSeconds / 60);
@@ -118,33 +149,61 @@ export default function HomeScreen() {
           )}
         </Animated.View>
 
-        {/* Today's Session card */}
-        <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
-          <View style={styles.todayCardTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.todayLabel}>Today's Session</Text>
-              <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
-              <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
+        {/* Resume card (takes priority) or Today's Session card */}
+        {activeSession ? (
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, styles.resumeCard]}>
+            <View style={styles.todayCardTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.todayLabel, { color: '#b45309' }]}>Session In Progress</Text>
+                <Text style={styles.todaySessionName}>{SESSION_TYPE_LABELS[activeSession.sessionType]?.label ?? activeSession.sessionName}</Text>
+                <Text style={styles.todaySessionSub}>
+                  {activeSession.completedSetsCount}/{activeSession.totalSets} sets completed
+                </Text>
+              </View>
+              <View style={[styles.todayIcon, { backgroundColor: '#fef3c7' }]}>
+                <Ionicons name="time-outline" size={32} color="#b45309" />
+              </View>
             </View>
-            <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
-              <Ionicons name={suggestedMeta.icon} size={32} color={suggestedMeta.color} />
+            <Pressable
+              onPress={handleResume}
+              style={({ pressed }) => [styles.startBtn, styles.resumeBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+              testID="resume-session"
+            >
+              <Ionicons name="play" size={18} color="#fff" />
+              <Text style={styles.startBtnText}>Resume Session</Text>
+            </Pressable>
+            <Pressable onPress={handleDiscardActiveSession} style={styles.discardLink} testID="discard-active-session">
+              <Text style={styles.discardLinkText}>Discard and start fresh</Text>
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+            <View style={styles.todayCardTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.todayLabel}>Today's Session</Text>
+                <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
+                <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
+              </View>
+              <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
+                <Ionicons name={suggestedMeta.icon} size={32} color={suggestedMeta.color} />
+              </View>
             </View>
-          </View>
-          {showProgressionNote && (
-            <View style={styles.progressionChip}>
-              <Ionicons name="trending-up" size={12} color={C.primary} />
-              <Text style={styles.progressionChipText}>Weights have increased since last session</Text>
-            </View>
-          )}
-          <Pressable
-            onPress={handleStartSuggested}
-            style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-            testID="start-suggested-session"
-          >
-            <Ionicons name="flash" size={18} color="#fff" />
-            <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
-          </Pressable>
-        </Animated.View>
+            {showProgressionNote && (
+              <View style={styles.progressionChip}>
+                <Ionicons name="trending-up" size={12} color={C.primary} />
+                <Text style={styles.progressionChipText}>Weights have increased since last session</Text>
+              </View>
+            )}
+            <Pressable
+              onPress={handleStartSuggested}
+              style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+              testID="start-suggested-session"
+            >
+              <Ionicons name="flash" size={18} color="#fff" />
+              <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* Stats strip / Welcome card */}
         {completedCount === 0 ? (
@@ -273,6 +332,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.borderLight,
     },
     firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    resumeCard: {
+      borderColor: '#f59e0b',
+      shadowColor: '#f59e0b',
+    },
+    resumeBtn: { backgroundColor: '#b45309' },
+    discardLink: { alignItems: 'center', marginTop: 10 },
+    discardLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
 
     welcomeCard: {
       backgroundColor: C.primarySurface, borderRadius: 16,

@@ -59,6 +59,28 @@ export interface SetLog {
   skipped?: boolean;
 }
 
+export interface InProgressSetData {
+  sets: SetLog[];
+  swapCount: 0 | 1 | 2;
+}
+
+export interface ActiveSession {
+  sessionType: SessionType;
+  equipmentTier: EquipmentTier;
+  hasAches: boolean;
+  painRegion?: PainRegion;
+  energy: EnergyLevel;
+  timeAvailable: TimeAvailable;
+  isTestWeek: boolean;
+  exerciseData: InProgressSetData[];
+  exerciseNotes: string[];
+  activeIndex: number;
+  savedAt: string;
+  completedSetsCount: number;
+  totalSets: number;
+  sessionName: string;
+}
+
 export interface ExerciseLog {
   exerciseId: string;
   exerciseName: string;
@@ -115,6 +137,7 @@ interface AppState {
   weightUnit: WeightUnit;
   lastWeightPromptedAt: number | null;
   hasHydrated: boolean;
+  activeSession: ActiveSession | null;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -129,6 +152,8 @@ interface AppState {
   applyTooEasyAdjustment: (exerciseIds: string[]) => void;
   setLastReadiness: (energy: EnergyLevel, time: TimeAvailable) => void;
   setWeightUnit: (unit: WeightUnit) => void;
+  setActiveSession: (session: ActiveSession) => void;
+  clearActiveSession: () => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -163,6 +188,7 @@ export const useAppStore = create<AppState>()(
       weightUnit: 'kg',
       lastWeightPromptedAt: null,
       hasHydrated: false,
+      activeSession: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -174,6 +200,8 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time) => set({ lastReadinessEnergy: energy, lastReadinessTime: time }),
       setWeightUnit: (unit) => set({ weightUnit: unit }),
+      setActiveSession: (session) => set({ activeSession: session }),
+      clearActiveSession: () => set({ activeSession: null }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -342,9 +370,12 @@ export const useAppStore = create<AppState>()(
         if (!('lastWeightPromptedAt' in persistedState)) {
           persistedState.lastWeightPromptedAt = null;
         }
+        if (!('activeSession' in persistedState)) {
+          persistedState.activeSession = null;
+        }
         return persistedState;
       },
-      version: 6,
+      version: 7,
     }
   )
 );
