@@ -866,8 +866,51 @@ export default function SessionScreen() {
   const elapsedMM = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
   const elapsedSS = String(elapsedSeconds % 60).padStart(2, '0');
 
+  // Mutable refs for background save (avoid stale closures in AppState listener)
+  const exerciseDataRef = useRef<ExerciseSetData[]>([]);
+  const exerciseNotesRef = useRef<string[]>([]);
+  const activeIndexRef = useRef<number>(0);
+  useEffect(() => { exerciseDataRef.current = exerciseData; }, [exerciseData]);
+  useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
+
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
+  useEffect(() => { activeIndexRef.current = activeIndex; }, [activeIndex]);
+
+  // Background save: persist state whenever app is backgrounded or goes inactive
+  useEffect(() => {
+    const saveSnapshot = () => {
+      const data = exerciseDataRef.current;
+      if (data.length === 0) return;
+      const notes = exerciseNotesRef.current;
+      const idx = activeIndexRef.current;
+      const completedSetsCount = data.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+      const totalSets = data.reduce((sum, ed) => sum + ed.sets.length, 0);
+      setActiveSession({
+        sessionType,
+        equipmentTier,
+        hasAches,
+        painRegion,
+        energy,
+        timeAvailable,
+        isTestWeek,
+        exerciseData: data,
+        exerciseNotes: notes,
+        activeIndex: idx,
+        savedAt: new Date().toISOString(),
+        completedSetsCount,
+        totalSets,
+        sessionName: getSessionLabel(sessionType),
+        elapsedSeconds: elapsedSecondsRef.current,
+      });
+    };
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'background' || state === 'inactive') saveSnapshot();
+    });
+    return () => { sub.remove(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const scrollViewRef = useRef<ScrollView>(null);
   const cardYPositions = useRef<Record<number, number>>({});
   const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
