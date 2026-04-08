@@ -1,0 +1,21 @@
+The middle train button is just black, and you can’t see the text,
+It should be green and we should be clearly be able to see the train text underneath. (Attach screenshot).
+On the homepage , should we really have the “full gym + 4 more” I know it’s referencing the equipment available that we’ve specified, but does it really need to be there? 
+
+I’ve entered a 30 min lower body session, it starts with a 2 min bike ride, but a 5 min “warm up” timer starts , this shouldn’t be necessary for a 2 min bike warm up.
+(Attached) ensure this is reflected throughout 
+
+On exercises like the attached , we shouldn’t really require users to fill in the time, if they’re being told to do 30 seconds , it should just be a case of marking it complete or not. It’s too much faffing for them to put in the exact seconds they did .
+I do think they shouldn’t be able to tick through when it’s on the default “0,0” numbers , for example on back squat I could tick and forget to put in the reps or weight, leaving it on 0,0. 
+Maybe it’s mandatory to edit the numbers to tick through to the next one, but if they couldnt do the exercise at all there should be an option to put this so they can still get to the next exercise .
+You need to also check that the feedback on the numbers are also directly having an input on the future sessions and future progression. 
+Happy for your own input and ideas here.
+
+Where lose weight is a goal, there should be conditioning exercises at the end of the session, replacing the accessory potentially.
+Ensure this is reflected throughout , eg the goals they’re choosing are having an input on the exercise.
+Users should be able to leave the session screen even if session isn’t complete , and it save the progress, then they are prompted to “resume session” until it’s completed.
+I tried to swap lunge exercise at the end of my lower body session, and it allowed a swap, but it didn’t offer an additional exercise to swap once more, we should always be allowing at least 2 swaps for every exercise.
+
+Once session is completed, they should be a pop up message encouraging them to rate / feedback, in order to best tailor their future sessions.
+Also on the too easy section, even if they don’t tick which were too easy, we should still see natural progression in the next session. 
+We should also add a “conditioning” section within the flex tab, allowing for conditioning-only exercise sessions, ranging from beginner upwards. Also there’s too much dead space on the flex tab, space the buttons out more so it fills the space .
