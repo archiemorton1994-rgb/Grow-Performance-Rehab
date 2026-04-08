@@ -876,6 +876,11 @@ export default function SessionScreen() {
       stored !== null &&
       stored.sessionType === sessionType &&
       stored.equipmentTier === equipmentTier &&
+      stored.hasAches === hasAches &&
+      (stored.painRegion ?? '') === (painRegion ?? '') &&
+      stored.energy === energy &&
+      stored.timeAvailable === timeAvailable &&
+      stored.isTestWeek === isTestWeek &&
       stored.exerciseData.length === exercises.length;
 
     if (canRestore && stored) {
@@ -923,12 +928,16 @@ export default function SessionScreen() {
     }
   }, [exerciseData, activeIndex]);
 
-  // Auto-save in-progress state whenever data changes (only if there's some progress)
+  // Auto-save in-progress state whenever data changes (sets, swaps, or notes)
   useEffect(() => {
     if (exerciseData.length === 0) return;
     const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
-    const hasAnyProgress = exerciseData.some(ed => ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0));
+    const hasAnyProgress =
+      exerciseData.some(ed =>
+        ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
+        ed.swapCount > 0
+      ) || exerciseNotes.some(n => n.length > 0);
     if (!hasAnyProgress) return;
     setActiveSession({
       sessionType,
@@ -1142,7 +1151,11 @@ export default function SessionScreen() {
   };
 
   const handleExit = () => {
-    const hasProgress = exerciseData.some(ed => ed.sets.some(s => s.completed));
+    const hasProgress =
+      exerciseData.some(ed =>
+        ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
+        ed.swapCount > 0
+      ) || exerciseNotes.some(n => n.length > 0);
     if (hasProgress) {
       setShowAbandonModal(true);
     } else {
