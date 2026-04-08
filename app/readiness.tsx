@@ -31,7 +31,12 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const params = useLocalSearchParams<{ sessionType: string; isTestWeek: string }>();
+  const params = useLocalSearchParams<{
+    sessionType: string;
+    isTestWeek: string;
+    energy?: string;
+    timeAvailable?: string;
+  }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
 
@@ -64,6 +69,22 @@ export default function ReadinessScreen() {
       router.replace({
         pathname: '/session',
         params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: tier },
+      });
+    } else if (sessionType === 'conditioning' && params.energy && params.timeAvailable) {
+      // Conditioning from the Flex tab: energy + duration already chosen by the
+      // level picker — skip the readiness flow and go straight to session.
+      const tier = getEffectiveTier(selectedEquipments);
+      router.replace({
+        pathname: '/session',
+        params: {
+          sessionType,
+          hasAches: 'false',
+          painRegion: '',
+          energy: params.energy,
+          timeAvailable: params.timeAvailable,
+          isTestWeek: 'false',
+          equipment: tier,
+        },
       });
     }
   }, []);

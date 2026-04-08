@@ -139,17 +139,15 @@ export default function FlexScreen() {
   const handleConditioningStart = (level: typeof CONDITIONING_LEVELS[number]) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    const equipment = getEffectiveTier();
+    // Route through readiness so equipment selection is respected; readiness
+    // detects conditioning + pre-set energy/timeAvailable and forwards immediately.
     router.push({
-      pathname: '/session',
+      pathname: '/readiness',
       params: {
         sessionType: 'conditioning',
-        hasAches: 'false',
-        painRegion: '',
+        isTestWeek: 'false',
         energy: level.energy,
         timeAvailable: level.timeAvailable,
-        isTestWeek: 'false',
-        equipment,
       },
     });
   };

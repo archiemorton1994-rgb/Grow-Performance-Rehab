@@ -1181,7 +1181,8 @@ export default function SessionScreen() {
           .filter((s) => s.completed && !s.skipped && s.weight > 0)
           .map((s) => s.weight);
         if (completedWeights.length > 0) {
-          sessionWeights[log.exerciseName] = Math.max(...completedWeights);
+          // Key by exerciseId (stable, unaffected by KB name relabeling)
+          sessionWeights[log.exerciseId] = Math.max(...completedWeights);
         }
       }
       if (Object.keys(sessionWeights).length > 0) {

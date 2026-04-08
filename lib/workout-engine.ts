@@ -102,7 +102,6 @@ function personalizeLoad(
   ormKg?: number,
   isMainLift?: boolean,
   completedCount: number = 0,
-  exerciseName?: string,
   lastLoggedWeights?: Record<string, number>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
@@ -143,16 +142,16 @@ function personalizeLoad(
   const combinedMult = Math.min(1.5, feedbackMult * autoMult);
 
   // ── Per-exercise progression: lastLoggedWeight + 2.5 kg per session ───────
-  // When a prior max weight is known for this exercise name, use it as the base
-  // and add a fixed 2.5 kg micro-increment. feedbackMult stacks multiplicatively
-  // so "too easy" (+7%) or thumb ratings compound with the baseline increment.
+  // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
+  // names still match the ID that was logged in the previous session.
+  // When a prior max weight is known, use lastKg + 2.5 × feedbackMult.
   // This provides deterministic, per-exercise overload independent of session count.
-  const lastKg = exerciseName ? (lastLoggedWeights?.[exerciseName] ?? 0) : 0;
+  const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
   if (lastKg > 0) {
     const progressedKg = roundTo2_5((lastKg + 2.5) * feedbackMult);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] ex=${exerciseName} lastKg=${lastKg} +2.5 × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} +2.5 × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
       );
     }
     return `${progressedKg} kg`;
@@ -332,8 +331,8 @@ function applyPersonalization(
   const isMainLift = ex.category === 'main';
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, ex.name, lastLoggedWeights),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, ex.name, lastLoggedWeights) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights) : ex.swapLoad,
   };
 }
 
@@ -439,20 +438,22 @@ export function generateWorkout(
     exercises.push(accEx);
   }
 
-  // ── 7. Finisher / Goal-Conditioning Block (45 and 60 min only) ───────────
-  if (timeAvailable !== '30') {
-    const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
-    if (hasConditioningGoal) {
-      // Replace single finisher with a 2-exercise conditioning circuit.
-      const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey);
-      if (__DEV__) {
-        console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness):', condBlock.map(e => e.name));
-      }
-      for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
-    } else {
-      const finisher = getFinisher(mainType, equipmentTier, finisherKey);
-      exercises.push(templateToExercise(finisher, finBadge));
+  // ── 7. Finisher / Goal-Conditioning Block ────────────────────────────────
+  // Conditioning goals (fat_loss/fitness): inject 2-exercise conditioning
+  // circuit at ALL session durations — including 30 min, where it fills the
+  // slot that would otherwise have no finisher, keeping total load appropriate.
+  // Other goals: standard single-exercise finisher at 45 and 60 min only
+  // (30-min sessions remain tight with 1 accessory + KPI lift, no finisher).
+  const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
+  if (hasConditioningGoal) {
+    const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey);
+    if (__DEV__) {
+      console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness):', condBlock.map(e => e.name));
     }
+    for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
+  } else if (timeAvailable !== '30') {
+    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
+    exercises.push(templateToExercise(finisher, finBadge));
   }
 
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
