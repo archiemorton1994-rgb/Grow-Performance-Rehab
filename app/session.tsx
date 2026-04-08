@@ -75,13 +75,14 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
 
 function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   if (sessionType === 'conditioning') return true;
-  // Matches: "2 min", "2min", "2m", "30s", "30 s"
-  return /\d+\s*(?:min\b|m\b)/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
+  // Only recognise "min" (e.g. "2 min", "5min") or seconds "30s" / "30 s".
+  // Do NOT match bare "m" — that collides with meters (e.g. "40m" Farmers Carry).
+  return /\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
 }
 
 function parseRepsToSeconds(repsStr: string): number {
-  // "X min" or "Xmin" or "Xm" — minutes
-  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*m(?:in\b|\b)/);
+  // "X min" or "Xmin" — minutes only (not bare "m")
+  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
   if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
   // "Xs" or "X s" — seconds
   const secMatch = repsStr.match(/(\d+)\s*s\b/);
