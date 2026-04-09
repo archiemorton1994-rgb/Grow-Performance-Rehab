@@ -5,7 +5,7 @@ import { WeightUnit } from '@/lib/store';
 
 const BRAND_GREEN = '#2f6b46';
 const BRAND_DARK = '#1e4a30';
-const CARD_WIDTH = 380;
+const CARD_WIDTH = 480;
 const CARD_HEIGHT = 480;
 
 export interface WorkoutShareCardData {

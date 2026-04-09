@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   AppState,
   AppStateStatus,
-  Share,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
@@ -1180,16 +1179,32 @@ export default function SessionScreen() {
         }));
 
     // Compute share card data BEFORE updating lastLoggedWeights so we can detect new PBs.
+    // Build all-time max weight per exercise from historical sessions (before this one)
+    const allTimeBestKg: Record<string, number> = {};
+    for (const session of completedSessions) {
+      for (const log of session.exerciseLogs) {
+        const max = Math.max(0, ...log.sets
+          .filter((s) => s.completed && !s.skipped && s.weight > 0)
+          .map((s) => s.weight));
+        if (max > 0) {
+          allTimeBestKg[log.exerciseId] = Math.max(allTimeBestKg[log.exerciseId] ?? 0, max);
+        }
+      }
+    }
+
     let bestNewPb: { exerciseName: string; weightKg: number } | null = null;
     let totalVolumeKg = 0;
     if (!isPrehabOrFlex && exerciseLogs.length > 0) {
       for (const log of exerciseLogs) {
-        const completedWeightedSets = log.sets.filter((s) => s.completed && !s.skipped && s.weight > 0);
-        const completedWeights = completedWeightedSets.map((s) => s.weight);
+        const completedWeights = log.sets
+          .filter((s) => s.completed && !s.skipped && s.weight > 0)
+          .map((s) => s.weight);
         if (completedWeights.length > 0) {
           const maxThisSession = Math.max(...completedWeights);
-          const prevBest = lastLoggedWeights[log.exerciseId] ?? 0;
+          const prevBest = allTimeBestKg[log.exerciseId] ?? 0;
+          // New PB: strictly greater than all-time historical best
           if (maxThisSession > prevBest) {
+            // Keep the exercise with the largest absolute new weight
             if (!bestNewPb || maxThisSession > bestNewPb.weightKg) {
               bestNewPb = { exerciseName: log.exerciseName, weightKg: maxThisSession };
             }
@@ -1326,21 +1341,18 @@ export default function SessionScreen() {
     setIsSharing(true);
     try {
       if (Platform.OS === 'web') {
-        const volDisplay = shareCardData.weightUnit === 'lbs'
-          ? `${Math.round(shareCardData.totalVolumeKg * 2.2046).toLocaleString()} lbs`
-          : `${Math.round(shareCardData.totalVolumeKg).toLocaleString()} kg`;
-        const durMin = Math.round(shareCardData.durationSeconds / 60);
-        let msg = `${shareCardData.sessionLabel} — Session Complete! 💪\n${shareCardData.totalSets} sets · ${volDisplay} moved · ${durMin} min`;
-        if (shareCardData.newPb) {
-          const pbDisplay = shareCardData.weightUnit === 'lbs'
-            ? `${Math.round(shareCardData.newPb.weightKg * 2.2046)} lbs`
-            : `${Math.round(shareCardData.newPb.weightKg)} kg`;
-          msg += `\n🏆 New PB — ${shareCardData.newPb.exerciseName} ${pbDisplay}`;
-        }
-        if (shareCardData.streakDays >= 2) msg += `\n🔥 ${shareCardData.streakDays}-day streak`;
-        msg += '\n\ngrowperformance.app';
-        await Share.share({ message: msg });
+        // On web: capture card to base64 PNG and trigger a browser file download
+        const base64 = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'base64' });
+        const dataUrl = `data:image/png;base64,${base64}`;
+        const dateStr = new Date().toISOString().split('T')[0];
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `grow-workout-${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       } else {
+        // On iOS/Android: capture card → tmpfile → native share sheet
         const uri = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'tmpfile' });
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
@@ -1402,7 +1414,7 @@ export default function SessionScreen() {
     >
       {/* Off-screen share card rendered for capture */}
       {shareCardData && (
-        <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
+        <View style={{ position: 'absolute', left: -9999, top: 0, pointerEvents: 'none' }}>
           <WorkoutShareCard ref={shareCardRef} {...shareCardData} />
         </View>
       )}
