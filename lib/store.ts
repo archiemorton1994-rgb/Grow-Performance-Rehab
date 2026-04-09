@@ -62,6 +62,7 @@ export interface SetLog {
 export interface InProgressSetData {
   sets: SetLog[];
   swapCount: 0 | 1 | 2;
+  activeSetIndex: number;
 }
 
 export interface ActiveSession {

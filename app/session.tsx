@@ -705,7 +705,11 @@ function ExerciseCard({
                   const activeSetIndex = setData.activeSetIndex ?? (
                     allDone ? setData.sets.length : setData.sets.findIndex(s => !s.completed)
                   );
-                  const completedSets = setData.sets.slice(0, activeSetIndex);
+                  // Use slice(0, activeSetIndex) but also verify each set is truly completed
+                  // — defensive for restored legacy data with irregular completion order
+                  const completedSets = setData.sets
+                    .slice(0, activeSetIndex)
+                    .filter(s => s.completed);
                   const prevSetWeight = activeSetIndex > 0
                     ? setData.sets[activeSetIndex - 1].weight
                     : previousSessionWeight;
