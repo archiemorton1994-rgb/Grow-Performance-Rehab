@@ -66,6 +66,7 @@ const CONGRATS_MESSAGES = [
 interface ExerciseSetData {
   sets: SetLog[];
   swapCount: 0 | 1 | 2;
+  activeSetIndex: number;
 }
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
@@ -364,11 +365,18 @@ function ActiveSetBlock({
     onChange({ ...data, weight: displayUnitToKg(displayVal, weightUnit) });
   };
 
-  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0
-    && data.weight > 0 && data.weight > previousBest;
+  // Effective weight: prefer local weightText (may be pre-filled before blur) over data.weight
+  const parsedWeightText = parseFloat(weightText) || 0;
+  const effectiveWeightKg = parsedWeightText > 0
+    ? displayUnitToKg(parsedWeightText, weightUnit)
+    : data.weight;
 
+  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0
+    && effectiveWeightKg > 0 && effectiveWeightKg > previousBest;
+
+  // For weighted: require both effective weight > 0 AND reps > 0. For band: reps > 0 only.
   const isZeroBlocked = !isTimeExercise && (
-    isBandExercise ? data.reps === 0 : (data.weight === 0 && data.reps === 0)
+    isBandExercise ? data.reps === 0 : (effectiveWeightKg === 0 || data.reps === 0)
   );
 
   const handleComplete = () => {
@@ -378,9 +386,8 @@ function ActiveSetBlock({
     }
     flashBg.value = 1;
     flashBg.value = withTiming(0, { duration: 600 });
-    const displayVal = parseFloat(weightText);
-    const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
-    onChange({ ...data, weight: w, completed: true });
+    // Use effectiveWeightKg (derived from local weightText or data.weight)
+    onChange({ ...data, weight: effectiveWeightKg, completed: true });
     onCompleted?.();
   };
 
@@ -695,9 +702,9 @@ function ExerciseCard({
 
                 {/* ── Set-by-set view ─────────────────────────────────────── */}
                 {(() => {
-                  const activeSetIndex = allDone
-                    ? setData.sets.length
-                    : setData.sets.findIndex(s => !s.completed);
+                  const activeSetIndex = setData.activeSetIndex ?? (
+                    allDone ? setData.sets.length : setData.sets.findIndex(s => !s.completed)
+                  );
                   const completedSets = setData.sets.slice(0, activeSetIndex);
                   const prevSetWeight = activeSetIndex > 0
                     ? setData.sets[activeSetIndex - 1].weight
@@ -1004,7 +1011,17 @@ export default function SessionScreen() {
     const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
     setElapsedSeconds(restoredElapsed);
     elapsedSecondsRef.current = restoredElapsed;
-    setExerciseData(stored.exerciseData as ExerciseSetData[]);
+    // Restore exerciseData, deriving activeSetIndex from sets if missing (old snapshots)
+    const restoredData: ExerciseSetData[] = (stored.exerciseData as ExerciseSetData[]).map((ed) => {
+      const activeSetIndex = ed.activeSetIndex !== undefined
+        ? ed.activeSetIndex
+        : (() => {
+          const firstUncompleted = ed.sets.findIndex(s => !s.completed);
+          return firstUncompleted === -1 ? ed.sets.length : firstUncompleted;
+        })();
+      return { ...ed, activeSetIndex };
+    });
+    setExerciseData(restoredData);
     setExerciseNotes(stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => ''));
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     return true;
@@ -1024,6 +1041,7 @@ export default function SessionScreen() {
           completed: false,
         })),
         swapCount: 0,
+        activeSetIndex: 0,
       })));
       setExerciseNotes(exercises.map(() => ''));
       setActiveIndex(0);
@@ -1104,6 +1122,9 @@ export default function SessionScreen() {
       const next = [...prev];
       const ex = { ...next[exerciseIndex], sets: [...next[exerciseIndex].sets] };
       ex.sets[setIndex] = updated;
+      // Recompute activeSetIndex: first uncompleted set, or sets.length if all done
+      const firstUncompleted = ex.sets.findIndex(s => !s.completed);
+      ex.activeSetIndex = firstUncompleted === -1 ? ex.sets.length : firstUncompleted;
       next[exerciseIndex] = ex;
       return next;
     });
@@ -1134,9 +1155,11 @@ export default function SessionScreen() {
       const next = [...prev];
       const ex = next[index];
       if (!ex) return prev;
+      const skippedSets = ex.sets.map(s => ({ ...s, weight: 0, reps: 0, completed: true, skipped: true }));
       next[index] = {
         ...ex,
-        sets: ex.sets.map(s => ({ ...s, weight: 0, reps: 0, completed: true, skipped: true })),
+        sets: skippedSets,
+        activeSetIndex: skippedSets.length,
       };
       return next;
     });
