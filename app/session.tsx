@@ -313,47 +313,50 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
   );
 }
 
-function SetRow({
+function ActiveSetBlock({
   setNum,
+  totalSets,
   data,
   onChange,
   weightGuide,
   isBandExercise,
   isTimeExercise,
-  disabled,
   previousBest,
-  previousWeight,
+  prevSetWeight,
   weightUnit = 'kg',
   onCompleted,
 }: {
   setNum: number;
+  totalSets: number;
   data: SetLog;
   onChange: (updated: SetLog) => void;
   weightGuide?: string;
   isBandExercise?: boolean;
   isTimeExercise?: boolean;
-  disabled?: boolean;
   previousBest?: number;
-  previousWeight?: number;
+  prevSetWeight?: number;
   weightUnit?: WeightUnit;
   onCompleted?: () => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const [weightText, setWeightText] = useState(() =>
-    data.weight > 0 ? String(kgToDisplayUnit(data.weight, weightUnit)) : ''
-  );
+  // Pre-fill weight from previous set if current set has no weight yet
+  const initialWeight = data.weight > 0
+    ? String(kgToDisplayUnit(data.weight, weightUnit))
+    : prevSetWeight && prevSetWeight > 0
+      ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
+      : '';
+
+  // Parent keys this component by setNum so it re-mounts on each new set,
+  // which resets weightText state automatically.
+  const [weightText, setWeightText] = useState(initialWeight);
 
   const flashBg = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.13)']),
-    borderRadius: 6,
+    backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']),
+    borderRadius: 14,
   }));
-
-  const handleWeightChange = (t: string) => {
-    setWeightText(t);
-  };
 
   const handleWeightBlur = () => {
     const displayVal = parseFloat(weightText) || 0;
@@ -361,127 +364,118 @@ function SetRow({
     onChange({ ...data, weight: displayUnitToKg(displayVal, weightUnit) });
   };
 
-  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0 && data.weight > previousBest;
-  const placeholder = previousWeight && previousWeight > 0 ? String(kgToDisplayUnit(previousWeight, weightUnit)) : '0';
-  // Weighted: block if both weight and reps are 0. Bodyweight/band: block if reps are 0.
-  const isZeroBlocked = !isTimeExercise && !data.completed && (
+  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0
+    && data.weight > 0 && data.weight > previousBest;
+
+  const isZeroBlocked = !isTimeExercise && (
     isBandExercise ? data.reps === 0 : (data.weight === 0 && data.reps === 0)
   );
 
-  const handleToggleComplete = (completing: boolean) => {
+  const handleComplete = () => {
+    if (isZeroBlocked) return;
     if (Platform.OS !== 'web') {
-      if (completing) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    if (completing) {
-      flashBg.value = 1;
-      flashBg.value = withTiming(0, { duration: 700 });
-    }
+    flashBg.value = 1;
+    flashBg.value = withTiming(0, { duration: 600 });
     const displayVal = parseFloat(weightText);
     const w = displayVal > 0 ? displayUnitToKg(displayVal, weightUnit) : data.weight;
-    onChange({ ...data, weight: w, completed: completing });
-    if (completing) onCompleted?.();
+    onChange({ ...data, weight: w, completed: true });
+    onCompleted?.();
   };
 
   if (isTimeExercise) {
     return (
-      <Animated.View style={flashStyle}>
+      <Animated.View style={[styles.activeSetBlock, flashStyle]}>
+        <Text style={styles.activeSetLabel}>Set {setNum} of {totalSets}</Text>
         {weightGuide && (
-          <View style={styles.weightGuideRow}>
+          <View style={styles.activeSetGuideRow}>
             <Ionicons name="information-circle-outline" size={12} color={C.primary} />
-            <Text style={styles.weightGuideText}>{weightGuide}</Text>
+            <Text style={styles.activeSetGuideText}>{weightGuide}</Text>
           </View>
         )}
-        <View style={styles.setRow}>
-          <Text style={styles.setLabel}>Set {setNum}</Text>
-          <Pressable
-            onPress={() => { if (!disabled) handleToggleComplete(!data.completed); }}
-            style={[styles.timeDoneBtn, data.completed && styles.timeDoneBtnDone]}
-            testID={`set-${setNum}-check`}
-          >
-            <Ionicons
-              name={data.completed ? 'checkmark-circle' : 'checkmark-circle-outline'}
-              size={16}
-              color={data.completed ? C.textInverse : C.primary}
-            />
-            <Text style={[styles.timeDoneBtnText, data.completed && styles.timeDoneBtnTextDone]}>
-              {data.completed ? 'Done!' : 'Mark done'}
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={handleComplete}
+          style={styles.completeSetBtn}
+          testID={`set-${setNum}-check`}
+        >
+          <Ionicons name="checkmark-circle" size={20} color={C.textInverse} />
+          <Text style={styles.completeSetBtnText}>Mark Set Done</Text>
+        </Pressable>
       </Animated.View>
     );
   }
 
   return (
-    <Animated.View style={flashStyle}>
-      {weightGuide && (
-        <View style={styles.weightGuideRow}>
-          <Ionicons name="information-circle-outline" size={12} color={C.primary} />
-          <Text style={styles.weightGuideText}>{weightGuide}</Text>
-        </View>
-      )}
-      <View style={styles.setRow}>
-        <Text style={styles.setLabel}>Set {setNum}</Text>
-        <View style={styles.setInputs}>
-          {!isBandExercise && (
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={[styles.setInput, disabled && styles.setInputDisabled]}
-                placeholder={placeholder}
-                placeholderTextColor={C.textTertiary}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                value={weightText}
-                onChangeText={handleWeightChange}
-                onBlur={handleWeightBlur}
-                editable={!disabled}
-                testID={`set-${setNum}-weight`}
-              />
-              <Text style={styles.inputUnit}>{weightUnit}</Text>
-            </View>
-          )}
-          <View style={styles.inputGroup}>
+    <Animated.View style={[styles.activeSetBlock, flashStyle]}>
+      <Text style={styles.activeSetLabel}>Set {setNum} of {totalSets}</Text>
+
+      <View style={styles.activeSetInputRow}>
+        {!isBandExercise && (
+          <View style={styles.activeInputGroup}>
             <TextInput
-              style={[styles.setInput, disabled && styles.setInputDisabled]}
+              style={styles.activeSetInput}
               placeholder="0"
               placeholderTextColor={C.textTertiary}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              value={data.reps > 0 ? String(data.reps) : ''}
-              onChangeText={(t) => {
-                const r = parseInt(t) || 0;
-                onChange({ ...data, reps: r });
-              }}
-              editable={!disabled}
-              testID={`set-${setNum}-reps`}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+              value={weightText}
+              onChangeText={setWeightText}
+              onBlur={handleWeightBlur}
+              testID={`set-${setNum}-weight`}
             />
-            <Text style={styles.inputUnit}>reps</Text>
+            <Text style={styles.activeInputUnit}>{weightUnit}</Text>
           </View>
+        )}
+        <View style={styles.activeInputGroup}>
+          <TextInput
+            style={styles.activeSetInput}
+            placeholder="0"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            value={data.reps > 0 ? String(data.reps) : ''}
+            onChangeText={(t) => {
+              const r = parseInt(t) || 0;
+              onChange({ ...data, reps: r });
+            }}
+            testID={`set-${setNum}-reps`}
+          />
+          <Text style={styles.activeInputUnit}>reps</Text>
         </View>
-        <Pressable
-          onPress={() => {
-            if (disabled || isZeroBlocked) return;
-            handleToggleComplete(!data.completed);
-          }}
-          style={[styles.setCheck, data.completed && styles.setCheckDone, (disabled || isZeroBlocked) && styles.setCheckDisabled]}
-          testID={`set-${setNum}-check`}
-        >
-          {data.completed && <Ionicons name="checkmark" size={20} color={C.textInverse} />}
-        </Pressable>
       </View>
-      {isZeroBlocked && (
-        <Text style={styles.zeroBlockHint}>{isBandExercise ? 'Enter reps first' : 'Enter weight and reps first'}</Text>
+
+      {weightGuide && (
+        <View style={styles.activeSetGuideRow}>
+          <Ionicons name="information-circle-outline" size={12} color={C.primary} />
+          <Text style={styles.activeSetGuideText}>{weightGuide}</Text>
+        </View>
       )}
+
       {isNewRecord && (
         <View style={styles.newRecordBadge}>
           <Ionicons name="star" size={10} color="#fff" />
           <Text style={styles.newRecordText}>New Record!</Text>
         </View>
       )}
+
+      {isZeroBlocked && (
+        <Text style={styles.zeroBlockHint}>
+          {isBandExercise ? 'Enter reps to complete' : 'Enter weight and reps to complete'}
+        </Text>
+      )}
+
+      <Pressable
+        onPress={handleComplete}
+        disabled={isZeroBlocked}
+        style={[styles.completeSetBtn, isZeroBlocked && styles.completeSetBtnDisabled]}
+        testID={`set-${setNum}-check`}
+      >
+        <Ionicons name="checkmark-circle" size={20} color={isZeroBlocked ? C.textTertiary : C.textInverse} />
+        <Text style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}>
+          Complete Set {setNum}
+        </Text>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -699,40 +693,80 @@ function ExerciseCard({
                   </View>
                 )}
 
-                {!isTimeExercise && (
-                  <View style={styles.setHeaderRow}>
-                    <Text style={styles.setHeaderItem}>Set</Text>
-                    <View style={styles.setHeaderInputs}>
-                      {!isBandExercise && (
-                        <Text style={styles.setHeaderItem}>{weightUnit}</Text>
+                {/* ── Set-by-set view ─────────────────────────────────────── */}
+                {(() => {
+                  const activeSetIndex = allDone
+                    ? setData.sets.length
+                    : setData.sets.findIndex(s => !s.completed);
+                  const completedSets = setData.sets.slice(0, activeSetIndex);
+                  const prevSetWeight = activeSetIndex > 0
+                    ? setData.sets[activeSetIndex - 1].weight
+                    : previousSessionWeight;
+
+                  return (
+                    <>
+                      {/* Completed sets chips */}
+                      {completedSets.length > 0 && (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.doneChipsScroll}
+                          contentContainerStyle={styles.doneChipsContent}
+                        >
+                          {completedSets.map((s, i) => {
+                            let chipLabel = '';
+                            if (isTimeExercise) {
+                              chipLabel = 'done';
+                            } else if (isBandExercise) {
+                              chipLabel = `${s.reps} reps`;
+                            } else {
+                              const w = kgToDisplayUnit(s.weight, weightUnit);
+                              chipLabel = `${w}${weightUnit} × ${s.reps}`;
+                            }
+                            return (
+                              <View key={i} style={styles.doneChip}>
+                                <Text style={styles.doneChipText}>S{i + 1} · {chipLabel}</Text>
+                                <Ionicons name="checkmark" size={10} color={C.primary} />
+                              </View>
+                            );
+                          })}
+                        </ScrollView>
                       )}
-                      <Text style={styles.setHeaderItem}>Reps</Text>
-                    </View>
-                    <Text style={styles.setHeaderItem}>Done</Text>
-                  </View>
-                )}
 
-                {setData.sets.map((s, si) => (
-                  <SetRow
-                    key={si}
-                    setNum={si + 1}
-                    data={s}
-                    onChange={(u) => onSetChange(si, u)}
-                    weightGuide={weightGuides[si]}
-                    isBandExercise={isBandExercise}
-                    isTimeExercise={isTimeExercise}
-                    previousBest={previousBest}
-                    previousWeight={previousSessionWeight}
-                    weightUnit={weightUnit}
-                    onCompleted={() => setTimerTrigger((n) => n + 1)}
-                  />
-                ))}
+                      {/* Active set block — keyed by set index so it re-mounts fresh */}
+                      {!allDone && activeSetIndex >= 0 && activeSetIndex < setData.sets.length && (
+                        <ActiveSetBlock
+                          key={activeSetIndex}
+                          setNum={activeSetIndex + 1}
+                          totalSets={setData.sets.length}
+                          data={setData.sets[activeSetIndex]}
+                          onChange={(u) => onSetChange(activeSetIndex, u)}
+                          weightGuide={weightGuides[activeSetIndex]}
+                          isBandExercise={isBandExercise}
+                          isTimeExercise={isTimeExercise}
+                          previousBest={previousBest}
+                          prevSetWeight={prevSetWeight}
+                          weightUnit={weightUnit}
+                          onCompleted={() => setTimerTrigger((n) => n + 1)}
+                        />
+                      )}
 
-                {!allDone && onSkipExercise && (
-                  <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
-                    <Text style={styles.skipExerciseLinkText}>Skip — couldn't do this exercise</Text>
-                  </Pressable>
-                )}
+                      {/* All sets done indicator */}
+                      {allDone && (
+                        <View style={styles.allSetsDone}>
+                          <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+                          <Text style={styles.allSetsDoneText}>All sets complete!</Text>
+                        </View>
+                      )}
+
+                      {!allDone && onSkipExercise && (
+                        <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
+                          <Text style={styles.skipExerciseLinkText}>Skip — couldn't do this exercise</Text>
+                        </Pressable>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <View style={styles.noteInputRow}>
                   <TextInput
@@ -2097,4 +2131,27 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   // Skip exercise link
   skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
   skipExerciseLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
+  // ── Set-by-set new UI ────────────────────────────────────────────────────
+  // Completed set chips strip
+  doneChipsScroll: { marginBottom: 12 },
+  doneChipsContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  doneChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
+  doneChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primaryDark },
+  // Active set block
+  activeSetBlock: { padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: C.primaryMuted, backgroundColor: C.primarySurface, gap: 10, marginBottom: 8 },
+  activeSetLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.8, textAlign: 'center' },
+  activeSetInputRow: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
+  activeInputGroup: { alignItems: 'center', gap: 4 },
+  activeSetInput: { width: 96, height: 64, borderRadius: 12, backgroundColor: C.surface, textAlign: 'center', fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, borderWidth: 2, borderColor: C.border },
+  activeInputUnit: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+  activeSetGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  activeSetGuideText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1, fontStyle: 'italic' as const },
+  // Complete Set button
+  completeSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, gap: 8 },
+  completeSetBtnDisabled: { backgroundColor: C.surfaceTertiary },
+  completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+  completeSetBtnTextDisabled: { color: C.textTertiary },
+  // All sets done row
+  allSetsDone: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, backgroundColor: C.primarySurface, borderRadius: 10 },
+  allSetsDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryDark },
 }); }
