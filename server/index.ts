@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { runMigrations } from "./db";
 import * as fs from "fs";
 import * as path from "path";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -253,6 +254,8 @@ function setupErrorHandler(app: express.Application) {
       })
     );
   }
+
+  await runMigrations();
 
   configureExpoAndLanding(app);
 
