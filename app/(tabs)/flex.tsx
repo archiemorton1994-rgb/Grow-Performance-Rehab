@@ -217,9 +217,10 @@ export default function FlexScreen() {
         <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
       </View>
 
-      {/* Nav card list — intrinsic height so the bottom card is never clipped.
-          overflow:hidden on the inner shell rounds the corners; the outer ring
-          supplies the border without constraining height. */}
+      {/* Nav card list — intrinsic height, no overflow:hidden anywhere.
+          The outer navGrid ring supplies the border. Corner rounding is applied
+          directly to the first/last row Pressables (navBtnFirst/navBtnLast),
+          which is the only approach that survives RN Web resize/reflow. */}
       <View style={styles.navGrid}>
         <View style={styles.navGridInner}>
           {ROWS.map((row, i) => (
