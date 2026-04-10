@@ -291,7 +291,7 @@ function StrengthLineChart({
   const range = maxW - minW || 1;
   const w = chartWidth;
   const h = LINE_CHART_HEIGHT;
-  const pad = 8;
+  const pad = 6;
 
   const points = data.map((d, i) => {
     const x = pad + (i / (data.length - 1)) * (w - pad * 2);
@@ -335,8 +335,8 @@ function StrengthLineChart({
                 />
               </G>
             ))}
-            <SvgText x={0} y={h - 1} fontSize={9} fill={C.textTertiary}>{formatWeight(minW, weightUnit)}</SvgText>
-            <SvgText x={w - 32} y={12} fontSize={9} fill={C.textTertiary}>{formatWeight(maxW, weightUnit)}</SvgText>
+            <SvgText x={4} y={h - 2} fontSize={9} fill={C.textTertiary} textAnchor="start">{formatWeight(minW, weightUnit)}</SvgText>
+            <SvgText x={w - 4} y={12} fontSize={9} fill={C.textTertiary} textAnchor="end">{formatWeight(maxW, weightUnit)}</SvgText>
           </Svg>
         </Pressable>
         {selectedPoint && selectedIdx !== null && (
@@ -407,6 +407,7 @@ function SessionHistoryList({
               style={({ pressed }) => [{
                 flexDirection: 'row' as const, alignItems: 'center' as const,
                 paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+                minHeight: 62,
                 opacity: pressed ? 0.8 : 1,
               }]}
             >

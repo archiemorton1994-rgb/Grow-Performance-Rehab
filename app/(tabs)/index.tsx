@@ -299,7 +299,7 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.firstCard}>
-              <Ionicons name="sparkles-outline" size={20} color={C.primary} />
+              <Ionicons name="sparkles-outline" size={22} color={C.primary} />
               <Text style={styles.firstCardText}>Complete your first session to start tracking progress</Text>
             </View>
           )}
@@ -366,11 +366,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     firstCard: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
-      backgroundColor: C.surface, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 14,
+      backgroundColor: C.surface, borderRadius: 16,
+      paddingHorizontal: 14, paddingVertical: 12,
       borderWidth: 1, borderColor: C.borderLight,
+      minHeight: 60,
     },
-    firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18 },
 
     resumeCard: {
       borderColor: '#f59e0b',
