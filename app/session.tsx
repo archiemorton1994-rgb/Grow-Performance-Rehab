@@ -838,7 +838,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, feedbackGivenAtCount } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, feedbackGivenAtCount, lastSessionPerformance } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -889,8 +889,8 @@ export default function SessionScreen() {
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, feedbackGivenAtCount]);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);

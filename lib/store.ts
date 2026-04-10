@@ -158,6 +158,16 @@ interface AppState {
    * thumbs/tooEasy signal) and apply a larger progressive overload step (+5 kg) as a result.
    */
   feedbackGivenAtCount: Record<string, number>;
+  /**
+   * Records how each exercise performed in the most recent session it appeared in.
+   * Set by `completeSession` based on actual set completion data, then updated
+   * by post-session thumbs/tooEasy feedback. The workout engine uses this as the
+   * primary signal for per-exercise progressive overload decisions:
+   *   'easy'   → +5 kg next session
+   *   'normal' → +2.5 kg next session (or +5 kg after a 3-session no-feedback streak)
+   *   'failed' → hold at same weight next session
+   */
+  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -220,6 +230,7 @@ export const useAppStore = create<AppState>()(
       reminderTime: '07:00',
       cycleStartOffset: 0,
       feedbackGivenAtCount: {},
+      lastSessionPerformance: {},
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -243,10 +254,29 @@ export const useAppStore = create<AppState>()(
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-        set((state) => ({
-          completedCount: state.completedCount + 1,
-          completedSessions: [{ ...session, id }, ...state.completedSessions],
-        }));
+        set((state) => {
+          // Derive per-exercise session performance from actual set completion data.
+          // This is the primary input for the workout engine's progressive overload
+          // decisions in the next session.
+          //   'failed'  — at least one set was not completed and not explicitly skipped
+          //   'normal'  — all sets were completed (or skipped) successfully
+          // Post-session feedback (thumbs/tooEasy) can upgrade 'normal' → 'easy'
+          // or downgrade 'normal' → 'failed' via setExerciseFeedback.
+          const newPerformance: Record<string, 'easy' | 'normal' | 'failed'> = {
+            ...state.lastSessionPerformance,
+          };
+          for (const log of session.exerciseLogs) {
+            if (!log.exerciseId) continue;
+            const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
+            newPerformance[log.exerciseId] = hadFailure ? 'failed' : 'normal';
+          }
+
+          return {
+            completedCount: state.completedCount + 1,
+            completedSessions: [{ ...session, id }, ...state.completedSessions],
+            lastSessionPerformance: newPerformance,
+          };
+        });
       },
 
       addOneRepMax: (orm) => {
@@ -270,6 +300,10 @@ export const useAppStore = create<AppState>()(
         } else if (thumbs === 'down') {
           newMult = parseFloat(Math.max(0.70, currentMult - 0.05).toFixed(3));
         }
+        // Thumbs feedback also updates lastSessionPerformance — this is the
+        // post-session override that adjusts what completeSession computed from
+        // raw set data (e.g. user completed all sets but found it easy = 'easy').
+        const performance = thumbs === 'up' ? 'easy' : thumbs === 'down' ? 'failed' : state.lastSessionPerformance[exerciseId];
         return {
           exerciseFeedback: {
             ...state.exerciseFeedback,
@@ -285,12 +319,17 @@ export const useAppStore = create<AppState>()(
             ...state.feedbackGivenAtCount,
             [exerciseId]: state.completedCount,
           },
+          lastSessionPerformance: {
+            ...state.lastSessionPerformance,
+            ...(performance ? { [exerciseId]: performance } : {}),
+          },
         };
       }),
 
       applyTooEasyAdjustment: (exerciseIds) => set((state) => {
         const updated = { ...state.exerciseFeedback };
         const updatedCounts = { ...state.feedbackGivenAtCount };
+        const updatedPerformance = { ...state.lastSessionPerformance };
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
@@ -300,8 +339,14 @@ export const useAppStore = create<AppState>()(
           };
           // Treat tooEasy selection as explicit feedback for streak tracking
           updatedCounts[id] = state.completedCount;
+          // Mark performance as 'easy' — user found this exercise manageable
+          updatedPerformance[id] = 'easy';
         }
-        return { exerciseFeedback: updated, feedbackGivenAtCount: updatedCounts };
+        return {
+          exerciseFeedback: updated,
+          feedbackGivenAtCount: updatedCounts,
+          lastSessionPerformance: updatedPerformance,
+        };
       }),
 
       getCurrentSessionType: () => {
@@ -437,6 +482,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!persistedState.feedbackGivenAtCount) {
           persistedState.feedbackGivenAtCount = {};
+        }
+        if (!persistedState.lastSessionPerformance) {
+          persistedState.lastSessionPerformance = {};
         }
         return persistedState;
       },

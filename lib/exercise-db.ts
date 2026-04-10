@@ -238,6 +238,92 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>> = {
   },
 };
 
+// ─── 2b. POWER GOAL MECHANICAL OVERRIDES ─────────────────────────────────────
+// For power-goal sessions the mechanical phase shifts from slow activation work
+// to dynamic, velocity-based pattern drills — priming the nervous system for
+// explosive force expression before the neuro block.
+
+const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = {
+  squat: {
+    bodyweight: [
+      { id: 'sq-pwr-mech-bw-1', name: 'Hip Circle (Fast Tempo)', sets: 2, reps: '10 each direction', cue: 'Stand on one foot, drive knee in full circles as fast as control allows — hip dynamic range at speed', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Banded Clamshell (fast)', cue: 'Standard clamshell but faster tempo — fire the glute quickly, not just activate it', suggestedLoad: 'Light band' },
+        comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, stay low, step side to side — glute activation without rotation demand', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
+      { id: 'sq-pwr-mech-bw-2', name: 'Lateral Bound (Stick Landing)', sets: 2, reps: '6 each side', cue: 'Push off outside foot, bound laterally, stick the single-leg landing — lower-body reactive control', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Dynamic Squat Pattern Primer', cue: 'Bodyweight squat, drive up onto toes at top — rehearse the jump pattern without leaving the floor', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Glute Bridge Pulse', cue: 'Small pulsing reps at top — feel the glutes fire, no impact', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'knee', 'ankle_achilles'] } },
+    ],
+    dumbbells: [
+      { id: 'sq-pwr-mech-db-1', name: 'Hip Circle (Fast Tempo)', sets: 2, reps: '10 each direction', cue: 'Stand on one foot, drive knee in full circles as fast as control allows — hip dynamic range at speed', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Banded Clamshell (fast)', cue: 'Standard clamshell, fast tempo — fire the glute quickly, not just activate', suggestedLoad: 'Light band' },
+        comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, step side to side — glute activation without rotation', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
+      { id: 'sq-pwr-mech-db-2', name: 'Goblet Squat Speed Primer', sets: 2, reps: '8 fast', cue: 'Light DB, squat to full depth, drive up as fast as possible — practice the aggressive concentric you will use in the main lift', suggestedLoad: '8–12 kg', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Sumo Squat Hold + Pulse', cue: 'Wide stance, hold bottom 5s then 5 fast pulses — mobility + speed in the same window', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Box Squat (light)', cue: 'Sit back to box, controlled — reduces knee flexion demand', suggestedLoad: '6–10 kg', triggerRegions: ['knee', 'hip_groin', 'ankle_achilles'] } },
+    ],
+    fullgym: [
+      { id: 'sq-pwr-mech-fg-1', name: 'Hip Circle (Fast Tempo)', sets: 2, reps: '10 each direction', cue: 'Stand on one foot, drive knee in full circles as fast as control allows — hip dynamic range at speed', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Banded Hip Circle (fast)', cue: 'Mini band around knees, fast hip circles — resistance makes the speed demand harder', suggestedLoad: 'Light band' },
+        comfortVariant: { name: 'Lateral Band Walk', cue: 'Band around ankles, step side to side — gentler activation without rotation', suggestedLoad: 'Light band', triggerRegions: ['hip_groin', 'knee'] } },
+      { id: 'sq-pwr-mech-fg-2', name: 'Speed Squat Ramp (bar only)', sets: 2, reps: '5 explosive', cue: 'Bar on back, squat to depth, drive up as fast as possible — zero load, maximum intent, rehearse explosive concentric', suggestedLoad: '20 kg', category: 'mechanical', targetRegions: ['hip_groin', 'knee'], videoId: '',
+        swapAlternative: { name: 'Belt Squat Speed Ramp', cue: 'Very light weight, drive up with max intent — removes spinal load, same explosive pattern', suggestedLoad: 'Light weight' },
+        comfortVariant: { name: 'Leg Press (light, fast)', cue: 'Light load, drive the sled fast — explosive intent without spinal load', suggestedLoad: '20–40 kg', triggerRegions: ['knee', 'hip_groin', 'lower_back'] } },
+    ],
+  },
+  bench: {
+    bodyweight: [
+      { id: 'bn-pwr-mech-bw-1', name: 'Band Pull-Apart (Fast Tempo)', sets: 2, reps: '20 fast', cue: 'Arms straight, pull fast and controlled, return without pause — scapular speed training, not just activation', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Prone Y-T-W Raise (fast)', cue: 'Face down, fast Y-T-W arm positions — posterior chain speed activation', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Doorway Chest Stretch', cue: 'Arm at 90°, lean through doorway — gentle shoulder opener, no resistance', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck', 'upper_back'] } },
+      { id: 'bn-pwr-mech-bw-2', name: 'Arm Speed Drill', sets: 2, reps: '10 fast cycles', cue: 'Swinging both arms forward and back with intent — shoulder tempo and rotation prep for explosive pressing', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['front_shoulder', 'rear_shoulder'], videoId: '',
+        swapAlternative: { name: 'Scapular Push-Up (fast)', cue: 'Arms straight, protract and retract fast — scapular speed training', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Shoulder Shrug + Retraction', cue: 'Stand tall, shrug then squeeze back — simple activation with no load', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck', 'upper_back', 'elbow_wrist'] } },
+    ],
+    dumbbells: [
+      { id: 'bn-pwr-mech-db-1', name: 'Band Pull-Apart (Fast Tempo)', sets: 2, reps: '20 fast', cue: 'Arms straight, pull fast and controlled, return without pause — scapular speed training', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Prone Y-T-W Raise (fast)', cue: 'Face down, fast Y-T-W positions — posterior chain speed activation', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Doorway Chest Stretch', cue: 'Arm at 90°, lean through — gentle shoulder opener with no loading', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck', 'upper_back', 'elbow_wrist'] } },
+      { id: 'bn-pwr-mech-db-2', name: 'Light DB Speed Press (seated)', sets: 2, reps: '8 explosive', cue: 'Seated, very light DBs, press with max intent — practice pressing speed before the main lift, arm speed only', suggestedLoad: '4–6 kg per hand', category: 'mechanical', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+        swapAlternative: { name: 'Band Punch-Out (fast)', cue: 'Band in front, explosive punch extensions — upper body speed training', suggestedLoad: 'Light band' },
+        comfortVariant: { name: 'Wall Slide', cue: 'Back flat on wall, arms slide overhead — shoulder health with zero joint stress', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist', 'neck'] } },
+    ],
+    fullgym: [
+      { id: 'bn-pwr-mech-fg-1', name: 'Band Pull-Apart (Fast Tempo)', sets: 2, reps: '20 fast', cue: 'Arms straight, pull fast and controlled, return without pause — scapular speed and rear delt activation', suggestedLoad: 'Light band', category: 'mechanical', targetRegions: ['rear_shoulder', 'upper_back'], videoId: '',
+        swapAlternative: { name: 'Cable Face Pull (light, fast)', cue: 'Light weight, pull to forehead fast — speed with scapular control', suggestedLoad: 'Light cable' },
+        comfortVariant: { name: 'Doorway Chest Stretch', cue: 'Arm at 90°, lean through — gentle shoulder opener, no resistance', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck', 'upper_back', 'elbow_wrist'] } },
+      { id: 'bn-pwr-mech-fg-2', name: 'Speed Bench Activation (bar only)', sets: 2, reps: '5 explosive', cue: 'Bar only, full bench press with max intent — practice explosive concentric, no hesitation at bottom', suggestedLoad: '20 kg', category: 'mechanical', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+        swapAlternative: { name: 'Face Pull (fast)', cue: 'Pull to forehead with speed and control — scapular and rotator cuff primer', suggestedLoad: 'Light cable' },
+        comfortVariant: { name: 'Prone Y Raise', cue: 'Face down, thumbs up, lift to Y — gentle posterior chain primer', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck', 'upper_back'] } },
+    ],
+  },
+  deadlift: {
+    bodyweight: [
+      { id: 'dl-pwr-mech-bw-1', name: 'Hip Hinge Speed Drill', sets: 2, reps: '10 fast', cue: 'Push hips back fast, feel hamstring load, snap hips forward hard — the same hip snap you will use in the pull', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Glute Bridge Hip Snap', cue: 'Standard bridge but drive through hips explosively at top — hip extension speed training', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Supine Glute Squeeze', cue: 'Lying flat, squeeze and hold 5s — gentle activation, no hip extension demand', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
+      { id: 'dl-pwr-mech-bw-2', name: 'Bird Dog (fast tempo)', sets: 2, reps: '8 each', cue: 'Opposite arm and leg, extend fast then retract fast — speed in posterior chain patterns', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['lower_back', 'core_ribs'], videoId: '',
+        swapAlternative: { name: 'Dead Bug (fast)', cue: 'Same pattern, extend fast toward floor, brace hard — anti-rotation strength at speed', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Cat-Cow', cue: 'Full spinal flexion and extension — gentle mobility, no bracing demand', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'core_ribs', 'upper_back'] } },
+    ],
+    dumbbells: [
+      { id: 'dl-pwr-mech-db-1', name: 'Hip Hinge Speed Drill', sets: 2, reps: '10 fast', cue: 'Push hips back fast, feel hamstring load, snap hips forward hard — the same hip snap you will use in the pull', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'DB Hip Thrust (activation, fast)', cue: 'Light DB on hips, snap hips to full extension quickly — prime the posterior chain at speed', suggestedLoad: '8–12 kg' },
+        comfortVariant: { name: 'Supine Glute Squeeze', cue: 'Lying flat, squeeze and hold 5s — zero hip extension, gentlest option', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
+      { id: 'dl-pwr-mech-db-2', name: 'KB Deadbug (controlled)', sets: 2, reps: '8 each', cue: 'Press KB to ceiling, extend opposite leg braced — low back flat, core anti-rotation prep', suggestedLoad: '4–8 kg', category: 'mechanical', targetRegions: ['core_ribs', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Dead Bug', cue: 'Same pattern without weight — lower opposite arm and leg, keep low back flat', suggestedLoad: 'Bodyweight' },
+        comfortVariant: { name: 'Cat-Cow', cue: 'Full spinal flexion and extension — gentle mobility, no bracing demand', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'core_ribs', 'upper_back'] } },
+    ],
+    fullgym: [
+      { id: 'dl-pwr-mech-fg-1', name: 'Hip Hinge Speed Drill', sets: 2, reps: '10 fast', cue: 'Push hips back fast, feel hamstring load, snap hips forward — the same explosive hip drive you will use in the lift', suggestedLoad: 'Bodyweight', category: 'mechanical', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+        swapAlternative: { name: 'Hip Thrust (light bar, fast)', cue: 'Light barbell, snap hips to full extension — posterior chain speed primer', suggestedLoad: '20–40 kg' },
+        comfortVariant: { name: 'Supine Glute Squeeze', cue: 'Lying flat, squeeze and hold 5s — zero hip extension demand', suggestedLoad: 'Bodyweight', triggerRegions: ['hip_groin', 'lower_back'] } },
+      { id: 'dl-pwr-mech-fg-2', name: 'Speed Good Morning (bar only)', sets: 2, reps: '5 fast', cue: 'Bar on back, hinge forward and drive back hard and fast — practice the same posterior chain snap pattern at speed', suggestedLoad: '20 kg', category: 'mechanical', targetRegions: ['lower_back', 'hip_groin'], videoId: '',
+        swapAlternative: { name: 'Banded Good Morning (fast)', cue: 'Band around neck, hinge and drive back fast — lighter load, same speed practice', suggestedLoad: 'Medium band' },
+        comfortVariant: { name: 'Cat-Cow Flow', cue: 'Full spinal flexion and extension — gentle lower back mobility', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'hip_groin'] } },
+    ],
+  },
+};
+
 // ─── 3b. POWER GOAL NEURO OVERRIDES ─────────────────────────────────────────
 // When the user selects the "power" goal the neuro block should use max-effort,
 // reactive movements that more specifically train rate-of-force development.
@@ -769,6 +855,16 @@ export function getPrep(sessionType: MainSessionType, tier: EquipmentTier): Exer
 
 export function getMechanical(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
   return MECHANICAL[sessionType][toInternalTier(tier)];
+}
+
+/**
+ * Returns power-goal-specific mechanical priming templates.
+ * These replace the standard slow-activation exercises with dynamic,
+ * velocity-based pattern drills (hip speed drills, lateral bounds, speed
+ * squats/good-mornings) to prime force expression before the neuro block.
+ */
+export function getPowerMechanical(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
+  return POWER_MECHANICAL[sessionType][toInternalTier(tier)];
 }
 
 export function getNeuro(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {

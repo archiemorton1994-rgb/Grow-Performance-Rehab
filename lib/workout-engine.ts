@@ -5,6 +5,7 @@ import {
   CARDIO_WARMUP,
   getPrep,
   getMechanical,
+  getPowerMechanical,
   getNeuro,
   getPowerNeuro,
   getMainLift,
@@ -106,7 +107,8 @@ function personalizeLoad(
   isMainLift?: boolean,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>
+  feedbackGivenAtCount?: Record<string, number>,
+  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -149,32 +151,35 @@ function personalizeLoad(
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
   //
-  //   thumbs-down  → hold weight (exercise was too hard / failed)
-  //   thumbs-up / tooEasy → +5 kg (strong performance, bigger jump)
-  //   no feedback for ≥3 sessions → +5 kg (consistent sessions = ready)
-  //   otherwise    → +2.5 kg (standard progressive overload step)
+  // Primary signal: lastSessionPerformance[exerciseId] — set by completeSession
+  // from actual set completion data, then optionally overridden by post-session
+  // thumbs/tooEasy feedback. This ensures progression is scoped to the most
+  // recent session, not a persistent state that keeps triggering jumps:
+  //
+  //   'failed'              → hold weight (incomplete sets / thumbs-down)
+  //   'easy'                → +5 kg (easy session or thumbs-up feedback)
+  //   'normal' + streak ≥3  → +5 kg (3+ consistent normal sessions = ready)
+  //   'normal' / undefined  → +2.5 kg (standard progressive overload)
   const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
   if (lastKg > 0) {
-    const exFeedback = exerciseId ? exerciseFeedback?.[exerciseId] : undefined;
-    if (exFeedback?.thumbs === 'down') {
-      // Failed / too hard last session — hold at same weight
+    const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
+    if (performance === 'failed') {
+      // Incomplete sets or thumbs-down — hold at same weight
       if (__DEV__) {
-        console.log(`[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (thumbs down)`);
+        console.log(`[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed)`);
       }
       return `${lastKg} kg`;
     }
-    const wasEasyOrGood = exFeedback?.tooEasy || exFeedback?.thumbs === 'up';
     // No-feedback streak: sessions since last explicit signal (thumbs or tooEasy).
-    // A streak of ≥3 means the user has been completing the exercise without complaint
-    // for multiple sessions — treat this the same as a positive signal (+5 kg jump).
+    // After ≥3 consecutive normal sessions with no complaint, treat as ready for
+    // a larger jump — conservative athlete who doesn't use the feedback system.
     const lastFeedbackAt = exerciseId ? (feedbackGivenAtCount?.[exerciseId] ?? 0) : 0;
     const noFeedbackStreak = completedCount - lastFeedbackAt;
-    const useAggressiveStep = wasEasyOrGood || noFeedbackStreak >= 3;
-    const step = useAggressiveStep ? 5 : 2.5;
+    const step = (performance === 'easy' || noFeedbackStreak >= 3) ? 5 : 2.5;
     const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} streak=${noFeedbackStreak} +${step} × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg (tooEasy=${exFeedback?.tooEasy} thumbs=${exFeedback?.thumbs})`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} streak=${noFeedbackStreak} +${step} × mult=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
       );
     }
     return `${progressedKg} kg`;
@@ -349,22 +354,23 @@ function applyPersonalization(
   ormKg?: number,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>
+  feedbackGivenAtCount?: Record<string, number>,
+  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
 
-  // Derive a progression note based on last session data so the session UI
-  // can inform the user how the suggested load was calculated.
+  // Derive a human-readable progression note from the same signals used in
+  // personalizeLoad, so ExerciseCard can explain the suggested load to the user.
   let progressionNote: string | undefined;
   const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
   if (lastKg > 0) {
-    const exFeedback = exerciseFeedback?.[ex.id];
+    const performance = ex.id ? lastSessionPerformance?.[ex.id] : undefined;
     const lastFeedbackAt = ex.id ? (feedbackGivenAtCount?.[ex.id] ?? 0) : 0;
     const noFeedbackStreak = completedCount - lastFeedbackAt;
-    if (exFeedback?.thumbs === 'down') {
+    if (performance === 'failed') {
       progressionNote = 'Load held — take your time with this weight';
-    } else if (exFeedback?.tooEasy || exFeedback?.thumbs === 'up') {
+    } else if (performance === 'easy') {
       progressionNote = 'Load increased — strong performance last session';
     } else if (noFeedbackStreak >= 3) {
       progressionNote = `Load bumped — ${noFeedbackStreak} consistent sessions, time to progress`;
@@ -375,8 +381,8 @@ function applyPersonalization(
 
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance) : ex.swapLoad,
     progressionNote,
   };
 }
@@ -390,10 +396,11 @@ export function generateWorkout(
   bestOrmKg?: number,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>
+  feedbackGivenAtCount?: Record<string, number>,
+  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, feedbackGivenAtCount);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -425,7 +432,12 @@ export function generateWorkout(
   for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
   // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
-  const mechanical = getMechanical(mainType, equipmentTier);
+  // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
+  // speed squats/bench/good-mornings) instead of slow activation work.
+  const hasPowerGoal = profile?.goals?.includes('power') ?? false;
+  const mechanical = (hasPowerGoal && !hasAches)
+    ? getPowerMechanical(mainType, equipmentTier)
+    : getMechanical(mainType, equipmentTier);
   if (timeAvailable === '60') {
     for (const m of mechanical) exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
   } else {
@@ -437,7 +449,6 @@ export function generateWorkout(
   // cleans, clap push-ups) that maximise rate-of-force development before the
   // KPI lift — not just extra sets of the generic explosive exercise.
   if (timeAvailable !== '30') {
-    const hasPowerGoal = profile?.goals?.includes('power') ?? false;
     const neuroTemplate = (hasPowerGoal && !hasAches)
       ? getPowerNeuro(mainType, equipmentTier)
       : getNeuro(mainType, equipmentTier);
@@ -534,7 +545,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -554,12 +565,13 @@ function generateConditioningWorkout(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>
+  feedbackGivenAtCount?: Record<string, number>,
+  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, feedbackGivenAtCount));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
