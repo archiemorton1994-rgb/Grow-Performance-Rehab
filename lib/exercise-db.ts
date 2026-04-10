@@ -913,43 +913,52 @@ export function getConditioningWorkout(tier: EquipmentTier, energy: 'easy' | 'no
 const GOAL_CONDITIONING_BLOCKS: Record<InternalTier, { easy: ExerciseTemplate[]; normal: ExerciseTemplate[]; hard: ExerciseTemplate[] }> = {
   bodyweight: {
     easy: [
-      { id: 'gcond-bw-e-1', name: 'Mountain Climbers', sets: 3, reps: '30s — 30s rest', cue: 'Hips level, drive knees to chest alternately — moderate controlled pace, breathe steadily', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-e-1', name: 'Mountain Climbers', sets: 3, reps: '30s — 30s rest', cue: 'Hips level, drive knees to chest alternately — moderate controlled pace, breathe steadily', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Step Touch + High Knee March', cue: 'Side step then march in place with high knees — same cardio effect, zero impact on wrists or shoulders', suggestedLoad: 'Bodyweight' } },
       { id: 'gcond-bw-e-2', name: 'Bodyweight Squat Pulse', sets: 3, reps: '20 pulses — 30s rest', cue: 'Stay at parallel, small pulsing reps — quad burn, keep chest tall', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'gcond-bw-n-1', name: 'Burpee', sets: 3, reps: '10 — 30s rest', cue: 'Jump back to plank, chest to floor, drive up and jump — full extension at top every rep', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-n-1', name: 'Burpee', sets: 3, reps: '10 — 30s rest', cue: 'Jump back to plank, chest to floor, drive up and jump — full extension at top every rep', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Squat Thrust (no jump)', cue: 'Step or jump back to plank, push-up optional, step or jump back in — full-body effort without the impact', suggestedLoad: 'Bodyweight' } },
       { id: 'gcond-bw-n-2', name: 'Jump Squat', sets: 3, reps: '10 — 30s rest', cue: 'Squat to parallel, explode upward — land soft through toes to heel, immediately back down', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     hard: [
-      { id: 'gcond-bw-h-1', name: 'Burpee', sets: 4, reps: '12 — 20s rest', cue: 'Full burpee — chest to floor, jump at top with arms overhead. Go as fast as you can maintain form', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-bw-h-1', name: 'Burpee', sets: 4, reps: '12 — 20s rest', cue: 'Full burpee — chest to floor, jump at top with arms overhead. Go as fast as you can maintain form', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Plank Climber + Jump Squat Circuit', cue: '10 plank climbers then 10 jump squats — same total-body intensity without the coordination demand of a full burpee', suggestedLoad: 'Bodyweight' } },
       { id: 'gcond-bw-h-2', name: 'Alternating Jump Lunge', sets: 4, reps: '10 each leg — 20s rest', cue: 'Lunge down, drive both legs and switch in the air — land in opposite lunge, absorb through the front heel', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
     ],
   },
   dumbbells: {
     easy: [
-      { id: 'gcond-db-e-1', name: 'KB / DB Swing', sets: 4, reps: '15 — 45s rest', cue: 'Hip hinge and snap, bell to chest height — squeeze glutes at top, let it fall back between legs under control', suggestedLoad: '12–16 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-e-1', name: 'KB / DB Swing', sets: 4, reps: '15 — 45s rest', cue: 'Hip hinge and snap, bell to chest height — squeeze glutes at top, let it fall back between legs under control', suggestedLoad: '12–16 kg', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Goblet Squat (continuous)', cue: 'DB or KB at chest, controlled tempo — lower-back friendly, same metabolic demand without the hinge pattern', suggestedLoad: '10–16 kg' } },
       { id: 'gcond-db-e-2', name: 'Goblet Squat (continuous)', sets: 3, reps: '15 — 30s rest', cue: 'Hold dumbbell or KB at chest, full depth — steady breathing rhythm, no resting at the top', suggestedLoad: '10–16 kg', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'gcond-db-n-1', name: 'KB / DB Swing', sets: 4, reps: '20 — 30s rest', cue: 'Explosive hip drive — pack the lats, bell floats to chest, hips lock at top. Power conditioning', suggestedLoad: '14–20 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-n-1', name: 'KB / DB Swing', sets: 4, reps: '20 — 30s rest', cue: 'Explosive hip drive — pack the lats, bell floats to chest, hips lock at top. Power conditioning', suggestedLoad: '14–20 kg', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'DB Romanian Deadlift + Jump', cue: '8 RDLs then 4 broad jumps — hip hinge power variation without the swing pattern', suggestedLoad: '12–18 kg per hand' } },
       { id: 'gcond-db-n-2', name: 'DB Thruster', sets: 4, reps: '10 — 30s rest', cue: 'Front rack, squat deep, drive up and press overhead in one motion — no pause between squat and press', suggestedLoad: '8–14 kg per hand', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     hard: [
-      { id: 'gcond-db-h-1', name: 'KB / DB Swing', sets: 5, reps: '20 — 20s rest', cue: 'Max power hip snap — challenge your swings with a heavier bell than usual. Track heart rate recovery', suggestedLoad: '16–24 kg', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-db-h-1', name: 'KB / DB Swing', sets: 5, reps: '20 — 20s rest', cue: 'Max power hip snap — challenge your swings with a heavier bell than usual. Track heart rate recovery', suggestedLoad: '16–24 kg', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'DB Power Clean', cue: '6 explosive power cleans from hang — lower swing volume, higher peak force — same rate-of-force demand', suggestedLoad: '14–20 kg per hand' } },
       { id: 'gcond-db-h-2', name: 'DB Thruster', sets: 5, reps: '12 — 20s rest', cue: 'Heavy front rack squat into press — this is the hardest variation, keep form locked throughout all reps', suggestedLoad: '10–16 kg per hand', category: 'finisher', targetRegions: [], videoId: '' },
     ],
   },
   fullgym: {
     easy: [
-      { id: 'gcond-fg-e-1', name: 'Rowing Machine', sets: 3, reps: '3 min steady — 60s rest', cue: 'Damper 4–5, legs then hips then arms in sequence — smooth stroke, aim for 24 spm and conversational pace', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-e-1', name: 'Rowing Machine', sets: 3, reps: '3 min steady — 60s rest', cue: 'Damper 4–5, legs then hips then arms in sequence — smooth stroke, aim for 24 spm and conversational pace', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Assault Bike (Moderate)', cue: 'Arms and legs together, 70% max effort — same low-intensity aerobic conditioning, no coordination required', suggestedLoad: 'Bike' } },
       { id: 'gcond-fg-e-2', name: 'Assault Bike (Moderate)', sets: 3, reps: '2 min steady — 60s rest', cue: 'Arms and legs together, 70% max effort — keep cadence consistent, this should feel hard but sustainable', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'gcond-fg-n-1', name: 'Rowing Intervals', sets: 5, reps: '30s hard / 30s easy', cue: 'Pull hard for 30s (aim 500m pace –5%), easy paddle for 30s recovery — repeat without stopping', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-n-1', name: 'Rowing Intervals', sets: 5, reps: '30s hard / 30s easy', cue: 'Pull hard for 30s (aim 500m pace –5%), easy paddle for 30s recovery — repeat without stopping', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Assault Bike Intervals', cue: '30s all-out bike sprint then 30s easy pedal — same interval structure, full-body cardio without the technique demand of rowing', suggestedLoad: 'Bike' } },
       { id: 'gcond-fg-n-2', name: 'Sled Push', sets: 4, reps: '20m — 45s rest', cue: 'Low position, drive through legs, arms extended — keep chest up and take short powerful steps', suggestedLoad: '50–70 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     hard: [
-      { id: 'gcond-fg-h-1', name: 'Assault Bike Sprints', sets: 6, reps: '20s all-out / 40s rest', cue: 'Maximum effort for 20s — both arms and legs, no pacing. Full recovery before the next sprint', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'gcond-fg-h-1', name: 'Assault Bike Sprints', sets: 6, reps: '20s all-out / 40s rest', cue: 'Maximum effort for 20s — both arms and legs, no pacing. Full recovery before the next sprint', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Rowing Sprints', cue: '200m max-effort row, 40s rest — same Tabata-style interval, high-power cardio without the bike', suggestedLoad: 'Rower' } },
       { id: 'gcond-fg-h-2', name: 'Sled Push', sets: 5, reps: '20m — 30s rest', cue: 'Heavy sled, explosive drive — minimal rest keeps heart rate elevated. Sprint back after each push', suggestedLoad: '70–100 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
     ],
   },
