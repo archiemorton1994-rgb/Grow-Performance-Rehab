@@ -552,12 +552,19 @@ export function generateWorkout(
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
   const seenNames = new Set<string>();
-  return kettlebelled.filter((ex) => {
+  const deduped = kettlebelled.filter((ex) => {
     const key = ex.name.toLowerCase().trim();
     if (seenNames.has(key)) return false;
     seenNames.add(key);
     return true;
   });
+
+  // Guarantee ordering: finisher always last, cooldown always after finisher.
+  // This is a stable sort — all non-finisher/non-cooldown exercises keep their
+  // relative order exactly as assembled above.
+  const catOrder = (cat: string) =>
+    cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0;
+  return deduped.sort((a, b) => catOrder(a.category) - catOrder(b.category));
 }
 
 function generateConditioningWorkout(
