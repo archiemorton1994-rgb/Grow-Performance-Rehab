@@ -150,6 +150,8 @@ interface AppState {
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
   reminderTime: string;
+  /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
+  cycleStartOffset: number;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -170,6 +172,7 @@ interface AppState {
   setReviewPromptShown: (shown: boolean) => void;
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
+  setCycleStartOffset: (offset: number) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -209,6 +212,7 @@ export const useAppStore = create<AppState>()(
       reviewPromptShown: false,
       reminderEnabled: false,
       reminderTime: '07:00',
+      cycleStartOffset: 0,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -228,6 +232,7 @@ export const useAppStore = create<AppState>()(
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
+      setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -284,8 +289,8 @@ export const useAppStore = create<AppState>()(
       }),
 
       getCurrentSessionType: () => {
-        const { completedCount } = get();
-        return SESSION_ORDER[completedCount % 3];
+        const { completedCount, cycleStartOffset } = get();
+        return SESSION_ORDER[(completedCount + cycleStartOffset) % 3];
       },
 
       isTestWeekDue: () => {
@@ -411,9 +416,12 @@ export const useAppStore = create<AppState>()(
         if (!('reminderTime' in persistedState)) {
           persistedState.reminderTime = '07:00';
         }
+        if (!('cycleStartOffset' in persistedState)) {
+          persistedState.cycleStartOffset = 0;
+        }
         return persistedState;
       },
-      version: 10,
+      version: 11,
     }
   )
 );

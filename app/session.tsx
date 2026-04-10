@@ -981,7 +981,7 @@ export default function SessionScreen() {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'background' || state === 'inactive') saveSnapshot();
     });
-    return () => { sub.remove(); };
+    return () => { sub.remove(); saveSnapshot(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

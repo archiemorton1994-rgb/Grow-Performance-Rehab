@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -99,6 +100,7 @@ export default function TrainScreen() {
     isTestWeekDue,
     testWeekFrequency,
     activeSession,
+    clearActiveSession,
   } = useAppStore();
 
   const equipmentTier = getEffectiveTier();
@@ -184,34 +186,48 @@ export default function TrainScreen() {
     });
   };
 
+  const showActiveSessionPrompt = (onDiscard: () => void) => {
+    Alert.alert(
+      'Session in progress',
+      'You have an unfinished session. Resume it or discard it to start a new one.',
+      [
+        { text: 'Resume', onPress: handleResume },
+        { text: 'Discard', style: 'destructive', onPress: () => { clearActiveSession(); onDiscard(); } },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
+    if (activeSession) {
+      showActiveSessionPrompt(() => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
+      });
+      return;
+    }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
   };
 
   const handleSelect = (sessionType: SessionType) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (sessionType === 'prehab') {
-      router.push({
-        pathname: '/readiness',
-        params: { sessionType, isTestWeek: 'false' },
-      });
-    } else if (sessionType === 'flexibility') {
-      router.push({
-        pathname: '/session',
-        params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier },
-      });
-    } else if (sessionType === 'conditioning') {
-      router.push({
-        pathname: '/readiness',
-        params: { sessionType, isTestWeek: 'false' },
-      });
-    } else {
-      router.push({
-        pathname: '/readiness',
-        params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' },
-      });
+    const navigate = () => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (sessionType === 'prehab') {
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+      } else if (sessionType === 'flexibility') {
+        router.push({ pathname: '/session', params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier } });
+      } else if (sessionType === 'conditioning') {
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+      } else {
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' } });
+      }
+    };
+    if (activeSession) {
+      showActiveSessionPrompt(navigate);
+      return;
     }
+    navigate();
   };
 
   const styles = useMemo(() => makeStyles(C), [C]);

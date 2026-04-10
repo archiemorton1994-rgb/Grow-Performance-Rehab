@@ -47,6 +47,7 @@ export default function HomeScreen() {
     userProfile,
     activeSession,
     clearActiveSession,
+    setCycleStartOffset,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -83,6 +84,16 @@ export default function HomeScreen() {
     router.push({
       pathname: '/readiness',
       params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false' },
+    });
+  };
+
+  const handleFirstSessionChoice = (type: 'squat' | 'bench' | 'deadlift') => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const offsets: Record<string, number> = { squat: 0, bench: 1, deadlift: 2 };
+    setCycleStartOffset(offsets[type]);
+    router.push({
+      pathname: '/readiness',
+      params: { sessionType: type, isTestWeek: 'false' },
     });
   };
 
@@ -175,6 +186,34 @@ export default function HomeScreen() {
             <Pressable onPress={handleDiscardActiveSession} style={styles.discardLink} testID="discard-active-session">
               <Text style={styles.discardLinkText}>Discard and start fresh</Text>
             </Pressable>
+          </Animated.View>
+        ) : completedCount === 0 ? (
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+            <Text style={styles.todayLabel}>Choose Your First Session</Text>
+            <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
+              Pick where to start — your program rotates automatically from here.
+            </Text>
+            {([
+              { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' as const, color: C.primary, bg: C.primaryMuted },
+              { type: 'bench' as const, label: 'Upper Body', sub: 'Chest · Shoulders · Triceps', icon: 'body-outline' as const, color: C.badgeVolumeText, bg: C.badgeVolume },
+              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', icon: 'barbell-outline' as const, color: '#7c3aed', bg: '#ede9fe' },
+            ] as const).map(({ type, label, sub, icon, color, bg }) => (
+              <Pressable
+                key={type}
+                onPress={() => handleFirstSessionChoice(type)}
+                style={({ pressed }) => [styles.firstChoiceRow, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                testID={`first-session-${type}`}
+              >
+                <View style={[styles.firstChoiceIcon, { backgroundColor: bg }]}>
+                  <Ionicons name={icon} size={22} color={color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
+                  <Text style={styles.firstChoiceSub}>{sub}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+              </Pressable>
+            ))}
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
@@ -355,5 +394,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10, paddingVertical: 5,
     },
     welcomePillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+
+    firstChoiceRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.borderLight,
+    },
+    firstChoiceIcon: {
+      width: 42, height: 42, borderRadius: 12,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+    firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
   });
 }
