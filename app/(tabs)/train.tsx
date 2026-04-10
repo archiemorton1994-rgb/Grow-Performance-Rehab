@@ -474,10 +474,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sessionCard: {
       width: '47%', backgroundColor: C.surface,
       borderRadius: 14, padding: 14,
+      minHeight: 106,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    sessionCardIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-    sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
+    sessionCardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     programDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },

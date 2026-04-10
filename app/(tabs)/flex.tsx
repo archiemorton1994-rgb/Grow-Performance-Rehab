@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -111,7 +112,7 @@ const CONDITIONING_LEVELS: Array<{
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const { completedSessions, getEffectiveTier } = useAppStore();
+  const { completedSessions } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
@@ -139,8 +140,6 @@ export default function FlexScreen() {
   const handleConditioningStart = (level: typeof CONDITIONING_LEVELS[number]) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    // Route through readiness so equipment selection is respected; readiness
-    // detects conditioning + pre-set energy/timeAvailable and forwards immediately.
     router.push({
       pathname: '/readiness',
       params: {
@@ -202,39 +201,51 @@ export default function FlexScreen() {
   const activeInfo = activeModal && activeModal !== 'conditioning' ? SESSION_INFO[activeModal] : null;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.rootContent,
+        {
+          paddingTop: insets.top + webTopInset,
+          paddingBottom: insets.bottom + webBottomInset + 24,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={[styles.header, { paddingBottom: 8 }]}>
         <Text style={styles.title}>Rest & Restore</Text>
         <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
       </View>
 
-      {/* Outer border ring — flex:1 fills remaining height without overflow:hidden
-          so that child touch areas are never clipped by the container bounds. */}
-      <View style={[styles.navGrid, { marginBottom: 24 + webBottomInset }]}>
-        {/* Inner clip — overflow:hidden rounds the top/bottom of the card list.
-            It sits inside the flex:1 outer shell so it can grow to full height. */}
+      {/* Nav card list — intrinsic height so the bottom card is never clipped.
+          overflow:hidden on the inner shell rounds the corners; the outer ring
+          supplies the border without constraining height. */}
+      <View style={styles.navGrid}>
         <View style={styles.navGridInner}>
           {ROWS.map((row, i) => (
-            <Animated.View key={row.key} entering={FadeInDown.delay(i * 60).duration(380)} style={styles.navBtnWrap}>
-              <Pressable
-                onPress={() => openModal(row.key)}
-                style={({ pressed }) => [
-                  styles.navBtn,
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                ]}
-                testID={`flex-row-${row.key}`}
-              >
-                <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                  <Ionicons name={row.icon} size={22} color={row.iconColor} />
-                </View>
-                <View style={styles.navBtnText}>
-                  <Text style={styles.navLabel}>{row.title}</Text>
-                  <Text style={styles.navSub}>{row.subtitle}</Text>
-                  <Text style={styles.navRecency}>{row.recency}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-              </Pressable>
-            </Animated.View>
+            <React.Fragment key={row.key}>
+              {i > 0 && <View style={styles.navDivider} />}
+              <Animated.View entering={FadeInDown.delay(i * 60).duration(380)}>
+                <Pressable
+                  onPress={() => openModal(row.key)}
+                  style={({ pressed }) => [
+                    styles.navBtn,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                  ]}
+                  testID={`flex-row-${row.key}`}
+                >
+                  <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
+                    <Ionicons name={row.icon} size={22} color={row.iconColor} />
+                  </View>
+                  <View style={styles.navBtnText}>
+                    <Text style={styles.navLabel}>{row.title}</Text>
+                    <Text style={styles.navSub}>{row.subtitle}</Text>
+                    <Text style={styles.navRecency}>{row.recency}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+                </Pressable>
+              </Animated.View>
+            </React.Fragment>
           ))}
         </View>
       </View>
@@ -345,13 +356,14 @@ export default function FlexScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
+    rootContent: { flexGrow: 1 },
 
     header: {
       paddingHorizontal: 20,
@@ -363,29 +375,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     navGrid: {
       marginHorizontal: 16,
       marginTop: 20,
-      flex: 1,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     navGridInner: {
-      flex: 1,
       borderRadius: 17,
       overflow: 'hidden',
       backgroundColor: C.surface,
     },
-    navBtnWrap: {
-      flex: 1,
-    },
+    navDivider: { height: 1, backgroundColor: C.borderLight, marginHorizontal: 16 },
     navBtn: {
-      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingVertical: 16,
+      minHeight: 82,
       gap: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: C.borderLight,
     },
     navIcon: {
       width: 44,
@@ -393,6 +399,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 13,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
     navBtnText: { flex: 1 },
     navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
