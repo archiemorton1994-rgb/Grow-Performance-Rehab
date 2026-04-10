@@ -38,6 +38,8 @@ export interface Exercise {
   swap2Cue?: string;
   swap2Load?: string;
   isDumbbellExercise?: boolean;
+  /** Surface a contextual note in the session UI when load was derived from last session data. */
+  progressionNote?: string;
 }
 
 interface ReadinessCheck {
@@ -144,11 +146,19 @@ function personalizeLoad(
   // ── Per-exercise progression: lastLoggedWeight + step per session ────────
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
-  // Step: +5 kg when the exercise was marked "too easy" or given thumbs-up
-  // (indicating the user handled the weight comfortably); +2.5 kg otherwise.
+  //   thumbs-down  → hold weight (no increase — exercise was too hard / failed)
+  //   thumbs-up / tooEasy → +5 kg (user clearly handled the weight well)
+  //   no feedback  → +2.5 kg (standard progressive overload step)
   const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
   if (lastKg > 0) {
     const exFeedback = exerciseId ? exerciseFeedback?.[exerciseId] : undefined;
+    if (exFeedback?.thumbs === 'down') {
+      // Failed / too hard last session — hold at same weight
+      if (__DEV__) {
+        console.log(`[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (thumbs down)`);
+      }
+      return `${lastKg} kg`;
+    }
     const wasEasyOrGood = exFeedback?.tooEasy || exFeedback?.thumbs === 'up';
     const step = wasEasyOrGood ? 5 : 2.5;
     const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
@@ -174,7 +184,7 @@ function personalizeLoad(
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
     const goalPct: Record<string, number> = {
-      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50, power: 0.80,
+      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50, power: 0.90,
     };
     const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
     const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.70), 0) / activeGoals.length;
@@ -266,7 +276,7 @@ function applyComfortOrBadge(
  */
 function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; accSetsDelta: number } {
   const mainDelta: Record<FitnessGoal, number> = { strength: 1, muscle: 0, fat_loss: 0, fitness: 0, rehab: -1, power: 1 };
-  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1, power: -1 };
+  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1, power: 0 };
   const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
   const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
   const avgAcc  = active.reduce((s, g) => s + (accDelta[g]  ?? 0), 0) / active.length;
@@ -332,10 +342,27 @@ function applyPersonalization(
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
+
+  // Derive a progression note based on last session data so the session UI
+  // can inform the user how the suggested load was calculated.
+  let progressionNote: string | undefined;
+  const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
+  if (lastKg > 0) {
+    const exFeedback = exerciseFeedback?.[ex.id];
+    if (exFeedback?.thumbs === 'down') {
+      progressionNote = 'Load held — take your time with this weight';
+    } else if (exFeedback?.tooEasy || exFeedback?.thumbs === 'up') {
+      progressionNote = 'Load increased — strong performance last session';
+    } else {
+      progressionNote = 'Load adjusted from your last session';
+    }
+  }
+
   return {
     ...ex,
     suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights),
     swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights) : ex.swapLoad,
+    progressionNote,
   };
 }
 
@@ -390,9 +417,16 @@ export function generateWorkout(
   }
 
   // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
+  // Power goal athletes perform additional plyometric sets (5 instead of 3)
+  // to maximise the CNS activation window before the KPI lift.
   if (timeAvailable !== '30') {
     const neuroTemplate = getNeuro(mainType, equipmentTier);
-    exercises.push(applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier));
+    const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
+    const hasPowerGoal = profile?.goals?.includes('power') ?? false;
+    if (hasPowerGoal && !hasAches) {
+      neuroEx.sets = Math.max(neuroEx.sets, 5);
+    }
+    exercises.push(neuroEx);
   }
 
   // ── 5. KPI Lift ──────────────────────────────────────────────────────────

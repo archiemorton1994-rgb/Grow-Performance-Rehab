@@ -663,6 +663,12 @@ function ExerciseCard({
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
+                {exercise.progressionNote && (
+                  <View style={styles.progressionNoteRow}>
+                    <Ionicons name="trending-up-outline" size={11} color={C.primary} />
+                    <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
+                  </View>
+                )}
               </View>
               <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.textTertiary} style={styles.chevron} />
             </Pressable>
@@ -2001,6 +2007,8 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
   loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
   dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, marginTop: 2, fontStyle: 'italic' as const },
+  progressionNoteRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 3 },
+  progressionNoteText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
   chevron: { marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surfaceTertiary },
