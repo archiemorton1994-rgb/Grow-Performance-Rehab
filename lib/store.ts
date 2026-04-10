@@ -152,6 +152,12 @@ interface AppState {
   reminderTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
+  /**
+   * Records the `completedCount` value at the point feedback was last given for each exercise.
+   * Used by the workout engine to detect a "no-feedback streak" (≥3 sessions without any
+   * thumbs/tooEasy signal) and apply a larger progressive overload step (+5 kg) as a result.
+   */
+  feedbackGivenAtCount: Record<string, number>;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -213,6 +219,7 @@ export const useAppStore = create<AppState>()(
       reminderEnabled: false,
       reminderTime: '07:00',
       cycleStartOffset: 0,
+      feedbackGivenAtCount: {},
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -272,11 +279,18 @@ export const useAppStore = create<AppState>()(
               multiplier: newMult,
             },
           },
+          // Record the session count when feedback was given so the engine can
+          // detect exercises with ≥3 consecutive sessions without any signal.
+          feedbackGivenAtCount: {
+            ...state.feedbackGivenAtCount,
+            [exerciseId]: state.completedCount,
+          },
         };
       }),
 
       applyTooEasyAdjustment: (exerciseIds) => set((state) => {
         const updated = { ...state.exerciseFeedback };
+        const updatedCounts = { ...state.feedbackGivenAtCount };
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
@@ -284,8 +298,10 @@ export const useAppStore = create<AppState>()(
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
+          // Treat tooEasy selection as explicit feedback for streak tracking
+          updatedCounts[id] = state.completedCount;
         }
-        return { exerciseFeedback: updated };
+        return { exerciseFeedback: updated, feedbackGivenAtCount: updatedCounts };
       }),
 
       getCurrentSessionType: () => {
@@ -419,9 +435,12 @@ export const useAppStore = create<AppState>()(
         if (!('cycleStartOffset' in persistedState)) {
           persistedState.cycleStartOffset = 0;
         }
+        if (!persistedState.feedbackGivenAtCount) {
+          persistedState.feedbackGivenAtCount = {};
+        }
         return persistedState;
       },
-      version: 11,
+      version: 12,
     }
   )
 );

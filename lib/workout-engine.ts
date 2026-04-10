@@ -6,6 +6,7 @@ import {
   getPrep,
   getMechanical,
   getNeuro,
+  getPowerNeuro,
   getMainLift,
   getAccessories,
   getPrehab,
@@ -104,7 +105,8 @@ function personalizeLoad(
   ormKg?: number,
   isMainLift?: boolean,
   completedCount: number = 0,
-  lastLoggedWeights?: Record<string, number>
+  lastLoggedWeights?: Record<string, number>,
+  feedbackGivenAtCount?: Record<string, number>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -146,9 +148,11 @@ function personalizeLoad(
   // ── Per-exercise progression: lastLoggedWeight + step per session ────────
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
-  //   thumbs-down  → hold weight (no increase — exercise was too hard / failed)
-  //   thumbs-up / tooEasy → +5 kg (user clearly handled the weight well)
-  //   no feedback  → +2.5 kg (standard progressive overload step)
+  //
+  //   thumbs-down  → hold weight (exercise was too hard / failed)
+  //   thumbs-up / tooEasy → +5 kg (strong performance, bigger jump)
+  //   no feedback for ≥3 sessions → +5 kg (consistent sessions = ready)
+  //   otherwise    → +2.5 kg (standard progressive overload step)
   const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
   if (lastKg > 0) {
     const exFeedback = exerciseId ? exerciseFeedback?.[exerciseId] : undefined;
@@ -160,11 +164,17 @@ function personalizeLoad(
       return `${lastKg} kg`;
     }
     const wasEasyOrGood = exFeedback?.tooEasy || exFeedback?.thumbs === 'up';
-    const step = wasEasyOrGood ? 5 : 2.5;
+    // No-feedback streak: sessions since last explicit signal (thumbs or tooEasy).
+    // A streak of ≥3 means the user has been completing the exercise without complaint
+    // for multiple sessions — treat this the same as a positive signal (+5 kg jump).
+    const lastFeedbackAt = exerciseId ? (feedbackGivenAtCount?.[exerciseId] ?? 0) : 0;
+    const noFeedbackStreak = completedCount - lastFeedbackAt;
+    const useAggressiveStep = wasEasyOrGood || noFeedbackStreak >= 3;
+    const step = useAggressiveStep ? 5 : 2.5;
     const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} +${step} × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg (tooEasy=${exFeedback?.tooEasy} thumbs=${exFeedback?.thumbs})`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} streak=${noFeedbackStreak} +${step} × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg (tooEasy=${exFeedback?.tooEasy} thumbs=${exFeedback?.thumbs})`
       );
     }
     return `${progressedKg} kg`;
@@ -338,7 +348,8 @@ function applyPersonalization(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
   completedCount: number = 0,
-  lastLoggedWeights?: Record<string, number>
+  lastLoggedWeights?: Record<string, number>,
+  feedbackGivenAtCount?: Record<string, number>
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
@@ -349,10 +360,14 @@ function applyPersonalization(
   const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
   if (lastKg > 0) {
     const exFeedback = exerciseFeedback?.[ex.id];
+    const lastFeedbackAt = ex.id ? (feedbackGivenAtCount?.[ex.id] ?? 0) : 0;
+    const noFeedbackStreak = completedCount - lastFeedbackAt;
     if (exFeedback?.thumbs === 'down') {
       progressionNote = 'Load held — take your time with this weight';
     } else if (exFeedback?.tooEasy || exFeedback?.thumbs === 'up') {
       progressionNote = 'Load increased — strong performance last session';
+    } else if (noFeedbackStreak >= 3) {
+      progressionNote = `Load bumped — ${noFeedbackStreak} consistent sessions, time to progress`;
     } else {
       progressionNote = 'Load adjusted from your last session';
     }
@@ -360,8 +375,8 @@ function applyPersonalization(
 
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount) : ex.swapLoad,
     progressionNote,
   };
 }
@@ -374,10 +389,11 @@ export function generateWorkout(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   bestOrmKg?: number,
   completedCount: number = 0,
-  lastLoggedWeights?: Record<string, number>
+  lastLoggedWeights?: Record<string, number>,
+  feedbackGivenAtCount?: Record<string, number>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, feedbackGivenAtCount);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -417,12 +433,16 @@ export function generateWorkout(
   }
 
   // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
-  // Power goal athletes perform additional plyometric sets (5 instead of 3)
-  // to maximise the CNS activation window before the KPI lift.
+  // Power goal: use goal-specific plyometric templates (depth jumps, power
+  // cleans, clap push-ups) that maximise rate-of-force development before the
+  // KPI lift — not just extra sets of the generic explosive exercise.
   if (timeAvailable !== '30') {
-    const neuroTemplate = getNeuro(mainType, equipmentTier);
-    const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
     const hasPowerGoal = profile?.goals?.includes('power') ?? false;
+    const neuroTemplate = (hasPowerGoal && !hasAches)
+      ? getPowerNeuro(mainType, equipmentTier)
+      : getNeuro(mainType, equipmentTier);
+    const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
+    // Power goal: always perform 5 sets in the neuro block.
     if (hasPowerGoal && !hasAches) {
       neuroEx.sets = Math.max(neuroEx.sets, 5);
     }
@@ -514,7 +534,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -533,12 +553,13 @@ function generateConditioningWorkout(
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   completedCount: number = 0,
-  lastLoggedWeights?: Record<string, number>
+  lastLoggedWeights?: Record<string, number>,
+  feedbackGivenAtCount?: Record<string, number>
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, feedbackGivenAtCount));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 

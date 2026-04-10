@@ -238,6 +238,66 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>> = {
   },
 };
 
+// ─── 3b. POWER GOAL NEURO OVERRIDES ─────────────────────────────────────────
+// When the user selects the "power" goal the neuro block should use max-effort,
+// reactive movements that more specifically train rate-of-force development.
+// These replace the standard NEURO entries and are always 5 sets (engine sets
+// this via hasPowerGoal logic in generateWorkout).
+
+const POWER_NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>> = {
+  squat: {
+    bodyweight: {
+      id: 'sq-pwr-neuro-bw', name: 'Depth Drop to Broad Jump', sets: 5, reps: '3 max-effort', cue: 'Step off step, absorb landing, immediately explode forward — minimize ground contact time', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Squat Jump (Max Effort)', cue: 'Dip fast, explode with max intent — aim for max height every rep', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Step-Over High Knee March', cue: 'Exaggerated marching, drive knee up with intention — no impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles', 'hip_groin'] },
+    },
+    dumbbells: {
+      id: 'sq-pwr-neuro-db', name: 'Loaded Jump Squat', sets: 5, reps: '3 powerful', cue: 'Light DBs at sides, full squat, explode to triple extension — land softly and reset', suggestedLoad: '5–10 kg per hand', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Squat Jump (Max Effort)', cue: 'Bodyweight, max height every rep — same explosive stimulus', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Broad Jump', cue: 'Horizontal jump, land in athletic position, walk back — lower impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] },
+    },
+    fullgym: {
+      id: 'sq-pwr-neuro-fg', name: 'Depth Jump', sets: 5, reps: '3 reactive', cue: 'Step off box (30–40 cm), touch ground with both feet, spring up immediately — zero pause on landing', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['knee', 'hip_groin'], videoId: '',
+      swapAlternative: { name: 'Box Jump (Step-Down)', cue: 'Jump to box, step down — reset each rep, full intent', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Squat Jump', cue: 'Bodyweight, full depth, land soft — no box needed', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles'] },
+    },
+  },
+  bench: {
+    bodyweight: {
+      id: 'bn-pwr-neuro-bw', name: 'Clap Push-Up', sets: 5, reps: '3 explosive', cue: 'Push with max force, clap at peak height, land with soft elbows — reset fully between reps', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+      swapAlternative: { name: 'Explosive Push-Up', cue: 'Push hard enough to leave floor — land with bent elbows, full intent', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Band Punch-Out', cue: 'Band in front, explosive punch extensions — 10 fast reps', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
+    },
+    dumbbells: {
+      id: 'bn-pwr-neuro-db', name: 'Clap Push-Up', sets: 5, reps: '3 explosive', cue: 'Push with max force, clap at peak height, land with soft elbows — reset fully between reps', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['front_shoulder', 'elbow_wrist'], videoId: '',
+      swapAlternative: { name: 'Explosive Push-Up', cue: 'Push hard enough to leave floor — land with bent elbows, full intent', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Band Punch-Out', cue: 'Band in front, explosive punch extensions — 10 fast reps', suggestedLoad: 'Light band', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
+    },
+    fullgym: {
+      id: 'bn-pwr-neuro-fg', name: 'Landmine Push Press', sets: 5, reps: '3 explosive per arm', cue: 'Slight dip, explosive hip extension drives the bar up — finish with full lockout and scapular elevation', suggestedLoad: '20–35 kg', category: 'neuro', targetRegions: ['front_shoulder'], videoId: '',
+      swapAlternative: { name: 'Med Ball Chest Pass (Wall)', cue: 'Press and release explosively, catch and reload — full intent', suggestedLoad: '4–6 kg ball' },
+      comfortVariant: { name: 'Explosive Push-Up', cue: 'Push hard enough to leave floor, land soft — no equipment needed', suggestedLoad: 'Bodyweight', triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist'] },
+    },
+  },
+  deadlift: {
+    bodyweight: {
+      id: 'dl-pwr-neuro-bw', name: 'Standing Long Jump', sets: 5, reps: '3 max-distance', cue: 'Dip into hinge, swing arms, explode forward with max horizontal power — land in athletic stance and hold', suggestedLoad: 'Bodyweight', category: 'neuro', targetRegions: ['hip_groin', 'knee'], videoId: '',
+      swapAlternative: { name: 'Broad Jump', cue: 'Hinge back, swing arms, explode forward — land in athletic hinge', suggestedLoad: 'Bodyweight' },
+      comfortVariant: { name: 'Standing Long Step', cue: 'Controlled split-stance hinge — slower, focus on hip drive, no impact', suggestedLoad: 'Bodyweight', triggerRegions: ['knee', 'ankle_achilles', 'hip_groin'] },
+    },
+    dumbbells: {
+      id: 'dl-pwr-neuro-db', name: 'DB Power Clean', sets: 5, reps: '3 explosive', cue: 'Start in hinged position, explosive hip snap pulls DBs to front rack — arms follow hips, not the other way', suggestedLoad: '10–16 kg per hand', category: 'neuro', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+      swapAlternative: { name: 'KB Swing (Explosive)', cue: 'Hip snap — bell goes where hips send it, not arm pull', suggestedLoad: '16–20 kg' },
+      comfortVariant: { name: 'Broad Jump', cue: 'Hinge back, swing arms, explode forward — land soft, no load', suggestedLoad: 'Bodyweight', triggerRegions: ['lower_back', 'knee'] },
+    },
+    fullgym: {
+      id: 'dl-pwr-neuro-fg', name: 'Power Clean', sets: 5, reps: '2–3 explosive', cue: 'From mid-shin, explosive pull with max hip extension — elbows shoot through to front rack, bar stays tight to body', suggestedLoad: '40–70 kg', category: 'neuro', targetRegions: ['hip_groin', 'lower_back'], videoId: '',
+      swapAlternative: { name: 'Hang Power Clean', cue: 'Start from hang (knee height), same explosive pull — shorter range, faster rate of force development', suggestedLoad: '35–60 kg' },
+      comfortVariant: { name: 'KB Swing (Explosive)', cue: 'Hip snap — bell goes where hips send it, not arm pull', suggestedLoad: '20–28 kg', triggerRegions: ['lower_back', 'knee'] },
+    },
+  },
+};
+
 // ─── 4. KPI LIFT (Main Strength Exercise) ────────────────────────────────────
 
 const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>> = {
@@ -713,6 +773,16 @@ export function getMechanical(sessionType: MainSessionType, tier: EquipmentTier)
 
 export function getNeuro(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {
   return NEURO[sessionType][toInternalTier(tier)];
+}
+
+/**
+ * Returns power-goal-specific neurological priming templates.
+ * These are more intense, reactive exercises than the standard NEURO block
+ * (depth drops, power cleans, clap push-ups) designed to maximise CNS
+ * activation before the KPI lift for rate-of-force development.
+ */
+export function getPowerNeuro(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {
+  return POWER_NEURO[sessionType][toInternalTier(tier)];
 }
 
 export function getMainLift(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {
