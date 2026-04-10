@@ -681,9 +681,9 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
     },
     fullgym: {
       easy: { id: 'bn-fin-fg-e', name: 'Light Bike Spin', sets: 1, reps: '4 min easy', cue: 'Low resistance, steady cadence — active recovery', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Incline Treadmill Walk', cue: 'Steady pace, moderate incline — low-impact recovery cardio', suggestedLoad: 'Bodyweight' } },
+        swapAlternative: { name: 'Cable Face Pull + Shoulder Circle', cue: 'Light face pulls, 15 reps, then 10 arm circles each direction — upper-body recovery without cardio machine', suggestedLoad: '5–10 kg cable' } },
       normal: { id: 'bn-fin-fg-n', name: 'Assault Bike Intervals', sets: 1, reps: '6 min (20s sprint / 40s easy)', cue: 'All-out on sprints, survive rest — upper and lower', suggestedLoad: 'Assault bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing Machine Intervals', cue: '20s hard row, 40s easy — same cardio stimulus, arms and legs', suggestedLoad: 'Rower' } },
+        swapAlternative: { name: 'Cable Row Intervals', cue: '20s hard seated row, 40s rest — upper-back metabolic work without a cardio machine', suggestedLoad: '40–60 kg cable' } },
       hard: { id: 'bn-fin-fg-h', name: 'Battle Rope EMOM', sets: 1, reps: '8 min (30s waves / 30s rest)', cue: 'Full-force alternating waves, keep slack out of the ropes — upper-body metabolic finisher', suggestedLoad: 'Battle ropes', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Push Press + Assault Bike Circuit', cue: '10 push presses then 15 cal bike, rest 30s, repeat — power finisher that stays upper-body focused', suggestedLoad: '30–40 kg barbell + bike' } },
     },

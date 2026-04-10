@@ -107,7 +107,7 @@ function personalizeLoad(
   isMainLift?: boolean,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
@@ -170,16 +170,16 @@ function personalizeLoad(
       }
       return `${lastKg} kg`;
     }
-    // No-feedback streak: sessions since last explicit signal (thumbs or tooEasy).
-    // After ≥3 consecutive normal sessions with no complaint, treat as ready for
-    // a larger jump — conservative athlete who doesn't use the feedback system.
-    const lastFeedbackAt = exerciseId ? (feedbackGivenAtCount?.[exerciseId] ?? 0) : 0;
-    const noFeedbackStreak = completedCount - lastFeedbackAt;
-    const step = (performance === 'easy' || noFeedbackStreak >= 3) ? 5 : 2.5;
+    // No-feedback streak: consecutive sessions this exercise was logged without
+    // any explicit feedback (thumbs / tooEasy). Maintained per-exercise in the
+    // store so it resets to 0 precisely when feedback is received for *this*
+    // exercise, not based on unrelated global session count changes.
+    const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
+    const step = (performance === 'easy' || normalStreak >= 3) ? 5 : 2.5;
     const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} streak=${noFeedbackStreak} +${step} × mult=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} × mult=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
       );
     }
     return `${progressedKg} kg`;
@@ -354,7 +354,7 @@ function applyPersonalization(
   ormKg?: number,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise {
   if (!profile) return ex;
@@ -366,14 +366,13 @@ function applyPersonalization(
   const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
   if (lastKg > 0) {
     const performance = ex.id ? lastSessionPerformance?.[ex.id] : undefined;
-    const lastFeedbackAt = ex.id ? (feedbackGivenAtCount?.[ex.id] ?? 0) : 0;
-    const noFeedbackStreak = completedCount - lastFeedbackAt;
+    const normalStreak = ex.id ? (exerciseNormalStreak?.[ex.id] ?? 0) : 0;
     if (performance === 'failed') {
       progressionNote = 'Load held — take your time with this weight';
     } else if (performance === 'easy') {
       progressionNote = 'Load increased — strong performance last session';
-    } else if (noFeedbackStreak >= 3) {
-      progressionNote = `Load bumped — ${noFeedbackStreak} consistent sessions, time to progress`;
+    } else if (normalStreak >= 3) {
+      progressionNote = `Load bumped — ${normalStreak} consistent sessions, time to progress`;
     } else {
       progressionNote = 'Load adjusted from your last session';
     }
@@ -381,8 +380,8 @@ function applyPersonalization(
 
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance) : ex.swapLoad,
     progressionNote,
   };
 }
@@ -396,11 +395,11 @@ export function generateWorkout(
   bestOrmKg?: number,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -545,7 +544,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -565,13 +564,13 @@ function generateConditioningWorkout(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   completedCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
-  feedbackGivenAtCount?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, feedbackGivenAtCount, lastSessionPerformance));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 

@@ -154,10 +154,18 @@ interface AppState {
   cycleStartOffset: number;
   /**
    * Records the `completedCount` value at the point feedback was last given for each exercise.
-   * Used by the workout engine to detect a "no-feedback streak" (≥3 sessions without any
-   * thumbs/tooEasy signal) and apply a larger progressive overload step (+5 kg) as a result.
+   * Kept for data integrity; streak detection now uses exerciseNormalStreak instead.
    */
   feedbackGivenAtCount: Record<string, number>;
+  /**
+   * Tracks how many consecutive sessions each exercise has appeared in with a
+   * 'normal' (no-feedback) performance outcome. Incremented by `completeSession`
+   * when `lastSessionPerformance[id]` was 'normal' before the new session ran,
+   * and reset to 0 whenever any explicit feedback (thumbs/tooEasy) is received
+   * or when performance was 'easy'/'failed'. The workout engine applies a larger
+   * (+5 kg) progression step when this counter reaches 3.
+   */
+  exerciseNormalStreak: Record<string, number>;
   /**
    * Records how each exercise performed in the most recent session it appeared in.
    * Set by `completeSession` based on actual set completion data, then updated
@@ -230,6 +238,7 @@ export const useAppStore = create<AppState>()(
       reminderTime: '07:00',
       cycleStartOffset: 0,
       feedbackGivenAtCount: {},
+      exerciseNormalStreak: {},
       lastSessionPerformance: {},
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
@@ -265,16 +274,32 @@ export const useAppStore = create<AppState>()(
           const newPerformance: Record<string, 'easy' | 'normal' | 'failed'> = {
             ...state.lastSessionPerformance,
           };
+          // Track consecutive sessions each exercise appeared with a 'normal'
+          // performance (no feedback override, all sets completed).
+          // We look at what `lastSessionPerformance` was BEFORE this session to
+          // decide whether to increment (was 'normal') or reset (was 'easy'/'failed').
+          const newStreak = { ...state.exerciseNormalStreak };
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
             const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
-            newPerformance[log.exerciseId] = hadFailure ? 'failed' : 'normal';
+            const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
+            newPerformance[log.exerciseId] = thisPerf;
+            // Streak counts consecutive prior 'normal' sessions for this exercise.
+            // Increment when the previous session's performance was 'normal' (meaning
+            // the user completed it without any feedback override). Reset otherwise.
+            const prevPerf = state.lastSessionPerformance[log.exerciseId];
+            if (prevPerf === 'normal') {
+              newStreak[log.exerciseId] = (state.exerciseNormalStreak[log.exerciseId] ?? 0) + 1;
+            } else {
+              newStreak[log.exerciseId] = 0;
+            }
           }
 
           return {
             completedCount: state.completedCount + 1,
             completedSessions: [{ ...session, id }, ...state.completedSessions],
             lastSessionPerformance: newPerformance,
+            exerciseNormalStreak: newStreak,
           };
         });
       },
@@ -323,6 +348,12 @@ export const useAppStore = create<AppState>()(
             ...state.lastSessionPerformance,
             ...(performance ? { [exerciseId]: performance } : {}),
           },
+          // Any explicit feedback resets the consecutive-normal streak for this
+          // exercise — the streak only counts sessions with zero intervention.
+          exerciseNormalStreak: {
+            ...state.exerciseNormalStreak,
+            [exerciseId]: 0,
+          },
         };
       }),
 
@@ -330,6 +361,7 @@ export const useAppStore = create<AppState>()(
         const updated = { ...state.exerciseFeedback };
         const updatedCounts = { ...state.feedbackGivenAtCount };
         const updatedPerformance = { ...state.lastSessionPerformance };
+        const updatedStreak = { ...state.exerciseNormalStreak };
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
@@ -337,15 +369,17 @@ export const useAppStore = create<AppState>()(
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
-          // Treat tooEasy selection as explicit feedback for streak tracking
           updatedCounts[id] = state.completedCount;
           // Mark performance as 'easy' — user found this exercise manageable
           updatedPerformance[id] = 'easy';
+          // Reset streak — explicit feedback interrupts the no-feedback run
+          updatedStreak[id] = 0;
         }
         return {
           exerciseFeedback: updated,
           feedbackGivenAtCount: updatedCounts,
           lastSessionPerformance: updatedPerformance,
+          exerciseNormalStreak: updatedStreak,
         };
       }),
 
@@ -482,6 +516,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!persistedState.feedbackGivenAtCount) {
           persistedState.feedbackGivenAtCount = {};
+        }
+        if (!persistedState.exerciseNormalStreak) {
+          persistedState.exerciseNormalStreak = {};
         }
         if (!persistedState.lastSessionPerformance) {
           persistedState.lastSessionPerformance = {};
