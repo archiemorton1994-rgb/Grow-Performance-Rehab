@@ -12,7 +12,6 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { daysSince } from '@/lib/utils';
@@ -226,28 +225,26 @@ export default function FlexScreen() {
           {ROWS.map((row, i) => (
             <React.Fragment key={row.key}>
               {i > 0 && <View style={styles.navDivider} />}
-              <Animated.View entering={FadeIn.delay(i * 60).duration(380)} style={{ overflow: 'visible' }}>
-                <Pressable
-                  onPress={() => openModal(row.key)}
-                  style={({ pressed }) => [
-                    styles.navBtn,
-                    i === 0 && styles.navBtnFirst,
-                    i === ROWS.length - 1 && styles.navBtnLast,
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                  ]}
-                  testID={`flex-row-${row.key}`}
-                >
-                  <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                    <Ionicons name={row.icon} size={22} color={row.iconColor} />
-                  </View>
-                  <View style={styles.navBtnText}>
-                    <Text style={styles.navLabel}>{row.title}</Text>
-                    <Text style={styles.navSub}>{row.subtitle}</Text>
-                    <Text style={styles.navRecency}>{row.recency}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-                </Pressable>
-              </Animated.View>
+              <Pressable
+                onPress={() => openModal(row.key)}
+                style={({ pressed }) => [
+                  styles.navBtn,
+                  i === 0 && styles.navBtnFirst,
+                  i === ROWS.length - 1 && styles.navBtnLast,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+                ]}
+                testID={`flex-row-${row.key}`}
+              >
+                <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
+                  <Ionicons name={row.icon} size={22} color={row.iconColor} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>{row.title}</Text>
+                  <Text style={styles.navSub}>{row.subtitle}</Text>
+                  <Text style={styles.navRecency}>{row.recency}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+              </Pressable>
             </React.Fragment>
           ))}
         </View>
