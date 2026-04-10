@@ -371,8 +371,10 @@ function ActiveSetBlock({
     ? displayUnitToKg(parsedWeightText, weightUnit)
     : data.weight;
 
-  const isNewRecord = !isBandExercise && previousBest !== undefined && previousBest > 0
-    && effectiveWeightKg > 0 && effectiveWeightKg > previousBest;
+  // Only show "New Record!" on sets that are already saved/completed, not while typing.
+  const savedWeightKg = displayUnitToKg(data.weight ?? 0, weightUnit);
+  const isNewRecord = !isBandExercise && data.completed && previousBest !== undefined
+    && previousBest > 0 && savedWeightKg > previousBest;
 
   // For weighted: require both effective weight > 0 AND reps > 0. For band: reps > 0 only.
   const isZeroBlocked = !isTimeExercise && (
@@ -1017,7 +1019,12 @@ export default function SessionScreen() {
       idsMatch;
     if (!canRestore) return false;
     hasRestoredRef.current = true;
-    const timeSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
+    // Cap the added time to 90 min — prevents absurd timer values if the app
+    // was closed overnight and then resumed (the session was not actually running).
+    const timeSinceSave = Math.min(
+      Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000),
+      5400
+    );
     const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
     setElapsedSeconds(restoredElapsed);
     elapsedSecondsRef.current = restoredElapsed;

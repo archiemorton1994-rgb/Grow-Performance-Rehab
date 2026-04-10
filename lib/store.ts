@@ -281,6 +281,10 @@ export const useAppStore = create<AppState>()(
           const newStreak = { ...state.exerciseNormalStreak };
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
+            // If every set was skipped the user didn't perform the exercise at all —
+            // treat as a no-op so we don't advance load or streak for a skipped exercise.
+            const allSkipped = log.sets.length > 0 && log.sets.every((s) => s.skipped);
+            if (allSkipped) continue;
             const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
             const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
             newPerformance[log.exerciseId] = thisPerf;

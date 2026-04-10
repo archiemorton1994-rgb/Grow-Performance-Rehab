@@ -160,7 +160,13 @@ function personalizeLoad(
   //   'easy'                → +5 kg (easy session or thumbs-up feedback)
   //   'normal' + streak ≥3  → +5 kg (3+ consistent normal sessions = ready)
   //   'normal' / undefined  → +2.5 kg (standard progressive overload)
-  const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
+  // When a user had aches, exercise IDs get a '-comfort' suffix.  The next session
+  // without aches uses the base ID — so also check the base ID to avoid losing the
+  // progression anchor when switching between comfort and standard variants.
+  const baseId = exerciseId?.replace(/-comfort$/, '');
+  const lastKg = exerciseId
+    ? (lastLoggedWeights?.[exerciseId] ?? (baseId !== exerciseId ? (lastLoggedWeights?.[baseId!] ?? 0) : 0))
+    : 0;
   if (lastKg > 0) {
     const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
     if (performance === 'failed') {
