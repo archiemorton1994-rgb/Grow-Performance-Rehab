@@ -1,9 +1,11 @@
-import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
+import { db } from './db';
+import { users } from '../shared/schema';
 
 export interface AuthUser {
   id: string;
   email: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 interface OtpEntry {
@@ -20,30 +22,30 @@ export interface IStorage {
   clearOtp(email: string): void;
 }
 
-export class MemStorage implements IStorage {
-  private users = new Map<string, AuthUser>();
+export class DbStorage implements IStorage {
   private otps = new Map<string, OtpEntry>();
 
   async getUserById(id: string): Promise<AuthUser | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<AuthUser | undefined> {
-    return Array.from(this.users.values()).find(
-      (u) => u.email === email.toLowerCase(),
-    );
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+    return user;
   }
 
   async upsertUser(email: string): Promise<AuthUser> {
-    const existing = await this.getUserByEmail(email);
-    if (existing) return existing;
-    const user: AuthUser = {
-      id: randomUUID(),
-      email: email.toLowerCase().trim(),
-      createdAt: new Date().toISOString(),
-    };
-    this.users.set(user.id, user);
-    return user;
+    const norm = email.toLowerCase().trim();
+    await db.insert(users).values({ email: norm }).onConflictDoNothing();
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, norm));
+    return user!;
   }
 
   setOtp(email: string, code: string, ttlMs: number): void {
@@ -59,4 +61,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DbStorage();
