@@ -284,14 +284,24 @@ export const useAppStore = create<AppState>()(
             const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
             const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
             newPerformance[log.exerciseId] = thisPerf;
-            // Streak counts consecutive prior 'normal' sessions for this exercise.
-            // Increment when the previous session's performance was 'normal' (meaning
-            // the user completed it without any feedback override). Reset otherwise.
+            // Streak counts consecutive 'normal' sessions for this exercise.
+            // Three-way update ensures the streak is always accurate (no
+            // inflate-then-correct lag):
+            //
+            //   both prev AND this session normal  → increment (run continues)
+            //   this session normal, prev was not  → 1 (new run begins)
+            //   this session failed                → 0 (run broken; reset)
+            //
+            // Explicit feedback (thumbs/tooEasy) resets to 0 immediately, so
+            // the next completeSession starts a fresh run from 1.
             const prevPerf = state.lastSessionPerformance[log.exerciseId];
-            if (prevPerf === 'normal') {
-              newStreak[log.exerciseId] = (state.exerciseNormalStreak[log.exerciseId] ?? 0) + 1;
-            } else {
+            if (thisPerf === 'failed') {
               newStreak[log.exerciseId] = 0;
+            } else if (prevPerf === 'normal') {
+              newStreak[log.exerciseId] = (state.exerciseNormalStreak[log.exerciseId] ?? 1) + 1;
+            } else {
+              // thisPerf === 'normal' but prev was 'easy', 'failed', or first appearance.
+              newStreak[log.exerciseId] = 1;
             }
           }
 

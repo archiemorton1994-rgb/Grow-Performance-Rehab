@@ -680,8 +680,8 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
         swapAlternative: { name: 'Push-Up + DB Row EMOM', cue: 'Every minute: 8 push-ups + 6 rows each arm — easier to pace than the full complex', suggestedLoad: '10–14 kg per hand' } },
     },
     fullgym: {
-      easy: { id: 'bn-fin-fg-e', name: 'Light Bike Spin', sets: 1, reps: '4 min easy', cue: 'Low resistance, steady cadence — active recovery', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Cable Face Pull + Shoulder Circle', cue: 'Light face pulls, 15 reps, then 10 arm circles each direction — upper-body recovery without cardio machine', suggestedLoad: '5–10 kg cable' } },
+      easy: { id: 'bn-fin-fg-e', name: 'Cable Push-Pull Circuit', sets: 1, reps: '4 min (alternating cable pushdown and cable row, 12 reps each)', cue: 'Slow controlled reps, light load — upper-body active recovery, no legs', suggestedLoad: '10–20 kg cable', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Tricep Pushdown + Face Pull Superset', cue: '15 pushdowns then 15 face pulls, repeat — cable-only upper-body pump finisher', suggestedLoad: '10–20 kg cable' } },
       normal: { id: 'bn-fin-fg-n', name: 'Assault Bike Intervals', sets: 1, reps: '6 min (20s sprint / 40s easy)', cue: 'All-out on sprints, survive rest — upper and lower', suggestedLoad: 'Assault bike', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Cable Row Intervals', cue: '20s hard seated row, 40s rest — upper-back metabolic work without a cardio machine', suggestedLoad: '40–60 kg cable' } },
       hard: { id: 'bn-fin-fg-h', name: 'Battle Rope EMOM', sets: 1, reps: '8 min (30s waves / 30s rest)', cue: 'Full-force alternating waves, keep slack out of the ropes — upper-body metabolic finisher', suggestedLoad: 'Battle ropes', category: 'finisher', targetRegions: [], videoId: '',

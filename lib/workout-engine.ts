@@ -176,10 +176,13 @@ function personalizeLoad(
     // exercise, not based on unrelated global session count changes.
     const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
     const step = (performance === 'easy' || normalStreak >= 3) ? 5 : 2.5;
-    const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
+    // Apply exact additive step (hold / +2.5 / +5) as specified.
+    // feedbackMult is NOT applied on top — it is only used in the heuristic
+    // path below (when there is no previous logged weight to anchor from).
+    const progressedKg = roundTo2_5(lastKg + step);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} × mult=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} → ${progressedKg}kg`
       );
     }
     return `${progressedKg} kg`;
