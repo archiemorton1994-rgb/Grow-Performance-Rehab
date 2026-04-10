@@ -8,7 +8,7 @@ export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'pre
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
-export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab';
+export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab' | 'power';
 export type WeightUnit = 'kg' | 'lbs';
 
 export type PainRegion =

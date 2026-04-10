@@ -29,7 +29,7 @@ const SESSION_TYPE_LABELS: Record<SessionType, { label: string; subtitle: string
 };
 
 const GOAL_LABELS: Record<string, string> = {
-  strength: 'Strength', muscle: 'Muscle', fat_loss: 'Fat Loss', fitness: 'Fitness', rehab: 'Rehab & Recovery',
+  strength: 'Strength', muscle: 'Muscle', power: 'Power & Speed', fat_loss: 'Fat Loss', fitness: 'Fitness', rehab: 'Rehab & Recovery',
 };
 
 export default function HomeScreen() {

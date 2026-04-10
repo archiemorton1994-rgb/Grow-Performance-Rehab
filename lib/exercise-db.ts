@@ -538,8 +538,8 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
         swapAlternative: { name: 'Incline Treadmill Walk', cue: 'Steady pace, moderate incline — low-impact recovery cardio', suggestedLoad: 'Bodyweight' } },
       normal: { id: 'bn-fin-fg-n', name: 'Assault Bike Intervals', sets: 1, reps: '6 min (20s sprint / 40s easy)', cue: 'All-out on sprints, survive rest — upper and lower', suggestedLoad: 'Assault bike', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Rowing Machine Intervals', cue: '20s hard row, 40s easy — same cardio stimulus, arms and legs', suggestedLoad: 'Rower' } },
-      hard: { id: 'bn-fin-fg-h', name: 'Sled Push + Assault Bike', sets: 1, reps: '8 min (push 20m, bike 15 cal)', cue: 'Alternate rounds, push pace — compete with last round', suggestedLoad: '60 kg sled + bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing + Battle Rope Circuit', cue: '200m row then 20s battle ropes, repeat — intense finisher without the sled', suggestedLoad: 'Rower + battle ropes' } },
+      hard: { id: 'bn-fin-fg-h', name: 'Battle Rope EMOM', sets: 1, reps: '8 min (30s waves / 30s rest)', cue: 'Full-force alternating waves, keep slack out of the ropes — upper-body metabolic finisher', suggestedLoad: 'Battle ropes', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Push Press + Assault Bike Circuit', cue: '10 push presses then 15 cal bike, rest 30s, repeat — power finisher that stays upper-body focused', suggestedLoad: '30–40 kg barbell + bike' } },
     },
   },
   deadlift: {
@@ -795,17 +795,18 @@ export function getGoalConditioningBlock(
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
 ): ExerciseTemplate[] {
   const base = GOAL_CONDITIONING_BLOCKS[toInternalTier(tier)][energy];
+  // Only use the first (primary) exercise — keeps the conditioning block tight
+  // and avoids bloating the session with a second finisher exercise.
+  const primary = base[0];
   // Scale sets based on experience level so beginners work at lower volume
   // (−1 set, min 1) and advanced athletes at higher volume (+1 set).
-  return base.map((t) => ({
-    ...t,
-    sets:
-      experienceLevel === 'beginner'
-        ? Math.max(1, t.sets - 1)
-        : experienceLevel === 'advanced'
-        ? t.sets + 1
-        : t.sets,
-  }));
+  const scaledSets =
+    experienceLevel === 'beginner'
+      ? Math.max(1, primary.sets - 1)
+      : experienceLevel === 'advanced'
+      ? primary.sets + 1
+      : primary.sets;
+  return [{ ...primary, sets: scaledSets }];
 }
 
 export function get1RMProtocol(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {

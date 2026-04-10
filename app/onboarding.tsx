@@ -80,6 +80,7 @@ const GOAL_OPTIONS: {
 }[] = [
   { value: 'strength', label: 'Build Strength', icon: 'barbell-outline' },
   { value: 'muscle', label: 'Build Muscle', icon: 'body-outline' },
+  { value: 'power', label: 'Power & Speed', icon: 'flash-outline' },
   { value: 'fat_loss', label: 'Lose Fat', icon: 'flame-outline' },
   { value: 'fitness', label: 'General Fitness', icon: 'heart-outline' },
   { value: 'rehab', label: 'Rehabilitation', icon: 'medical-outline' },

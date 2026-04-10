@@ -141,17 +141,20 @@ function personalizeLoad(
   // baseline autoMult.
   const combinedMult = Math.min(1.5, feedbackMult * autoMult);
 
-  // ── Per-exercise progression: lastLoggedWeight + 2.5 kg per session ───────
+  // ── Per-exercise progression: lastLoggedWeight + step per session ────────
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
-  // When a prior max weight is known, use lastKg + 2.5 × feedbackMult.
-  // This provides deterministic, per-exercise overload independent of session count.
+  // Step: +5 kg when the exercise was marked "too easy" or given thumbs-up
+  // (indicating the user handled the weight comfortably); +2.5 kg otherwise.
   const lastKg = exerciseId ? (lastLoggedWeights?.[exerciseId] ?? 0) : 0;
   if (lastKg > 0) {
-    const progressedKg = roundTo2_5((lastKg + 2.5) * feedbackMult);
+    const exFeedback = exerciseId ? exerciseFeedback?.[exerciseId] : undefined;
+    const wasEasyOrGood = exFeedback?.tooEasy || exFeedback?.thumbs === 'up';
+    const step = wasEasyOrGood ? 5 : 2.5;
+    const progressedKg = roundTo2_5((lastKg + step) * feedbackMult);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} +2.5 × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} +${step} × feedback=${feedbackMult.toFixed(3)} → ${progressedKg}kg (tooEasy=${exFeedback?.tooEasy} thumbs=${exFeedback?.thumbs})`
       );
     }
     return `${progressedKg} kg`;
@@ -171,7 +174,7 @@ function personalizeLoad(
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
     const goalPct: Record<string, number> = {
-      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50,
+      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50, power: 0.80,
     };
     const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
     const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.70), 0) / activeGoals.length;
@@ -184,7 +187,7 @@ function personalizeLoad(
   const bwRatio = profile.bodyweightKg / REF_BW;
 
   const expFactor: Record<string, number> = { beginner: 0.45, intermediate: 0.70, advanced: 1.0 };
-  const goalFactor: Record<string, number> = { strength: 1.08, muscle: 1.0, fat_loss: 0.72, fitness: 0.85, rehab: 0.50 };
+  const goalFactor: Record<string, number> = { strength: 1.08, muscle: 1.0, fat_loss: 0.72, fitness: 0.85, rehab: 0.50, power: 1.05 };
   const sexFactor = profile.sex === 'female' ? (isUpperBodySession ? 0.55 : 0.72) :
                     profile.sex === 'other' ? 0.85 : 1.0;
 
@@ -262,8 +265,8 @@ function applyComfortOrBadge(
  * When two goals are selected the deltas are averaged and rounded.
  */
 function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; accSetsDelta: number } {
-  const mainDelta: Record<FitnessGoal, number> = { strength: 1, muscle: 0, fat_loss: 0, fitness: 0, rehab: -1 };
-  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1 };
+  const mainDelta: Record<FitnessGoal, number> = { strength: 1, muscle: 0, fat_loss: 0, fitness: 0, rehab: -1, power: 1 };
+  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1, power: -1 };
   const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
   const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
   const avgAcc  = active.reduce((s, g) => s + (accDelta[g]  ?? 0), 0) / active.length;
@@ -425,11 +428,11 @@ export function generateWorkout(
   // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
   const allAccessories = getAccessories(mainType, equipmentTier);
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
-  // general conditioning capacity. Both benefit from a conditioning circuit
-  // that replaces one accessory, keeping total exercise count the same.
-  //  30-min + conditioning goal : 0 accessories (2 conditioning exs replace the 1)
+  // general conditioning capacity. Both benefit from a single conditioning
+  // exercise that replaces the standard finisher slot.
+  //  30-min + conditioning goal : 0 accessories (1 conditioning ex replaces the 1)
   //  30-min + other goals       : 1 accessory (no finisher)
-  //  45/60-min + conditioning   : 1 accessory (2 conditioning exs replace the 2nd)
+  //  45/60-min + conditioning   : 1 accessory (1 conditioning ex replaces the 2nd)
   //  45/60-min + other goals    : 2 accessories + standard single finisher
   const hasConditioningGoal = (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
   const accCount = timeAvailable === '30'

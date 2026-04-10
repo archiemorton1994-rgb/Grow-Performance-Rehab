@@ -42,6 +42,7 @@ const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string 
 const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'strength', label: 'Build Strength', icon: 'barbell-outline' },
   { value: 'muscle', label: 'Build Muscle', icon: 'body-outline' },
+  { value: 'power', label: 'Power & Speed', icon: 'flash-outline' },
   { value: 'fat_loss', label: 'Fat Loss', icon: 'flame-outline' },
   { value: 'fitness', label: 'General Fitness', icon: 'heart-outline' },
   { value: 'rehab', label: 'Rehab & Recover', icon: 'medical-outline' },
