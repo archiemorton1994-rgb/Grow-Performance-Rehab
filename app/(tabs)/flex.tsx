@@ -230,6 +230,8 @@ export default function FlexScreen() {
                   onPress={() => openModal(row.key)}
                   style={({ pressed }) => [
                     styles.navBtn,
+                    i === 0 && styles.navBtnFirst,
+                    i === ROWS.length - 1 && styles.navBtnLast,
                     pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                   ]}
                   testID={`flex-row-${row.key}`}
@@ -381,7 +383,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     navGridInner: {
       borderRadius: 17,
-      overflow: 'hidden',
       backgroundColor: C.surface,
     },
     navDivider: { height: 1, backgroundColor: C.borderLight, marginHorizontal: 16 },
@@ -392,7 +393,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 16,
       minHeight: 82,
       gap: 14,
+      backgroundColor: C.surface,
     },
+    navBtnFirst: { borderTopLeftRadius: 17, borderTopRightRadius: 17 },
+    navBtnLast: { borderBottomLeftRadius: 17, borderBottomRightRadius: 17 },
     navIcon: {
       width: 44,
       height: 44,
