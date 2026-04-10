@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { daysSince } from '@/lib/utils';
@@ -225,7 +225,7 @@ export default function FlexScreen() {
           {ROWS.map((row, i) => (
             <React.Fragment key={row.key}>
               {i > 0 && <View style={styles.navDivider} />}
-              <Animated.View entering={FadeInDown.delay(i * 60).duration(380)}>
+              <Animated.View entering={FadeIn.delay(i * 60).duration(380)}>
                 <Pressable
                   onPress={() => openModal(row.key)}
                   style={({ pressed }) => [
