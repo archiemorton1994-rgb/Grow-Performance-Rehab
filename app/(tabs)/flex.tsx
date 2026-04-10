@@ -226,7 +226,7 @@ export default function FlexScreen() {
           {ROWS.map((row, i) => (
             <React.Fragment key={row.key}>
               {i > 0 && <View style={styles.navDivider} />}
-              <Animated.View entering={FadeIn.delay(i * 60).duration(380)}>
+              <Animated.View entering={FadeIn.delay(i * 60).duration(380)} style={{ overflow: 'visible' }}>
                 <Pressable
                   onPress={() => openModal(row.key)}
                   style={({ pressed }) => [
