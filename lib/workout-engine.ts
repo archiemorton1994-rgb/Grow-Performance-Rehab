@@ -160,13 +160,25 @@ function personalizeLoad(
   //   'easy'                → +5 kg (easy session or thumbs-up feedback)
   //   'normal' + streak ≥3  → +5 kg (3+ consistent normal sessions = ready)
   //   'normal' / undefined  → +2.5 kg (standard progressive overload)
-  // When a user had aches, exercise IDs get a '-comfort' suffix.  The next session
-  // without aches uses the base ID — so also check the base ID to avoid losing the
-  // progression anchor when switching between comfort and standard variants.
+  // When a user had aches, exercise IDs get a '-comfort' suffix.  When switching
+  // between ache/ache-free sessions the lookup ID changes (e.g. 'squat' ↔ 'squat-comfort').
+  // Check the alternate variant so the progression anchor is never lost.
   const baseId = exerciseId?.replace(/-comfort$/, '');
-  const lastKg = exerciseId
-    ? (lastLoggedWeights?.[exerciseId] ?? (baseId !== exerciseId ? (lastLoggedWeights?.[baseId!] ?? 0) : 0))
-    : 0;
+  const isComfortVariant = exerciseId !== baseId; // true when exerciseId ends with '-comfort'
+  let lastKg = 0;
+  if (exerciseId) {
+    // Primary lookup: exact match.
+    const primary = lastLoggedWeights?.[exerciseId];
+    if (primary !== undefined) {
+      lastKg = primary;
+    } else if (isComfortVariant) {
+      // Was logged as comfort, now playing standard variant → check base ID.
+      lastKg = lastLoggedWeights?.[baseId!] ?? 0;
+    } else {
+      // Was logged as standard, now playing comfort variant → check comfort ID.
+      lastKg = lastLoggedWeights?.[`${exerciseId}-comfort`] ?? 0;
+    }
+  }
   if (lastKg > 0) {
     const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
     if (performance === 'failed') {

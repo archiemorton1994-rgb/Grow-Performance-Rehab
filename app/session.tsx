@@ -372,7 +372,8 @@ function ActiveSetBlock({
     : data.weight;
 
   // Only show "New Record!" on sets that are already saved/completed, not while typing.
-  const savedWeightKg = displayUnitToKg(data.weight ?? 0, weightUnit);
+  // data.weight is already stored in kg — no unit conversion needed.
+  const savedWeightKg = data.weight ?? 0;
   const isNewRecord = !isBandExercise && data.completed && previousBest !== undefined
     && previousBest > 0 && savedWeightKg > previousBest;
 
