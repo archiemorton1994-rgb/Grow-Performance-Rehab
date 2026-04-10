@@ -418,9 +418,14 @@ export default function TrainScreen() {
                           </Text>
                         )}
                       </View>
-                      {isCurrent && (
+                      {isCurrent && !activeSession && (
                         <View style={[styles.startPill, testWeek && styles.startPillTest]}>
                           <Ionicons name="play" size={16} color={C.textInverse} />
+                        </View>
+                      )}
+                      {isCurrent && !!activeSession && (
+                        <View style={[styles.startPill, { backgroundColor: '#b45309' }]}>
+                          <Ionicons name="time-outline" size={16} color="#fff" />
                         </View>
                       )}
                       {isCompleted && (
