@@ -15,7 +15,10 @@ import { setAuthToken } from '@/lib/auth-token';
 
 const TOKEN_KEY = 'grow_auth_token';
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
-const RC_DEV_BYPASS = process.env.EXPO_PUBLIC_RC_DEV_BYPASS === 'true';
+// Automatically bypass the paywall in Expo Go / Metro dev builds.
+// __DEV__ is false in production (TestFlight / App Store), so this never
+// affects real users.
+const RC_DEV_BYPASS = __DEV__;
 
 export interface AuthUser {
   id: string;

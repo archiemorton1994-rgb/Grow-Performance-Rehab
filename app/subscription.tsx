@@ -84,7 +84,8 @@ export default function SubscriptionScreen() {
   useEffect(() => { fetchOffering(); }, [fetchOffering]);
 
   const handlePurchase = useCallback(async () => {
-    if (!RC_API_KEY) {
+    if (!RC_API_KEY || __DEV__) {
+      // No key set, or running in Expo Go dev mode — bypass the paywall.
       await refreshSubscription();
       return;
     }
@@ -186,7 +187,7 @@ export default function SubscriptionScreen() {
 
         <Pressable
           onPress={handlePurchase}
-          disabled={purchasing || (!!RC_API_KEY && !offering && !loadingOffering)}
+          disabled={purchasing || (!__DEV__ && !!RC_API_KEY && !offering && !loadingOffering)}
           style={[styles.ctaBtn, (purchasing) && styles.ctaBtnLoading]}
           testID="subscribe-cta"
         >
