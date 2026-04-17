@@ -314,7 +314,7 @@ export default function CustomSessionScreen() {
                 </Pressable>
                 <Text style={styles.stepperValue}>{editSets}</Text>
                 <Pressable
-                  onPress={() => setEditSets((v) => Math.min(10, v + 1))}
+                  onPress={() => setEditSets((v) => Math.min(5, v + 1))}
                   style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
                 >
                   <Ionicons name="add" size={20} color={C.text} />

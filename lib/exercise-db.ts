@@ -1,6 +1,6 @@
-import { EquipmentTier, SessionType, PainRegion } from './store';
+import { EquipmentTier, ExerciseCategory, SessionType, PainRegion } from './store';
 
-export type ExerciseCategory = 'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
+export type { ExerciseCategory };
 
 type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility' | 'custom'>;
 type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
@@ -1152,6 +1152,14 @@ export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[]
       add(t);
     }
   }
+
+  const categoryOrder: Record<string, number> = { main: 0, accessory: 1, prehab: 2 };
+  results.sort((a, b) => {
+    const oa = categoryOrder[a.category] ?? 99;
+    const ob = categoryOrder[b.category] ?? 99;
+    if (oa !== ob) return oa - ob;
+    return a.name.localeCompare(b.name);
+  });
 
   return results;
 }

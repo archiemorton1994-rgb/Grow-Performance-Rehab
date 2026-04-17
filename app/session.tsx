@@ -851,6 +851,10 @@ export default function SessionScreen() {
 
   // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
   const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
+  // Snapshot custom exercises at mount so store.clearPendingCustomExercises() doesn't empty the list mid-session
+  const customExercisesSnapshot = useRef<CustomExercise[]>(
+    sessionType === 'custom' ? pendingCustomExercises : []
+  );
 
   // Compute per-exercise previous best weight from persisted sessions.
   // useMemo re-runs when completedSessions changes (e.g. after async hydration completes)
@@ -888,19 +892,18 @@ export default function SessionScreen() {
 
   const exercises = useMemo(() => {
     if (sessionType === 'custom') {
-      const customExs: Exercise[] = pendingCustomExercises.map((ce: CustomExercise) => ({
+      return customExercisesSnapshot.current.map((ce: CustomExercise): Exercise => ({
         id: ce.id,
         name: ce.name,
         sets: ce.sets,
         reps: ce.reps,
         cue: ce.cue,
         suggestedLoad: ce.suggestedLoad,
-        category: ce.category as any,
+        category: ce.category,
         badge: undefined,
         videoId: '',
         hasSwap: false,
       }));
-      return customExs;
     }
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier, completedCount);
@@ -908,7 +911,7 @@ export default function SessionScreen() {
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
     return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises]);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
