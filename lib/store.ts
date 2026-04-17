@@ -93,6 +93,7 @@ export interface ActiveSession {
   sessionName: string;
   elapsedSeconds: number;
   exerciseIds: string[];
+  customExercises?: CustomExercise[];
 }
 
 export interface ExerciseLog {

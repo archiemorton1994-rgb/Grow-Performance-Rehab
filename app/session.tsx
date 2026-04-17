@@ -851,9 +851,12 @@ export default function SessionScreen() {
 
   // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
   const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
-  // Snapshot custom exercises at mount so store.clearPendingCustomExercises() doesn't empty the list mid-session
+  // Snapshot custom exercises at mount so store.clearPendingCustomExercises() doesn't empty the list mid-session.
+  // On resume, pendingCustomExercises is already cleared; fall back to what was persisted in activeSession.
   const customExercisesSnapshot = useRef<CustomExercise[]>(
-    sessionType === 'custom' ? pendingCustomExercises : []
+    sessionType === 'custom'
+      ? (pendingCustomExercises.length > 0 ? pendingCustomExercises : (activeSession?.customExercises ?? []))
+      : []
   );
 
   // Compute per-exercise previous best weight from persisted sessions.
@@ -1003,6 +1006,7 @@ export default function SessionScreen() {
         sessionName: getSessionLabel(sessionType),
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
+        ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
       });
     };
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
@@ -1146,6 +1150,7 @@ export default function SessionScreen() {
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds: elapsedSecondsRef.current,
       exerciseIds: exercises.map(ex => ex.id),
+      ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
   }, [exerciseData, exerciseNotes, activeIndex]);
 
@@ -1494,6 +1499,7 @@ export default function SessionScreen() {
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds,
       exerciseIds: exercises.map(ex => ex.id),
+      ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
     setShowAbandonModal(false);
     router.dismissAll();
