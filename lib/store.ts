@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
-export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility';
+export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -49,6 +49,16 @@ export interface ExerciseFeedback {
   tooEasy: boolean;
   thumbs: 'up' | 'down' | null;
   multiplier: number;
+}
+
+export interface CustomExercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  cue: string;
+  suggestedLoad: string;
+  category: string;
 }
 
 export interface SetLog {
@@ -197,6 +207,9 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
+  pendingCustomExercises: CustomExercise[];
+  setPendingCustomExercises: (exercises: CustomExercise[]) => void;
+  clearPendingCustomExercises: () => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -240,6 +253,7 @@ export const useAppStore = create<AppState>()(
       feedbackGivenAtCount: {},
       exerciseNormalStreak: {},
       lastSessionPerformance: {},
+      pendingCustomExercises: [],
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -260,6 +274,8 @@ export const useAppStore = create<AppState>()(
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
+      setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
+      clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);

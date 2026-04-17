@@ -2,7 +2,7 @@ import { EquipmentTier, SessionType, PainRegion } from './store';
 
 export type ExerciseCategory = 'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
 
-type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility'>;
+type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility' | 'custom'>;
 type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
 
 export function toInternalTier(tier: EquipmentTier): InternalTier {
@@ -1120,4 +1120,38 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
 
 export function getStandaloneFlexibilityWorkout(): ExerciseTemplate[] {
   return STANDALONE_FLEXIBILITY;
+}
+
+export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[] {
+  const internalTier = toInternalTier(tier);
+  const seen = new Set<string>();
+  const results: ExerciseTemplate[] = [];
+
+  const add = (t: ExerciseTemplate) => {
+    if (!seen.has(t.name)) {
+      seen.add(t.name);
+      results.push(t);
+    }
+  };
+
+  const mainTypes: MainSessionType[] = ['squat', 'bench', 'deadlift'];
+
+  for (const s of mainTypes) {
+    add(MAIN_LIFTS[s][internalTier]);
+  }
+
+  for (const s of mainTypes) {
+    for (const t of ACCESSORIES[s][internalTier]) {
+      add(t);
+    }
+  }
+
+  const regions = Object.values(PREHAB_BY_REGION) as ExerciseTemplate[][];
+  for (const regionExercises of regions) {
+    for (const t of regionExercises) {
+      add(t);
+    }
+  }
+
+  return results;
 }

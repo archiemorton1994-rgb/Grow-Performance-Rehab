@@ -20,7 +20,7 @@ import { daysSince } from '@/lib/utils';
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
-const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility'];
+const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
 
 const SESSION_META_LABELS: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }> = {
   squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
@@ -29,6 +29,7 @@ const SESSION_META_LABELS: Record<SessionType, { label: string; subtitle: string
   conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
   prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
   flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
+  custom:       { label: 'Custom',       subtitle: 'Pick your own exercises',     icon: 'create-outline' },
 };
 
 const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
@@ -38,6 +39,7 @@ const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
   conditioning: 'Conditioning',
   prehab: 'Prehab',
   flexibility: 'Flexibility',
+  custom: 'Custom Session',
 };
 
 const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
@@ -47,6 +49,7 @@ const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
   conditioning: 'flame-outline',
   prehab: 'shield-checkmark-outline',
   flexibility: 'leaf-outline',
+  custom: 'create-outline',
 };
 
 function getContextMessage(
@@ -158,6 +161,7 @@ export default function TrainScreen() {
     conditioning: { ...SESSION_META_LABELS.conditioning, color: C.categoryPrehabText,    bg: C.categoryPrehab },
     prehab:       { ...SESSION_META_LABELS.prehab,       color: C.categoryMechanicalText,bg: C.categoryMechanical },
     flexibility:  { ...SESSION_META_LABELS.flexibility,  color: C.categoryCooldownText,  bg: C.categoryCooldown },
+    custom:       { ...SESSION_META_LABELS.custom,       color: C.categoryFinisherText,  bg: C.categoryFinisher },
   }), [C]);
 
   const SESSION_COLORS = useMemo(() => ({
@@ -167,6 +171,7 @@ export default function TrainScreen() {
     conditioning: { bg: C.categoryPrehab,      accent: C.categoryPrehabText },
     prehab:       { bg: C.categoryMechanical,  accent: C.categoryMechanicalText },
     flexibility:  { bg: C.categoryCooldown,    accent: C.categoryCooldownText },
+    custom:       { bg: C.categoryFinisher,    accent: C.categoryFinisherText },
   }), [C]);
 
   const handleResume = () => {
@@ -213,7 +218,9 @@ export default function TrainScreen() {
   const handleSelect = (sessionType: SessionType) => {
     const navigate = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      if (sessionType === 'prehab') {
+      if (sessionType === 'custom') {
+        router.push({ pathname: '/custom-session' });
+      } else if (sessionType === 'prehab') {
         router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
       } else if (sessionType === 'flexibility') {
         router.push({ pathname: '/session', params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier } });

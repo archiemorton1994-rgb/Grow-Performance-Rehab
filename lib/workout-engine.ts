@@ -51,7 +51,7 @@ interface ReadinessCheck {
   timeAvailable: TimeAvailable;
 }
 
-type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility'>;
+type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility' | 'custom'>;
 
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
   // swap1 = swapAlternative (preferred) or comfortVariant
@@ -431,6 +431,9 @@ export function generateWorkout(
   if (sessionType === 'flexibility') {
     return getStandaloneFlexibilityWorkout().map((t) => templateToExercise(t));
   }
+  if (sessionType === 'custom') {
+    return [];
+  }
 
   const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
@@ -643,7 +646,7 @@ export function generate1RMWorkout(
   equipmentTier: EquipmentTier,
   _completedCount: number = 0
 ): Exercise[] {
-  if (sessionType === 'conditioning') return [];
+  if (sessionType === 'conditioning' || sessionType === 'custom') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
   const exercises = protocol.map((t) => templateToExercise(t));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(exercises) : exercises;
@@ -745,6 +748,7 @@ export function getSessionLabel(type: SessionType): string {
     case 'conditioning': return 'Conditioning';
     case 'prehab': return 'Prehab';
     case 'flexibility': return 'Flexibility';
+    case 'custom': return 'Custom Session';
   }
 }
 
@@ -756,6 +760,7 @@ export function getSessionSubtitle(type: SessionType): string {
     case 'conditioning': return 'Fat burn — high calorie, cardio focus';
     case 'prehab': return 'Joint health — full body injury prevention circuit';
     case 'flexibility': return 'Stretch & mobility — full body long holds';
+    case 'custom': return 'Your hand-picked exercise selection';
   }
 }
 
@@ -767,6 +772,7 @@ export function getSessionIcon(type: SessionType): string {
     case 'conditioning': return 'flame';
     case 'prehab': return 'shield-checkmark';
     case 'flexibility': return 'leaf';
+    case 'custom': return 'create';
   }
 }
 

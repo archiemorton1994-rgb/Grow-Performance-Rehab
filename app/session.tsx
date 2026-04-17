@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore } from '@/lib/store';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   Exercise,
@@ -824,7 +824,7 @@ export default function SessionScreen() {
     equipment: string;
   }>();
 
-  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility'];
+  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom'];
   const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
   const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
 
@@ -836,12 +836,12 @@ export default function SessionScreen() {
     ? (params.energy as EnergyLevel) : 'normal';
   const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
     ? (params.timeAvailable as TimeAvailable) : '60';
-  const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning'];
+  const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning', 'custom'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -887,13 +887,28 @@ export default function SessionScreen() {
   }, [completedSessions]);
 
   const exercises = useMemo(() => {
+    if (sessionType === 'custom') {
+      const customExs: Exercise[] = pendingCustomExercises.map((ce: CustomExercise) => ({
+        id: ce.id,
+        name: ce.name,
+        sets: ce.sets,
+        reps: ce.reps,
+        cue: ce.cue,
+        suggestedLoad: ce.suggestedLoad,
+        category: ce.category as any,
+        badge: undefined,
+        videoId: '',
+        hasSwap: false,
+      }));
+      return customExs;
+    }
     if (isTestWeek) {
       return generate1RMWorkout(sessionType, equipmentTier, completedCount);
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
     return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
@@ -1065,6 +1080,9 @@ export default function SessionScreen() {
       setActiveIndex(0);
     }
     cardYPositions.current = {};
+    if (sessionType === 'custom') {
+      clearPendingCustomExercises();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercises]);
 

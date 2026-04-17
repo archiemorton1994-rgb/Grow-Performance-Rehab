@@ -39,6 +39,7 @@ function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<SessionTy
     conditioning: { bg: '#fbe9e7',         icon: 'flame-outline',            color: '#e65100' },
     prehab:       { bg: '#e0f2f1',         icon: 'shield-checkmark-outline', color: '#00897b' },
     flexibility:  { bg: '#f1f8e9',         icon: 'leaf-outline',             color: '#558b2f' },
+    custom:       { bg: C.categoryFinisher,icon: 'create-outline',           color: C.categoryFinisherText },
   };
 }
 

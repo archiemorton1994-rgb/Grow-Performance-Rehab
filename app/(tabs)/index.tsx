@@ -26,6 +26,7 @@ const SESSION_TYPE_LABELS: Record<SessionType, { label: string; subtitle: string
   conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
   prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
   flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
+  custom:       { label: 'Custom',       subtitle: 'Your hand-picked session',    icon: 'create-outline' },
 };
 
 const GOAL_LABELS: Record<string, string> = {
@@ -67,6 +68,7 @@ export default function HomeScreen() {
     conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
     prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
     flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
+    custom:       { ...SESSION_TYPE_LABELS.custom,       color: C.categoryFinisherText, bg: C.categoryFinisher },
   }), [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
