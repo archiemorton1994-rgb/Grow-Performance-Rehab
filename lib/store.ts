@@ -62,6 +62,13 @@ export interface CustomExercise {
   category: ExerciseCategory;
 }
 
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  exercises: CustomExercise[];
+  createdAt: string;
+}
+
 export interface SetLog {
   setNumber: number;
   weight: number;
@@ -213,6 +220,10 @@ interface AppState {
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
 
+  savedTemplates: CustomTemplate[];
+  saveTemplate: (name: string, exercises: CustomExercise[]) => void;
+  deleteTemplate: (id: string) => void;
+
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
   getStreakDays: () => number;
@@ -256,6 +267,7 @@ export const useAppStore = create<AppState>()(
       exerciseNormalStreak: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
+      savedTemplates: [],
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -278,6 +290,19 @@ export const useAppStore = create<AppState>()(
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
       clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
+
+      saveTemplate: (name, exercises) => {
+        const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        set((state) => ({
+          savedTemplates: [
+            { id, name: name.trim(), exercises, createdAt: new Date().toISOString() },
+            ...state.savedTemplates,
+          ],
+        }));
+      },
+      deleteTemplate: (id) => set((state) => ({
+        savedTemplates: state.savedTemplates.filter((t) => t.id !== id),
+      })),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -555,9 +580,12 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.lastSessionPerformance) {
           persistedState.lastSessionPerformance = {};
         }
+        if (!persistedState.savedTemplates) {
+          persistedState.savedTemplates = [];
+        }
         return persistedState;
       },
-      version: 12,
+      version: 13,
     }
   )
 );

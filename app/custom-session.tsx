@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { useAppStore, CustomExercise } from '@/lib/store';
+import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -42,7 +43,7 @@ export default function CustomSessionScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, setPendingCustomExercises } = useAppStore();
+  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate } = useAppStore();
   const tier = getEffectiveTier();
 
   const allExercises = useMemo(() => getAllPickableExercises(tier), [tier]);
@@ -53,6 +54,9 @@ export default function CustomSessionScreen() {
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
   const [editReps, setEditReps] = useState('');
+
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   const filtered = useMemo(() => {
     let list = allExercises;
@@ -129,6 +133,76 @@ export default function CustomSessionScreen() {
     });
   }, [selected, setPendingCustomExercises, tier]);
 
+  const openSaveModal = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTemplateName('');
+    setSaveModalVisible(true);
+  }, []);
+
+  const confirmSaveTemplate = useCallback(() => {
+    const name = templateName.trim();
+    if (!name) return;
+    const exercises: CustomExercise[] = selected.map((s) => ({
+      id: s.template.id,
+      name: s.template.name,
+      sets: s.sets,
+      reps: s.reps,
+      cue: s.template.cue,
+      suggestedLoad: s.template.suggestedLoad,
+      category: s.template.category,
+    }));
+    saveTemplate(name, exercises);
+    setSaveModalVisible(false);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [templateName, selected, saveTemplate]);
+
+  const loadTemplate = useCallback((tmpl: CustomTemplate) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const exerciseById = new Map(allExercises.map((e) => [e.id, e]));
+    const newSelected: SelectedExercise[] = tmpl.exercises.map((ex) => {
+      const found = exerciseById.get(ex.id);
+      const template: ExerciseTemplate = found ?? {
+        id: ex.id,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        cue: ex.cue,
+        suggestedLoad: ex.suggestedLoad,
+        category: ex.category as ExerciseCategory,
+        targetRegions: [],
+        videoId: '',
+      };
+      return { template, sets: ex.sets, reps: ex.reps };
+    });
+    setSelected(newSelected);
+    setSearch('');
+    setCategoryFilter('all');
+  }, [allExercises]);
+
+  const confirmDeleteTemplate = useCallback((tmpl: CustomTemplate) => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(`Remove template "${tmpl.name}"?`)) {
+        deleteTemplate(tmpl.id);
+      }
+      return;
+    }
+    Alert.alert(
+      'Delete Template',
+      `Remove "${tmpl.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteTemplate(tmpl.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        },
+      ]
+    );
+  }, [deleteTemplate]);
+
   const getCategoryColor = (cat: ExerciseCategory | string): string => {
     switch (cat) {
       case 'main': return C.primary;
@@ -182,6 +256,46 @@ export default function CustomSessionScreen() {
       </Animated.View>
     );
   };
+
+  const TemplatesSection = useMemo(() => {
+    if (savedTemplates.length === 0) return null;
+    return (
+      <View style={styles.templatesSection}>
+        <Text style={styles.templatesSectionTitle}>My Templates</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.templatesScroll}
+        >
+          {savedTemplates.map((tmpl) => (
+            <View key={tmpl.id} style={styles.templateCardWrapper}>
+              <Pressable
+                onPress={() => loadTemplate(tmpl)}
+                style={({ pressed }) => [styles.templateCard, pressed && { opacity: 0.8 }]}
+                testID={`template-${tmpl.id}`}
+              >
+                <View style={styles.templateCardTop}>
+                  <Ionicons name="bookmark" size={14} color={C.primary} />
+                  <Text style={styles.templateCardName} numberOfLines={1}>{tmpl.name}</Text>
+                </View>
+                <Text style={styles.templateCardMeta}>
+                  {tmpl.exercises.length} exercise{tmpl.exercises.length !== 1 ? 's' : ''}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => confirmDeleteTemplate(tmpl)}
+                hitSlop={8}
+                style={styles.templateDeleteBtn}
+                testID={`template-delete-${tmpl.id}`}
+              >
+                <Ionicons name="trash-outline" size={14} color={C.textTertiary} />
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }, [savedTemplates, styles, C, loadTemplate, confirmDeleteTemplate]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -243,18 +357,21 @@ export default function CustomSessionScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderExercise}
+        ListHeaderComponent={TemplatesSection}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: selected.length > 0 ? 160 + insets.bottom : 40 + insets.bottom },
+          { paddingBottom: selected.length > 0 ? 180 + insets.bottom : 40 + insets.bottom },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={32} color={C.textTertiary} />
-            <Text style={styles.emptyText}>No exercises found</Text>
-            <Text style={styles.emptySubText}>Try a different search or category</Text>
-          </View>
+          savedTemplates.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={32} color={C.textTertiary} />
+              <Text style={styles.emptyText}>No exercises found</Text>
+              <Text style={styles.emptySubText}>Try a different search or category</Text>
+            </View>
+          ) : null
         }
       />
 
@@ -265,7 +382,17 @@ export default function CustomSessionScreen() {
         >
           <View style={styles.trayTop}>
             <Text style={styles.trayCount}>{selected.length} exercise{selected.length !== 1 ? 's' : ''} selected</Text>
-            <Text style={styles.trayHint}>Long-press to adjust sets / reps</Text>
+            <View style={styles.trayTopRight}>
+              <Pressable
+                onPress={openSaveModal}
+                style={({ pressed }) => [styles.saveTemplateBtn, pressed && { opacity: 0.7 }]}
+                testID="save-template-btn"
+              >
+                <Ionicons name="bookmark-outline" size={15} color={C.primary} />
+                <Text style={styles.saveTemplateBtnText}>Save</Text>
+              </Pressable>
+              <Text style={styles.trayHint}>Long-press to edit</Text>
+            </View>
           </View>
           <ScrollView
             horizontal
@@ -352,6 +479,56 @@ export default function CustomSessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal visible={saveModalVisible} transparent animationType="fade" onRequestClose={() => setSaveModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setSaveModalVisible(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.saveModalHeader}>
+              <Ionicons name="bookmark" size={20} color={C.primary} />
+              <Text style={styles.modalTitle}>Save as Template</Text>
+            </View>
+            <Text style={styles.modalSub}>
+              {selected.length} exercise{selected.length !== 1 ? 's' : ''} will be saved
+            </Text>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Template Name</Text>
+              <TextInput
+                style={styles.modalRepsInput}
+                value={templateName}
+                onChangeText={setTemplateName}
+                placeholder="e.g. Push Day, Leg Blast…"
+                placeholderTextColor={C.textTertiary}
+                returnKeyType="done"
+                onSubmitEditing={confirmSaveTemplate}
+                autoFocus
+                maxLength={40}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setSaveModalVisible(false)}
+                style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmSaveTemplate}
+                style={({ pressed }) => [
+                  styles.modalSaveBtn,
+                  !templateName.trim() && styles.modalSaveBtnDisabled,
+                  pressed && { opacity: 0.88 },
+                ]}
+                disabled={!templateName.trim()}
+                testID="confirm-save-template"
+              >
+                <Text style={styles.modalSaveText}>Save Template</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -394,6 +571,34 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     filterChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
 
     listContent: { paddingHorizontal: 16, paddingTop: 4 },
+
+    templatesSection: { marginBottom: 16 },
+    templatesSectionTitle: {
+      fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textSecondary,
+      textTransform: 'uppercase', letterSpacing: 0.5,
+      marginBottom: 10,
+    },
+    templatesScroll: { gap: 10, paddingRight: 4 },
+    templateCardWrapper: {
+      position: 'relative', minWidth: 130, maxWidth: 180,
+    },
+    templateCard: {
+      backgroundColor: C.surface, borderRadius: 14,
+      borderWidth: 1, borderColor: C.borderLight,
+      padding: 12, paddingRight: 28,
+    },
+    templateCardTop: {
+      flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4,
+    },
+    templateCardName: {
+      fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1,
+    },
+    templateCardMeta: {
+      fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary,
+    },
+    templateDeleteBtn: {
+      position: 'absolute', top: 8, right: 8, padding: 4,
+    },
 
     exerciseCard: {
       flexDirection: 'row', alignItems: 'center',
@@ -439,8 +644,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       marginBottom: 10,
     },
+    trayTopRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     trayCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
     trayHint: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    saveTemplateBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      paddingHorizontal: 10, paddingVertical: 5,
+      backgroundColor: C.primaryMuted, borderRadius: 10,
+      borderWidth: 1, borderColor: C.primary,
+    },
+    saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
     trayChips: { gap: 8, paddingRight: 4, marginBottom: 12 },
     trayChip: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -466,8 +679,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surface, borderRadius: 20,
       padding: 22, width: '100%', maxWidth: 380,
     },
-    modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
-    modalSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 20 },
+    saveModalHeader: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2,
+    },
+    modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
+    modalSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 20, marginTop: 2 },
     modalSection: { marginBottom: 18 },
     modalLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 10 },
     stepper: { flexDirection: 'row', alignItems: 'center', gap: 0 },
@@ -497,6 +713,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 2, paddingVertical: 13, borderRadius: 12,
       backgroundColor: C.primary, alignItems: 'center',
     },
+    modalSaveBtnDisabled: { opacity: 0.45 },
     modalSaveText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse },
   });
 }
