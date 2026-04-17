@@ -409,38 +409,38 @@ export default function ReadinessScreen() {
     <Animated.View key="prehabFocus" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.stepContent, { alignItems: 'stretch' }]}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, alignItems: 'stretch' }}
       >
-        <View style={[styles.questionIcon, { alignSelf: 'center' }]}>
-          <Ionicons name="body-outline" size={28} color={C.primary} />
+        <View style={[styles.questionIcon, { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 12 }]}>
+          <Ionicons name="body-outline" size={24} color={C.primary} />
         </View>
-        <Text style={[styles.question, { textAlign: 'center' }]}>What area to target today?</Text>
-        <Text style={[styles.questionSub, { textAlign: 'center' }]}>Your circuit will focus on this region</Text>
-        <View style={styles.areaButtons}>
+        <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>What area to target today?</Text>
+        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 14 }]}>Your circuit will focus on this region</Text>
+        <View style={{ width: '100%', gap: 7 }}>
           <Pressable
             key="fullbody"
             onPress={() => handlePrehabFocus('fullbody')}
-            style={({ pressed }) => [styles.areaButton, { borderColor: C.primary, backgroundColor: C.primarySurface }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+            style={({ pressed }) => [styles.areaButton, { borderColor: C.primary, backgroundColor: C.primarySurface, paddingVertical: 10 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
             testID="prehab-fullbody"
           >
-            <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted }]}>
-              <Ionicons name="flash-outline" size={22} color={C.primary} />
+            <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
+              <Ionicons name="flash-outline" size={18} color={C.primary} />
             </View>
             <Text style={[styles.areaLabel, { flex: 1, color: C.primary }]}>Full body circuit</Text>
-            <Ionicons name="chevron-forward" size={18} color={C.primary} />
+            <Ionicons name="chevron-forward" size={16} color={C.primary} />
           </Pressable>
           {ALL_PAIN_REGIONS.map((r) => (
             <Pressable
               key={r.id}
               onPress={() => handlePrehabFocus(r.id)}
-              style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+              style={({ pressed }) => [styles.areaButton, { paddingVertical: 10 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
               testID={`prehab-region-${r.id}`}
             >
-              <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted }]}>
-                <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.primary} />
+              <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
+                <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.primary} />
               </View>
               <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
             </Pressable>
           ))}
         </View>
