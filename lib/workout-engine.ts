@@ -577,12 +577,18 @@ export function generateWorkout(
     return true;
   });
 
+  // Activation (mechanical priming) exercises are always 1 set —
+  // they exist purely to prime the tissue, not accumulate volume.
+  const setsEnforced = deduped.map((ex) =>
+    ex.category === 'mechanical' ? { ...ex, sets: 1 } : ex
+  );
+
   // Guarantee ordering: finisher always last, cooldown always after finisher.
   // This is a stable sort — all non-finisher/non-cooldown exercises keep their
   // relative order exactly as assembled above.
   const catOrder = (cat: string) =>
     cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0;
-  return deduped.sort((a, b) => catOrder(a.category) - catOrder(b.category));
+  return setsEnforced.sort((a, b) => catOrder(a.category) - catOrder(b.category));
 }
 
 function generateConditioningWorkout(
