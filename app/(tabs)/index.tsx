@@ -39,7 +39,6 @@ export default function HomeScreen() {
   const tabBarHeight = insets.bottom + 50;
   const {
     getEffectiveTier,
-    completedCount,
     completedSessions,
     getCurrentSessionType,
     getStreakDays,
@@ -74,8 +73,13 @@ export default function HomeScreen() {
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
   const primaryGoalLabel = GOAL_LABELS[userProfile.goals?.[0] ?? 'fitness'] ?? 'Fitness';
 
-  // Auto-progression indicator: show when completedCount >= 15 (autoMult >= 1.05)
-  const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
+  // Auto-progression indicator: based on strength sessions (squat/bench/deadlift) only.
+  // Show when 15+ strength sessions have been done (autoMult >= 1.05).
+  const strengthCount = useMemo(
+    () => completedSessions.filter(s => ['squat', 'bench', 'deadlift'].includes(s.sessionType)).length,
+    [completedSessions],
+  );
+  const autoMult = Math.min(1.20, 1 + Math.floor(strengthCount / 3) * 0.01);
   const showProgressionNote = autoMult >= 1.05;
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -189,7 +193,7 @@ export default function HomeScreen() {
               <Text style={styles.discardLinkText}>Discard and start fresh</Text>
             </Pressable>
           </Animated.View>
-        ) : completedCount === 0 ? (
+        ) : completedSessions.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
             <Text style={styles.todayLabel}>Choose Your First Session</Text>
             <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
@@ -247,7 +251,7 @@ export default function HomeScreen() {
         )}
 
         {/* Stats strip / Welcome card */}
-        {completedCount === 0 ? (
+        {completedSessions.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.welcomeCard}>
             <Text style={styles.welcomeTitle}>
               {firstName ? `Welcome, ${firstName}` : 'Welcome to Grow'}
@@ -277,7 +281,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statValue}>{completedSessions.length}</Text>
               <Text style={styles.statLabel}>Total</Text>
             </View>
           </Animated.View>

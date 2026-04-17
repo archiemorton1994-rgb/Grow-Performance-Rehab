@@ -441,14 +441,19 @@ export const useAppStore = create<AppState>()(
       }),
 
       getCurrentSessionType: () => {
-        const { completedCount, cycleStartOffset } = get();
-        return SESSION_ORDER[(completedCount + cycleStartOffset) % 3];
+        const { completedSessions, cycleStartOffset } = get();
+        // Cycle rotation only advances on squat/bench/deadlift sessions.
+        // Conditioning, prehab, flexibility, and custom sessions do not shift the rotation.
+        const strengthCount = completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length;
+        return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
       },
 
       isTestWeekDue: () => {
-        const { completedCount, testWeekFrequency } = get();
-        if (completedCount === 0) return false;
-        return completedCount % testWeekFrequency === 0;
+        const { completedSessions, testWeekFrequency } = get();
+        // Test week is based on strength session count only.
+        const strengthCount = completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length;
+        if (strengthCount === 0) return false;
+        return strengthCount % testWeekFrequency === 0;
       },
 
       getStreakDays: () => {

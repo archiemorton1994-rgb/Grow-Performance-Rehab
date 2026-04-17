@@ -97,7 +97,6 @@ export default function TrainScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const {
-    completedCount,
     completedSessions,
     getEffectiveTier,
     isTestWeekDue,
@@ -109,17 +108,26 @@ export default function TrainScreen() {
   const equipmentTier = getEffectiveTier();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const testWeek = isTestWeekDue();
-  const cycleNumber = Math.floor(completedCount / 3) + 1;
-  const sessionsToTest = completedCount > 0
-    ? testWeekFrequency - (completedCount % testWeekFrequency)
+
+  // Cycle tracking is based on strength sessions only (squat/bench/deadlift).
+  // Conditioning, prehab, flexibility, and custom sessions contribute to total
+  // session count but do not advance the squat→bench→deadlift rotation.
+  const strengthCount = useMemo(
+    () => completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length,
+    [completedSessions],
+  );
+
+  const cycleNumber = Math.floor(strengthCount / 3) + 1;
+  const sessionsToTest = strengthCount > 0
+    ? testWeekFrequency - (strengthCount % testWeekFrequency)
     : testWeekFrequency;
 
   const contextMessage = useMemo(
-    () => getContextMessage(completedCount, testWeekFrequency, testWeek),
-    [completedCount, testWeekFrequency, testWeek],
+    () => getContextMessage(strengthCount, testWeekFrequency, testWeek),
+    [strengthCount, testWeekFrequency, testWeek],
   );
 
-  const cyclePosition = completedCount % testWeekFrequency;
+  const cyclePosition = strengthCount % testWeekFrequency;
   const cycleLength = testWeekFrequency;
 
   const timelineItems: {
@@ -129,7 +137,7 @@ export default function TrainScreen() {
   }[] = [];
 
   const timelineLength = Math.min(testWeekFrequency, 9);
-  const cyclePos = completedCount % timelineLength;
+  const cyclePos = strengthCount % timelineLength;
 
   for (let i = 0; i < timelineLength; i++) {
     const sessionType = SESSION_ORDER[i % 3];
@@ -141,7 +149,7 @@ export default function TrainScreen() {
     } else {
       status = 'upcoming';
     }
-    const sessionNumber = completedCount - cyclePos + i + 1;
+    const sessionNumber = strengthCount - cyclePos + i + 1;
     const isTestMarker = sessionNumber % testWeekFrequency === 0;
     timelineItems.push({ sessionType, status, isTestMarker });
   }
@@ -306,7 +314,7 @@ export default function TrainScreen() {
         <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
       </View>
 
-      {completedCount === 0 ? (
+      {strengthCount === 0 ? (
         <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.emptyState}>
           <View style={styles.emptyStateIconWrap}>
             <Ionicons name="barbell-outline" size={34} color={C.primary} />
@@ -329,7 +337,7 @@ export default function TrainScreen() {
             </View>
             <View style={styles.cycleDivider} />
             <View style={styles.cycleCard}>
-              <Text style={styles.cycleNumber}>{completedCount}</Text>
+              <Text style={styles.cycleNumber}>{completedSessions.length}</Text>
               <Text style={styles.cycleLabel}>sessions completed</Text>
             </View>
             <View style={styles.cycleDivider} />

@@ -56,7 +56,7 @@ export default function ProfileScreen() {
   const {
     equipmentTiers,
     setEquipmentTiers,
-    completedCount,
+    completedSessions,
     getStreakDays,
     getThisWeekCount,
     resetProgress,
@@ -294,7 +294,7 @@ export default function ProfileScreen() {
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsRow}>
           <View style={styles.stat}>
-            <Text style={styles.statVal}>{completedCount}</Text>
+            <Text style={styles.statVal}>{completedSessions.length}</Text>
             <Text style={styles.statLbl}>Sessions</Text>
           </View>
           <View style={styles.statDiv} />

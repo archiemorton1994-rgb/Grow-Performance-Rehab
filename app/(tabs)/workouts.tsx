@@ -730,7 +730,6 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const {
-    completedCount,
     completedSessions,
     oneRepMaxes,
     getStreakDays,
@@ -773,7 +772,7 @@ export default function StatsScreen() {
         <>
           <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.statRow}>
             <View style={styles.statCell}>
-              <Text style={styles.statValue}>{completedCount}</Text>
+              <Text style={styles.statValue}>{completedSessions.length}</Text>
               <Text style={styles.statLabel}>Total Sessions</Text>
             </View>
             <View style={styles.statDiv} />

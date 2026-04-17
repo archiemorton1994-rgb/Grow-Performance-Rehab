@@ -1339,8 +1339,9 @@ export default function SessionScreen() {
       }
     }
 
-    // Detect milestone before saving (completedCount is current, new count = completedCount + 1)
-    const newCount = completedCount + 1;
+    // Detect milestone before saving — use total session count (all types) so conditioning/
+    // flexibility sessions also trigger milestone messages (1st, 5th, 10th session, etc.)
+    const newCount = completedSessions.length + 1;
     const hitsMilestone = MILESTONE_SESSIONS.includes(newCount);
 
     // Compute pre-save streak and post-save streak deterministically from session dates.
