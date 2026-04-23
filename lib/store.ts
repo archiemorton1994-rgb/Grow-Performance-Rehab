@@ -223,6 +223,7 @@ interface AppState {
   savedTemplates: CustomTemplate[];
   saveTemplate: (name: string, exercises: CustomExercise[]) => void;
   deleteTemplate: (id: string) => void;
+  updateTemplate: (id: string, patch: Partial<Pick<CustomTemplate, 'name' | 'exercises'>>) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -302,6 +303,11 @@ export const useAppStore = create<AppState>()(
       },
       deleteTemplate: (id) => set((state) => ({
         savedTemplates: state.savedTemplates.filter((t) => t.id !== id),
+      })),
+      updateTemplate: (id, patch) => set((state) => ({
+        savedTemplates: state.savedTemplates.map((t) =>
+          t.id === id ? { ...t, ...patch } : t
+        ),
       })),
 
       completeSession: (session) => {

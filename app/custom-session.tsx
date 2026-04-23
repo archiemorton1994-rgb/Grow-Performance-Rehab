@@ -43,7 +43,7 @@ export default function CustomSessionScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate } = useAppStore();
+  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate, updateTemplate } = useAppStore();
   const tier = getEffectiveTier();
 
   const allExercises = useMemo(() => getAllPickableExercises(tier), [tier]);
@@ -57,6 +57,10 @@ export default function CustomSessionScreen() {
 
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [templateName, setTemplateName] = useState('');
+
+  const [renamingTemplate, setRenamingTemplate] = useState<CustomTemplate | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let list = allExercises;
@@ -139,6 +143,11 @@ export default function CustomSessionScreen() {
     setSaveModalVisible(true);
   }, []);
 
+  const closeSaveModal = useCallback(() => {
+    setSaveModalVisible(false);
+    setLoadedTemplateId(null);
+  }, []);
+
   const confirmSaveTemplate = useCallback(() => {
     const name = templateName.trim();
     if (!name) return;
@@ -153,6 +162,7 @@ export default function CustomSessionScreen() {
     }));
     saveTemplate(name, exercises);
     setSaveModalVisible(false);
+    setLoadedTemplateId(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [templateName, selected, saveTemplate]);
 
@@ -175,9 +185,42 @@ export default function CustomSessionScreen() {
       return { template, sets: ex.sets, reps: ex.reps };
     });
     setSelected(newSelected);
+    setLoadedTemplateId(tmpl.id);
     setSearch('');
     setCategoryFilter('all');
   }, [allExercises]);
+
+  const openRenameModal = useCallback((tmpl: CustomTemplate) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRenamingTemplate(tmpl);
+    setRenameText(tmpl.name);
+  }, []);
+
+  const confirmRename = useCallback(() => {
+    if (!renamingTemplate) return;
+    const name = renameText.trim();
+    if (!name) return;
+    updateTemplate(renamingTemplate.id, { name });
+    setRenamingTemplate(null);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [renamingTemplate, renameText, updateTemplate]);
+
+  const confirmUpdateTemplate = useCallback(() => {
+    if (!loadedTemplateId) return;
+    const exercises: CustomExercise[] = selected.map((s) => ({
+      id: s.template.id,
+      name: s.template.name,
+      sets: s.sets,
+      reps: s.reps,
+      cue: s.template.cue,
+      suggestedLoad: s.template.suggestedLoad,
+      category: s.template.category,
+    }));
+    updateTemplate(loadedTemplateId, { exercises });
+    setLoadedTemplateId(null);
+    setSaveModalVisible(false);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [loadedTemplateId, selected, updateTemplate]);
 
   const confirmDeleteTemplate = useCallback((tmpl: CustomTemplate) => {
     if (Platform.OS === 'web') {
@@ -282,20 +325,30 @@ export default function CustomSessionScreen() {
                   {tmpl.exercises.length} exercise{tmpl.exercises.length !== 1 ? 's' : ''}
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => confirmDeleteTemplate(tmpl)}
-                hitSlop={8}
-                style={styles.templateDeleteBtn}
-                testID={`template-delete-${tmpl.id}`}
-              >
-                <Ionicons name="trash-outline" size={14} color={C.textTertiary} />
-              </Pressable>
+              <View style={styles.templateActions}>
+                <Pressable
+                  onPress={() => openRenameModal(tmpl)}
+                  hitSlop={8}
+                  style={styles.templateActionBtn}
+                  testID={`template-rename-${tmpl.id}`}
+                >
+                  <Ionicons name="pencil-outline" size={13} color={C.textTertiary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => confirmDeleteTemplate(tmpl)}
+                  hitSlop={8}
+                  style={styles.templateActionBtn}
+                  testID={`template-delete-${tmpl.id}`}
+                >
+                  <Ionicons name="trash-outline" size={13} color={C.textTertiary} />
+                </Pressable>
+              </View>
             </View>
           ))}
         </ScrollView>
       </View>
     );
-  }, [savedTemplates, styles, C, loadTemplate, confirmDeleteTemplate]);
+  }, [savedTemplates, styles, C, loadTemplate, confirmDeleteTemplate, openRenameModal]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -480,8 +533,8 @@ export default function CustomSessionScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={saveModalVisible} transparent animationType="fade" onRequestClose={() => setSaveModalVisible(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setSaveModalVisible(false)}>
+      <Modal visible={saveModalVisible} transparent animationType="fade" onRequestClose={closeSaveModal}>
+        <Pressable style={styles.modalOverlay} onPress={closeSaveModal}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.saveModalHeader}>
               <Ionicons name="bookmark" size={20} color={C.primary} />
@@ -490,6 +543,31 @@ export default function CustomSessionScreen() {
             <Text style={styles.modalSub}>
               {selected.length} exercise{selected.length !== 1 ? 's' : ''} will be saved
             </Text>
+
+            {loadedTemplateId && (() => {
+              const loadedTmpl = savedTemplates.find((t) => t.id === loadedTemplateId);
+              if (!loadedTmpl) return null;
+              return (
+                <Pressable
+                  onPress={confirmUpdateTemplate}
+                  style={({ pressed }) => [styles.updateExistingBtn, pressed && { opacity: 0.8 }]}
+                  testID="confirm-update-template"
+                >
+                  <Ionicons name="refresh-outline" size={16} color={C.primary} />
+                  <Text style={styles.updateExistingText} numberOfLines={1}>
+                    Update "{loadedTmpl.name}"
+                  </Text>
+                </Pressable>
+              );
+            })()}
+
+            {loadedTemplateId && (
+              <View style={styles.saveModalDivider}>
+                <View style={styles.saveModalDividerLine} />
+                <Text style={styles.saveModalDividerText}>or save as new</Text>
+                <View style={styles.saveModalDividerLine} />
+              </View>
+            )}
 
             <View style={styles.modalSection}>
               <Text style={styles.modalLabel}>Template Name</Text>
@@ -501,14 +579,14 @@ export default function CustomSessionScreen() {
                 placeholderTextColor={C.textTertiary}
                 returnKeyType="done"
                 onSubmitEditing={confirmSaveTemplate}
-                autoFocus
+                autoFocus={!loadedTemplateId}
                 maxLength={40}
               />
             </View>
 
             <View style={styles.modalActions}>
               <Pressable
-                onPress={() => setSaveModalVisible(false)}
+                onPress={closeSaveModal}
                 style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
               >
                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -523,7 +601,52 @@ export default function CustomSessionScreen() {
                 disabled={!templateName.trim()}
                 testID="confirm-save-template"
               >
-                <Text style={styles.modalSaveText}>Save Template</Text>
+                <Text style={styles.modalSaveText}>{loadedTemplateId ? 'Save New' : 'Save Template'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!renamingTemplate} transparent animationType="fade" onRequestClose={() => setRenamingTemplate(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setRenamingTemplate(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.saveModalHeader}>
+              <Ionicons name="pencil" size={20} color={C.primary} />
+              <Text style={styles.modalTitle}>Rename Template</Text>
+            </View>
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Template Name</Text>
+              <TextInput
+                style={styles.modalRepsInput}
+                value={renameText}
+                onChangeText={setRenameText}
+                placeholder="Template name…"
+                placeholderTextColor={C.textTertiary}
+                returnKeyType="done"
+                onSubmitEditing={confirmRename}
+                autoFocus
+                maxLength={40}
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setRenamingTemplate(null)}
+                style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmRename}
+                style={({ pressed }) => [
+                  styles.modalSaveBtn,
+                  !renameText.trim() && styles.modalSaveBtnDisabled,
+                  pressed && { opacity: 0.88 },
+                ]}
+                disabled={!renameText.trim()}
+                testID="confirm-rename-template"
+              >
+                <Text style={styles.modalSaveText}>Rename</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -585,7 +708,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     templateCard: {
       backgroundColor: C.surface, borderRadius: 14,
       borderWidth: 1, borderColor: C.borderLight,
-      padding: 12, paddingRight: 28,
+      padding: 12, paddingRight: 12,
     },
     templateCardTop: {
       flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4,
@@ -596,9 +719,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     templateCardMeta: {
       fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary,
     },
-    templateDeleteBtn: {
-      position: 'absolute', top: 8, right: 8, padding: 4,
+    templateActions: {
+      flexDirection: 'row', justifyContent: 'flex-end',
+      gap: 4, marginTop: 6,
     },
+    templateActionBtn: { padding: 4 },
 
     exerciseCard: {
       flexDirection: 'row', alignItems: 'center',
@@ -715,5 +840,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     modalSaveBtnDisabled: { opacity: 0.45 },
     modalSaveText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse },
+
+    updateExistingBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: C.primaryMuted, borderRadius: 12,
+      borderWidth: 1, borderColor: C.primary,
+      paddingHorizontal: 14, paddingVertical: 12,
+      marginTop: 12,
+    },
+    updateExistingText: {
+      flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary,
+    },
+    saveModalDivider: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 16,
+    },
+    saveModalDividerLine: { flex: 1, height: 1, backgroundColor: C.borderLight },
+    saveModalDividerText: {
+      fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary,
+    },
   });
 }
