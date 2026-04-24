@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { SessionType, useAppStore } from '@/lib/store';
+import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
 import { formatDate, getTimeOfDayGreeting } from '@/lib/utils';
 
@@ -76,7 +76,7 @@ export default function HomeScreen() {
   // Auto-progression indicator: based on strength sessions (squat/bench/deadlift) only.
   // Show when 15+ strength sessions have been done (autoMult >= 1.05).
   const strengthCount = useMemo(
-    () => completedSessions.filter(s => ['squat', 'bench', 'deadlift'].includes(s.sessionType)).length,
+    () => completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
     [completedSessions],
   );
   const autoMult = Math.min(1.20, 1 + Math.floor(strengthCount / 3) * 0.01);

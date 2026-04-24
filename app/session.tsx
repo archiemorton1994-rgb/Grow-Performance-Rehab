@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   Exercise,
@@ -841,7 +841,10 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, completedCount, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
+  // Only count strength sessions for auto-progression — conditioning, prehab,
+  // and flexibility sessions do not drive strength progressive overload.
+  const strengthCount = completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
@@ -909,12 +912,12 @@ export default function SessionScreen() {
       }));
     }
     if (isTestWeek) {
-      return generate1RMWorkout(sessionType, equipmentTier, completedCount);
+      return generate1RMWorkout(sessionType, equipmentTier, strengthCount);
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
+    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
+  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);

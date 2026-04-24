@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
+/** Session types that contribute to strength progressive overload. */
+export const STRENGTH_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
 export type ExerciseCategory = 'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
