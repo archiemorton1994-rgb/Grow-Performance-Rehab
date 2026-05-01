@@ -110,6 +110,19 @@ export default function CustomSessionScreen() {
     setSelected((prev) => prev.filter((s) => s.template.id !== id));
   }, []);
 
+  const moveExercise = useCallback((id: string, direction: 'left' | 'right') => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelected((prev) => {
+      const idx = prev.findIndex((s) => s.template.id === id);
+      if (idx === -1) return prev;
+      const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+      return next;
+    });
+  }, []);
+
   const handleStart = useCallback(() => {
     if (selected.length === 0) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -452,10 +465,30 @@ export default function CustomSessionScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.trayChips}
           >
-            {selected.map((s) => (
+            {selected.map((s, idx) => (
               <View key={s.template.id} style={styles.trayChip}>
-                <Text style={styles.trayChipName} numberOfLines={1}>{s.template.name}</Text>
-                <Text style={styles.trayChipMeta}>{s.sets}×{s.reps}</Text>
+                <Pressable
+                  onPress={() => moveExercise(s.template.id, 'left')}
+                  hitSlop={6}
+                  style={[styles.trayChipReorder, idx === 0 && styles.trayChipReorderDisabled]}
+                  disabled={idx === 0}
+                  testID={`move-left-${s.template.id}`}
+                >
+                  <Ionicons name="chevron-back" size={12} color={idx === 0 ? C.textTertiary : C.textSecondary} />
+                </Pressable>
+                <View style={styles.trayChipBody}>
+                  <Text style={styles.trayChipName} numberOfLines={1}>{s.template.name}</Text>
+                  <Text style={styles.trayChipMeta}>{s.sets}×{s.reps}</Text>
+                </View>
+                <Pressable
+                  onPress={() => moveExercise(s.template.id, 'right')}
+                  hitSlop={6}
+                  style={[styles.trayChipReorder, idx === selected.length - 1 && styles.trayChipReorderDisabled]}
+                  disabled={idx === selected.length - 1}
+                  testID={`move-right-${s.template.id}`}
+                >
+                  <Ionicons name="chevron-forward" size={12} color={idx === selected.length - 1 ? C.textTertiary : C.textSecondary} />
+                </Pressable>
                 <Pressable
                   onPress={() => removeFromTray(s.template.id)}
                   hitSlop={8}
@@ -786,9 +819,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10, paddingVertical: 6,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    trayChipName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, maxWidth: 100 },
+    trayChipBody: { alignItems: 'center' },
+    trayChipName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, maxWidth: 90 },
     trayChipMeta: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-    trayChipRemove: { padding: 2 },
+    trayChipReorder: { padding: 2 },
+    trayChipReorderDisabled: { opacity: 0.3 },
+    trayChipRemove: { padding: 2, marginLeft: 2 },
 
     startBtn: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
