@@ -489,6 +489,124 @@ function SessionHistoryList({
   );
 }
 
+const SESSION_TYPE_LABELS: Record<SessionType, string> = {
+  squat: 'Squat',
+  bench: 'Bench',
+  deadlift: 'Deadlift',
+  conditioning: 'Conditioning',
+  prehab: 'Prehab',
+  flexibility: 'Flexibility',
+  custom: 'Custom',
+};
+
+const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom'];
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function donutSegmentPath(cx: number, cy: number, R: number, r: number, startAngle: number, endAngle: number): string {
+  const outerStart = polarToCartesian(cx, cy, R, startAngle);
+  const outerEnd = polarToCartesian(cx, cy, R, endAngle);
+  const innerStart = polarToCartesian(cx, cy, r, endAngle);
+  const innerEnd = polarToCartesian(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return [
+    `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+    `A ${R} ${R} 0 ${largeArc} 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+    `L ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+    `A ${r} ${r} 0 ${largeArc} 0 ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+    'Z',
+  ].join(' ');
+}
+
+function SessionTypeBreakdown({
+  sessions,
+  C,
+}: {
+  sessions: CompletedSession[];
+  C: ReturnType<typeof useColors>;
+}) {
+  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
+
+  const counts = useMemo(() => {
+    const map: Record<SessionType, number> = {
+      squat: 0, bench: 0, deadlift: 0, conditioning: 0, prehab: 0, flexibility: 0, custom: 0,
+    };
+    for (const s of sessions) {
+      if (map[s.sessionType] !== undefined) map[s.sessionType]++;
+    }
+    return map;
+  }, [sessions]);
+
+  const total = sessions.length;
+  const activeTypes = ALL_SESSION_TYPES.filter(t => counts[t] > 0);
+
+  const SIZE = 140;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const R = 58;
+  const r = 36;
+  const GAP = 2;
+
+  const segments = useMemo(() => {
+    const result: { type: SessionType; startAngle: number; endAngle: number }[] = [];
+    let angle = 0;
+    for (const type of activeTypes) {
+      const fraction = counts[type] / total;
+      const sweep = fraction * 360;
+      const segGap = Math.min(GAP, sweep * 0.4);
+      const startAngle = angle + segGap / 2;
+      const endAngle = angle + sweep - segGap / 2;
+      if (endAngle > startAngle) {
+        result.push({ type, startAngle, endAngle });
+      }
+      angle += sweep;
+    }
+    return result;
+  }, [counts, total, activeTypes]);
+
+  if (total === 0) return null;
+
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
+      <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>Session Breakdown</Text>
+      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 }}>Training balance across all session types</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Svg width={SIZE} height={SIZE}>
+          {segments.map(seg => (
+            <Path
+              key={seg.type}
+              d={donutSegmentPath(cx, cy, R, r, seg.startAngle, seg.endAngle)}
+              fill={sessionTypeColors[seg.type].color}
+              opacity={0.9}
+            />
+          ))}
+          <SvgText x={cx} y={cy - 6} textAnchor="middle" fontSize={20} fontWeight="bold" fill={C.text}>{total}</SvgText>
+          <SvgText x={cx} y={cy + 12} textAnchor="middle" fontSize={9} fill={C.textSecondary}>total</SvgText>
+        </Svg>
+        <View style={{ flex: 1, gap: 6 }}>
+          {activeTypes.map(type => {
+            const pct = Math.round((counts[type] / total) * 100);
+            const meta = sessionTypeColors[type];
+            return (
+              <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: meta.color }} />
+                <Text style={{ flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }} numberOfLines={1}>
+                  {SESSION_TYPE_LABELS[type]}
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, minWidth: 22, textAlign: 'right' }}>{counts[type]}</Text>
+                <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, minWidth: 32, textAlign: 'right' }}>{pct}%</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const LIFT_LABELS: Record<string, string> = {
   squat: 'Squat',
   bench: 'Bench',
@@ -793,6 +911,10 @@ export default function StatsScreen() {
 
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(120).duration(400)}>
+            <SessionTypeBreakdown sessions={completedSessions} C={C} />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>
