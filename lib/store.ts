@@ -174,13 +174,6 @@ interface AppState {
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
   /**
-   * Records the **strength-session count** at the point feedback was last given for each exercise.
-   * Uses strength-only session count (squat/bench/deadlift) so the reference stays accurate
-   * regardless of how many conditioning/prehab/flexibility sessions occur between strength sessions.
-   * Kept for data integrity; streak detection now uses exerciseNormalStreak instead.
-   */
-  feedbackGivenAtCount: Record<string, number>;
-  /**
    * Tracks how many consecutive sessions each exercise has appeared in with a
    * 'normal' (no-feedback) performance outcome. Incremented by `completeSession`
    * when `lastSessionPerformance[id]` was 'normal' before the new session ran,
@@ -268,7 +261,6 @@ export const useAppStore = create<AppState>()(
       reminderEnabled: false,
       reminderTime: '07:00',
       cycleStartOffset: 0,
-      feedbackGivenAtCount: {},
       exerciseNormalStreak: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
@@ -405,13 +397,6 @@ export const useAppStore = create<AppState>()(
               multiplier: newMult,
             },
           },
-          // Record the strength-session count when feedback was given so the reference
-          // stays accurate regardless of non-strength sessions (conditioning/prehab/flexibility)
-          // completed between strength workouts.
-          feedbackGivenAtCount: {
-            ...state.feedbackGivenAtCount,
-            [exerciseId]: state.completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
-          },
           lastSessionPerformance: {
             ...state.lastSessionPerformance,
             ...(performance ? { [exerciseId]: performance } : {}),
@@ -427,12 +412,8 @@ export const useAppStore = create<AppState>()(
 
       applyTooEasyAdjustment: (exerciseIds) => set((state) => {
         const updated = { ...state.exerciseFeedback };
-        const updatedCounts = { ...state.feedbackGivenAtCount };
         const updatedPerformance = { ...state.lastSessionPerformance };
         const updatedStreak = { ...state.exerciseNormalStreak };
-        // Use strength-session count so the reference stays accurate regardless of
-        // non-strength sessions (conditioning/prehab/flexibility) in between.
-        const strengthCount = state.completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
@@ -440,7 +421,6 @@ export const useAppStore = create<AppState>()(
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
-          updatedCounts[id] = strengthCount;
           // Mark performance as 'easy' — user found this exercise manageable
           updatedPerformance[id] = 'easy';
           // Reset streak — explicit feedback interrupts the no-feedback run
@@ -448,7 +428,6 @@ export const useAppStore = create<AppState>()(
         }
         return {
           exerciseFeedback: updated,
-          feedbackGivenAtCount: updatedCounts,
           lastSessionPerformance: updatedPerformance,
           exerciseNormalStreak: updatedStreak,
         };
@@ -590,9 +569,6 @@ export const useAppStore = create<AppState>()(
         if (!('cycleStartOffset' in persistedState)) {
           persistedState.cycleStartOffset = 0;
         }
-        if (!persistedState.feedbackGivenAtCount) {
-          persistedState.feedbackGivenAtCount = {};
-        }
         if (!persistedState.exerciseNormalStreak) {
           persistedState.exerciseNormalStreak = {};
         }
@@ -602,9 +578,10 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.savedTemplates) {
           persistedState.savedTemplates = [];
         }
+        delete persistedState.feedbackGivenAtCount;
         return persistedState;
       },
-      version: 13,
+      version: 14,
     }
   )
 );
