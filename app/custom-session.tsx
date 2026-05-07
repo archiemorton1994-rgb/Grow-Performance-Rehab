@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -62,6 +62,49 @@ export default function CustomSessionScreen() {
   const [renamingTemplate, setRenamingTemplate] = useState<CustomTemplate | null>(null);
   const [renameText, setRenameText] = useState('');
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
+
+  const [undoToast, setUndoToast] = useState<{
+    templateId: string;
+    templateName: string;
+    previousExercises: SelectedExercise[];
+  } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissUndoToast = useCallback(() => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = null;
+    setUndoToast(null);
+  }, []);
+
+  const showUndoToast = useCallback((templateId: string, templateName: string, previousExercises: SelectedExercise[]) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoToast({ templateId, templateName, previousExercises });
+    undoTimerRef.current = setTimeout(() => {
+      setUndoToast(null);
+      undoTimerRef.current = null;
+    }, 4500);
+  }, []);
+
+  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }, []);
+
+  const handleUndo = useCallback(() => {
+    if (!undoToast) return;
+    const { templateId, previousExercises } = undoToast;
+    dismissUndoToast();
+    const restoredExercises = previousExercises.map((s) => ({
+      id: s.template.id,
+      name: s.template.name,
+      sets: s.sets,
+      reps: s.reps,
+      cue: s.template.cue,
+      suggestedLoad: s.template.suggestedLoad,
+      category: s.template.category,
+    }));
+    updateTemplate(templateId, { exercises: restoredExercises });
+    setSelected(previousExercises);
+    setLoadedTemplateId(templateId);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [undoToast, dismissUndoToast, updateTemplate]);
 
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [insertAtIdx, setInsertAtIdx] = useState<number | null>(null);
@@ -321,17 +364,39 @@ export default function CustomSessionScreen() {
       category: s.template.category,
     }));
 
-    const doUpdate = () => {
-      updateTemplate(loadedTemplateId, { exercises });
-      setLoadedTemplateId(null);
-      setSaveModalVisible(false);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    };
-
     const originalTemplate = savedTemplates.find((t) => t.id === loadedTemplateId);
     const removedCount = originalTemplate
       ? originalTemplate.exercises.length - exercises.length
       : 0;
+
+    const doUpdate = () => {
+      const prevSelected: SelectedExercise[] | null = removedCount > 0 && originalTemplate
+        ? originalTemplate.exercises.map((ex) => {
+            const found = allExercises.find((e) => e.id === ex.id);
+            const tmpl: ExerciseTemplate = found ?? {
+              id: ex.id,
+              name: ex.name,
+              sets: ex.sets,
+              reps: ex.reps,
+              cue: ex.cue,
+              suggestedLoad: ex.suggestedLoad,
+              category: ex.category as ExerciseCategory,
+              targetRegions: [],
+              videoId: '',
+            };
+            return { template: tmpl, sets: ex.sets, reps: ex.reps };
+          })
+        : null;
+
+      updateTemplate(loadedTemplateId, { exercises });
+      setLoadedTemplateId(null);
+      setSaveModalVisible(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      if (prevSelected && originalTemplate) {
+        showUndoToast(loadedTemplateId, originalTemplate.name, prevSelected);
+      }
+    };
 
     if (removedCount > 0) {
       const message = `You're removing ${removedCount} exercise${removedCount !== 1 ? 's' : ''}. Continue?`;
@@ -353,7 +418,7 @@ export default function CustomSessionScreen() {
     }
 
     doUpdate();
-  }, [loadedTemplateId, selected, updateTemplate, savedTemplates]);
+  }, [loadedTemplateId, selected, updateTemplate, savedTemplates, allExercises, showUndoToast]);
 
   const confirmDeleteTemplate = useCallback((tmpl: CustomTemplate) => {
     if (Platform.OS === 'web') {
@@ -798,6 +863,31 @@ export default function CustomSessionScreen() {
         </Pressable>
       </Modal>
 
+      {undoToast && (
+        <Animated.View
+          entering={FadeInDown.duration(250)}
+          style={[
+            styles.undoToast,
+            { bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + (selected.length > 0 ? 180 : 16) },
+          ]}
+          testID="undo-toast"
+        >
+          <Text style={styles.undoToastText} numberOfLines={1}>
+            "{undoToast.templateName}" updated
+          </Text>
+          <Pressable
+            onPress={handleUndo}
+            style={({ pressed }) => [styles.undoBtn, pressed && { opacity: 0.75 }]}
+            testID="undo-toast-btn"
+          >
+            <Text style={styles.undoBtnText}>Undo</Text>
+          </Pressable>
+          <Pressable onPress={dismissUndoToast} hitSlop={10} style={styles.undoDismissBtn}>
+            <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
+          </Pressable>
+        </Animated.View>
+      )}
+
       <Modal visible={!!renamingTemplate} transparent animationType="fade" onRequestClose={() => setRenamingTemplate(null)}>
         <Pressable style={styles.modalOverlay} onPress={() => setRenamingTemplate(null)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
@@ -1067,6 +1157,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     saveModalDividerLine: { flex: 1, height: 1, backgroundColor: C.borderLight },
     saveModalDividerText: {
       fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary,
+    },
+
+    undoToast: {
+      position: 'absolute', left: 16, right: 16,
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: '#1a1a1a',
+      borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.22, shadowRadius: 10, elevation: 12,
+      gap: 10,
+    },
+    undoToastText: {
+      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: '#fff',
+    },
+    undoBtn: {
+      paddingHorizontal: 12, paddingVertical: 6,
+      backgroundColor: C.primary, borderRadius: 8,
+    },
+    undoBtnText: {
+      fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff',
+    },
+    undoDismissBtn: {
+      padding: 2,
     },
   });
 }
