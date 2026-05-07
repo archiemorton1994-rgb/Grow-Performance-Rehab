@@ -897,19 +897,40 @@ export default function StatsScreen() {
   } = useAppStore();
 
   const [historyFilter, setHistoryFilter] = useState<SessionType | null>(null);
+  const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_30' | 'last_90'>('all');
 
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const filteredSessions = useMemo(
-    () => historyFilter ? completedSessions.filter(s => s.sessionType === historyFilter) : completedSessions,
-    [completedSessions, historyFilter]
-  );
+  const filteredSessions = useMemo(() => {
+    const now = new Date();
+    let cutoff: Date | null = null;
+    if (dateFilter === 'this_month') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (dateFilter === 'last_30') {
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (dateFilter === 'last_90') {
+      cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    }
+    return completedSessions.filter(s => {
+      if (historyFilter && s.sessionType !== historyFilter) return false;
+      if (cutoff && new Date(s.date) < cutoff) return false;
+      return true;
+    });
+  }, [completedSessions, historyFilter, dateFilter]);
+
+  const DATE_FILTER_LABELS: Record<typeof dateFilter, string> = {
+    all: 'All time',
+    this_month: 'This month',
+    last_30: 'Last 30 days',
+    last_90: 'Last 90 days',
+  };
 
   const historyHeading = historyFilter ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions` : 'Session History';
-  const historySubheading = historyFilter
+  const hasActiveFilter = historyFilter !== null || dateFilter !== 'all';
+  const historySubheading = hasActiveFilter
     ? `${filteredSessions.length} session${filteredSessions.length !== 1 ? 's' : ''} · tap a row for details`
     : 'Tap a row to see exercise details';
 
@@ -995,9 +1016,9 @@ export default function StatsScreen() {
           <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.sectionBlock}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
               <Text style={styles.sectionTitle}>{historyHeading}</Text>
-              {historyFilter && (
+              {hasActiveFilter && (
                 <Pressable
-                  onPress={() => setHistoryFilter(null)}
+                  onPress={() => { setHistoryFilter(null); setDateFilter('all'); }}
                   style={({ pressed }) => ({
                     flexDirection: 'row', alignItems: 'center', gap: 4,
                     backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
@@ -1006,14 +1027,44 @@ export default function StatsScreen() {
                   })}
                 >
                   <Ionicons name="close-circle" size={13} color={C.primary} />
-                  <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Show all</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Clear all</Text>
                 </Pressable>
               )}
             </View>
             <Text style={styles.sectionSub}>{historySubheading}</Text>
-            <View style={{ marginTop: 8 }}>
-              <SessionHistoryList sessions={filteredSessions} weightUnit={weightUnit} C={C} />
+            {/* Date range filter chips */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+              {(['all', 'this_month', 'last_30', 'last_90'] as const).map(option => {
+                const active = dateFilter === option;
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => setDateFilter(option)}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row', alignItems: 'center', gap: 4,
+                      paddingHorizontal: 12, paddingVertical: 6,
+                      borderRadius: 20,
+                      backgroundColor: active ? C.primary : (pressed ? C.surfaceTertiary : C.surface),
+                      borderWidth: 1.5,
+                      borderColor: active ? C.primary : C.borderLight,
+                    })}
+                  >
+                    <Text style={{
+                      fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
+                      color: active ? '#fff' : C.textSecondary,
+                    }}>
+                      {DATE_FILTER_LABELS[option]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
+            <SessionHistoryList
+              key={`${historyFilter ?? 'all'}-${dateFilter}`}
+              sessions={filteredSessions}
+              weightUnit={weightUnit}
+              C={C}
+            />
           </Animated.View>
         </>
       )}
