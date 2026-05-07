@@ -12,6 +12,7 @@ import {
   Alert,
   PanResponder,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,6 +114,20 @@ export default function CustomSessionScreen() {
   const chipLayoutsRef = useRef<Array<{ x: number; width: number }>>([]);
   const trayScrollRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
+  const [trayContentWidth, setTrayContentWidth] = useState(0);
+  const [trayContainerWidth, setTrayContainerWidth] = useState(0);
+  const [trayScrollX, setTrayScrollX] = useState(0);
+  const prevSelectedLengthRef = useRef(0);
+
+  // Auto-scroll to end when a new chip is added
+  useEffect(() => {
+    const prev = prevSelectedLengthRef.current;
+    prevSelectedLengthRef.current = selected.length;
+    if (selected.length > prev) {
+      setTimeout(() => trayScrollRef.current?.scrollToEnd({ animated: true }), 60);
+    }
+  }, [selected.length]);
+
   const captureGsMoveXRef = useRef(0);
   const captureChipCenterXRef = useRef(0);
   const containerOwnedRef = useRef(false);
@@ -659,15 +674,24 @@ export default function CustomSessionScreen() {
               <Text style={styles.trayHint}>Long-press to drag</Text>
             </View>
           </View>
-          <View style={styles.trayChipsWrapper} {...chipsPanResponder.panHandlers}>
+          <View
+            style={styles.trayChipsWrapper}
+            onLayout={(e) => setTrayContainerWidth(e.nativeEvent.layout.width)}
+            {...chipsPanResponder.panHandlers}
+          >
             <ScrollView
               ref={trayScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.trayChips}
               scrollEnabled={draggingIdx === null}
-              onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.x; }}
+              onScroll={(e) => {
+                const x = e.nativeEvent.contentOffset.x;
+                scrollOffsetRef.current = x;
+                setTrayScrollX(x);
+              }}
               scrollEventThrottle={16}
+              onContentSizeChange={(w) => setTrayContentWidth(w)}
             >
               {selected.map((s, idx) => {
                 const isDragged = draggingIdx === idx;
@@ -720,6 +744,18 @@ export default function CustomSessionScreen() {
                 <View style={styles.insertCursor} />
               )}
             </ScrollView>
+            {/* Right-edge overflow affordance: fade + chevron shown when chips extend beyond tray width */}
+            {trayContentWidth > trayContainerWidth + 4 && trayScrollX < trayContentWidth - trayContainerWidth - 4 && (
+              <LinearGradient
+                colors={[`${C.surface}00`, C.surface]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.trayOverflowFade}
+                pointerEvents="none"
+              >
+                <Ionicons name="chevron-forward" size={16} color={C.textSecondary} />
+              </LinearGradient>
+            )}
           </View>
           <Pressable
             onPress={handleStart}
@@ -1068,7 +1104,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.primary,
     },
     saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    trayChipsWrapper: { position: 'relative' },
+    trayChipsWrapper: { position: 'relative', overflow: 'hidden' },
+    trayOverflowFade: {
+      position: 'absolute', right: 0, top: 0, bottom: 0,
+      width: 48,
+      alignItems: 'flex-end', justifyContent: 'center',
+      paddingRight: 6,
+    },
     trayChips: { gap: 8, paddingRight: 4, marginBottom: 12 },
     trayChip: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
