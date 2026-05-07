@@ -229,11 +229,40 @@ export default function CustomSessionScreen() {
       suggestedLoad: s.template.suggestedLoad,
       category: s.template.category,
     }));
-    updateTemplate(loadedTemplateId, { exercises });
-    setLoadedTemplateId(null);
-    setSaveModalVisible(false);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [loadedTemplateId, selected, updateTemplate]);
+
+    const doUpdate = () => {
+      updateTemplate(loadedTemplateId, { exercises });
+      setLoadedTemplateId(null);
+      setSaveModalVisible(false);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
+    const originalTemplate = savedTemplates.find((t) => t.id === loadedTemplateId);
+    const removedCount = originalTemplate
+      ? originalTemplate.exercises.length - exercises.length
+      : 0;
+
+    if (removedCount > 0) {
+      const message = `You're removing ${removedCount} exercise${removedCount !== 1 ? 's' : ''}. Continue?`;
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.confirm(message)) {
+          doUpdate();
+        }
+        return;
+      }
+      Alert.alert(
+        'Remove Exercises?',
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Update', style: 'destructive', onPress: doUpdate },
+        ]
+      );
+      return;
+    }
+
+    doUpdate();
+  }, [loadedTemplateId, selected, updateTemplate, savedTemplates]);
 
   const confirmDeleteTemplate = useCallback((tmpl: CustomTemplate) => {
     if (Platform.OS === 'web') {
