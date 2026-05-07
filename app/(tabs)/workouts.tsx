@@ -523,9 +523,13 @@ function donutSegmentPath(cx: number, cy: number, R: number, r: number, startAng
 
 function SessionTypeBreakdown({
   sessions,
+  activeFilter,
+  onFilterChange,
   C,
 }: {
   sessions: CompletedSession[];
+  activeFilter: SessionType | null;
+  onFilterChange: (type: SessionType | null) => void;
   C: ReturnType<typeof useColors>;
 }) {
   const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
@@ -569,20 +573,45 @@ function SessionTypeBreakdown({
 
   if (total === 0) return null;
 
+  const hasFilter = activeFilter !== null;
+
   return (
     <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
-      <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>Session Breakdown</Text>
-      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 }}>Training balance across all session types</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>Session Breakdown</Text>
+        {hasFilter && (
+          <Pressable
+            onPress={() => onFilterChange(null)}
+            style={({ pressed }) => ({
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+              borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+              borderWidth: 1, borderColor: C.primaryMuted,
+            })}
+          >
+            <Ionicons name="close-circle" size={13} color={C.primary} />
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Clear</Text>
+          </Pressable>
+        )}
+      </View>
+      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 }}>
+        {hasFilter ? `Tap another type or clear to reset` : 'Tap a segment or label to filter history'}
+      </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
         <Svg width={SIZE} height={SIZE}>
-          {segments.map(seg => (
-            <Path
-              key={seg.type}
-              d={donutSegmentPath(cx, cy, R, r, seg.startAngle, seg.endAngle)}
-              fill={sessionTypeColors[seg.type].color}
-              opacity={0.9}
-            />
-          ))}
+          {segments.map(seg => {
+            const isSelected = activeFilter === seg.type;
+            const isDimmed = hasFilter && !isSelected;
+            return (
+              <Path
+                key={seg.type}
+                d={donutSegmentPath(cx, cy, R, r, seg.startAngle, seg.endAngle)}
+                fill={sessionTypeColors[seg.type].color}
+                opacity={isDimmed ? 0.25 : isSelected ? 1 : 0.9}
+                onPress={() => onFilterChange(isSelected ? null : seg.type)}
+              />
+            );
+          })}
           <SvgText x={cx} y={cy - 6} textAnchor="middle" fontSize={20} fontWeight="bold" fill={C.text}>{total}</SvgText>
           <SvgText x={cx} y={cy + 12} textAnchor="middle" fontSize={9} fill={C.textSecondary}>total</SvgText>
         </Svg>
@@ -590,15 +619,26 @@ function SessionTypeBreakdown({
           {activeTypes.map(type => {
             const pct = Math.round((counts[type] / total) * 100);
             const meta = sessionTypeColors[type];
+            const isSelected = activeFilter === type;
+            const isDimmed = hasFilter && !isSelected;
             return (
-              <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Pressable
+                key={type}
+                onPress={() => onFilterChange(isSelected ? null : type)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  borderRadius: 8, paddingVertical: 3, paddingHorizontal: 4,
+                  backgroundColor: isSelected ? meta.bg : pressed ? C.surfaceTertiary : 'transparent',
+                  opacity: isDimmed ? 0.35 : 1,
+                })}
+              >
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: meta.color }} />
-                <Text style={{ flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }} numberOfLines={1}>
+                <Text style={{ flex: 1, fontSize: 12, fontFamily: isSelected ? 'Inter_600SemiBold' : 'Inter_400Regular', color: isSelected ? meta.color : C.textSecondary }} numberOfLines={1}>
                   {SESSION_TYPE_LABELS[type]}
                 </Text>
-                <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, minWidth: 22, textAlign: 'right' }}>{counts[type]}</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: isSelected ? meta.color : C.text, minWidth: 22, textAlign: 'right' }}>{counts[type]}</Text>
                 <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, minWidth: 32, textAlign: 'right' }}>{pct}%</Text>
-              </View>
+              </Pressable>
             );
           })}
         </View>
@@ -856,10 +896,22 @@ export default function StatsScreen() {
     addOneRepMax,
   } = useAppStore();
 
+  const [historyFilter, setHistoryFilter] = useState<SessionType | null>(null);
+
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
+
+  const filteredSessions = useMemo(
+    () => historyFilter ? completedSessions.filter(s => s.sessionType === historyFilter) : completedSessions,
+    [completedSessions, historyFilter]
+  );
+
+  const historyHeading = historyFilter ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions` : 'Session History';
+  const historySubheading = historyFilter
+    ? `${filteredSessions.length} session${filteredSessions.length !== 1 ? 's' : ''} · tap a row for details`
+    : 'Tap a row to see exercise details';
 
   return (
     <ScrollView
@@ -914,7 +966,12 @@ export default function StatsScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-            <SessionTypeBreakdown sessions={completedSessions} C={C} />
+            <SessionTypeBreakdown
+              sessions={completedSessions}
+              activeFilter={historyFilter}
+              onFilterChange={setHistoryFilter}
+              C={C}
+            />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>
@@ -936,10 +993,26 @@ export default function StatsScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Session History</Text>
-            <Text style={styles.sectionSub}>Tap a row to see exercise details</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text style={styles.sectionTitle}>{historyHeading}</Text>
+              {historyFilter && (
+                <Pressable
+                  onPress={() => setHistoryFilter(null)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                    borderWidth: 1, borderColor: C.primaryMuted,
+                  })}
+                >
+                  <Ionicons name="close-circle" size={13} color={C.primary} />
+                  <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Show all</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text style={styles.sectionSub}>{historySubheading}</Text>
             <View style={{ marginTop: 8 }}>
-              <SessionHistoryList sessions={completedSessions} weightUnit={weightUnit} C={C} />
+              <SessionHistoryList sessions={filteredSessions} weightUnit={weightUnit} C={C} />
             </View>
           </Animated.View>
         </>
