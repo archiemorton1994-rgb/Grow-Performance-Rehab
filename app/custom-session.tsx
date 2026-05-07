@@ -180,18 +180,6 @@ export default function CustomSessionScreen() {
     setSelected((prev) => prev.filter((s) => s.template.id !== id));
   }, []);
 
-  const moveExercise = useCallback((id: string, direction: 'left' | 'right') => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelected((prev) => {
-      const idx = prev.findIndex((s) => s.template.id === id);
-      if (idx === -1) return prev;
-      const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      return next;
-    });
-  }, []);
 
   const cancelDrag = useCallback(() => {
     draggingIdxRef.current = null;
