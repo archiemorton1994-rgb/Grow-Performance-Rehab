@@ -204,7 +204,18 @@ export default function CustomSessionScreen() {
   ).current;
 
   const handleStart = useCallback(() => {
-    if (selected.length === 0) return;
+    if (selected.length === 0) {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') window.alert('Select at least one exercise to start your session.');
+      } else {
+        Alert.alert(
+          'No Exercises Selected',
+          'Tap at least one exercise to add it to your session before starting.',
+          [{ text: 'Got it', style: 'default' }]
+        );
+      }
+      return;
+    }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const customExercises: CustomExercise[] = selected.map((s) => ({
       id: s.template.id,
@@ -532,7 +543,19 @@ export default function CustomSessionScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={renderExercise}
-        ListHeaderComponent={TemplatesSection}
+        ListHeaderComponent={
+          <>
+            {TemplatesSection}
+            {selected.length === 0 && filtered.length > 0 && (
+              <View style={styles.selectionHint}>
+                <Ionicons name="hand-left-outline" size={14} color={C.primary} />
+                <Text style={styles.selectionHintText}>
+                  Tap an exercise to add it — select at least one to start
+                </Text>
+              </View>
+            )}
+          </>
+        }
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: selected.length > 0 ? 180 + insets.bottom : 40 + insets.bottom },
@@ -540,13 +563,15 @@ export default function CustomSessionScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          savedTemplates.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={32} color={C.textTertiary} />
-              <Text style={styles.emptyText}>No exercises found</Text>
-              <Text style={styles.emptySubText}>Try a different search or category</Text>
-            </View>
-          ) : null
+          <View style={styles.emptyState}>
+            <Ionicons name="search-outline" size={32} color={C.textTertiary} />
+            <Text style={styles.emptyText}>No exercises found</Text>
+            <Text style={styles.emptySubText}>
+              {search.trim() || categoryFilter !== 'all'
+                ? 'Try a different search or category'
+                : 'Pick at least one exercise to start your session'}
+            </Text>
+          </View>
         }
       />
 
@@ -921,6 +946,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
     emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text, marginTop: 12, marginBottom: 4 },
     emptySubText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center' },
+
+    selectionHint: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: C.primaryMuted, borderRadius: 10,
+      borderWidth: 1, borderColor: C.primary,
+      paddingHorizontal: 12, paddingVertical: 9,
+      marginBottom: 12,
+    },
+    selectionHintText: { flex: 1, fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
 
     tray: {
       position: 'absolute', left: 0, right: 0, bottom: 0,
