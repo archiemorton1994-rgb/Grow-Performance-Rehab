@@ -174,7 +174,9 @@ interface AppState {
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
   /**
-   * Records the `completedCount` value at the point feedback was last given for each exercise.
+   * Records the **strength-session count** at the point feedback was last given for each exercise.
+   * Uses strength-only session count (squat/bench/deadlift) so the reference stays accurate
+   * regardless of how many conditioning/prehab/flexibility sessions occur between strength sessions.
    * Kept for data integrity; streak detection now uses exerciseNormalStreak instead.
    */
   feedbackGivenAtCount: Record<string, number>;
@@ -403,11 +405,12 @@ export const useAppStore = create<AppState>()(
               multiplier: newMult,
             },
           },
-          // Record the session count when feedback was given so the engine can
-          // detect exercises with ≥3 consecutive sessions without any signal.
+          // Record the strength-session count when feedback was given so the reference
+          // stays accurate regardless of non-strength sessions (conditioning/prehab/flexibility)
+          // completed between strength workouts.
           feedbackGivenAtCount: {
             ...state.feedbackGivenAtCount,
-            [exerciseId]: state.completedCount,
+            [exerciseId]: state.completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
           },
           lastSessionPerformance: {
             ...state.lastSessionPerformance,
@@ -427,6 +430,9 @@ export const useAppStore = create<AppState>()(
         const updatedCounts = { ...state.feedbackGivenAtCount };
         const updatedPerformance = { ...state.lastSessionPerformance };
         const updatedStreak = { ...state.exerciseNormalStreak };
+        // Use strength-session count so the reference stays accurate regardless of
+        // non-strength sessions (conditioning/prehab/flexibility) in between.
+        const strengthCount = state.completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
         for (const id of exerciseIds) {
           const current = updated[id]?.multiplier ?? 1.0;
           updated[id] = {
@@ -434,7 +440,7 @@ export const useAppStore = create<AppState>()(
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
-          updatedCounts[id] = state.completedCount;
+          updatedCounts[id] = strengthCount;
           // Mark performance as 'easy' — user found this exercise manageable
           updatedPerformance[id] = 'easy';
           // Reset streak — explicit feedback interrupts the no-feedback run
