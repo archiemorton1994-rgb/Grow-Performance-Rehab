@@ -213,6 +213,9 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
+  /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
+  historyTypeFilter: SessionType | null;
+  setHistoryTypeFilter: (filter: SessionType | null) => void;
   pendingCustomExercises: CustomExercise[];
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
@@ -265,6 +268,7 @@ export const useAppStore = create<AppState>()(
       lastSessionPerformance: {},
       pendingCustomExercises: [],
       savedTemplates: [],
+      historyTypeFilter: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -285,6 +289,7 @@ export const useAppStore = create<AppState>()(
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
+      setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
       clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
 
@@ -579,6 +584,9 @@ export const useAppStore = create<AppState>()(
           persistedState.savedTemplates = [];
         }
         delete persistedState.feedbackGivenAtCount;
+        if (!('historyTypeFilter' in persistedState)) {
+          persistedState.historyTypeFilter = null;
+        }
         return persistedState;
       },
       version: 14,

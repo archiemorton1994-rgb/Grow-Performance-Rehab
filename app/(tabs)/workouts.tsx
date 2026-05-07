@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -894,10 +894,22 @@ export default function StatsScreen() {
     getThisWeekCount,
     weightUnit,
     addOneRepMax,
+    historyTypeFilter,
+    setHistoryTypeFilter,
   } = useAppStore();
 
-  const [historyFilter, setHistoryFilter] = useState<SessionType | null>(null);
+  // historyFilter is persisted in the store; alias locally for readability
+  const historyFilter = historyTypeFilter;
+  const setHistoryFilter = setHistoryTypeFilter;
+
   const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_30' | 'last_90'>('all');
+
+  // Auto-reset: if the persisted type filter no longer matches any session, clear it
+  useEffect(() => {
+    if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
+      setHistoryFilter(null);
+    }
+  }, [historyFilter, completedSessions, setHistoryFilter]);
 
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
