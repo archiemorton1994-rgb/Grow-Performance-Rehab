@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  PanResponder,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,6 +62,17 @@ export default function CustomSessionScreen() {
   const [renamingTemplate, setRenamingTemplate] = useState<CustomTemplate | null>(null);
   const [renameText, setRenameText] = useState('');
   const [loadedTemplateId, setLoadedTemplateId] = useState<string | null>(null);
+
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [insertAtIdx, setInsertAtIdx] = useState<number | null>(null);
+  const draggingIdxRef = useRef<number | null>(null);
+  const insertAtIdxRef = useRef<number | null>(null);
+  const chipLayoutsRef = useRef<Array<{ x: number; width: number }>>([]);
+  const trayScrollRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
+  const captureGsMoveXRef = useRef(0);
+  const captureChipCenterXRef = useRef(0);
+  const containerOwnedRef = useRef(false);
 
   const filtered = useMemo(() => {
     let list = allExercises;
@@ -122,6 +134,74 @@ export default function CustomSessionScreen() {
       return next;
     });
   }, []);
+
+  const cancelDrag = useCallback(() => {
+    draggingIdxRef.current = null;
+    insertAtIdxRef.current = null;
+    setDraggingIdx(null);
+    setInsertAtIdx(null);
+  }, []);
+
+  const chipsPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponderCapture: () => draggingIdxRef.current !== null,
+      onPanResponderGrant: (_, gs) => {
+        const idx = draggingIdxRef.current;
+        if (idx === null) return;
+        containerOwnedRef.current = true;
+        captureGsMoveXRef.current = gs.moveX;
+        const layout = chipLayoutsRef.current[idx];
+        captureChipCenterXRef.current = (layout?.x ?? 0) + (layout?.width ?? 0) / 2;
+        insertAtIdxRef.current = idx;
+        setInsertAtIdx(idx);
+      },
+      onPanResponderMove: (_, gs) => {
+        if (draggingIdxRef.current === null) return;
+        const layouts = chipLayoutsRef.current;
+        if (!layouts.length) return;
+        const fingerX = captureChipCenterXRef.current + (gs.moveX - captureGsMoveXRef.current);
+        let newIdx = layouts.length;
+        for (let i = 0; i < layouts.length; i++) {
+          const midX = (layouts[i]?.x ?? 0) + (layouts[i]?.width ?? 0) / 2;
+          if (fingerX < midX) {
+            newIdx = i;
+            break;
+          }
+        }
+        insertAtIdxRef.current = newIdx;
+        setInsertAtIdx(newIdx);
+      },
+      onPanResponderRelease: () => {
+        containerOwnedRef.current = false;
+        const from = draggingIdxRef.current;
+        const to = insertAtIdxRef.current;
+        if (from !== null && to !== null && from !== to) {
+          const finalTo = from < to ? to - 1 : to;
+          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setSelected((prev) => {
+            const next = [...prev];
+            const [item] = next.splice(from, 1);
+            next.splice(finalTo, 0, item);
+            return next;
+          });
+        }
+        draggingIdxRef.current = null;
+        insertAtIdxRef.current = null;
+        setDraggingIdx(null);
+        setInsertAtIdx(null);
+      },
+      onPanResponderTerminate: () => {
+        containerOwnedRef.current = false;
+        draggingIdxRef.current = null;
+        insertAtIdxRef.current = null;
+        setDraggingIdx(null);
+        setInsertAtIdx(null);
+      },
+    })
+  ).current;
 
   const handleStart = useCallback(() => {
     if (selected.length === 0) return;
@@ -486,48 +566,71 @@ export default function CustomSessionScreen() {
                 <Ionicons name="bookmark-outline" size={15} color={C.primary} />
                 <Text style={styles.saveTemplateBtnText}>Save</Text>
               </Pressable>
-              <Text style={styles.trayHint}>Long-press to edit</Text>
+              <Text style={styles.trayHint}>Long-press to drag</Text>
             </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trayChips}
-          >
-            {selected.map((s, idx) => (
-              <View key={s.template.id} style={styles.trayChip}>
-                <Pressable
-                  onPress={() => moveExercise(s.template.id, 'left')}
-                  hitSlop={6}
-                  style={[styles.trayChipReorder, idx === 0 && styles.trayChipReorderDisabled]}
-                  disabled={idx === 0}
-                  testID={`move-left-${s.template.id}`}
-                >
-                  <Ionicons name="chevron-back" size={12} color={idx === 0 ? C.textTertiary : C.textSecondary} />
-                </Pressable>
-                <View style={styles.trayChipBody}>
-                  <Text style={styles.trayChipName} numberOfLines={1}>{s.template.name}</Text>
-                  <Text style={styles.trayChipMeta}>{s.sets}×{s.reps}</Text>
-                </View>
-                <Pressable
-                  onPress={() => moveExercise(s.template.id, 'right')}
-                  hitSlop={6}
-                  style={[styles.trayChipReorder, idx === selected.length - 1 && styles.trayChipReorderDisabled]}
-                  disabled={idx === selected.length - 1}
-                  testID={`move-right-${s.template.id}`}
-                >
-                  <Ionicons name="chevron-forward" size={12} color={idx === selected.length - 1 ? C.textTertiary : C.textSecondary} />
-                </Pressable>
-                <Pressable
-                  onPress={() => removeFromTray(s.template.id)}
-                  hitSlop={8}
-                  style={styles.trayChipRemove}
-                >
-                  <Ionicons name="close" size={13} color={C.textSecondary} />
-                </Pressable>
-              </View>
-            ))}
-          </ScrollView>
+          <View style={styles.trayChipsWrapper} {...chipsPanResponder.panHandlers}>
+            <ScrollView
+              ref={trayScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.trayChips}
+              scrollEnabled={draggingIdx === null}
+              onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.x; }}
+              scrollEventThrottle={16}
+            >
+              {selected.map((s, idx) => {
+                const isDragged = draggingIdx === idx;
+                const showInsertBefore = insertAtIdx === idx && insertAtIdx !== draggingIdx;
+                return (
+                  <React.Fragment key={s.template.id}>
+                    {showInsertBefore && <View style={styles.insertCursor} />}
+                    <Pressable
+                      onPress={() => openEditModal(s)}
+                      onLongPress={() => {
+                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        draggingIdxRef.current = idx;
+                        insertAtIdxRef.current = idx;
+                        setDraggingIdx(idx);
+                        setInsertAtIdx(idx);
+                      }}
+                      onPressOut={() => {
+                        if (draggingIdxRef.current !== null && !containerOwnedRef.current) cancelDrag();
+                      }}
+                      delayLongPress={300}
+                      onLayout={(e) => {
+                        const { x, width } = e.nativeEvent.layout;
+                        chipLayoutsRef.current[idx] = { x, width };
+                      }}
+                      style={[styles.trayChip, isDragged && styles.trayChipDragging]}
+                      testID={`tray-chip-${s.template.id}`}
+                    >
+                      <Ionicons
+                        name="reorder-three-outline"
+                        size={15}
+                        color={isDragged ? C.primary : C.textTertiary}
+                        style={styles.trayChipDragHandle}
+                      />
+                      <View style={styles.trayChipBody}>
+                        <Text style={styles.trayChipName} numberOfLines={1}>{s.template.name}</Text>
+                        <Text style={styles.trayChipMeta}>{s.sets}×{s.reps}</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => removeFromTray(s.template.id)}
+                        hitSlop={8}
+                        style={styles.trayChipRemove}
+                      >
+                        <Ionicons name="close" size={13} color={C.textSecondary} />
+                      </Pressable>
+                    </Pressable>
+                  </React.Fragment>
+                );
+              })}
+              {insertAtIdx === selected.length && (
+                <View style={styles.insertCursor} />
+              )}
+            </ScrollView>
+          </View>
           <Pressable
             onPress={handleStart}
             style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
@@ -841,6 +944,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.primary,
     },
     saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    trayChipsWrapper: { position: 'relative' },
     trayChips: { gap: 8, paddingRight: 4, marginBottom: 12 },
     trayChip: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -848,12 +952,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10, paddingVertical: 6,
       borderWidth: 1, borderColor: C.borderLight,
     },
+    trayChipDragging: {
+      opacity: 0.5, borderColor: C.primary, borderStyle: 'dashed',
+    },
+    trayChipDragHandle: { marginRight: 1 },
     trayChipBody: { alignItems: 'center' },
     trayChipName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, maxWidth: 90 },
     trayChipMeta: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-    trayChipReorder: { padding: 2 },
-    trayChipReorderDisabled: { opacity: 0.3 },
     trayChipRemove: { padding: 2, marginLeft: 2 },
+    insertCursor: {
+      width: 3, borderRadius: 2,
+      backgroundColor: C.primary, alignSelf: 'stretch',
+      marginHorizontal: 1,
+    },
 
     startBtn: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
