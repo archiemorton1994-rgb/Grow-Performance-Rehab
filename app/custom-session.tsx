@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
@@ -176,8 +176,25 @@ export default function CustomSessionScreen() {
     setEditingExercise(null);
   }, [editingExercise, editSets, editReps]);
 
+  const [emptiedToastVisible, setEmptiedToastVisible] = useState(false);
+  const emptiedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const removeFromTray = useCallback((id: string) => {
-    setSelected((prev) => prev.filter((s) => s.template.id !== id));
+    setSelected((prev) => {
+      const next = prev.filter((s) => s.template.id !== id);
+      if (prev.length > 0 && next.length === 0) {
+        if (emptiedToastTimerRef.current) clearTimeout(emptiedToastTimerRef.current);
+        setEmptiedToastVisible(true);
+        emptiedToastTimerRef.current = setTimeout(() => setEmptiedToastVisible(false), 2800);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (emptiedToastTimerRef.current) clearTimeout(emptiedToastTimerRef.current);
+    };
   }, []);
 
 
@@ -643,6 +660,23 @@ export default function CustomSessionScreen() {
         }
       />
 
+      {emptiedToastVisible && selected.length === 0 && (
+        <Animated.View
+          entering={FadeInDown.duration(220)}
+          exiting={FadeOutDown.duration(220)}
+          style={[
+            styles.emptiedToast,
+            { bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 16 },
+          ]}
+          pointerEvents="none"
+        >
+          <Ionicons name="information-circle" size={18} color={C.textInverse} />
+          <Text style={styles.emptiedToastText}>
+            All exercises removed — tap one to add it back
+          </Text>
+        </Animated.View>
+      )}
+
       {selected.length > 0 && (
         <Animated.View
           entering={FadeInDown.duration(300)}
@@ -1092,6 +1126,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1, borderColor: C.primary,
     },
     saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    emptiedToast: {
+      position: 'absolute', left: 16, right: 16,
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: C.text,
+      paddingVertical: 12, paddingHorizontal: 14,
+      borderRadius: 12,
+      shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+    },
+    emptiedToastText: {
+      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textInverse,
+    },
     trayChipsWrapper: { position: 'relative', overflow: 'hidden' },
     trayOverflowFade: {
       position: 'absolute', right: 0, top: 0, bottom: 0,
