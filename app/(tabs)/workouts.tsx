@@ -722,7 +722,7 @@ function PBHistorySection({
                 return (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 }}>
                     {isAllTimeBest ? (
-                      <Ionicons name="trophy" size={14} color="#f59e0b" />
+                      <Ionicons name="trophy" size={14} color={C.warning} />
                     ) : (
                       <View style={{ width: 14 }} />
                     )}

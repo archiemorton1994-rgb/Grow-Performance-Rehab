@@ -171,14 +171,14 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, styles.resumeCard]}>
             <View style={styles.todayCardTop}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.todayLabel, { color: '#b45309' }]}>Session In Progress</Text>
+                <Text style={[styles.todayLabel, { color: C.warning }]}>Session In Progress</Text>
                 <Text style={styles.todaySessionName}>{SESSION_TYPE_LABELS[activeSession.sessionType]?.label ?? activeSession.sessionName}</Text>
                 <Text style={styles.todaySessionSub}>
                   {activeSession.completedSetsCount}/{activeSession.totalSets} sets completed
                 </Text>
               </View>
-              <View style={[styles.todayIcon, { backgroundColor: '#fef3c7' }]}>
-                <Ionicons name="time-outline" size={32} color="#b45309" />
+              <View style={[styles.todayIcon, { backgroundColor: C.warningLight }]}>
+                <Ionicons name="time-outline" size={32} color={C.warning} />
               </View>
             </View>
             <Pressable
@@ -323,8 +323,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
-    testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff3e0', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#ffe0b2' },
-    testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#e65100' },
+    testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.warningLight, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.warning },
+    testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.warning },
 
     todayCard: {
       backgroundColor: C.surface, borderRadius: 20,
@@ -380,10 +380,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18 },
 
     resumeCard: {
-      borderColor: '#f59e0b',
-      shadowColor: '#f59e0b',
+      borderColor: C.warning,
+      shadowColor: C.warning,
     },
-    resumeBtn: { backgroundColor: '#b45309' },
+    resumeBtn: { backgroundColor: C.warning },
     discardLink: { alignItems: 'center', marginTop: 10 },
     discardLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
 
