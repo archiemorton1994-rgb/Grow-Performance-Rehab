@@ -219,7 +219,7 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
       <Animated.View style={pulseStyle}>
         <Pressable onPress={reset} style={styles.restTimerDone}>
           <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-          <Text style={styles.restTimerDoneText}>Rest complete — tap to reset</Text>
+          <Text style={styles.restTimerDoneText}>Rest complete</Text>
         </Pressable>
       </Animated.View>
     );
@@ -483,7 +483,7 @@ function ActiveSetBlock({
       >
         <Ionicons name="checkmark-circle" size={20} color={isZeroBlocked ? C.textTertiary : C.textInverse} />
         <Text style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}>
-          Complete Set {setNum}
+          Complete Set
         </Text>
       </Pressable>
     </Animated.View>
@@ -565,8 +565,14 @@ function ExerciseCard({
   };
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
+  // Show the per-hand clarification only when the exercise name doesn't already
+  // mention "DB" or "Dumbbell" — those names make the dumbbell context obvious.
+  const nameImpliesDumbbell =
+    exercise.name.toLowerCase().includes('dumbbell') ||
+    exercise.name.toLowerCase().includes(' db ') ||
+    exercise.name.startsWith('DB ');
   const showDumbbellNote = isDumbbellSession &&
-    (exercise.name.toLowerCase().includes('dumbbell') || exercise.name.toLowerCase().includes(' db ') || exercise.name.startsWith('DB ')) &&
+    !nameImpliesDumbbell &&
     exercise.suggestedLoad.includes('kg');
 
   const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
@@ -1533,9 +1539,9 @@ export default function SessionScreen() {
           <Text style={styles.sessionLabel}>
             {isTestWeek ? 'Strength Test' : getSessionLabel(sessionType)}
           </Text>
-          <Text style={styles.sessionSub}>
-            {isTestWeek ? `${getSessionLabel(sessionType)} — AMRAP @ 90%` : getSessionSubtitle(sessionType)}
-          </Text>
+          {isTestWeek ? (
+            <Text style={styles.sessionSub}>AMRAP @ 90%</Text>
+          ) : null}
         </View>
         <View style={styles.elapsedTimer}>
           <Ionicons name="time-outline" size={12} color={C.textTertiary} />
@@ -2059,8 +2065,6 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
   setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
   setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
-  weightGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
-  weightGuideText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1, fontStyle: 'italic' as const },
   setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 },
   setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, width: 36 },
   setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
