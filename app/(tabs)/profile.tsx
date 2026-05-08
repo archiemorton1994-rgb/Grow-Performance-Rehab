@@ -160,14 +160,17 @@ export default function ProfileScreen() {
 
   const editWeightTrimmed = editWeight.trim();
   const editWeightParsed = /^\d+(\.\d+)?$/.test(editWeightTrimmed) ? parseFloat(editWeightTrimmed) : NaN;
-  const editWeightValid = editWeightTrimmed === '' || (!isNaN(editWeightParsed) && editWeightParsed > 0);
-  const editWeightNumeric = !isNaN(editWeightParsed) && editWeightParsed > 0;
+  // Bodyweight is required to save. Empty / whitespace / non-numeric / 0 / negative
+  // all fail validation — the Save button is disabled and an inline error is shown.
+  // This prevents the silent "save did nothing" bug where the field fell back to the
+  // existing bodyweight without telling the user the new value wasn't applied.
+  const editWeightValid = editWeightTrimmed !== '' && !isNaN(editWeightParsed) && editWeightParsed > 0;
 
   const saveEdit = () => {
     if (!editWeightValid) return;
     setUserProfile({
       name: editName.trim(),
-      bodyweightKg: editWeightNumeric ? editWeightParsed : userProfile.bodyweightKg,
+      bodyweightKg: editWeightParsed,
       sex: editSex,
       experienceLevel: editExp,
       goals: editGoals,
