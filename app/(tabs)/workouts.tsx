@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { CompletedSession, EnergyLevel, SessionType, useAppStore } from '@/lib/store';
+import { CompletedSession, EnergyLevel, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 
@@ -139,7 +139,11 @@ function WeeklyVolumeChart({
   const weeks = useMemo(() => {
     const now = new Date();
     const result: { label: string; volume: number }[] = [];
-    const strengthTypes: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning'];
+    // Volume = kg × reps. Only strength sessions (squat/bench/deadlift) carry
+    // load data. Conditioning, prehab, and flexibility never have weighted sets,
+    // so including them would just register as 0-volume entries that drag the
+    // weekly bars down. Test Week strength sessions still use these same types
+    // and are included naturally.
     for (let i = 7; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - now.getDay() - i * 7);
@@ -148,7 +152,7 @@ function WeeklyVolumeChart({
       weekEnd.setDate(weekStart.getDate() + 7);
       const weekSessions = sessions.filter(s => {
         const d = new Date(s.date);
-        return d >= weekStart && d < weekEnd && strengthTypes.includes(s.sessionType);
+        return d >= weekStart && d < weekEnd && STRENGTH_SESSION_TYPES.includes(s.sessionType);
       });
       let volKg = 0;
       for (const s of weekSessions) {
