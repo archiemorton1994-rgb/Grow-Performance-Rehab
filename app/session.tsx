@@ -567,10 +567,9 @@ function ExerciseCard({
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
   // Show the per-hand clarification only when the exercise name doesn't already
   // mention "DB" or "Dumbbell" — those names make the dumbbell context obvious.
-  const nameImpliesDumbbell =
-    exercise.name.toLowerCase().includes('dumbbell') ||
-    exercise.name.toLowerCase().includes(' db ') ||
-    exercise.name.startsWith('DB ');
+  // Detection is fully case-insensitive and matches "DB" as a whole token so
+  // unrelated words containing those letters aren't false positives.
+  const nameImpliesDumbbell = /\bdb\b|dumbbell/i.test(exercise.name);
   const showDumbbellNote = isDumbbellSession &&
     !nameImpliesDumbbell &&
     exercise.suggestedLoad.includes('kg');
