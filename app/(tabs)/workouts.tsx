@@ -33,13 +33,13 @@ function formatSessionDuration(seconds: number): string {
 
 function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> {
   return {
-    squat:        { bg: C.primaryMuted,    icon: 'fitness-outline',          color: C.primary },
-    bench:        { bg: C.badgeVolume,     icon: 'body-outline',             color: C.badgeVolumeText },
-    deadlift:     { bg: '#f3e5f5',         icon: 'barbell-outline',          color: '#9c27b0' },
-    conditioning: { bg: '#fbe9e7',         icon: 'flame-outline',            color: '#e65100' },
-    prehab:       { bg: '#e0f2f1',         icon: 'shield-checkmark-outline', color: '#00897b' },
-    flexibility:  { bg: '#f1f8e9',         icon: 'leaf-outline',             color: '#558b2f' },
-    custom:       { bg: C.categoryFinisher,icon: 'create-outline',           color: C.categoryFinisherText },
+    squat:        { bg: C.primaryMuted,        icon: 'fitness-outline',          color: C.primary },
+    bench:        { bg: C.badgeVolume,         icon: 'body-outline',             color: C.badgeVolumeText },
+    deadlift:     { bg: C.categoryNeuro,       icon: 'barbell-outline',          color: C.categoryNeuroText },
+    conditioning: { bg: C.categoryPrehab,      icon: 'flame-outline',            color: C.categoryPrehabText },
+    prehab:       { bg: C.categoryMechanical,  icon: 'shield-checkmark-outline', color: C.categoryMechanicalText },
+    flexibility:  { bg: C.categoryCooldown,    icon: 'leaf-outline',             color: C.categoryCooldownText },
+    custom:       { bg: C.categoryFinisher,    icon: 'create-outline',           color: C.categoryFinisherText },
   };
 }
 
@@ -244,10 +244,13 @@ function StrengthLineChart({
   const [chartWidth, setChartWidth] = useState(280);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
+  // Keep these aligned with the session-type colors in `getSessionTypeColors`
+  // and the home-screen `SESSION_TYPE_META` so each lift reads the same colour
+  // wherever it appears.
   const LIFT_COLORS: Record<string, { line: string; fill: string }> = {
-    squat: { line: C.primary, fill: C.primaryMuted },
-    bench: { line: C.badgeVolumeText, fill: C.badgeVolume },
-    deadlift: { line: '#ea4335', fill: '#fce8e6' },
+    squat:    { line: C.primary,            fill: C.primaryMuted },
+    bench:    { line: C.badgeVolumeText,    fill: C.badgeVolume },
+    deadlift: { line: C.categoryNeuroText,  fill: C.categoryNeuro },
   };
 
   const data = useMemo(() => {
@@ -832,7 +835,7 @@ function OneRMCalculator({
           borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12,
         })}
       >
-        <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: '#fff' }}>Calculate</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse }}>Calculate</Text>
       </Pressable>
 
       {result !== null && (
@@ -862,7 +865,7 @@ function OneRMCalculator({
                 >
                   <Text style={{
                     fontSize: 12, fontFamily: 'Inter_700Bold',
-                    color: selectedLift === lift ? '#fff' : C.textSecondary,
+                    color: selectedLift === lift ? C.textInverse : C.textSecondary,
                   }}>
                     {LIFT_LABELS[lift]}
                   </Text>
@@ -1067,7 +1070,7 @@ export default function StatsScreen() {
                   >
                     <Text style={{
                       fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
-                      color: active ? '#fff' : C.textSecondary,
+                      color: active ? C.textInverse : C.textSecondary,
                     }}>
                       {DATE_FILTER_LABELS[option]}
                     </Text>

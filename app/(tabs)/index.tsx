@@ -61,13 +61,13 @@ export default function HomeScreen() {
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
   const SESSION_TYPE_META = useMemo(() => ({
-    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,           bg: C.primaryMuted },
-    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,   bg: C.badgeVolume },
-    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: '#9c27b0',           bg: '#f3e5f5' },
-    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: '#e65100',           bg: '#fbe9e7' },
-    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: '#00897b',           bg: '#e0f2f1' },
-    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: '#558b2f',           bg: '#f1f8e9' },
-    custom:       { ...SESSION_TYPE_LABELS.custom,       color: C.categoryFinisherText, bg: C.categoryFinisher },
+    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,                 bg: C.primaryMuted },
+    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,         bg: C.badgeVolume },
+    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: C.categoryNeuroText,       bg: C.categoryNeuro },
+    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: C.categoryPrehabText,      bg: C.categoryPrehab },
+    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: C.categoryMechanicalText,  bg: C.categoryMechanical },
+    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: C.categoryCooldownText,    bg: C.categoryCooldown },
+    custom:       { ...SESSION_TYPE_LABELS.custom,       color: C.categoryFinisherText,    bg: C.categoryFinisher },
   }), [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
@@ -160,7 +160,7 @@ export default function HomeScreen() {
           </View>
           {testWeek && (
             <View style={styles.testWeekPill}>
-              <Ionicons name="trophy" size={13} color="#e65100" />
+              <Ionicons name="trophy" size={13} color={C.categoryPrehabText} />
               <Text style={styles.testWeekPillText}>Test Week</Text>
             </View>
           )}
@@ -186,7 +186,7 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.startBtn, styles.resumeBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
               testID="resume-session"
             >
-              <Ionicons name="play" size={18} color="#fff" />
+              <Ionicons name="play" size={18} color={C.textInverse} />
               <Text style={styles.startBtnText}>Resume Session</Text>
             </Pressable>
             <Pressable onPress={handleDiscardActiveSession} style={styles.discardLink} testID="discard-active-session">
@@ -202,7 +202,7 @@ export default function HomeScreen() {
             {([
               { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' as const, color: C.primary, bg: C.primaryMuted },
               { type: 'bench' as const, label: 'Upper Body', sub: 'Chest · Shoulders · Triceps', icon: 'body-outline' as const, color: C.badgeVolumeText, bg: C.badgeVolume },
-              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', icon: 'barbell-outline' as const, color: '#7c3aed', bg: '#ede9fe' },
+              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', icon: 'barbell-outline' as const, color: C.categoryNeuroText, bg: C.categoryNeuro },
             ] as const).map(({ type, label, sub, icon, color, bg }) => (
               <Pressable
                 key={type}
@@ -244,7 +244,7 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
               testID="start-suggested-session"
             >
-              <Ionicons name="flash" size={18} color="#fff" />
+              <Ionicons name="flash" size={18} color={C.textInverse} />
               <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
             </Pressable>
           </Animated.View>
@@ -341,7 +341,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
       backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14,
     },
-    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     progressionChip: {
       flexDirection: 'row', alignItems: 'center', gap: 5,

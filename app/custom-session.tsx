@@ -1240,21 +1240,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     undoToast: {
       position: 'absolute', left: 16, right: 16,
       flexDirection: 'row', alignItems: 'center',
-      backgroundColor: '#1a1a1a',
+      backgroundColor: C.text,
       borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
       shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.22, shadowRadius: 10, elevation: 12,
       gap: 10,
     },
     undoToastText: {
-      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: '#fff',
+      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textInverse,
     },
     undoBtn: {
       paddingHorizontal: 12, paddingVertical: 6,
       backgroundColor: C.primary, borderRadius: 8,
     },
     undoBtnText: {
-      fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff',
+      fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse,
     },
     undoDismissBtn: {
       padding: 2,
