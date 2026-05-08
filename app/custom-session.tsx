@@ -146,6 +146,8 @@ export default function CustomSessionScreen() {
 
   const selectedIds = useMemo(() => new Set(selected.map((s) => s.template.id)), [selected]);
 
+  const [hasEverSelected, setHasEverSelected] = useState(false);
+
   const toggleExercise = useCallback((template: ExerciseTemplate) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelected((prev) => {
@@ -155,6 +157,7 @@ export default function CustomSessionScreen() {
       }
       return [...prev, { template, sets: template.sets, reps: template.reps }];
     });
+    setHasEverSelected(true);
   }, []);
 
   const openEditModal = useCallback((sel: SelectedExercise) => {
@@ -631,7 +634,7 @@ export default function CustomSessionScreen() {
         ListHeaderComponent={
           <>
             {TemplatesSection}
-            {selected.length === 0 && filtered.length > 0 && (
+            {selected.length === 0 && filtered.length > 0 && !hasEverSelected && (
               <View style={styles.selectionHint}>
                 <Ionicons name="hand-left-outline" size={14} color={C.primary} />
                 <Text style={styles.selectionHintText}>
