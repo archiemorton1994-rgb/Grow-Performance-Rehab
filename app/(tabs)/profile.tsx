@@ -480,7 +480,7 @@ export default function ProfileScreen() {
             />
             {!editWeightValid && (
               <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.error, marginTop: -6, marginBottom: 6 }}>
-                Please enter a valid weight (e.g. 80)
+                Enter a valid bodyweight
               </Text>
             )}
 
