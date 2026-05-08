@@ -105,7 +105,8 @@ function personalizeLoad(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
   isMainLift?: boolean,
-  completedCount: number = 0,
+  /** Count of completed STRENGTH sessions (squat/bench/deadlift) only — not total sessions. */
+  strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
@@ -137,10 +138,13 @@ function personalizeLoad(
     ? exerciseFeedback[exerciseId].multiplier
     : 1.0;
 
-  // ── Auto session-count multiplier (+1% per 3 sessions, max +20%) ─────────
-  // This baseline increment applies every session regardless of feedback —
-  // it models the natural progressive overload across a training block.
-  const autoMult = Math.min(1.20, 1 + Math.floor(completedCount / 3) * 0.01);
+  // ── Auto session-count multiplier (+1% per 3 strength sessions, max +20%) ──
+  // This baseline increment models the natural progressive overload across a
+  // training block. It is driven by the count of completed STRENGTH sessions
+  // only (squat / bench / deadlift) — conditioning, prehab, and flexibility
+  // do not load the main lifts and so must not advance the multiplier.
+  // The caller is responsible for filtering; the parameter name reflects this.
+  const autoMult = Math.min(1.20, 1 + Math.floor(strengthSessionCount / 3) * 0.01);
   // Combine feedback and auto progression, capped at the existing 1.5 max.
   // feedbackMult: carries "too easy" (+7%), thumbs up (+3%), thumbs down (-5%)
   // adjustments from prior sessions and stacks multiplicatively on top of the
@@ -208,7 +212,7 @@ function personalizeLoad(
 
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
-      `[personalizeLoad] ex=${exerciseId} (heuristic) sessions=${completedCount}` +
+      `[personalizeLoad] ex=${exerciseId} (heuristic) strengthSessions=${strengthSessionCount}` +
       ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
       ` combinedMult=${combinedMult.toFixed(3)}`
     );
@@ -373,7 +377,8 @@ function applyPersonalization(
   isUpperBody: boolean,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
-  completedCount: number = 0,
+  /** Count of completed STRENGTH sessions only — see personalizeLoad. */
+  strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
@@ -401,8 +406,8 @@ function applyPersonalization(
 
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance),
+    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance) : ex.swapLoad,
     progressionNote,
   };
 }
@@ -414,13 +419,14 @@ export function generateWorkout(
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   bestOrmKg?: number,
-  completedCount: number = 0,
+  /** Count of completed STRENGTH sessions (squat/bench/deadlift) only — drives auto-progression. */
+  strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
+    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
   }
   if (sessionType === 'prehab') {
     const prehabExercises = readiness?.painRegion
@@ -568,7 +574,7 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
+  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
   const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
@@ -599,7 +605,8 @@ function generateConditioningWorkout(
   readiness: ReadinessCheck,
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  completedCount: number = 0,
+  /** Count of completed STRENGTH sessions only — see personalizeLoad. */
+  strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
@@ -607,7 +614,7 @@ function generateConditioningWorkout(
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, completedCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
+  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
@@ -630,7 +637,8 @@ export function generateWorkoutForConditioningLevel(
   equipmentTier: EquipmentTier,
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  completedCount: number = 0,
+  /** Count of completed STRENGTH sessions only — see personalizeLoad. */
+  strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>
 ): Exercise[] {
   const readiness: ReadinessCheck = {
@@ -638,13 +646,13 @@ export function generateWorkoutForConditioningLevel(
     painRegion: undefined,
     ...CONDITIONING_LEVEL_TO_READINESS[level],
   };
-  return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, completedCount, lastLoggedWeights);
+  return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, strengthSessionCount, lastLoggedWeights);
 }
 
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
-  _completedCount: number = 0
+  _strengthSessionCount: number = 0
 ): Exercise[] {
   if (sessionType === 'conditioning' || sessionType === 'custom') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
