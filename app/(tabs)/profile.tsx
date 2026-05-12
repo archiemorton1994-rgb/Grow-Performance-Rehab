@@ -331,8 +331,8 @@ export default function ProfileScreen() {
             onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openEquipment(); }}
             style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
           >
-            <View style={[styles.navIcon, { backgroundColor: '#e0f2f1' }]}>
-              <Ionicons name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap} size={22} color="#00695c" />
+            <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
+              <Ionicons name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap} size={22} color={C.categoryMechanicalText} />
             </View>
             <View style={styles.navBtnText}>
               <Text style={styles.navLabel}>Equipment</Text>
@@ -430,7 +430,7 @@ export default function ProfileScreen() {
                 <Text style={styles.subCtaTitle}>Subscribe to Grow</Text>
                 <Text style={styles.subCtaSub}>£7.99/month · cancel anytime</Text>
               </View>
-              <Ionicons name="arrow-forward-circle" size={28} color="#fff" />
+              <Ionicons name="arrow-forward-circle" size={28} color={C.textInverse} />
             </Pressable>
           )}
           {hasActiveSubscription && (
@@ -679,7 +679,7 @@ export default function ProfileScreen() {
                     value={reminderEnabled}
                     onValueChange={handleReminderToggle}
                     trackColor={{ false: C.border, true: C.primary }}
-                    thumbColor="#fff"
+                    thumbColor={C.textInverse}
                     testID="reminder-toggle"
                   />
                 </View>
@@ -832,7 +832,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: C.primary, borderRadius: 14, padding: 18,
     },
-    subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+    subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
     subCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.8)', marginTop: 3 },
     manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
@@ -948,6 +948,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     bwErrorText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.error, alignSelf: 'flex-start', marginBottom: 10, marginTop: 2 },
     bwUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
     bwSaveBtn: { width: '100%', backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
-    bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
+    bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
   });
 }

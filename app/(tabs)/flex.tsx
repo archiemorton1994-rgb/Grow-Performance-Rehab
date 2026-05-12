@@ -28,7 +28,7 @@ function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexi
   return `Last done ${days} days ago`;
 }
 
-const SESSION_INFO: Record<Exclude<ModalType, 'conditioning' | null>, {
+type FlexSessionInfo = {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconBg: string;
@@ -37,40 +37,44 @@ const SESSION_INFO: Record<Exclude<ModalType, 'conditioning' | null>, {
   description: string;
   cta: string;
   sessionType: 'prehab' | 'flexibility';
-}> = {
-  recovery: {
-    title: 'Recovery',
-    icon: 'shield-checkmark',
-    iconBg: '#e8f5e9',
-    iconColor: '#2e7d32',
-    duration: 'Full-body joint circuit · 20–30 min',
-    description: 'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
-    cta: 'Start Recovery',
-    sessionType: 'prehab',
-  },
-  mobility: {
-    title: 'Mobility',
-    icon: 'leaf',
-    iconBg: '#e8f5e9',
-    iconColor: '#2e7d32',
-    duration: 'Full-body stretch session · 30–40 min',
-    description: 'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
-    cta: 'Start Mobility',
-    sessionType: 'flexibility',
-  },
-  prehab: {
-    title: 'Targeted Prehab',
-    icon: 'fitness',
-    iconBg: '#fff3e0',
-    iconColor: '#e65100',
-    duration: 'Area-focused circuit · 20–30 min',
-    description: 'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
-    cta: 'Choose Area & Start',
-    sessionType: 'prehab',
-  },
 };
 
-const CONDITIONING_LEVELS: Array<{
+function getSessionInfo(C: ReturnType<typeof useColors>): Record<Exclude<ModalType, 'conditioning' | null>, FlexSessionInfo> {
+  return {
+    recovery: {
+      title: 'Recovery',
+      icon: 'shield-checkmark',
+      iconBg: C.categoryCooldown,
+      iconColor: C.categoryCooldownText,
+      duration: 'Full-body joint circuit · 20–30 min',
+      description: 'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
+      cta: 'Start Recovery',
+      sessionType: 'prehab',
+    },
+    mobility: {
+      title: 'Mobility',
+      icon: 'leaf',
+      iconBg: C.categoryCooldown,
+      iconColor: C.categoryCooldownText,
+      duration: 'Full-body stretch session · 30–40 min',
+      description: 'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
+      cta: 'Start Mobility',
+      sessionType: 'flexibility',
+    },
+    prehab: {
+      title: 'Targeted Prehab',
+      icon: 'fitness',
+      iconBg: C.categoryPrehab,
+      iconColor: C.categoryPrehabText,
+      duration: 'Area-focused circuit · 20–30 min',
+      description: 'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
+      cta: 'Choose Area & Start',
+      sessionType: 'prehab',
+    },
+  };
+}
+
+type ConditioningLevelDef = {
   key: ConditioningLevel;
   label: string;
   description: string;
@@ -78,35 +82,39 @@ const CONDITIONING_LEVELS: Array<{
   timeAvailable: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
-}> = [
-  {
-    key: 'beginner',
-    label: 'Beginner',
-    description: 'Steady pace · 30 min',
-    energy: 'low',
-    timeAvailable: '30',
-    icon: 'walk',
-    color: '#4caf50',
-  },
-  {
-    key: 'intermediate',
-    label: 'Intermediate',
-    description: 'Moderate intensity · 45 min',
-    energy: 'normal',
-    timeAvailable: '45',
-    icon: 'bicycle',
-    color: '#ff9800',
-  },
-  {
-    key: 'advanced',
-    label: 'Advanced',
-    description: 'High intensity · 60 min',
-    energy: 'high',
-    timeAvailable: '60',
-    icon: 'flame',
-    color: '#f44336',
-  },
-];
+};
+
+function getConditioningLevels(C: ReturnType<typeof useColors>): ConditioningLevelDef[] {
+  return [
+    {
+      key: 'beginner',
+      label: 'Beginner',
+      description: 'Steady pace · 30 min',
+      energy: 'low',
+      timeAvailable: '30',
+      icon: 'walk',
+      color: C.success,
+    },
+    {
+      key: 'intermediate',
+      label: 'Intermediate',
+      description: 'Moderate intensity · 45 min',
+      energy: 'normal',
+      timeAvailable: '45',
+      icon: 'bicycle',
+      color: C.warning,
+    },
+    {
+      key: 'advanced',
+      label: 'Advanced',
+      description: 'High intensity · 60 min',
+      energy: 'high',
+      timeAvailable: '60',
+      icon: 'flame',
+      color: C.error,
+    },
+  ];
+}
 
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
@@ -121,6 +129,8 @@ export default function FlexScreen() {
   const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
   const condRecency = useMemo(() => getFlexRecency(completedSessions, 'conditioning'), [completedSessions]);
 
+  const SESSION_INFO = useMemo(() => getSessionInfo(C), [C]);
+  const CONDITIONING_LEVELS = useMemo(() => getConditioningLevels(C), [C]);
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const openModal = (type: NonNullable<ModalType>) => {
@@ -164,8 +174,8 @@ export default function FlexScreen() {
       title: 'Recovery',
       subtitle: 'Full-body joint circuit · 20–30 min',
       icon: 'shield-checkmark',
-      iconBg: '#e8f5e9',
-      iconColor: '#2e7d32',
+      iconBg: C.categoryCooldown,
+      iconColor: C.categoryCooldownText,
       recency: prehabRecency,
     },
     {
@@ -173,8 +183,8 @@ export default function FlexScreen() {
       title: 'Mobility',
       subtitle: 'Full-body stretch session · 30–40 min',
       icon: 'leaf',
-      iconBg: '#e8f5e9',
-      iconColor: '#2e7d32',
+      iconBg: C.categoryCooldown,
+      iconColor: C.categoryCooldownText,
       recency: flexRecency,
     },
     {
@@ -182,8 +192,8 @@ export default function FlexScreen() {
       title: 'Targeted Prehab',
       subtitle: 'Area-focused circuit · 20–30 min',
       icon: 'fitness',
-      iconBg: '#fff3e0',
-      iconColor: '#e65100',
+      iconBg: C.categoryPrehab,
+      iconColor: C.categoryPrehabText,
       recency: prehabRecency,
     },
     {
@@ -191,8 +201,8 @@ export default function FlexScreen() {
       title: 'Conditioning',
       subtitle: 'HIIT & cardio circuit · 30–60 min',
       icon: 'thunderstorm',
-      iconBg: '#fce4ec',
-      iconColor: '#c62828',
+      iconBg: C.categoryFinisher,
+      iconColor: C.categoryFinisherText,
       recency: condRecency,
     },
   ];
@@ -290,7 +300,7 @@ export default function FlexScreen() {
                   ]}
                   testID={`flex-start-${activeModal}`}
                 >
-                  <Ionicons name="play" size={16} color="#fff" />
+                  <Ionicons name="play" size={16} color={C.textInverse} />
                   <Text style={styles.startBtnText}>{activeInfo.cta}</Text>
                 </Pressable>
               </>
@@ -311,8 +321,8 @@ export default function FlexScreen() {
             <View style={styles.sheetHandle} />
 
             <View style={styles.sheetHeader}>
-              <View style={[styles.sheetIconWrap, { backgroundColor: '#fce4ec' }]}>
-                <Ionicons name="thunderstorm" size={26} color="#c62828" />
+              <View style={[styles.sheetIconWrap, { backgroundColor: C.categoryFinisher }]}>
+                <Ionicons name="thunderstorm" size={26} color={C.categoryFinisherText} />
               </View>
               <View style={styles.sheetHeaderText}>
                 <Text style={styles.sheetTitle}>Conditioning</Text>
@@ -475,7 +485,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       shadowRadius: 8,
       elevation: 5,
     },
-    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#fff' },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     levelList: {
       gap: 10,

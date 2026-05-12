@@ -16,18 +16,9 @@ import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
 import { formatDate, getTimeOfDayGreeting } from '@/lib/utils';
+import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 
 const WEEKLY_GOAL = 3;
-
-const SESSION_TYPE_LABELS: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline' },
-  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
-  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
-  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
-  custom:       { label: 'Custom',       subtitle: 'Your hand-picked session',    icon: 'create-outline' },
-};
 
 const GOAL_LABELS: Record<string, string> = {
   strength: 'Strength', muscle: 'Muscle', power: 'Power & Speed', fat_loss: 'Fat Loss', fitness: 'Fitness', rehab: 'Rehab & Recovery',
@@ -60,15 +51,14 @@ export default function HomeScreen() {
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
-  const SESSION_TYPE_META = useMemo(() => ({
-    squat:        { ...SESSION_TYPE_LABELS.squat,        color: C.primary,                 bg: C.primaryMuted },
-    bench:        { ...SESSION_TYPE_LABELS.bench,        color: C.badgeVolumeText,         bg: C.badgeVolume },
-    deadlift:     { ...SESSION_TYPE_LABELS.deadlift,     color: C.categoryNeuroText,       bg: C.categoryNeuro },
-    conditioning: { ...SESSION_TYPE_LABELS.conditioning, color: C.categoryPrehabText,      bg: C.categoryPrehab },
-    prehab:       { ...SESSION_TYPE_LABELS.prehab,       color: C.categoryMechanicalText,  bg: C.categoryMechanical },
-    flexibility:  { ...SESSION_TYPE_LABELS.flexibility,  color: C.categoryCooldownText,    bg: C.categoryCooldown },
-    custom:       { ...SESSION_TYPE_LABELS.custom,       color: C.categoryFinisherText,    bg: C.categoryFinisher },
-  }), [C]);
+  const SESSION_TYPE_META = useMemo(() => {
+    const colors = getSessionColors(C);
+    const result = {} as Record<SessionType, SessionMeta & SessionColorPair>;
+    (Object.keys(SESSION_META) as SessionType[]).forEach(type => {
+      result[type] = { ...SESSION_META[type], ...colors[type] };
+    });
+    return result;
+  }, [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
   const primaryGoalLabel = GOAL_LABELS[userProfile.goals?.[0] ?? 'fitness'] ?? 'Fitness';
@@ -172,7 +162,7 @@ export default function HomeScreen() {
             <View style={styles.todayCardTop}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.todayLabel, { color: C.warning }]}>Session In Progress</Text>
-                <Text style={styles.todaySessionName}>{SESSION_TYPE_LABELS[activeSession.sessionType]?.label ?? activeSession.sessionName}</Text>
+                <Text style={styles.todaySessionName}>{SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName}</Text>
                 <Text style={styles.todaySessionSub}>
                   {activeSession.completedSetsCount}/{activeSession.totalSets} sets completed
                 </Text>

@@ -17,30 +17,11 @@ import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore } from '@/lib/store';
 import { getSessionSubtitle, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
+import { SESSION_META as SESSION_META_LABELS, SESSION_DISPLAY_NAMES, getSessionColors } from '@/lib/session-meta';
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
-
-const SESSION_META_LABELS: Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline' },
-  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
-  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
-  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
-  custom:       { label: 'Custom',       subtitle: 'Pick your own exercises',     icon: 'create-outline' },
-};
-
-const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
-  squat: 'Lower Body Strength',
-  bench: 'Upper Body Press',
-  deadlift: 'Full Body Pull',
-  conditioning: 'Conditioning',
-  prehab: 'Prehab',
-  flexibility: 'Flexibility',
-  custom: 'Custom Session',
-};
 
 const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
   squat: 'fitness',
@@ -162,25 +143,23 @@ export default function TrainScreen() {
     return result;
   }, [completedSessions]);
 
-  const SESSION_META = useMemo(() => ({
-    squat:        { ...SESSION_META_LABELS.squat,        color: C.primary,               bg: C.primaryMuted },
-    bench:        { ...SESSION_META_LABELS.bench,        color: C.badgeVolumeText,       bg: C.badgeVolume },
-    deadlift:     { ...SESSION_META_LABELS.deadlift,     color: C.categoryNeuroText,     bg: C.categoryNeuro },
-    conditioning: { ...SESSION_META_LABELS.conditioning, color: C.categoryPrehabText,    bg: C.categoryPrehab },
-    prehab:       { ...SESSION_META_LABELS.prehab,       color: C.categoryMechanicalText,bg: C.categoryMechanical },
-    flexibility:  { ...SESSION_META_LABELS.flexibility,  color: C.categoryCooldownText,  bg: C.categoryCooldown },
-    custom:       { ...SESSION_META_LABELS.custom,       color: C.categoryFinisherText,  bg: C.categoryFinisher },
-  }), [C]);
+  const SESSION_META = useMemo(() => {
+    const colors = getSessionColors(C);
+    const result = {} as Record<SessionType, { label: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }>;
+    (Object.keys(SESSION_META_LABELS) as SessionType[]).forEach(type => {
+      result[type] = { ...SESSION_META_LABELS[type], ...colors[type] };
+    });
+    return result;
+  }, [C]);
 
-  const SESSION_COLORS = useMemo(() => ({
-    squat:        { bg: C.primaryMuted,       accent: C.primary },
-    bench:        { bg: C.badgeVolume,         accent: C.badgeVolumeText },
-    deadlift:     { bg: C.categoryNeuro,       accent: C.categoryNeuroText },
-    conditioning: { bg: C.categoryPrehab,      accent: C.categoryPrehabText },
-    prehab:       { bg: C.categoryMechanical,  accent: C.categoryMechanicalText },
-    flexibility:  { bg: C.categoryCooldown,    accent: C.categoryCooldownText },
-    custom:       { bg: C.categoryFinisher,    accent: C.categoryFinisherText },
-  }), [C]);
+  const SESSION_COLORS = useMemo(() => {
+    const colors = getSessionColors(C);
+    const result = {} as Record<SessionType, { bg: string; accent: string }>;
+    (Object.keys(colors) as SessionType[]).forEach(type => {
+      result[type] = { bg: colors[type].bg, accent: colors[type].color };
+    });
+    return result;
+  }, [C]);
 
   const handleResume = () => {
     if (!activeSession) return;
@@ -266,7 +245,7 @@ export default function TrainScreen() {
       {activeSession && (
         <Animated.View entering={FadeInDown.duration(350)} style={styles.resumeBanner}>
           <View style={styles.resumeBannerLeft}>
-            <Ionicons name="time-outline" size={20} color="#b45309" />
+            <Ionicons name="time-outline" size={20} color={C.warning} />
             <View>
               <Text style={styles.resumeBannerTitle}>Session in progress</Text>
               <Text style={styles.resumeBannerSub}>
@@ -439,8 +418,8 @@ export default function TrainScreen() {
                         </View>
                       )}
                       {isCurrent && !!activeSession && (
-                        <View style={[styles.startPill, { backgroundColor: '#b45309' }]}>
-                          <Ionicons name="time-outline" size={16} color="#fff" />
+                        <View style={[styles.startPill, { backgroundColor: C.warning }]}>
+                          <Ionicons name="time-outline" size={16} color={C.textInverse} />
                         </View>
                       )}
                       {isCompleted && (
@@ -472,18 +451,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     resumeBanner: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      backgroundColor: '#fef3c7', borderRadius: 14,
+      backgroundColor: C.warningLight, borderRadius: 14,
       paddingHorizontal: 14, paddingVertical: 12,
-      marginBottom: 16, borderWidth: 1, borderColor: '#fde68a',
+      marginBottom: 16, borderWidth: 1, borderColor: C.warning,
     },
     resumeBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-    resumeBannerTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: '#92400e' },
-    resumeBannerSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: '#b45309', marginTop: 1 },
+    resumeBannerTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.warning },
+    resumeBannerSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.warning, marginTop: 1 },
     resumeBannerBtn: {
-      backgroundColor: '#b45309', borderRadius: 10,
+      backgroundColor: C.warning, borderRadius: 10,
       paddingHorizontal: 14, paddingVertical: 8,
     },
-    resumeBannerBtnText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
+    resumeBannerBtnText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     sessionCard: {

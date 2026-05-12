@@ -18,6 +18,7 @@ import { useColors } from '@/constants/colors';
 import { CompletedSession, EnergyLevel, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
+import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
 
 const BAR_CHART_HEIGHT = 120;
 const LINE_CHART_HEIGHT = 90;
@@ -33,13 +34,13 @@ function formatSessionDuration(seconds: number): string {
 
 function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> {
   return {
-    squat:        { bg: C.primaryMuted,        icon: 'fitness-outline',          color: C.primary },
-    bench:        { bg: C.badgeVolume,         icon: 'body-outline',             color: C.badgeVolumeText },
-    deadlift:     { bg: C.categoryNeuro,       icon: 'barbell-outline',          color: C.categoryNeuroText },
-    conditioning: { bg: C.categoryPrehab,      icon: 'flame-outline',            color: C.categoryPrehabText },
-    prehab:       { bg: C.categoryMechanical,  icon: 'shield-checkmark-outline', color: C.categoryMechanicalText },
-    flexibility:  { bg: C.categoryCooldown,    icon: 'leaf-outline',             color: C.categoryCooldownText },
-    custom:       { bg: C.categoryFinisher,    icon: 'create-outline',           color: C.categoryFinisherText },
+    squat:        { bg: C.primaryMuted,        icon: SHARED_SESSION_META.squat.icon,        color: C.primary },
+    bench:        { bg: C.badgeVolume,         icon: SHARED_SESSION_META.bench.icon,        color: C.badgeVolumeText },
+    deadlift:     { bg: C.categoryNeuro,       icon: SHARED_SESSION_META.deadlift.icon,     color: C.categoryNeuroText },
+    conditioning: { bg: C.categoryPrehab,      icon: SHARED_SESSION_META.conditioning.icon, color: C.categoryPrehabText },
+    prehab:       { bg: C.categoryMechanical,  icon: SHARED_SESSION_META.prehab.icon,       color: C.categoryMechanicalText },
+    flexibility:  { bg: C.categoryCooldown,    icon: SHARED_SESSION_META.flexibility.icon,  color: C.categoryCooldownText },
+    custom:       { bg: C.categoryFinisher,    icon: SHARED_SESSION_META.custom.icon,       color: C.categoryFinisherText },
   };
 }
 
@@ -496,15 +497,7 @@ function SessionHistoryList({
   );
 }
 
-const SESSION_TYPE_LABELS: Record<SessionType, string> = {
-  squat: 'Squat',
-  bench: 'Bench',
-  deadlift: 'Deadlift',
-  conditioning: 'Conditioning',
-  prehab: 'Prehab',
-  flexibility: 'Flexibility',
-  custom: 'Custom',
-};
+const SESSION_TYPE_LABELS = SESSION_SHORT_LABELS;
 
 const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom'];
 

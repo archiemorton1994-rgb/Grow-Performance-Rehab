@@ -22,13 +22,15 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - Store field: `equipmentTiers: EquipmentTier[]` (replaces old single `equipmentTier`)
 - Internal tier mapping: `getInternalTier()` in `lib/store.ts` collapses 5→3 for exercise lookup
 
-### Session Types (6 options)
+### Session Types (7 options)
 - **Lower Body** (`squat`) — Quad/Glute/Hamstring focus, squat pattern KPI
 - **Upper Body** (`bench`) — Chest/Shoulder/Tricep focus, push pattern KPI
 - **Full Body** (`deadlift`) — Posterior chain focus, hinge pattern KPI
 - **Conditioning** (`conditioning`) — HIIT circuits, cardio, fat burn / cardiovascular focus
 - **Prehab** (`prehab`) — Standalone joint-health circuit, bypasses readiness screen, 9 exercises (core stability, hip/shoulder health, ankle work)
 - **Flexibility** (`flexibility`) — Standalone long-hold stretching session, 10 exercises, bypasses readiness screen
+- **Custom** (`custom`) — User picks their own exercises, no auto-generation
+- Shared metadata for all session types (label, subtitle, icon, color tokens) lives in `lib/session-meta.ts` — single source of truth used by Home, Train, Stats, and Flex screens.
 
 ### 8-Phase Session Structure
 1. **Cardio Warm-Up** (prep) — 1-2 min, mandatory on ALL session lengths including 30-min (safety)
@@ -103,15 +105,19 @@ app/
   session.tsx           - Session screen (8-phase workout display, set logging)
   readiness.tsx         - Pre-workout readiness check
   (tabs)/
-    index.tsx           - Home screen (6 session type cards; Prehab/Flexibility go direct to session)
-    workouts.tsx        - Training plan/schedule view
-    profile.tsx         - Profile, stats, settings
+    _layout.tsx         - 5-tab layout: Home, Profile, Train, Flex, Stats (NativeTabs with liquid glass)
+    index.tsx           - Home tab — suggested session card + quick actions
+    profile.tsx         - Profile tab — stats, settings, subscription, equipment
+    train.tsx           - Train tab — strength session picker (Lower/Upper/Full + Custom) + resume banner
+    flex.tsx            - Flex tab — Recovery / Mobility / Targeted Prehab / Conditioning entry sheets
+    workouts.tsx        - Stats tab — history, charts, session detail
 lib/
   store.ts              - Zustand store (state, all actions)
   exercise-db.ts        - Full exercise database (all 8 phases, 3 session types, 3 internal tiers + conditioning)
   workout-engine.ts     - Session generation logic, helper functions
+  session-meta.ts       - Shared session-type metadata (labels, icons, color tokens)
 constants/
-  colors.ts             - Emerald green (#2f6b46) design system
+  colors.ts             - Emerald green (#2f6b46) design system w/ light + dark token sets
 ```
 
 ## Design
@@ -146,5 +152,5 @@ constants/
 4. else → `/(tabs)` (main app)
 
 ## Workflows
-- `Start Backend` — Express on port 5000 (API + landing page)
-- `Start Frontend` — Expo on port 8081 (mobile web preview)
+- `Start Backend` — Express on port 8081 (API + landing page)
+- `Start Frontend` — Expo Metro on port 8082 (web preview served on port 3000)
