@@ -57,12 +57,11 @@ author = "agent"
 mode = "parallel"
 
 [[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start Backend"
+task = "shell.exec"
+args = "echo 'Start App composite disabled - Project now starts Backend+Frontend directly'"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start Frontend"
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow]]
 name = "Start Backend"
