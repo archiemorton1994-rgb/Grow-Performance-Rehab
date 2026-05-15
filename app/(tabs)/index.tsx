@@ -15,7 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
-import { formatDate, getTimeOfDayGreeting } from '@/lib/utils';
+import { getTimeOfDayGreeting } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 
 const WEEKLY_GOAL = 3;
@@ -50,6 +50,31 @@ export default function HomeScreen() {
   const greeting = getTimeOfDayGreeting();
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
+
+  const daysSinceLast = useMemo(() => {
+    if (!lastSession) return null;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const startOfLast = new Date(lastSession.date); startOfLast.setHours(0, 0, 0, 0);
+    return Math.floor((startOfToday.getTime() - startOfLast.getTime()) / 86400000);
+  }, [lastSession]);
+
+  const lastSessionRelativeLabel =
+    daysSinceLast === null ? null
+    : daysSinceLast <= 0 ? 'today'
+    : daysSinceLast === 1 ? 'yesterday'
+    : `${daysSinceLast} days ago`;
+
+  const MILESTONE_VALUES = [1, 5, 10, 25, 50, 100, 150, 200];
+  const milestoneHit =
+    lastSession && daysSinceLast !== null && daysSinceLast <= 1
+    && MILESTONE_VALUES.includes(completedSessions.length)
+      ? completedSessions.length
+      : null;
+
+  const missedStreakWarning =
+    !activeSession && lastSession && streak === 0
+    && daysSinceLast !== null && daysSinceLast >= 2
+    && completedSessions.length >= 3;
 
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
@@ -215,7 +240,7 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
             <View style={styles.todayCardTop}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.todayLabel}>Today's Session</Text>
+                <Text style={styles.todayLabel}>Today</Text>
                 <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
                 <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
               </View>
@@ -223,6 +248,12 @@ export default function HomeScreen() {
                 <Ionicons name={suggestedMeta.icon} size={32} color={suggestedMeta.color} />
               </View>
             </View>
+            {lastSession && lastSessionRelativeLabel && (
+              <Text style={styles.lastInline}>
+                You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()} {lastSessionRelativeLabel}
+                {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
+              </Text>
+            )}
             {showProgressionNote && (
               <View style={styles.progressionChip}>
                 <Ionicons name="trending-up" size={12} color={C.primary} />
@@ -277,29 +308,31 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Last session info strip (read-only) */}
-        <Animated.View entering={FadeInDown.delay(180).duration(380)}>
-          {lastSession ? (
-            <View style={styles.lastCard}>
-              <View style={[styles.lastIcon, { backgroundColor: SESSION_TYPE_META[lastSession.sessionType].bg }]}>
-                <Ionicons name={SESSION_TYPE_META[lastSession.sessionType].icon} size={16} color={SESSION_TYPE_META[lastSession.sessionType].color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.lastTitle}>Last: {SESSION_TYPE_META[lastSession.sessionType].label}</Text>
-                <Text style={styles.lastDate}>
-                  {formatDate(lastSession.date)}
-                  {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
-                </Text>
-              </View>
-              <Ionicons name="checkmark-circle" size={18} color={C.primary} style={{ opacity: 0.5 }} />
+        {/* Conditional notice — only shown for milestones or broken streaks */}
+        {milestoneHit !== null && (
+          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.milestoneCard}>
+            <View style={styles.milestoneIcon}>
+              <Ionicons name="trophy" size={20} color={C.warning} />
             </View>
-          ) : (
-            <View style={styles.firstCard}>
-              <Ionicons name="sparkles-outline" size={22} color={C.primary} />
-              <Text style={styles.firstCardText}>Complete your first session to start tracking progress</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.milestoneTitle}>{milestoneHit} sessions completed</Text>
+              <Text style={styles.milestoneSub}>You just unlocked a new milestone — keep it going.</Text>
             </View>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
+        {missedStreakWarning && milestoneHit === null && (
+          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.warningCard}>
+            <View style={styles.warningIcon}>
+              <Ionicons name="alarm-outline" size={20} color={C.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.warningTitle}>Streak broken</Text>
+              <Text style={styles.warningSub}>
+                It's been {daysSinceLast} days. A short session is better than none.
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
       </View>
     </View>
@@ -309,7 +342,7 @@ export default function HomeScreen() {
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    inner: { flex: 1, paddingHorizontal: 20, justifyContent: 'space-between', paddingTop: 16, paddingBottom: 12 },
+    inner: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 18 },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
@@ -340,34 +373,46 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     progressionChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
 
     statsStrip: {
-      flexDirection: 'row', backgroundColor: C.surface,
-      borderRadius: 16, paddingVertical: 16,
-      borderWidth: 1, borderColor: C.borderLight,
+      flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4,
     },
     statItem: { flex: 1, alignItems: 'center' },
-    statValue: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
-    statGoal: { fontSize: 16, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
-    statDivider: { width: 1, backgroundColor: C.border, marginVertical: 4 },
+    statValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    statGoal: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, marginTop: 2 },
+    statDivider: { width: 1, backgroundColor: C.borderLight, marginVertical: 6 },
 
-    lastCard: {
-      flexDirection: 'row', alignItems: 'center', gap: 10,
-      backgroundColor: C.surface, borderRadius: 16,
+    lastInline: {
+      fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary,
+      marginTop: -8, marginBottom: 14,
+    },
+
+    milestoneCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.warningLight, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.warning,
+    },
+    milestoneIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      backgroundColor: C.surface,
+    },
+    milestoneTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    milestoneSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+
+    warningCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.surface, borderRadius: 14,
       paddingHorizontal: 14, paddingVertical: 12,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    lastIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    lastTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
-    lastDate: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
-
-    firstCard: {
-      flexDirection: 'row', alignItems: 'center', gap: 10,
-      backgroundColor: C.surface, borderRadius: 16,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.borderLight,
-      minHeight: 60,
+    warningIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      backgroundColor: C.warningLight,
     },
-    firstCardText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18 },
+    warningTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
+    warningSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
 
     resumeCard: {
       borderColor: C.warning,
