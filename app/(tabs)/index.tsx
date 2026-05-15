@@ -72,7 +72,7 @@ export default function HomeScreen() {
       : null;
 
   const missedStreakWarning =
-    !activeSession && lastSession && streak === 0
+    lastSession && streak === 0
     && daysSinceLast !== null && daysSinceLast >= 2
     && completedSessions.length >= 3;
 
@@ -181,34 +181,8 @@ export default function HomeScreen() {
           )}
         </Animated.View>
 
-        {/* Resume card (takes priority) or Today's Session card */}
-        {activeSession ? (
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, styles.resumeCard]}>
-            <View style={styles.todayCardTop}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.todayLabel, { color: C.warning }]}>Session In Progress</Text>
-                <Text style={styles.todaySessionName}>{SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName}</Text>
-                <Text style={styles.todaySessionSub}>
-                  {activeSession.completedSetsCount}/{activeSession.totalSets} sets completed
-                </Text>
-              </View>
-              <View style={[styles.todayIcon, { backgroundColor: C.warningLight }]}>
-                <Ionicons name="time-outline" size={32} color={C.warning} />
-              </View>
-            </View>
-            <Pressable
-              onPress={handleResume}
-              style={({ pressed }) => [styles.startBtn, styles.resumeBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-              testID="resume-session"
-            >
-              <Ionicons name="play" size={18} color={C.textInverse} />
-              <Text style={styles.startBtnText}>Resume Session</Text>
-            </Pressable>
-            <Pressable onPress={handleDiscardActiveSession} style={styles.discardLink} testID="discard-active-session">
-              <Text style={styles.discardLinkText}>Discard and start fresh</Text>
-            </Pressable>
-          </Animated.View>
-        ) : completedSessions.length === 0 ? (
+        {/* Hero card — always the unified Today block (or first-session chooser for brand-new users) */}
+        {completedSessions.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
             <Text style={styles.todayLabel}>Choose Your First Session</Text>
             <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
@@ -308,8 +282,36 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Conditional notice — only shown for milestones or broken streaks */}
-        {milestoneHit !== null && (
+        {/* Secondary actionable card — priority: resume > milestone > broken streak (mutually exclusive) */}
+        {activeSession ? (
+          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.resumeSecondary}>
+            <View style={styles.resumeIcon}>
+              <Ionicons name="time-outline" size={20} color={C.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.resumeTitle}>Session in progress</Text>
+              <Text style={styles.resumeSub}>
+                {SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName} · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleResume}
+              style={({ pressed }) => [styles.resumeBtnSm, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
+              testID="resume-session"
+            >
+              <Ionicons name="play" size={14} color={C.textInverse} />
+              <Text style={styles.resumeBtnSmText}>Resume</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleDiscardActiveSession}
+              hitSlop={10}
+              style={styles.resumeDiscardBtn}
+              testID="discard-active-session"
+            >
+              <Ionicons name="close" size={16} color={C.textTertiary} />
+            </Pressable>
+          </Animated.View>
+        ) : milestoneHit !== null ? (
           <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.milestoneCard}>
             <View style={styles.milestoneIcon}>
               <Ionicons name="trophy" size={20} color={C.warning} />
@@ -319,8 +321,7 @@ export default function HomeScreen() {
               <Text style={styles.milestoneSub}>You just unlocked a new milestone — keep it going.</Text>
             </View>
           </Animated.View>
-        )}
-        {missedStreakWarning && milestoneHit === null && (
+        ) : missedStreakWarning ? (
           <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.warningCard}>
             <View style={styles.warningIcon}>
               <Ionicons name="alarm-outline" size={20} color={C.warning} />
@@ -332,7 +333,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           </Animated.View>
-        )}
+        ) : null}
 
       </View>
     </View>
@@ -414,13 +415,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     warningTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
     warningSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
 
-    resumeCard: {
-      borderColor: C.warning,
-      shadowColor: C.warning,
+    resumeSecondary: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.surface, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.warning,
     },
-    resumeBtn: { backgroundColor: C.warning },
-    discardLink: { alignItems: 'center', marginTop: 10 },
-    discardLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
+    resumeIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      backgroundColor: C.warningLight,
+    },
+    resumeTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
+    resumeSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    resumeBtnSm: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      backgroundColor: C.warning, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 8,
+    },
+    resumeBtnSmText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    resumeDiscardBtn: {
+      width: 28, height: 28, borderRadius: 8,
+      alignItems: 'center', justifyContent: 'center',
+    },
 
     welcomeCard: {
       backgroundColor: C.primarySurface, borderRadius: 16,
