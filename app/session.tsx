@@ -98,11 +98,22 @@ function parseRepsToSeconds(repsStr: string): number {
   return 5 * 60; // fallback 5 minutes
 }
 
+// Default rest durations per category. Mirrors the verbal guidance in
+// `getRestPeriod` (lib/workout-engine.ts) — single source of truth for "how
+// long should I rest?" lives there as text; this map is the numeric form used
+// by the countdown widget.
+//   main       2–3 min  → 150 s (midpoint)
+//   accessory  60–90 s  → 75 s
+//   neuro      45–60 s  → 60 s
+//   mechanical 30–45 s  → 45 s
+//   prehab     30–45 s  → 35 s
+// finisher / prep / cooldown deliberately omitted — those phases either
+// chain straight through (prep, finisher) or are pure breathing (cooldown).
 const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
-  main: 120, neuro: 60, accessory: 60, mechanical: 45,
+  main: 150, neuro: 60, accessory: 75, mechanical: 45, prehab: 35,
 };
 
-function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; trigger?: number }) {
+function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['category']; trigger?: number; onTimerEnd?: () => void }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const duration = REST_TIMER_DURATIONS[category] ?? 0;
@@ -179,6 +190,7 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
       pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
         pulseScale.value = withTiming(1, { duration: 180 });
       });
+      onTimerEnd?.();
       return;
     }
     const timerId = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
@@ -198,6 +210,16 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
       pulseScale.value = withTiming(1, { duration: 180 });
+    });
+    onTimerEnd?.();
+  };
+  const addFifteen = () => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setSecondsLeft((s) => {
+      const next = s + 15;
+      // Reschedule notification to match the new end time
+      if (isRunning) scheduleNotif(next);
+      return next;
     });
   };
   const togglePause = () => {
@@ -241,9 +263,14 @@ function RestTimer({ category, trigger = 0 }: { category: Exercise['category']; 
         </Text>
       </Pressable>
       {isRunning && (
-        <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
-          <Text style={styles.restTimerSkipText}>Done resting</Text>
-        </Pressable>
+        <>
+          <Pressable onPress={addFifteen} style={styles.restTimerAddBtn} testID="rest-timer-add-15">
+            <Text style={styles.restTimerAddText}>+15s</Text>
+          </Pressable>
+          <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
+            <Text style={styles.restTimerSkipText}>Done resting</Text>
+          </Pressable>
+        </>
       )}
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
@@ -314,19 +341,11 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
   );
 }
 
-function ActiveSetBlock({
-  setNum,
-  totalSets,
-  data,
-  onChange,
-  weightGuide,
-  isBandExercise,
-  isTimeExercise,
-  previousBest,
-  prevSetWeight,
-  weightUnit = 'kg',
-  onCompleted,
-}: {
+export interface ActiveSetBlockHandle {
+  focus: () => void;
+}
+
+const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
   setNum: number;
   totalSets: number;
   data: SetLog;
@@ -338,7 +357,19 @@ function ActiveSetBlock({
   prevSetWeight?: number;
   weightUnit?: WeightUnit;
   onCompleted?: () => void;
-}) {
+}>(function ActiveSetBlock({
+  setNum,
+  totalSets,
+  data,
+  onChange,
+  weightGuide,
+  isBandExercise,
+  isTimeExercise,
+  previousBest,
+  prevSetWeight,
+  weightUnit = 'kg',
+  onCompleted,
+}, forwardedRef) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -378,6 +409,18 @@ function ActiveSetBlock({
     backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']),
     borderRadius: 14,
   }));
+
+  // Expose a focus() method so the parent (ExerciseCard) can shift focus to
+  // this set's primary input when the rest timer ends. Weight input is the
+  // primary input for weighted exercises; reps for band/bodyweight.
+  const weightInputRef = useRef<TextInput>(null);
+  const repsInputRef = useRef<TextInput>(null);
+  React.useImperativeHandle(forwardedRef, () => ({
+    focus: () => {
+      const target = !isBandExercise ? weightInputRef.current : repsInputRef.current;
+      target?.focus();
+    },
+  }), [isBandExercise]);
 
   const handleWeightBlur = () => {
     const displayVal = parseFloat(weightText) || 0;
@@ -444,6 +487,7 @@ function ActiveSetBlock({
         {!isBandExercise && (
           <View style={styles.activeInputGroup}>
             <TextInput
+              ref={weightInputRef}
               style={styles.activeSetInput}
               placeholder="0"
               placeholderTextColor={C.textTertiary}
@@ -459,6 +503,7 @@ function ActiveSetBlock({
         )}
         <View style={styles.activeInputGroup}>
           <TextInput
+            ref={repsInputRef}
             style={styles.activeSetInput}
             placeholder="0"
             placeholderTextColor={C.textTertiary}
@@ -508,7 +553,7 @@ function ActiveSetBlock({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 type ExerciseState = 'active' | 'past' | 'future';
 
@@ -530,6 +575,7 @@ function ExerciseCard({
   weightUnit = 'kg',
   note = '',
   onNoteChange,
+  isLastExercise = false,
 }: {
   exercise: Exercise;
   index: number;
@@ -548,11 +594,13 @@ function ExerciseCard({
   weightUnit?: WeightUnit;
   note?: string;
   onNoteChange?: (text: string) => void;
+  isLastExercise?: boolean;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
   const [timerTrigger, setTimerTrigger] = useState(0);
+  const activeSetRef = useRef<ActiveSetBlockHandle>(null);
   const allDone = setData.sets.every(s => s.completed);
   const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit, exercise.suggestedLoad);
   const restPeriod = getRestPeriod(exercise.category);
@@ -725,7 +773,13 @@ function ExerciseCard({
 
                 {(exercise.id === 'cardio-warmup' || (exercise.category === 'prep' && index === 0)) && <CardioWarmupTimer repsStr={exercise.reps} />}
 
-                {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && <RestTimer category={exercise.category} trigger={timerTrigger} />}
+                {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && (
+                  <RestTimer
+                    category={exercise.category}
+                    trigger={timerTrigger}
+                    onTimerEnd={() => activeSetRef.current?.focus()}
+                  />
+                )}
 
                 {!isBandExercise && (exercise.category === 'main' || exercise.category === 'neuro') && (
                   <View style={styles.spotterAdvisory}>
@@ -782,6 +836,7 @@ function ExerciseCard({
                       {!allDone && activeSetIndex >= 0 && activeSetIndex < setData.sets.length && (
                         <ActiveSetBlock
                           key={activeSetIndex}
+                          ref={activeSetRef}
                           setNum={activeSetIndex + 1}
                           totalSets={setData.sets.length}
                           data={setData.sets[activeSetIndex]}
@@ -792,7 +847,14 @@ function ExerciseCard({
                           previousBest={previousBest}
                           prevSetWeight={prevSetWeight}
                           weightUnit={weightUnit}
-                          onCompleted={() => setTimerTrigger((n) => n + 1)}
+                          onCompleted={() => {
+                            // Suppress the rest countdown on the very last set
+                            // of the very last exercise — the session is done,
+                            // there's nothing to rest for.
+                            const isFinalSet = activeSetIndex === setData.sets.length - 1;
+                            if (isLastExercise && isFinalSet) return;
+                            setTimerTrigger((n) => n + 1);
+                          }}
                         />
                       )}
 
@@ -1640,6 +1702,7 @@ export default function SessionScreen() {
               weightUnit={weightUnit}
               note={exerciseNotes[index] ?? ''}
               onNoteChange={(text) => handleNoteChange(index, text)}
+              isLastExercise={index === exercises.length - 1}
             />
           );
         })}
@@ -2187,6 +2250,8 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   restTimerResetBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
   restTimerSkipBtn: { paddingHorizontal: 12, height: 40, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  restTimerAddBtn: { paddingHorizontal: 10, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
+  restTimerAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
   restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
   restTimerTextActive: { color: '#fff' },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
