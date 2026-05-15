@@ -959,13 +959,12 @@ export default function StatsScreen() {
     ? `${filteredSessions.length} ${sessionWord}${scope ? ` ${scope}` : ''} · tap a row for details`
     : 'Tap a row to see exercise details';
 
-  const historyEmptyMessage = dateFilter === 'this_week'
-    ? 'No sessions this week yet'
-    : dateFilter === 'this_month'
-      ? 'No sessions this month yet'
-      : historyFilter
-        ? `No ${SESSION_TYPE_LABELS[historyFilter].toLowerCase()} sessions yet`
-        : 'No sessions logged yet';
+  const historyEmptyMessage = (() => {
+    const typePart = historyFilter ? ` ${SESSION_TYPE_LABELS[historyFilter].toLowerCase()}` : '';
+    if (scope) return `No${typePart} sessions ${scope} yet`;
+    if (historyFilter) return `No${typePart} sessions yet`;
+    return 'No sessions logged yet';
+  })();
 
   return (
     <ScrollView
