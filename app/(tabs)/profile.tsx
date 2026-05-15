@@ -82,8 +82,27 @@ export default function ProfileScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [returnToSettings, setReturnToSettings] = useState(false);
 
   const [bwText, setBwText] = useState('');
+
+  // Closes the current sub-modal. If it was opened from inside the Settings
+  // sheet, re-opens Settings so the user lands back where they came from.
+  const dismissModal = () => {
+    if (returnToSettings) {
+      setReturnToSettings(false);
+      setActiveModal('settings');
+    } else {
+      setActiveModal(null);
+    }
+  };
+
+  const openFromSettings = (kind: 'edit' | 'equipment' | 'bodyweight') => {
+    setReturnToSettings(true);
+    if (kind === 'edit') openEdit();
+    else if (kind === 'equipment') openEquipment();
+    else openBodyweight();
+  };
 
   const openBodyweight = () => {
     const display = userProfile.bodyweightKg > 0
@@ -101,7 +120,7 @@ export default function ProfileScreen() {
     if (val > 0) {
       setUserProfile({ bodyweightKg: displayUnitToKg(val, weightUnit) });
     }
-    setActiveModal(null);
+    dismissModal();
     if (Platform.OS !== 'web' && val > 0) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -175,12 +194,12 @@ export default function ProfileScreen() {
       experienceLevel: editExp,
       goals: editGoals,
     });
-    setActiveModal(null);
+    dismissModal();
   };
 
   const saveEquipment = () => {
     setEquipmentTiers(editTiers);
-    setActiveModal(null);
+    dismissModal();
   };
 
   const handleReset = () => {
@@ -312,128 +331,10 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.navGrid}>
-          <Pressable
-            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openEdit(); }}
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-          >
-            <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-              <Ionicons name="person-outline" size={22} color={C.primary} />
-            </View>
-            <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>Edit Details</Text>
-              <Text style={styles.navSub}>{editDetailsSubtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openEquipment(); }}
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-          >
-            <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
-              <Ionicons name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap} size={22} color={C.categoryMechanicalText} />
-            </View>
-            <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>Equipment</Text>
-              <Text style={styles.navSub}>{equipmentSubtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-          </Pressable>
-
-          <Pressable
-            onPress={openBodyweight}
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-            testID="open-bodyweight"
-          >
-            <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-              <Ionicons name="scale-outline" size={22} color={C.primary} />
-            </View>
-            <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>Body Weight</Text>
-              <Text style={styles.navSub}>
-                {userProfile.bodyweightKg > 0
-                  ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit} — tap to update`
-                  : 'Not set — tap to add'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveModal('settings'); }}
-            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-          >
-            <View style={[styles.navIcon, { backgroundColor: C.surfaceTertiary }]}>
-              <Ionicons name="settings-outline" size={22} color={C.textSecondary} />
-            </View>
-            <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>Settings</Text>
-              <Text style={styles.navSub}>Reminders · Units · Feedback</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-          </Pressable>
-        </Animated.View>
-
-        {/* Account Section */}
-        <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.accountRow}>
-            <View style={styles.accountIcon}>
-              <Ionicons name="mail-outline" size={18} color={C.primary} />
-            </View>
-            <Text style={styles.accountEmail} numberOfLines={1}>
-              {user?.email ?? 'Not signed in'}
-            </Text>
-          </View>
-          <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">
-            <Ionicons name="log-out-outline" size={16} color={C.error} />
-            <Text style={styles.signOutText}>Sign out</Text>
-          </Pressable>
-        </Animated.View>
-
-        {/* Subscription Section */}
-        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={[styles.sectionCard, { marginBottom: 0 }]}>
-          <Text style={styles.sectionTitle}>Subscription</Text>
+        {/* Subscription compact strip — kept on the main view per spec
+            ("status visible at a glance, even with settings collapsed"). */}
+        <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
           {hasActiveSubscription ? (
-            <View style={styles.subActiveCard}>
-              <View style={styles.subActiveInfo}>
-                <Text style={styles.subActivePlan}>Grow Monthly</Text>
-                <Text style={styles.subActiveRenewal}>
-                  {isOnTrial
-                    ? 'Free trial — cancel anytime'
-                    : expiryDate
-                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                      : 'Active — renews monthly'}
-                </Text>
-              </View>
-              <View style={[styles.subActiveBadge, { backgroundColor: C.primaryMuted }]}>
-                <Text style={[styles.subActiveBadgeText, { color: C.primary }]}>
-                  {isOnTrial
-                    ? expiryDate
-                      ? (() => {
-                          const daysLeft = Math.max(0, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-                          return daysLeft > 0 ? `${daysLeft} days remaining` : 'Trial';
-                        })()
-                      : 'Trial'
-                    : 'Active'}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => router.push('/subscription')}
-              style={styles.subCtaCard}
-              testID="subscribe-cta"
-            >
-              <View>
-                <Text style={styles.subCtaTitle}>Subscribe to Grow</Text>
-                <Text style={styles.subCtaSub}>£7.99/month · cancel anytime</Text>
-              </View>
-              <Ionicons name="arrow-forward-circle" size={28} color={C.textInverse} />
-            </Pressable>
-          )}
-          {hasActiveSubscription && (
             <Pressable
               onPress={() => {
                 const url = Platform.OS === 'ios'
@@ -441,18 +342,68 @@ export default function ProfileScreen() {
                   : 'https://play.google.com/store/account/subscriptions';
                 Linking.openURL(url).catch(() => {});
               }}
-              style={styles.manageSubBtn}
+              style={({ pressed }) => [styles.subStripActive, pressed && { opacity: 0.85 }]}
               testID="manage-subscription-btn"
             >
-              <Text style={styles.manageSubText}>Manage Subscription</Text>
-              <Ionicons name="open-outline" size={13} color={C.primary} />
+              <View style={styles.subStripIcon}>
+                <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subStripTitle}>
+                  {isOnTrial ? 'Free trial active' : 'Grow Monthly'}
+                </Text>
+                <Text style={styles.subStripSub}>
+                  {isOnTrial && expiryDate
+                    ? (() => {
+                        const daysLeft = Math.max(0, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                        return daysLeft > 0 ? `${daysLeft} days remaining · tap to manage` : 'Tap to manage';
+                      })()
+                    : expiryDate
+                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · tap to manage`
+                      : 'Active · tap to manage'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => router.push('/subscription')}
+              style={({ pressed }) => [styles.subStripCta, pressed && { opacity: 0.9 }]}
+              testID="subscribe-cta"
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subStripCtaTitle}>Subscribe to Grow</Text>
+                <Text style={styles.subStripCtaSub}>£7.99/month · cancel anytime</Text>
+              </View>
+              <Ionicons name="arrow-forward-circle" size={26} color={C.textInverse} />
             </Pressable>
           )}
+        </Animated.View>
+
+        {/* Single Settings entry — everything else lives behind here */}
+        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveModal('settings');
+            }}
+            style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] }]}
+            testID="open-settings"
+          >
+            <View style={[styles.navIcon, { backgroundColor: C.surfaceTertiary }]}>
+              <Ionicons name="settings-outline" size={22} color={C.textSecondary} />
+            </View>
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>Settings</Text>
+              <Text style={styles.navSub}>Profile · equipment · reminders · units · account</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+          </Pressable>
         </Animated.View>
       </ScrollView>
 
       {/* Edit Details Modal */}
-      <Modal visible={activeModal === 'edit'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+      <Modal visible={activeModal === 'edit'} transparent animationType="slide" onRequestClose={dismissModal}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.sheetHandle} />
@@ -542,7 +493,7 @@ export default function ProfileScreen() {
             >
               <Text style={styles.saveBtnText}>Save Details</Text>
             </Pressable>
-            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+            <Pressable onPress={dismissModal} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </View>
@@ -550,7 +501,7 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Equipment Modal */}
-      <Modal visible={activeModal === 'equipment'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
+      <Modal visible={activeModal === 'equipment'} transparent animationType="slide" onRequestClose={dismissModal}>
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.sheetHandle} />
@@ -605,7 +556,7 @@ export default function ProfileScreen() {
             <Pressable onPress={saveEquipment} style={[styles.saveBtn, { marginTop: 16 }]}>
               <Text style={styles.saveBtnText}>Save Equipment</Text>
             </Pressable>
-            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+            <Pressable onPress={dismissModal} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </View>
@@ -613,8 +564,8 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Body Weight Modal */}
-      <Modal visible={activeModal === 'bodyweight'} transparent animationType="fade" onRequestClose={() => setActiveModal(null)}>
-        <Pressable style={styles.bwOverlay} onPress={() => setActiveModal(null)}>
+      <Modal visible={activeModal === 'bodyweight'} transparent animationType="fade" onRequestClose={dismissModal}>
+        <Pressable style={styles.bwOverlay} onPress={dismissModal}>
           <Pressable style={styles.bwCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.bwIconWrap}>
               <Ionicons name="scale-outline" size={28} color={C.primary} />
@@ -653,7 +604,7 @@ export default function ProfileScreen() {
             >
               <Text style={styles.bwSaveBtnText}>Save</Text>
             </Pressable>
-            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+            <Pressable onPress={dismissModal} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </Pressable>
@@ -663,10 +614,71 @@ export default function ProfileScreen() {
       {/* Settings Modal */}
       <Modal visible={activeModal === 'settings'} transparent animationType="slide" onRequestClose={() => setActiveModal(null)}>
         <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '88%' }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Settings</Text>
 
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
+
+            {/* Account */}
+            <Text style={styles.settingSectionLabel}>Account</Text>
+            <View style={styles.accountRow}>
+              <View style={styles.accountIcon}>
+                <Ionicons name="mail-outline" size={18} color={C.primary} />
+              </View>
+              <Text style={styles.accountEmail} numberOfLines={1}>
+                {user?.email ?? 'Not signed in'}
+              </Text>
+            </View>
+            <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">
+              <Ionicons name="log-out-outline" size={16} color={C.error} />
+              <Text style={styles.signOutText}>Sign out</Text>
+            </Pressable>
+
+            <View style={styles.settingDivider} />
+
+            {/* Profile rows — open the existing modals via the returnToSettings flag */}
+            <Text style={styles.settingSectionLabel}>Profile</Text>
+            <Pressable onPress={() => openFromSettings('edit')} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]} testID="open-edit-details">
+              <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name="person-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Edit Details</Text>
+                <Text style={styles.navSub}>{editDetailsSubtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+
+            <Pressable onPress={() => openFromSettings('equipment')} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}>
+              <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
+                <Ionicons name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap} size={20} color={C.categoryMechanicalText} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Equipment</Text>
+                <Text style={styles.navSub}>{equipmentSubtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+
+            <Pressable onPress={() => openFromSettings('bodyweight')} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]} testID="open-bodyweight">
+              <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name="scale-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Body Weight</Text>
+                <Text style={styles.navSub}>
+                  {userProfile.bodyweightKg > 0
+                    ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}`
+                    : 'Not set'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+
+            <View style={styles.settingDivider} />
+
+            <Text style={styles.settingSectionLabel}>Preferences</Text>
             <Text style={styles.settingItemLabel}>Workout Reminders</Text>
             <Text style={styles.settingItemSub}>Get a daily nudge to keep your training on track</Text>
             {isNotificationsSupported() ? (
@@ -760,6 +772,8 @@ export default function ProfileScreen() {
               <Ionicons name="refresh-outline" size={18} color={C.error} />
               <Text style={styles.resetText}>Reset All Progress</Text>
             </Pressable>
+
+            </ScrollView>
 
             <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Close</Text>
@@ -895,6 +909,25 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     equipCheckboxActive: { backgroundColor: C.primary, borderColor: C.primary },
 
+    settingSectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4, marginBottom: 12 },
+    settingsLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
+    subStripActive: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.surface, borderRadius: 14, padding: 14,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    subStripIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', backgroundColor: C.primaryMuted,
+    },
+    subStripTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    subStripSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    subStripCta: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.primary, borderRadius: 14, padding: 16,
+    },
+    subStripCtaTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    subStripCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.85)', marginTop: 2 },
     settingItemLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
     settingItemSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 10 },
     settingDivider: { height: 1, backgroundColor: C.borderLight, marginVertical: 16 },
