@@ -372,10 +372,12 @@ function StrengthLineChart({
 function SessionHistoryList({
   sessions,
   weightUnit,
+  emptyMessage,
   C,
 }: {
   sessions: CompletedSession[];
   weightUnit: 'kg' | 'lbs';
+  emptyMessage?: string;
   C: ReturnType<typeof useColors>;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -387,7 +389,9 @@ function SessionHistoryList({
     return (
       <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center' }}>
         <Ionicons name="calendar-outline" size={28} color={C.textTertiary} />
-        <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 8 }}>No sessions logged yet</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 8 }}>
+          {emptyMessage ?? 'No sessions logged yet'}
+        </Text>
       </View>
     );
   }
@@ -902,7 +906,7 @@ export default function StatsScreen() {
   const historyFilter = historyTypeFilter;
   const setHistoryFilter = setHistoryTypeFilter;
 
-  const [dateFilter, setDateFilter] = useState<'all' | 'this_month' | 'last_30' | 'last_90'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
 
   // Auto-reset: if the persisted type filter no longer matches any session, clear it
   useEffect(() => {
@@ -919,12 +923,13 @@ export default function StatsScreen() {
   const filteredSessions = useMemo(() => {
     const now = new Date();
     let cutoff: Date | null = null;
-    if (dateFilter === 'this_month') {
+    if (dateFilter === 'this_week') {
+      // Start of the current week (Sunday 00:00 local) — matches getThisWeekCount.
+      cutoff = new Date(now);
+      cutoff.setDate(now.getDate() - now.getDay());
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (dateFilter === 'this_month') {
       cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (dateFilter === 'last_30') {
-      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    } else if (dateFilter === 'last_90') {
-      cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     }
     return completedSessions.filter(s => {
       if (historyFilter && s.sessionType !== historyFilter) return false;
@@ -934,17 +939,33 @@ export default function StatsScreen() {
   }, [completedSessions, historyFilter, dateFilter]);
 
   const DATE_FILTER_LABELS: Record<typeof dateFilter, string> = {
-    all: 'All time',
+    all: 'All',
+    this_week: 'This week',
     this_month: 'This month',
-    last_30: 'Last 30 days',
-    last_90: 'Last 90 days',
+  };
+
+  // Lower-case scope phrase for the count line / empty state, e.g. "this week".
+  const DATE_FILTER_SCOPE: Record<typeof dateFilter, string> = {
+    all: '',
+    this_week: 'this week',
+    this_month: 'this month',
   };
 
   const historyHeading = historyFilter ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions` : 'Session History';
   const hasActiveFilter = historyFilter !== null || dateFilter !== 'all';
+  const sessionWord = `session${filteredSessions.length !== 1 ? 's' : ''}`;
+  const scope = DATE_FILTER_SCOPE[dateFilter];
   const historySubheading = hasActiveFilter
-    ? `${filteredSessions.length} session${filteredSessions.length !== 1 ? 's' : ''} · tap a row for details`
+    ? `${filteredSessions.length} ${sessionWord}${scope ? ` ${scope}` : ''} · tap a row for details`
     : 'Tap a row to see exercise details';
+
+  const historyEmptyMessage = dateFilter === 'this_week'
+    ? 'No sessions this week yet'
+    : dateFilter === 'this_month'
+      ? 'No sessions this month yet'
+      : historyFilter
+        ? `No ${SESSION_TYPE_LABELS[historyFilter].toLowerCase()} sessions yet`
+        : 'No sessions logged yet';
 
   return (
     <ScrollView
@@ -1044,26 +1065,34 @@ export default function StatsScreen() {
               )}
             </View>
             <Text style={styles.sectionSub}>{historySubheading}</Text>
-            {/* Date range filter chips */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-              {(['all', 'this_month', 'last_30', 'last_90'] as const).map(option => {
+            {/* Time-range segmented control — All / This week / This month */}
+            <View style={{
+              flexDirection: 'row', backgroundColor: C.surfaceTertiary,
+              borderRadius: 10, padding: 3, marginBottom: 12,
+              borderWidth: 1, borderColor: C.borderLight,
+            }}>
+              {(['all', 'this_week', 'this_month'] as const).map(option => {
                 const active = dateFilter === option;
                 return (
                   <Pressable
                     key={option}
                     onPress={() => setDateFilter(option)}
                     style={({ pressed }) => ({
-                      flexDirection: 'row', alignItems: 'center', gap: 4,
-                      paddingHorizontal: 12, paddingVertical: 6,
-                      borderRadius: 20,
-                      backgroundColor: active ? C.primary : (pressed ? C.surfaceTertiary : C.surface),
-                      borderWidth: 1.5,
-                      borderColor: active ? C.primary : C.borderLight,
+                      flex: 1, alignItems: 'center', justifyContent: 'center',
+                      paddingVertical: 8, borderRadius: 8,
+                      backgroundColor: active ? C.surface : 'transparent',
+                      opacity: pressed && !active ? 0.7 : 1,
+                      ...(active ? {
+                        shadowColor: '#000', shadowOpacity: 0.06,
+                        shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+                        elevation: 1,
+                      } : {}),
                     })}
                   >
                     <Text style={{
-                      fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
-                      color: active ? C.textInverse : C.textSecondary,
+                      fontSize: 13,
+                      fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
+                      color: active ? C.text : C.textSecondary,
                     }}>
                       {DATE_FILTER_LABELS[option]}
                     </Text>
@@ -1075,6 +1104,7 @@ export default function StatsScreen() {
               key={`${historyFilter ?? 'all'}-${dateFilter}`}
               sessions={filteredSessions}
               weightUnit={weightUnit}
+              emptyMessage={historyEmptyMessage}
               C={C}
             />
           </Animated.View>
