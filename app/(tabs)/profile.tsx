@@ -768,6 +768,48 @@ export default function ProfileScreen() {
 
             <View style={styles.settingDivider} />
 
+            <Text style={styles.settingSectionLabel}>Subscription</Text>
+            {hasActiveSubscription ? (
+              <Pressable
+                onPress={() => {
+                  const url = Platform.OS === 'ios'
+                    ? 'itms-apps://apps.apple.com/account/subscriptions'
+                    : 'https://play.google.com/store/account/subscriptions';
+                  Linking.openURL(url).catch(() => {});
+                }}
+                style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
+                testID="settings-manage-subscription"
+              >
+                <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                  <Ionicons name="card-outline" size={20} color={C.primary} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>Manage Subscription</Text>
+                  <Text style={styles.navSub}>
+                    {isOnTrial ? 'Free trial — change or cancel anytime' : 'Change plan or cancel'}
+                  </Text>
+                </View>
+                <Ionicons name="open-outline" size={14} color={C.textTertiary} />
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => { setActiveModal(null); router.push('/subscription'); }}
+                style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
+                testID="settings-subscribe"
+              >
+                <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                  <Ionicons name="card-outline" size={20} color={C.primary} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>Subscribe to Grow</Text>
+                  <Text style={styles.navSub}>£7.99/month · cancel anytime</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+              </Pressable>
+            )}
+
+            <View style={styles.settingDivider} />
+
             <Pressable onPress={handleReset} style={styles.resetBtn} testID="reset-progress">
               <Ionicons name="refresh-outline" size={18} color={C.error} />
               <Text style={styles.resetText}>Reset All Progress</Text>
