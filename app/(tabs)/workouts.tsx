@@ -10,11 +10,13 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import Svg, { Rect, Line, Circle, Path, Text as SvgText, G } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { EmptyState } from '@/components/EmptyState';
 import { CompletedSession, EnergyLevel, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -184,11 +186,12 @@ function WeeklyVolumeChart({
   const maxVal = Math.max(...weeks.map(w => w.volume));
   if (maxVal === 0) {
     return (
-      <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center' }}>
-        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 4 }}>Weekly Volume</Text>
-        <Ionicons name="barbell-outline" size={28} color={C.textTertiary} style={{ marginVertical: 8 }} />
-        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>No volume yet</Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 }}>Log your first strength session to start tracking</Text>
+      <View style={{ marginBottom: 16 }}>
+        <EmptyState
+          icon="barbell-outline"
+          title="No volume yet"
+          subtitle="Log a strength session to start tracking weekly volume."
+        />
       </View>
     );
   }
@@ -387,12 +390,18 @@ function SessionHistoryList({
 
   if (sessions.length === 0) {
     return (
-      <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center' }}>
-        <Ionicons name="calendar-outline" size={28} color={C.textTertiary} />
-        <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 8 }}>
-          {emptyMessage ?? 'No sessions logged yet'}
-        </Text>
-      </View>
+      <EmptyState
+        icon="calendar-outline"
+        title={emptyMessage ?? 'No sessions logged yet'}
+        subtitle="Try clearing the filter, or start a new session to see it here."
+        cta={{
+          label: 'Start a session',
+          icon: 'flash',
+          onPress: () => router.push('/(tabs)/train'),
+          testID: 'history-empty-cta',
+        }}
+        testID="history-empty"
+      />
     );
   }
 
@@ -982,12 +991,19 @@ export default function StatsScreen() {
       <Text style={styles.subtitle}>Your training progress at a glance</Text>
 
       {completedSessions.length === 0 && (
-        <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.emptyState}>
-          <View style={styles.emptyIconWrap}>
-            <Ionicons name="barbell-outline" size={44} color={C.textTertiary} />
-          </View>
-          <Text style={styles.emptyTitle}>No sessions yet</Text>
-          <Text style={styles.emptySub}>Complete your first session to start seeing your progress charts and personal bests here.</Text>
+        <Animated.View entering={FadeInDown.delay(40).duration(400)}>
+          <EmptyState
+            icon="stats-chart-outline"
+            title="No sessions yet"
+            subtitle="Your charts and personal bests show up here once you log your first session."
+            cta={{
+              label: 'Start your first session',
+              icon: 'flash',
+              onPress: () => router.push('/(tabs)/train'),
+              testID: 'stats-empty-cta',
+            }}
+            testID="stats-empty"
+          />
         </Animated.View>
       )}
 
@@ -1133,9 +1149,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
     sectionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 },
 
-    emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },
-    emptyIconWrap: { width: 88, height: 88, borderRadius: 44, backgroundColor: C.surfaceTertiary, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-    emptyTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 10, textAlign: 'center' },
-    emptySub: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 21 },
   });
 }
