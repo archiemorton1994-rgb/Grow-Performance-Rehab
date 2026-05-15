@@ -660,6 +660,24 @@ export function generate1RMWorkout(
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(exercises) : exercises;
 }
 
+/**
+ * Numeric rest-timer defaults per category, in seconds.
+ *
+ * Single source of truth shared with `getRestPeriod` (the verbal copy below)
+ * and consumed by the in-session `RestTimer` countdown widget. Categories
+ * that should NOT auto-start a countdown (prep stretches flow continuously,
+ * the conditioning finisher is meant to keep moving, cooldown is breathing)
+ * are intentionally absent — `RestTimer` renders nothing when the lookup
+ * misses.
+ */
+export const REST_PERIOD_SECONDS: Partial<Record<ExerciseCategory, number>> = {
+  main: 150,        // 2–3 min → midpoint
+  accessory: 75,    // 60–90 s → midpoint
+  neuro: 60,        // 45–60 s
+  mechanical: 45,   // 30–45 s
+  prehab: 35,       // 30–45 s
+};
+
 export function getRestPeriod(category: ExerciseCategory): string {
   switch (category) {
     case 'prep': return 'Move between exercises without rest — breathe into each stretch';

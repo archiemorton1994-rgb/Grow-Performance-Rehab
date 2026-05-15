@@ -35,6 +35,7 @@ import {
   getPainRegionLabel,
   getRestPeriod,
   getWeightGuide,
+  REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 
 const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
@@ -98,33 +99,21 @@ function parseRepsToSeconds(repsStr: string): number {
   return 5 * 60; // fallback 5 minutes
 }
 
-// Default rest durations per category. Mirrors the verbal guidance in
-// `getRestPeriod` (lib/workout-engine.ts) — single source of truth for "how
-// long should I rest?" lives there as text; this map is the numeric form used
-// by the countdown widget.
-//   main       2–3 min  → 150 s (midpoint)
-//   accessory  60–90 s  → 75 s
-//   neuro      45–60 s  → 60 s
-//   mechanical 30–45 s  → 45 s
-//   prehab     30–45 s  → 35 s
-// finisher / prep / cooldown deliberately omitted — those phases either
-// chain straight through (prep, finisher) or are pure breathing (cooldown).
-const REST_TIMER_DURATIONS: Partial<Record<Exercise['category'], number>> = {
-  main: 150, neuro: 60, accessory: 75, mechanical: 45, prehab: 35,
-};
-
 function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['category']; trigger?: number; onTimerEnd?: () => void }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const duration = REST_TIMER_DURATIONS[category] ?? 0;
+  const duration = REST_PERIOD_SECONDS[category] ?? 0;
+  // Wall-clock model: `endAt` is the absolute timestamp when the countdown
+  // should hit zero. `secondsLeft` is derived from (endAt - Date.now()) on
+  // every tick, so backgrounding, scroll jank, or device sleep can never
+  // cause drift — the displayed value snaps to truth on the next interval.
+  const [endAt, setEndAt] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
 
-  // Background timer tracking
-  const backgroundedAt = useRef<number | null>(null);
   const notifIdRef = useRef<string | null>(null);
 
   const cancelNotif = useCallback(async () => {
@@ -148,27 +137,13 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     } catch (_) {}
   }, [cancelNotif]);
 
-  // AppState listener: subtract elapsed time when returning from background
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const handleChange = (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        backgroundedAt.current = Date.now();
-      } else if (nextState === 'active') {
-        if (backgroundedAt.current !== null && isRunning) {
-          const elapsed = Math.floor((Date.now() - backgroundedAt.current) / 1000);
-          setSecondsLeft((s) => Math.max(0, s - elapsed));
-        }
-        backgroundedAt.current = null;
-      }
-    };
-    const sub = AppState.addEventListener('change', handleChange);
-    return () => sub.remove();
-  }, [isRunning]);
-
-  // Auto-start when trigger increments (i.e. a set was just completed)
+  // Auto-start when trigger increments (i.e. a set was just completed).
+  // We set an absolute end-time stamp; the tick effect below derives the
+  // displayed seconds purely from (endAt - Date.now()).
   useEffect(() => {
     if (trigger > 0 && duration > 0) {
+      const end = Date.now() + duration * 1000;
+      setEndAt(end);
       setSecondsLeft(duration);
       setIsDone(false);
       setIsRunning(true);
@@ -177,36 +152,50 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     }
   }, [trigger]);
 
+  // Wall-clock tick: every second (and on AppState changes via the listener
+  // below), recompute remaining seconds from the absolute `endAt`. This keeps
+  // the display correct after device sleep, backgrounding, or any JS-thread
+  // stalls without manual elapsed-time bookkeeping.
   useEffect(() => {
-    if (!duration || !isRunning) return;
-    if (secondsLeft <= 0) {
-      setIsRunning(false);
-      setIsDone(true);
-      cancelNotif();
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!duration || !isRunning || endAt == null) return;
+    const recompute = () => {
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setIsRunning(false);
+        setIsDone(true);
+        cancelNotif();
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
+          pulseScale.value = withTiming(1, { duration: 180 });
+        });
+        onTimerEnd?.();
       }
-      pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
-        pulseScale.value = withTiming(1, { duration: 180 });
-      });
-      onTimerEnd?.();
-      return;
-    }
-    const timerId = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearInterval(timerId);
-  }, [duration, isRunning, secondsLeft]);
+    };
+    recompute();
+    const timerId = setInterval(recompute, 1000);
+    // Force a re-sync the moment the app returns from background — without
+    // this the user would see a stale countdown for up to 1s after resume.
+    const sub = Platform.OS !== 'web'
+      ? AppState.addEventListener('change', (s: AppStateStatus) => { if (s === 'active') recompute(); })
+      : null;
+    return () => { clearInterval(timerId); sub?.remove(); };
+  }, [duration, isRunning, endAt]);
 
   // Cancel notification on unmount (navigating away mid-rest)
   useEffect(() => () => { cancelNotif(); }, []);
 
   if (!duration) return null;
 
-  const reset = () => { cancelNotif(); setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
+  const reset = () => { cancelNotif(); setEndAt(null); setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
   const skip = () => {
     cancelNotif();
     setIsRunning(false);
     setIsDone(true);
+    setEndAt(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
       pulseScale.value = withTiming(1, { duration: 180 });
@@ -215,22 +204,32 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   };
   const addFifteen = () => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    setSecondsLeft((s) => {
-      const next = s + 15;
-      // Reschedule notification to match the new end time
-      if (isRunning) scheduleNotif(next);
+    // Push the absolute end-time out by 15s so the wall-clock tick picks up
+    // the change naturally, and reschedule the background notification to
+    // match. Falls back to seconds-from-now when no endAt exists yet (paused
+    // before timer ever started — defensive, shouldn't happen in practice).
+    setEndAt((prev) => {
+      const base = prev ?? Date.now() + secondsLeft * 1000;
+      const next = base + 15 * 1000;
+      if (isRunning) {
+        const seconds = Math.max(1, Math.ceil((next - Date.now()) / 1000));
+        scheduleNotif(seconds);
+      }
       return next;
     });
   };
   const togglePause = () => {
     if (isRunning) {
-      // Pausing: cancel the scheduled notification
+      // Pausing: capture remaining seconds, drop endAt, cancel notification.
       cancelNotif();
       setIsRunning(false);
     } else {
-      // Resuming: reschedule notification for remaining time
-      if (secondsLeft > 0) scheduleNotif(secondsLeft);
-      setIsRunning(true);
+      // Resuming: re-anchor endAt to (now + remaining) and reschedule notif.
+      if (secondsLeft > 0) {
+        setEndAt(Date.now() + secondsLeft * 1000);
+        scheduleNotif(secondsLeft);
+        setIsRunning(true);
+      }
     }
   };
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
