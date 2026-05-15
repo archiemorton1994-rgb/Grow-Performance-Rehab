@@ -25,7 +25,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
-import { formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
+import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
@@ -353,6 +353,14 @@ function ActiveSetBlock({
   // which resets weightText state automatically.
   const [weightText, setWeightText] = useState(initialWeight);
 
+  // Re-sync displayed weight when the user toggles kg ↔ lbs from Settings
+  // mid-session. data.weight is the source of truth (always kg). Without this,
+  // the visible number would stay in the old unit until the next set.
+  useEffect(() => {
+    const sourceKg = data.weight > 0 ? data.weight : (prevSetWeight ?? 0);
+    setWeightText(sourceKg > 0 ? String(kgToDisplayUnit(sourceKg, weightUnit)) : '');
+  }, [weightUnit]);
+
   const flashBg = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']),
@@ -667,7 +675,7 @@ function ExerciseCard({
                 {!isBandExercise && (
                   <Text style={styles.targetWeightLabel}>Target weight: </Text>
                 )}
-                <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>{exercise.suggestedLoad}</Text>
+                <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>{convertLoadString(exercise.suggestedLoad, weightUnit)}</Text>
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
@@ -1718,7 +1726,7 @@ export default function SessionScreen() {
                       <Text style={styles.swapToLabel}>With</Text>
                       <Text style={styles.swapToName}>{swap2Name}</Text>
                       <Text style={styles.swapToCue}>{swap2Cue}</Text>
-                      {swap2Load && <Text style={styles.swapToLoad}>{swap2Load}</Text>}
+                      {swap2Load && <Text style={styles.swapToLoad}>{convertLoadString(swap2Load, weightUnit)}</Text>}
                     </View>
                     <Text style={styles.swapNote}>A second alternative for this exercise.</Text>
                     <Pressable
@@ -1745,7 +1753,7 @@ export default function SessionScreen() {
                     <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
                     <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
                     {swapModal.exercise.swapLoad && (
-                      <Text style={styles.swapToLoad}>{swapModal.exercise.swapLoad}</Text>
+                      <Text style={styles.swapToLoad}>{convertLoadString(swapModal.exercise.swapLoad, weightUnit)}</Text>
                     )}
                   </View>
                   <Text style={styles.swapNote}>This alternative targets the same muscles with less demand.</Text>

@@ -133,7 +133,7 @@ export default function ProfileScreen() {
 
   const openEdit = () => {
     setEditName(userProfile.name);
-    setEditWeight(userProfile.bodyweightKg > 0 ? String(userProfile.bodyweightKg) : '');
+    setEditWeight(userProfile.bodyweightKg > 0 ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)) : '');
     setEditSex(userProfile.sex ?? 'male');
     setEditExp(userProfile.experienceLevel);
     setEditGoals(userProfile.goals?.length ? userProfile.goals : ['fitness']);
@@ -189,7 +189,7 @@ export default function ProfileScreen() {
     if (!editWeightValid) return;
     setUserProfile({
       name: editName.trim(),
-      bodyweightKg: editWeightParsed,
+      bodyweightKg: displayUnitToKg(editWeightParsed, weightUnit),
       sex: editSex,
       experienceLevel: editExp,
       goals: editGoals,
@@ -419,12 +419,12 @@ export default function ProfileScreen() {
               returnKeyType="next"
             />
 
-            <Text style={styles.inputLabel}>Bodyweight (kg)</Text>
+            <Text style={styles.inputLabel}>Bodyweight ({weightUnit})</Text>
             <TextInput
               style={[styles.input, !editWeightValid && { borderColor: C.error }]}
               value={editWeight}
               onChangeText={setEditWeight}
-              placeholder="e.g. 80"
+              placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
               placeholderTextColor={C.textTertiary}
               keyboardType="decimal-pad"
               returnKeyType="done"
