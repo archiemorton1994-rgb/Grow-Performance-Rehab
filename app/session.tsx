@@ -354,11 +354,23 @@ function ActiveSetBlock({
   const [weightText, setWeightText] = useState(initialWeight);
 
   // Re-sync displayed weight when the user toggles kg ↔ lbs from Settings
-  // mid-session. data.weight is the source of truth (always kg). Without this,
-  // the visible number would stay in the old unit until the next set.
+  // mid-session. We convert the *current* weightText (which may be an unblurred
+  // in-progress edit) through the previous unit so typed-but-unsaved values are
+  // preserved across the toggle. Falls back to data.weight (always kg) when the
+  // field is empty.
+  const prevUnitRef = useRef<WeightUnit>(weightUnit);
   useEffect(() => {
-    const sourceKg = data.weight > 0 ? data.weight : (prevSetWeight ?? 0);
-    setWeightText(sourceKg > 0 ? String(kgToDisplayUnit(sourceKg, weightUnit)) : '');
+    const prevUnit = prevUnitRef.current;
+    if (prevUnit === weightUnit) return;
+    const typed = parseFloat(weightText);
+    if (typed > 0) {
+      const kg = displayUnitToKg(typed, prevUnit);
+      setWeightText(String(kgToDisplayUnit(kg, weightUnit)));
+    } else {
+      const sourceKg = data.weight > 0 ? data.weight : (prevSetWeight ?? 0);
+      setWeightText(sourceKg > 0 ? String(kgToDisplayUnit(sourceKg, weightUnit)) : '');
+    }
+    prevUnitRef.current = weightUnit;
   }, [weightUnit]);
 
   const flashBg = useSharedValue(0);
