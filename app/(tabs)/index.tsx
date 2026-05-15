@@ -100,22 +100,46 @@ export default function HomeScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const confirmReplaceActive = (onContinue: () => void) => {
+    Alert.alert(
+      'A session is already in progress',
+      'Resume your current session, or discard it and start the new one?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Resume current', onPress: handleResume },
+        {
+          text: 'Discard & start new',
+          style: 'destructive',
+          onPress: () => { clearActiveSession(); onContinue(); },
+        },
+      ]
+    );
+  };
+
   const handleStartSuggested = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({
-      pathname: '/readiness',
-      params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false' },
-    });
+    const go = () => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false' },
+      });
+    };
+    if (activeSession) { confirmReplaceActive(go); return; }
+    go();
   };
 
   const handleFirstSessionChoice = (type: 'squat' | 'bench' | 'deadlift') => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const offsets: Record<string, number> = { squat: 0, bench: 1, deadlift: 2 };
-    setCycleStartOffset(offsets[type]);
-    router.push({
-      pathname: '/readiness',
-      params: { sessionType: type, isTestWeek: 'false' },
-    });
+    const go = () => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const offsets: Record<string, number> = { squat: 0, bench: 1, deadlift: 2 };
+      setCycleStartOffset(offsets[type]);
+      router.push({
+        pathname: '/readiness',
+        params: { sessionType: type, isTestWeek: 'false' },
+      });
+    };
+    if (activeSession) { confirmReplaceActive(go); return; }
+    go();
   };
 
   const handleResume = () => {
