@@ -31,7 +31,7 @@ export function convertLoadString(load: string, unit: WeightUnit): string {
   if (!load || unit === 'kg') return load;
   // Match a number, optional en-dash/hyphen + second number, then "kg".
   return load.replace(
-    /(\d+(?:\.\d+)?)(?:\s*[–-]\s*(\d+(?:\.\d+)?))?\s*kg/g,
+    /(\d+(?:\.\d+)?)(?:\s*[–-]\s*(\d+(?:\.\d+)?))?\s*kgs?\b/gi,
     (_m, a: string, b?: string) => {
       const aLbs = Math.round(parseFloat(a) * 2.20462);
       if (b) {
