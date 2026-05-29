@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
 
@@ -651,15 +652,16 @@ export default function CustomSessionScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={32} color={C.textTertiary} />
-            <Text style={styles.emptyText}>No exercises found</Text>
-            <Text style={styles.emptySubText}>
-              {search.trim() || categoryFilter !== 'all'
+          <EmptyState
+            icon="search-outline"
+            title="No exercises found"
+            subtitle={
+              search.trim() || categoryFilter !== 'all'
                 ? 'Try a different search or category'
-                : 'Pick at least one exercise to start your session'}
-            </Text>
-          </View>
+                : 'Pick at least one exercise to start your session'
+            }
+            testID="custom-session-empty"
+          />
         }
       />
 
@@ -1094,9 +1096,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary, borderColor: C.primary,
     },
 
-    emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
-    emptyText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text, marginTop: 12, marginBottom: 4 },
-    emptySubText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center' },
 
     selectionHint: {
       flexDirection: 'row', alignItems: 'center', gap: 8,

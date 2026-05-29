@@ -12,7 +12,7 @@ function TrainTabIcon({ focused }: { focused: boolean }) {
   const C = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const btnColor = isDark ? '#3d8a5c' : C.primary;
+  const btnColor = isDark ? C.primaryLight : C.primary;
   return (
     <View
       style={{
@@ -30,7 +30,7 @@ function TrainTabIcon({ focused }: { focused: boolean }) {
         } : {}),
       }}
     >
-      <Ionicons name="barbell" size={22} color="#fff" />
+      <Ionicons name="barbell" size={22} color={C.textInverse} />
     </View>
   );
 }
@@ -72,14 +72,14 @@ function ClassicTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: isDark ? '#5da87a' : C.primary,
-        tabBarInactiveTintColor: isDark ? '#607068' : '#9ca5a0',
+        tabBarActiveTintColor: C.tabActive,
+        tabBarInactiveTintColor: C.tabInactive,
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : isDark ? "#000" : "#fff",
+          backgroundColor: isIOS ? "transparent" : C.surface,
           borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: isDark ? "#333" : C.border,
+          borderTopColor: C.border,
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },
@@ -91,7 +91,7 @@ function ClassicTabLayout() {
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? "#000" : "#fff" }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: C.surface }]} />
           ) : null,
       }}
     >

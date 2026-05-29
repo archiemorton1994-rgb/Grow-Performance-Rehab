@@ -1860,13 +1860,13 @@ export default function SessionScreen() {
                 {isMilestone ? (
                   <View style={styles.milestoneHeader}>
                     <View style={styles.milestoneIconWrap}>
-                      <Ionicons name="trophy" size={52} color="#f59e0b" />
+                      <Ionicons name="trophy" size={52} color={C.trophy} />
                     </View>
                     <Text style={styles.milestoneBadgeText}>MILESTONE</Text>
                   </View>
                 ) : (
                   <View style={styles.congratsIcon}>
-                    <Ionicons name="trophy" size={44} color="#f59e0b" />
+                    <Ionicons name="trophy" size={44} color={C.trophy} />
                   </View>
                 )}
                 <Text style={isMilestone ? styles.congratsTitleMilestone : styles.congratsTitle}>
@@ -2138,7 +2138,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   chevron: { marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surfaceTertiary },
-  actionBtnYoutube: { backgroundColor: '#FFF0F0', borderWidth: 1, borderColor: '#FFCCCC' },
+  actionBtnYoutube: { backgroundColor: C.youtubeSurface, borderWidth: 1, borderColor: C.youtubeBorder },
   actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
   setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.borderLight },
   cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
@@ -2195,7 +2195,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   swapConfirmBtn: { width: '100%', backgroundColor: C.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
   swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
   congratsModal: { gap: 0 },
-  congratsIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#fef9c3', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  congratsIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: C.trophyBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   congratsTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text, textAlign: 'center', marginBottom: 12 },
   congratsMessage: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20, paddingHorizontal: 4 },
   congratsStats: { flexDirection: 'row', backgroundColor: C.surfaceTertiary, borderRadius: 14, padding: 16, marginBottom: 20, width: '100%', alignItems: 'center' },
@@ -2219,7 +2219,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   thumbBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceTertiary },
   thumbBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
   thumbBtnDown: { borderColor: C.border },
-  thumbBtnDownActive: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
+  thumbBtnDownActive: { backgroundColor: C.destructive, borderColor: C.destructive },
   checklistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: C.borderLight, gap: 10 },
   checklistRowSelected: { backgroundColor: C.primarySurface },
   checklistBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -2227,18 +2227,18 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
   checklistNameSelected: { color: C.primaryDark, fontFamily: 'Inter_600SemiBold' },
   // New Record badge
-  newRecordBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#16a34a', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8, marginBottom: 2 },
-  newRecordText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#fff', letterSpacing: 0.3 },
+  newRecordBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: C.success, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8, marginBottom: 2 },
+  newRecordText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.textInverse, letterSpacing: 0.3 },
   // Milestone congrats styles
   milestoneHeader: { alignItems: 'center', marginBottom: 12 },
-  milestoneIconWrap: { width: 96, height: 96, borderRadius: 24, backgroundColor: '#fef9c3', borderWidth: 2, borderColor: '#fde68a', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  milestoneIconWrap: { width: 96, height: 96, borderRadius: 24, backgroundColor: C.trophyBg, borderWidth: 2, borderColor: C.trophyBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   milestoneBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary, letterSpacing: 1.5, backgroundColor: C.primaryMuted, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
   congratsTitleMilestone: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark, textAlign: 'center', marginBottom: 12 },
   congratsButtonMilestone: { backgroundColor: C.primaryDark },
   // Streak badge
-  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14, width: '100%', justifyContent: 'center' },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.streakBg, borderWidth: 1, borderColor: C.streakBorder, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14, width: '100%', justifyContent: 'center' },
   streakBadgeIcon: { fontSize: 18 },
-  streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#c2410c' },
+  streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.streakText },
   // Elapsed timer in top bar
   elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
   elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },

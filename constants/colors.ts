@@ -31,6 +31,23 @@ const LightColors = {
   badgeVolume: '#d5e8f5',
   badgeVolumeText: '#2a5f8f',
 
+  // Tab bar
+  tabActive: '#2f6b46',
+  tabInactive: '#9ca5a0',
+
+  // Celebration / achievement (trophy, streak)
+  destructive: '#ef4444',
+  trophy: '#f59e0b',
+  trophyBg: '#fef9c3',
+  trophyBorder: '#fde68a',
+  streakBg: '#fff7ed',
+  streakBorder: '#fed7aa',
+  streakText: '#c2410c',
+
+  // YouTube button surface (brand red kept on icon/text itself)
+  youtubeSurface: '#FFF0F0',
+  youtubeBorder: '#FFCCCC',
+
   categoryMechanical: '#e0f2f1',
   categoryMechanicalText: '#00695c',
   categoryNeuro: '#f3e5f5',
@@ -81,6 +98,23 @@ const DarkColors = {
   badgeComfortText: '#c9a0f5',
   badgeVolume: '#1a2d40',
   badgeVolumeText: '#7ab5e8',
+
+  // Tab bar
+  tabActive: '#5da87a',
+  tabInactive: '#607068',
+
+  // Celebration / achievement (trophy, streak)
+  destructive: '#f87171',
+  trophy: '#fbbf24',
+  trophyBg: '#2d2006',
+  trophyBorder: '#4a3308',
+  streakBg: '#2d1507',
+  streakBorder: '#5c2d0a',
+  streakText: '#fb923c',
+
+  // YouTube button surface (brand red kept on icon/text itself)
+  youtubeSurface: '#2a0a0a',
+  youtubeBorder: '#4a1515',
 
   categoryMechanical: '#0e2420',
   categoryMechanicalText: '#4db6ac',

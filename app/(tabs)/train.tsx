@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { EmptyState } from '@/components/EmptyState';
 import { SessionType, useAppStore } from '@/lib/store';
 import { getSessionSubtitle, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
@@ -294,15 +295,12 @@ export default function TrainScreen() {
       </View>
 
       {strengthCount === 0 ? (
-        <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.emptyState}>
-          <View style={styles.emptyStateIconWrap}>
-            <Ionicons name="barbell-outline" size={34} color={C.primary} />
-          </View>
-          <Text style={styles.emptyStateTitle}>Your program starts here</Text>
-          <Text style={styles.emptyStateSub}>
-            Complete your first session from the Home tab to begin your progress timeline — Squat · Bench · Deadlift on {getEquipmentLabel(equipmentTier)}.
-          </Text>
-        </Animated.View>
+        <EmptyState
+          icon="barbell-outline"
+          title="Your program starts here"
+          subtitle={`Complete your first session from the Home tab to begin your progress timeline — Squat · Bench · Deadlift on ${getEquipmentLabel(equipmentTier)}.`}
+          testID="train-empty-state"
+        />
       ) : (
         <>
           <Text style={styles.programSubtitle}>
@@ -557,18 +555,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     startPillTest: { backgroundColor: C.categoryPrehabText },
     testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.categoryPrehab, alignItems: 'center', justifyContent: 'center' },
 
-    emptyState: {
-      backgroundColor: C.primarySurface, borderRadius: 16,
-      padding: 24, marginTop: 4, marginBottom: 16,
-      borderWidth: 1, borderColor: C.primaryMuted,
-      alignItems: 'center',
-    },
-    emptyStateIconWrap: {
-      width: 64, height: 64, borderRadius: 20,
-      backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center',
-      marginBottom: 16,
-    },
-    emptyStateTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 8, textAlign: 'center' },
-    emptyStateSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 19 },
   });
 }
