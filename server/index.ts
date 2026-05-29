@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { runMigrations } from "./db";
 import * as fs from "fs";
 import * as path from "path";
+import * as http from "node:http";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
 const app = express();
@@ -240,19 +241,19 @@ function setupErrorHandler(app: express.Application) {
   setupBodyParsing(app);
   setupRequestLogging(app);
 
+  let devProxy: ReturnType<typeof createProxyMiddleware> | undefined;
   if (process.env.NODE_ENV === "development") {
     const METRO_PORT = process.env.METRO_PORT || "8082";
-    app.use(
-      createProxyMiddleware({
-        pathFilter: (pathname: string) =>
-          !pathname.startsWith("/api") &&
-          pathname !== "/privacy" &&
-          pathname !== "/terms",
-        target: `http://localhost:${METRO_PORT}`,
-        changeOrigin: false,
-        ws: true,
-      })
-    );
+    devProxy = createProxyMiddleware({
+      pathFilter: (pathname: string) =>
+        !pathname.startsWith("/api") &&
+        pathname !== "/privacy" &&
+        pathname !== "/terms",
+      target: `http://localhost:${METRO_PORT}`,
+      changeOrigin: false,
+      ws: true,
+    });
+    app.use(devProxy);
   }
 
   await runMigrations();
@@ -263,7 +264,14 @@ function setupErrorHandler(app: express.Application) {
 
   setupErrorHandler(app);
 
+  if (devProxy?.upgrade) {
+    server.on("upgrade", devProxy.upgrade);
+  }
+
   const port = parseInt(process.env.PORT || "5000", 10);
+  server.on("error", (err) => {
+    console.error(`Failed to bind primary server on port ${port}:`, err);
+  });
   server.listen(
     {
       port,
@@ -274,4 +282,34 @@ function setupErrorHandler(app: express.Application) {
       log(`express server serving on port ${port}`);
     },
   );
+
+  // The Replit preview pane reaches the backend on port 5000, but the bare dev
+  // domain (external port 80) — used by Expo Go and anyone opening the public
+  // URL — is mapped to port 8081. Listen there too so every entry point hits the
+  // same backend instead of a dead port (which returned HTTP 502).
+  if (process.env.NODE_ENV === "development") {
+    const SECONDARY_PORT = parseInt(process.env.SECONDARY_PORT || "8081", 10);
+    if (SECONDARY_PORT !== port) {
+      const secondaryServer = http.createServer(app);
+      if (devProxy?.upgrade) {
+        secondaryServer.on("upgrade", devProxy.upgrade);
+      }
+      secondaryServer.on("error", (err) => {
+        console.error(
+          `Failed to bind secondary server on port ${SECONDARY_PORT}:`,
+          err,
+        );
+      });
+      secondaryServer.listen(
+        {
+          port: SECONDARY_PORT,
+          host: "0.0.0.0",
+          reusePort: true,
+        },
+        () => {
+          log(`express server also serving on port ${SECONDARY_PORT}`);
+        },
+      );
+    }
+  }
 })();
