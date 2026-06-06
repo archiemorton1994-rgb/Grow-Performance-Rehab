@@ -181,7 +181,6 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
 function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
-
   useEffect(() => {
     if (isLoading) return;
 
