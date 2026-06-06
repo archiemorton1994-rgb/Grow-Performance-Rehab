@@ -17,3 +17,9 @@ id = "J0_UOUK5vHzSLC6qhqII5"
 uri = "file://screenshots/subscription-promo-1024.png"
 type = "image"
 title = "Subscription promotional image — 1024×1024 PNG"
+
+[[outputs]]
+id = "Q645CEj_6I-dEW-1IdRL-"
+uri = "file://screenshots/subscription-apple-1024.png"
+type = "image"
+title = "Apple subscription image — 1024×1024, 72 DPI, RGB, flat"
