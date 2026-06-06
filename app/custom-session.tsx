@@ -1024,7 +1024,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.text, height: 42,
     },
 
-    filterRow: { paddingHorizontal: 16, paddingBottom: 10, gap: 8 },
+    filterRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexGrow: 1 },
     filterChip: {
       paddingHorizontal: 14, paddingVertical: 7,
       borderRadius: 20, backgroundColor: C.surface,

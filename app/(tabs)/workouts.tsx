@@ -9,6 +9,7 @@ import {
   Pressable,
   TextInput,
   Alert,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Rect, Line, Circle, Path, Text as SvgText, G } from 'react-native-svg';
@@ -911,13 +912,13 @@ export default function StatsScreen() {
     setHistoryTypeFilter,
   } = useAppStore();
 
-  // historyFilter is persisted in the store; alias locally for readability
   const historyFilter = historyTypeFilter;
   const setHistoryFilter = setHistoryTypeFilter;
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history'>('overview');
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
+  const [showCalculator, setShowCalculator] = useState(false);
 
-  // Auto-reset: if the persisted type filter no longer matches any session, clear it
   useEffect(() => {
     if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
       setHistoryFilter(null);
@@ -933,7 +934,6 @@ export default function StatsScreen() {
     const now = new Date();
     let cutoff: Date | null = null;
     if (dateFilter === 'this_week') {
-      // Start of the current week (Sunday 00:00 local) — matches getThisWeekCount.
       cutoff = new Date(now);
       cutoff.setDate(now.getDate() - now.getDay());
       cutoff.setHours(0, 0, 0, 0);
@@ -948,16 +948,10 @@ export default function StatsScreen() {
   }, [completedSessions, historyFilter, dateFilter]);
 
   const DATE_FILTER_LABELS: Record<typeof dateFilter, string> = {
-    all: 'All',
-    this_week: 'This week',
-    this_month: 'This month',
+    all: 'All', this_week: 'This week', this_month: 'This month',
   };
-
-  // Lower-case scope phrase for the count line / empty state, e.g. "this week".
   const DATE_FILTER_SCOPE: Record<typeof dateFilter, string> = {
-    all: '',
-    this_week: 'this week',
-    this_month: 'this month',
+    all: '', this_week: 'this week', this_month: 'this month',
   };
 
   const historyHeading = historyFilter ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions` : 'Session History';
@@ -975,23 +969,49 @@ export default function StatsScreen() {
     return 'No sessions logged yet';
   })();
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + webTopInset + 16,
-          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>Stats</Text>
-      <Text style={styles.subtitle}>Your training progress at a glance</Text>
+  const TABS = [
+    { key: 'overview' as const, label: 'Overview' },
+    { key: 'strength' as const, label: 'Strength' },
+    { key: 'history' as const, label: 'History' },
+  ];
 
+  const tabPaddingBottom = insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80;
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Stats</Text>
+        <Text style={styles.subtitle}>Your training progress at a glance</Text>
+      </View>
+
+      {/* Segment control */}
+      <View style={styles.segmentWrap}>
+        <View style={styles.segment}>
+          {TABS.map(tab => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={({ pressed }) => [
+                  styles.segmentTab,
+                  active && styles.segmentTabActive,
+                  pressed && !active && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={[styles.segmentTabText, active && styles.segmentTabTextActive]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Empty state */}
       {completedSessions.length === 0 && (
-        <Animated.View entering={FadeInDown.delay(40).duration(400)}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon="stats-chart-outline"
             title="No sessions yet"
@@ -1004,150 +1024,242 @@ export default function StatsScreen() {
             }}
             testID="stats-empty"
           />
-        </Animated.View>
+        </View>
       )}
 
       {completedSessions.length > 0 && (
-        <>
-          <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.statRow}>
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{completedSessions.length}</Text>
-              <Text style={styles.statLabel}>Total Sessions</Text>
-            </View>
-            <View style={styles.statDiv} />
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </View>
-            <View style={styles.statDiv} />
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{weekCount}</Text>
-              <Text style={styles.statLabel}>This Week</Text>
-            </View>
-          </Animated.View>
+        <View style={{ flex: 1 }}>
 
-          <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-            <WeeklyBarChart sessions={completedSessions} C={C} />
-          </Animated.View>
+          {/* OVERVIEW TAB */}
+          {activeTab === 'overview' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.statRow}>
+                <View style={styles.statCell}>
+                  <Text style={styles.statValue}>{completedSessions.length}</Text>
+                  <Text style={styles.statLabel}>Total</Text>
+                </View>
+                <View style={styles.statDiv} />
+                <View style={styles.statCell}>
+                  <Text style={styles.statValue}>{streak}</Text>
+                  <Text style={styles.statLabel}>Day Streak</Text>
+                </View>
+                <View style={styles.statDiv} />
+                <View style={styles.statCell}>
+                  <Text style={styles.statValue}>{weekCount}</Text>
+                  <Text style={styles.statLabel}>This Week</Text>
+                </View>
+              </View>
+              <WeeklyBarChart sessions={completedSessions} C={C} />
+              <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
+              <SessionTypeBreakdown
+                sessions={completedSessions}
+                activeFilter={historyFilter}
+                onFilterChange={(type) => {
+                  setHistoryFilter(type);
+                  if (type !== null) setActiveTab('history');
+                }}
+                C={C}
+              />
+            </ScrollView>
+          )}
 
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
-          </Animated.View>
+          {/* STRENGTH TAB */}
+          {activeTab === 'strength' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <Pressable
+                onPress={() => setShowCalculator(true)}
+                style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="calculator-outline" size={18} color={C.primary} />
+                <Text style={styles.calcBtnText}>1RM Calculator</Text>
+                <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+              </Pressable>
 
-          <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-            <SessionTypeBreakdown
-              sessions={completedSessions}
-              activeFilter={historyFilter}
-              onFilterChange={setHistoryFilter}
-              C={C}
-            />
-          </Animated.View>
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Strength Progression</Text>
+                <Text style={styles.sectionSub}>Estimated 1RM — tap a dot for details</Text>
+                {(['squat', 'bench', 'deadlift'] as SessionType[]).map(lift => (
+                  <StrengthLineChart key={lift} lift={lift} orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
+                ))}
+              </View>
 
-          <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Strength Progression</Text>
-            <Text style={styles.sectionSub}>Estimated 1RM — tap a dot for details</Text>
-            {(['squat', 'bench', 'deadlift'] as SessionType[]).map(lift => (
-              <StrengthLineChart key={lift} lift={lift} orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
-            ))}
-          </Animated.View>
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Personal Bests</Text>
+                <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+                <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
+              </View>
+            </ScrollView>
+          )}
 
-          <Animated.View entering={FadeInDown.delay(170).duration(400)} style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Personal Bests</Text>
-            <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
-            <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(190).duration(400)} style={styles.sectionBlock}>
-            <OneRMCalculator weightUnit={weightUnit} addOneRepMax={addOneRepMax} C={C} />
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(220).duration(400)} style={styles.sectionBlock}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-              <Text style={styles.sectionTitle}>{historyHeading}</Text>
-              {hasActiveFilter && (
-                <Pressable
-                  onPress={() => { setHistoryFilter(null); setDateFilter('all'); }}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row', alignItems: 'center', gap: 4,
-                    backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
-                    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
-                    borderWidth: 1, borderColor: C.primaryMuted,
-                  })}
-                >
-                  <Ionicons name="close-circle" size={13} color={C.primary} />
-                  <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Clear all</Text>
-                </Pressable>
-              )}
-            </View>
-            <Text style={styles.sectionSub}>{historySubheading}</Text>
-            {/* Time-range segmented control — All / This week / This month */}
-            <View style={{
-              flexDirection: 'row', backgroundColor: C.surfaceTertiary,
-              borderRadius: 10, padding: 3, marginBottom: 12,
-              borderWidth: 1, borderColor: C.borderLight,
-            }}>
-              {(['all', 'this_week', 'this_month'] as const).map(option => {
-                const active = dateFilter === option;
-                return (
+          {/* HISTORY TAB */}
+          {activeTab === 'history' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={styles.sectionTitle}>{historyHeading}</Text>
+                {hasActiveFilter && (
                   <Pressable
-                    key={option}
-                    onPress={() => setDateFilter(option)}
+                    onPress={() => { setHistoryFilter(null); setDateFilter('all'); }}
                     style={({ pressed }) => ({
-                      flex: 1, alignItems: 'center', justifyContent: 'center',
-                      paddingVertical: 8, borderRadius: 8,
-                      backgroundColor: active ? C.surface : 'transparent',
-                      opacity: pressed && !active ? 0.7 : 1,
-                      ...(active ? {
-                        shadowColor: C.shadow, shadowOpacity: 0.06,
-                        shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
-                        elevation: 1,
-                      } : {}),
+                      flexDirection: 'row', alignItems: 'center', gap: 4,
+                      backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                      borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                      borderWidth: 1, borderColor: C.primaryMuted,
                     })}
                   >
-                    <Text style={{
-                      fontSize: 13,
-                      fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
-                      color: active ? C.text : C.textSecondary,
-                    }}>
-                      {DATE_FILTER_LABELS[option]}
-                    </Text>
+                    <Ionicons name="close-circle" size={13} color={C.primary} />
+                    <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Clear all</Text>
                   </Pressable>
-                );
-              })}
-            </View>
-            <SessionHistoryList
-              key={`${historyFilter ?? 'all'}-${dateFilter}`}
-              sessions={filteredSessions}
-              weightUnit={weightUnit}
-              emptyMessage={historyEmptyMessage}
-              C={C}
-            />
-          </Animated.View>
-        </>
+                )}
+              </View>
+              <Text style={styles.sectionSub}>{historySubheading}</Text>
+              <View style={{
+                flexDirection: 'row', backgroundColor: C.surfaceTertiary,
+                borderRadius: 10, padding: 3, marginBottom: 12,
+                borderWidth: 1, borderColor: C.borderLight,
+              }}>
+                {(['all', 'this_week', 'this_month'] as const).map(option => {
+                  const active = dateFilter === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => setDateFilter(option)}
+                      style={({ pressed }) => ({
+                        flex: 1, alignItems: 'center', justifyContent: 'center',
+                        paddingVertical: 8, borderRadius: 8,
+                        backgroundColor: active ? C.surface : 'transparent',
+                        opacity: pressed && !active ? 0.7 : 1,
+                        ...(active ? {
+                          shadowColor: C.shadow, shadowOpacity: 0.06,
+                          shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+                          elevation: 1,
+                        } : {}),
+                      })}
+                    >
+                      <Text style={{
+                        fontSize: 13,
+                        fontFamily: active ? 'Inter_600SemiBold' : 'Inter_500Medium',
+                        color: active ? C.text : C.textSecondary,
+                      }}>
+                        {DATE_FILTER_LABELS[option]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <SessionHistoryList
+                key={`${historyFilter ?? 'all'}-${dateFilter}`}
+                sessions={filteredSessions}
+                weightUnit={weightUnit}
+                emptyMessage={historyEmptyMessage}
+                C={C}
+              />
+            </ScrollView>
+          )}
+        </View>
       )}
-    </ScrollView>
+
+      {/* 1RM Calculator Modal */}
+      <Modal
+        visible={showCalculator}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCalculator(false)}
+      >
+        <View style={[styles.modalContainer, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>1RM Calculator</Text>
+            <Pressable
+              onPress={() => setShowCalculator(false)}
+              style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="close" size={20} color={C.text} />
+            </Pressable>
+          </View>
+          <ScrollView
+            contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <OneRMCalculator weightUnit={weightUnit} addOneRepMax={addOneRepMax} C={C} />
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    content: { paddingHorizontal: 20 },
+
+    header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
-    subtitle: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 20 },
+    subtitle: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
+
+    segmentWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    segment: {
+      flexDirection: 'row', backgroundColor: C.surfaceTertiary,
+      borderRadius: 12, padding: 3,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    segmentTab: {
+      flex: 1, alignItems: 'center', justifyContent: 'center',
+      paddingVertical: 9, borderRadius: 10,
+    },
+    segmentTabActive: {
+      backgroundColor: C.surface,
+      shadowColor: C.shadow, shadowOpacity: 0.08,
+      shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+      elevation: 2,
+    },
+    segmentTabText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.text },
+
+    tabContent: { paddingHorizontal: 20, paddingTop: 4 },
 
     statRow: {
-      flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, padding: 18,
-      marginBottom: 20, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center',
+      flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, padding: 16,
+      marginBottom: 14, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center',
     },
     statCell: { flex: 1, alignItems: 'center' },
-    statValue: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.primary },
+    statValue: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
     statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, textAlign: 'center' },
-    statDiv: { width: 1, height: 36, backgroundColor: C.border },
+    statDiv: { width: 1, height: 32, backgroundColor: C.border },
 
-    sectionBlock: { marginBottom: 20 },
+    sectionBlock: { marginBottom: 16 },
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
-    sectionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 },
+    sectionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 12 },
 
+    calcBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: C.primarySurface, borderRadius: 14,
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderWidth: 1, borderColor: C.primaryMuted, marginBottom: 16,
+    },
+    calcBtnText: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
+
+    modalContainer: { flex: 1, backgroundColor: C.background },
+    modalHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 20, paddingBottom: 14,
+      borderBottomWidth: 1, borderBottomColor: C.borderLight,
+    },
+    modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text },
+    modalClose: {
+      width: 34, height: 34, borderRadius: 17,
+      backgroundColor: C.surfaceTertiary,
+      alignItems: 'center', justifyContent: 'center',
+    },
   });
 }
