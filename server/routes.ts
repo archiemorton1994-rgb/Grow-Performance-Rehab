@@ -11,21 +11,26 @@ if (!JWT_SECRET) {
 const JWT_EXPIRY = '30d';
 const OTP_TTL_MS = 10 * 60 * 1000;
 
-const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 
-const otpRateLimitStore = new Map<string, number[]>();
+const REQUEST_RATE_LIMIT_MAX = 3;
+const VERIFY_RATE_LIMIT_MAX = 10;
+const OTP_MAX_FAILURES = 5;
 
-function isRateLimited(email: string): boolean {
+const otpRateLimitStore = new Map<string, number[]>();
+const verifyRateLimitStore = new Map<string, number[]>();
+const otpFailureStore = new Map<string, number>();
+
+function isRateLimited(store: Map<string, number[]>, max: number, email: string): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (otpRateLimitStore.get(email) ?? []).filter(t => t > windowStart);
-  if (timestamps.length >= RATE_LIMIT_MAX) {
-    otpRateLimitStore.set(email, timestamps);
+  const timestamps = (store.get(email) ?? []).filter(t => t > windowStart);
+  if (timestamps.length >= max) {
+    store.set(email, timestamps);
     return true;
   }
   timestamps.push(now);
-  otpRateLimitStore.set(email, timestamps);
+  store.set(email, timestamps);
   return false;
 }
 
@@ -98,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const normalised = email.trim().toLowerCase();
 
-    if (isRateLimited(normalised)) {
+    if (isRateLimited(otpRateLimitStore, REQUEST_RATE_LIMIT_MAX, normalised)) {
       return res.status(429).json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
     }
 
@@ -127,6 +132,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const normalised = email.trim().toLowerCase();
+
+    if (isRateLimited(verifyRateLimitStore, VERIFY_RATE_LIMIT_MAX, normalised)) {
+      return res.status(429).json({ message: 'Too many verification attempts. Please wait a few minutes and try again.' });
+    }
+
     const entry = storage.getOtp(normalised);
 
     if (!entry) {
@@ -134,13 +144,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     if (Date.now() > entry.expiresAt) {
       storage.clearOtp(normalised);
+      otpFailureStore.delete(normalised);
       return res.status(401).json({ message: 'Code has expired. Please request a new one.' });
     }
     if (entry.code !== code.trim()) {
+      const failures = (otpFailureStore.get(normalised) ?? 0) + 1;
+      if (failures >= OTP_MAX_FAILURES) {
+        storage.clearOtp(normalised);
+        otpFailureStore.delete(normalised);
+        return res.status(401).json({ message: 'Too many incorrect attempts. Please request a new code.' });
+      }
+      otpFailureStore.set(normalised, failures);
       return res.status(401).json({ message: 'Incorrect code. Please try again.' });
     }
 
     storage.clearOtp(normalised);
+    otpFailureStore.delete(normalised);
     const user = await storage.upsertUser(normalised);
     const token = signToken(user.id, user.email);
 
