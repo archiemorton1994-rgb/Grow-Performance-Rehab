@@ -393,7 +393,7 @@ export default function TrainScreen() {
                     >
                       <View style={[styles.cardIcon, { backgroundColor: colors.bg }]}>
                         <Ionicons
-                          name={isCurrent && testWeek ? 'trophy' : SESSION_ICONS[item.sessionType]}
+                          name={isCurrent && testWeek ? 'trophy' : SESSION_META_LABELS[item.sessionType].icon}
                           size={20}
                           color={isCurrent && testWeek ? C.categoryPrehabText : colors.accent}
                         />
