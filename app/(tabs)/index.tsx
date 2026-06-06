@@ -15,7 +15,6 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
-import { getEquipmentLabel } from '@/lib/workout-engine';
 import { getTimeOfDayGreeting } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 
@@ -31,9 +30,6 @@ const SESSION_IMAGES: Record<string, any> = {
 
 const WEEKLY_GOAL = 3;
 
-const GOAL_LABELS: Record<string, string> = {
-  strength: 'Strength', muscle: 'Muscle', power: 'Power & Speed', fat_loss: 'Fat Loss', fitness: 'Fitness', rehab: 'Rehab & Recovery',
-};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +46,7 @@ export default function HomeScreen() {
     activeSession,
     clearActiveSession,
     setCycleStartOffset,
+    profilePhotoUri,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -97,7 +94,6 @@ export default function HomeScreen() {
   }, [C]);
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
-  const primaryGoalLabel = GOAL_LABELS[userProfile.goals?.[0] ?? 'fitness'] ?? 'Fitness';
 
   // Auto-progression indicator: based on strength sessions (squat/bench/deadlift) only.
   // Show when 15+ strength sessions have been done (autoMult >= 1.05).
@@ -214,6 +210,19 @@ export default function HomeScreen() {
               <Text style={styles.testWeekPillText}>Test Week</Text>
             </View>
           )}
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile')}
+            style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
+            testID="home-profile-avatar"
+          >
+            {profilePhotoUri ? (
+              <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
+            ) : (
+              <Text style={styles.headerAvatarInitial}>
+                {firstName ? firstName[0].toUpperCase() : '?'}
+              </Text>
+            )}
+          </Pressable>
         </Animated.View>
 
         {/* Hero card — always the unified Today block (or first-session chooser for brand-new users) */}
@@ -280,42 +289,23 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Stats strip / Welcome card */}
-        {completedSessions.length === 0 ? (
-          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.welcomeCard}>
-            <Text style={styles.welcomeTitle}>
-              {firstName ? `Welcome, ${firstName}` : 'Welcome to Grow'}
-            </Text>
-            <Text style={styles.welcomeSub}>Your profile is set up and your first session is ready.</Text>
-            <View style={styles.welcomePills}>
-              <View style={styles.welcomePill}>
-                <Ionicons name="barbell-outline" size={12} color={C.primary} />
-                <Text style={styles.welcomePillText}>{getEquipmentLabel(effectiveTier)}</Text>
-              </View>
-              <View style={styles.welcomePill}>
-                <Ionicons name="flame-outline" size={12} color={C.primary} />
-                <Text style={styles.welcomePillText}>{primaryGoalLabel}</Text>
-              </View>
-            </View>
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{WEEKLY_GOAL}</Text></Text>
-              <Text style={styles.statLabel}>This Week</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{completedSessions.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-          </Animated.View>
-        )}
+        {/* Stats strip — always visible */}
+        <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{streak}</Text>
+            <Text style={styles.statLabel}>Day Streak</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{WEEKLY_GOAL}</Text></Text>
+            <Text style={styles.statLabel}>This Week</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{completedSessions.length}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+        </Animated.View>
 
         {/* Secondary actionable card — priority: resume > milestone > broken streak (mutually exclusive) */}
         {activeSession ? (
@@ -382,6 +372,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
+    headerAvatar: {
+      width: 38, height: 38, borderRadius: 19,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    headerAvatarImg: { width: 38, height: 38, borderRadius: 19 },
+    headerAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary },
     testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.warningLight, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.warning },
     testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.warning },
 
@@ -474,20 +472,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center', justifyContent: 'center',
     },
 
-    welcomeCard: {
-      backgroundColor: C.primarySurface, borderRadius: 16,
-      paddingHorizontal: 16, paddingVertical: 16,
-      borderWidth: 1, borderColor: C.primaryMuted,
-    },
-    welcomeTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
-    welcomeSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, lineHeight: 18, marginBottom: 12 },
-    welcomePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    welcomePill: {
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      backgroundColor: C.primaryMuted, borderRadius: 20,
-      paddingHorizontal: 10, paddingVertical: 5,
-    },
-    welcomePillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
     firstChoiceRow: {
       flexDirection: 'row', alignItems: 'center', gap: 12,

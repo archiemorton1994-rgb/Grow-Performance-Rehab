@@ -173,6 +173,8 @@ interface AppState {
   reminderTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
+  /** URI of the user's profile photo (local file URI from image picker). Null if not set. */
+  profilePhotoUri: string | null;
   /**
    * Tracks how many consecutive sessions each exercise has appeared in with a
    * 'normal' (no-feedback) performance outcome. Incremented by `completeSession`
@@ -213,6 +215,7 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
+  setProfilePhotoUri: (uri: string | null) => void;
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
@@ -264,6 +267,7 @@ export const useAppStore = create<AppState>()(
       reminderEnabled: false,
       reminderTime: '07:00',
       cycleStartOffset: 0,
+      profilePhotoUri: null,
       exerciseNormalStreak: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
@@ -289,6 +293,7 @@ export const useAppStore = create<AppState>()(
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
+      setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
       clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
@@ -579,6 +584,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!persistedState.lastSessionPerformance) {
           persistedState.lastSessionPerformance = {};
+        }
+        if (!('profilePhotoUri' in persistedState)) {
+          persistedState.profilePhotoUri = null;
         }
         if (!persistedState.savedTemplates) {
           persistedState.savedTemplates = [];

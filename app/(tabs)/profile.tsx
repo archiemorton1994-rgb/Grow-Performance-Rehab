@@ -11,7 +11,9 @@ import {
   ScrollView,
   Switch,
   Linking,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -71,6 +73,8 @@ export default function ProfileScreen() {
     setReminderEnabled,
     reminderTime,
     setReminderTime,
+    profilePhotoUri,
+    setProfilePhotoUri,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -263,6 +267,25 @@ export default function ProfileScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handlePickPhoto = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setProfilePhotoUri(result.assets[0].uri);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
   const displayName = userProfile.name || 'Set your name';
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
@@ -284,13 +307,20 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
-          <View style={styles.avatarWrap}>
+          <Pressable style={styles.avatarWrap} onPress={handlePickPhoto} testID="profile-avatar">
             <View style={styles.avatar}>
-              <Text style={styles.avatarInitial}>
-                {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
-              </Text>
+              {profilePhotoUri ? (
+                <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
+              ) : (
+                <Text style={styles.avatarInitial}>
+                  {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
+                </Text>
+              )}
             </View>
-          </View>
+            <View style={styles.avatarEditBadge}>
+              <Ionicons name="camera" size={11} color="#fff" />
+            </View>
+          </Pressable>
           <View style={styles.heroInfo}>
             <Text style={styles.heroName}>{displayName}</Text>
             <View style={styles.heroTags}>
@@ -837,9 +867,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surface, borderRadius: 18, padding: 18,
       marginTop: 12, marginBottom: 14, borderWidth: 1, borderColor: C.borderLight,
     },
-    avatarWrap: {},
-    avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-    avatarInitial: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.primary },
+    avatarWrap: { position: 'relative' },
+    avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    avatarPhoto: { width: 64, height: 64, borderRadius: 32 },
+    avatarInitial: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
+    avatarEditBadge: {
+      position: 'absolute', bottom: 0, right: 0,
+      width: 22, height: 22, borderRadius: 11,
+      backgroundColor: C.primary,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 2, borderColor: C.surface,
+    },
     heroInfo: { flex: 1 },
     heroName: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6 },
     heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
