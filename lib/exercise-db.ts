@@ -38,7 +38,7 @@ export interface ExerciseTemplate {
 
 export const CARDIO_WARMUP: ExerciseTemplate = {
   id: 'cardio-warmup', name: 'Cardio Machine Warm-Up', sets: 1, reps: '2 min steady',
-  cue: 'Treadmill, bike, rower or brisk walk — start easy, gradually pick up pace. Get the blood moving before any stretching.',
+  cue: 'Treadmill, bike or brisk walk — start easy, gradually pick up pace. Get the blood moving before any stretching.',
   suggestedLoad: 'Low intensity', category: 'prep', targetRegions: [], videoId: '',
 };
 
@@ -657,7 +657,7 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
       easy: { id: 'sq-fin-fg-e', name: 'Light Sled Drag', sets: 1, reps: '4 min continuous', cue: 'Backward drag, easy pace — active recovery', suggestedLoad: '40–60 kg sled', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Treadmill Walk (incline)', cue: '10% incline, comfortable pace — easy active recovery, no sled needed', suggestedLoad: 'Bodyweight' } },
       normal: { id: 'sq-fin-fg-n', name: 'Sled Push Intervals', sets: 1, reps: '6 min (20m push / walk back)', cue: 'Arms extended, drive through legs — push hard', suggestedLoad: '60–80 kg sled', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing Machine Intervals', cue: '30s hard row, 30s easy — full-body conditioning without sled', suggestedLoad: 'Rower' } },
+        swapAlternative: { name: 'Treadmill Sprint Intervals', cue: '30s sprint, 30s walk — cardio finisher without sled', suggestedLoad: 'Bodyweight' } },
       hard: { id: 'sq-fin-fg-h', name: 'Sled Push/Pull Complex', sets: 1, reps: '8 min (push 20m, drag 20m)', cue: 'Push then drag, minimal rest between efforts', suggestedLoad: '60–100 kg sled', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Assault Bike + Squat Jump Circuit', cue: '20s bike sprint then 10 squat jumps, repeat — hard finisher without sled', suggestedLoad: 'Assault bike' } },
     },
@@ -672,9 +672,9 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
         swapAlternative: { name: 'Explosive Push-Up + Squat Jump Circuit', cue: '8 explosive push-ups then 8 squat jumps, repeat — high intensity without the full burpee', suggestedLoad: 'Bodyweight' } },
     },
     dumbbells: {
-      easy: { id: 'bn-fin-db-e', name: 'Light Bike / Row', sets: 1, reps: '4 min easy', cue: 'Steady pace, calm breathing — gentle cardio', suggestedLoad: 'Machine', category: 'finisher', targetRegions: [], videoId: '',
+      easy: { id: 'bn-fin-db-e', name: 'Bear Crawl (Easy Pace)', sets: 1, reps: '4 min (20m out, walk back)', cue: 'Hips level, slow deliberate movement — alternate opposite arm and leg, core braced throughout', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Light DB Lateral Raise Walk', cue: 'Walk slowly raising arms to shoulder height, lower — gentle shoulder recovery', suggestedLoad: '4–6 kg per hand' } },
-      normal: { id: 'bn-fin-db-n', name: 'Rower Intervals', sets: 1, reps: '6 min (250m hard / 30s easy)', cue: 'Drive with legs, pull to chest — legs do the work', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
+      normal: { id: 'bn-fin-db-n', name: 'Bear Crawl Intervals', sets: 1, reps: '6 min (20m sprint / walk back)', cue: 'Drive from shoulders, hips level throughout — sprint hard for 20m, walk back and go again', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'DB Push Press Intervals', cue: '12 push presses, 30s rest — power finisher without the machine', suggestedLoad: '10–14 kg per hand' } },
       hard: { id: 'bn-fin-db-h', name: 'DB Complex', sets: 1, reps: '8 min EMOM: 5 cleans + 5 press', cue: 'Light DBs, move fast — no dropping between movements', suggestedLoad: '8–12 kg per hand', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Push-Up + DB Row EMOM', cue: 'Every minute: 8 push-ups + 6 rows each arm — easier to pace than the full complex', suggestedLoad: '10–14 kg per hand' } },
@@ -707,11 +707,11 @@ const FINISHERS: Record<MainSessionType, Record<InternalTier, { easy: ExerciseTe
     },
     fullgym: {
       easy: { id: 'dl-fin-fg-e', name: 'Prowler Drag (light)', sets: 1, reps: '4 min (20m drags)', cue: 'Face sled, drag backward — easy active recovery', suggestedLoad: '40–60 kg sled', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing Machine (easy pace)', cue: 'Long slow strokes, relaxed — low-impact active recovery without sled', suggestedLoad: 'Rower' } },
-      normal: { id: 'dl-fin-fg-n', name: 'Rower Sprints', sets: 1, reps: '6 min (200m sprint / 30s rest)', cue: 'Powerful leg drive, damper 6-7 — legs initiate the pull', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Sled Drag Intervals', cue: '20m drag, walk back — same hip hinge demand as rowing, no machine needed', suggestedLoad: '40–60 kg sled' } },
+        swapAlternative: { name: 'Assault Bike (Easy Pace)', cue: 'Arms and legs, 60% effort — low-impact active recovery without sled', suggestedLoad: 'Bike' } },
+      normal: { id: 'dl-fin-fg-n', name: 'Treadmill Sprint Intervals', sets: 1, reps: '6 min (30s sprint / 30s walk)', cue: 'Hard sprint effort, full walk recovery — drive with hips, stay tall', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Sled Drag Intervals', cue: '20m drag, walk back — same hip hinge demand, no machine needed', suggestedLoad: '40–60 kg sled' } },
       hard: { id: 'dl-fin-fg-h', name: 'Prowler Push/Pull + Bike', sets: 1, reps: '8 min (push 20m, pull 20m, 10 cal bike)', cue: 'No rest between stations — compete against yourself', suggestedLoad: '60–80 kg sled + bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing + Squat Jump Circuit', cue: '250m row then 10 squat jumps, repeat — intense finisher without sled or bike', suggestedLoad: 'Rower' } },
+        swapAlternative: { name: 'Treadmill Sprint + Squat Jump Circuit', cue: '30s treadmill sprint then 10 squat jumps, repeat — intense finisher without sled or bike', suggestedLoad: 'Bodyweight' } },
     },
   },
 };
@@ -752,14 +752,14 @@ const CONDITIONING_WORKOUTS: Record<InternalTier, { easy: ExerciseTemplate[]; no
   },
   dumbbells: {
     easy: [
-      { id: 'cond-db-e-1', name: 'Cardio Machine Warm-Up', sets: 1, reps: '3 min easy', cue: 'Bike, rower or treadmill at easy pace — heart rate 60% max', suggestedLoad: 'Low resistance', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'cond-db-e-1', name: 'Cardio Machine Warm-Up', sets: 1, reps: '3 min easy', cue: 'Bike or treadmill at easy pace — heart rate 60% max', suggestedLoad: 'Low resistance', category: 'prep', targetRegions: [], videoId: '' },
       { id: 'cond-db-e-2', name: 'KB Swing', sets: 4, reps: '15 — 45s rest', cue: 'Hip snap, bell to chest height — controlled and rhythmic', suggestedLoad: '12–16 kg', category: 'mechanical', targetRegions: [], videoId: '' },
       { id: 'cond-db-e-3', name: 'DB Goblet Squat', sets: 3, reps: '15 — 45s rest', cue: 'Steady tempo, feel the burn — lighter than your strength sessions', suggestedLoad: '10–16 kg per hand', category: 'accessory', targetRegions: [], videoId: '' },
       { id: 'cond-db-e-4', name: 'Farmer Walk', sets: 3, reps: '40m each set', cue: 'Tall posture, brace core — steady pace for conditioning', suggestedLoad: '14–20 kg per hand', category: 'finisher', targetRegions: [], videoId: '' },
       { id: 'cond-db-e-5', name: 'Cool Down Walk', sets: 1, reps: '3 min', cue: 'Easy walk, breathe deeply — lower heart rate before finishing', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'cond-db-n-1', name: 'Cardio Warm-Up', sets: 1, reps: '2 min', cue: 'Bike or rower, moderate pace — heart rate to 70% max', suggestedLoad: 'Low-moderate resistance', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'cond-db-n-1', name: 'Cardio Warm-Up', sets: 1, reps: '2 min', cue: 'Bike or treadmill, moderate pace — heart rate to 70% max', suggestedLoad: 'Low-moderate resistance', category: 'prep', targetRegions: [], videoId: '' },
       { id: 'cond-db-n-2', name: 'Circuit A: KB Swing + Goblet Squat + Push-Up', sets: 4, reps: '15 swings / 12 squats / 10 push-ups — 30s rest', cue: 'Back-to-back within the round. KB snap drives the swing. Goblet: full depth. Push-up: chest to floor', suggestedLoad: '14–18 kg KB, 12–16 kg per hand goblet', category: 'mechanical', targetRegions: [], videoId: '' },
       { id: 'cond-db-n-3', name: 'Circuit B: DB Thruster + Renegade Row + Jump Squat', sets: 4, reps: '10 / 8 each / 10 — 30s rest', cue: 'Thruster: squat to press. Renegade row: hips level. Jump squat: land soft and reset', suggestedLoad: '10–14 kg per hand thrusters/rows', category: 'accessory', targetRegions: [], videoId: '' },
       { id: 'cond-db-n-4', name: 'EMOM Finisher: KB Swings', sets: 10, reps: '15 swings at start of each minute', cue: 'Start each minute with 15 swings then rest — stay consistent for all 10 minutes', suggestedLoad: '14–20 kg', category: 'finisher', targetRegions: [], videoId: '' },
@@ -775,22 +775,22 @@ const CONDITIONING_WORKOUTS: Record<InternalTier, { easy: ExerciseTemplate[]; no
   },
   fullgym: {
     easy: [
-      { id: 'cond-fg-e-1', name: 'Cardio Machine Warm-Up', sets: 1, reps: '3 min easy', cue: 'Bike, treadmill or rower — easy pace, heart rate 60% max', suggestedLoad: 'Low resistance', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-e-1', name: 'Cardio Machine Warm-Up', sets: 1, reps: '3 min easy', cue: 'Bike or treadmill — easy pace, heart rate 60% max', suggestedLoad: 'Low resistance', category: 'prep', targetRegions: [], videoId: '' },
       { id: 'cond-fg-e-2', name: 'Sled Drag', sets: 4, reps: '30m — 60s rest', cue: 'Face sled, drag backward with controlled steps — low intensity, steady breathing', suggestedLoad: '40–60 kg sled', category: 'mechanical', targetRegions: [], videoId: '' },
       { id: 'cond-fg-e-3', name: 'Assault Bike (Easy)', sets: 4, reps: '2 min steady', cue: 'Moderate resistance, steady cadence — aerobic zone, conversational pace', suggestedLoad: 'Bike', category: 'accessory', targetRegions: [], videoId: '' },
-      { id: 'cond-fg-e-4', name: 'Rower (Easy)', sets: 3, reps: '500m — 90s rest', cue: 'Smooth stroke, damper 4-5 — legs, hips, arms in sequence', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-e-4', name: 'Bear Crawl (Steady Pace)', sets: 3, reps: '30m — 90s rest', cue: 'Hips level and steady, opposite arm and leg together — breathe rhythmically, no rushing', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '' },
       { id: 'cond-fg-e-5', name: 'Cool Down Walk', sets: 1, reps: '3 min', cue: 'Slow treadmill walk or light movement — heart rate below 100 bpm', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'cond-fg-n-1', name: 'Cardio Warm-Up', sets: 1, reps: '3 min', cue: 'Bike or rower, moderate pace — heart rate 70% max before starting', suggestedLoad: 'Moderate resistance', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-n-1', name: 'Cardio Warm-Up', sets: 1, reps: '3 min', cue: 'Bike or treadmill, moderate pace — heart rate 70% max before starting', suggestedLoad: 'Moderate resistance', category: 'prep', targetRegions: [], videoId: '' },
       { id: 'cond-fg-n-2', name: 'Circuit A: Sled Push + Assault Bike Sprint', sets: 5, reps: '20m push / 15 cal bike — 30s rest', cue: 'Sled: drive through legs, arms extended. Bike: full effort, arms and legs together', suggestedLoad: '60–80 kg sled', category: 'mechanical', targetRegions: [], videoId: '' },
-      { id: 'cond-fg-n-3', name: 'Circuit B: Rower Sprint + KB Swing + Box Jump', sets: 4, reps: '250m / 15 swings / 8 jumps — 30s rest', cue: 'Row: explosive leg drive. Swing: hip snap. Box jump: step down every rep', suggestedLoad: 'Rower + 16–20 kg KB', category: 'accessory', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-n-3', name: 'Circuit B: Bear Crawl + KB Swing + Box Jump', sets: 4, reps: '20m crawl / 15 swings / 8 jumps — 30s rest', cue: 'Bear crawl: hips level, drive from shoulders. Swing: explosive hip snap. Box jump: step down every rep', suggestedLoad: '16–20 kg KB', category: 'accessory', targetRegions: [], videoId: '' },
       { id: 'cond-fg-n-4', name: 'AMRAP Finisher', sets: 1, reps: '8 min: 10 cal bike + 15 KB swings + 10 box jumps', cue: 'Complete as many rounds as possible — note total rounds and compete next session', suggestedLoad: 'As above', category: 'finisher', targetRegions: [], videoId: '' },
       { id: 'cond-fg-n-5', name: 'Cool Down', sets: 1, reps: '3 min', cue: 'Easy bike spin, deep breathing — full recovery before leaving the gym', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: [], videoId: '' },
     ],
     hard: [
-      { id: 'cond-fg-h-1', name: 'Dynamic Warm-Up', sets: 1, reps: '3 min', cue: 'Row 500m + 15 box jumps + 10 KB swings — get fully primed', suggestedLoad: 'Light', category: 'prep', targetRegions: [], videoId: '' },
-      { id: 'cond-fg-h-2', name: 'Circuit A: Sled Push + Rower Sprint + Assault Bike', sets: 6, reps: '20m push / 200m row / 10 cal bike — 20s rest', cue: 'Maximum effort on all three. Rotate stations immediately — no dawdling', suggestedLoad: '70–90 kg sled', category: 'mechanical', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-h-1', name: 'Dynamic Warm-Up', sets: 1, reps: '3 min', cue: 'Bear crawl 20m + 15 box jumps + 10 KB swings — get fully primed', suggestedLoad: 'Light', category: 'prep', targetRegions: [], videoId: '' },
+      { id: 'cond-fg-h-2', name: 'Circuit A: Sled Push + Bear Crawl Sprint + Assault Bike', sets: 6, reps: '20m sled push / 10m bear crawl / 10 cal bike — 20s rest', cue: 'Maximum effort on all three. Sled: drive through legs. Bear crawl: explosive and low. Bike: full sprint. Rotate immediately', suggestedLoad: '70–90 kg sled', category: 'mechanical', targetRegions: [], videoId: '' },
       { id: 'cond-fg-h-3', name: 'Circuit B: KB Snatch + Box Jump + Burpee', sets: 5, reps: '5 each arm / 8 / 8 — 20s rest', cue: 'Snatch: explosive hip drive. Box jump: max height, step down. Burpee: full lockout at top', suggestedLoad: '16–24 kg KB', category: 'accessory', targetRegions: [], videoId: '' },
       { id: 'cond-fg-h-4', name: 'Partner or Solo Death By: Assault Bike', sets: 1, reps: '1 cal min 1, 2 cal min 2... until failure', cue: 'Start at 1 calorie per minute, add 1 each minute — go until you cannot complete the target before the minute ends', suggestedLoad: 'Assault bike', category: 'finisher', targetRegions: [], videoId: '' },
       { id: 'cond-fg-h-5', name: 'Cool Down', sets: 1, reps: '3 min', cue: 'Easy bike spin, hip flexor stretch, deep breathing — mandatory full cool down after this intensity', suggestedLoad: 'Bodyweight', category: 'cooldown', targetRegions: [], videoId: '' },
@@ -947,18 +947,18 @@ const GOAL_CONDITIONING_BLOCKS: Record<InternalTier, { easy: ExerciseTemplate[];
   },
   fullgym: {
     easy: [
-      { id: 'gcond-fg-e-1', name: 'Rowing Machine', sets: 3, reps: '3 min steady — 60s rest', cue: 'Damper 4–5, legs then hips then arms in sequence — smooth stroke, aim for 24 spm and conversational pace', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
+      { id: 'gcond-fg-e-1', name: 'Bear Crawl (Steady Pace)', sets: 3, reps: '2 min steady — 60s rest', cue: 'Hips level, alternate opposite arm and leg — slow and deliberate, breathe steadily, aim for a conversational pace throughout', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
         swapAlternative: { name: 'Assault Bike (Moderate)', cue: 'Arms and legs together, 70% max effort — same low-intensity aerobic conditioning, no coordination required', suggestedLoad: 'Bike' } },
       { id: 'gcond-fg-e-2', name: 'Assault Bike (Moderate)', sets: 3, reps: '2 min steady — 60s rest', cue: 'Arms and legs together, 70% max effort — keep cadence consistent, this should feel hard but sustainable', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     normal: [
-      { id: 'gcond-fg-n-1', name: 'Rowing Intervals', sets: 5, reps: '30s hard / 30s easy', cue: 'Pull hard for 30s (aim 500m pace –5%), easy paddle for 30s recovery — repeat without stopping', suggestedLoad: 'Rower', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Assault Bike Intervals', cue: '30s all-out bike sprint then 30s easy pedal — same interval structure, full-body cardio without the technique demand of rowing', suggestedLoad: 'Bike' } },
+      { id: 'gcond-fg-n-1', name: 'Bear Crawl Intervals', sets: 5, reps: '30s hard / 30s easy', cue: 'Drive hard for 20m bear crawl, walk back slowly for recovery — hips level throughout, repeat for all rounds without stopping', suggestedLoad: 'Bodyweight', category: 'finisher', targetRegions: [], videoId: '',
+        swapAlternative: { name: 'Assault Bike Intervals', cue: '30s all-out bike sprint then 30s easy pedal — same interval structure, full-body cardio', suggestedLoad: 'Bike' } },
       { id: 'gcond-fg-n-2', name: 'Sled Push', sets: 4, reps: '20m — 45s rest', cue: 'Low position, drive through legs, arms extended — keep chest up and take short powerful steps', suggestedLoad: '50–70 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
     ],
     hard: [
       { id: 'gcond-fg-h-1', name: 'Assault Bike Sprints', sets: 6, reps: '20s all-out / 40s rest', cue: 'Maximum effort for 20s — both arms and legs, no pacing. Full recovery before the next sprint', suggestedLoad: 'Bike', category: 'finisher', targetRegions: [], videoId: '',
-        swapAlternative: { name: 'Rowing Sprints', cue: '200m max-effort row, 40s rest — same Tabata-style interval, high-power cardio without the bike', suggestedLoad: 'Rower' } },
+        swapAlternative: { name: 'Bear Crawl Sprints', cue: '15m max-effort bear crawl, 40s rest — explosive full-body conditioning without the bike', suggestedLoad: 'Bodyweight' } },
       { id: 'gcond-fg-h-2', name: 'Sled Push', sets: 5, reps: '20m — 30s rest', cue: 'Heavy sled, explosive drive — minimal rest keeps heart rate elevated. Sprint back after each push', suggestedLoad: '70–100 kg sled', category: 'finisher', targetRegions: [], videoId: '' },
     ],
   },
