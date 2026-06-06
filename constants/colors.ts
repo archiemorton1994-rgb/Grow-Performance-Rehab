@@ -59,6 +59,16 @@ const LightColors = {
   categoryCooldown: '#e8f5e9',
   categoryCooldownText: '#2e7d32',
 
+  // Modal / bottom-sheet overlays
+  overlayBg: 'rgba(0,0,0,0.5)',
+  overlayBgLight: 'rgba(0,0,0,0.45)',
+
+  // Text on solid primary-colour backgrounds (e.g. subscription CTA buttons)
+  primarySubtext: 'rgba(255,255,255,0.8)',
+
+  // Drop-shadow reference colour
+  shadow: '#000',
+
   light: {
     text: '#1a1d1b',
     background: '#fafbfa',
@@ -126,6 +136,16 @@ const DarkColors = {
   categoryFinisherText: '#ef9a9a',
   categoryCooldown: '#0e2415',
   categoryCooldownText: '#81c784',
+
+  // Modal / bottom-sheet overlays
+  overlayBg: 'rgba(0,0,0,0.6)',
+  overlayBgLight: 'rgba(0,0,0,0.55)',
+
+  // Text on solid primary-colour backgrounds (e.g. subscription CTA buttons)
+  primarySubtext: 'rgba(255,255,255,0.75)',
+
+  // Drop-shadow reference colour
+  shadow: '#000',
 
   light: {
     text: '#e8edea',

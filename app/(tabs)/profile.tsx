@@ -889,11 +889,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary, borderRadius: 14, padding: 18,
     },
     subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
-    subCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.8)', marginTop: 3 },
+    subCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primarySubtext, marginTop: 3 },
     manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
-    sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    sheetOverlay: { flex: 1, backgroundColor: C.overlayBg, justifyContent: 'flex-end' },
     sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 16 },
     sheetHandle: { width: 36, height: 4, backgroundColor: C.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
     sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 20 },
@@ -969,7 +969,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary, borderRadius: 14, padding: 16,
     },
     subStripCtaTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
-    subStripCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+    subStripCtaSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primarySubtext, marginTop: 2 },
     settingItemLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
     settingItemSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 10 },
     settingDivider: { height: 1, backgroundColor: C.borderLight, marginVertical: 16 },
@@ -1008,7 +1008,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     resetText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
 
     // Body weight quick-edit modal
-    bwOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    bwOverlay: { flex: 1, backgroundColor: C.overlayBgLight, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
     bwCard: { width: '100%', backgroundColor: C.surface, borderRadius: 20, padding: 24, alignItems: 'center' },
     bwIconWrap: { width: 56, height: 56, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
     bwTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6, textAlign: 'center' },

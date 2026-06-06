@@ -1098,7 +1098,7 @@ export default function StatsScreen() {
                       backgroundColor: active ? C.surface : 'transparent',
                       opacity: pressed && !active ? 0.7 : 1,
                       ...(active ? {
-                        shadowColor: '#000', shadowOpacity: 0.06,
+                        shadowColor: C.shadow, shadowOpacity: 0.06,
                         shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
                         elevation: 1,
                       } : {}),
