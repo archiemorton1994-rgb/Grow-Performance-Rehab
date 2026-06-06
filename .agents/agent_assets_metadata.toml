@@ -1,8 +1,19 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "btKuftqhxf-9KNs9wsbjf"
+uri = "file://screenshots/subscription-promo-1024.png"
+type = "image"
+title = "grow-subscription-promo"
 
 [[outputs]]
 id = "Y0cuoC_vzhSZp4BoB9Wmj"
 uri = "file://screenshots/subscription-preview.jpg"
 type = "image"
 title = "Paywall screenshot — £4.99 price + trial button"
+
+[[outputs]]
+id = "J0_UOUK5vHzSLC6qhqII5"
+uri = "file://screenshots/subscription-promo-1024.png"
+type = "image"
+title = "Subscription promotional image — 1024×1024 PNG"
