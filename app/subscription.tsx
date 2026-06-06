@@ -36,6 +36,28 @@ const INCLUDED_ITEMS = [
   'Session resume — pick up where you left off',
 ];
 
+function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: string; sub: string } {
+  const intro = pkg?.product?.introPrice;
+  if (intro && intro.price === 0 && intro.periodNumberOfUnits > 0) {
+    const n = intro.periodNumberOfUnits;
+    const unit = (intro.periodUnit as string).toUpperCase();
+    let period = `${n}-day`;
+    if (unit === 'WEEK') period = n === 1 ? '1-week' : `${n}-week`;
+    else if (unit === 'MONTH') period = n === 1 ? '1-month' : `${n}-month`;
+    else if (unit === 'YEAR') period = n === 1 ? '1-year' : `${n}-year`;
+    return {
+      badge: `${period} free trial`,
+      cta: `Start ${period.charAt(0).toUpperCase() + period.slice(1)} Free Trial`,
+      sub: `Try free for ${period.replace('-', ' ')},`,
+    };
+  }
+  return {
+    badge: '14-day free trial',
+    cta: 'Start 14-Day Free Trial',
+    sub: 'Try free for 14 days,',
+  };
+}
+
 function getLegalUrls() {
   try {
     const base = getApiUrl().replace(/\/$/, '');
@@ -122,6 +144,7 @@ export default function SubscriptionScreen() {
   }, [refreshSubscription]);
 
   const priceString = offering?.product?.priceString ?? '£7.99';
+  const trialText = getTrialText(offering);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTop }]}>
@@ -171,7 +194,7 @@ export default function SubscriptionScreen() {
                   ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
                       <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>Price unavailable</Text>
-                      <Pressable onPress={fetchOffering} style={{ backgroundColor: C.primaryMuted, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                      <Pressable onPress={fetchOffering} testID="offerings-retry" style={{ backgroundColor: C.primaryMuted, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
                         <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Retry</Text>
                       </Pressable>
                     </View>
@@ -180,10 +203,10 @@ export default function SubscriptionScreen() {
               }
             </View>
             <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>14-day free trial</Text>
+              <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
             </View>
           </View>
-          <Text style={styles.planSub}>Try free for 14 days, then {priceString}/month. Cancel anytime.</Text>
+          <Text style={styles.planSub}>{trialText.sub} then {priceString}/month. Cancel anytime.</Text>
         </View>
 
         <Pressable
@@ -194,7 +217,7 @@ export default function SubscriptionScreen() {
         >
           {purchasing
             ? <ActivityIndicator color={C.textInverse} />
-            : <Text style={styles.ctaBtnText}>Start 14-Day Free Trial</Text>
+            : <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
           }
         </Pressable>
 
@@ -218,11 +241,11 @@ export default function SubscriptionScreen() {
 
         <Text style={styles.legal}>
           {'By continuing you agree to our '}
-          <Text style={styles.legalLink} onPress={() => Linking.openURL(termsUrl)}>
+          <Text style={styles.legalLink} testID="legal-terms" onPress={() => Linking.openURL(termsUrl)}>
             Terms of Service
           </Text>
           {' and '}
-          <Text style={styles.legalLink} onPress={() => Linking.openURL(privacyUrl)}>
+          <Text style={styles.legalLink} testID="legal-privacy" onPress={() => Linking.openURL(privacyUrl)}>
             Privacy Policy
           </Text>
           {'. Subscription renews at '}
@@ -230,6 +253,17 @@ export default function SubscriptionScreen() {
           {'/month unless cancelled at least 24 hours before the end of the current period.'}
         </Text>
       </ScrollView>
+
+      {(purchasing || restoring) && (
+        <View style={styles.processingOverlay} testID="processing-overlay">
+          <View style={styles.processingCard}>
+            <ActivityIndicator size="large" color={C.primary} />
+            <Text style={styles.processingText}>
+              {purchasing ? 'Processing payment…' : 'Restoring purchases…'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -297,6 +331,19 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     marginTop: 10, marginBottom: 2, paddingHorizontal: 4,
   },
   errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
+
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 100,
+  },
+  processingCard: {
+    backgroundColor: C.surface, borderRadius: 20,
+    padding: 32, alignItems: 'center', gap: 16, minWidth: 180,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+  },
+  processingText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
 
   restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
   restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
