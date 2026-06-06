@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,14 +25,14 @@ const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
 
-const SESSION_ICONS: Record<SessionType, keyof typeof Ionicons.glyphMap> = {
-  squat: 'fitness',
-  bench: 'body',
-  deadlift: 'barbell',
-  conditioning: 'flame-outline',
-  prehab: 'shield-checkmark-outline',
-  flexibility: 'leaf-outline',
-  custom: 'create-outline',
+const SESSION_IMAGES: Record<SessionType, any> = {
+  squat:        require('@/assets/images/sessions/lower-body.png'),
+  bench:        require('@/assets/images/sessions/upper-body.png'),
+  deadlift:     require('@/assets/images/sessions/full-body.png'),
+  conditioning: require('@/assets/images/sessions/conditioning.png'),
+  prehab:       require('@/assets/images/sessions/targeted-prehab.png'),
+  flexibility:  require('@/assets/images/sessions/mobility.png'),
+  custom:       require('@/assets/images/sessions/custom.png'),
 };
 
 function getContextMessage(
@@ -279,7 +280,7 @@ export default function TrainScreen() {
               testID={`train-session-${type}`}
             >
               <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
-                <Ionicons name={meta.icon} size={22} color={meta.color} />
+                <Image source={SESSION_IMAGES[type]} style={styles.sessionCardImage} resizeMode="contain" />
               </View>
               <Text style={styles.sessionCardLabel} numberOfLines={1}>{meta.label}</Text>
               <Text style={styles.sessionCardSub} numberOfLines={1}>{meta.subtitle}</Text>
@@ -469,7 +470,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       minHeight: 106,
       borderWidth: 1, borderColor: C.borderLight,
     },
-    sessionCardIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    sessionCardIcon: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    sessionCardImage: { width: 38, height: 38 },
     sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 

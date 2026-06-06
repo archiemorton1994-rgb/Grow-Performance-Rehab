@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +16,13 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { daysSince } from '@/lib/utils';
+
+const FLEX_IMAGES: Record<string, any> = {
+  recovery:    require('@/assets/images/sessions/recovery.png'),
+  mobility:    require('@/assets/images/sessions/mobility.png'),
+  prehab:      require('@/assets/images/sessions/targeted-prehab.png'),
+  conditioning: require('@/assets/images/sessions/conditioning.png'),
+};
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | 'conditioning' | null;
 type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -246,7 +254,7 @@ export default function FlexScreen() {
                 testID={`flex-row-${row.key}`}
               >
                 <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                  <Ionicons name={row.icon} size={22} color={row.iconColor} />
+                  <Image source={FLEX_IMAGES[row.key]} style={styles.navIconImage} resizeMode="contain" />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>{row.title}</Text>
@@ -275,7 +283,7 @@ export default function FlexScreen() {
               <>
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
-                    <Ionicons name={activeInfo.icon} size={26} color={activeInfo.iconColor} />
+                    <Image source={activeModal ? FLEX_IMAGES[activeModal] : FLEX_IMAGES.recovery} style={styles.sheetIconImage} resizeMode="contain" />
                   </View>
                   <View style={styles.sheetHeaderText}>
                     <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
@@ -406,13 +414,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     navBtnFirst: { borderTopLeftRadius: 17, borderTopRightRadius: 17 },
     navBtnLast: { borderBottomLeftRadius: 17, borderBottomRightRadius: 17 },
     navIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 13,
+      width: 52,
+      height: 52,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
+    navIconImage: { width: 38, height: 38 },
     navBtnText: { flex: 1 },
     navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
     navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
@@ -451,6 +460,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    sheetIconImage: { width: 38, height: 38 },
     sheetHeaderText: { flex: 1 },
     sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
     sheetDuration: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 3 },
