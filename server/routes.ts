@@ -42,9 +42,43 @@ class PersistedRateLimitMap {
   }
 }
 
+class PersistedCounterMap {
+  private mem = new Map<string, number>();
+  private ready = false;
+
+  constructor(private readonly storeName: string) {}
+
+  async init(): Promise<void> {
+    this.mem = await storage.loadCounters(this.storeName);
+    this.ready = true;
+  }
+
+  get(email: string): number | undefined {
+    return this.mem.get(email);
+  }
+
+  set(email: string, count: number): void {
+    this.mem.set(email, count);
+    if (this.ready) {
+      storage.saveCounter(this.storeName, email, count).catch(err =>
+        console.error(`[RateLimit] Failed to persist counter ${this.storeName} for ${email}:`, err),
+      );
+    }
+  }
+
+  delete(email: string): void {
+    this.mem.delete(email);
+    if (this.ready) {
+      storage.deleteCounter(this.storeName, email).catch(err =>
+        console.error(`[RateLimit] Failed to delete counter ${this.storeName} for ${email}:`, err),
+      );
+    }
+  }
+}
+
 const otpRateLimitStore = new PersistedRateLimitMap('otp_request');
 const verifyRateLimitStore = new PersistedRateLimitMap('otp_verify');
-const otpFailureStore = new Map<string, number>();
+const otpFailureStore = new PersistedCounterMap('otp_failures');
 
 function isRateLimited(store: PersistedRateLimitMap, max: number, email: string): boolean {
   const now = Date.now();
@@ -122,6 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await Promise.all([
     otpRateLimitStore.init(),
     verifyRateLimitStore.init(),
+    otpFailureStore.init(),
   ]);
 
   app.post('/api/auth/request-code', async (req: Request, res: Response) => {

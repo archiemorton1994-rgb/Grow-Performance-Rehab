@@ -22,6 +22,9 @@ export interface IStorage {
   clearOtp(email: string): void;
   loadRateLimits(storeName: string): Promise<Map<string, number[]>>;
   saveRateLimits(storeName: string, email: string, timestamps: number[]): Promise<void>;
+  loadCounters(storeName: string): Promise<Map<string, number>>;
+  saveCounter(storeName: string, email: string, count: number): Promise<void>;
+  deleteCounter(storeName: string, email: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -84,6 +87,37 @@ export class DbStorage implements IStorage {
        VALUES ($1, $2, $3)
        ON CONFLICT (store_name, email) DO UPDATE SET timestamps = EXCLUDED.timestamps`,
       [storeName, email, JSON.stringify(timestamps)],
+    );
+  }
+
+  async loadCounters(storeName: string): Promise<Map<string, number>> {
+    const result = await pool.query<{ email: string; timestamps: string }>(
+      'SELECT email, timestamps FROM rate_limits WHERE store_name = $1',
+      [storeName],
+    );
+    const map = new Map<string, number>();
+    for (const row of result.rows) {
+      const count = parseInt(row.timestamps, 10);
+      if (!isNaN(count) && count > 0) {
+        map.set(row.email, count);
+      }
+    }
+    return map;
+  }
+
+  async saveCounter(storeName: string, email: string, count: number): Promise<void> {
+    await pool.query(
+      `INSERT INTO rate_limits (store_name, email, timestamps)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (store_name, email) DO UPDATE SET timestamps = EXCLUDED.timestamps`,
+      [storeName, email, String(count)],
+    );
+  }
+
+  async deleteCounter(storeName: string, email: string): Promise<void> {
+    await pool.query(
+      'DELETE FROM rate_limits WHERE store_name = $1 AND email = $2',
+      [storeName, email],
     );
   }
 }
