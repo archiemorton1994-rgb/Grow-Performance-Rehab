@@ -82,4 +82,6 @@ timeoutMs = 60000
 [userenv.development]
 
 [userenv.shared]
-EXPO_PUBLIC_DOMAIN = "https://grow-performance-rehab.replit.app"
+
+[userenv.production]
+EXPO_PUBLIC_DOMAIN = "grow-performance-rehab.replit.app"
