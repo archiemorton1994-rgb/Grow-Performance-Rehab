@@ -23,3 +23,9 @@ id = "Q645CEj_6I-dEW-1IdRL-"
 uri = "file://screenshots/subscription-apple-1024.png"
 type = "image"
 title = "Apple subscription image — 1024×1024, 72 DPI, RGB, flat"
+
+[[outputs]]
+id = "eTwvv1cbWjUbkCzopCtbh"
+uri = "file://screenshots/subscription-apple-1024.jpg"
+type = "image"
+title = "Apple subscription image — 1024×1024, JPEG, 72 DPI, RGB, no alpha"
