@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,16 @@ import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getEquipmentLabel } from '@/lib/workout-engine';
 import { getTimeOfDayGreeting } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
+
+const SESSION_IMAGES: Record<string, any> = {
+  squat:        require('@/assets/images/sessions/lower-body.png'),
+  bench:        require('@/assets/images/sessions/upper-body.png'),
+  deadlift:     require('@/assets/images/sessions/full-body.png'),
+  conditioning: require('@/assets/images/sessions/conditioning.png'),
+  prehab:       require('@/assets/images/sessions/targeted-prehab.png'),
+  flexibility:  require('@/assets/images/sessions/mobility.png'),
+  custom:       require('@/assets/images/sessions/custom.png'),
+};
 
 const WEEKLY_GOAL = 3;
 
@@ -213,10 +224,10 @@ export default function HomeScreen() {
               Pick where to start — your program rotates automatically from here.
             </Text>
             {([
-              { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' as const, color: C.primary, bg: C.primaryMuted },
-              { type: 'bench' as const, label: 'Upper Body', sub: 'Chest · Shoulders · Triceps', icon: 'body-outline' as const, color: C.badgeVolumeText, bg: C.badgeVolume },
-              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', icon: 'barbell-outline' as const, color: C.categoryNeuroText, bg: C.categoryNeuro },
-            ] as const).map(({ type, label, sub, icon, color, bg }) => (
+              { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', color: C.primary, bg: C.primaryMuted },
+              { type: 'bench' as const, label: 'Upper Body', sub: 'Chest · Shoulders · Triceps', color: C.badgeVolumeText, bg: C.badgeVolume },
+              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', color: C.categoryNeuroText, bg: C.categoryNeuro },
+            ] as const).map(({ type, label, sub, color, bg }) => (
               <Pressable
                 key={type}
                 onPress={() => handleFirstSessionChoice(type)}
@@ -224,7 +235,7 @@ export default function HomeScreen() {
                 testID={`first-session-${type}`}
               >
                 <View style={[styles.firstChoiceIcon, { backgroundColor: bg }]}>
-                  <Ionicons name={icon} size={22} color={color} />
+                  <Image source={SESSION_IMAGES[type]} style={styles.firstChoiceImage} resizeMode="contain" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
@@ -243,7 +254,7 @@ export default function HomeScreen() {
                 <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
               </View>
               <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
-                <Ionicons name={suggestedMeta.icon} size={32} color={suggestedMeta.color} />
+                <Image source={SESSION_IMAGES[suggestedSession]} style={styles.todayIconImage} resizeMode="contain" />
               </View>
             </View>
             {lastSession && lastSessionRelativeLabel && (
@@ -483,9 +494,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.borderLight,
     },
     firstChoiceIcon: {
-      width: 42, height: 42, borderRadius: 12,
+      width: 48, height: 48, borderRadius: 13,
       alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     },
+    firstChoiceImage: { width: 34, height: 34 },
+    todayIconImage: { width: 46, height: 46 },
     firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
   });
