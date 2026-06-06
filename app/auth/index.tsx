@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
   Keyboard,
 } from 'react-native';
@@ -19,6 +18,7 @@ import { useColors } from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_COOLDOWN_SEC = 30;
 
 export default function OtpAuthScreen() {
   const C = useColors();
@@ -32,14 +32,30 @@ export default function OtpAuthScreen() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [devCode, setDevCode] = useState<string | undefined>(undefined);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
   const codeRef = useRef<TextInput>(null);
 
   const emailValid = EMAIL_RE.test(email.trim());
   const codeValid = code.trim().length === 6;
+  const canResend = !loading && resendSecondsLeft === 0;
+
+  useEffect(() => {
+    if (step === 'code') {
+      setResendSecondsLeft(RESEND_COOLDOWN_SEC);
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (resendSecondsLeft <= 0) return;
+    const t = setTimeout(() => setResendSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendSecondsLeft]);
 
   const handleSendCode = async () => {
     if (!emailValid || loading) return;
     setLoading(true);
+    setErrorMsg('');
     try {
       const result = await requestCode(email.trim());
       setDevCode(result.devCode);
@@ -47,7 +63,7 @@ export default function OtpAuthScreen() {
       setTimeout(() => codeRef.current?.focus(), 150);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not send code. Please try again.';
-      Alert.alert('Error', msg);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -57,13 +73,15 @@ export default function OtpAuthScreen() {
     if (!codeValid || loading) return;
     Keyboard.dismiss();
     setLoading(true);
+    setErrorMsg('');
     try {
       await verifyCode(email.trim(), code.trim());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Incorrect code. Please try again.';
       setCode('');
-      Alert.alert('Invalid code', msg);
+      setErrorMsg(msg);
       setLoading(false);
+      setTimeout(() => codeRef.current?.focus(), 100);
     }
   }, [codeValid, loading, verifyCode, email, code]);
 
@@ -74,134 +92,169 @@ export default function OtpAuthScreen() {
   }, [step, code, loading, handleVerifyCode]);
 
   const handleResend = async () => {
+    if (!canResend) return;
     setCode('');
     setDevCode(undefined);
+    setErrorMsg('');
     setLoading(true);
     try {
       const result = await requestCode(email.trim());
       setDevCode(result.devCode);
-      if (!result.devCode) {
-        Alert.alert('Code sent', 'A new code has been sent to your email.');
-      }
+      setResendSecondsLeft(RESEND_COOLDOWN_SEC);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not resend code.';
-      Alert.alert('Error', msg);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
+    <Pressable
       style={{ flex: 1, backgroundColor: C.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      onPress={Keyboard.dismiss}
+      accessible={false}
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.inner,
-          { paddingTop: insets.top + webTop + 24, paddingBottom: insets.bottom + 48 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Image
-          source={require('@/assets/images/logo.jpeg')}
-          style={styles.logoImage}
-          resizeMode="cover"
-        />
+        <ScrollView
+          contentContainerStyle={[
+            styles.inner,
+            { paddingTop: insets.top + webTop + 24, paddingBottom: insets.bottom + 48 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Image
+            source={require('@/assets/images/logo.jpeg')}
+            style={styles.logoImage}
+            resizeMode="cover"
+          />
 
-        {step === 'email' ? (
-          <>
-            <Text style={styles.heading}>Welcome to Grow</Text>
-            <Text style={styles.sub}>
-              Enter your email to create an account or sign in.
-            </Text>
-
-            <Text style={styles.label}>Email address</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={C.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              onSubmitEditing={handleSendCode}
-              autoFocus={Platform.OS !== 'web'}
-              testID="otp-email"
-            />
-
-            <Pressable
-              onPress={handleSendCode}
-              disabled={!emailValid || loading}
-              style={[styles.cta, (!emailValid || loading) && styles.ctaDisabled]}
-              testID="otp-send"
-            >
-              {loading
-                ? <ActivityIndicator color={C.textInverse} />
-                : <Text style={styles.ctaText}>Send code</Text>
-              }
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Pressable onPress={() => { setStep('email'); setCode(''); }} style={styles.backRow}>
-              <Ionicons name="chevron-back" size={18} color={C.primary} />
-              <Text style={styles.backText}>Change email</Text>
-            </Pressable>
-
-            <Text style={styles.heading}>Check your inbox</Text>
-            <Text style={styles.sub}>
-              We sent a 6-digit code to{'\n'}
-              <Text style={styles.emailHighlight}>{email.trim()}</Text>
-            </Text>
-
-            {devCode && (
-              <View style={styles.devBanner}>
-                <Text style={styles.devBannerLabel}>Dev mode — your code:</Text>
-                <Text style={styles.devBannerCode}>{devCode}</Text>
-              </View>
-            )}
-
-            <Text style={styles.label}>Login code</Text>
-            <TextInput
-              ref={codeRef}
-              style={styles.codeInput}
-              value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-              placeholder="000000"
-              placeholderTextColor={C.textTertiary}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              onSubmitEditing={handleVerifyCode}
-              maxLength={6}
-              testID="otp-code"
-            />
-
-            <Pressable
-              onPress={handleVerifyCode}
-              disabled={!codeValid || loading}
-              style={[styles.cta, (!codeValid || loading) && styles.ctaDisabled]}
-              testID="otp-verify"
-            >
-              {loading
-                ? <ActivityIndicator color={C.textInverse} />
-                : <Text style={styles.ctaText}>Continue</Text>
-              }
-            </Pressable>
-
-            <Pressable onPress={handleResend} disabled={loading} style={styles.resendRow}>
-              <Text style={styles.resendText}>
-                Didn{'\u2019'}t receive it?{' '}
-                <Text style={styles.resendLink}>Resend code</Text>
+          {step === 'email' ? (
+            <>
+              <Text style={styles.heading}>Welcome to Grow</Text>
+              <Text style={styles.sub}>
+                Enter your email to create an account or sign in.
               </Text>
-            </Pressable>
-          </>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+              <Text style={styles.label}>Email address</Text>
+              <TextInput
+                style={[styles.input, errorMsg ? styles.inputError : null]}
+                value={email}
+                onChangeText={(t) => { setEmail(t); setErrorMsg(''); }}
+                placeholder="you@example.com"
+                placeholderTextColor={C.textTertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="send"
+                onSubmitEditing={handleSendCode}
+                autoFocus={Platform.OS !== 'web'}
+                testID="otp-email"
+              />
+
+              {errorMsg ? (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={14} color={C.error} />
+                  <Text style={styles.errorText}>{errorMsg}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handleSendCode}
+                disabled={!emailValid || loading}
+                style={[styles.cta, (!emailValid || loading) && styles.ctaDisabled]}
+                testID="otp-send"
+              >
+                {loading
+                  ? <ActivityIndicator color={C.textInverse} />
+                  : <Text style={styles.ctaText}>Send code</Text>
+                }
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable
+                onPress={() => { setStep('email'); setCode(''); setErrorMsg(''); }}
+                style={styles.backRow}
+                testID="otp-back"
+              >
+                <Ionicons name="chevron-back" size={18} color={C.primary} />
+                <Text style={styles.backText}>Change email</Text>
+              </Pressable>
+
+              <Text style={styles.heading}>Check your inbox</Text>
+              <Text style={styles.sub}>
+                We sent a 6-digit code to{'\n'}
+                <Text style={styles.emailHighlight}>{email.trim()}</Text>
+              </Text>
+
+              {devCode ? (
+                <View style={styles.devBanner}>
+                  <Text style={styles.devBannerLabel}>Dev mode — your code:</Text>
+                  <Text style={styles.devBannerCode}>{devCode}</Text>
+                </View>
+              ) : null}
+
+              <Text style={styles.label}>Login code</Text>
+              <TextInput
+                ref={codeRef}
+                style={[styles.codeInput, errorMsg ? styles.codeInputError : null]}
+                value={code}
+                onChangeText={(t) => { setCode(t.replace(/\D/g, '').slice(0, 6)); setErrorMsg(''); }}
+                placeholder="000000"
+                placeholderTextColor={C.textTertiary}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                onSubmitEditing={handleVerifyCode}
+                maxLength={6}
+                testID="otp-code"
+              />
+
+              {errorMsg ? (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={14} color={C.error} />
+                  <Text style={styles.errorText}>{errorMsg}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handleVerifyCode}
+                disabled={!codeValid || loading}
+                style={[styles.cta, (!codeValid || loading) && styles.ctaDisabled]}
+                testID="otp-verify"
+              >
+                {loading
+                  ? <ActivityIndicator color={C.textInverse} />
+                  : <Text style={styles.ctaText}>Continue</Text>
+                }
+              </Pressable>
+
+              <Pressable
+                onPress={handleResend}
+                disabled={!canResend}
+                style={styles.resendRow}
+                testID="otp-resend"
+              >
+                {resendSecondsLeft > 0 ? (
+                  <Text style={[styles.resendText, styles.resendTextMuted]}>
+                    Resend code in {resendSecondsLeft}s
+                  </Text>
+                ) : (
+                  <Text style={styles.resendText}>
+                    Didn{'\u2019'}t receive it?{' '}
+                    <Text style={styles.resendLink}>Resend code</Text>
+                  </Text>
+                )}
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Pressable>
   );
 }
 
@@ -224,6 +277,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     paddingHorizontal: 16, fontSize: 16, fontFamily: 'Inter_400Regular', color: C.text,
     borderWidth: 1.5, borderColor: C.borderLight,
   },
+  inputError: { borderColor: C.error },
 
   codeInput: {
     height: 64, borderRadius: 14, backgroundColor: C.surface,
@@ -232,6 +286,10 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     letterSpacing: 12,
     textAlign: 'center',
   },
+  codeInputError: { borderColor: C.error },
+
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, marginBottom: 4 },
+  errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
 
   cta: {
     height: 54, borderRadius: 16, backgroundColor: C.primary,
@@ -245,6 +303,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
 
   resendRow: { marginTop: 20, alignItems: 'center' },
   resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+  resendTextMuted: { color: C.textTertiary },
   resendLink: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
 
   devBanner: {

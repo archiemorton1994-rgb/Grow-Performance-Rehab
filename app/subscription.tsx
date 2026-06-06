@@ -7,7 +7,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
   Linking,
 } from 'react-native';
@@ -58,6 +57,7 @@ export default function SubscriptionScreen() {
   const [offeringError, setOfferingError] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { privacyUrl, termsUrl } = useMemo(() => getLegalUrls(), []);
 
@@ -84,13 +84,13 @@ export default function SubscriptionScreen() {
   useEffect(() => { fetchOffering(); }, [fetchOffering]);
 
   const handlePurchase = useCallback(async () => {
+    setErrorMsg('');
     if (!RC_API_KEY || __DEV__) {
-      // No key set, or running in Expo Go dev mode — bypass the paywall.
       await refreshSubscription();
       return;
     }
     if (!offering) {
-      Alert.alert('Unavailable', 'No subscription package found. Please try again later.');
+      setErrorMsg('No subscription package available. Please try again later.');
       return;
     }
     setPurchasing(true);
@@ -100,7 +100,7 @@ export default function SubscriptionScreen() {
     } catch (err: unknown) {
       const rcErr = err as { userCancelled?: boolean; message?: string };
       if (!rcErr?.userCancelled) {
-        Alert.alert('Purchase failed', rcErr?.message ?? 'Please try again.');
+        setErrorMsg(rcErr?.message ?? 'Purchase failed. Please try again.');
       }
     } finally {
       setPurchasing(false);
@@ -109,12 +109,13 @@ export default function SubscriptionScreen() {
 
   const handleRestore = useCallback(async () => {
     if (!RC_API_KEY) return;
+    setErrorMsg('');
     setRestoring(true);
     try {
       await Purchases.restorePurchases();
       await refreshSubscription();
     } catch {
-      Alert.alert('Restore failed', 'Could not restore purchases. Please try again.');
+      setErrorMsg('Could not restore purchases. Please try again.');
     } finally {
       setRestoring(false);
     }
@@ -188,7 +189,7 @@ export default function SubscriptionScreen() {
         <Pressable
           onPress={handlePurchase}
           disabled={purchasing || (!__DEV__ && !!RC_API_KEY && !offering && !loadingOffering)}
-          style={[styles.ctaBtn, (purchasing) && styles.ctaBtnLoading]}
+          style={[styles.ctaBtn, purchasing && styles.ctaBtnLoading]}
           testID="subscribe-cta"
         >
           {purchasing
@@ -197,6 +198,13 @@ export default function SubscriptionScreen() {
           }
         </Pressable>
 
+        {errorMsg ? (
+          <View style={styles.errorRow}>
+            <Ionicons name="alert-circle" size={14} color={C.error} />
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        ) : null}
+
         <Pressable
           onPress={handleRestore}
           disabled={restoring}
@@ -204,7 +212,7 @@ export default function SubscriptionScreen() {
           testID="restore-purchases"
         >
           <Text style={styles.restoreText}>
-            {restoring ? 'Restoring...' : 'Restore Purchases'}
+            {restoring ? 'Restoring…' : 'Restore purchases'}
           </Text>
         </Pressable>
 
@@ -283,6 +291,12 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   },
   ctaBtnLoading: { opacity: 0.7 },
   ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
+
+  errorRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 10, marginBottom: 2, paddingHorizontal: 4,
+  },
+  errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
 
   restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
   restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
