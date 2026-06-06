@@ -11,6 +11,24 @@ if (!JWT_SECRET) {
 const JWT_EXPIRY = '30d';
 const OTP_TTL_MS = 10 * 60 * 1000;
 
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+
+const otpRateLimitStore = new Map<string, number[]>();
+
+function isRateLimited(email: string): boolean {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (otpRateLimitStore.get(email) ?? []).filter(t => t > windowStart);
+  if (timestamps.length >= RATE_LIMIT_MAX) {
+    otpRateLimitStore.set(email, timestamps);
+    return true;
+  }
+  timestamps.push(now);
+  otpRateLimitStore.set(email, timestamps);
+  return false;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
@@ -79,6 +97,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const normalised = email.trim().toLowerCase();
+
+    if (isRateLimited(normalised)) {
+      return res.status(429).json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
+
     const code = generateOtp();
     storage.setOtp(normalised, code, OTP_TTL_MS);
 
