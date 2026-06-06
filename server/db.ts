@@ -21,4 +21,14 @@ export async function runMigrations(): Promise<void> {
       email TEXT NOT NULL UNIQUE
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      store_name TEXT NOT NULL,
+      email      TEXT NOT NULL,
+      timestamps TEXT NOT NULL DEFAULT '[]',
+      PRIMARY KEY (store_name, email)
+    );
+  `);
 }
+
+export { pool };

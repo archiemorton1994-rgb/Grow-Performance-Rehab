@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from './db';
+import { db, pool } from './db';
 import { users } from '../shared/schema';
 
 export interface AuthUser {
@@ -20,6 +20,8 @@ export interface IStorage {
   setOtp(email: string, code: string, ttlMs: number): void;
   getOtp(email: string): OtpEntry | undefined;
   clearOtp(email: string): void;
+  loadRateLimits(storeName: string): Promise<Map<string, number[]>>;
+  saveRateLimits(storeName: string, email: string, timestamps: number[]): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -58,6 +60,31 @@ export class DbStorage implements IStorage {
 
   clearOtp(email: string): void {
     this.otps.delete(email.toLowerCase());
+  }
+
+  async loadRateLimits(storeName: string): Promise<Map<string, number[]>> {
+    const result = await pool.query<{ email: string; timestamps: string }>(
+      'SELECT email, timestamps FROM rate_limits WHERE store_name = $1',
+      [storeName],
+    );
+    const windowStart = Date.now() - 10 * 60 * 1000;
+    const map = new Map<string, number[]>();
+    for (const row of result.rows) {
+      const ts: number[] = JSON.parse(row.timestamps).filter((t: number) => t > windowStart);
+      if (ts.length > 0) {
+        map.set(row.email, ts);
+      }
+    }
+    return map;
+  }
+
+  async saveRateLimits(storeName: string, email: string, timestamps: number[]): Promise<void> {
+    await pool.query(
+      `INSERT INTO rate_limits (store_name, email, timestamps)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (store_name, email) DO UPDATE SET timestamps = EXCLUDED.timestamps`,
+      [storeName, email, JSON.stringify(timestamps)],
+    );
   }
 }
 

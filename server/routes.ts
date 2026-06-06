@@ -17,14 +17,39 @@ const REQUEST_RATE_LIMIT_MAX = 3;
 const VERIFY_RATE_LIMIT_MAX = 10;
 const OTP_MAX_FAILURES = 5;
 
-const otpRateLimitStore = new Map<string, number[]>();
-const verifyRateLimitStore = new Map<string, number[]>();
+class PersistedRateLimitMap {
+  private mem = new Map<string, number[]>();
+  private ready = false;
+
+  constructor(private readonly storeName: string) {}
+
+  async init(): Promise<void> {
+    this.mem = await storage.loadRateLimits(this.storeName);
+    this.ready = true;
+  }
+
+  get(email: string): number[] {
+    return this.mem.get(email) ?? [];
+  }
+
+  set(email: string, timestamps: number[]): void {
+    this.mem.set(email, timestamps);
+    if (this.ready) {
+      storage.saveRateLimits(this.storeName, email, timestamps).catch(err =>
+        console.error(`[RateLimit] Failed to persist ${this.storeName} for ${email}:`, err),
+      );
+    }
+  }
+}
+
+const otpRateLimitStore = new PersistedRateLimitMap('otp_request');
+const verifyRateLimitStore = new PersistedRateLimitMap('otp_verify');
 const otpFailureStore = new Map<string, number>();
 
-function isRateLimited(store: Map<string, number[]>, max: number, email: string): boolean {
+function isRateLimited(store: PersistedRateLimitMap, max: number, email: string): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (store.get(email) ?? []).filter(t => t > windowStart);
+  const timestamps = store.get(email).filter(t => t > windowStart);
   if (timestamps.length >= max) {
     store.set(email, timestamps);
     return true;
@@ -94,6 +119,11 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  await Promise.all([
+    otpRateLimitStore.init(),
+    verifyRateLimitStore.init(),
+  ]);
+
   app.post('/api/auth/request-code', async (req: Request, res: Response) => {
     const { email } = req.body ?? {};
 
