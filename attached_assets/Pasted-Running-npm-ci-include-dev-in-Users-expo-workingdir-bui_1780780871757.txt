@@ -1,0 +1,31 @@
+Running "npm ci --include=dev" in /Users/expo/workingdir/build/ directory
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @react-native/virtualized-lists@0.85.3
+npm warn Found: @types/react@19.1.17
+npm warn node_modules/@types/react
+npm warn   dev @types/react@"~19.1.10" from the root project
+npm warn   30 more (@radix-ui/react-compose-refs, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional @types/react@"^19.2.0" from @react-native/virtualized-lists@0.85.3
+npm warn node_modules/react-native/node_modules/@react-native/virtualized-lists
+npm warn   @react-native/virtualized-lists@"0.85.3" from react-native@0.85.3
+npm warn   node_modules/react-native
+npm warn
+npm warn Conflicting peer dependency: @types/react@19.2.17
+npm warn node_modules/@types/react
+npm warn   peerOptional @types/react@"^19.2.0" from @react-native/virtualized-lists@0.85.3
+npm warn   node_modules/react-native/node_modules/@react-native/virtualized-lists
+npm warn     @react-native/virtualized-lists@"0.85.3" from react-native@0.85.3
+npm warn     node_modules/react-native
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+npm warn deprecated uuid@7.0.3: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm error Exit handler never called!
+npm error This is an error with npm itself. Please report this error at:
+npm error   <https://github.com/npm/cli/issues>
+npm error A complete log of this run can be found in: /Users/expo/.npm/_logs/2026-06-06T21_12_52_785Z-debug-0.log
+npm ci --include=dev exited with non-zero code: 1
