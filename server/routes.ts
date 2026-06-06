@@ -138,7 +138,7 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
   }
 
   await resendClient.emails.send({
-    from: 'Grow Performance <noreply@growperformance.app>',
+    from: 'Grow Performance <noreply@growperformanceandrehab.com>',
     to: email,
     subject: `Your Grow login code: ${code}`,
     html: `
@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <h1>${title}</h1>
   <p class="updated">Last updated: April 2026</p>
   ${body}
-  <p style="margin-top:48px;color:#888;font-size:13px">Grow Performance &amp; Rehab · <a href="mailto:hello@growperformance.app">hello@growperformance.app</a></p>
+  <p style="margin-top:48px;color:#888;font-size:13px">Grow Performance &amp; Rehab · <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a></p>
 </body>
 </html>`;
 
@@ -316,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>No method of transmission or storage is 100% secure. While we take reasonable steps to protect your information, we cannot guarantee absolute security.</p>
 
       <h2>5. Data Retention and Deletion</h2>
-      <p>We retain your account data for as long as your account is active. You may request deletion of your account and all associated data by emailing us at <a href="mailto:hello@growperformance.app">hello@growperformance.app</a>. We will action deletion requests within 30 days.</p>
+      <p>We retain your account data for as long as your account is active. You may request deletion of your account and all associated data by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>. We will action deletion requests within 30 days.</p>
 
       <h2>6. Children's Privacy</h2>
       <p>The Service is not directed at children under the age of 13 (or under 16 in the European Economic Area). We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will promptly delete it.</p>
@@ -328,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>We may update this Privacy Policy from time to time. We will notify you of material changes by updating the "Last updated" date above. Your continued use of the Service after changes constitutes acceptance of the revised policy.</p>
 
       <h2>9. Contact</h2>
-      <p>Questions or requests regarding this Privacy Policy should be directed to: <a href="mailto:hello@growperformance.app">hello@growperformance.app</a>.</p>
+      <p>Questions or requests regarding this Privacy Policy should be directed to: <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>.</p>
     `));
   });
 
@@ -341,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>You must be at least 13 years old (or 16 years old in the European Economic Area) to use the Service. By using the Service, you represent that you meet this requirement.</p>
 
       <h2>2. Account Registration</h2>
-      <p>You must provide a valid email address to create an account. You are responsible for maintaining the confidentiality of your login codes and for all activity that occurs under your account. You agree to notify us immediately at <a href="mailto:hello@growperformance.app">hello@growperformance.app</a> if you suspect unauthorised access to your account.</p>
+      <p>You must provide a valid email address to create an account. You are responsible for maintaining the confidentiality of your login codes and for all activity that occurs under your account. You agree to notify us immediately at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a> if you suspect unauthorised access to your account.</p>
 
       <h2>3. Subscriptions and Billing</h2>
       <p>Access to the Service requires an active subscription.</p>
@@ -386,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>We may update these Terms from time to time. We will notify you of material changes by updating the "Last updated" date above. Your continued use of the Service after changes constitutes acceptance of the revised Terms.</p>
 
       <h2>11. Contact</h2>
-      <p>Questions about these Terms? Contact us at <a href="mailto:hello@growperformance.app">hello@growperformance.app</a>.</p>
+      <p>Questions about these Terms? Contact us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>.</p>
     `));
   });
 
