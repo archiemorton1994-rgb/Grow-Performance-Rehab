@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db, pool } from './db';
-import { users } from '../shared/schema';
+import { users, otps } from '../shared/schema';
 
 export interface AuthUser {
   id: string;
@@ -8,7 +8,7 @@ export interface AuthUser {
   createdAt?: string;
 }
 
-interface OtpEntry {
+export interface OtpEntry {
   code: string;
   expiresAt: number;
 }
@@ -17,9 +17,9 @@ export interface IStorage {
   getUserById(id: string): Promise<AuthUser | undefined>;
   getUserByEmail(email: string): Promise<AuthUser | undefined>;
   upsertUser(email: string): Promise<AuthUser>;
-  setOtp(email: string, code: string, ttlMs: number): void;
-  getOtp(email: string): OtpEntry | undefined;
-  clearOtp(email: string): void;
+  setOtp(email: string, code: string, ttlMs: number): Promise<void>;
+  getOtp(email: string): Promise<OtpEntry | undefined>;
+  clearOtp(email: string): Promise<void>;
   loadRateLimits(storeName: string): Promise<Map<string, number[]>>;
   saveRateLimits(storeName: string, email: string, timestamps: number[]): Promise<void>;
   loadCounters(storeName: string): Promise<Map<string, number>>;
@@ -28,19 +28,6 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
-  private otps = new Map<string, OtpEntry>();
-
-  constructor() {
-    setInterval(() => {
-      const now = Date.now();
-      for (const [email, entry] of this.otps) {
-        if (entry.expiresAt <= now) {
-          this.otps.delete(email);
-        }
-      }
-    }, 10 * 60 * 1000);
-  }
-
   async getUserById(id: string): Promise<AuthUser | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -64,16 +51,28 @@ export class DbStorage implements IStorage {
     return user!;
   }
 
-  setOtp(email: string, code: string, ttlMs: number): void {
-    this.otps.set(email.toLowerCase(), { code, expiresAt: Date.now() + ttlMs });
+  async setOtp(email: string, code: string, ttlMs: number): Promise<void> {
+    const expiresAt = new Date(Date.now() + ttlMs);
+    await db
+      .insert(otps)
+      .values({ email: email.toLowerCase(), code, expiresAt })
+      .onConflictDoUpdate({
+        target: otps.email,
+        set: { code, expiresAt },
+      });
   }
 
-  getOtp(email: string): OtpEntry | undefined {
-    return this.otps.get(email.toLowerCase());
+  async getOtp(email: string): Promise<OtpEntry | undefined> {
+    const [row] = await db
+      .select()
+      .from(otps)
+      .where(eq(otps.email, email.toLowerCase()));
+    if (!row) return undefined;
+    return { code: row.code, expiresAt: row.expiresAt.getTime() };
   }
 
-  clearOtp(email: string): void {
-    this.otps.delete(email.toLowerCase());
+  async clearOtp(email: string): Promise<void> {
+    await db.delete(otps).where(eq(otps.email, email.toLowerCase()));
   }
 
   async loadRateLimits(storeName: string): Promise<Map<string, number[]>> {

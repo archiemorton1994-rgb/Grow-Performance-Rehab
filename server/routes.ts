@@ -173,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const code = generateOtp();
-    storage.setOtp(normalised, code, OTP_TTL_MS);
+    await storage.setOtp(normalised, code, OTP_TTL_MS);
 
     try {
       await sendOtpEmail(normalised, code);
@@ -202,20 +202,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(429).json({ message: 'Too many verification attempts. Please wait a few minutes and try again.' });
     }
 
-    const entry = storage.getOtp(normalised);
+    const entry = await storage.getOtp(normalised);
 
     if (!entry) {
       return res.status(401).json({ message: 'No code was requested for this email. Please request a new one.' });
     }
     if (Date.now() > entry.expiresAt) {
-      storage.clearOtp(normalised);
+      await storage.clearOtp(normalised);
       otpFailureStore.delete(normalised);
       return res.status(401).json({ message: 'Code has expired. Please request a new one.' });
     }
     if (entry.code !== code.trim()) {
       const failures = (otpFailureStore.get(normalised) ?? 0) + 1;
       if (failures >= OTP_MAX_FAILURES) {
-        storage.clearOtp(normalised);
+        await storage.clearOtp(normalised);
         otpFailureStore.delete(normalised);
         return res.status(401).json({ message: 'Too many incorrect attempts. Please request a new code.' });
       }
@@ -223,7 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: 'Incorrect code. Please try again.' });
     }
 
-    storage.clearOtp(normalised);
+    await storage.clearOtp(normalised);
     otpFailureStore.delete(normalised);
     const user = await storage.upsertUser(normalised);
     const token = signToken(user.id, user.email);

@@ -29,8 +29,23 @@ export async function runMigrations(): Promise<void> {
       PRIMARY KEY (store_name, email)
     );
   `);
-  await cleanupExpiredRateLimits();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS otps (
+      email      TEXT PRIMARY KEY,
+      code       TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+  `);
+  await Promise.all([cleanupExpiredRateLimits(), cleanupExpiredOtps()]);
   setInterval(cleanupExpiredRateLimits, 60 * 60 * 1000);
+  setInterval(cleanupExpiredOtps, 60 * 60 * 1000);
+}
+
+/**
+ * Delete OTP rows that have passed their expires_at timestamp.
+ */
+async function cleanupExpiredOtps(): Promise<void> {
+  await pool.query(`DELETE FROM otps WHERE expires_at <= NOW()`);
 }
 
 /**
