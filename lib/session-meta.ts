@@ -9,9 +9,9 @@ export interface SessionMeta {
 }
 
 export const SESSION_META: Record<SessionType, SessionMeta> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'fitness-outline' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'body-outline' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'barbell-outline' },
+  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'walk-outline' },
+  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'person-outline' },
+  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'body-outline' },
   conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
   prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
   flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
