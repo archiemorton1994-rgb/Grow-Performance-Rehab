@@ -30,6 +30,17 @@ export interface IStorage {
 export class DbStorage implements IStorage {
   private otps = new Map<string, OtpEntry>();
 
+  constructor() {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [email, entry] of this.otps) {
+        if (entry.expiresAt <= now) {
+          this.otps.delete(email);
+        }
+      }
+    }, 10 * 60 * 1000);
+  }
+
   async getUserById(id: string): Promise<AuthUser | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
