@@ -95,6 +95,7 @@ async function clearToken() {
 let rcConfigured = false;
 async function configureRevenueCat(userId?: string) {
   if (!RC_API_KEY) return;
+  if (Platform.OS === 'web') return;
   try {
     if (!rcConfigured) {
       Purchases.setLogLevel(LOG_LEVEL.ERROR);
