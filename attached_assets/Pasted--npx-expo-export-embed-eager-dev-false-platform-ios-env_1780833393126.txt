@@ -1,0 +1,56 @@
+> npx expo export:embed --eager --dev=false --platform=ios
+env: load .env
+env: export EXPO_PUBLIC_DOMAIN
+React Compiler enabled
+Starting Metro Bundler
+iOS Bundling failed 6892ms node_modules/expo-router/entry.js (2038 modules)
+Unable to resolve module buffer from /Users/expo/workingdir/build/node_modules/react-native-svg/src/utils/fetchData.ts: buffer could not be found within the project or in these directories:
+  node_modules
+[0m [90m 1 |[39m [36mimport[39m { [33mPlatform[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { [33mBuffer[39m } [36mfrom[39m [32m'buffer'[39m[33m;[39m
+ [90m   |[39m                         [31m[1m^[22m[39m
+ [90m 3 |[39m
+ [90m 4 |[39m [36mexport[39m [36masync[39m [36mfunction[39m fetchText(uri[33m?[39m[33m:[39m string)[33m:[39m [33mPromise[39m[33m<[39m[33mstring[39m [33m|[39m [36mnull[39m[33m>[39m {
+ [90m 5 |[39m   [36mif[39m ([33m![39muri) {[0m
+
+Import stack:
+
+ node_modules/react-native-svg/src/utils/fetchData.ts
+ | import "buffer"
+
+ node_modules/react-native-svg/src/ReactNativeSVG.ts
+ | import "./utils/fetchData"
+
+ node_modules/react-native-svg/src/index.ts
+ | import "./ReactNativeSVG"
+
+ app/(tabs)/workouts.tsx
+ | import "react-native-svg"
+
+ app (require.context)
+Error: Unable to resolve module buffer from /Users/expo/workingdir/build/node_modules/react-native-svg/src/utils/fetchData.ts: buffer could not be found within the project or in these directories:
+  node_modules
+[0m [90m 1 |[39m [36mimport[39m { [33mPlatform[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [36mimport[39m { [33mBuffer[39m } [36mfrom[39m [32m'buffer'[39m[33m;[39m
+ [90m   |[39m                         [31m[1m^[22m[39m
+ [90m 3 |[39m
+ [90m 4 |[39m [36mexport[39m [36masync[39m [36mfunction[39m fetchText(uri[33m?[39m[33m:[39m string)[33m:[39m [33mPromise[39m[33m<[39m[33mstring[39m [33m|[39m [36mnull[39m[33m>[39m {
+ [90m 5 |[39m   [36mif[39m ([33m![39muri) {[0m
+
+Import stack:
+
+ node_modules/react-native-svg/src/utils/fetchData.ts
+ | import "buffer"
+
+ node_modules/react-native-svg/src/ReactNativeSVG.ts
+ | import "./utils/fetchData"
+
+ node_modules/react-native-svg/src/index.ts
+ | import "./ReactNativeSVG"
+
+ app/(tabs)/workouts.tsx
+ | import "react-native-svg"
+
+ app (require.context)
+Error: npx expo export:embed --eager --dev=false --platform=ios exited with non-zero code: 1
+/bin/bash -eo pipefail /var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/eas-build/3ed918d1-aa55-4fcc-b5e4-a1f0f6c9fd94/steps/step-011/scripts/fe7f1fd2-8b2a-46eb-aea4-868326efebe8.sh exited with non-zero code: 1
