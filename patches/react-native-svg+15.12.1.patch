@@ -1,7 +1,7 @@
 diff --git a/node_modules/react-native-svg/apple/Elements/RNSVGImage.mm b/node_modules/react-native-svg/apple/Elements/RNSVGImage.mm
 --- a/node_modules/react-native-svg/apple/Elements/RNSVGImage.mm
 +++ b/node_modules/react-native-svg/apple/Elements/RNSVGImage.mm
-@@ -46,7 +46,7 @@
+@@ -46,6 +46,6 @@
  #ifdef RCT_NEW_ARCH_ENABLED
    RNSVGImageShadowNode::ConcreteState::Shared _state;
 -  RCTImageResponseObserverProxy _imageResponseObserverProxy;
@@ -9,7 +9,7 @@ diff --git a/node_modules/react-native-svg/apple/Elements/RNSVGImage.mm b/node_m
  #endif // RCT_NEW_ARCH_ENABLED
  }
  #ifdef RCT_NEW_ARCH_ENABLED
-@@ -63,7 +63,7 @@
+@@ -61,8 +61,8 @@
    if (self = [super initWithFrame:frame]) {
      static const auto defaultProps = std::make_shared<const RNSVGImageProps>();
      _props = defaultProps;
