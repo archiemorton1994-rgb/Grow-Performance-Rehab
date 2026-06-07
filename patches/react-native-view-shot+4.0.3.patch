@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-view-shot/ios/RNViewShot.mm b/node_modules/react-native-view-shot/ios/RNViewShot.mm
+--- a/node_modules/react-native-view-shot/ios/RNViewShot.mm
++++ b/node_modules/react-native-view-shot/ios/RNViewShot.mm
+@@ -3,8 +3,7 @@
+ #import <React/RCTLog.h>
+ #import <React/UIView+React.h>
+ #import <React/RCTUtils.h>
+ #import <React/RCTConvert.h>
+-#import <React/RCTScrollView.h>
+ #import <React/RCTUIManager.h>
+ #if __has_include(<React/RCTUIManagerUtils.h>)
+ #import <React/RCTUIManagerUtils.h>
+@@ -80,13 +80,8 @@
+     UIView* rendered;
+     UIScrollView* scrollView;
+     if (snapshotContentContainer) {
+-      if (![view isKindOfClass:[RCTScrollView class]]) {
+-        reject(RCTErrorUnspecified, [NSString stringWithFormat:@"snapshotContentContainer can only be used on a RCTScrollView. instead got: %@", view], nil);
+-        return;
+-      }
+-      RCTScrollView* rctScrollView = view;
+-      scrollView = rctScrollView.scrollView;
+-      rendered = scrollView;
++      scrollView = (UIScrollView*)view;
++      rendered = scrollView;
+     }
+     else {
+       rendered = view;

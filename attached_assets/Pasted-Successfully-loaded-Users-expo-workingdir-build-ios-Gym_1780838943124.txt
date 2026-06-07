@@ -1,0 +1,208 @@
+Successfully loaded '/Users/expo/workingdir/build/ios/Gymfile' 📄
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                  Detected Values from './Gymfile'                                                                   |
++-----------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+| suppress_xcode_output | true                                                                                                                                        |
+| clean                 | false                                                                                                                                       |
+| scheme                | Grow                                                                                                                                        |
+| configuration         | Release                                                                                                                                     |
+| export_options        |                                                                                                                                             |
+| export_xcargs         | OTHER_CODE_SIGN_FLAGS="--keychain /var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/eas-build-a7625754-8243-48a2-a30f-ab8aeeed44d9.keychain" |
+| disable_xcpretty      | true                                                                                                                                        |
+| buildlog_path         | /Users/expo/workingdir/logs                                                                                                                 |
+| derived_data_path     | ./build                                                                                                                                     |
+| result_bundle         | true                                                                                                                                        |
+| result_bundle_path    | /var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/result-bundle-1780838810809.xcresult                                                       |
+| output_directory      | ./build                                                                                                                                     |
++-----------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+Resolving Swift Package Manager dependencies...
+$ xcodebuild -resolvePackageDependencies -workspace ./Grow.xcworkspace -scheme Grow -configuration Release -derivedDataPath ./build
+▸ Command line invocation:
+▸     /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -resolvePackageDependencies -workspace ./Grow.xcworkspace -scheme Grow -configuration Release -derivedDataPath ./build
+▸ resolved source packages:
+$ xcodebuild -showBuildSettings -workspace ./Grow.xcworkspace -scheme Grow -configuration Release -derivedDataPath ./build 2>&1
+Detected provisioning profile mapping: {:"com.growperformance"=>"ab1f9212-dfea-477e-892c-339e6ce76c21"}
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                        Summary for gym 2.233.1                                                                                        |
++---------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+| workspace                                               | ./Grow.xcworkspace                                                                                                                          |
+| scheme                                                  | Grow                                                                                                                                        |
+| clean                                                   | false                                                                                                                                       |
+| output_directory                                        | ./build                                                                                                                                     |
+| output_name                                             | Grow                                                                                                                                        |
+| configuration                                           | Release                                                                                                                                     |
+| silent                                                  | false                                                                                                                                       |
+| skip_package_ipa                                        | false                                                                                                                                       |
+| skip_package_pkg                                        | false                                                                                                                                       |
+| export_options.method                                   | app-store                                                                                                                                   |
+| export_options.provisioningProfiles.com.growperformance | ab1f9212-dfea-477e-892c-339e6ce76c21                                                                                                        |
+| export_xcargs                                           | OTHER_CODE_SIGN_FLAGS="--keychain /var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/eas-build-a7625754-8243-48a2-a30f-ab8aeeed44d9.keychain" |
+| build_path                                              | /Users/expo/Library/Developer/Xcode/Archives/2026-06-07                                                                                     |
+| derived_data_path                                       | ./build                                                                                                                                     |
+| result_bundle                                           | true                                                                                                                                        |
+| result_bundle_path                                      | /var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/result-bundle-1780838810809.xcresult                                                       |
+| buildlog_path                                           | /Users/expo/workingdir/logs                                                                                                                 |
+| destination                                             | generic/platform=iOS                                                                                                                        |
+| suppress_xcode_output                                   | true                                                                                                                                        |
+| xcodebuild_formatter                                    | xcpretty                                                                                                                                    |
+| build_timing_summary                                    | false                                                                                                                                       |
+| disable_xcpretty                                        | true                                                                                                                                        |
+| skip_profile_detection                                  | false                                                                                                                                       |
+| xcodebuild_command                                      | xcodebuild                                                                                                                                  |
+| skip_package_dependencies_resolution                    | false                                                                                                                                       |
+| disable_package_automatic_updates                       | false                                                                                                                                       |
+| skip_package_repository_fetches                         | false                                                                                                                                       |
+| use_system_scm                                          | false                                                                                                                                       |
+| generate_appstore_info                                  | false                                                                                                                                       |
+| xcode_path                                              | /Applications/Xcode.app                                                                                                                     |
++---------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
+$ set -o pipefail && xcodebuild -workspace ./Grow.xcworkspace -scheme Grow -configuration Release -derivedDataPath ./build -destination 'generic/platform=iOS' -archivePath /Users/expo/Library/Developer/Xcode/Archives/2026-06-07/Grow\ 2026-06-07\ 06.27.28.xcarchive -resultBundlePath '/var/folders/30/t4k1d_016_zd82ctc7xgs9_h0000gn/T/result-bundle-1780838810809.xcresult' archive | tee /Users/expo/workingdir/logs/Grow-Grow.log > /dev/null
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Preparing react-native-purchases Pods/RevenueCat-RevenueCat » ResourceBundle-RevenueCat-RevenueCat-Info.plist
+› Copying   react-native-purchases ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RevenueCat.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/ios/Pods/RevenueCat/Sources/PrivacyInfo.xcprivacy
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/react-native/ReactCommon/cxxreact/PrivacyInfo.xcprivacy
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/React-Core_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/react-native/React/Resources/PrivacyInfo.xcprivacy
+› Executing react-native Pods/hermes-engine » [CP] Copy XCFrameworks
+› Creating  react-native-purchases Pods/RevenueCat-RevenueCat » RevenueCat.bundle
+› Creating  Pods/React-cxxreact-React-cxxreact_privacy » React-cxxreact_privacy.bundle
+› Preparing Pods/RNSVG-RNSVGFilters » ResourceBundle-RNSVGFilters-RNSVG-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGCompositeXor.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/react-native-svg/apple/Filters/MetalCI/RNSVGCompositeXor.iphoneos.metallib
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGArithmeticFilter.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/react-native-svg/apple/Filters/MetalCI/RNSVGArithmeticFilter.iphoneos.metallib
+› Preparing Pods/RNCAsyncStorage-RNCAsyncStorage_resources » ResourceBundle-RNCAsyncStorage_resources-RNCAsyncStorage-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/@react-native-async-storage/async-storage/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/React-Core-React-Core_privacy » React-Core_privacy.bundle
+› Preparing react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » ResourceBundle-PurchasesHybridCommon-PurchasesHybridCommon-Info.plist
+› Copying   react-native-purchases ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/PurchasesHybridCommon.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/ios/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/PurchasesHybridCommon/PrivacyInfo.xcprivacy
+› Creating  Pods/RNSVG-RNSVGFilters » RNSVGFilters.bundle
+› Preparing Pods/ExpoSystemUI-ExpoSystemUI_privacy » ResourceBundle-ExpoSystemUI_privacy-ExpoSystemUI-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/expo-system-ui/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/RNCAsyncStorage-RNCAsyncStorage_resources » RNCAsyncStorage_resources.bundle
+› Preparing Pods/ExpoNotifications-ExpoNotifications_privacy » ResourceBundle-ExpoNotifications_privacy-ExpoNotifications-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoNotifications_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/expo-notifications/ios/PrivacyInfo.xcprivacy
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/expo-constants/ios/PrivacyInfo.xcprivacy
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Preparing Pods/EXApplication-ExpoApplication_privacy » ResourceBundle-ExpoApplication_privacy-EXApplication-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoApplication_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/expo-application/ios/PrivacyInfo.xcprivacy
+› Creating  react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » PurchasesHybridCommon.bundle
+› Creating  Pods/ExpoSystemUI-ExpoSystemUI_privacy » ExpoSystemUI_privacy.bundle
+› Creating  Pods/ExpoNotifications-ExpoNotifications_privacy » ExpoNotifications_privacy.bundle
+› Creating  Pods/ExpoFileSystem-ExpoFileSystem_privacy » ExpoFileSystem_privacy.bundle
+› Creating  Pods/EXConstants-ExpoConstants_privacy » ExpoConstants_privacy.bundle
+› Creating  expo-constants Pods/EXConstants-EXConstants » EXConstants.bundle
+› Creating  Pods/EXApplication-ExpoApplication_privacy » ExpoApplication_privacy.bundle
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNCore] Replace React Native Core for the right configuration, if needed
+› Executing react-native Pods/React-Core-prebuilt » [CP] Copy XCFrameworks
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP-User] Build ExpoModulesJSI xcframework
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Executing expo-app Pods/ReactCodegen » [CP-User] Generate Specs
+› Executing expo-app Pods/ReactCodegen » [Expo] Remove duplicate codegen output
+› Compiling expo-app Pods/ReactCodegen » safeareacontext-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnworklets-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnviewshot-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnsvg-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnscreens-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnreanimated-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rngesturehandler_codegen-generated.mm
+› Compiling expo-app Pods/ReactCodegen » rnasyncstorage-generated.mm
+› Compiling expo-app Pods/ReactCodegen » States.cpp
+› Compiling expo-app Pods/ReactCodegen » States.cpp
+› Compiling expo-app Pods/ReactCodegen » States.cpp
+› Compiling expo-app Pods/ReactCodegen » States.cpp
+› Compiling expo-app Pods/ReactCodegen » States.cpp
+› Compiling expo-app Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling expo-app Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling expo-app Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling expo-app Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling expo-app Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling expo-app Pods/ReactCodegen » RNKC-generated.mm
+› Compiling expo-app Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling expo-app Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling expo-app Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling expo-app Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling expo-app Pods/ReactCodegen » Props.cpp
+› Compiling expo-app Pods/ReactCodegen » Props.cpp
+› Compiling expo-app Pods/ReactCodegen » Props.cpp
+› Compiling expo-app Pods/ReactCodegen » Props.cpp
+› Compiling expo-app Pods/ReactCodegen » Props.cpp
+› Compiling expo-app Pods/ReactCodegen » EventEmitters.cpp
+› Compiling expo-app Pods/ReactCodegen » EventEmitters.cpp
+› Compiling expo-app Pods/ReactCodegen » EventEmitters.cpp
+› Compiling expo-app Pods/ReactCodegen » EventEmitters.cpp
+› Compiling expo-app Pods/ReactCodegen » EventEmitters.cpp
+› Compiling expo-app Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling expo-app Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling expo-app Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling expo-app Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling expo-app Pods/ReactCodegen » ComponentDescriptors.cpp
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP] Copy XCFrameworks
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Compiling react-native-view-shot Pods/react-native-view-shot » RNViewShot.mm
+
+❌  (node_modules/react-native-view-shot/ios/RNViewShot.mm:83:33)
+
+  81 |     UIScrollView* scrollView;
+  82 |     if (snapshotContentContainer) {
+> 83 |       if (![view isKindOfClass:[RCTScrollView class]]) {
+     |                                 ^ use of undeclared identifier 'RCTScrollView'; did you mean 'UIScrollView'?
+  84 |         reject(RCTErrorUnspecified, [NSString stringWithFormat:@"snapshotContentContainer can only be used on a RCTScrollView. instead got: %@", view], nil);
+  85 |         return;
+  86 |       }
+
+
+❌  (node_modules/react-native-view-shot/ios/RNViewShot.mm:87:7)
+
+  85 |         return;
+  86 |       }
+> 87 |       RCTScrollView* rctScrollView = view;
+     |       ^ unknown type name 'RCTScrollView'; did you mean 'UIScrollView'?
+  88 |       scrollView = rctScrollView.scrollView;
+  89 |       rendered = scrollView;
+  90 |     }
+
+
+❌  (node_modules/react-native-view-shot/ios/RNViewShot.mm:88:34)
+
+  86 |       }
+  87 |       RCTScrollView* rctScrollView = view;
+> 88 |       scrollView = rctScrollView.scrollView;
+     |                                  ^ property 'scrollView' not found on object of type 'UIScrollView *'
+  89 |       rendered = scrollView;
+  90 |     }
+  91 |     else {
+
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewState.cpp
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewShadowNode.cpp
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewComponentView.mm
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaProviderComponentView.mm
+    Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+▸ ** ARCHIVE FAILED **
+▸ The following build commands failed:
+▸ 	CompileC /Users/expo/workingdir/build/ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Grow/IntermediateBuildFilesPath/Pods.build/Release-iphoneos/react-native-view-shot.build/Objects-normal/arm64/RNViewShot.o /Users/expo/workingdir/build/node_modules/react-native-view-shot/ios/RNViewShot.mm normal arm64 objective-c++ com.apple.compilers.llvm.clang.1_0.compiler (in target 'react-native-view-shot' from project 'Pods')
+▸ 	Archiving workspace Grow with scheme Grow
+▸ (2 failures)
+Exit status: 65
+
++---------------------------------------+
+|           Build environment           |
++-------------+-------------------------+
+| xcode_path  | /Applications/Xcode.app |
+| gym_version | 2.233.1                 |
+| sdk         | iPhoneOS26.4.sdk        |
++-------------+-------------------------+
+Looks like fastlane ran into a build/archive error with your project
+It's hard to tell what's causing the error, so we wrote some guides on how
+to troubleshoot build and signing issues: https://docs.fastlane.tools/codesigning/getting-started/
+Before submitting an issue on GitHub, please follow the guide above and make
+sure your project is set up correctly.
+fastlane uses `xcodebuild` commands to generate your binary, you can see the
+the full commands printed out in yellow in the above log.
+Make sure to inspect the output above, as usually you'll find more error information there
+[!] Error building the application - see the log above
+fastlane gym exited with non-zero code: 1
