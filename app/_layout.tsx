@@ -15,9 +15,12 @@ import {
   Text,
   Pressable,
   TextInput,
+  ScrollView as RNScrollView,
   StyleSheet,
   Platform,
+  ErrorUtils,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import * as Haptics from "expo-haptics";
@@ -30,7 +33,21 @@ import { useColors } from "@/constants/colors";
 import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
 import { scheduleWorkoutReminder } from "@/lib/notifications";
 
-SplashScreen.preventAutoHideAsync();
+if (!__DEV__) {
+  const defaultHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+    const entry = JSON.stringify({
+      ts: new Date().toISOString(),
+      fatal: isFatal,
+      msg: error?.message,
+      stack: error?.stack?.slice(0, 800),
+    });
+    AsyncStorage.setItem('__last_crash__', entry).catch(() => {});
+    defaultHandler(error, isFatal);
+  });
+}
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -236,12 +253,22 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [lastCrash, setLastCrash] = useState<string | null>(null);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('__last_crash__').then((val) => {
+      if (val) {
+        setLastCrash(val);
+        AsyncStorage.removeItem('__last_crash__').catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
@@ -256,6 +283,27 @@ export default function RootLayout() {
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
+      {lastCrash ? (
+        <Modal visible transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <View style={{ backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, width: '100%', maxHeight: '80%' }}>
+              <Text style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>Last Crash Log</Text>
+              <ScrollViewInline text={lastCrash} />
+              <Pressable onPress={() => setLastCrash(null)} style={{ marginTop: 16, backgroundColor: '#333', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </ErrorBoundary>
+  );
+}
+
+function ScrollViewInline({ text }: { text: string }) {
+  return (
+    <RNScrollView style={{ maxHeight: 300 }}>
+      <Text style={{ color: '#ccc', fontSize: 11, lineHeight: 16 }}>{text}</Text>
+    </RNScrollView>
   );
 }

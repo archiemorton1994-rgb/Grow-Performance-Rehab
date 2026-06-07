@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void configureRevenueCat();
 
-    (async () => {
+    void (async () => {
       const token = await loadToken();
       if (!token) {
         setIsLoading(false);
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await configureRevenueCat(data.user.id);
         await refreshSubscription();
       } catch {
-        await clearToken();
+        try { await clearToken(); } catch {}
       } finally {
         setIsLoading(false);
       }
