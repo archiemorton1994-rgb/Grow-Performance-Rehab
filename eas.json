@@ -1,0 +1,10 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "production": {
+      "bun": "1.1.x"
+    }
+  }
+}
