@@ -1,0 +1,1 @@
+- [Production crash: EXPO_PUBLIC_DOMAIN](expo-public-domain-crash.md) — workflow env vars are NOT baked into EAS builds; missing var + throw = fatal JS crash in prod (__DEV__=false)

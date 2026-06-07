@@ -4,7 +4,10 @@
   },
   "build": {
     "production": {
-      "bun": "1.1.x"
+      "bun": "1.1.x",
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "grow-performance-rehab.replit.app"
+      }
     }
   }
 }
