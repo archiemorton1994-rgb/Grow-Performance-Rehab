@@ -1,0 +1,212 @@
+Incident Identifier: AE075827-8764-4FB2-BBC9-41F66F1F11E1
+Distributor ID:      com.apple.TestFlight
+Hardware Model:      iPhone18,3
+Process:             Grow [97357]
+Path:                /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Grow
+Identifier:          com.growperformance
+Version:             1.0.0 (11)
+AppStoreTools:       17F41
+AppVariant:          1:iPhone18,3:26
+Beta:                YES
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+Coalition:           com.growperformance [18437]
+
+Date/Time:           2026-06-09 13:45:42.1614 +0100
+Launch Time:         2026-06-09 13:45:41.5000 +0100
+OS Version:          iPhone OS 26.3 (23D127)
+Release Type:        User
+Baseband Version:    1.40.03
+Report Version:      104
+
+Exception Type:  EXC_CRASH (SIGABRT)
+Exception Codes: 0x0000000000000000, 0x0000000000000000
+Termination Reason: SIGNAL 6 Abort trap: 6
+Terminating Process: Grow [97357]
+
+Triggered by Thread:  6
+
+Last Exception Backtrace:
+0   CoreFoundation                	0x1842f4964 __exceptionPreprocess + 164 (NSException.m:249)
+1   libobjc.A.dylib               	0x1811d1814 objc_exception_throw + 88 (objc-exception.mm:356)
+2   React                         	0x104acf7dc RCTFatal + 568 (:-1)
+3   React                         	0x104d3f924 -[RCTExceptionsManager reportFatal:stack:exceptionId:extraDataAsJSON:] + 512 (RCTExceptionsManager.mm:85)
+4   React                         	0x104d40360 -[RCTExceptionsManager reportException:] + 2292 (RCTExceptionsManager.mm:160)
+5   CoreFoundation                	0x1842746c4 __invoking___ + 148 (:-1)
+6   CoreFoundation                	0x184274550 -[NSInvocation invoke] + 424 (NSForwarding.m:3411)
+7   CoreFoundation                	0x184380328 -[NSInvocation invokeWithTarget:] + 64 (NSForwarding.m:3508)
+8   React                         	0x104d548b8 invocation function for block in facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*) + 68 (:-1)
+9   React                         	0x104d59d58 std::__1::__function::__func<facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*)::$_0, std::__1::allocator<facebook::... + 104 (:-1)
+10  libdispatch.dylib             	0x1bcf54adc _dispatch_call_block_and_release + 32 (init.c:1575)
+11  libdispatch.dylib             	0x1bcf6e7fc _dispatch_client_callout + 16 (client_callout.mm:85)
+12  libdispatch.dylib             	0x1bcf5d468 _dispatch_lane_serial_drain + 740 (queue.c:3991)
+13  libdispatch.dylib             	0x1bcf5df44 _dispatch_lane_invoke + 388 (queue.c:4082)
+14  libdispatch.dylib             	0x1bcf683ec _dispatch_root_queue_drain_deferred_wlh + 292 (queue.c:7265)
+15  libdispatch.dylib             	0x1bcf67ce4 _dispatch_workloop_worker_thread + 692 (queue.c:6859)
+16  libsystem_pthread.dylib       	0x1e0d9d3b8 _pthread_wqthread + 292 (pthread.c:2696)
+17  libsystem_pthread.dylib       	0x1e0d9c8c0 start_wqthread + 8 (:-1)
+
+Thread 0 name:
+Thread 0:
+0   libsystem_kernel.dylib        	0x0000000231daecd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000231db22f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000231db2214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000231db205c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x0000000184275868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000018424c848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000018424ba6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   GraphicsServices              	0x0000000228bd1498 GSEventRunModal + 120 (GSEvent.c:2049)
+8   UIKitCore                     	0x0000000189cfbdf8 -[UIApplication _run] + 792 (UIApplication.m:3904)
+9   UIKitCore                     	0x0000000189ca4e54 UIApplicationMain + 336 (UIApplication.m:5579)
+10  UIKitCore                     	0x0000000189dd0938 UIApplicationMain(_:_:_:_:) + 104 (UIApplication.swift:13)
+11  Grow                          	0x00000001024e14b4 specialized static UIApplicationDelegate.main() + 28 (/<compiler-generated>:5)
+12  Grow                          	0x00000001024e14b4 static AppDelegate.$main() + 28 (AppDelegate.swift:0)
+13  Grow                          	0x00000001024e14b4 main + 116
+14  dyld                          	0x0000000181226e28 start + 7116 (dyldMain.cpp:1477)
+
+Thread 1:
+
+Thread 2:
+
+Thread 3:
+
+Thread 4:
+
+Thread 5:
+
+Thread 6 name:
+Thread 6 Crashed:
+0   libsystem_kernel.dylib        	0x0000000231db90cc __pthread_kill + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001e0da3810 pthread_kill + 268 (pthread.c:1721)
+2   libsystem_c.dylib             	0x000000018fbd0f64 abort + 124 (abort.c:122)
+3   libc++abi.dylib               	0x00000001812d4808 __abort_message + 132 (abort_message.cpp:66)
+4   libc++abi.dylib               	0x00000001812c3484 demangling_terminate_handler() + 304 (cxa_default_handlers.cpp:76)
+5   libobjc.A.dylib               	0x00000001811d3f78 _objc_terminate() + 156 (objc-exception.mm:496)
+6   libc++abi.dylib               	0x00000001812d3bdc std::__terminate(void (*)()) + 16 (cxa_handlers.cpp:59)
+7   libc++abi.dylib               	0x00000001812d75c8 __cxa_rethrow + 188 (cxa_exception.cpp:658)
+8   libobjc.A.dylib               	0x00000001811e0558 objc_exception_rethrow + 44 (objc-exception.mm:399)
+9   React                         	0x0000000104d548f4 invocation function for block in facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*) + 128 (:-1)
+10  React                         	0x0000000104d59d58 std::__1::__function::__func<facebook::react::ObjCTurboModule::performVoidMethodInvocation(facebook::jsi::Runtime&, char const*, NSInvocation*, NSMutableArray*)::$_0, std::__1::allocator<facebook::... + 104 (:-1)
+11  libdispatch.dylib             	0x00000001bcf54adc _dispatch_call_block_and_release + 32 (init.c:1575)
+12  libdispatch.dylib             	0x00000001bcf6e7fc _dispatch_client_callout + 16 (client_callout.mm:85)
+13  libdispatch.dylib             	0x00000001bcf5d468 _dispatch_lane_serial_drain + 740 (queue.c:3991)
+14  libdispatch.dylib             	0x00000001bcf5df44 _dispatch_lane_invoke + 388 (queue.c:4082)
+15  libdispatch.dylib             	0x00000001bcf683ec _dispatch_root_queue_drain_deferred_wlh + 292 (queue.c:7265)
+16  libdispatch.dylib             	0x00000001bcf67ce4 _dispatch_workloop_worker_thread + 692 (queue.c:6859)
+17  libsystem_pthread.dylib       	0x00000001e0d9d3b8 _pthread_wqthread + 292 (pthread.c:2696)
+18  libsystem_pthread.dylib       	0x00000001e0d9c8c0 start_wqthread + 8 (:-1)
+
+Thread 7:
+
+Thread 8 name:
+Thread 8:
+0   libsystem_kernel.dylib        	0x0000000231daecd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000231db22f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000231db2214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000231db205c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x0000000184275868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000018424c848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000018424ba6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   Foundation                    	0x000000018220bf54 -[NSRunLoop(NSRunLoop) runMode:beforeDate:] + 212 (NSRunLoop.m:375)
+8   Foundation                    	0x000000018220c12c -[NSRunLoop(NSRunLoop) runUntilDate:] + 64 (NSRunLoop.m:422)
+9   UIKitCore                     	0x0000000189cd1094 -[UIEventFetcher threadMain] + 408 (UIEventFetcher.m:1333)
+10  Foundation                    	0x00000001818cb21c __NSThread__start__ + 732 (NSThread.m:997)
+11  libsystem_pthread.dylib       	0x00000001e0da044c _pthread_start + 136 (pthread.c:931)
+12  libsystem_pthread.dylib       	0x00000001e0d9c8cc thread_start + 8 (:-1)
+
+Thread 9 name:
+Thread 9:
+0   libsystem_kernel.dylib        	0x0000000231daecd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000231db22f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000231db2214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000231db205c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x0000000184275868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000018424c848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000018424ba6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   React                         	0x0000000104cffee0 +[RCTJSThreadManager runRunLoop] + 252 (:-1)
+8   Foundation                    	0x00000001818cb21c __NSThread__start__ + 732 (NSThread.m:997)
+9   libsystem_pthread.dylib       	0x00000001e0da044c _pthread_start + 136 (pthread.c:931)
+10  libsystem_pthread.dylib       	0x00000001e0d9c8cc thread_start + 8 (:-1)
+
+Thread 10 name:
+Thread 10:
+0   libsystem_kernel.dylib        	0x0000000231db45d4 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001e0d9eb58 _pthread_cond_wait + 984 (pthread_cond.c:862)
+2   libc++.1.dylib                	0x00000001935b3704 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32 (condition_variable.cpp:30)
+3   hermesvm                      	0x00000001057af628 hermes::vm::HadesGC::Executor::worker() + 104 (:-1)
+4   hermesvm                      	0x00000001057af59c void* std::__1::__thread_proxy[abi:nn190102]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Exe... + 44 (:-1)
+5   libsystem_pthread.dylib       	0x00000001e0da044c _pthread_start + 136 (pthread.c:931)
+6   libsystem_pthread.dylib       	0x00000001e0d9c8cc thread_start + 8 (:-1)
+
+Thread 11 name:
+Thread 11:
+0   libsystem_kernel.dylib        	0x0000000231db45d4 __psynch_cvwait + 8 (:-1)
+1   libsystem_pthread.dylib       	0x00000001e0d9eb58 _pthread_cond_wait + 984 (pthread_cond.c:862)
+2   libc++.1.dylib                	0x00000001935b3704 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 32 (condition_variable.cpp:30)
+3   hermesvm                      	0x00000001057af628 hermes::vm::HadesGC::Executor::worker() + 104 (:-1)
+4   hermesvm                      	0x00000001057af59c void* std::__1::__thread_proxy[abi:nn190102]<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct>>, hermes::vm::HadesGC::Executor::Exe... + 44 (:-1)
+5   libsystem_pthread.dylib       	0x00000001e0da044c _pthread_start + 136 (pthread.c:931)
+6   libsystem_pthread.dylib       	0x00000001e0d9c8cc thread_start + 8 (:-1)
+
+Thread 12 name:
+Thread 12:
+0   libsystem_kernel.dylib        	0x0000000231daecd4 mach_msg2_trap + 8 (:-1)
+1   libsystem_kernel.dylib        	0x0000000231db22f8 mach_msg2_internal + 76 (mach_msg.c:201)
+2   libsystem_kernel.dylib        	0x0000000231db2214 mach_msg_overwrite + 428 (mach_msg.c:0)
+3   libsystem_kernel.dylib        	0x0000000231db205c mach_msg + 24 (mach_msg.c:323)
+4   CoreFoundation                	0x0000000184275868 __CFRunLoopServiceMachPort + 160 (CFRunLoop.c:2650)
+5   CoreFoundation                	0x000000018424c848 __CFRunLoopRun + 1188 (CFRunLoop.c:3035)
+6   CoreFoundation                	0x000000018424ba6c _CFRunLoopRunSpecificWithOptions + 532 (CFRunLoop.c:3462)
+7   CFNetwork                     	0x000000019919dc10 +[__CFN_CoreSchedulingSetRunnable _run:] + 416 (CoreSchedulingSet.mm:1473)
+8   Foundation                    	0x00000001818cb21c __NSThread__start__ + 732 (NSThread.m:997)
+9   libsystem_pthread.dylib       	0x00000001e0da044c _pthread_start + 136 (pthread.c:931)
+10  libsystem_pthread.dylib       	0x00000001e0d9c8cc thread_start + 8 (:-1)
+
+
+Thread 6 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000000   x1: 0x0000000000000000   x2: 0x0000000000000000   x3: 0x0000000000000000
+    x4: 0x00000001812d8f43   x5: 0x000000016dc66770   x6: 0x000000000000006e   x7: 0xfffff0003ffff800
+    x8: 0x994c2eb388db5db9   x9: 0x994c2eb2e51d2db9  x10: 0x0000000000000002  x11: 0x0000010000000000
+   x12: 0x00000000fffffffd  x13: 0x0000000000000000  x14: 0x0000000000000000  x15: 0x0000000000000000
+   x16: 0x0000000000000148  x17: 0x000000016dc67000  x18: 0x0000000000000000  x19: 0x0000000000000006
+   x20: 0x0000000000003903  x21: 0x000000016dc670e0  x22: 0x434c4e47432b2b00  x23: 0x000000016dc670e0
+   x24: 0x0000000000000000  x25: 0x000000011ecd9340  x26: 0x0000000000000000  x27: 0x0000000000000000
+   x28: 0x0000000000000114   fp: 0x000000016dc666e0   lr: 0x00000001e0da3810
+    sp: 0x000000016dc666c0   pc: 0x0000000231db90cc cpsr: 0x40000000
+   esr: 0x56000080 (Syscall)
+
+
+Binary Images:
+        0x1024dc000 -         0x102e8ffff Grow arm64  <b4a80996d0ec307b9190415b928d2c3b> /var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Grow
+        0x1032fc000 -         0x103307fff SDWebImageAVIFCoder arm64  <e78222d79fff3b3baf9a33414a96ec5f> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/SDWebImageAVIFCoder.framework/SDWebImageAVIFCoder
+        0x103318000 -         0x103327fff ExpoFont arm64  <bc3e2413572f3f87a0273b7268b72f07> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoFont.framework/ExpoFont
+        0x103350000 -         0x10335bfff ExpoModulesWorklets arm64  <b180b329f1f53019a76920be29dfec11> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets
+        0x103380000 -         0x103387fff SDWebImageSVGCoder arm64  <08e8fe0cb8123b27b59a55513a80c453> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/SDWebImageSVGCoder.framework/SDWebImageSVGCoder
+        0x103518000 -         0x10353bfff ExpoLocation arm64  <a255ad69031936d2ac9e5941b79fa66c> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoLocation.framework/ExpoLocation
+        0x10358c000 -         0x103597fff libobjc-trampolines.dylib arm64e  <1954b963897d321f88be880ecef5b408> /private/preboot/Cryptexes/OS/usr/lib/libobjc-trampolines.dylib
+        0x10361c000 -         0x10366ffff ExpoFileSystem arm64  <912400aceb5538f381bb3e87d6c10b7b> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoFileSystem.framework/ExpoFileSystem
+        0x103724000 -         0x10375ffff ExpoImage arm64  <34e6527678943898bb445e123bc7e38c> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoImage.framework/ExpoImage
+        0x1037c8000 -         0x103813fff SDWebImageWebPCoder arm64  <934350bb409b3e69828b70dac9975309> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/SDWebImageWebPCoder.framework/SDWebImageWebPCoder
+        0x1038e8000 -         0x103937fff ExpoModulesJSI arm64  <fae7a8255e5b35158afcd71cfcd8ea4d> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI
+        0x103a0c000 -         0x103a5ffff SDWebImage arm64  <f66e8ed826233800b62d66d135168d7e> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/SDWebImage.framework/SDWebImage
+        0x103b50000 -         0x103c77fff ExpoModulesCore arm64  <4037aefeb4493374b76b933dc3cd4b92> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ExpoModulesCore.framework/ExpoModulesCore
+        0x103ee0000 -         0x103f63fff ReactNativeDependencies arm64  <db4e121670c636f08a46fdd48fcae1f2> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies
+        0x10441c000 -         0x104693fff libavif arm64  <abb1cbe8b51a3d69bdf7e55be57806ad> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/libavif.framework/libavif
+        0x104a58000 -         0x104e93fff React arm64  <5e46674d97353a33af93e73a13d82d74> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/React.framework/React
+        0x1055d4000 -         0x10584bfff hermesvm arm64  <cfba4be469803b0fb2d0ab67e21eda99> /private/var/containers/Bundle/Application/6A276135-8AE1-4B0C-B0AF-FAA26833E8F5/Grow.app/Frameworks/hermesvm.framework/hermesvm
+        0x1811a0000 -         0x1811f1b5f libobjc.A.dylib arm64e  <4358daf977583542a1e19f185534a911> /usr/lib/libobjc.A.dylib
+        0x181222000 -         0x1812c1347 dyld arm64e  <7631b298c24e3532b62500a1ad73c1fd> /usr/lib/dyld
+        0x1812c2000 -         0x1812dc6c7 libc++abi.dylib arm64e  <a741ff8f8ad1315780ba476d6d990c23> /usr/lib/libc++abi.dylib
+        0x181869000 -         0x1826afc9f Foundation arm64e  <4c3912d2e14a3a21926b54bef625be89> /System/Library/Frameworks/Foundation.framework/Foundation
+        0x18422f000 -         0x1847b573f CoreFoundation arm64e  <d52bceeee890347c84611537154e22d9> /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+        0x189c5e000 -         0x18c0bd9bf UIKitCore arm64e  <a70d8d96f3a53099901127eeb49d7be8> /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+        0x18fb59000 -         0x18fbd95af libsystem_c.dylib arm64e  <61a33aa9d6683b35a859b6925c4047b9> /usr/lib/system/libsystem_c.dylib
+        0x193591000 -         0x193623e23 libc++.1.dylib arm64e  <b5267b9b8993350586fc09e24812a29c> /usr/lib/libc++.1.dylib
+        0x198f55000 -         0x19930b8bf CFNetwork arm64e  <ac6cb88437403320999436594af6ad73> /System/Library/Frameworks/CFNetwork.framework/CFNetwork
+        0x1bcf53000 -         0x1bcf9921f libdispatch.dylib arm64e  <904d48a3d99e3962bfa9c3dfb66bba83> /usr/lib/system/libdispatch.dylib
+        0x1e0d9c000 -         0x1e0da845f libsystem_pthread.dylib arm64e  <4f94107b94d23e888542f5403c581b50> /usr/lib/system/libsystem_pthread.dylib
+        0x228bd0000 -         0x228bd87ff GraphicsServices arm64e  <12a401ff966436029f17f3047446e62b> /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+        0x231dae000 -         0x231de8d2b libsystem_kernel.dylib arm64e  <8d8301292cbe32a9b61ece493eecb399> /usr/lib/system/libsystem_kernel.dylib
+
+EOF
