@@ -1,3 +1,4 @@
+import express from 'express';
 import type { Express, Request, Response } from 'express';
 import { createServer, type Server } from 'node:http';
 import jwt from 'jsonwebtoken';
@@ -274,6 +275,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <p style="margin-top:48px;color:#888;font-size:13px">Grow Performance &amp; Rehab · <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a></p>
 </body>
 </html>`;
+
+  app.post('/api/crash-log', express.text({ type: '*/*' }), (req: Request, res: Response) => {
+    console.error('[CRASH LOG FROM DEVICE]', req.body);
+    res.sendStatus(200);
+  });
 
   app.get('/privacy', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

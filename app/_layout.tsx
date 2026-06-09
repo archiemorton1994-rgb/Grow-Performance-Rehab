@@ -44,7 +44,7 @@ if (!__DEV__) {
         ts: new Date().toISOString(),
         fatal: isFatal,
         msg: error?.message,
-        stack: error?.stack?.slice(0, 800),
+        stack: error?.stack?.slice(0, 1200),
       });
       AsyncStorage.setItem('__last_crash__', entry).then(
         () => defaultHandler(error, isFatal),
@@ -52,6 +52,19 @@ if (!__DEV__) {
       );
     });
   }
+
+  // On every launch: read the previous crash log from AsyncStorage and POST it
+  // to the server so it appears in deployment logs. Fires at module-load time
+  // (~100ms), long before the ~700ms crash, so the write completes reliably.
+  const _domain = process.env.EXPO_PUBLIC_DOMAIN || 'grow-performance-rehab.replit.app';
+  AsyncStorage.getItem('__last_crash__').then((val) => {
+    if (!val) return;
+    fetch(`https://${_domain}/api/crash-log`, {
+      method: 'POST',
+      body: val,
+      headers: { 'Content-Type': 'text/plain' },
+    }).catch(() => {});
+  }).catch(() => {});
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -277,7 +290,27 @@ export default function RootLayout() {
     }).catch(() => {});
   }, []);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) {
+    if (lastCrash) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0a0a0a', justifyContent: 'flex-start', padding: 24, paddingTop: 60 }}>
+          <Text style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+            ⚠️ Previous Launch Crash
+          </Text>
+          <RNScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+            <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'monospace' }}>{lastCrash}</Text>
+          </RNScrollView>
+          <Pressable
+            onPress={() => { AsyncStorage.removeItem('__last_crash__').catch(() => {}); setLastCrash(null); }}
+            style={{ marginTop: 12, backgroundColor: '#333', padding: 14, borderRadius: 10, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Dismiss & Continue Loading</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return null;
+  }
 
   return (
     <ErrorBoundary>
