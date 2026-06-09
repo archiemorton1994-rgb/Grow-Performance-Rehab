@@ -21,7 +21,6 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -284,11 +283,9 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <KeyboardProvider>
-            <AuthProvider>
-              <RootLayoutNav />
-            </AuthProvider>
-          </KeyboardProvider>
+          <AuthProvider>
+            <RootLayoutNav />
+          </AuthProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
       {lastCrash ? (
