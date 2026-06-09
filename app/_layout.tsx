@@ -18,7 +18,6 @@ import {
   ScrollView as RNScrollView,
   StyleSheet,
   Platform,
-  ErrorUtils,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -34,17 +33,26 @@ import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
 import { scheduleWorkoutReminder } from "@/lib/notifications";
 
 if (!__DEV__) {
-  const defaultHandler = ErrorUtils.getGlobalHandler();
-  ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
-    const entry = JSON.stringify({
-      ts: new Date().toISOString(),
-      fatal: isFatal,
-      msg: error?.message,
-      stack: error?.stack?.slice(0, 800),
+  type EUType = {
+    getGlobalHandler: () => (e: Error, fatal?: boolean) => void;
+    setGlobalHandler: (h: (e: Error, fatal?: boolean) => void) => void;
+  };
+  const EU = (global as unknown as { ErrorUtils?: EUType }).ErrorUtils;
+  if (EU) {
+    const defaultHandler = EU.getGlobalHandler();
+    EU.setGlobalHandler((error: Error, isFatal?: boolean) => {
+      const entry = JSON.stringify({
+        ts: new Date().toISOString(),
+        fatal: isFatal,
+        msg: error?.message,
+        stack: error?.stack?.slice(0, 800),
+      });
+      AsyncStorage.setItem('__last_crash__', entry).then(
+        () => defaultHandler(error, isFatal),
+        () => defaultHandler(error, isFatal),
+      );
     });
-    AsyncStorage.setItem('__last_crash__', entry).catch(() => {});
-    defaultHandler(error, isFatal);
-  });
+  }
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
