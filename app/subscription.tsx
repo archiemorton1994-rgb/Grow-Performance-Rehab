@@ -12,9 +12,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
+import { configureRevenueCat } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
@@ -91,11 +93,13 @@ export default function SubscriptionScreen() {
     setLoadingOffering(true);
     setOfferingError(false);
     try {
+      await configureRevenueCat();
       const offerings = await Purchases.getOfferings();
       const monthly = offerings.current?.monthly ?? offerings.current?.availablePackages[0] ?? null;
       setOffering(monthly);
       if (!monthly) setOfferingError(true);
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.warn('[Subscription] getOfferings failed:', e);
       setOffering(null);
       setOfferingError(true);
     } finally {
@@ -106,30 +110,38 @@ export default function SubscriptionScreen() {
   useEffect(() => { fetchOffering(); }, [fetchOffering]);
 
   const handlePurchase = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setErrorMsg('');
+
     if (!RC_API_KEY || __DEV__) {
       await refreshSubscription();
       return;
     }
+
+    if (loadingOffering) return;
+
     if (!offering) {
-      setErrorMsg('No subscription package available. Please try again later.');
+      setErrorMsg('Could not connect to the App Store. Tap "Retry" below to try again.');
       return;
     }
+
     setPurchasing(true);
     try {
       await Purchases.purchasePackage(offering);
       await refreshSubscription();
     } catch (err: unknown) {
-      const rcErr = err as { userCancelled?: boolean; message?: string };
+      const rcErr = err as { userCancelled?: boolean; message?: string; code?: number };
+      if (__DEV__) console.warn('[Subscription] purchasePackage error:', rcErr);
       if (!rcErr?.userCancelled) {
         setErrorMsg(rcErr?.message ?? 'Purchase failed. Please try again.');
       }
     } finally {
       setPurchasing(false);
     }
-  }, [offering, refreshSubscription]);
+  }, [offering, loadingOffering, refreshSubscription]);
 
   const handleRestore = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!RC_API_KEY) return;
     setErrorMsg('');
     setRestoring(true);
@@ -211,8 +223,12 @@ export default function SubscriptionScreen() {
 
         <Pressable
           onPress={handlePurchase}
-          disabled={purchasing || (!__DEV__ && !!RC_API_KEY && !offering && !loadingOffering)}
-          style={[styles.ctaBtn, purchasing && styles.ctaBtnLoading]}
+          disabled={purchasing}
+          style={({ pressed }) => [
+            styles.ctaBtn,
+            purchasing && styles.ctaBtnLoading,
+            pressed && styles.ctaBtnPressed,
+          ]}
           testID="subscribe-cta"
         >
           {purchasing
@@ -324,6 +340,7 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
   ctaBtnLoading: { opacity: 0.7 },
+  ctaBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
   errorRow: {

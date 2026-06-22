@@ -93,7 +93,7 @@ async function clearToken() {
 }
 
 let rcConfigured = false;
-async function configureRevenueCat(userId?: string) {
+export async function configureRevenueCat(userId?: string) {
   if (!RC_API_KEY) return;
   if (Platform.OS === 'web') return;
   try {
