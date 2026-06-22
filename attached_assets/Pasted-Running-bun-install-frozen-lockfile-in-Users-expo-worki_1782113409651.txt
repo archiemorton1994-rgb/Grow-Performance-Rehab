@@ -1,0 +1,1654 @@
+Running "bun install --frozen-lockfile" in /Users/expo/workingdir/build/ directory
+[10.49ms] ".env"
+bun install v1.3.13 (bf2e2cec)
+warn: FailedToOpenSocket downloading tarball pg-cloudflare@1.4.0
+
+warn: ConnectionRefused downloading tarball @img/sharp-darwin-arm64@0.34.5
+
+warn: ConnectionRefused downloading tarball @img/sharp-libvips-darwin-arm64@1.2.4
+
+warn: ConnectionRefused downloading tarball fsevents@2.3.3
+
+warn: ConnectionRefused downloading tarball @expo/ngrok-bin-darwin-arm64@2.3.41
+
+warn: ConnectionRefused downloading tarball @esbuild/darwin-arm64@0.25.12
+
+warn: FailedToOpenSocket downloading tarball @unrs/resolver-binding-darwin-arm64@1.12.2
+
+warn: ConnectionRefused downloading tarball lightningcss-darwin-arm64@1.32.0
+
+warn: FailedToOpenSocket downloading tarball msgpackr-extract@3.0.4
+
+warn: FailedToOpenSocket downloading tarball @msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4
+
+warn: ConnectionRefused downloading tarball @esbuild/darwin-arm64@0.28.0
+
+warn: FailedToOpenSocket downloading tarball @esbuild/darwin-arm64@0.18.20
+
+error: ConnectionRefused downloading tarball tsx@4.22.4
+
+error: ConnectionRefused downloading tarball ws@8.21.0
+
+error: ConnectionRefused downloading tarball zod@3.25.76
+
+error: ConnectionRefused downloading tarball zod-validation-error@3.5.4
+
+error: FailedToOpenSocket downloading tarball sharp@0.34.5
+
+error: ConnectionRefused downloading tarball react-native-view-shot@4.0.3
+
+error
+: ConnectionRefused downloading tarball react-native-web@0.21.2
+
+error: ConnectionRefused downloading tarball react-native-worklets@0.9.1
+
+error: ConnectionRefused downloading tarball resend@6.12.4
+
+error: FailedToOpenSocket downloading tarball react-native-svg@15.12.1
+
+error: ConnectionRefused downloading tarball react-native-purchases@9.15.2
+
+error: ConnectionRefused downloading tarball react-native-reanimated@4.4.1
+
+error: ConnectionRefused downloading tarball react-native-safe-area-context@5.8.0
+
+error: ConnectionRefused downloading tarball react-native-screens@4.25.2
+
+error: FailedToOpenSocket downloading tarball react-native-keyboard-controller@1.21.11
+
+error: ConnectionRefused downloading tarball react@19.2.3
+
+error: ConnectionRefused downloading tarball react-dom@19.1.0
+
+error: ConnectionRefused downloading tarball react-native@0.85.3
+
+error: ConnectionRefused downloading tarball react-native-gesture-handler@3.0.0
+
+error: FailedToOpenSocket downloading tarball pg@8.21.0
+
+error: ConnectionRefused downloading tarball expo-web-browser@56.0.5
+
+error: ConnectionRefused downloading tarball express@5.2.1
+
+error: ConnectionRefused downloading tarball http-proxy-middleware@3.0.6
+
+error: ConnectionRefused downloading tarball jsonwebtoken@9.0.3
+
+error: FailedToOpenSocket downloading tarball expo-system-ui@56.0.5
+
+error: ConnectionRefused downloading tarball expo-splash-screen@56.0.10
+
+error: ConnectionRefused downloading tarball expo-status-bar@56.0.4
+
+error: ConnectionRefused downloading tarball expo-store-review@56.0.3
+
+error: ConnectionRefused downloading tarball expo-symbols@56.0.6
+
+error: FailedToOpenSocket downloading tarball expo-sharing@56.0.16
+
+error: ConnectionRefused downloading tarball expo-location@56.0.16
+
+error: ConnectionRefused downloading tarball expo-notifications@56.0.16
+
+error: ConnectionRefused downloading tarball expo-router@56.0.4
+
+error: ConnectionRefused downloading tarball expo-secure-store@56.0.4
+
+error: FailedToOpenSocket downloading tarball expo-linking@56.0.13
+
+error: ConnectionRefused downloading tarball expo-haptics@56.0.3
+
+error: ConnectionRefused downloading tarball expo-image@56.0.10
+
+error: ConnectionRefused downloading tarball expo-image-picker@56.0.16
+
+error: ConnectionRefused downloading tarball expo-linear-gradient@56.0.4
+
+error: FailedToOpenSocket downloading tarball expo-glass-effect@56.0.4
+
+error: ConnectionRefused downloading tarball expo-blur@56.0.3
+
+error: ConnectionRefused downloading tarball expo-constants@56.0.17
+
+error: ConnectionRefused downloading tarball expo-file-system@56.0.7
+
+error: ConnectionRefused downloading tarball expo-font@56.0.5
+
+error: FailedToOpenSocket downloading tarball expo@56.0.9
+
+error: ConnectionRefused downloading tarball @ungap/structured-clone@1.3.1
+
+error: ConnectionRefused downloading tarball buffer@6.0.3
+
+error: ConnectionRefused downloading tarball drizzle-orm@0.39.3
+
+error: ConnectionRefused downloading tarball drizzle-zod@0.7.1
+
+error: FailedToOpenSocket downloading tarball @types/jsonwebtoken@9.0.10
+
+error: ConnectionRefused downloading tarball @expo/vector-icons@15.1.1
+
+error: ConnectionRefused downloading tarball @react-native-async-storage/async-storage@2.2.0
+
+error: ConnectionRefused downloading tarball @stardazed/streams-text-encoding@1.0.2
+
+error: ConnectionRefused downloading tarball @tanstack/react-query@5.101.0
+
+error: FailedToOpenSocket downloading tarball @expo-google-fonts/inter@0.4.2
+
+error: ConnectionRefused downloading tarball eslint@9.39.4
+
+error: ConnectionRefused downloading tarball eslint-config-expo@10.0.0
+
+error: ConnectionRefused downloading tarball patch-package@8.0.1
+
+error: ConnectionRefused downloading tarball typescript@5.9.3
+
+error: FailedToOpenSocket downloading tarball drizzle-kit@0.31.10
+
+error: ConnectionRefused downloading tarball @expo/ngrok@4.1.3
+
+error: ConnectionRefused downloading tarball @types/express@5.0.6
+
+error: ConnectionRefused downloading tarball @types/react@19.2.17
+
+error: ConnectionRefused downloading tarball babel-plugin-react-compiler@19.0.0-beta-ebf51a3-20250411
+
+error: FailedToOpenSocket downloading tarball zustand@5.0.14
+
+error: ConnectionRefused downloading tarball @expo/ngrok-bin@2.3.42
+
+error: ConnectionRefused downloading tarball got@11.8.6
+
+error: ConnectionRefused downloading tarball uuid@3.4.0
+
+error: ConnectionRefused downloading tarball yaml@1.10.3
+
+error: FailedToOpenSocket downloading tarball @types/body-parser@1.19.6
+
+error: ConnectionRefused downloading tarball @types/express-serve-static-core@5.1.1
+
+error: ConnectionRefused downloading tarball @types/serve-static@2.2.0
+
+error: ConnectionRefused downloading tarball csstype@3.2.3
+
+error: ConnectionRefused downloading tarball @drizzle-team/brocli@0.10.2
+
+error: FailedToOpenSocket downloading tarball @esbuild-kit/esm-loader@2.6.5
+
+error: ConnectionRefused downloading tarball esbuild@0.25.12
+
+error: ConnectionRefused downloading tarball @eslint-community/eslint-utils@4.9.1
+
+error: ConnectionRefused downloading tarball @eslint-community/regexpp@4.12.2
+
+error: ConnectionRefused downloading tarball @eslint/config-array@0.21.2
+
+error: FailedToOpenSocket downloading tarball @eslint/config-helpers@0.4.2
+
+error: ConnectionRefused downloading tarball @eslint/core@0.17.0
+
+error: ConnectionRefused downloading tarball @eslint/eslintrc@3.3.5
+
+error: ConnectionRefused downloading tarball @eslint/js@9.39.4
+
+error: ConnectionRefused downloading tarball @eslint/plugin-kit@0.4.1
+
+error: FailedToOpenSocket downloading tarball @humanfs/node@0.16.8
+
+error: ConnectionRefused downloading tarball @humanwhocodes/module-importer@1.0.1
+
+error: ConnectionRefused downloading tarball @humanwhocodes/retry@0.4.3
+
+error: ConnectionRefused downloading tarball @types/estree@1.0.9
+
+error: ConnectionRefused downloading tarball ajv@6.15.0
+
+error: FailedToOpenSocket downloading tarball eslint-scope@8.4.0
+
+error: ConnectionRefused downloading tarball eslint-visitor-keys@4.2.1
+
+error: ConnectionRefused downloading tarball espree@10.4.0
+
+error: ConnectionRefused downloading tarball esquery@1.7.0
+
+error: ConnectionRefused downloading tarball esutils@2.0.3
+
+error: FailedToOpenSocket downloading tarball file-entry-cache@8.0.0
+
+error: ConnectionRefused downloading tarball find-up@5.0.0
+
+error: ConnectionRefused downloading tarball glob-parent@6.0.2
+
+error: ConnectionRefused downloading tarball ignore@5.3.2
+
+error: ConnectionRefused downloading tarball json-stable-stringify-without-jsonify@1.0.1
+
+error: FailedToOpenSocket downloading tarball natural-compare@1.4.0
+
+error: ConnectionRefused downloading tarball optionator@0.9.4
+
+error: ConnectionRefused downloading tarball @typescript-eslint/eslint-plugin@8.61.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/parser@8.61.0
+
+error: ConnectionRefused downloading tarball eslint-import-resolver-typescript@3.10.1
+
+error: FailedToOpenSocket downloading tarball eslint-plugin-expo@1.0.3
+
+error: ConnectionRefused downloading tarball eslint-plugin-import@2.32.0
+
+error: ConnectionRefused downloading tarball eslint-plugin-react@7.37.5
+
+error: ConnectionRefused downloading tarball eslint-plugin-react-hooks@5.2.0
+
+error: ConnectionRefused downloading tarball globals@16.5.0
+
+error: FailedToOpenSocket downloading tarball @yarnpkg/lockfile@1.1.0
+
+error: ConnectionRefused downloading tarball ci-info@3.9.0
+
+error: ConnectionRefused downloading tarball find-yarn-workspace-root@2.0.0
+
+error: ConnectionRefused downloading tarball json-stable-stringify@1.3.0
+
+error: ConnectionRefused downloading tarball klaw-sync@6.0.0
+
+error: FailedToOpenSocket downloading tarball open@7.4.2
+
+error: ConnectionRefused downloading tarball slash@2.0.0
+
+error: ConnectionRefused downloading tarball tmp@0.2.7
+
+error: ConnectionRefused downloading tarball merge-options@3.0.4
+
+error: ConnectionRefused downloading tarball @tanstack/query-core@5.101.0
+
+error: FailedToOpenSocket downloading tarball @types/ms@2.1.0
+
+error: ConnectionRefused downloading tarball @types/node@25.9.2
+
+error: ConnectionRefused downloading tarball ieee754@1.2.1
+
+error: ConnectionRefused downloading tarball @babel/runtime@7.29.7
+
+error: ConnectionRefused downloading tarball @expo/cli@56.1.14
+
+error: FailedToOpenSocket downloading tarball @expo/config@56.0.9
+
+error: ConnectionRefused downloading tarball @expo/config-plugins@56.0.8
+
+error: ConnectionRefused downloading tarball @expo/devtools@56.0.2
+
+error: ConnectionRefused downloading tarball @expo/dom-webview@56.0.5
+
+error: ConnectionRefused downloading tarball @expo/fingerprint@0.19.4
+
+error: FailedToOpenSocket downloading tarball @expo/local-build-cache-provider@56.0.8
+
+error: ConnectionRefused downloading tarball @expo/log-box@56.0.12
+
+error: ConnectionRefused downloading tarball @expo/metro@56.0.0
+
+error: ConnectionRefused downloading tarball @expo/metro-config@56.0.13
+
+error: ConnectionRefused downloading tarball babel-preset-expo@56.0.14
+
+error: FailedToOpenSocket downloading tarball expo-asset@56.0.16
+
+error: ConnectionRefused downloading tarball expo-keep-awake@56.0.3
+
+error: ConnectionRefused downloading tarball expo-modules-autolinking@56.0.15
+
+error: ConnectionRefused downloading tarball expo-modules-core@56.0.15
+
+error: ConnectionRefused downloading tarball pretty-format@29.7.0
+
+error: FailedToOpenSocket downloading tarball react-refresh@0.14.2
+
+error: ConnectionRefused downloading tarball whatwg-url-minimum@0.1.2
+
+error: ConnectionRefused downloading tarball @expo/metro-runtime@56.0.14
+
+error: ConnectionRefused downloading tarball @expo/env@2.3.0
+
+error: ConnectionRefused downloading tarball fontfaceobserver@2.3.0
+
+error: FailedToOpenSocket downloading tarball sf-symbols-typescript@2.2.0
+
+error: ConnectionRefused downloading tarball expo-image-loader@56.0.3
+
+error: ConnectionRefused downloading tarball @expo/image-utils@0.10.1
+
+error: ConnectionRefused downloading tarball abort-controller@3.0.0
+
+error: ConnectionRefused downloading tarball badgin@1.2.3
+
+error: FailedToOpenSocket downloading tarball expo-application@56.0.3
+
+error: ConnectionRefused downloading tarball @expo/schema-utils@56.0.1
+
+error: ConnectionRefused downloading tarball @expo/ui@56.0.16
+
+error: ConnectionRefused downloading tarball @jest/globals@29.7.0
+
+error: ConnectionRefused downloading tarball @radix-ui/react-slot@1.2.5
+
+error: FailedToOpenSocket downloading tarball @radix-ui/react-tabs@1.1.14
+
+error: ConnectionRefused downloading tarball @react-native-masked-view/masked-view@0.3.2
+
+error: ConnectionRefused downloading tarball @testing-library/jest-dom@6.9.1
+
+error: ConnectionRefused downloading tarball @testing-library/user-event@14.6.1
+
+error: ConnectionRefused downloading tarball client-only@0.0.1
+
+error: FailedToOpenSocket downloading tarball color@4.2.3
+
+error: ConnectionRefused downloading tarball expo-server@56.0.5
+
+error: ConnectionRefused downloading tarball nanoid@3.3.12
+
+error: ConnectionRefused downloading tarball query-string@7.1.3
+
+error: ConnectionRefused downloading tarball react-fast-compare@3.2.2
+
+error: FailedToOpenSocket downloading tarball react-is@19.2.7
+
+error: ConnectionRefused downloading tarball react-native-drawer-layout@4.2.5
+
+error: ConnectionRefused downloading tarball server-only@0.0.1
+
+error: ConnectionRefused downloading tarball shallowequal@1.1.0
+
+error: ConnectionRefused downloading tarball vaul@1.1.2
+
+error: FailedToOpenSocket downloading tarball @expo/config-types@56.0.5
+
+error: ConnectionRefused downloading tarball @expo/plist@0.7.0
+
+error: ConnectionRefused downloading tarball @expo-google-fonts/material-symbols@0.4.38
+
+error: ConnectionRefused downloading tarball @react-native/normalize-colors@0.85.3
+
+error: ConnectionRefused downloading tarball accepts@2.0.0
+
+error: FailedToOpenSocket downloading tarball body-parser@2.2.2
+
+error: ConnectionRefused downloading tarball content-disposition@1.1.0
+
+error: ConnectionRefused downloading tarball cookie@0.7.2
+
+error: ConnectionRefused downloading tarball cookie-signature@1.2.2
+
+error: ConnectionRefused downloading tarball depd@2.0.0
+
+error: FailedToOpenSocket downloading tarball encodeurl@2.0.0
+
+error: ConnectionRefused downloading tarball escape-html@1.0.3
+
+error: ConnectionRefused downloading tarball etag@1.8.1
+
+error: ConnectionRefused downloading tarball finalhandler@2.1.1
+
+error: ConnectionRefused downloading tarball fresh@2.0.0
+
+error: FailedToOpenSocket downloading tarball http-errors@2.0.1
+
+error: ConnectionRefused downloading tarball merge-descriptors@2.0.0
+
+error: ConnectionRefused downloading tarball mime-types@3.0.2
+
+error: ConnectionRefused downloading tarball on-finished@2.4.1
+
+error: ConnectionRefused downloading tarball parseurl@1.3.3
+
+error: FailedToOpenSocket downloading tarball proxy-addr@2.0.7
+
+error: ConnectionRefused downloading tarball qs@6.15.2
+
+error: ConnectionRefused downloading tarball range-parser@1.2.1
+
+error: ConnectionRefused downloading tarball router@2.2.0
+
+error: ConnectionRefused downloading tarball send@1.2.1
+
+error: FailedToOpenSocket downloading tarball serve-static@2.2.1
+
+error: ConnectionRefused downloading tarball statuses@2.0.2
+
+error: ConnectionRefused downloading tarball type-is@2.1.0
+
+error: ConnectionRefused downloading tarball vary@1.1.2
+
+error: ConnectionRefused downloading tarball @types/http-proxy@1.17.17
+
+error: FailedToOpenSocket downloading tarball http-proxy@1.18.1
+
+error: ConnectionRefused downloading tarball is-plain-object@5.0.0
+
+error: ConnectionRefused downloading tarball jws@4.0.1
+
+error: ConnectionRefused downloading tarball lodash.includes@4.3.0
+
+error: ConnectionRefused downloading tarball lodash.isboolean@3.0.3
+
+error: FailedToOpenSocket downloading tarball lodash.isinteger@4.0.4
+
+error: ConnectionRefused downloading tarball lodash.isnumber@3.0.3
+
+error: ConnectionRefused downloading tarball lodash.isplainobject@4.0.6
+
+error: ConnectionRefused downloading tarball lodash.isstring@4.0.1
+
+error: ConnectionRefused downloading tarball lodash.once@4.1.1
+
+error: ConnectionRefused downloading tarball pg-connection-string@2.13.0
+
+error: ConnectionRefused downloading tarball pg-pool@3.14.0
+
+error: ConnectionRefused downloading tarball pg-protocol@1.14.0
+
+error: ConnectionRefused downloading tarball pg-types@2.2.0
+
+error: FailedToOpenSocket downloading tarball pgpass@1.0.5
+
+error: ConnectionRefused downloading tarball scheduler@0.26.0
+
+error: ConnectionRefused downloading tarball @react-native/assets-registry@0.85.3
+
+error: ConnectionRefused downloading tarball @react-native/codegen@0.85.3
+
+error: ConnectionRefused downloading tarball @react-native/community-cli-plugin@0.85.3
+
+error: FailedToOpenSocket downloading tarball @react-native/gradle-plugin@0.85.3
+
+error: ConnectionRefused downloading tarball @react-native/js-polyfills@0.85.3
+
+error: ConnectionRefused downloading tarball @react-native/virtualized-lists@0.85.3
+
+error: ConnectionRefused downloading tarball anser@1.4.10
+
+error: ConnectionRefused downloading tarball babel-plugin-syntax-hermes-parser@0.33.3
+
+error: FailedToOpenSocket downloading tarball commander@12.1.0
+
+error: ConnectionRefused downloading tarball flow-enums-runtime@0.0.6
+
+error: ConnectionRefused downloading tarball hermes-compiler@250829098.0.10
+
+error: ConnectionRefused downloading tarball memoize-one@5.2.1
+
+error: ConnectionRefused downloading tarball metro-runtime@0.84.4
+
+error: FailedToOpenSocket downloading tarball metro-source-map@0.84.4
+
+error: ConnectionRefused downloading tarball promise@8.3.0
+
+error: ConnectionRefused downloading tarball react-devtools-core@6.1.5
+
+error: ConnectionRefused downloading tarball regenerator-runtime@0.13.11
+
+error: ConnectionRefused downloading tarball stacktrace-parser@0.1.11
+
+error: FailedToOpenSocket downloading tarball whatwg-fetch@3.6.20
+
+error: ConnectionRefused downloading tarball yargs@17.7.2
+
+error: ConnectionRefused downloading tarball @types/react-test-renderer@19.1.0
+
+error: ConnectionRefused downloading tarball react-native-is-edge-to-edge@1.3.1
+
+error: ConnectionRefused downloading tarball @revenuecat/purchases-js-hybrid-mappings@17.55.1
+
+error: FailedToOpenSocket downloading tarball @revenuecat/purchases-typescript-internal@17.55.1
+
+error: ConnectionRefused downloading tarball react-freeze@1.0.4
+
+error: ConnectionRefused downloading tarball warn-once@0.1.1
+
+error: ConnectionRefused downloading tarball css-select@5.2.2
+
+error: ConnectionRefused downloading tarball css-tree@1.1.3
+
+error: FailedToOpenSocket downloading tarball html2canvas@1.4.1
+
+error: ConnectionRefused downloading tarball fbjs@3.0.5
+
+error: ConnectionRefused downloading tarball inline-style-prefixer@7.0.1
+
+error: ConnectionRefused downloading tarball postcss-value-parser@4.2.0
+
+error: ConnectionRefused downloading tarball styleq@0.1.3
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-arrow-functions@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-class-properties@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-classes@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-nullish-coalescing-operator@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-optional-chaining@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-shorthand-properties@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-template-literals@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-unicode-regex@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/preset-typescript@7.29.7
+
+error: ConnectionRefused downloading tarball @react-native/metro-config@0.86.0
+
+error: FailedToOpenSocket downloading tarball postal-mime@2.7.4
+
+error: ConnectionRefused downloading tarball standardwebhooks@1.0.0
+
+error: ConnectionRefused downloading tarball @img/colour@1.1.0
+
+error: FailedToOpenSocket downloading tarball detect-libc@2.1.2
+
+error: ConnectionRefused downloading tarball @sindresorhus/is@4.6.0
+
+error: ConnectionRefused downloading tarball @szmarczak/http-timer@4.0.6
+
+error: FailedToOpenSocket downloading tarball @types/cacheable-request@6.0.3
+
+error: ConnectionRefused downloading tarball @types/responselike@1.0.3
+
+error: ConnectionRefused downloading tarball cacheable-lookup@5.0.4
+
+error: ConnectionRefused downloading tarball cacheable-request@7.0.4
+
+error: ConnectionRefused downloading tarball decompress-response@6.0.0
+
+error: FailedToOpenSocket downloading tarball http2-wrapper@1.0.3
+
+error: ConnectionRefused downloading tarball lowercase-keys@2.0.0
+
+error: ConnectionRefused downloading tarball p-cancelable@2.1.1
+
+error: ConnectionRefused downloading tarball responselike@2.0.1
+
+error: ConnectionRefused downloading tarball @types/connect@3.4.38
+
+error: FailedToOpenSocket downloading tarball @types/qs@6.15.1
+
+error: ConnectionRefused downloading tarball @types/range-parser@1.2.7
+
+error: ConnectionRefused downloading tarball @types/send@1.2.1
+
+error: ConnectionRefused downloading tarball @types/http-errors@2.0.5
+
+error: ConnectionRefused downloading tarball @esbuild-kit/core-utils@3.3.2
+
+error: FailedToOpenSocket downloading tarball get-tsconfig@4.14.0
+
+error: ConnectionRefused downloading tarball @eslint/object-schema@2.1.7
+
+error: ConnectionRefused downloading tarball @types/json-schema@7.0.15
+
+error: ConnectionRefused downloading tarball import-fresh@3.3.1
+
+error: FailedToOpenSocket downloading tarball js-yaml@4.2.0
+
+error: ConnectionRefused downloading tarball strip-json-comments@3.1.1
+
+error: ConnectionRefused downloading tarball levn@0.4.1
+
+error: ConnectionRefused downloading tarball @humanfs/core@0.19.2
+
+error: ConnectionRefused downloading tarball @humanfs/types@0.15.0
+
+error: FailedToOpenSocket downloading tarball fast-json-stable-stringify@2.1.0
+
+error: ConnectionRefused downloading tarball json-schema-traverse@0.4.1
+
+error: ConnectionRefused downloading tarball esrecurse@4.3.0
+
+error: ConnectionRefused downloading tarball estraverse@5.3.0
+
+error: ConnectionRefused downloading tarball acorn@8.16.0
+
+error: FailedToOpenSocket downloading tarball acorn-jsx@5.3.2
+
+error: ConnectionRefused downloading tarball flat-cache@4.0.1
+
+error: ConnectionRefused downloading tarball locate-path@6.0.0
+
+error: ConnectionRefused downloading tarball deep-is@0.1.4
+
+error: ConnectionRefused downloading tarball fast-levenshtein@2.0.6
+
+error: FailedToOpenSocket downloading tarball prelude-ls@1.2.1
+
+error: ConnectionRefused downloading tarball type-check@0.4.0
+
+error: ConnectionRefused downloading tarball word-wrap@1.2.5
+
+error: ConnectionRefused downloading tarball @typescript-eslint/scope-manager@8.61.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/type-utils@8.61.0
+
+error: FailedToOpenSocket downloading tarball @typescript-eslint/utils@8.61.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/visitor-keys@8.61.0
+
+error: ConnectionRefused downloading tarball ts-api-utils@2.5.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/types@8.61.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/typescript-estree@8.61.0
+
+error: FailedToOpenSocket downloading tarball @nolyfill/is-core-module@1.0.39
+
+error: ConnectionRefused downloading tarball is-bun-module@2.0.0
+
+error: ConnectionRefused downloading tarball stable-hash@0.0.5
+
+error: ConnectionRefused downloading tarball unrs-resolver@1.12.2
+
+error: ConnectionRefused downloading tarball @rtsao/scc@1.1.0
+
+error: FailedToOpenSocket downloading tarball array-includes@3.1.9
+
+error: ConnectionRefused downloading tarball array.prototype.findlastindex@1.2.6
+
+error: ConnectionRefused downloading tarball array.prototype.flat@1.3.3
+
+error: ConnectionRefused downloading tarball array.prototype.flatmap@1.3.3
+
+error: ConnectionRefused downloading tarball doctrine@2.1.0
+
+error: FailedToOpenSocket downloading tarball eslint-import-resolver-node@0.3.10
+
+error: ConnectionRefused downloading tarball eslint-module-utils@2.13.0
+
+error: ConnectionRefused downloading tarball is-core-module@2.16.2
+
+error: ConnectionRefused downloading tarball object.fromentries@2.0.8
+
+error: ConnectionRefused downloading tarball object.groupby@1.0.3
+
+error: FailedToOpenSocket downloading tarball object.values@1.2.1
+
+error: ConnectionRefused downloading tarball string.prototype.trimend@1.0.10
+
+error: ConnectionRefused downloading tarball tsconfig-paths@3.15.0
+
+error: ConnectionRefused downloading tarball array.prototype.findlast@1.2.5
+
+error: ConnectionRefused downloading tarball array.prototype.tosorted@1.1.4
+
+error: FailedToOpenSocket downloading tarball es-iterator-helpers@1.3.2
+
+error: ConnectionRefused downloading tarball jsx-ast-utils@3.3.5
+
+error: ConnectionRefused downloading tarball object.entries@1.1.9
+
+error: ConnectionRefused downloading tarball prop-types@15.8.1
+
+error: ConnectionRefused downloading tarball resolve@2.0.0-next.7
+
+error: FailedToOpenSocket downloading tarball string.prototype.matchall@4.0.12
+
+error: ConnectionRefused downloading tarball string.prototype.repeat@1.0.0
+
+error: ConnectionRefused downloading tarball call-bind@1.0.9
+
+error: ConnectionRefused downloading tarball call-bound@1.0.4
+
+error: ConnectionRefused downloading tarball isarray@2.0.5
+
+error: FailedToOpenSocket downloading tarball jsonify@0.0.1
+
+error: ConnectionRefused downloading tarball object-keys@1.1.1
+
+error: ConnectionRefused downloading tarball is-plain-obj@2.1.0
+
+error: ConnectionRefused downloading tarball undici-types@7.24.6
+
+error: ConnectionRefused downloading tarball @expo/code-signing-certificates@0.0.6
+
+error: FailedToOpenSocket downloading tarball @expo/devcert@1.2.1
+
+error: ConnectionRefused downloading tarball @expo/inline-modules@0.0.11
+
+error: ConnectionRefused downloading tarball @expo/metro-file-map@56.0.3
+
+error: ConnectionRefused downloading tarball @expo/osascript@2.6.0
+
+error: ConnectionRefused downloading tarball @expo/package-manager@1.12.1
+
+error: FailedToOpenSocket downloading tarball @expo/prebuild-config@56.0.15
+
+error: ConnectionRefused downloading tarball @expo/require-utils@56.1.3
+
+error: ConnectionRefused downloading tarball @expo/router-server@56.0.13
+
+error: ConnectionRefused downloading tarball @expo/spawn-async@1.8.0
+
+error: ConnectionRefused downloading tarball @expo/ws-tunnel@1.0.6
+
+error: FailedToOpenSocket downloading tarball @expo/xcpretty@4.4.4
+
+error: ConnectionRefused downloading tarball @react-native/dev-middleware@0.85.3
+
+error: ConnectionRefused downloading tarball compression@1.8.1
+
+error: ConnectionRefused downloading tarball connect@3.7.0
+
+error: ConnectionRefused downloading tarball dnssd-advertise@1.1.4
+
+error: FailedToOpenSocket downloading tarball fetch-nodeshim@0.4.10
+
+error: ConnectionRefused downloading tarball lan-network@0.2.1
+
+error: ConnectionRefused downloading tarball multitars@1.0.0
+
+error: ConnectionRefused downloading tarball node-forge@1.4.0
+
+error: ConnectionRefused downloading tarball progress@2.0.3
+
+error: FailedToOpenSocket downloading tarball structured-headers@0.4.1
+
+error: ConnectionRefused downloading tarball toqr@0.1.1
+
+error: ConnectionRefused downloading tarball metro@0.84.4
+
+error: ConnectionRefused downloading tarball metro-babel-transformer@0.84.4
+
+error: ConnectionRefused downloading tarball metro-cache@0.84.4
+
+error: FailedToOpenSocket downloading tarball metro-cache-key@0.84.4
+
+error: ConnectionRefused downloading tarball metro-config@0.84.4
+
+error: ConnectionRefused downloading tarball metro-core@0.84.4
+
+error: ConnectionRefused downloading tarball metro-file-map@0.84.4
+
+error: ConnectionRefused downloading tarball metro-minify-terser@0.84.4
+
+error: FailedToOpenSocket downloading tarball metro-resolver@0.84.4
+
+error: ConnectionRefused downloading tarball metro-symbolicate@0.84.4
+
+error: ConnectionRefused downloading tarball metro-transform-plugins@0.84.4
+
+error: ConnectionRefused downloading tarball metro-transform-worker@0.84.4
+
+error: ConnectionRefused downloading tarball hermes-parser@0.33.3
+
+error: FailedToOpenSocket downloading tarball jsc-safe-url@0.2.4
+
+error: ConnectionRefused downloading tarball lightningcss@1.32.0
+
+error: ConnectionRefused downloading tarball msgpackr@2.0.4
+
+error: ConnectionRefused downloading tarball postcss@8.5.15
+
+error: ConnectionRefused downloading tarball @babel/plugin-proposal-decorators@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-proposal-export-default-from@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-dynamic-import@7.8.3
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-export-default-from@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-nullish-coalescing-operator@7.8.3
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-optional-chaining@7.8.3
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-async-generator-functions@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-async-to-generator@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-block-scoping@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-class-static-block@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-destructuring@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-export-namespace-from@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-flow-strip-types@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-for-of@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-logical-assignment-operators@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-named-capturing-groups-regex@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-object-rest-spread@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-optional-catch-binding@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-parameters@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-private-methods@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-private-property-in-object@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-react-display-name@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-react-jsx@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-react-jsx-development@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-react-pure-annotations@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-runtime@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-transform-typescript@7.29.7
+
+error: ConnectionRefused downloading tarball @react-native/babel-plugin-codegen@0.85.3
+
+error: ConnectionRefused downloading tarball babel-plugin-react-native-web@0.21.2
+
+error: ConnectionRefused downloading tarball babel-plugin-transform-flow-enums@0.0.2
+
+error: ConnectionRefused downloading tarball @expo/expo-modules-macros-plugin@0.0.9
+
+error: FailedToOpenSocket downloading tarball expo-modules-jsi@56.0.8
+
+error: ConnectionRefused downloading tarball @jest/schemas@29.6.3
+
+error: ConnectionRefused downloading tarball event-target-shim@5.0.1
+
+error: ConnectionRefused downloading tarball @jest/environment@29.7.0
+
+error: ConnectionRefused downloading tarball @jest/expect@29.7.0
+
+error: FailedToOpenSocket downloading tarball @jest/types@29.6.3
+
+error: ConnectionRefused downloading tarball jest-mock@29.7.0
+
+error: ConnectionRefused downloading tarball @radix-ui/react-compose-refs@1.1.3
+
+error: ConnectionRefused downloading tarball @radix-ui/primitive@1.1.4
+
+error: ConnectionRefused downloading tarball @radix-ui/react-context@1.1.4
+
+error: FailedToOpenSocket downloading tarball @radix-ui/react-direction@1.1.2
+
+error: ConnectionRefused downloading tarball @radix-ui/react-id@1.1.2
+
+error: ConnectionRefused downloading tarball @radix-ui/react-presence@1.1.6
+
+error: ConnectionRefused downloading tarball @radix-ui/react-primitive@2.1.5
+
+error: ConnectionRefused downloading tarball @radix-ui/react-roving-focus@1.1.12
+
+error: FailedToOpenSocket downloading tarball @radix-ui/react-use-controllable-state@1.2.3
+
+error: ConnectionRefused downloading tarball @adobe/css-tools@4.5.0
+
+error: ConnectionRefused downloading tarball aria-query@5.3.2
+
+error: ConnectionRefused downloading tarball css.escape@1.5.1
+
+error: ConnectionRefused downloading tarball dom-accessibility-api@0.6.3
+
+error: FailedToOpenSocket downloading tarball redent@3.0.0
+
+error: ConnectionRefused downloading tarball @testing-library/dom@10.4.1
+
+error: ConnectionRefused downloading tarball color-string@1.9.1
+
+error: ConnectionRefused downloading tarball decode-uri-component@0.2.2
+
+error: ConnectionRefused downloading tarball filter-obj@1.1.0
+
+error: FailedToOpenSocket downloading tarball split-on-first@1.1.0
+
+error: ConnectionRefused downloading tarball strict-uri-encode@2.0.0
+
+error: ConnectionRefused downloading tarball use-latest-callback@0.2.6
+
+error: ConnectionRefused downloading tarball @radix-ui/react-dialog@1.1.16
+
+error: ConnectionRefused downloading tarball negotiator@1.0.0
+
+error: FailedToOpenSocket downloading tarball bytes@3.1.2
+
+error: ConnectionRefused downloading tarball iconv-lite@0.7.2
+
+error: ConnectionRefused downloading tarball raw-body@3.0.2
+
+error: ConnectionRefused downloading tarball setprototypeof@1.2.0
+
+error: ConnectionRefused downloading tarball toidentifier@1.0.1
+
+error: FailedToOpenSocket downloading tarball mime-db@1.54.0
+
+error: ConnectionRefused downloading tarball ee-first@1.1.1
+
+error: ConnectionRefused downloading tarball forwarded@0.2.0
+
+error: ConnectionRefused downloading tarball ipaddr.js@1.9.1
+
+error: ConnectionRefused downloading tarball side-channel@1.1.1
+
+error: FailedToOpenSocket downloading tarball is-promise@4.0.0
+
+error: ConnectionRefused downloading tarball path-to-regexp@8.4.2
+
+error: ConnectionRefused downloading tarball media-typer@1.1.0
+
+error: ConnectionRefused downloading tarball eventemitter3@4.0.7
+
+error: ConnectionRefused downloading tarball follow-redirects@1.16.0
+
+error: FailedToOpenSocket downloading tarball requires-port@1.0.0
+
+error: ConnectionRefused downloading tarball jwa@2.0.1
+
+error: ConnectionRefused downloading tarball pg-int8@1.0.1
+
+error: ConnectionRefused downloading tarball postgres-array@2.0.0
+
+error: ConnectionRefused downloading tarball postgres-bytea@1.0.1
+
+error: FailedToOpenSocket downloading tarball postgres-date@1.0.7
+
+error: ConnectionRefused downloading tarball postgres-interval@1.2.0
+
+error: ConnectionRefused downloading tarball split2@4.2.0
+
+error: ConnectionRefused downloading tarball ob1@0.84.4
+
+error: ConnectionRefused downloading tarball source-map@0.5.7
+
+error: FailedToOpenSocket downloading tarball vlq@1.0.1
+
+error: ConnectionRefused downloading tarball asap@2.0.6
+
+error: ConnectionRefused downloading tarball shell-quote@1.8.4
+
+error: ConnectionRefused downloading tarball type-fest@0.7.1
+
+error: ConnectionRefused downloading tarball cliui@8.0.1
+
+error: FailedToOpenSocket downloading tarball get-caller-file@2.0.5
+
+error: ConnectionRefused downloading tarball require-directory@2.1.1
+
+error: ConnectionRefused downloading tarball y18n@5.0.8
+
+error: ConnectionRefused downloading tarball yargs-parser@21.1.1
+
+error: ConnectionRefused downloading tarball @revenuecat/purchases-js@1.30.0
+
+error: FailedToOpenSocket downloading tarball boolbase@1.0.0
+
+error: ConnectionRefused downloading tarball css-what@6.2.2
+
+error: ConnectionRefused downloading tarball domhandler@5.0.3
+
+error: ConnectionRefused downloading tarball domutils@3.2.2
+
+error: ConnectionRefused downloading tarball nth-check@2.1.1
+
+error: FailedToOpenSocket downloading tarball mdn-data@2.0.14
+
+error: ConnectionRefused downloading tarball css-line-break@2.1.0
+
+error: ConnectionRefused downloading tarball text-segmentation@1.0.3
+
+error: ConnectionRefused downloading tarball cross-fetch@3.2.0
+
+error: ConnectionRefused downloading tarball fbjs-css-vars@1.0.2
+
+error: FailedToOpenSocket downloading tarball setimmediate@1.0.5
+
+error: ConnectionRefused downloading tarball ua-parser-js@1.0.41
+
+error: ConnectionRefused downloading tarball css-in-js-utils@3.1.0
+
+error: ConnectionRefused downloading tarball @babel/helper-create-class-features-plugin@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/helper-annotate-as-pure@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/helper-replace-supers@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/helper-skip-transparent-expression-wrappers@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/helper-create-regexp-features-plugin@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-jsx@7.29.7
+
+error: ConnectionRefused downloading tarball @react-native/metro-babel-transformer@0.86.0
+
+error: FailedToOpenSocket downloading tarball @stablelib/base64@1.0.1
+
+error: ConnectionRefused downloading tarball fast-sha256@1.3.0
+
+error: ConnectionRefused downloading tarball baseline-browser-mapping@2.10.34
+
+error: ConnectionRefused downloading tarball caniuse-lite@1.0.30001797
+
+error: ConnectionRefused downloading tarball electron-to-chromium@1.5.370
+
+error: FailedToOpenSocket downloading tarball node-releases@2.0.47
+
+error: ConnectionRefused downloading tarball defer-to-connect@2.0.1
+
+error: ConnectionRefused downloading tarball @types/http-cache-semantics@4.2.0
+
+error: ConnectionRefused downloading tarball @types/keyv@3.1.4
+
+error: ConnectionRefused downloading tarball clone-response@1.0.3
+
+error: FailedToOpenSocket downloading tarball get-stream@5.2.0
+
+error: ConnectionRefused downloading tarball http-cache-semantics@4.2.0
+
+error: ConnectionRefused downloading tarball keyv@4.5.4
+
+error: ConnectionRefused downloading tarball normalize-url@6.1.0
+
+error: ConnectionRefused downloading tarball mimic-response@3.1.0
+
+error: FailedToOpenSocket downloading tarball quick-lru@5.1.1
+
+error: ConnectionRefused downloading tarball resolve-alpn@1.2.1
+
+error: ConnectionRefused downloading tarball source-map-support@0.5.21
+
+error: ConnectionRefused downloading tarball resolve-pkg-maps@1.0.0
+
+error: ConnectionRefused downloading tarball parent-module@1.0.1
+
+error: FailedToOpenSocket downloading tarball argparse@2.0.1
+
+error: ConnectionRefused downloading tarball flatted@3.4.2
+
+error: ConnectionRefused downloading tarball p-locate@5.0.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/project-service@8.61.0
+
+error: ConnectionRefused downloading tarball @typescript-eslint/tsconfig-utils@8.61.0
+
+error: ConnectionRefused downloading tarball napi-postinstall@0.3.4
+
+error: ConnectionRefused downloading tarball define-properties@1.2.1
+
+error: ConnectionRefused downloading tarball es-abstract@1.24.2
+
+error: ConnectionRefused downloading tarball is-string@1.1.1
+
+error: FailedToOpenSocket downloading tarball es-shim-unscopables@1.1.0
+
+error: ConnectionRefused downloading tarball @types/json5@0.0.29
+
+error: ConnectionRefused downloading tarball strip-bom@3.0.0
+
+error: ConnectionRefused downloading tarball globalthis@1.0.4
+
+error: ConnectionRefused downloading tarball has-property-descriptors@1.0.2
+
+error: FailedToOpenSocket downloading tarball has-proto@1.2.0
+
+error: ConnectionRefused downloading tarball internal-slot@1.1.0
+
+error: ConnectionRefused downloading tarball iterator.prototype@1.1.5
+
+error: ConnectionRefused downloading tarball object.assign@4.1.7
+
+error: ConnectionRefused downloading tarball node-exports-info@1.6.0
+
+error: FailedToOpenSocket downloading tarball path-parse@1.0.7
+
+error: ConnectionRefused downloading tarball supports-preserve-symlinks-flag@1.0.0
+
+error: ConnectionRefused downloading tarball regexp.prototype.flags@1.5.4
+
+error: ConnectionRefused downloading tarball set-function-name@2.0.2
+
+error: ConnectionRefused downloading tarball set-function-length@1.2.2
+
+error: FailedToOpenSocket downloading tarball @expo/sudo-prompt@9.3.2
+
+error: ConnectionRefused downloading tarball fb-watchman@2.0.2
+
+error: ConnectionRefused downloading tarball jest-worker@29.7.0
+
+error: ConnectionRefused downloading tarball walker@1.0.8
+
+error: ConnectionRefused downloading tarball @isaacs/ttlcache@1.4.1
+
+error: FailedToOpenSocket downloading tarball @react-native/debugger-frontend@0.85.3
+
+error: ConnectionRefused downloading tarball @react-native/debugger-shell@0.85.3
+
+error: ConnectionRefused downloading tarball chrome-launcher@0.15.2
+
+error: ConnectionRefused downloading tarball chromium-edge-launcher@0.3.0
+
+error: ConnectionRefused downloading tarball compressible@2.0.18
+
+error: FailedToOpenSocket downloading tarball on-headers@1.1.0
+
+error: ConnectionRefused downloading tarball utils-merge@1.0.1
+
+error: ConnectionRefused downloading tarball destroy@1.2.0
+
+error: ConnectionRefused downloading tarball mime@1.6.0
+
+error: ConnectionRefused downloading tarball error-stack-parser@2.1.4
+
+error: FailedToOpenSocket downloading tarball image-size@1.2.1
+
+error: ConnectionRefused downloading tarball lodash.throttle@4.1.1
+
+error: ConnectionRefused downloading tarball serialize-error@2.1.0
+
+error: ConnectionRefused downloading tarball throat@5.0.0
+
+error: ConnectionRefused downloading tarball exponential-backoff@3.1.3
+
+error: FailedToOpenSocket downloading tarball https-proxy-agent@7.0.6
+
+error: ConnectionRefused downloading tarball jest-validate@29.7.0
+
+error: ConnectionRefused downloading tarball terser@5.48.0
+
+error: ConnectionRefused downloading tarball hermes-estree@0.33.3
+
+error: ConnectionRefused downloading tarball source-map-js@1.2.1
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-decorators@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/helper-remap-async-to-generator@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-flow@7.29.7
+
+error: FailedToOpenSocket downloading tarball babel-plugin-polyfill-corejs2@0.4.17
+
+error: ConnectionRefused downloading tarball babel-plugin-polyfill-corejs3@0.13.0
+
+error: ConnectionRefused downloading tarball babel-plugin-polyfill-regenerator@0.6.8
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-typescript@7.29.7
+
+error: ConnectionRefused downloading tarball @sinclair/typebox@0.27.10
+
+error: FailedToOpenSocket downloading tarball @jest/fake-timers@29.7.0
+
+error: ConnectionRefused downloading tarball expect@29.7.0
+
+error: ConnectionRefused downloading tarball jest-snapshot@29.7.0
+
+error: ConnectionRefused downloading tarball @types/istanbul-lib-coverage@2.0.6
+
+error: ConnectionRefused downloading tarball @types/istanbul-reports@3.0.4
+
+error: FailedToOpenSocket downloading tarball @types/yargs@17.0.35
+
+error: ConnectionRefused downloading tarball jest-util@29.7.0
+
+error: ConnectionRefused downloading tarball @radix-ui/react-use-layout-effect@1.1.2
+
+error: ConnectionRefused downloading tarball @radix-ui/react-collection@1.1.9
+
+error: ConnectionRefused downloading tarball @radix-ui/react-use-callback-ref@1.1.2
+
+error: FailedToOpenSocket downloading tarball @radix-ui/react-use-effect-event@0.0.3
+
+error: ConnectionRefused downloading tarball strip-indent@3.0.0
+
+error: ConnectionRefused downloading tarball @types/aria-query@5.0.4
+
+error: ConnectionRefused downloading tarball lz-string@1.5.0
+
+error: ConnectionRefused downloading tarball simple-swizzle@0.2.4
+
+error: FailedToOpenSocket downloading tarball @radix-ui/react-dismissable-layer@1.1.12
+
+error: ConnectionRefused downloading tarball @radix-ui/react-focus-guards@1.1.4
+
+error: ConnectionRefused downloading tarball @radix-ui/react-focus-scope@1.1.9
+
+error: ConnectionRefused downloading tarball @radix-ui/react-portal@1.1.11
+
+error: ConnectionRefused downloading tarball aria-hidden@1.2.6
+
+error: FailedToOpenSocket downloading tarball react-remove-scroll@2.7.2
+
+error: ConnectionRefused downloading tarball unpipe@1.0.0
+
+error: ConnectionRefused downloading tarball object-inspect@1.13.4
+
+error: ConnectionRefused downloading tarball side-channel-list@1.0.1
+
+error: ConnectionRefused downloading tarball side-channel-map@1.0.1
+
+error: FailedToOpenSocket downloading tarball side-channel-weakmap@1.0.2
+
+error: ConnectionRefused downloading tarball buffer-equal-constant-time@1.0.1
+
+error: ConnectionRefused downloading tarball ecdsa-sig-formatter@1.0.11
+
+error: ConnectionRefused downloading tarball xtend@4.0.2
+
+error: ConnectionRefused downloading tarball domelementtype@2.3.0
+
+error: FailedToOpenSocket downloading tarball dom-serializer@2.0.0
+
+error: ConnectionRefused downloading tarball utrie@1.0.2
+
+error: ConnectionRefused downloading tarball node-fetch@2.7.0
+
+error: ConnectionRefused downloading tarball hyphenate-style-name@1.1.0
+
+error: ConnectionRefused downloading tarball @babel/helper-member-expression-to-functions@7.29.7
+
+error: FailedToOpenSocket downloading tarball @babel/helper-optimise-call-expression@7.29.7
+
+error: ConnectionRefused downloading tarball regexpu-core@6.4.0
+
+error: ConnectionRefused downloading tarball @react-native/babel-preset@0.86.0
+
+error: ConnectionRefused downloading tarball pump@3.0.4
+
+error: ConnectionRefused downloading tarball json-buffer@3.0.1
+
+error: FailedToOpenSocket downloading tarball buffer-from@1.1.2
+
+error: ConnectionRefused downloading tarball callsites@3.1.0
+
+error: ConnectionRefused downloading tarball p-limit@3.1.0
+
+error: ConnectionRefused downloading tarball define-data-property@1.1.4
+
+error: ConnectionRefused downloading tarball array-buffer-byte-length@1.0.2
+
+error: FailedToOpenSocket downloading tarball arraybuffer.prototype.slice@1.0.4
+
+error: ConnectionRefused downloading tarball available-typed-arrays@1.0.7
+
+error: ConnectionRefused downloading tarball data-view-buffer@1.0.2
+
+error: ConnectionRefused downloading tarball data-view-byte-length@1.0.2
+
+error: ConnectionRefused downloading tarball data-view-byte-offset@1.0.1
+
+error: FailedToOpenSocket downloading tarball es-to-primitive@1.3.0
+
+error: ConnectionRefused downloading tarball function.prototype.name@1.1.8
+
+error: ConnectionRefused downloading tarball get-symbol-description@1.1.0
+
+error: ConnectionRefused downloading tarball is-array-buffer@3.0.5
+
+error: ConnectionRefused downloading tarball is-callable@1.2.7
+
+error: FailedToOpenSocket downloading tarball is-data-view@1.0.2
+
+error: ConnectionRefused downloading tarball is-negative-zero@2.0.3
+
+error: ConnectionRefused downloading tarball is-regex@1.2.1
+
+error: ConnectionRefused downloading tarball is-set@2.0.3
+
+error: ConnectionRefused downloading tarball is-shared-array-buffer@1.0.4
+
+error: FailedToOpenSocket downloading tarball is-typed-array@1.1.15
+
+error: ConnectionRefused downloading tarball is-weakref@1.1.1
+
+error: ConnectionRefused downloading tarball own-keys@1.0.1
+
+error: ConnectionRefused downloading tarball safe-array-concat@1.1.4
+
+error: ConnectionRefused downloading tarball safe-push-apply@1.0.0
+
+error: FailedToOpenSocket downloading tarball safe-regex-test@1.1.0
+
+error: ConnectionRefused downloading tarball set-proto@1.0.0
+
+error: ConnectionRefused downloading tarball stop-iteration-iterator@1.1.0
+
+error: ConnectionRefused downloading tarball string.prototype.trim@1.2.11
+
+error: ConnectionRefused downloading tarball string.prototype.trimstart@1.0.8
+
+error: FailedToOpenSocket downloading tarball typed-array-buffer@1.0.3
+
+error: ConnectionRefused downloading tarball typed-array-byte-length@1.0.3
+
+error: ConnectionRefused downloading tarball typed-array-byte-offset@1.0.4
+
+error: ConnectionRefused downloading tarball typed-array-length@1.0.8
+
+error: ConnectionRefused downloading tarball unbox-primitive@1.1.0
+
+error: FailedToOpenSocket downloading tarball which-typed-array@1.1.22
+
+error: ConnectionRefused downloading tarball functions-have-names@1.2.3
+
+error: ConnectionRefused downloading tarball bser@2.1.1
+
+error: ConnectionRefused downloading tarball merge-stream@2.0.0
+
+error: ConnectionRefused downloading tarball makeerror@1.0.12
+
+error: FailedToOpenSocket downloading tarball fb-dotslash@0.5.8
+
+error: ConnectionRefused downloading tarball lighthouse-logger@1.4.2
+
+error: ConnectionRefused downloading tarball mkdirp@1.0.4
+
+error: ConnectionRefused downloading tarball stackframe@1.3.4
+
+error: ConnectionRefused downloading tarball queue@6.0.2
+
+error: FailedToOpenSocket downloading tarball agent-base@7.1.4
+
+error: ConnectionRefused downloading tarball camelcase@6.3.0
+
+error: ConnectionRefused downloading tarball jest-get-type@29.6.3
+
+error: ConnectionRefused downloading tarball leven@3.1.0
+
+error: ConnectionRefused downloading tarball @jridgewell/source-map@0.3.11
+
+error: ConnectionRefused downloading tarball node-gyp-build-optional-packages@5.2.2
+
+error: ConnectionRefused downloading tarball @babel/helper-wrap-function@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/helper-define-polyfill-provider@0.6.8
+
+error: ConnectionRefused downloading tarball core-js-compat@3.49.0
+
+error: FailedToOpenSocket downloading tarball @sinonjs/fake-timers@10.3.0
+
+error: ConnectionRefused downloading tarball jest-message-util@29.7.0
+
+error: ConnectionRefused downloading tarball @jest/expect-utils@29.7.0
+
+error: ConnectionRefused downloading tarball jest-matcher-utils@29.7.0
+
+error: ConnectionRefused downloading tarball @jest/transform@29.7.0
+
+error: FailedToOpenSocket downloading tarball babel-preset-current-node-syntax@1.2.0
+
+error: ConnectionRefused downloading tarball jest-diff@29.7.0
+
+error: ConnectionRefused downloading tarball @types/istanbul-lib-report@3.0.3
+
+error: ConnectionRefused downloading tarball @types/yargs-parser@21.0.3
+
+error: ConnectionRefused downloading tarball min-indent@1.0.1
+
+error: FailedToOpenSocket downloading tarball dequal@2.0.3
+
+error: ConnectionRefused downloading tarball is-arrayish@0.3.4
+
+error: ConnectionRefused downloading tarball @radix-ui/react-use-escape-keydown@1.1.2
+
+error: ConnectionRefused downloading tarball tslib@2.8.1
+
+error: ConnectionRefused downloading tarball react-remove-scroll-bar@2.3.8
+
+error: FailedToOpenSocket downloading tarball react-style-singleton@2.2.3
+
+error: ConnectionRefused downloading tarball use-callback-ref@1.3.3
+
+error: ConnectionRefused downloading tarball use-sidecar@1.1.3
+
+error: ConnectionRefused downloading tarball entities@4.5.0
+
+error: ConnectionRefused downloading tarball base64-arraybuffer@1.0.2
+
+error: FailedToOpenSocket downloading tarball regenerate@1.4.2
+
+error: ConnectionRefused downloading tarball regenerate-unicode-properties@10.2.2
+
+error: ConnectionRefused downloading tarball regjsgen@0.8.0
+
+error: ConnectionRefused downloading tarball regjsparser@0.13.1
+
+error: ConnectionRefused downloading tarball unicode-match-property-ecmascript@2.0.0
+
+error: FailedToOpenSocket downloading tarball unicode-match-property-value-ecmascript@2.2.1
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-react-jsx-self@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-react-jsx-source@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-transform-regenerator@7.29.7
+
+error: ConnectionRefused downloading tarball end-of-stream@1.4.5
+
+error: FailedToOpenSocket downloading tarball yocto-queue@0.1.0
+
+error: ConnectionRefused downloading tarball possible-typed-array-names@1.1.0
+
+error: ConnectionRefused downloading tarball is-date-object@1.1.0
+
+error: ConnectionRefused downloading tarball is-symbol@1.1.1
+
+error: ConnectionRefused downloading tarball for-each@0.3.5
+
+error: FailedToOpenSocket downloading tarball reflect.getprototypeof@1.0.10
+
+error: ConnectionRefused downloading tarball has-bigints@1.1.0
+
+error: ConnectionRefused downloading tarball which-boxed-primitive@1.1.1
+
+error: ConnectionRefused downloading tarball tmpl@1.0.5
+
+error: ConnectionRefused downloading tarball marky@1.3.0
+
+error: FailedToOpenSocket downloading tarball lodash.debounce@4.0.8
+
+error: ConnectionRefused downloading tarball @sinonjs/commons@3.0.1
+
+error: ConnectionRefused downloading tarball @types/stack-utils@2.0.3
+
+error: ConnectionRefused downloading tarball stack-utils@2.0.6
+
+error: ConnectionRefused downloading tarball babel-plugin-istanbul@6.1.1
+
+error: FailedToOpenSocket downloading tarball jest-haste-map@29.7.0
+
+error: ConnectionRefused downloading tarball jest-regex-util@29.6.3
+
+error: ConnectionRefused downloading tarball write-file-atomic@4.0.2
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-async-generators@7.8.4
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-bigint@7.8.3
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-syntax-class-properties@7.12.13
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-class-static-block@7.14.5
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-import-attributes@7.29.7
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-import-meta@7.10.4
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-json-strings@7.8.3
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-syntax-logical-assignment-operators@7.10.4
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-numeric-separator@7.10.4
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-object-rest-spread@7.8.3
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-optional-catch-binding@7.8.3
+
+error: ConnectionRefused downloading tarball @babel/plugin-syntax-private-property-in-object@7.14.5
+
+error: FailedToOpenSocket downloading tarball @babel/plugin-syntax-top-level-await@7.14.5
+
+error: ConnectionRefused downloading tarball diff-sequences@29.6.3
+
+error: ConnectionRefused downloading tarball get-nonce@1.0.1
+
+error: ConnectionRefused downloading tarball detect-node-es@1.1.0
+
+error: ConnectionRefused downloading tarball unicode-canonical-property-names-ecmascript@2.0.1
+
+error: FailedToOpenSocket downloading tarball unicode-property-aliases-ecmascript@2.2.0
+
+error: ConnectionRefused downloading tarball which-builtin-type@1.2.1
+
+error: ConnectionRefused downloading tarball is-bigint@1.1.0
+
+error: ConnectionRefused downloading tarball is-boolean-object@1.2.2
+
+error: ConnectionRefused downloading tarball is-number-object@1.1.1
+
+error: FailedToOpenSocket downloading tarball type-detect@4.0.8
+
+error: ConnectionRefused downloading tarball @istanbuljs/load-nyc-config@1.1.0
+
+error: ConnectionRefused downloading tarball @istanbuljs/schema@0.1.6
+
+error: ConnectionRefused downloading tarball istanbul-lib-instrument@5.2.1
+
+error: ConnectionRefused downloading tarball test-exclude@6.0.0
+
+error: FailedToOpenSocket downloading tarball @types/graceful-fs@4.1.9
+
+error: ConnectionRefused downloading tarball anymatch@3.1.3
+
+error: ConnectionRefused downloading tarball is-async-function@2.1.1
+
+error: ConnectionRefused downloading tarball is-finalizationregistry@1.1.1
+
+error: ConnectionRefused downloading tarball is-generator-function@1.1.2
+
+error: FailedToOpenSocket downloading tarball which-collection@1.0.2
+
+error: ConnectionRefused downloading tarball istanbul-lib-coverage@3.2.2
+
+error: ConnectionRefused downloading tarball normalize-path@3.0.0
+
+error: ConnectionRefused downloading tarball async-function@1.0.0
+
+error: ConnectionRefused downloading tarball generator-function@2.0.1
+
+error: FailedToOpenSocket downloading tarball is-map@2.0.3
+
+error: ConnectionRefused downloading tarball is-weakmap@2.0.2
+
+error: ConnectionRefused downloading tarball is-weakset@2.0.4
+
+error: ConnectionRefused downloading tarball fs.realpath@1.0.0
+
+error: ConnectionRefused downloading tarball semver@7.8.3
+
+error: FailedToOpenSocket downloading tarball yaml@2.9.0
+
+error: ConnectionRefused downloading tarball react-native-screens@4.25.0-beta.1
+
+error: ConnectionRefused downloading tarball scheduler@0.27.0
+
+error: ConnectionRefused downloading tarball ws@7.5.11
+
+error: ConnectionRefused downloading tarball @react-native/normalize-colors@0.74.89
+
+error: FailedToOpenSocket downloading tarball memoize-one@6.0.0
+
+error: ConnectionRefused downloading tarball esbuild@0.28.0
+
+error: ConnectionRefused downloading tarball eslint-visitor-keys@3.4.3
+
+error: ConnectionRefused downloading tarball globals@14.0.0
+
+error: ConnectionRefused downloading tarball ignore@7.0.5
+
+error: FailedToOpenSocket downloading tarball debug@3.2.7
+
+error: ConnectionRefused downloading tarball accepts@1.3.8
+
+error: ConnectionRefused downloading tarball send@0.19.2
+
+error: ConnectionRefused downloading tarball babel-plugin-react-compiler@1.0.0
+
+error: ConnectionRefused downloading tarball commander@7.2.0
+
+error: FailedToOpenSocket downloading tarball ansi-styles@5.2.0
+
+error: ConnectionRefused downloading tarball react-is@18.3.1
+
+error: ConnectionRefused downloading tarball content-type@2.0.0
+
+error: ConnectionRefused downloading tarball source-map@0.6.1
+
+error: ConnectionRefused downloading tarball promise@7.3.1
+
+error: FailedToOpenSocket downloading tarball @react-native/js-polyfills@0.86.0
+
+error: ConnectionRefused downloading tarball esbuild@0.18.20
+
+error: ConnectionRefused downloading tarball resolve-from@4.0.0
+
+error: ConnectionRefused downloading tarball eslint-visitor-keys@5.0.1
+
+error: FailedToOpenSocket downloading tarball json5@1.0.2
+
+error: ConnectionRefused downloading tarball react-is@16.13.1
+
+error: ConnectionRefused downloading tarball serve-static@1.16.3
+
+error: ConnectionRefused downloading tarball negotiator@0.6.3
+
+error: ConnectionRefused downloading tarball debug@2.6.9
+
+error: FailedToOpenSocket downloading tarball negotiator@0.6.4
+
+error: ConnectionRefused downloading tarball finalhandler@1.1.2
+
+error: ConnectionRefused downloading tarball fresh@0.5.2
+
+error: ConnectionRefused downloading tarball ci-info@2.0.0
+
+error: ConnectionRefused downloading tarball hermes-parser@0.35.0
+
+error: FailedToOpenSocket downloading tarball aria-query@5.3.0
+
+error: ConnectionRefused downloading tarball dom-accessibility-api@0.5.16
+
+error: ConnectionRefused downloading tarball pretty-format@27.5.1
+
+error: ConnectionRefused downloading tarball hermes-parser@0.36.0
+
+error: ConnectionRefused downloading tarball mimic-response@1.0.1
+
+error: ConnectionRefused downloading tarball ms@2.0.0
+
+error: ConnectionRefused downloading tarball encodeurl@1.0.2
+
+error: ConnectionRefused downloading tarball on-finished@2.3.0
+
+error: ConnectionRefused downloading tarball statuses@1.5.0
+
+error: FailedToOpenSocket downloading tarball hermes-estree@0.35.0
+
+error: ConnectionRefused downloading tarball commander@2.20.3
+
+error: ConnectionRefused downloading tarball react-is@17.0.2
+
+error: ConnectionRefused downloading tarball @react-native/babel-plugin-codegen@0.86.0
+
+error: ConnectionRefused downloading tarball babel-plugin-syntax-hermes-parser@0.36.0
+
+error: FailedToOpenSocket downloading tarball hermes-estree@0.36.0
+
+error: ConnectionRefused downloading tarball resolve@1.22.12
+
+error: ConnectionRefused downloading tarball @react-native/codegen@0.86.0
+
+error: ConnectionRefused downloading tarball escape-string-regexp@2.0.0
+
+error: ConnectionRefused downloading tarball camelcase@5.3.1
+
+error: FailedToOpenSocket downloading tarball glob@7.2.3
+bun install --frozen-lockfile exited with non-zero code: 1
