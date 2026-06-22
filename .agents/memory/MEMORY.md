@@ -1,3 +1,4 @@
 - [Production crash: EXPO_PUBLIC_DOMAIN](expo-public-domain-crash.md) — workflow env vars are NOT baked into EAS builds; missing var + throw = fatal JS crash in prod (__DEV__=false)
+- [EAS env vars on Replit](eas-env-vars-replit.md) — EXPO_PUBLIC_* must be Replit env vars (setEnvVars), not just eas.json; eas.json alone resolves to '' in Replit's Expo Launch builds
 - [EAS build: React version pin](eas-react-version-pin.md) — caret in "react" allows semver drift vs react-native-renderer; pin exact version or builds crash at launch
 - [EAS build: lockfile and sharp](eas-build-lockfile-sharp.md) — bun.lock version mismatch + sharp optional dep issues on EAS; use npm + mark sharp optional
