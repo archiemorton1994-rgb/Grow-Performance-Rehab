@@ -138,7 +138,7 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
     return;
   }
 
-  await resendClient.emails.send({
+  const { data, error } = await resendClient.emails.send({
     from: 'Grow Performance <noreply@growperformanceandrehab.com>',
     to: email,
     subject: `Your Grow login code: ${code}`,
@@ -151,6 +151,11 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
       </div>
     `,
   });
+  if (error) {
+    console.error('[OTP] Resend error:', JSON.stringify(error));
+    throw new Error(`Resend failed: ${error.message ?? JSON.stringify(error)}`);
+  }
+  console.log('[OTP] Resend accepted:', data?.id);
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
