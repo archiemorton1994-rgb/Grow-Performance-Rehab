@@ -155,7 +155,7 @@ export default function SubscriptionScreen() {
     }
   }, [refreshSubscription]);
 
-  const priceString = offering?.product?.priceString ?? '£4.99';
+  const priceString = offering?.product?.priceString ?? '';
   const trialText = getTrialText(offering);
 
   return (
