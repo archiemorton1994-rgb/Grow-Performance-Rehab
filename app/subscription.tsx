@@ -218,7 +218,7 @@ export default function SubscriptionScreen() {
               <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
             </View>
           </View>
-          <Text style={styles.planSub}>{trialText.sub} then {priceString}/month. Cancel anytime.</Text>
+          <Text style={styles.planSub}>{trialText.sub} then {priceString ? `${priceString}/month` : 'the standard rate'}. Cancel anytime.</Text>
         </View>
 
         <Pressable
@@ -264,9 +264,10 @@ export default function SubscriptionScreen() {
           <Text style={styles.legalLink} testID="legal-privacy" onPress={() => Linking.openURL(privacyUrl)}>
             Privacy Policy
           </Text>
-          {'. Subscription renews at '}
-          {priceString}
-          {'/month unless cancelled at least 24 hours before the end of the current period.'}
+          {priceString
+            ? `. Subscription renews at ${priceString}/month unless cancelled at least 24 hours before the end of the current period.`
+            : '. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period.'
+          }
         </Text>
       </ScrollView>
 
