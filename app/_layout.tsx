@@ -8,7 +8,7 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   Modal,
   View,
@@ -218,16 +218,22 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
 function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
+  const hasNavigated = useRef(false);
   useEffect(() => {
     if (isLoading) return;
+    if (hasNavigated.current) return;
 
     if (!onboardingComplete) {
+      hasNavigated.current = true;
       setTimeout(() => router.replace("/onboarding"), 0);
     } else if (!isAuthenticated) {
+      hasNavigated.current = true;
       setTimeout(() => router.replace("/auth"), 0);
     } else if (!hasActiveSubscription) {
+      hasNavigated.current = true;
       setTimeout(() => router.replace("/subscription"), 0);
     } else {
+      hasNavigated.current = true;
       setTimeout(() => router.replace("/(tabs)"), 0);
     }
   }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription]);

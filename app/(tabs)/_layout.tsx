@@ -161,8 +161,5 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  let liquidGlass = false;
-  try { liquidGlass = isLiquidGlassAvailable(); } catch {}
-  if (liquidGlass) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }
