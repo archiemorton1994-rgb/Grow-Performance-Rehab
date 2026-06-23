@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <h2>3. Subscriptions and Billing</h2>
       <p>Access to the Service requires an active subscription.</p>
       <ul>
-        <li><strong>Price:</strong> £7.99 per month (or equivalent in your local currency as displayed at checkout).</li>
+        <li><strong>Price:</strong> £4.99 per month (or equivalent in your local currency as displayed at checkout).</li>
         <li><strong>Free trial:</strong> New subscribers receive a 14-day free trial. You will not be charged until the trial period ends.</li>
         <li><strong>Automatic renewal:</strong> Your subscription renews automatically at the end of each billing period unless you cancel at least 24 hours before the renewal date.</li>
         <li><strong>Cancellation:</strong> You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period; no partial refunds are provided for unused time.</li>
