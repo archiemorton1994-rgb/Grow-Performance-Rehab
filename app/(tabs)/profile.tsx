@@ -30,10 +30,21 @@ import {
 } from '@/lib/notifications';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
+import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { router } from 'expo-router';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+
+function getLegalUrls() {
+  try {
+    const base = getApiUrl().replace(/\/$/, '');
+    return { privacyUrl: `${base}/privacy`, termsUrl: `${base}/terms` };
+  } catch {
+    return { privacyUrl: 'https://growperformance.app/privacy', termsUrl: 'https://growperformance.app/terms' };
+  }
+}
+const { privacyUrl, termsUrl } = getLegalUrls();
 
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string }[] = [
   { value: 'beginner', label: 'Beginner', desc: 'New to gym or returning after a long break' },
@@ -837,6 +848,29 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
               </Pressable>
             )}
+
+            <View style={styles.settingDivider} />
+
+            <Text style={styles.settingSectionLabel}>Legal</Text>
+            <Pressable onPress={() => Linking.openURL(termsUrl)} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]} testID="settings-terms">
+              <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name="document-text-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Terms of Service</Text>
+              </View>
+              <Ionicons name="open-outline" size={14} color={C.textTertiary} />
+            </Pressable>
+
+            <Pressable onPress={() => Linking.openURL(privacyUrl)} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]} testID="settings-privacy">
+              <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name="shield-checkmark-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Privacy Policy</Text>
+              </View>
+              <Ionicons name="open-outline" size={14} color={C.textTertiary} />
+            </Pressable>
 
             <View style={styles.settingDivider} />
 
