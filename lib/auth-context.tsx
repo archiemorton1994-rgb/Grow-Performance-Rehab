@@ -111,7 +111,9 @@ export async function configureRevenueCat(userId?: string) {
   } catch {}
 }
 
-async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+type SubscriptionCheckResult = SubscriptionStatus & { checkFailed?: boolean };
+
+async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
   if (RC_DEV_BYPASS) {
     if (__DEV__) console.warn('[Auth] RC_DEV_BYPASS active — subscription gate skipped');
     return { isActive: true, isOnTrial: true, expiryDate: null };
@@ -126,8 +128,9 @@ async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
     const onTrial = active && entitlement?.periodType === 'TRIAL';
     const expiryDate = entitlement?.expirationDate ?? null;
     return { isActive: active, isOnTrial: onTrial, expiryDate };
-  } catch {
-    return { isActive: false, isOnTrial: false, expiryDate: null };
+  } catch (e) {
+    if (__DEV__) console.warn('[Auth] getCustomerInfo failed — keeping existing subscription state', e);
+    return { isActive: false, isOnTrial: false, expiryDate: null, checkFailed: true };
   }
 }
 
@@ -142,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSubscription = useCallback(async () => {
     const status = await getSubscriptionStatus();
+    if (status.checkFailed) return;
     setHasActiveSubscription(status.isActive);
     setIsOnTrial(status.isOnTrial);
     setExpiryDate(status.expiryDate);

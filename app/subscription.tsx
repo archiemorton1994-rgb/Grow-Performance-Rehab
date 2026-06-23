@@ -270,16 +270,6 @@ export default function SubscriptionScreen() {
         </Text>
       </ScrollView>
 
-      {(purchasing || restoring) && (
-        <View style={styles.processingOverlay} testID="processing-overlay">
-          <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color={C.primary} />
-            <Text style={styles.processingText}>
-              {purchasing ? 'Processing payment…' : 'Restoring purchases…'}
-            </Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -348,19 +338,6 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     marginTop: 10, marginBottom: 2, paddingHorizontal: 4,
   },
   errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
-
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center', justifyContent: 'center',
-    zIndex: 100,
-  },
-  processingCard: {
-    backgroundColor: C.surface, borderRadius: 20,
-    padding: 32, alignItems: 'center', gap: 16, minWidth: 180,
-    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
-  },
-  processingText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
 
   restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
   restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
