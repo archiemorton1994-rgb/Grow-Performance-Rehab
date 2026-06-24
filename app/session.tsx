@@ -26,6 +26,7 @@ import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyl
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
+import { scheduleMissedWorkoutNudge } from '@/lib/notifications';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
@@ -1506,6 +1507,10 @@ export default function SessionScreen() {
     sessionTerminatedRef.current = true;
     clearActiveSession();
     void uploadUserData(useAppStore.getState().getDataForSync());
+    if (Platform.OS !== 'web') {
+      Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+      void scheduleMissedWorkoutNudge();
+    }
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);
@@ -1745,7 +1750,13 @@ export default function SessionScreen() {
               <Text style={styles.abandonBtnSaveText}>Save & exit</Text>
             </Pressable>
             <Pressable
-              onPress={() => { sessionTerminatedRef.current = true; clearActiveSession(); setShowAbandonModal(false); router.back(); }}
+              onPress={() => {
+                sessionTerminatedRef.current = true;
+                clearActiveSession();
+                if (Platform.OS !== 'web') Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+                setShowAbandonModal(false);
+                router.back();
+              }}
               style={[styles.abandonBtn, styles.abandonBtnDiscard]}
               testID="abandon-discard"
             >

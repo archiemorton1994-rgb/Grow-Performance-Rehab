@@ -27,6 +27,8 @@ import {
   cancelWorkoutReminder,
   formatReminderTime,
   REMINDER_TIME_OPTIONS,
+  scheduleMissedWorkoutNudge,
+  cancelMissedWorkoutNudge,
 } from '@/lib/notifications';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
@@ -84,6 +86,8 @@ export default function ProfileScreen() {
     setReminderEnabled,
     reminderTime,
     setReminderTime,
+    nudgeEnabled,
+    setNudgeEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
   } = useAppStore();
@@ -757,6 +761,34 @@ export default function ProfileScreen() {
                     ))}
                   </ScrollView>
                 )}
+
+                <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Missed Workout Nudge</Text>
+                <Text style={styles.settingItemSub}>Reminds you to train if you haven't opened the app in 20 hours</Text>
+                <View style={styles.reminderToggleRow}>
+                  <Text style={styles.reminderToggleLabel}>
+                    {nudgeEnabled ? 'On' : 'Off'}
+                  </Text>
+                  <Switch
+                    value={nudgeEnabled}
+                    onValueChange={async (value) => {
+                      setNudgeEnabled(value);
+                      if (value) {
+                        const granted = await requestNotificationPermission();
+                        if (granted) {
+                          void scheduleMissedWorkoutNudge();
+                        } else {
+                          setNudgeEnabled(false);
+                        }
+                      } else {
+                        void cancelMissedWorkoutNudge();
+                      }
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor={C.textInverse}
+                    testID="nudge-toggle"
+                  />
+                </View>
               </>
             ) : (
               <Text style={styles.reminderWebNote}>Reminders are available on iOS and Android only.</Text>

@@ -172,6 +172,8 @@ interface AppState {
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
   reminderTime: string;
+  /** Whether the "missed workout" nudge notification is enabled. */
+  nudgeEnabled: boolean;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
   /** URI of the user's profile photo (local file URI from image picker). Null if not set. */
@@ -215,6 +217,7 @@ interface AppState {
   setReviewPromptShown: (shown: boolean) => void;
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
+  setNudgeEnabled: (enabled: boolean) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
@@ -269,6 +272,7 @@ export const useAppStore = create<AppState>()(
       reviewPromptShown: false,
       reminderEnabled: false,
       reminderTime: '07:00',
+      nudgeEnabled: true,
       cycleStartOffset: 0,
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -295,6 +299,7 @@ export const useAppStore = create<AppState>()(
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
+      setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
@@ -638,6 +643,9 @@ export const useAppStore = create<AppState>()(
         delete persistedState.feedbackGivenAtCount;
         if (!('historyTypeFilter' in persistedState)) {
           persistedState.historyTypeFilter = null;
+        }
+        if (!('nudgeEnabled' in persistedState)) {
+          persistedState.nudgeEnabled = true;
         }
         return persistedState;
       },

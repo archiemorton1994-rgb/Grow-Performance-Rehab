@@ -10,6 +10,8 @@ import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
+  AppState,
+  AppStateStatus,
   Modal,
   View,
   Text,
@@ -29,7 +31,7 @@ import { useAppStore } from "@/lib/store";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useColors } from "@/constants/colors";
 import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
-import { scheduleWorkoutReminder } from "@/lib/notifications";
+import { scheduleWorkoutReminder, scheduleMissedWorkoutNudge } from "@/lib/notifications";
 
 if (!__DEV__) {
   type EUType = {
@@ -256,6 +258,21 @@ function RootLayoutNav() {
       scheduleWorkoutReminder(reminderTime).catch(() => {});
     }
   }, [hasHydrated]);
+
+  const { nudgeEnabled } = useAppStore();
+
+  useEffect(() => {
+    if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
+    if (nudgeEnabled) {
+      scheduleMissedWorkoutNudge().catch(() => {});
+    }
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active' && nudgeEnabled) {
+        scheduleMissedWorkoutNudge().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [hasHydrated, isAuthenticated, hasActiveSubscription, nudgeEnabled]);
 
   return (
     <>
