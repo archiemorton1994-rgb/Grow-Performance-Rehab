@@ -411,10 +411,6 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
-  const ALL_PAIN_REGIONS: Array<{ id: PainRegion; label: string }> = (
-    Object.values(PAIN_CATEGORIES) as Array<{ label: string; regions: Array<{ id: PainRegion; label: string }> }>
-  ).flatMap((cat) => cat.regions);
-
   const renderPrehabFocus = () => (
     <Animated.View key="prehabFocus" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
       <ScrollView
@@ -439,20 +435,32 @@ export default function ReadinessScreen() {
             <Text style={[styles.areaLabel, { flex: 1, color: C.primary }]}>Full body circuit</Text>
             <Ionicons name="chevron-forward" size={16} color={C.primary} />
           </Pressable>
-          {ALL_PAIN_REGIONS.map((r) => (
-            <Pressable
-              key={r.id}
-              onPress={() => handlePrehabFocus(r.id)}
-              style={({ pressed }) => [styles.areaButton, { paddingVertical: 10 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-              testID={`prehab-region-${r.id}`}
-            >
-              <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
-                <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.primary} />
+          {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((catKey) => {
+            const cat = PAIN_CATEGORIES[catKey];
+            const iconInfo = CATEGORY_ICONS[catKey];
+            return (
+              <View key={catKey}>
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name={iconInfo.icon} size={13} color={iconInfo.color} />
+                  <Text style={[styles.sectionHeaderLabel, { color: iconInfo.color }]}>{cat.label}</Text>
+                </View>
+                {cat.regions.map((r) => (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => handlePrehabFocus(r.id)}
+                    style={({ pressed }) => [styles.areaButton, { paddingVertical: 10, marginBottom: 7 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                    testID={`prehab-region-${r.id}`}
+                  >
+                    <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
+                      <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.primary} />
+                    </View>
+                    <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+                  </Pressable>
+                ))}
               </View>
-              <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-            </Pressable>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     </Animated.View>
@@ -643,5 +651,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     areaCatContent: { flex: 1 },
     areaLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     areaSublabel: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, marginBottom: 8 },
+    sectionHeaderLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', textTransform: 'uppercase' as const, letterSpacing: 0.6 },
   });
 }
