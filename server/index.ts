@@ -278,10 +278,22 @@ function setupErrorHandler(app: express.Application) {
 
         let html = await metroRes.text();
 
-        // The bundle URL in Metro's HTML is a relative path (/node_modules/expo-router/entry.bundle?...)
-        // which resolves to the same origin (port 5000, Express). The devProxy middleware below
-        // forwards those bundle requests to Metro on port 8082. Keeping it same-origin means
-        // window.onerror receives full error details (cross-origin scripts only report "Script error.").
+        // Metro's HTML references the bundle with a relative path
+        // (/node_modules/expo-router/entry.bundle?...) which resolves to this
+        // origin (Express). Streaming the ~12 MB bundle through the Express
+        // double-proxy takes ~38 s, so the preview times out. Rewrite the
+        // relative bundle/asset URLs to Metro's direct external port (3000),
+        // which Replit exposes with localhost streaming and serves the same
+        // bundle in <1 s. Native (Expo Go / simulator) is handled separately
+        // via EXPO_PACKAGER_PROXY_URL pointing at :3000.
+        const devDomain = process.env.REPLIT_DEV_DOMAIN;
+        if (devDomain) {
+          const metroOrigin = `https://${devDomain}:3000`;
+          html = html.replace(
+            /(<script\s+src=")(\/[^"]*\.bundle\?[^"]*)"/g,
+            `$1${metroOrigin}$2"`,
+          );
+        }
 
         replyHtml(html);
       } catch {
