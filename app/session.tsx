@@ -1510,7 +1510,7 @@ export default function SessionScreen() {
     void uploadUserData(useAppStore.getState().getDataForSync());
     if (Platform.OS !== 'web') {
       cancelRestTimerNotification();
-      void scheduleMissedWorkoutNudge();
+      if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
     }
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
@@ -1580,7 +1580,7 @@ export default function SessionScreen() {
   const handleSaveAndExit = () => {
     if (Platform.OS !== 'web') {
       cancelRestTimerNotification();
-      void scheduleMissedWorkoutNudge();
+      if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
     }
     const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
@@ -1760,7 +1760,7 @@ export default function SessionScreen() {
                 clearActiveSession();
                 if (Platform.OS !== 'web') {
                   cancelRestTimerNotification();
-                  void scheduleMissedWorkoutNudge();
+                  if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
                 }
                 setShowAbandonModal(false);
                 router.back();
