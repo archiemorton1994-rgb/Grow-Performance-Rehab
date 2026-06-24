@@ -73,6 +73,10 @@ export const REMINDER_TIME_OPTIONS: string[] = [
   '12:00', '17:00', '18:00', '19:00', '20:00',
 ];
 
+export const STREAK_TIME_OPTIONS: string[] = [
+  '17:00', '18:00', '19:00', '20:00', '21:00',
+];
+
 const NUDGE_ID = 'grow-missed-workout';
 const NUDGE_INTERVAL_SECONDS = 72000; // 20 hours
 

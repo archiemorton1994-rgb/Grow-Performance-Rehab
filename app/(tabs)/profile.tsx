@@ -27,6 +27,7 @@ import {
   cancelWorkoutReminder,
   formatReminderTime,
   REMINDER_TIME_OPTIONS,
+  STREAK_TIME_OPTIONS,
   scheduleMissedWorkoutNudge,
   cancelMissedWorkoutNudge,
   scheduleStreakProtectionAlert,
@@ -867,7 +868,7 @@ export default function ProfileScreen() {
                     style={styles.timeScroll}
                     contentContainerStyle={styles.timeScrollContent}
                   >
-                    {REMINDER_TIME_OPTIONS.map(t => (
+                    {STREAK_TIME_OPTIONS.map(t => (
                       <Pressable
                         key={t}
                         onPress={async () => {

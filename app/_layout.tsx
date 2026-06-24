@@ -73,30 +73,6 @@ if (Platform.OS !== 'web') {
   SplashScreen.preventAutoHideAsync().catch(() => {});
 }
 
-if (Platform.OS === 'web' && typeof window !== 'undefined') {
-  // DEBUG: module-level DOM probe — if this lime bar shows in screenshot the bundle is executing
-  try {
-    const probe = document.createElement('div');
-    probe.id = '__grow_probe__';
-    probe.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:6px;background:lime;z-index:999999;pointer-events:none;';
-    document.documentElement.appendChild(probe);
-  } catch (_) {}
-
-  const showDomError = (label: string, msg: string) => {
-    try {
-      const el = document.createElement('div');
-      el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;word-break:break-all;';
-      el.textContent = label + ': ' + msg;
-      document.body.appendChild(el);
-    } catch (_) {}
-  };
-  (window as any).addEventListener('error', (e: ErrorEvent) => {
-    showDomError('JS ERROR', (e.message || '') + ' @ ' + (e.filename || '') + ':' + e.lineno);
-  });
-  (window as any).addEventListener('unhandledrejection', (e: PromiseRejectionEvent) => {
-    showDomError('UNHANDLED REJECTION', String((e as any).reason?.message || (e as any).reason || 'unknown'));
-  });
-}
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -288,7 +264,7 @@ function RootLayoutNav() {
     }
   }, [hasHydrated]);
 
-  const { nudgeEnabled, streakProtectionEnabled, completedSessions, getStreakDays } = useAppStore();
+  const { nudgeEnabled, streakProtectionEnabled, streakProtectionTime, completedSessions, getStreakDays } = useAppStore();
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
@@ -309,7 +285,7 @@ function RootLayoutNav() {
     const trainedToday = completedSessions.some(s => s.date.slice(0, 10) === today);
     const streak = getStreakDays();
     if (streakProtectionEnabled && streak >= 2 && !trainedToday) {
-      scheduleStreakProtectionAlert().catch(() => {});
+      scheduleStreakProtectionAlert(streakProtectionTime).catch(() => {});
     } else {
       cancelStreakProtectionAlert().catch(() => {});
     }
@@ -318,8 +294,9 @@ function RootLayoutNav() {
       const todayNow = new Date().toISOString().slice(0, 10);
       const trainedNow = useAppStore.getState().completedSessions.some(s => s.date.slice(0, 10) === todayNow);
       const streakNow = useAppStore.getState().getStreakDays();
-      if (useAppStore.getState().streakProtectionEnabled && streakNow >= 2 && !trainedNow) {
-        scheduleStreakProtectionAlert().catch(() => {});
+      const state = useAppStore.getState();
+      if (state.streakProtectionEnabled && streakNow >= 2 && !trainedNow) {
+        scheduleStreakProtectionAlert(state.streakProtectionTime).catch(() => {});
       } else {
         cancelStreakProtectionAlert().catch(() => {});
       }
