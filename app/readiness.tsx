@@ -317,7 +317,7 @@ export default function ReadinessScreen() {
 
         {/* Aches */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Any aches today?</Text>
+          <Text style={styles.sectionTitle}>Any pain or soreness?</Text>
           <View style={styles.pillRow}>
             <Pressable
               onPress={() => { hapticTap(); setHasAches(false); }}
@@ -463,8 +463,8 @@ export default function ReadinessScreen() {
       <View style={styles.questionIcon}>
         <Ionicons name="body-outline" size={28} color={C.warning} />
       </View>
-      <Text style={styles.question}>What area are you experiencing pain?</Text>
-      <Text style={styles.questionSub}>Select the body region</Text>
+      <Text style={styles.question}>Any pain or muscle soreness?</Text>
+      <Text style={styles.questionSub}>Select the affected area - we'll adjust exercises</Text>
       <View style={styles.areaButtons}>
         {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((key) => {
           const cat = PAIN_CATEGORIES[key];
