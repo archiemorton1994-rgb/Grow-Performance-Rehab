@@ -114,3 +114,12 @@ export async function cancelMissedWorkoutNudge(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(NUDGE_ID);
   } catch {}
 }
+
+export const REST_TIMER_NOTIF_ID = 'grow-rest-timer';
+
+export async function cancelRestTimerNotification(): Promise<void> {
+  if (!isNotificationsSupported()) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(REST_TIMER_NOTIF_ID);
+  } catch {}
+}

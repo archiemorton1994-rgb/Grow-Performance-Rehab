@@ -26,7 +26,7 @@ import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyl
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
-import { scheduleMissedWorkoutNudge } from '@/lib/notifications';
+import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
@@ -119,8 +119,8 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   const notifIdRef = useRef<string | null>(null);
 
   const cancelNotif = useCallback(async () => {
-    if (notifIdRef.current && Platform.OS !== 'web') {
-      await Notifications.cancelScheduledNotificationAsync(notifIdRef.current).catch(() => {});
+    if (Platform.OS !== 'web') {
+      await Notifications.cancelScheduledNotificationAsync(REST_TIMER_NOTIF_ID).catch(() => {});
       notifIdRef.current = null;
     }
   }, []);
@@ -131,11 +131,12 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     try {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') return;
-      const id = await Notifications.scheduleNotificationAsync({
+      await Notifications.scheduleNotificationAsync({
+        identifier: REST_TIMER_NOTIF_ID,
         content: { title: 'Rest Complete', body: 'Time to hit your next set!', sound: true },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
       });
-      notifIdRef.current = id;
+      notifIdRef.current = REST_TIMER_NOTIF_ID;
     } catch (_) {}
   }, [cancelNotif]);
 
@@ -1508,7 +1509,7 @@ export default function SessionScreen() {
     clearActiveSession();
     void uploadUserData(useAppStore.getState().getDataForSync());
     if (Platform.OS !== 'web') {
-      Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+      cancelRestTimerNotification();
       void scheduleMissedWorkoutNudge();
     }
     setIsMilestone(hitsMilestone);
@@ -1577,6 +1578,10 @@ export default function SessionScreen() {
   };
 
   const handleSaveAndExit = () => {
+    if (Platform.OS !== 'web') {
+      cancelRestTimerNotification();
+      void scheduleMissedWorkoutNudge();
+    }
     const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
     setActiveSession({
@@ -1753,7 +1758,10 @@ export default function SessionScreen() {
               onPress={() => {
                 sessionTerminatedRef.current = true;
                 clearActiveSession();
-                if (Platform.OS !== 'web') Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+                if (Platform.OS !== 'web') {
+                  cancelRestTimerNotification();
+                  void scheduleMissedWorkoutNudge();
+                }
                 setShowAbandonModal(false);
                 router.back();
               }}
