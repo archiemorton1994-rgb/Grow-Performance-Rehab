@@ -244,14 +244,86 @@ function setupErrorHandler(app: express.Application) {
   let devProxy: ReturnType<typeof createProxyMiddleware> | undefined;
   if (process.env.NODE_ENV === "development") {
     const METRO_PORT = process.env.METRO_PORT || "8082";
+    const LOADING_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="2"><title>Starting…</title><style>body{margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}</style></head><body><div style="text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">⚡</div><div>Dev server starting…</div><div style="font-size:.75rem;opacity:.5;margin-top:.5rem">Refreshing automatically</div></div></body></html>`;
+
+    // Serve root path for web browsers: fetch Metro HTML and rewrite the bundle
+    // script URL to use Metro's direct external port (3000).  This bypasses the
+    // double-proxy chain for the 11 MB bundle, which Replit's external reverse
+    // proxy cannot reliably buffer/stream at that size.
+    app.get("/", async (req: Request, res: Response, next: NextFunction) => {
+      // Native Expo Go requests carry an expo-platform header — let the
+      // standard proxy handle those so the existing native flow is unchanged.
+      const platform = req.header("expo-platform");
+      if (platform === "ios" || platform === "android") {
+        return next();
+      }
+
+      const replyHtml = (html: string) => {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        res.send(html);
+      };
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
+        const metroRes = await fetch(`http://127.0.0.1:${METRO_PORT}/`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+
+        if (!metroRes.ok) {
+          return replyHtml(LOADING_HTML);
+        }
+
+        let html = await metroRes.text();
+
+        // The bundle URL in Metro's HTML is a relative path (/node_modules/expo-router/entry.bundle?...)
+        // which resolves to the same origin (port 5000, Express). The devProxy middleware below
+        // forwards those bundle requests to Metro on port 8082. Keeping it same-origin means
+        // window.onerror receives full error details (cross-origin scripts only report "Script error.").
+
+        replyHtml(html);
+      } catch {
+        // Metro not ready yet — show a self-refreshing page
+        replyHtml(LOADING_HTML);
+      }
+    });
+
     devProxy = createProxyMiddleware({
       pathFilter: (pathname: string) =>
         !pathname.startsWith("/api") &&
         pathname !== "/privacy" &&
         pathname !== "/terms",
-      target: `http://localhost:${METRO_PORT}`,
+      target: `http://127.0.0.1:${METRO_PORT}`,
       changeOrigin: true,
       ws: true,
+      proxyTimeout: 0,
+      timeout: 0,
+      on: {
+        proxyReq: (proxyReq) => {
+          proxyReq.removeHeader('x-forwarded-host');
+          proxyReq.removeHeader('x-forwarded-for');
+          proxyReq.removeHeader('x-real-ip');
+        },
+        error: (err, req, res) => {
+          const nodeErr = err as NodeJS.ErrnoException;
+          console.error(`[devProxy] error proxying ${req.method} ${(req as express.Request).path}: ${nodeErr.code}`);
+          if ('writeHead' in res && typeof (res as import('http').ServerResponse).writeHead === 'function') {
+            const sr = res as import('http').ServerResponse;
+            if (!sr.headersSent) {
+              if (nodeErr.code === 'ECONNREFUSED' || nodeErr.code === 'ECONNRESET') {
+                // Metro not ready yet — auto-refresh until it is
+                sr.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                sr.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="2"><title>Starting…</title><style>body{margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}</style></head><body><div style="text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">⚡</div><div>Dev server starting…</div><div style="font-size:.75rem;opacity:.5;margin-top:.5rem">Refreshing automatically</div></div></body></html>`);
+              } else {
+                sr.writeHead(502, { 'Content-Type': 'text/plain' });
+                sr.end(`Proxy error: ${nodeErr.code} – ${nodeErr.message}`);
+              }
+            }
+          }
+        },
+      },
     });
     app.use(devProxy);
   }
