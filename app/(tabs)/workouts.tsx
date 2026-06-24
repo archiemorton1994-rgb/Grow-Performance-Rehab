@@ -292,7 +292,7 @@ function StrengthLineChart({
           <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primary }}>{formatWeight(data[0].weight, weightUnit)}</Text>
         </View>
         <View style={{ height: LINE_CHART_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>1 record — keep training!</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>1 record - keep training!</Text>
         </View>
       </View>
     );
@@ -793,7 +793,7 @@ function OneRMCalculator({
         <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>1RM Calculator</Text>
       </View>
       <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 14 }}>
-        Epley formula — enter the weight you lifted and how many reps
+        Epley formula - enter the weight you lifted and how many reps
       </Text>
 
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
@@ -1085,7 +1085,7 @@ export default function StatsScreen() {
 
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionTitle}>Strength Progression</Text>
-                <Text style={styles.sectionSub}>Estimated 1RM — tap a dot for details</Text>
+                <Text style={styles.sectionSub}>Estimated 1RM - tap a dot for details</Text>
                 {(['squat', 'bench', 'deadlift'] as SessionType[]).map(lift => (
                   <StrengthLineChart key={lift} lift={lift} orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
                 ))}

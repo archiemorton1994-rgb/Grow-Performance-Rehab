@@ -25,7 +25,7 @@ export async function uploadUserData(payload: SyncPayload): Promise<void> {
   try {
     await apiRequest('PUT', '/api/user/data', payload);
   } catch {
-    // Silent — local data is always source of truth; upload retry on next foreground
+    // Silent - local data is always source of truth; upload retry on next foreground
   }
 }
 

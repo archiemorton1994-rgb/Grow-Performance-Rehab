@@ -123,7 +123,7 @@ function WeeklyWeightPrompt() {
   const isValidInput = !isNaN(parsedWeight) && parsedWeight > 0;
   const hasText = trimmed.length > 0;
   const inputInvalid = hasText && !isValidInput;
-  // When no weight has ever been set, require a valid value — cannot skip or confirm empty
+  // When no weight has ever been set, require a valid value - cannot skip or confirm empty
   const canConfirm = neverSetWeight ? isValidInput : !inputInvalid;
 
   const dismiss = () => {

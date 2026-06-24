@@ -194,7 +194,7 @@ export default function OtpAuthScreen() {
 
               {devCode ? (
                 <View style={styles.devBanner}>
-                  <Text style={styles.devBannerLabel}>Dev mode — your code:</Text>
+                  <Text style={styles.devBannerLabel}>Dev mode - your code:</Text>
                   <Text style={styles.devBannerCode}>{devCode}</Text>
                 </View>
               ) : null}

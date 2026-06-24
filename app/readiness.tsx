@@ -26,7 +26,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   barbell: 'Barbell and squat rack',
-  fullgym: 'Everything — cables, machines, full setup',
+  fullgym: 'Everything - cables, machines, full setup',
 };
 
 export default function ReadinessScreen() {
@@ -73,7 +73,7 @@ export default function ReadinessScreen() {
       });
     } else if (sessionType === 'conditioning' && params.energy && params.timeAvailable) {
       // Conditioning from the Flex tab: energy + duration already chosen by the
-      // level picker — skip the readiness flow and go straight to session.
+      // level picker - skip the readiness flow and go straight to session.
       const tier = getEffectiveTier(selectedEquipments);
       router.replace({
         pathname: '/session',
@@ -259,7 +259,7 @@ export default function ReadinessScreen() {
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
-              <Text style={styles.beginnerNoteText}>No Equipment & bands — great for building safe foundations</Text>
+              <Text style={styles.beginnerNoteText}>No Equipment & bands - great for building safe foundations</Text>
             </View>
           )}
           {selectedEquipments.length > 0 && (
@@ -337,7 +337,7 @@ export default function ReadinessScreen() {
             </Pressable>
           </View>
           {hasAches && (
-            <Text style={styles.achesHint}>Tap Start to select which area — exercises will be adjusted</Text>
+            <Text style={styles.achesHint}>Tap Start to select which area - exercises will be adjusted</Text>
           )}
         </View>
 
@@ -403,7 +403,7 @@ export default function ReadinessScreen() {
           testID="readiness-start"
         >
           {hasAches
-            ? <><Ionicons name="chevron-forward" size={18} color={C.textInverse} /><Text style={styles.startButtonText}>Next — select area</Text></>
+            ? <><Ionicons name="chevron-forward" size={18} color={C.textInverse} /><Text style={styles.startButtonText}>Next - select area</Text></>
             : <><Ionicons name="flash" size={18} color={C.textInverse} /><Text style={styles.startButtonText}>Start Session</Text></>
           }
         </Pressable>
@@ -545,7 +545,7 @@ export default function ReadinessScreen() {
             <Animated.View style={[styles.progressFill, { width: step === 'painCategory' ? '50%' : '100%' }]} />
           </View>
           <Text style={styles.stepIndicator}>
-            {step === 'painCategory' ? 'Step 1 of 2' : 'Step 2 of 2'} — Pain Region
+            {step === 'painCategory' ? 'Step 1 of 2' : 'Step 2 of 2'} - Pain Region
           </Text>
         </View>
       )}

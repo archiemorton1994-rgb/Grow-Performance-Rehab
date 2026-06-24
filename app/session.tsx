@@ -44,26 +44,26 @@ const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
 const MILESTONE_STREAKS = [3, 7, 14, 30];
 
 function getMilestoneMessage(count: number): string {
-  if (count === 1) return "Your first session — the hardest step is done!";
-  if (count === 5) return "5 sessions down — you're building real momentum!";
-  if (count === 10) return "10 sessions! Double digits — you're making this a habit.";
-  if (count === 25) return "That's your 25th session — you're building a habit!";
+  if (count === 1) return "Your first session - the hardest step is done!";
+  if (count === 5) return "5 sessions down - you're building real momentum!";
+  if (count === 10) return "10 sessions! Double digits - you're making this a habit.";
+  if (count === 25) return "That's your 25th session - you're building a habit!";
   if (count === 50) return "50 sessions! You're halfway to triple digits. Incredible.";
   if (count === 100) return "100 sessions! You've reached an elite level of consistency.";
-  if (count === 150) return "150 sessions — that's genuinely extraordinary dedication.";
+  if (count === 150) return "150 sessions - that's genuinely extraordinary dedication.";
   if (count === 200) return "200 sessions! You are the definition of commitment.";
-  return `Session ${count} — keep going!`;
+  return `Session ${count} - keep going!`;
 }
 
 
 const CONGRATS_MESSAGES = [
-  "Absolutely smashed it! Every rep, every set — you showed up and delivered.",
+  "Absolutely smashed it! Every rep, every set - you showed up and delivered.",
   "That's what dedication looks like. Be proud of what you just achieved!",
   "Another session in the books. Your future self is thanking you right now.",
   "You did the work when it would have been easier not to. That's the difference maker.",
-  "Champion effort today. Progress doesn't happen by accident — it's built session by session.",
+  "Champion effort today. Progress doesn't happen by accident - it's built session by session.",
   "Brilliant work! Consistency like this is what transforms bodies and builds strength.",
-  "One step closer to your goals. Every session counts — and you just added another.",
+  "One step closer to your goals. Every session counts - and you just added another.",
 ];
 
 interface ExerciseSetData {
@@ -84,18 +84,18 @@ function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
 function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   if (sessionType === 'conditioning') return true;
   // Only recognise "min" (e.g. "2 min", "5min") or seconds "30s" / "30 s".
-  // Do NOT match bare "m" — that collides with meters (e.g. "40m" Farmers Carry).
+  // Do NOT match bare "m" - that collides with meters (e.g. "40m" Farmers Carry).
   return /\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
 }
 
 function parseRepsToSeconds(repsStr: string): number {
-  // "X min" or "Xmin" — explicit minutes token
+  // "X min" or "Xmin" - explicit minutes token
   const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
   if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
-  // "Xm" or "X m" — bare m as minutes (only called when we KNOW the context is time, e.g. cardio warmup)
+  // "Xm" or "X m" - bare m as minutes (only called when we KNOW the context is time, e.g. cardio warmup)
   const bareMinMatch = repsStr.match(/^(\d+(?:\.\d+)?)\s*m\b/);
   if (bareMinMatch) return Math.round(parseFloat(bareMinMatch[1]) * 60);
-  // "Xs" or "X s" — seconds
+  // "Xs" or "X s" - seconds
   const secMatch = repsStr.match(/(\d+)\s*s\b/);
   if (secMatch) return parseInt(secMatch[1], 10);
   return 5 * 60; // fallback 5 minutes
@@ -108,7 +108,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
   // should hit zero. `secondsLeft` is derived from (endAt - Date.now()) on
   // every tick, so backgrounding, scroll jank, or device sleep can never
-  // cause drift — the displayed value snaps to truth on the next interval.
+  // cause drift - the displayed value snaps to truth on the next interval.
   const [endAt, setEndAt] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
@@ -180,7 +180,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     };
     recompute();
     const timerId = setInterval(recompute, 1000);
-    // Force a re-sync the moment the app returns from background — without
+    // Force a re-sync the moment the app returns from background - without
     // this the user would see a stale countdown for up to 1s after resume.
     const sub = Platform.OS !== 'web'
       ? AppState.addEventListener('change', (s: AppStateStatus) => { if (s === 'active') recompute(); })
@@ -210,7 +210,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     // Push the absolute end-time out by 15s so the wall-clock tick picks up
     // the change naturally, and reschedule the background notification to
     // match. Falls back to seconds-from-now when no endAt exists yet (paused
-    // before timer ever started — defensive, shouldn't happen in practice).
+    // before timer ever started - defensive, shouldn't happen in practice).
     setEndAt((prev) => {
       const base = prev ?? Date.now() + secondsLeft * 1000;
       const next = base + 15 * 1000;
@@ -261,7 +261,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
           color={isRunning ? '#fff' : C.primary}
         />
         <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-          {isRunning ? `Resting — ${mm}:${ss}` : `Rest timer — ${mm}:${ss}`}
+          {isRunning ? `Resting - ${mm}:${ss}` : `Rest timer - ${mm}:${ss}`}
         </Text>
       </Pressable>
       {isRunning && (
@@ -315,7 +315,7 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
       <Animated.View>
         <Pressable onPress={reset} style={styles.restTimerDone}>
           <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-          <Text style={styles.restTimerDoneText}>Warm-up complete — tap to reset</Text>
+          <Text style={styles.restTimerDoneText}>Warm-up complete - tap to reset</Text>
         </Pressable>
       </Animated.View>
     );
@@ -333,7 +333,7 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
           color={isRunning ? '#fff' : C.primary}
         />
         <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-          {isRunning ? `Warm-up — ${mm}:${ss}` : `Cardio timer — ${mm}:${ss}`}
+          {isRunning ? `Warm-up - ${mm}:${ss}` : `Cardio timer - ${mm}:${ss}`}
         </Text>
       </Pressable>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
@@ -437,7 +437,7 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
     : data.weight;
 
   // Only show "New Record!" on sets that are already saved/completed, not while typing.
-  // data.weight is already stored in kg — no unit conversion needed.
+  // data.weight is already stored in kg - no unit conversion needed.
   const savedWeightKg = data.weight ?? 0;
   const isNewRecord = !isBandExercise && data.completed && previousBest !== undefined
     && previousBest > 0 && savedWeightKg > previousBest;
@@ -636,7 +636,7 @@ function ExerciseCard({
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
   // Show the per-hand clarification only when the exercise name doesn't already
-  // mention "DB" or "Dumbbell" — those names make the dumbbell context obvious.
+  // mention "DB" or "Dumbbell" - those names make the dumbbell context obvious.
   // Detection is fully case-insensitive and matches "DB" as a whole token so
   // unrelated words containing those letters aren't false positives.
   const nameImpliesDumbbell = /\bdb\b|dumbbell/i.test(exercise.name);
@@ -804,7 +804,7 @@ function ExerciseCard({
                     allDone ? setData.sets.length : setData.sets.findIndex(s => !s.completed)
                   );
                   // Use slice(0, activeSetIndex) but also verify each set is truly completed
-                  // — defensive for restored legacy data with irregular completion order
+                  // - defensive for restored legacy data with irregular completion order
                   const completedSets = setData.sets
                     .slice(0, activeSetIndex)
                     .filter(s => s.completed);
@@ -842,7 +842,7 @@ function ExerciseCard({
                         </ScrollView>
                       )}
 
-                      {/* Active set block — keyed by set index so it re-mounts fresh */}
+                      {/* Active set block - keyed by set index so it re-mounts fresh */}
                       {!allDone && activeSetIndex >= 0 && activeSetIndex < setData.sets.length && (
                         <ActiveSetBlock
                           key={activeSetIndex}
@@ -859,7 +859,7 @@ function ExerciseCard({
                           weightUnit={weightUnit}
                           onCompleted={() => {
                             // Suppress the rest countdown on the very last set
-                            // of the very last exercise — the session is done,
+                            // of the very last exercise - the session is done,
                             // there's nothing to rest for.
                             const isFinalSet = activeSetIndex === setData.sets.length - 1;
                             if (isLastExercise && isFinalSet) return;
@@ -878,7 +878,7 @@ function ExerciseCard({
 
                       {!allDone && onSkipExercise && (
                         <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
-                          <Text style={styles.skipExerciseLinkText}>Skip — couldn't do this exercise</Text>
+                          <Text style={styles.skipExerciseLinkText}>Skip - couldn't do this exercise</Text>
                         </Pressable>
                       )}
                     </>
@@ -939,7 +939,7 @@ export default function SessionScreen() {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
-  // Only count strength sessions for auto-progression — conditioning, prehab,
+  // Only count strength sessions for auto-progression - conditioning, prehab,
   // and flexibility sessions do not drive strength progressive overload.
   const strengthCount = completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
   const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
@@ -977,7 +977,7 @@ export default function SessionScreen() {
     return lookup;
   }, [completedSessions]);
 
-  // Per-exercise average weight from the most recent session — used as kg placeholder pre-fill
+  // Per-exercise average weight from the most recent session - used as kg placeholder pre-fill
   const previousSessionWeights = useMemo<Record<string, number>>(() => {
     const lookup: Record<string, number> = {};
     // completedSessions is newest-first
@@ -1143,7 +1143,7 @@ export default function SessionScreen() {
       idsMatch;
     if (!canRestore) return false;
     hasRestoredRef.current = true;
-    // Cap the added time to 90 min — prevents absurd timer values if the app
+    // Cap the added time to 90 min - prevents absurd timer values if the app
     // was closed overnight and then resumed (the session was not actually running).
     const timeSinceSave = Math.min(
       Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000),
@@ -1451,7 +1451,7 @@ export default function SessionScreen() {
       }
     }
 
-    // Detect milestone before saving — use total session count (all types) so conditioning/
+    // Detect milestone before saving - use total session count (all types) so conditioning/
     // flexibility sessions also trigger milestone messages (1st, 5th, 10th session, etc.)
     const newCount = completedSessions.length + 1;
     const hitsMilestone = MILESTONE_SESSIONS.includes(newCount);
@@ -1989,7 +1989,7 @@ export default function SessionScreen() {
                       <View style={styles.ormCompareItem}>
                         <Text style={styles.ormCompareLabel}>Previous</Text>
                         <Text style={styles.ormCompareValue}>
-                          {testWeekOrmData.prev ? formatWeight(testWeekOrmData.prev, weightUnit) : '—'}
+                          {testWeekOrmData.prev ? formatWeight(testWeekOrmData.prev, weightUnit) : '-'}
                         </Text>
                       </View>
                       <Ionicons name="arrow-forward" size={18} color={C.textTertiary} />

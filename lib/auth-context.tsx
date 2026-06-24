@@ -119,7 +119,7 @@ type SubscriptionCheckResult = SubscriptionStatus & { checkFailed?: boolean };
 
 async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
   if (RC_DEV_BYPASS) {
-    if (__DEV__) console.warn('[Auth] RC_DEV_BYPASS active — subscription gate skipped');
+    if (__DEV__) console.warn('[Auth] RC_DEV_BYPASS active - subscription gate skipped');
     return { isActive: true, isOnTrial: true, expiryDate: null };
   }
   if (!RC_API_KEY) {
@@ -133,7 +133,7 @@ async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
     const expiryDate = entitlement?.expirationDate ?? null;
     return { isActive: active, isOnTrial: onTrial, expiryDate };
   } catch (e) {
-    if (__DEV__) console.warn('[Auth] getCustomerInfo failed — keeping existing subscription state', e);
+    if (__DEV__) console.warn('[Auth] getCustomerInfo failed - keeping existing subscription state', e);
     return { isActive: false, isOnTrial: false, expiryDate: null, checkFailed: true };
   }
 }
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (serverData) {
           useAppStore.getState().mergeServerData(serverData);
         } else {
-          // First time this account is seen on any device — upload local data
+          // First time this account is seen on any device - upload local data
           void uploadUserData(useAppStore.getState().getDataForSync());
         }
       } catch {

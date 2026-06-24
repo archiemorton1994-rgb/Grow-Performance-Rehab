@@ -44,12 +44,12 @@ function getContextMessage(
     return "Welcome to your program. Let's build something lasting.";
   }
   if (testWeek) {
-    return "Test week is here — show yourself how far you've come.";
+    return "Test week is here - show yourself how far you've come.";
   }
   const sessionsToTest = testWeekFrequency - (completedCount % testWeekFrequency);
   if (sessionsToTest <= 2) {
     const s = sessionsToTest === 1 ? 'session' : 'sessions';
-    return `${sessionsToTest} ${s} until your next strength test — finish strong.`;
+    return `${sessionsToTest} ${s} until your next strength test - finish strong.`;
   }
   if (completedCount === 1) {
     return "First session in the books. The habit has begun.";
@@ -59,10 +59,10 @@ function getContextMessage(
     return "New cycle started. Each one builds on the last.";
   }
   if (cycleSession >= 7) {
-    return "Final stretch of this cycle — finish it strong.";
+    return "Final stretch of this cycle - finish it strong.";
   }
   if (completedCount < 6) {
-    return "Early days — this is where the foundations are laid.";
+    return "Early days - this is where the foundations are laid.";
   }
   return "Momentum is building. Every session moves the needle.";
 }
@@ -299,7 +299,7 @@ export default function TrainScreen() {
         <EmptyState
           icon="barbell-outline"
           title="Your program starts here"
-          subtitle={`Complete your first session from the Home tab to begin your progress timeline — Squat · Bench · Deadlift on ${getEquipmentLabel(equipmentTier)}.`}
+          subtitle={`Complete your first session from the Home tab to begin your progress timeline - Squat · Bench · Deadlift on ${getEquipmentLabel(equipmentTier)}.`}
           testID="train-empty-state"
         />
       ) : (

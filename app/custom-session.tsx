@@ -640,7 +640,7 @@ export default function CustomSessionScreen() {
               <View style={styles.selectionHint}>
                 <Ionicons name="hand-left-outline" size={14} color={C.primary} />
                 <Text style={styles.selectionHintText}>
-                  Tap an exercise to add it — select at least one to start
+                  Tap an exercise to add it - select at least one to start
                 </Text>
               </View>
             )}
@@ -678,7 +678,7 @@ export default function CustomSessionScreen() {
         >
           <Ionicons name="information-circle" size={18} color={C.textInverse} />
           <Text style={styles.emptiedToastText}>
-            All exercises removed — tap one to add it back
+            All exercises removed - tap one to add it back
           </Text>
         </Animated.View>
       )}

@@ -247,12 +247,12 @@ export default function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Hero card — always the unified Today block (or first-session chooser for brand-new users) */}
+        {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
         {completedSessions.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
             <Text style={styles.todayLabel}>Choose Your First Session</Text>
             <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
-              Pick where to start — your program rotates automatically from here.
+              Pick where to start - your program rotates automatically from here.
             </Text>
             {([
               { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', color: C.primary, bg: C.primaryMuted },
@@ -317,7 +317,7 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Stats strip — always visible */}
+        {/* Stats strip - always visible */}
         <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{streak}</Text>
@@ -335,7 +335,7 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Strength progress insight — best 1RM with gain since first test */}
+        {/* Strength progress insight - best 1RM with gain since first test */}
         {topLift && completedSessions.length > 0 && (
           <Animated.View entering={FadeInDown.delay(150).duration(380)} style={styles.strengthInsightCard}>
             <Ionicons name="barbell-outline" size={14} color={C.primary} />
@@ -354,7 +354,7 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* Secondary actionable card — priority: resume > milestone > broken streak (mutually exclusive) */}
+        {/* Secondary actionable card - priority: resume > milestone > broken streak (mutually exclusive) */}
         {activeSession ? (
           <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.resumeSecondary}>
             <View style={styles.resumeIcon}>
@@ -390,7 +390,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.milestoneTitle}>{milestoneHit} sessions completed</Text>
-              <Text style={styles.milestoneSub}>You just unlocked a new milestone — keep it going.</Text>
+              <Text style={styles.milestoneSub}>You just unlocked a new milestone - keep it going.</Text>
             </View>
           </Animated.View>
         ) : missedStreakWarning ? (

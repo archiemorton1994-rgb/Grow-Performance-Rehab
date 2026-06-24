@@ -359,8 +359,8 @@ export const useAppStore = create<AppState>()(
           // Derive per-exercise session performance from actual set completion data.
           // This is the primary input for the workout engine's progressive overload
           // decisions in the next session.
-          //   'failed'  — at least one set was not completed and not explicitly skipped
-          //   'normal'  — all sets were completed (or skipped) successfully
+          //   'failed'  - at least one set was not completed and not explicitly skipped
+          //   'normal'  - all sets were completed (or skipped) successfully
           // Post-session feedback (thumbs/tooEasy) can upgrade 'normal' → 'easy'
           // or downgrade 'normal' → 'failed' via setExerciseFeedback.
           const newPerformance: Record<string, 'easy' | 'normal' | 'failed'> = {
@@ -373,7 +373,7 @@ export const useAppStore = create<AppState>()(
           const newStreak = { ...state.exerciseNormalStreak };
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
-            // If every set was skipped the user didn't perform the exercise at all —
+            // If every set was skipped the user didn't perform the exercise at all -
             // treat as a no-op so we don't advance load or streak for a skipped exercise.
             const allSkipped = log.sets.length > 0 && log.sets.every((s) => s.skipped);
             if (allSkipped) continue;
@@ -431,7 +431,7 @@ export const useAppStore = create<AppState>()(
         } else if (thumbs === 'down') {
           newMult = parseFloat(Math.max(0.70, currentMult - 0.05).toFixed(3));
         }
-        // Thumbs feedback also updates lastSessionPerformance — this is the
+        // Thumbs feedback also updates lastSessionPerformance - this is the
         // post-session override that adjusts what completeSession computed from
         // raw set data (e.g. user completed all sets but found it easy = 'easy').
         const performance = thumbs === 'up' ? 'easy' : thumbs === 'down' ? 'failed' : state.lastSessionPerformance[exerciseId];
@@ -449,7 +449,7 @@ export const useAppStore = create<AppState>()(
             ...(performance ? { [exerciseId]: performance } : {}),
           },
           // Any explicit feedback resets the consecutive-normal streak for this
-          // exercise — the streak only counts sessions with zero intervention.
+          // exercise - the streak only counts sessions with zero intervention.
           exerciseNormalStreak: {
             ...state.exerciseNormalStreak,
             [exerciseId]: 0,
@@ -468,9 +468,9 @@ export const useAppStore = create<AppState>()(
             thumbs: updated[id]?.thumbs ?? null,
             multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
           };
-          // Mark performance as 'easy' — user found this exercise manageable
+          // Mark performance as 'easy' - user found this exercise manageable
           updatedPerformance[id] = 'easy';
-          // Reset streak — explicit feedback interrupts the no-feedback run
+          // Reset streak - explicit feedback interrupts the no-feedback run
           updatedStreak[id] = 0;
         }
         return {
@@ -513,7 +513,7 @@ export const useAppStore = create<AppState>()(
 
         const sortedDays = Array.from(uniqueDays).sort((a, b) => b - a);
 
-        // Allow streak to survive if the user hasn't trained yet today — start
+        // Allow streak to survive if the user hasn't trained yet today - start
         // counting from yesterday so the streak isn't zeroed out at midnight.
         const todayMs = today.getTime();
         const hasTodaySession = uniqueDays.has(todayMs);

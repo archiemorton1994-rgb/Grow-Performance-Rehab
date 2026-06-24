@@ -110,7 +110,7 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
             <View style={styles.pbBadge}>
               <Ionicons name="trophy" size={13} color="#f59e0b" />
               <Text style={styles.pbText} numberOfLines={1}>
-                New PB — {newPb.exerciseName} {pbWeightDisplay}
+                New PB - {newPb.exerciseName} {pbWeightDisplay}
               </Text>
             </View>
           )}

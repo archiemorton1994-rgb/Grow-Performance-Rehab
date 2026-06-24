@@ -208,7 +208,7 @@ export default function ProfileScreen() {
   const editWeightTrimmed = editWeight.trim();
   const editWeightParsed = /^\d+(\.\d+)?$/.test(editWeightTrimmed) ? parseFloat(editWeightTrimmed) : NaN;
   // Bodyweight is required to save. Empty / whitespace / non-numeric / 0 / negative
-  // all fail validation — the Save button is disabled and an inline error is shown.
+  // all fail validation - the Save button is disabled and an inline error is shown.
   // This prevents the silent "save did nothing" bug where the field fell back to the
   // existing bodyweight without telling the user the new value wasn't applied.
   const editWeightValid = editWeightTrimmed !== '' && !isNaN(editWeightParsed) && editWeightParsed > 0;
@@ -385,7 +385,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Strength-to-bodyweight ratio strip — only shown when 1RM data + bodyweight are both set */}
+        {/* Strength-to-bodyweight ratio strip - only shown when 1RM data + bodyweight are both set */}
         {oneRepMaxes.length > 0 && userProfile.bodyweightKg > 0 && (() => {
           const lifts = (['squat', 'bench', 'deadlift'] as const)
             .map(lift => ({ lift, orm: getBestORM(lift) }))
@@ -417,7 +417,7 @@ export default function ProfileScreen() {
           );
         })()}
 
-        {/* Subscription compact strip — kept on the main view per spec
+        {/* Subscription compact strip - kept on the main view per spec
             ("status visible at a glance, even with settings collapsed"). */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
           {hasActiveSubscription ? (
@@ -466,7 +466,7 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
-        {/* Single Settings entry — everything else lives behind here */}
+        {/* Single Settings entry - everything else lives behind here */}
         <Animated.View entering={FadeInDown.delay(180).duration(400)}>
           <Pressable
             onPress={() => {
@@ -553,7 +553,7 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.inputLabel}>Goals</Text>
-            <Text style={styles.inputHint}>Pick up to 2 — they shape your weights and volume</Text>
+            <Text style={styles.inputHint}>Pick up to 2 - they shape your weights and volume</Text>
             <View style={styles.goalGroup}>
               {GOAL_OPTIONS.map(opt => {
                 const isActive = editGoals.includes(opt.value);
@@ -593,7 +593,7 @@ export default function ProfileScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Equipment</Text>
             <Text style={styles.sheetSub}>
-              Select everything available to you — we use the best match for each session
+              Select everything available to you - we use the best match for each session
             </Text>
             {userProfile.experienceLevel === 'beginner' && (
               <View style={styles.upgradeNote}>
@@ -723,7 +723,7 @@ export default function ProfileScreen() {
 
             <View style={styles.settingDivider} />
 
-            {/* Profile rows — open the existing modals via the returnToSettings flag */}
+            {/* Profile rows - open the existing modals via the returnToSettings flag */}
             <Text style={styles.settingSectionLabel}>Profile</Text>
             <Pressable onPress={() => openFromSettings('edit')} style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]} testID="open-edit-details">
               <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
@@ -836,7 +836,7 @@ export default function ProfileScreen() {
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
                     {streakProtectionEnabled && streak >= 2
-                      ? `On at ${formatReminderTime(streakProtectionTime)} — ${streak}-day streak`
+                      ? `On at ${formatReminderTime(streakProtectionTime)} - ${streak}-day streak`
                       : streakProtectionEnabled
                       ? `On at ${formatReminderTime(streakProtectionTime)}`
                       : 'Off'}
@@ -962,7 +962,7 @@ export default function ProfileScreen() {
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Manage Subscription</Text>
                   <Text style={styles.navSub}>
-                    {isOnTrial ? 'Free trial — change or cancel anytime' : 'Change plan or cancel'}
+                    {isOnTrial ? 'Free trial - change or cancel anytime' : 'Change plan or cancel'}
                   </Text>
                 </View>
                 <Ionicons name="open-outline" size={14} color={C.textTertiary} />

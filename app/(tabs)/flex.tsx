@@ -234,7 +234,7 @@ export default function FlexScreen() {
         <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
       </View>
 
-      {/* Nav card list — intrinsic height, no overflow:hidden anywhere.
+      {/* Nav card list - intrinsic height, no overflow:hidden anywhere.
           The outer navGrid ring supplies the border. Corner rounding is applied
           directly to the first/last row Pressables (navBtnFirst/navBtnLast),
           which is the only approach that survives RN Web resize/reflow. */}
@@ -346,7 +346,7 @@ export default function FlexScreen() {
             </View>
 
             <Text style={styles.sheetDesc}>
-              Pick your intensity. Your session will be matched to your equipment and the selected level — from a steady aerobic circuit to a high-intensity HIIT blast.
+              Pick your intensity. Your session will be matched to your equipment and the selected level - from a steady aerobic circuit to a high-intensity HIIT blast.
             </Text>
 
             <View style={styles.levelList}>

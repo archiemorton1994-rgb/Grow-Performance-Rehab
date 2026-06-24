@@ -37,7 +37,7 @@ export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
-      title: 'Grow — Time to Train',
+      title: 'Grow - Time to Train',
       body,
       data: { screen: 'train', url: 'growperformance:///(tabs)' },
       sound: true,
@@ -85,7 +85,7 @@ const NUDGE_BODIES = [
   "You haven't trained today. Even 30 minutes makes a difference.",
   "Consistency is everything. Time to get one in.",
   "Your body is ready. Come get a session in.",
-  "Don't break the streak — your workout is right here.",
+  "Don't break the streak - your workout is right here.",
 ];
 
 export async function scheduleMissedWorkoutNudge(): Promise<void> {
@@ -134,7 +134,7 @@ export async function scheduleStreakProtectionAlert(timeStr: string = '20:00'): 
       identifier: STREAK_PROTECTION_ID,
       content: {
         title: '🔥 Your streak is at risk!',
-        body: "Train today to keep your streak alive — don't let it slip.",
+        body: "Train today to keep your streak alive - don't let it slip.",
         sound: true,
         data: { screen: 'train' },
       },

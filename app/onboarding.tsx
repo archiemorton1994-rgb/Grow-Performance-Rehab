@@ -97,7 +97,7 @@ const EQUIPMENT_OPTIONS: {
   { value: 'dumbbells', label: 'Dumbbells', description: 'Adjustable dumbbells', icon: 'barbell-outline' },
   { value: 'kettlebells', label: 'Kettlebells', description: 'Kettlebells available', icon: 'fitness-outline' },
   { value: 'barbell', label: 'Barbell / Squat Rack', description: 'Barbell and squat rack', icon: 'barbell-outline' },
-  { value: 'fullgym', label: 'Full Gym', description: 'Everything — cables, machines, full setup', icon: 'business-outline' },
+  { value: 'fullgym', label: 'Full Gym', description: 'Everything - cables, machines, full setup', icon: 'business-outline' },
 ];
 
 function experienceLabel(e: ExperienceLevel | null): string {
@@ -622,7 +622,7 @@ export default function OnboardingScreen() {
                 <Ionicons name="podium-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
-              <Text style={styles.hint}>Optional — used to set starting weights precisely</Text>
+              <Text style={styles.hint}>Optional - used to set starting weights precisely</Text>
               <View style={styles.liftRows}>
                 <LiftInput
                   label="Back Squat"
@@ -644,7 +644,7 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
-                <Text style={styles.skipText}>Skip — add these later</Text>
+                <Text style={styles.skipText}>Skip - add these later</Text>
               </Pressable>
             </ScrollView>
           </View>
@@ -747,7 +747,7 @@ function LiftInput({
           value={value}
           onChangeText={onChangeText}
           keyboardType="decimal-pad"
-          placeholder="—"
+          placeholder="-"
           placeholderTextColor={C.textTertiary}
           selectTextOnFocus
           testID={testID}

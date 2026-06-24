@@ -29,13 +29,13 @@ const FEATURES = [
 
 const INCLUDED_ITEMS = [
   'Unlimited sessions across all 6 session types',
-  '5 equipment tiers — bodyweight to full gym',
+  '5 equipment tiers - bodyweight to full gym',
   'Per-set weight logging with auto-progression',
   'Per-exercise load tracking across sessions',
   'Strength test weeks with 1RM tracking',
   'Pain-aware exercise swaps (11 body regions)',
   'Readiness-adjusted volume every session',
-  'Session resume — pick up where you left off',
+  'Session resume - pick up where you left off',
 ];
 
 function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: string; sub: string } {

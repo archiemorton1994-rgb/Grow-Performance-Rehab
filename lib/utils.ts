@@ -25,7 +25,7 @@ export function formatWeightValue(kg: number, unit: WeightUnit): number {
  * string (e.g. "10–18 kg per hand", "80 kg", "12 kg per hand") into the user's
  * display unit. Non-numeric labels like "Bodyweight", "Light band", or
  * "Low intensity" pass through unchanged. Source strings live in the exercise
- * database in kg — this is the render-boundary transform.
+ * database in kg - this is the render-boundary transform.
  */
 export function convertLoadString(load: string, unit: WeightUnit): string {
   if (!load || unit === 'kg') return load;

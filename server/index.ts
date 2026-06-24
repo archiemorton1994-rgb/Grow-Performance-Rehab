@@ -240,7 +240,7 @@ function prewarmMetroBundles() {
           break;
         }
       } catch {
-        // Metro not up yet — keep polling.
+        // Metro not up yet - keep polling.
       }
       await sleep(2000);
     }
@@ -314,7 +314,7 @@ function setupErrorHandler(app: express.Application) {
     // Native Expo Go / simulator requests (which carry an expo-platform header)
     // are passed through to the standard manifest/proxy flow below.
     app.get("/", async (req: Request, res: Response, next: NextFunction) => {
-      // Native Expo Go requests carry an expo-platform header — let the
+      // Native Expo Go requests carry an expo-platform header - let the
       // standard proxy handle those so the existing native flow is unchanged.
       const platform = req.header("expo-platform");
       if (platform === "ios" || platform === "android") {
@@ -348,7 +348,7 @@ function setupErrorHandler(app: express.Application) {
         // from Metro's cache in well under a second.
         replyHtml(html);
       } catch {
-        // Metro not ready yet — show a self-refreshing page
+        // Metro not ready yet - show a self-refreshing page
         replyHtml(LOADING_HTML);
       }
     });
@@ -376,7 +376,7 @@ function setupErrorHandler(app: express.Application) {
             const sr = res as import('http').ServerResponse;
             if (!sr.headersSent) {
               if (nodeErr.code === 'ECONNREFUSED' || nodeErr.code === 'ECONNRESET') {
-                // Metro not ready yet — auto-refresh until it is
+                // Metro not ready yet - auto-refresh until it is
                 sr.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
                 sr.end(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="2"><title>Starting…</title><style>body{margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}</style></head><body><div style="text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">⚡</div><div>Dev server starting…</div><div style="font-size:.75rem;opacity:.5;margin-top:.5rem">Refreshing automatically</div></div></body></html>`);
               } else {
@@ -421,8 +421,8 @@ function setupErrorHandler(app: express.Application) {
   prewarmMetroBundles();
 
   // The Replit preview pane reaches the backend on port 5000, but the bare dev
-  // domain (external port 80) — used by Expo Go and anyone opening the public
-  // URL — is mapped to port 8081. Listen there too so every entry point hits the
+  // domain (external port 80) - used by Expo Go and anyone opening the public
+  // URL - is mapped to port 8081. Listen there too so every entry point hits the
   // same backend instead of a dead port (which returned HTTP 502).
   if (process.env.NODE_ENV === "development") {
     const SECONDARY_PORT = parseInt(process.env.SECONDARY_PORT || "8081", 10);

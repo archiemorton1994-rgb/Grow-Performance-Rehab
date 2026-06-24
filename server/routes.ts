@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} — Grow Performance & Rehab</title>
+  <title>${title} - Grow Performance & Rehab</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 680px; margin: 48px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.7; }
     h1 { color: #2f6b46; font-size: 28px; margin-bottom: 8px; }
@@ -317,9 +317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <h2>1. Information We Collect</h2>
       <p><strong>Information you provide directly:</strong></p>
       <ul>
-        <li><strong>Email address</strong> — collected when you create an account. Used exclusively to send your one-time login code and to identify your account.</li>
-        <li><strong>Profile information</strong> — name, sex, experience level, fitness goals, and bodyweight. Stored locally on your device and used to personalise your training programme.</li>
-        <li><strong>Workout data</strong> — session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored locally on your device to power your progress tracking.</li>
+        <li><strong>Email address</strong> - collected when you create an account. Used exclusively to send your one-time login code and to identify your account.</li>
+        <li><strong>Profile information</strong> - name, sex, experience level, fitness goals, and bodyweight. Stored locally on your device and used to personalise your training programme.</li>
+        <li><strong>Workout data</strong> - session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored locally on your device to power your progress tracking.</li>
       </ul>
       <p><strong>Information collected automatically:</strong></p>
       <ul>
@@ -340,9 +340,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <h2>3. Third-Party Services</h2>
       <p>We use a limited number of trusted third-party services to operate the Service:</p>
       <ul>
-        <li><strong>RevenueCat</strong> — manages your subscription and in-app purchase receipts. RevenueCat receives your anonymised app user ID and subscription status. RevenueCat does not receive your email address. See <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's Privacy Policy</a>.</li>
-        <li><strong>Resend</strong> — delivers your one-time login code by email. Resend processes your email address solely to deliver transactional messages on our behalf. See <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
-        <li><strong>Apple App Store</strong> — handles subscription billing. We do not store or process your payment card details. See <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
+        <li><strong>RevenueCat</strong> - manages your subscription and in-app purchase receipts. RevenueCat receives your anonymised app user ID and subscription status. RevenueCat does not receive your email address. See <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's Privacy Policy</a>.</li>
+        <li><strong>Resend</strong> - delivers your one-time login code by email. Resend processes your email address solely to deliver transactional messages on our behalf. See <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
+        <li><strong>Apple App Store</strong> - handles subscription billing. We do not store or process your payment card details. See <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
       </ul>
 
       <h2>4. Data Storage and Security</h2>
@@ -411,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>The Service is provided "as is" and "as available" without warranties of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or free of viruses or other harmful components.</p>
 
       <h2>8. Limitation of Liability</h2>
-      <p>To the maximum extent permitted by applicable law, Grow Performance &amp; Rehab shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including but not limited to personal injury, loss of profits, loss of data, or business interruption — arising out of or related to your use of the Service, even if we have been advised of the possibility of such damages.</p>
+      <p>To the maximum extent permitted by applicable law, Grow Performance &amp; Rehab shall not be liable for any indirect, incidental, special, consequential, or punitive damages - including but not limited to personal injury, loss of profits, loss of data, or business interruption - arising out of or related to your use of the Service, even if we have been advised of the possibility of such damages.</p>
 
       <h2>9. Governing Law</h2>
       <p>These Terms are governed by and construed in accordance with the laws of England and Wales. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
