@@ -25,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import { uploadUserData } from '@/lib/sync';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
@@ -1504,6 +1505,7 @@ export default function SessionScreen() {
 
     sessionTerminatedRef.current = true;
     clearActiveSession();
+    void uploadUserData(useAppStore.getState().getDataForSync());
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
     setStreakMilestone(hitsStreakMilestone);

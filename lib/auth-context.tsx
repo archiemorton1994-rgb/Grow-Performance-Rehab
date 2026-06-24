@@ -12,6 +12,8 @@ import * as SecureStore from 'expo-secure-store';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { apiRequest } from '@/lib/query-client';
 import { setAuthToken } from '@/lib/auth-token';
+import { uploadUserData, downloadUserData } from '@/lib/sync';
+import { useAppStore } from '@/lib/store';
 
 const TOKEN_KEY = 'grow_auth_token';
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
@@ -43,6 +45,7 @@ interface AuthContextValue {
   verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
+  uploadData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -57,6 +60,7 @@ const AuthContext = createContext<AuthContextValue>({
   verifyCode: async () => {},
   signOut: async () => {},
   refreshSubscription: async () => {},
+  uploadData: async () => {},
 });
 
 async function storeToken(token: string) {
@@ -166,6 +170,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         await configureRevenueCat(data.user.id);
         await refreshSubscription();
+        // Restore progress from server if server has more sessions (new device scenario)
+        const serverData = await downloadUserData();
+        if (serverData) {
+          useAppStore.getState().mergeServerData(serverData);
+        } else {
+          // First time this account is seen on any device — upload local data
+          void uploadUserData(useAppStore.getState().getDataForSync());
+        }
       } catch {
         try { await clearToken(); } catch {}
       } finally {
@@ -177,7 +189,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (next) => {
       if (appStateRef.current.match(/inactive|background/) && next === 'active') {
-        if (user) await refreshSubscription();
+        if (user) {
+          await refreshSubscription();
+          void uploadUserData(useAppStore.getState().getDataForSync());
+        }
       }
       appStateRef.current = next;
     });
@@ -206,7 +221,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasSignedOut(false);
     await configureRevenueCat(data.user.id);
     await refreshSubscription();
+    // On login: download server data and merge; if nothing on server, upload local
+    const serverData = await downloadUserData();
+    if (serverData) {
+      useAppStore.getState().mergeServerData(serverData);
+    } else {
+      void uploadUserData(useAppStore.getState().getDataForSync());
+    }
   }, [refreshSubscription]);
+
+  const uploadData = useCallback(async () => {
+    void uploadUserData(useAppStore.getState().getDataForSync());
+  }, []);
 
   const signOut = useCallback(async () => {
     await clearToken();
@@ -234,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyCode,
         signOut,
         refreshSubscription,
+        uploadData,
       }}
     >
       {children}

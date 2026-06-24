@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http';
 import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import { storage } from './storage';
+import { pool } from './db';
 
 const JWT_SECRET = process.env.SESSION_SECRET;
 if (!JWT_SECRET) {
@@ -254,6 +255,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     return res.json({ user: { id: user.id, email: user.email } });
+  });
+
+  app.get('/api/user/data', async (req: Request, res: Response) => {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ message: 'Unauthorised.' });
+    const payload = verifyToken(token);
+    if (!payload) return res.status(401).json({ message: 'Invalid or expired token.' });
+    const result = await pool.query('SELECT data FROM user_data WHERE user_id = $1', [payload.userId]);
+    return res.json({ data: result.rows[0]?.data ?? null });
+  });
+
+  app.put('/api/user/data', async (req: Request, res: Response) => {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ message: 'Unauthorised.' });
+    const payload = verifyToken(token);
+    if (!payload) return res.status(401).json({ message: 'Invalid or expired token.' });
+    await pool.query(
+      `INSERT INTO user_data (user_id, data, updated_at) VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+      [payload.userId, JSON.stringify(req.body)]
+    );
+    return res.json({ ok: true });
   });
 
   const legalPageHtml = (title: string, body: string) => `<!DOCTYPE html>

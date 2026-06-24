@@ -36,6 +36,13 @@ export async function runMigrations(): Promise<void> {
       expires_at TIMESTAMPTZ NOT NULL
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_data (
+      user_id  VARCHAR PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      data     JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
   await Promise.all([cleanupExpiredRateLimits(), cleanupExpiredOtps()]);
   setInterval(cleanupExpiredRateLimits, 60 * 60 * 1000);
   setInterval(cleanupExpiredOtps, 60 * 60 * 1000);

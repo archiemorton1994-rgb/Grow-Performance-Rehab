@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { SyncPayload } from '@/lib/sync';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -235,6 +236,8 @@ interface AppState {
   getBestORM: (lift: SessionType) => OneRepMax | null;
   getEffectiveTier: () => EquipmentTier;
   getInternalTier: () => 'bodyweight' | 'dumbbells' | 'fullgym';
+  getDataForSync: () => SyncPayload;
+  mergeServerData: (data: SyncPayload) => void;
 }
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
@@ -531,6 +534,47 @@ export const useAppStore = create<AppState>()(
         if (effective === 'bands' || effective === 'bodyweight') return 'bodyweight';
         if (effective === 'kettlebells' || effective === 'dumbbells') return 'dumbbells';
         return 'fullgym';
+      },
+
+      getDataForSync: () => {
+        const s = get();
+        return {
+          userProfile: s.userProfile,
+          equipmentTiers: s.equipmentTiers,
+          completedSessions: s.completedSessions,
+          oneRepMaxes: s.oneRepMaxes,
+          exerciseFeedback: s.exerciseFeedback,
+          weightUnit: s.weightUnit,
+          testWeekFrequency: s.testWeekFrequency,
+          cycleStartOffset: s.cycleStartOffset,
+          lastLoggedWeights: s.lastLoggedWeights,
+          lastSessionPerformance: s.lastSessionPerformance,
+          exerciseNormalStreak: s.exerciseNormalStreak,
+          savedTemplates: s.savedTemplates,
+        };
+      },
+
+      mergeServerData: (data) => {
+        const s = get();
+        const serverCount = data.completedSessions?.length ?? 0;
+        const localCount = s.completedSessions.length;
+        if (serverCount > localCount) {
+          set({
+            userProfile: (data.userProfile as any) ?? s.userProfile,
+            equipmentTiers: (data.equipmentTiers as any) ?? s.equipmentTiers,
+            completedSessions: data.completedSessions ?? s.completedSessions,
+            oneRepMaxes: data.oneRepMaxes ?? s.oneRepMaxes,
+            exerciseFeedback: data.exerciseFeedback ?? s.exerciseFeedback,
+            weightUnit: (data.weightUnit as any) ?? s.weightUnit,
+            testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
+            cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
+            lastLoggedWeights: data.lastLoggedWeights ?? s.lastLoggedWeights,
+            lastSessionPerformance: (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
+            exerciseNormalStreak: data.exerciseNormalStreak ?? s.exerciseNormalStreak,
+            savedTemplates: data.savedTemplates ?? s.savedTemplates,
+            completedCount: data.completedSessions?.length ?? s.completedCount,
+          });
+        }
       },
     }),
     {
