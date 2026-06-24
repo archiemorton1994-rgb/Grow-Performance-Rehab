@@ -174,6 +174,8 @@ interface AppState {
   reminderTime: string;
   /** Whether the "missed workout" nudge notification is enabled. */
   nudgeEnabled: boolean;
+  /** Whether the streak-protection alert (8pm on untrained days) is enabled. */
+  streakProtectionEnabled: boolean;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
   /** URI of the user's profile photo (local file URI from image picker). Null if not set. */
@@ -218,6 +220,7 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
+  setStreakProtectionEnabled: (enabled: boolean) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
@@ -273,6 +276,7 @@ export const useAppStore = create<AppState>()(
       reminderEnabled: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
+      streakProtectionEnabled: false,
       cycleStartOffset: 0,
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -300,6 +304,7 @@ export const useAppStore = create<AppState>()(
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
+      setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
@@ -646,6 +651,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!('nudgeEnabled' in persistedState)) {
           persistedState.nudgeEnabled = true;
+        }
+        if (!('streakProtectionEnabled' in persistedState)) {
+          persistedState.streakProtectionEnabled = false;
         }
         return persistedState;
       },

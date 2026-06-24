@@ -115,6 +115,38 @@ export async function cancelMissedWorkoutNudge(): Promise<void> {
   } catch {}
 }
 
+const STREAK_PROTECTION_ID = 'grow-streak-protection';
+
+export async function scheduleStreakProtectionAlert(): Promise<void> {
+  if (!isNotificationsSupported()) return;
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') return;
+  await cancelStreakProtectionAlert();
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: STREAK_PROTECTION_ID,
+      content: {
+        title: '🔥 Your streak is at risk!',
+        body: "Train today to keep your streak alive — don't let it slip.",
+        sound: true,
+        data: { screen: 'train' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 20,
+        minute: 0,
+      },
+    });
+  } catch {}
+}
+
+export async function cancelStreakProtectionAlert(): Promise<void> {
+  if (!isNotificationsSupported()) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(STREAK_PROTECTION_ID);
+  } catch {}
+}
+
 export const REST_TIMER_NOTIF_ID = 'grow-rest-timer';
 
 export async function cancelRestTimerNotification(): Promise<void> {

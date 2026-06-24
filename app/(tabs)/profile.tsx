@@ -29,6 +29,8 @@ import {
   REMINDER_TIME_OPTIONS,
   scheduleMissedWorkoutNudge,
   cancelMissedWorkoutNudge,
+  scheduleStreakProtectionAlert,
+  cancelStreakProtectionAlert,
 } from '@/lib/notifications';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
@@ -88,6 +90,8 @@ export default function ProfileScreen() {
     setReminderTime,
     nudgeEnabled,
     setNudgeEnabled,
+    streakProtectionEnabled,
+    setStreakProtectionEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
   } = useAppStore();
@@ -787,6 +791,39 @@ export default function ProfileScreen() {
                     trackColor={{ false: C.border, true: C.primary }}
                     thumbColor={C.textInverse}
                     testID="nudge-toggle"
+                  />
+                </View>
+
+                <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Streak Protection Alert</Text>
+                <Text style={styles.settingItemSub}>Reminds you at 8pm if you haven't trained yet and your streak is at risk</Text>
+                <View style={styles.reminderToggleRow}>
+                  <Text style={styles.reminderToggleLabel}>
+                    {streakProtectionEnabled ? 'On' : 'Off'}
+                  </Text>
+                  <Switch
+                    value={streakProtectionEnabled}
+                    onValueChange={async (value) => {
+                      if (value) {
+                        const granted = await requestNotificationPermission();
+                        if (!granted) {
+                          Alert.alert(
+                            'Notifications Disabled',
+                            'Please enable notifications for Grow in your device Settings to use streak alerts.',
+                            [{ text: 'OK' }]
+                          );
+                          return;
+                        }
+                        setStreakProtectionEnabled(true);
+                        void scheduleStreakProtectionAlert();
+                      } else {
+                        setStreakProtectionEnabled(false);
+                        void cancelStreakProtectionAlert();
+                      }
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor={C.textInverse}
+                    testID="streak-protection-toggle"
                   />
                 </View>
               </>

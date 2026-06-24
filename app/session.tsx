@@ -26,7 +26,7 @@ import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyl
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
-import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
+import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, cancelStreakProtectionAlert, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
 import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
@@ -1511,6 +1511,7 @@ export default function SessionScreen() {
     if (Platform.OS !== 'web') {
       cancelRestTimerNotification();
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
+      void cancelStreakProtectionAlert();
     }
     setIsMilestone(hitsMilestone);
     setMilestoneCount(newCount);
@@ -1581,6 +1582,7 @@ export default function SessionScreen() {
     if (Platform.OS !== 'web') {
       cancelRestTimerNotification();
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
+      void cancelStreakProtectionAlert();
     }
     const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);

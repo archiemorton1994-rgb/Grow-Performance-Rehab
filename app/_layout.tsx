@@ -31,7 +31,7 @@ import { useAppStore } from "@/lib/store";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useColors } from "@/constants/colors";
 import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
-import { scheduleWorkoutReminder, scheduleMissedWorkoutNudge } from "@/lib/notifications";
+import { scheduleWorkoutReminder, scheduleMissedWorkoutNudge, scheduleStreakProtectionAlert, cancelStreakProtectionAlert } from "@/lib/notifications";
 
 if (!__DEV__) {
   type EUType = {
@@ -259,7 +259,7 @@ function RootLayoutNav() {
     }
   }, [hasHydrated]);
 
-  const { nudgeEnabled } = useAppStore();
+  const { nudgeEnabled, streakProtectionEnabled, completedSessions, getStreakDays } = useAppStore();
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
@@ -273,6 +273,30 @@ function RootLayoutNav() {
     });
     return () => sub.remove();
   }, [hasHydrated, isAuthenticated, hasActiveSubscription, nudgeEnabled]);
+
+  useEffect(() => {
+    if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const trainedToday = completedSessions.some(s => s.date.slice(0, 10) === today);
+    const streak = getStreakDays();
+    if (streakProtectionEnabled && streak >= 2 && !trainedToday) {
+      scheduleStreakProtectionAlert().catch(() => {});
+    } else {
+      cancelStreakProtectionAlert().catch(() => {});
+    }
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next !== 'active') return;
+      const todayNow = new Date().toISOString().slice(0, 10);
+      const trainedNow = useAppStore.getState().completedSessions.some(s => s.date.slice(0, 10) === todayNow);
+      const streakNow = useAppStore.getState().getStreakDays();
+      if (useAppStore.getState().streakProtectionEnabled && streakNow >= 2 && !trainedNow) {
+        scheduleStreakProtectionAlert().catch(() => {});
+      } else {
+        cancelStreakProtectionAlert().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [hasHydrated, isAuthenticated, hasActiveSubscription, streakProtectionEnabled, completedSessions]);
 
   return (
     <>
