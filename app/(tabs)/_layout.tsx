@@ -1,8 +1,5 @@
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { SymbolView } from "expo-symbols";
 import { Platform, StyleSheet, useColorScheme, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -35,39 +32,16 @@ function TrainTabIcon({ focused }: { focused: boolean }) {
   );
 }
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="train">
-        <Icon sf={{ default: "figure.strengthtraining.traditional", selected: "figure.strengthtraining.traditional" }} />
-        <Label>Train</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="flex">
-        <Icon sf={{ default: "leaf", selected: "leaf.fill" }} />
-        <Label>Flex</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="workouts">
-        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>Stats</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
+function TabIcon({ name, focusedName, color, size }: { name: string; focusedName?: string; color: string; size?: number; focused?: boolean }) {
+  return <Ionicons name={name as any} size={size || 24} color={color} />;
 }
 
-function ClassicTabLayout() {
+export default function TabLayout() {
   const C = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
+  const isWeb = Platform.OS === "web";
 
   return (
     <Tabs
@@ -100,11 +74,7 @@ function ClassicTabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="house" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="home-outline" size={size || 24} color={color} />
-            )
+            <Ionicons name="home-outline" size={size || 24} color={color} />
           ),
         }}
       />
@@ -113,11 +83,7 @@ function ClassicTabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="person" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="person-outline" size={size || 24} color={color} />
-            )
+            <Ionicons name="person-outline" size={size || 24} color={color} />
           ),
         }}
       />
@@ -135,11 +101,7 @@ function ClassicTabLayout() {
         options={{
           title: "Flex",
           tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="leaf" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="leaf-outline" size={size || 24} color={color} />
-            )
+            <Ionicons name="leaf-outline" size={size || 24} color={color} />
           ),
         }}
       />
@@ -148,18 +110,10 @@ function ClassicTabLayout() {
         options={{
           title: "Stats",
           tabBarIcon: ({ color, size }) => (
-            Platform.OS === "ios" ? (
-              <SymbolView name="chart.bar" tintColor={color} size={size || 24} />
-            ) : (
-              <Ionicons name="bar-chart-outline" size={size || 24} color={color} />
-            )
+            <Ionicons name="bar-chart-outline" size={size || 24} color={color} />
           ),
         }}
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  return <ClassicTabLayout />;
 }

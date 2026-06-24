@@ -12,6 +12,11 @@ run = ["npm", "run", "server:prod"]
 [[ports]]
 localPort = 5000
 externalPort = 5000
+exposeLocalhost = true
+
+[[ports]]
+localPort = 5001
+externalPort = 4200
 
 [[ports]]
 localPort = 8081
@@ -54,12 +59,12 @@ author = "agent"
 mode = "sequential"
 
 [workflows.workflow.metadata]
-outputType = "webview"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=5000 npm run server:dev"
-waitForPort = 5000
+args = "PORT=5001 METRO_PORT=5000 npm run server:dev"
+waitForPort = 5001
 
 [[workflows.workflow]]
 name = "Start Frontend"
@@ -67,12 +72,12 @@ author = "agent"
 mode = "sequential"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN METRO_PORT=8082 npx expo start --port 8082 --localhost"
-waitForPort = 8082
+args = "EXPRESS_PORT=5001 EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN METRO_PORT=5000 npx expo start --port 5000 --localhost"
+waitForPort = 5000
 
 [postMerge]
 path = "scripts/post-merge.sh"

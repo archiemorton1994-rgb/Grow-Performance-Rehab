@@ -250,7 +250,7 @@ function setupErrorHandler(app: express.Application) {
         pathname !== "/privacy" &&
         pathname !== "/terms",
       target: `http://localhost:${METRO_PORT}`,
-      changeOrigin: false,
+      changeOrigin: true,
       ws: true,
     });
     app.use(devProxy);

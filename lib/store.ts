@@ -176,6 +176,8 @@ interface AppState {
   nudgeEnabled: boolean;
   /** Whether the streak-protection alert (8pm on untrained days) is enabled. */
   streakProtectionEnabled: boolean;
+  /** Time for the streak-protection alert in "HH:MM" format (24-hour). Default '20:00'. */
+  streakProtectionTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
   /** URI of the user's profile photo (local file URI from image picker). Null if not set. */
@@ -221,6 +223,7 @@ interface AppState {
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
+  setStreakProtectionTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
@@ -277,6 +280,7 @@ export const useAppStore = create<AppState>()(
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
+      streakProtectionTime: '20:00',
       cycleStartOffset: 0,
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -305,6 +309,7 @@ export const useAppStore = create<AppState>()(
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
+      setStreakProtectionTime: (time) => set({ streakProtectionTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
@@ -655,9 +660,12 @@ export const useAppStore = create<AppState>()(
         if (!('streakProtectionEnabled' in persistedState)) {
           persistedState.streakProtectionEnabled = false;
         }
+        if (!('streakProtectionTime' in persistedState)) {
+          persistedState.streakProtectionTime = '20:00';
+        }
         return persistedState;
       },
-      version: 14,
+      version: 15,
     }
   )
 );

@@ -92,6 +92,8 @@ export default function ProfileScreen() {
     setNudgeEnabled,
     streakProtectionEnabled,
     setStreakProtectionEnabled,
+    streakProtectionTime,
+    setStreakProtectionTime,
     profilePhotoUri,
     setProfilePhotoUri,
     getBestORM,
@@ -823,10 +825,14 @@ export default function ProfileScreen() {
                 </View>
 
                 <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Streak Protection Alert</Text>
-                <Text style={styles.settingItemSub}>Reminds you at 8pm if you haven't trained yet and your streak is at risk</Text>
+                <Text style={styles.settingItemSub}>Reminds you if you haven't trained yet and your streak is at risk</Text>
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
-                    {streakProtectionEnabled && streak >= 2 ? `On — ${streak}-day streak` : streakProtectionEnabled ? 'On' : 'Off'}
+                    {streakProtectionEnabled && streak >= 2
+                      ? `On at ${formatReminderTime(streakProtectionTime)} — ${streak}-day streak`
+                      : streakProtectionEnabled
+                      ? `On at ${formatReminderTime(streakProtectionTime)}`
+                      : 'Off'}
                   </Text>
                   <Switch
                     value={streakProtectionEnabled}
@@ -842,7 +848,7 @@ export default function ProfileScreen() {
                           return;
                         }
                         setStreakProtectionEnabled(true);
-                        void scheduleStreakProtectionAlert();
+                        void scheduleStreakProtectionAlert(streakProtectionTime);
                       } else {
                         setStreakProtectionEnabled(false);
                         void cancelStreakProtectionAlert();
@@ -854,6 +860,31 @@ export default function ProfileScreen() {
                     testID="streak-protection-toggle"
                   />
                 </View>
+                {streakProtectionEnabled && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.timeScroll}
+                    contentContainerStyle={styles.timeScrollContent}
+                  >
+                    {REMINDER_TIME_OPTIONS.map(t => (
+                      <Pressable
+                        key={t}
+                        onPress={async () => {
+                          setStreakProtectionTime(t);
+                          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          void scheduleStreakProtectionAlert(t);
+                        }}
+                        style={[styles.timeChip, streakProtectionTime === t && styles.timeChipActive]}
+                        testID={`streak-time-${t}`}
+                      >
+                        <Text style={[styles.timeChipText, streakProtectionTime === t && styles.timeChipTextActive]}>
+                          {formatReminderTime(t)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
               </>
             ) : (
               <Text style={styles.reminderWebNote}>Reminders are available on iOS and Android only.</Text>

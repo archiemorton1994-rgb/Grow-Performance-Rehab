@@ -117,11 +117,14 @@ export async function cancelMissedWorkoutNudge(): Promise<void> {
 
 const STREAK_PROTECTION_ID = 'grow-streak-protection';
 
-export async function scheduleStreakProtectionAlert(): Promise<void> {
+export async function scheduleStreakProtectionAlert(timeStr: string = '20:00'): Promise<void> {
   if (!isNotificationsSupported()) return;
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
   await cancelStreakProtectionAlert();
+  const [hourStr, minuteStr] = timeStr.split(':');
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr ?? '0', 10);
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_PROTECTION_ID,
@@ -133,8 +136,8 @@ export async function scheduleStreakProtectionAlert(): Promise<void> {
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 20,
-        minute: 0,
+        hour,
+        minute,
       },
     });
   } catch {}
