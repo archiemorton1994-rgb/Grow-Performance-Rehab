@@ -4,3 +4,5 @@
 - [EAS build: lockfile and sharp](eas-build-lockfile-sharp.md) — bun.lock version mismatch + sharp optional dep issues on EAS; use npm + mark sharp optional
 - [Expo preview stuck loading](expo-preview-bundle-slow-proxy.md) — cause is COLD Metro build (android ~43s); :3000 exposeLocalhost tunnel DROPS on cold (don't use it). Fix: prewarm all platform bundles on startup + serve over bare dev domain (no-timeout proxy)
 - [Web preview blank screen fix](web-preview-blank-screen.md) — react/react-dom version mismatch silently crashes on web; cross-origin bundle src hides error as "Script error."
+- [Expo SDK vs Expo Go support](expo-sdk-vs-expo-go.md) — SDK newer than user's Expo Go = "incompatible" / iOS-sim hang; web preview still works and masks it. Manifest exposdk:NN is the tell.
+- [Metro stale file-map cache](metro-stale-filemap-cache.md) — "Unable to resolve module" for files that DO exist right after a reinstall; clear /tmp/metro-cache + restart Metro.
