@@ -222,6 +222,8 @@ export default function ReadinessScreen() {
     upper: { icon: 'hand-left-outline', color: '#4285f4' },
     torso: { icon: 'swap-vertical-outline', color: '#e65100' },
     lower: { icon: 'footsteps-outline', color: C.primary },
+    upper_muscles: { icon: 'barbell-outline', color: '#9c27b0' },
+    lower_muscles: { icon: 'walk-outline', color: '#ff5722' },
   };
 
   const REGION_ICONS: Record<PainRegion, keyof typeof Ionicons.glyphMap> = {
@@ -236,6 +238,13 @@ export default function ReadinessScreen() {
     hip_groin: 'contract-outline',
     ankle_achilles: 'footsteps-outline',
     calf_shin: 'trending-down-outline',
+    chest: 'body-outline',
+    bicep: 'hand-right-outline',
+    tricep: 'hand-left-outline',
+    quads: 'walk-outline',
+    hamstrings: 'trending-down-outline',
+    glutes: 'ellipse-outline',
+    lat_mid_back: 'arrow-back-circle-outline',
   };
 
   const renderMain = () => (

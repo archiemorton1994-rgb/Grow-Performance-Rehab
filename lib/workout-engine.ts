@@ -837,6 +837,13 @@ export function getPainRegionLabel(region: PainRegion): string {
     hip_groin: 'Hip / Groin',
     ankle_achilles: 'Ankle / Achilles',
     calf_shin: 'Calf / Shin',
+    chest: 'Chest',
+    bicep: 'Bicep / Front Arm',
+    tricep: 'Tricep / Back Arm',
+    quads: 'Quads (Front Thigh)',
+    hamstrings: 'Hamstrings (Back Thigh)',
+    glutes: 'Glutes',
+    lat_mid_back: 'Lat / Mid Back',
   };
   return labels[region];
 }

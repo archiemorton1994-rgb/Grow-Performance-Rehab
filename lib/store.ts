@@ -18,7 +18,9 @@ export type WeightUnit = 'kg' | 'lbs';
 export type PainRegion =
   | 'front_shoulder' | 'rear_shoulder' | 'elbow_wrist' | 'neck'
   | 'lower_back' | 'upper_back' | 'core_ribs'
-  | 'knee' | 'hip_groin' | 'ankle_achilles' | 'calf_shin';
+  | 'knee' | 'hip_groin' | 'ankle_achilles' | 'calf_shin'
+  | 'chest' | 'bicep' | 'tricep'
+  | 'quads' | 'hamstrings' | 'glutes' | 'lat_mid_back';
 
 export const PAIN_CATEGORIES = {
   upper: {
@@ -45,6 +47,23 @@ export const PAIN_CATEGORIES = {
       { id: 'hip_groin' as PainRegion, label: 'Hip / Groin' },
       { id: 'ankle_achilles' as PainRegion, label: 'Ankle / Achilles' },
       { id: 'calf_shin' as PainRegion, label: 'Calf / Shin' },
+    ],
+  },
+  upper_muscles: {
+    label: 'Upper Body Muscles',
+    regions: [
+      { id: 'chest' as PainRegion, label: 'Chest' },
+      { id: 'bicep' as PainRegion, label: 'Bicep / Front Arm' },
+      { id: 'tricep' as PainRegion, label: 'Tricep / Back Arm' },
+    ],
+  },
+  lower_muscles: {
+    label: 'Lower Body Muscles',
+    regions: [
+      { id: 'quads' as PainRegion, label: 'Quads (Front Thigh)' },
+      { id: 'hamstrings' as PainRegion, label: 'Hamstrings (Back Thigh)' },
+      { id: 'glutes' as PainRegion, label: 'Glutes' },
+      { id: 'lat_mid_back' as PainRegion, label: 'Lat / Mid Back' },
     ],
   },
 };
