@@ -609,6 +609,7 @@ export default function CustomSessionScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={{ flexShrink: 0 }}
         contentContainerStyle={styles.filterRow}
       >
         {CATEGORY_FILTERS.map((f) => (
@@ -1024,9 +1025,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.text, height: 42,
     },
 
-    filterRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexGrow: 1 },
+    filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
     filterChip: {
-      paddingHorizontal: 14, paddingVertical: 7,
+      paddingHorizontal: 14, paddingVertical: 8,
       borderRadius: 20, backgroundColor: C.surface,
       borderWidth: 1, borderColor: C.borderLight,
     },

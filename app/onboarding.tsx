@@ -92,7 +92,7 @@ const EQUIPMENT_OPTIONS: {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  { value: 'bodyweight', label: 'Body Weight', description: 'No equipment needed', icon: 'body-outline' },
+  { value: 'bodyweight', label: 'No Equipment', description: 'No equipment needed', icon: 'body-outline' },
   { value: 'bands', label: 'Resistance Bands', description: 'Bands and tubes', icon: 'git-compare-outline' },
   { value: 'dumbbells', label: 'Dumbbells', description: 'Adjustable dumbbells', icon: 'barbell-outline' },
   { value: 'kettlebells', label: 'Kettlebells', description: 'Kettlebells available', icon: 'fitness-outline' },
@@ -118,7 +118,7 @@ function equipmentLabel(tiers: EquipmentTier[]): string {
   if (tiers.includes('kettlebells')) return 'Kettlebells';
   if (tiers.includes('dumbbells')) return 'Dumbbells';
   if (tiers.includes('bands')) return 'Bands';
-  return 'Body Weight';
+  return 'No Equipment';
 }
 
 export default function OnboardingScreen() {
@@ -487,7 +487,12 @@ export default function OnboardingScreen() {
 
           {/* Screen 4: Bodyweight */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
-            <View style={styles.screenContent}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 24 }]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.iconCircle}>
                 <Ionicons name="scale-outline" size={56} color={C.primary} />
               </View>
@@ -509,7 +514,7 @@ export default function OnboardingScreen() {
                 />
                 <Text style={styles.unitLabel}>kg</Text>
               </View>
-            </View>
+            </ScrollView>
           </View>
 
           {/* Screen 5: Goals */}

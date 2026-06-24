@@ -394,18 +394,24 @@ export default function ProfileScreen() {
           const bwDisplay = kgToDisplayUnit(userProfile.bodyweightKg, weightUnit);
           return (
             <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioRow}>
-              {lifts.map(({ lift, orm }) => {
-                const liftDisplay = kgToDisplayUnit(orm!.weight, weightUnit);
-                const ratio = bwDisplay > 0 ? (liftDisplay / bwDisplay).toFixed(1) : null;
-                return ratio ? (
-                  <View key={lift} style={styles.ratioItem}>
-                    <Text style={styles.ratioVal}>{ratio}×</Text>
-                    <Text style={styles.ratioLbl}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
-                  </View>
-                ) : null;
-              })}
-              <View style={styles.ratioMeta}>
-                <Text style={styles.ratioMetaText}>× bodyweight</Text>
+              <View style={styles.ratioHeader}>
+                <Text style={styles.ratioHeaderTitle}>Strength-to-Bodyweight</Text>
+                <Text style={styles.ratioHeaderSub}>Your best lifts as a multiple of your bodyweight</Text>
+              </View>
+              <View style={styles.ratioItemsRow}>
+                {lifts.map(({ lift, orm }) => {
+                  const liftDisplay = kgToDisplayUnit(orm!.weight, weightUnit);
+                  const ratio = bwDisplay > 0 ? (liftDisplay / bwDisplay).toFixed(1) : null;
+                  return ratio ? (
+                    <View key={lift} style={styles.ratioItem}>
+                      <Text style={styles.ratioVal}>{ratio}×</Text>
+                      <Text style={styles.ratioLbl}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
+                    </View>
+                  ) : null;
+                })}
+                <View style={styles.ratioMeta}>
+                  <Text style={styles.ratioMetaText}>× bodyweight</Text>
+                </View>
               </View>
             </Animated.View>
           );
@@ -593,7 +599,7 @@ export default function ProfileScreen() {
               <View style={styles.upgradeNote}>
                 <Ionicons name="information-circle-outline" size={15} color={C.primary} />
                 <Text style={styles.upgradeNoteText}>
-                  Beginner mode: Bodyweight and bands only. Update your experience level in Edit Details to unlock all equipment.
+                  Beginner mode: No Equipment and bands only. Update your experience level in Edit Details to unlock all equipment.
                 </Text>
               </View>
             )}
@@ -1153,11 +1159,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     equipCheckboxActive: { backgroundColor: C.primary, borderColor: C.primary },
 
     ratioRow: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 0,
+      flexDirection: 'column' as const,
       backgroundColor: C.primaryMuted, borderRadius: 12,
-      paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12,
+      paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, marginBottom: 12,
       borderWidth: 1, borderColor: C.primary + '22',
+      gap: 10,
     },
+    ratioHeader: { gap: 2 },
+    ratioHeaderTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+    ratioHeaderSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    ratioItemsRow: { flexDirection: 'row' as const, alignItems: 'center' as const },
     ratioItem: { flex: 1, alignItems: 'center' as const },
     ratioVal: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primary },
     ratioLbl: { fontSize: 10, fontFamily: 'Inter_500Medium', color: C.textTertiary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 1 },

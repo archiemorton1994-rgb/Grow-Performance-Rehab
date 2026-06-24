@@ -249,7 +249,7 @@ export default function ReadinessScreen() {
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
-              <Text style={styles.beginnerNoteText}>Bodyweight & bands — great for building safe foundations</Text>
+              <Text style={styles.beginnerNoteText}>No Equipment & bands — great for building safe foundations</Text>
             </View>
           )}
           {selectedEquipments.length > 0 && (
@@ -453,7 +453,7 @@ export default function ReadinessScreen() {
       <View style={styles.questionIcon}>
         <Ionicons name="body-outline" size={28} color={C.warning} />
       </View>
-      <Text style={styles.question}>What area?</Text>
+      <Text style={styles.question}>What area are you experiencing pain?</Text>
       <Text style={styles.questionSub}>Select the body region</Text>
       <View style={styles.areaButtons}>
         {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((key) => {
@@ -567,7 +567,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     progressContainer: { paddingHorizontal: 24, marginBottom: 8 },
     progressTrack: { height: 4, backgroundColor: C.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
     progressFill: { height: '100%', backgroundColor: C.warning, borderRadius: 2 },
-    stepIndicator: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
+    stepIndicator: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textAlign: 'center' },
 
     mainContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
     section: { paddingVertical: 16 },

@@ -804,7 +804,7 @@ export function getSessionIcon(type: SessionType): string {
 
 export function getEquipmentLabel(tier: EquipmentTier): string {
   switch (tier) {
-    case 'bodyweight': return 'Bodyweight';
+    case 'bodyweight': return 'No Equipment';
     case 'bands': return 'Resistance Bands';
     case 'dumbbells': return 'Dumbbells';
     case 'kettlebells': return 'Kettlebells';
