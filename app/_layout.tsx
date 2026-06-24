@@ -69,7 +69,9 @@ if (!__DEV__) {
   }).catch(() => {});
 }
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -325,7 +327,7 @@ export default function RootLayout() {
   const [lastCrash, setLastCrash] = useState<string | null>(null);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (Platform.OS !== 'web' && (fontsLoaded || fontError)) {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
