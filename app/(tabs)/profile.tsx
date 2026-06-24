@@ -94,6 +94,8 @@ export default function ProfileScreen() {
     setStreakProtectionEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
+    getBestORM,
+    oneRepMaxes,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -379,6 +381,32 @@ export default function ProfileScreen() {
             <Text style={styles.statLbl}>This Week</Text>
           </View>
         </Animated.View>
+
+        {/* Strength-to-bodyweight ratio strip — only shown when 1RM data + bodyweight are both set */}
+        {oneRepMaxes.length > 0 && userProfile.bodyweightKg > 0 && (() => {
+          const lifts = (['squat', 'bench', 'deadlift'] as const)
+            .map(lift => ({ lift, orm: getBestORM(lift) }))
+            .filter(x => x.orm !== null);
+          if (lifts.length === 0) return null;
+          const bwDisplay = kgToDisplayUnit(userProfile.bodyweightKg, weightUnit);
+          return (
+            <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioRow}>
+              {lifts.map(({ lift, orm }) => {
+                const liftDisplay = kgToDisplayUnit(orm!.weight, weightUnit);
+                const ratio = bwDisplay > 0 ? (liftDisplay / bwDisplay).toFixed(1) : null;
+                return ratio ? (
+                  <View key={lift} style={styles.ratioItem}>
+                    <Text style={styles.ratioVal}>{ratio}×</Text>
+                    <Text style={styles.ratioLbl}>{lift.charAt(0).toUpperCase() + lift.slice(1)}</Text>
+                  </View>
+                ) : null;
+              })}
+              <View style={styles.ratioMeta}>
+                <Text style={styles.ratioMetaText}>× bodyweight</Text>
+              </View>
+            </Animated.View>
+          );
+        })()}
 
         {/* Subscription compact strip — kept on the main view per spec
             ("status visible at a glance, even with settings collapsed"). */}
@@ -1092,6 +1120,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     equipCheckboxActive: { backgroundColor: C.primary, borderColor: C.primary },
 
+    ratioRow: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 0,
+      backgroundColor: C.primaryMuted, borderRadius: 12,
+      paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12,
+      borderWidth: 1, borderColor: C.primary + '22',
+    },
+    ratioItem: { flex: 1, alignItems: 'center' as const },
+    ratioVal: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primary },
+    ratioLbl: { fontSize: 10, fontFamily: 'Inter_500Medium', color: C.textTertiary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginTop: 1 },
+    ratioMeta: { alignItems: 'center' as const },
+    ratioMetaText: { fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     settingSectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4, marginBottom: 12 },
     settingsLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
     subStripActive: {

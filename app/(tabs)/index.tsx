@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
-import { getTimeOfDayGreeting } from '@/lib/utils';
+import { getTimeOfDayGreeting, kgToDisplayUnit } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 
 const SESSION_IMAGES: Record<string, any> = {
@@ -47,6 +47,10 @@ export default function HomeScreen() {
     clearActiveSession,
     setCycleStartOffset,
     profilePhotoUri,
+    testWeekFrequency,
+    getBestORM,
+    oneRepMaxes,
+    weightUnit,
   } = useAppStore();
 
   const effectiveTier = getEffectiveTier();
@@ -95,14 +99,32 @@ export default function HomeScreen() {
 
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
 
-  // Auto-progression indicator: based on strength sessions (squat/bench/deadlift) only.
-  // Show when 15+ strength sessions have been done (autoMult >= 1.05).
   const strengthCount = useMemo(
     () => completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
     [completedSessions],
   );
-  const autoMult = Math.min(1.20, 1 + Math.floor(strengthCount / 3) * 0.01);
-  const showProgressionNote = autoMult >= 1.05;
+
+  const sessionsInBlock = !testWeek && strengthCount > 0
+    ? (strengthCount % testWeekFrequency || testWeekFrequency)
+    : 0;
+  const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
+  const showBlockProgress = strengthCount >= 1 && !testWeek;
+
+  const { topLift, ormGain } = useMemo(() => {
+    const lifts: SessionType[] = ['squat', 'deadlift', 'bench'];
+    let bestLift: SessionType | null = null;
+    let bestWeight = 0;
+    for (const lift of lifts) {
+      const orm = getBestORM(lift);
+      if (orm && orm.weight > bestWeight) { bestWeight = orm.weight; bestLift = lift; }
+    }
+    if (!bestLift) return { topLift: null, ormGain: 0 };
+    const firstWeight = oneRepMaxes.filter(o => o.lift === bestLift).at(-1)?.weight ?? null;
+    return {
+      topLift: { lift: bestLift as SessionType, weight: bestWeight },
+      ormGain: firstWeight && firstWeight < bestWeight ? Math.round(bestWeight - firstWeight) : 0,
+    };
+  }, [oneRepMaxes, getBestORM]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -272,10 +294,16 @@ export default function HomeScreen() {
                 {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
               </Text>
             )}
-            {showProgressionNote && (
-              <View style={styles.progressionChip}>
-                <Ionicons name="trending-up" size={12} color={C.primary} />
-                <Text style={styles.progressionChipText}>Weights have increased since last session</Text>
+            {showBlockProgress && (
+              <View style={styles.blockProgressRow}>
+                <View style={styles.blockBarTrack}>
+                  <View style={[styles.blockBarFill, { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any }]} />
+                </View>
+                <Text style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}>
+                  {sessionsUntilTest <= 2
+                    ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
+                    : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
+                </Text>
               </View>
             )}
             <Pressable
@@ -306,6 +334,25 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Total</Text>
           </View>
         </Animated.View>
+
+        {/* Strength progress insight — best 1RM with gain since first test */}
+        {topLift && completedSessions.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(150).duration(380)} style={styles.strengthInsightCard}>
+            <Ionicons name="barbell-outline" size={14} color={C.primary} />
+            <Text style={styles.insightLiftLabel}>
+              {topLift.lift.charAt(0).toUpperCase() + topLift.lift.slice(1)} 1RM
+            </Text>
+            <Text style={styles.insightLiftValue}>
+              {kgToDisplayUnit(topLift.weight, weightUnit)} {weightUnit}
+            </Text>
+            {ormGain > 0 && (
+              <View style={styles.gainBadge}>
+                <Ionicons name="trending-up" size={10} color={C.primary} />
+                <Text style={styles.gainBadgeText}>+{kgToDisplayUnit(ormGain, weightUnit)}{weightUnit}</Text>
+              </View>
+            )}
+          </Animated.View>
+        )}
 
         {/* Secondary actionable card — priority: resume > milestone > broken streak (mutually exclusive) */}
         {activeSession ? (
@@ -400,6 +447,25 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
+    blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginBottom: 10 },
+    blockBarTrack: { flex: 1, height: 4, backgroundColor: C.borderLight, borderRadius: 2, overflow: 'hidden' as const },
+    blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
+    blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    strengthInsightCard: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
+      backgroundColor: C.primaryMuted, borderRadius: 12,
+      paddingHorizontal: 14, paddingVertical: 10,
+      borderWidth: 1, borderColor: C.primary + '22', marginBottom: 12,
+    },
+    insightLiftLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    insightLiftValue: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text, flex: 1 },
+    gainBadge: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 3,
+      backgroundColor: C.surface, borderRadius: 8,
+      paddingHorizontal: 8, paddingVertical: 4,
+      borderWidth: 1, borderColor: C.primary + '30',
+    },
+    gainBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
     progressionChip: {
       flexDirection: 'row', alignItems: 'center', gap: 5,
       marginBottom: 10,

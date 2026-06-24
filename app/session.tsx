@@ -741,6 +741,14 @@ function ExerciseCard({
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
+                {!isBandExercise && previousSessionWeight !== undefined && previousSessionWeight > 0 && (
+                  <View style={styles.lastSessionRow}>
+                    <Ionicons name="time-outline" size={11} color={C.textTertiary} />
+                    <Text style={styles.lastSessionText}>
+                      Last: {kgToDisplayUnit(previousSessionWeight, weightUnit)} {weightUnit}
+                    </Text>
+                  </View>
+                )}
                 {exercise.progressionNote && (
                   <View style={styles.progressionNoteRow}>
                     <Ionicons name="trending-up-outline" size={11} color={C.primary} />
@@ -1022,6 +1030,7 @@ export default function SessionScreen() {
   const [isMilestone, setIsMilestone] = useState(false);
   const [milestoneCount, setMilestoneCount] = useState(0);
   const [streakMilestone, setStreakMilestone] = useState(0);
+  const [prevSameTypeVolume, setPrevSameTypeVolume] = useState(0);
   const [testWeekOrmData, setTestWeekOrmData] = useState<{ prev: number | null; next: number } | null>(null);
   const [shareCardData, setShareCardData] = useState<WorkoutShareCardData | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -1370,6 +1379,17 @@ export default function SessionScreen() {
           sets: exerciseData[i].sets,
           note: exerciseNotes[i] || undefined,
         }));
+
+    // Compute previous same-type session volume for comparison in the congrats modal
+    const prevSameTypeVol = (() => {
+      const lastSame = completedSessions.find(s => s.sessionType === sessionType);
+      if (!lastSame) return 0;
+      return lastSame.exerciseLogs.reduce((sum, log) =>
+        sum + log.sets
+          .filter(s => s.completed && !s.skipped && s.weight > 0 && s.reps > 0)
+          .reduce((s2, set) => s2 + set.weight * set.reps, 0), 0);
+    })();
+    setPrevSameTypeVolume(prevSameTypeVol);
 
     // Compute share card data BEFORE updating lastLoggedWeights so we can detect new PBs.
     // Build all-time max weight per exercise from historical sessions (before this one)
@@ -1917,7 +1937,43 @@ export default function SessionScreen() {
                     </Text>
                     <Text style={styles.congratsStatLabel}>Duration</Text>
                   </View>
+                  {shareCardData?.totalVolumeKg != null && shareCardData.totalVolumeKg > 0 && (
+                    <>
+                      <View style={styles.congratsStatDivider} />
+                      <View style={styles.congratsStat}>
+                        <Text style={styles.congratsStatValue}>
+                          {Math.round(kgToDisplayUnit(shareCardData.totalVolumeKg, weightUnit)).toLocaleString()}
+                        </Text>
+                        <Text style={styles.congratsStatLabel}>Vol ({weightUnit})</Text>
+                      </View>
+                    </>
+                  )}
                 </View>
+                {STRENGTH_SESSION_TYPES.includes(sessionType) && shareCardData?.totalVolumeKg != null && shareCardData.totalVolumeKg > 0 && (
+                  <View style={styles.volumeCompareRow}>
+                    {prevSameTypeVolume > 0 ? (
+                      <>
+                        <Ionicons
+                          name={shareCardData.totalVolumeKg >= prevSameTypeVolume ? 'trending-up' : 'trending-down'}
+                          size={13}
+                          color={shareCardData.totalVolumeKg >= prevSameTypeVolume ? C.primary : C.textTertiary}
+                        />
+                        <Text style={[styles.volumeCompareText, shareCardData.totalVolumeKg > prevSameTypeVolume && { color: C.primary }]}>
+                          {shareCardData.totalVolumeKg > prevSameTypeVolume
+                            ? `↑ ${Math.round(kgToDisplayUnit(shareCardData.totalVolumeKg - prevSameTypeVolume, weightUnit)).toLocaleString()}${weightUnit} more than last ${getSessionLabel(sessionType).toLowerCase()}`
+                            : shareCardData.totalVolumeKg === prevSameTypeVolume
+                              ? `Same volume as last ${getSessionLabel(sessionType).toLowerCase()}`
+                              : `${Math.round(kgToDisplayUnit(prevSameTypeVolume - shareCardData.totalVolumeKg, weightUnit)).toLocaleString()}${weightUnit} less than last ${getSessionLabel(sessionType).toLowerCase()}`}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="star" size={13} color={C.warning} />
+                        <Text style={styles.volumeCompareText}>First {getSessionLabel(sessionType).toLowerCase()} session logged!</Text>
+                      </>
+                    )}
+                  </View>
+                )}
                 {streakMilestone > 0 && (
                   <View style={styles.streakBadge}>
                     <Text style={styles.streakBadgeIcon}>🔥</Text>
@@ -2158,6 +2214,10 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, marginTop: 2, fontStyle: 'italic' as const },
   progressionNoteRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 3 },
   progressionNoteText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
+  lastSessionRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 3 },
+  lastSessionText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+  volumeCompareRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, marginBottom: 14, paddingHorizontal: 4 },
+  volumeCompareText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary, flex: 1 },
   chevron: { marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surfaceTertiary },
