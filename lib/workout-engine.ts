@@ -808,6 +808,7 @@ export function getEquipmentLabel(tier: EquipmentTier): string {
     case 'bands': return 'Resistance Bands';
     case 'dumbbells': return 'Dumbbells';
     case 'kettlebells': return 'Kettlebells';
+    case 'barbell': return 'Barbell / Squat Rack';
     case 'fullgym': return 'Full Gym';
   }
 }
@@ -818,6 +819,7 @@ export function getEquipmentIcon(tier: EquipmentTier): string {
     case 'bands': return 'git-compare-outline';
     case 'dumbbells': return 'barbell-outline';
     case 'kettlebells': return 'fitness-outline';
+    case 'barbell': return 'barbell-outline';
     case 'fullgym': return 'business-outline';
   }
 }
@@ -841,7 +843,7 @@ export function getPainRegionLabel(region: PainRegion): string {
 
 
 export function getEffectiveTier(tiers: EquipmentTier[]): EquipmentTier {
-  const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+  const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
   if (!tiers || tiers.length === 0) return 'bodyweight';
   let bestIdx = 0;
   for (const t of tiers) {

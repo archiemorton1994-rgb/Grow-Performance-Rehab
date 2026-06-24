@@ -18,14 +18,15 @@ import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIco
 
 type Step = 'main' | 'painCategory' | 'painRegion' | 'prehabFocus';
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
   bands: 'Resistance bands only',
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
-  fullgym: 'Full gym access',
+  barbell: 'Barbell and squat rack',
+  fullgym: 'Everything — cables, machines, full setup',
 };
 
 export default function ReadinessScreen() {
@@ -105,7 +106,7 @@ export default function ReadinessScreen() {
         }
       }
       if (prev.includes(tier)) {
-        const next = prev.filter(t => t !== tier);
+        const next = prev.filter(t => t !== tier && t !== 'fullgym');
         return next.length > 0 ? next : [tier];
       }
       return [...prev, tier];

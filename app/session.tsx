@@ -942,7 +942,7 @@ export default function SessionScreen() {
   // Only count strength sessions for auto-progression — conditioning, prehab,
   // and flexibility sessions do not drive strength progressive overload.
   const strengthCount = completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
-  const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+  const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
     : getEffectiveTier();

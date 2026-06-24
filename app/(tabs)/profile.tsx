@@ -39,7 +39,7 @@ import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { router } from 'expo-router';
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
 
 function getLegalUrls() {
   try {
@@ -198,7 +198,7 @@ export default function ProfileScreen() {
         }
       }
       if (prev.includes(tier)) {
-        const next = prev.filter(t => t !== tier);
+        const next = prev.filter(t => t !== tier && t !== 'fullgym');
         return next.length > 0 ? next : [tier];
       }
       return [...prev, tier];

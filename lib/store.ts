@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 
-export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
+export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
 /** Session types that contribute to strength progressive overload. */
@@ -146,7 +146,7 @@ export interface UserProfile {
   bodyweightKg: number;
 }
 
-export const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+export const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
 
 interface AppState {
   onboardingComplete: boolean;

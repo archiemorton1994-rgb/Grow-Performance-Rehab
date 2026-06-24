@@ -96,7 +96,8 @@ const EQUIPMENT_OPTIONS: {
   { value: 'bands', label: 'Resistance Bands', description: 'Bands and tubes', icon: 'git-compare-outline' },
   { value: 'dumbbells', label: 'Dumbbells', description: 'Adjustable dumbbells', icon: 'barbell-outline' },
   { value: 'kettlebells', label: 'Kettlebells', description: 'Kettlebells available', icon: 'fitness-outline' },
-  { value: 'fullgym', label: 'Full Gym', description: 'Squat rack + barbell', icon: 'business-outline' },
+  { value: 'barbell', label: 'Barbell / Squat Rack', description: 'Barbell and squat rack', icon: 'barbell-outline' },
+  { value: 'fullgym', label: 'Full Gym', description: 'Everything — cables, machines, full setup', icon: 'business-outline' },
 ];
 
 function experienceLabel(e: ExperienceLevel | null): string {
@@ -115,6 +116,7 @@ function goalLabel(g: FitnessGoal | null): string {
 
 function equipmentLabel(tiers: EquipmentTier[]): string {
   if (tiers.includes('fullgym')) return 'Full Gym';
+  if (tiers.includes('barbell')) return 'Barbell';
   if (tiers.includes('kettlebells')) return 'Kettlebells';
   if (tiers.includes('dumbbells')) return 'Dumbbells';
   if (tiers.includes('bands')) return 'Bands';
@@ -303,7 +305,10 @@ export default function OnboardingScreen() {
       if (tier === 'fullgym') {
         return prev.includes('fullgym') ? prev.filter(t => t !== 'fullgym') : [...TIER_ORDER];
       }
-      return prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier];
+      if (prev.includes(tier)) {
+        return prev.filter(t => t !== tier && t !== 'fullgym');
+      }
+      return [...prev, tier];
     });
   }, [haptic]);
 
