@@ -215,6 +215,70 @@ function configureExpoAndLanding(app: express.Application) {
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }
 
+// Metro compiles the (~13 MB) dev bundle lazily on the first request, which
+// takes ~12 s. During that cold build, Replit's external port tunnels can drop
+// the connection before the first byte arrives, leaving Expo Go / the iOS
+// simulator stuck on "loading". Pre-warming each platform's bundle right after
+// Metro is ready populates Metro's cache so every real device request is served
+// warm (<1 s) over the standard dev domain.
+function prewarmMetroBundles() {
+  if (process.env.NODE_ENV !== "development") return;
+
+  const METRO_PORT = process.env.METRO_PORT || "8082";
+  const base = `http://127.0.0.1:${METRO_PORT}`;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const bundleParams =
+    "dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&transform.reactCompiler=true&unstable_transformProfile=hermes-stable";
+
+  void (async () => {
+    let ready = false;
+    for (let i = 0; i < 120; i++) {
+      try {
+        const r = await fetch(`${base}/status`);
+        if (r.ok) {
+          ready = true;
+          break;
+        }
+      } catch {
+        // Metro not up yet — keep polling.
+      }
+      await sleep(2000);
+    }
+
+    if (!ready) {
+      log("[prewarm] Metro did not become ready; skipping bundle pre-warm");
+      return;
+    }
+
+    for (const platform of ["ios", "android"]) {
+      const started = Date.now();
+      try {
+        const r = await fetch(
+          `${base}/node_modules/expo-router/entry.bundle?platform=${platform}&${bundleParams}`,
+        );
+        await r.arrayBuffer();
+        log(`[prewarm] ${platform} bundle ready in ${Date.now() - started}ms`);
+      } catch (err) {
+        log(`[prewarm] ${platform} bundle failed: ${(err as Error).message}`);
+      }
+    }
+
+    try {
+      const started = Date.now();
+      const htmlRes = await fetch(`${base}/`);
+      const html = await htmlRes.text();
+      const match = html.match(/src="(\/[^"]*\.bundle\?[^"]*)"/);
+      if (match) {
+        const r = await fetch(`${base}${match[1]}`);
+        await r.arrayBuffer();
+        log(`[prewarm] web bundle ready in ${Date.now() - started}ms`);
+      }
+    } catch (err) {
+      log(`[prewarm] web bundle failed: ${(err as Error).message}`);
+    }
+  })();
+}
+
 function setupErrorHandler(app: express.Application) {
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     const error = err as {
@@ -246,10 +310,9 @@ function setupErrorHandler(app: express.Application) {
     const METRO_PORT = process.env.METRO_PORT || "8082";
     const LOADING_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="2"><title>Starting…</title><style>body{margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}</style></head><body><div style="text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">⚡</div><div>Dev server starting…</div><div style="font-size:.75rem;opacity:.5;margin-top:.5rem">Refreshing automatically</div></div></body></html>`;
 
-    // Serve root path for web browsers: fetch Metro HTML and rewrite the bundle
-    // script URL to use Metro's direct external port (3000).  This bypasses the
-    // double-proxy chain for the 11 MB bundle, which Replit's external reverse
-    // proxy cannot reliably buffer/stream at that size.
+    // Serve the root path for web browsers by returning Metro's web HTML.
+    // Native Expo Go / simulator requests (which carry an expo-platform header)
+    // are passed through to the standard manifest/proxy flow below.
     app.get("/", async (req: Request, res: Response, next: NextFunction) => {
       // Native Expo Go requests carry an expo-platform header — let the
       // standard proxy handle those so the existing native flow is unchanged.
@@ -276,25 +339,13 @@ function setupErrorHandler(app: express.Application) {
           return replyHtml(LOADING_HTML);
         }
 
-        let html = await metroRes.text();
+        const html = await metroRes.text();
 
-        // Metro's HTML references the bundle with a relative path
-        // (/node_modules/expo-router/entry.bundle?...) which resolves to this
-        // origin (Express). Streaming the ~12 MB bundle through the Express
-        // double-proxy takes ~38 s, so the preview times out. Rewrite the
-        // relative bundle/asset URLs to Metro's direct external port (3000),
-        // which Replit exposes with localhost streaming and serves the same
-        // bundle in <1 s. Native (Expo Go / simulator) is handled separately
-        // via EXPO_PACKAGER_PROXY_URL pointing at :3000.
-        const devDomain = process.env.REPLIT_DEV_DOMAIN;
-        if (devDomain) {
-          const metroOrigin = `https://${devDomain}:3000`;
-          html = html.replace(
-            /(<script\s+src=")(\/[^"]*\.bundle\?[^"]*)"/g,
-            `$1${metroOrigin}$2"`,
-          );
-        }
-
+        // Serve Metro's web HTML unchanged. The bundle is referenced with a
+        // relative path that resolves to this same origin (the standard dev
+        // domain) and is proxied to Metro below. Bundles are pre-warmed on
+        // startup (see prewarmMetroBundles) so this large response is served
+        // from Metro's cache in well under a second.
         replyHtml(html);
       } catch {
         // Metro not ready yet — show a self-refreshing page
@@ -366,6 +417,8 @@ function setupErrorHandler(app: express.Application) {
       log(`express server serving on port ${port}`);
     },
   );
+
+  prewarmMetroBundles();
 
   // The Replit preview pane reaches the backend on port 5000, but the bare dev
   // domain (external port 80) — used by Expo Go and anyone opening the public

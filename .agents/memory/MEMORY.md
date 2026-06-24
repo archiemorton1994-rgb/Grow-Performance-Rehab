@@ -2,5 +2,5 @@
 - [EAS env vars on Replit](eas-env-vars-replit.md) — EXPO_PUBLIC_* must be Replit env vars (setEnvVars), not just eas.json; eas.json alone resolves to '' in Replit's Expo Launch builds
 - [EAS build: React version pin](eas-react-version-pin.md) — caret in "react" allows semver drift vs react-native-renderer; pin exact version or builds crash at launch
 - [EAS build: lockfile and sharp](eas-build-lockfile-sharp.md) — bun.lock version mismatch + sharp optional dep issues on EAS; use npm + mark sharp optional
-- [Expo preview stuck loading](expo-preview-bundle-slow-proxy.md) — 12MB bundle via Express double-proxy = 38s → Expo Go/sim timeout; route bundle to Metro's :3000 exposeLocalhost port (native via EXPO_PACKAGER_PROXY_URL, web via HTML rewrite)
+- [Expo preview stuck loading](expo-preview-bundle-slow-proxy.md) — cause is COLD Metro build (android ~43s); :3000 exposeLocalhost tunnel DROPS on cold (don't use it). Fix: prewarm all platform bundles on startup + serve over bare dev domain (no-timeout proxy)
 - [Web preview blank screen fix](web-preview-blank-screen.md) — react/react-dom version mismatch silently crashes on web; cross-origin bundle src hides error as "Script error."
