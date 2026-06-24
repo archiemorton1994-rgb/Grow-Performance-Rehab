@@ -798,7 +798,7 @@ export default function ProfileScreen() {
                 <Text style={styles.settingItemSub}>Reminds you at 8pm if you haven't trained yet and your streak is at risk</Text>
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
-                    {streakProtectionEnabled ? 'On' : 'Off'}
+                    {streakProtectionEnabled && streak >= 2 ? `On — ${streak}-day streak` : streakProtectionEnabled ? 'On' : 'Off'}
                   </Text>
                   <Switch
                     value={streakProtectionEnabled}
