@@ -280,6 +280,9 @@ interface AppState {
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
   setWeightReminderSnoozedAt: (ts: string | null) => void;
+  /** Returns true when the bodyweight reminder card should be shown on the Home tab.
+   *  Encapsulates staleness (>14 days or null) + snooze (<7 days) logic in one place. */
+  isWeightReminderVisible: () => boolean;
   pendingCustomExercises: CustomExercise[];
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
@@ -376,6 +379,18 @@ export const useAppStore = create<AppState>()(
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setTourComplete: (complete) => set({ tourComplete: complete }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
+      isWeightReminderVisible: () => {
+        const { completedSessions, bodyweightUpdatedAt, weightReminderSnoozedAt } = get();
+        if (completedSessions.length === 0) return false;
+        const isStale = !bodyweightUpdatedAt
+          || (Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000 > 14;
+        if (!isStale) return false;
+        if (weightReminderSnoozedAt) {
+          const snoozedDaysAgo = (Date.now() - new Date(weightReminderSnoozedAt).getTime()) / 86400000;
+          if (snoozedDaysAgo < 7) return false;
+        }
+        return true;
+      },
       setSessionEquipmentOverride: (tiers) => set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
       clearSessionEquipmentOverride: () => set({ sessionEquipmentOverride: null }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),

@@ -47,6 +47,7 @@ export default function HomeScreen() {
     getStreakDays,
     getThisWeekCount,
     isTestWeekDue,
+    isWeightReminderVisible,
     userProfile,
     setUserProfile,
     activeSession,
@@ -62,7 +63,6 @@ export default function HomeScreen() {
     setSessionEquipmentOverride,
     clearSessionEquipmentOverride,
     bodyweightUpdatedAt,
-    weightReminderSnoozedAt,
     setWeightReminderSnoozedAt,
   } = useAppStore();
 
@@ -193,18 +193,7 @@ export default function HomeScreen() {
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [draftWeight, setDraftWeight] = useState('');
 
-  const isBodyweightStale = useMemo(() => {
-    if (completedSessions.length === 0) return false; // No sessions yet — don't nag brand-new users
-    if (!bodyweightUpdatedAt) return true;
-    return (Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000 > 14;
-  }, [bodyweightUpdatedAt, completedSessions.length]);
-
-  const isSnoozed = useMemo(() => {
-    if (!weightReminderSnoozedAt) return false;
-    return (Date.now() - new Date(weightReminderSnoozedAt).getTime()) / 86400000 < 7;
-  }, [weightReminderSnoozedAt]);
-
-  const showWeightReminder = isBodyweightStale && !isSnoozed;
+  const showWeightReminder = isWeightReminderVisible();
 
   const daysSinceWeightUpdate = useMemo(() => {
     if (!bodyweightUpdatedAt) return null;
@@ -223,6 +212,7 @@ export default function HomeScreen() {
     const parsed = parseFloat(draftWeight);
     if (!isNaN(parsed) && parsed > 0) {
       setUserProfile({ bodyweightKg: displayUnitToKg(parsed, weightUnit) });
+      setWeightReminderSnoozedAt(null); // reset snooze — successful update clears it
     }
     setWeightModalOpen(false);
   };
@@ -571,8 +561,8 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.weightReminderTitle}>Update your bodyweight</Text>
               <Text style={styles.weightReminderSub}>
-                {daysSinceWeightUpdate !== null
-                  ? `Last updated ${daysSinceWeightUpdate} days ago`
+                {userProfile.bodyweightKg > 0
+                  ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}${daysSinceWeightUpdate !== null ? ` · updated ${daysSinceWeightUpdate}d ago` : ''}`
                   : 'Keeping this current improves load suggestions'}
               </Text>
             </View>
