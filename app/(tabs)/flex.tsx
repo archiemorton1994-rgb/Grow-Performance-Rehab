@@ -14,8 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import { useAppStore, PAIN_CATEGORIES, PainRegion } from '@/lib/store';
-import { getEffectiveTier } from '@/lib/workout-engine';
+import { useAppStore, PAIN_CATEGORIES, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
+import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 
 const REGION_ICONS: Record<PainRegion, keyof typeof Ionicons.glyphMap> = {
@@ -44,6 +44,17 @@ const FLEX_IMAGES: Record<string, any> = {
   mobility:    require('@/assets/images/sessions/mobility.png'),
   prehab:      require('@/assets/images/sessions/targeted-prehab.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
+};
+
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+
+const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
+  bodyweight: 'No equipment needed',
+  bands: 'Resistance bands only',
+  dumbbells: 'Dumbbells available',
+  kettlebells: 'Kettlebells available',
+  barbell: 'Barbell and squat rack',
+  fullgym: 'Everything — cables, machines, full setup',
 };
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | 'conditioning' | null;
@@ -149,11 +160,29 @@ function getConditioningLevels(C: ReturnType<typeof useColors>): ConditioningLev
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const { completedSessions, equipmentTiers } = useAppStore();
+  const {
+    completedSessions,
+    equipmentTiers,
+    userProfile,
+    sessionEquipmentOverride,
+    setSessionEquipmentOverride,
+    clearSessionEquipmentOverride,
+  } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
+  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
+  const availableTiers: EquipmentTier[] = isBeginnerExperience ? ['bodyweight', 'bands'] : ALL_TIERS;
+  const profileEquipment: EquipmentTier[] = (equipmentTiers && equipmentTiers.length > 0) ? equipmentTiers : ['bodyweight'];
+  const todayTiers = sessionEquipmentOverride ?? profileEquipment;
+  const todayEffectiveTier = getEffectiveTier(todayTiers);
+  const isOverrideActive = sessionEquipmentOverride !== null;
+
   const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
+
+  const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
   const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
@@ -170,16 +199,53 @@ export default function FlexScreen() {
 
   const closeModal = () => setActiveModal(null);
 
+  const openEquipmentSheet = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft([...todayTiers]);
+    setSheetOpen(true);
+  };
+
+  const handleDraftToggle = (tier: EquipmentTier) => {
+    if (!availableTiers.includes(tier)) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft((prev) => {
+      if (tier === 'fullgym') {
+        if (prev.includes('fullgym')) {
+          return prev.filter(t => t !== 'fullgym');
+        } else {
+          return [...TIER_ORDER];
+        }
+      }
+      if (prev.includes(tier)) {
+        const next = prev.filter(t => t !== tier && t !== 'fullgym');
+        return next.length > 0 ? next : [tier];
+      }
+      return [...prev, tier];
+    });
+  };
+
+  const confirmEquipment = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSessionEquipmentOverride(sheetDraft);
+    setSheetOpen(false);
+  };
+
+  const resetToProfile = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    clearSessionEquipmentOverride();
+    setSheetOpen(false);
+  };
+
   const handleStart = (sessionType: 'prehab' | 'flexibility') => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+    const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
+    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false', ...(equipmentOverrideParam ? { equipmentOverride: equipmentOverrideParam } : {}) } });
   };
 
   const handlePrehabRegion = (region: PainRegion | 'fullbody') => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    const tier = getEffectiveTier(equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight']);
     router.push({
       pathname: '/session',
       params: {
@@ -189,7 +255,7 @@ export default function FlexScreen() {
         energy: 'normal',
         timeAvailable: '60',
         isTestWeek: 'false',
-        equipment: tier,
+        equipment: todayEffectiveTier,
       },
     });
   };
@@ -197,6 +263,7 @@ export default function FlexScreen() {
   const handleConditioningStart = (level: typeof CONDITIONING_LEVELS[number]) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
+    const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
     router.push({
       pathname: '/readiness',
       params: {
@@ -204,6 +271,7 @@ export default function FlexScreen() {
         isTestWeek: 'false',
         energy: level.energy,
         timeAvailable: level.timeAvailable,
+        ...(equipmentOverrideParam ? { equipmentOverride: equipmentOverrideParam } : {}),
       },
     });
   };
@@ -272,6 +340,39 @@ export default function FlexScreen() {
       <View style={[styles.header, { paddingBottom: 8 }]}>
         <Text style={styles.title}>Rest & Restore</Text>
         <Text style={styles.subtitle}>Recovery, mobility, prehab and conditioning</Text>
+      </View>
+
+      {/* Equipment chip */}
+      <View style={styles.equipmentChipRow}>
+        <Pressable
+          onPress={openEquipmentSheet}
+          style={({ pressed }) => [
+            styles.equipmentChip,
+            isOverrideActive && styles.equipmentChipOverride,
+            pressed && { opacity: 0.75 },
+          ]}
+          testID="flex-equipment-chip"
+        >
+          {isOverrideActive && <View style={styles.overrideDot} />}
+          <Ionicons
+            name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
+            size={13}
+            color={isOverrideActive ? C.primary : C.textSecondary}
+          />
+          <Text style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}>
+            {isOverrideActive ? `Today: ${getEquipmentLabel(todayEffectiveTier)}` : getEquipmentLabel(todayEffectiveTier)}
+          </Text>
+          <Ionicons name="chevron-down" size={11} color={isOverrideActive ? C.primary : C.textTertiary} />
+        </Pressable>
+        {isOverrideActive && (
+          <Pressable
+            onPress={() => clearSessionEquipmentOverride()}
+            style={({ pressed }) => [styles.equipmentDismissBtn, pressed && { opacity: 0.6 }]}
+            testID="flex-equipment-dismiss"
+          >
+            <Ionicons name="close" size={14} color={C.textSecondary} />
+          </Pressable>
+        )}
       </View>
 
       {/* Nav card list - intrinsic height, no overflow:hidden anywhere.
@@ -495,6 +596,102 @@ export default function FlexScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Equipment override sheet */}
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSheetOpen(false)} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16, gap: 8 }]}>
+          <View style={styles.sheetHandle} />
+          <View style={[styles.sheetHeader, { justifyContent: 'space-between', alignItems: 'flex-start', gap: 0, marginBottom: 2 }]}>
+            <View>
+              <Text style={[styles.sheetTitle, { fontSize: 17 }]}>Equipment today</Text>
+              <Text style={styles.sheetSubtitle}>This only affects the current session</Text>
+            </View>
+            {isOverrideActive && (
+              <Pressable onPress={resetToProfile} style={styles.resetBtn}>
+                <Text style={styles.resetBtnText}>Reset</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {sheetDraft.length > 0 && (
+            <View style={styles.bestMatchRow}>
+              <Text style={styles.bestMatchText}>
+                Best match:{' '}
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                  {getEquipmentLabel(draftEffectiveTier)}
+                </Text>
+              </Text>
+            </View>
+          )}
+
+          {isBeginnerExperience && (
+            <View style={styles.beginnerNote}>
+              <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
+              <Text style={styles.beginnerNoteText}>Bodyweight & Bands — unlock more in profile</Text>
+            </View>
+          )}
+
+          {ALL_TIERS.map((tier) => {
+            const isAvailable = availableTiers.includes(tier);
+            const isActive = sheetDraft.includes(tier);
+            return (
+              <Pressable
+                key={tier}
+                onPress={() => handleDraftToggle(tier)}
+                style={({ pressed }) => [
+                  styles.tierRow,
+                  isActive && styles.tierRowActive,
+                  !isAvailable && styles.tierRowLocked,
+                  pressed && isAvailable && { opacity: 0.8 },
+                ]}
+                testID={`flex-sheet-equipment-${tier}`}
+              >
+                <View style={[styles.tierIcon, { backgroundColor: isActive ? C.primary : isAvailable ? C.primaryMuted : C.surfaceTertiary }]}>
+                  <Ionicons
+                    name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                    size={16}
+                    color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.tierLabel, isActive && { color: C.primary }, !isAvailable && { color: C.textTertiary }]}>
+                    {getEquipmentLabel(tier)}
+                  </Text>
+                  <Text style={styles.tierSub}>{isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}</Text>
+                </View>
+                {!isAvailable
+                  ? <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
+                  : (
+                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                    </View>
+                  )
+                }
+              </Pressable>
+            );
+          })}
+
+          <Pressable
+            onPress={confirmEquipment}
+            disabled={sheetDraft.length === 0}
+            style={({ pressed }) => [
+              styles.confirmBtn,
+              sheetDraft.length === 0 && { opacity: 0.4 },
+              pressed && sheetDraft.length > 0 && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            ]}
+            testID="flex-sheet-equipment-confirm"
+          >
+            <Ionicons name="checkmark-circle" size={18} color={C.textInverse} />
+            <Text style={styles.confirmBtnText}>Use this equipment</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -689,6 +886,161 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 15,
       fontFamily: 'Inter_500Medium',
       color: C.text,
+    },
+
+    equipmentChipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 12,
+    },
+    equipmentChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    equipmentChipOverride: {
+      backgroundColor: C.primarySurface,
+      borderColor: C.primary,
+    },
+    equipmentChipText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    equipmentChipTextOverride: {
+      color: C.primary,
+      fontFamily: 'Inter_600SemiBold',
+    },
+    overrideDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: C.primary,
+    },
+    equipmentDismissBtn: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: C.surfaceTertiary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    sheetBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    sheetSubtitle: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 2,
+    },
+    resetBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 10,
+    },
+    resetBtnText: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+    },
+    bestMatchRow: {
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    bestMatchText: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
+    beginnerNote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    beginnerNoteText: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      flex: 1,
+    },
+    tierRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.background,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    tierRowActive: {
+      borderColor: C.primary,
+      backgroundColor: C.primarySurface,
+    },
+    tierRowLocked: { opacity: 0.45 },
+    tierIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tierLabel: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
+    },
+    tierSub: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
+    tierCheck: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tierCheckActive: {
+      backgroundColor: C.primary,
+      borderColor: C.primary,
+    },
+    confirmBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 14,
+      marginTop: 4,
+    },
+    confirmBtnText: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
     },
   });
 }
