@@ -680,7 +680,10 @@ export default function OnboardingScreen() {
                   label={equipmentLabel(equipment)}
                 />
               </Animated.View>
-              <Animated.View style={[{ width: '100%', marginTop: 40 }, celebSummaryStyle]}>
+              <Animated.Text style={[styles.firstSessionsNote, celebSummaryStyle]}>
+                Your first few sessions are where we build a picture of your strength. Complete them and share your feedback — that's when sessions get truly personalised.
+              </Animated.Text>
+              <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
                 <Text style={styles.profileReadySub}>Your first session is ready</Text>
                 <Pressable
                   onPress={handleComplete}
@@ -992,6 +995,15 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
     color: C.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
+  },
+  firstSessionsNote: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: C.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 20,
+    paddingHorizontal: 8,
   },
   celebContent: { justifyContent: 'center', paddingTop: 0 },
   celebIconWrap: { marginBottom: 20 },
