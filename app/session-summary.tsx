@@ -12,8 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { useAppStore, SetLog } from '@/lib/store';
+import { useAppStore, SetLog, ExerciseCategory } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
+import { getExerciseCategoryMap } from '@/lib/exercise-db';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const GAIN_GREEN = '#22c55e';
@@ -27,6 +28,7 @@ type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'n
 interface ExerciseRow {
   exerciseId: string;
   exerciseName: string;
+  category: ExerciseCategory | null;
   isWeighted: boolean;
   bestWeight: number;
   bestReps: number;
@@ -35,6 +37,36 @@ interface ExerciseRow {
   badge: BadgeKind;
   deltaWeight: number;
   deltaReps: number;
+}
+
+const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
+  prep: 'Warm-up',
+  mechanical: 'Priming',
+  neuro: 'Power',
+  main: 'Main Lift',
+  accessory: 'Accessory',
+  prehab: 'Prehab',
+  finisher: 'Finisher',
+  cooldown: 'Cooldown',
+};
+
+function categoryColors(category: ExerciseCategory, C: ReturnType<typeof useColors>): { bg: string; fg: string } {
+  switch (category) {
+    case 'main':
+      return { bg: C.primaryMuted, fg: C.primary };
+    case 'mechanical':
+      return { bg: C.categoryMechanical, fg: C.categoryMechanicalText };
+    case 'neuro':
+      return { bg: C.categoryNeuro, fg: C.categoryNeuroText };
+    case 'prehab':
+      return { bg: C.categoryPrehab, fg: C.categoryPrehabText };
+    case 'finisher':
+      return { bg: C.categoryFinisher, fg: C.categoryFinisherText };
+    case 'cooldown':
+      return { bg: C.categoryCooldown, fg: C.categoryCooldownText };
+    default:
+      return { bg: C.surfaceTertiary, fg: C.textSecondary };
+  }
 }
 
 /** Best completed working set: highest weight, ties broken by most reps. */
@@ -65,6 +97,8 @@ export default function SessionSummaryScreen() {
     }
     return completedSessions[0] ?? null;
   }, [completedSessions, sessionId]);
+
+  const categoryMap = useMemo(() => getExerciseCategoryMap(), []);
 
   const summary = useMemo(() => {
     if (!session) {
@@ -127,6 +161,7 @@ export default function SessionSummaryScreen() {
       rows.push({
         exerciseId: log.exerciseId,
         exerciseName: log.exerciseName,
+        category: categoryMap[log.exerciseId] ?? null,
         isWeighted,
         bestWeight: thisBest?.weight ?? 0,
         bestReps: thisBest?.reps ?? 0,
@@ -140,7 +175,7 @@ export default function SessionSummaryScreen() {
 
     const hasWeighted = rows.some((r) => r.isWeighted);
     return { totalSets, totalReps, totalVolumeKg, rows, hasWeighted };
-  }, [session, getExerciseHistory]);
+  }, [session, getExerciseHistory, categoryMap]);
 
   const goHome = () => {
     router.dismissAll();
@@ -210,42 +245,46 @@ export default function SessionSummaryScreen() {
             <Text style={[styles.statValue, { color: C.text }]}>{summary.totalReps}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>Reps</Text>
           </View>
-          {summary.hasWeighted && (
-            <>
-              <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
-                <Text style={[styles.statLabel, { color: C.textSecondary }]}>Vol ({weightUnit})</Text>
-              </View>
-            </>
-          )}
+          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Vol ({weightUnit})</Text>
+          </View>
         </Animated.View>
 
         {/* Exercise breakdown */}
-        {summary.rows.length > 0 ? (
+        {summary.hasWeighted ? (
           <>
-            <Text style={[styles.sectionTitle, { color: C.text }]}>
-              {summary.hasWeighted ? 'Your lifts vs last time' : 'This session'}
-            </Text>
-            {summary.rows.map((row, i) => (
-              <Animated.View
-                key={row.exerciseId + i}
-                entering={FadeInDown.delay(140 + i * 60).duration(420)}
-                style={[styles.exerciseCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-              >
-                <View style={styles.exerciseLeft}>
-                  <Text style={[styles.exerciseName, { color: C.text }]} numberOfLines={2}>
-                    {row.exerciseName}
-                  </Text>
-                  <Text style={[styles.exerciseMeta, { color: C.textSecondary }]}>
-                    {row.isWeighted
-                      ? `${formatWeight(row.bestWeight, weightUnit)} × ${row.bestReps} · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`
-                      : `${row.totalReps} reps · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`}
-                  </Text>
-                </View>
-                <Badge row={row} weightUnit={weightUnit} C={C} />
-              </Animated.View>
-            ))}
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Your lifts vs last time</Text>
+            {summary.rows.map((row, i) => {
+              const pill = row.category ? categoryColors(row.category, C) : null;
+              return (
+                <Animated.View
+                  key={row.exerciseId + i}
+                  entering={FadeInDown.delay(140 + i * 60).duration(420)}
+                  style={[styles.exerciseCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+                >
+                  <View style={styles.exerciseLeft}>
+                    <Text style={[styles.exerciseName, { color: C.text }]} numberOfLines={2}>
+                      {row.exerciseName}
+                    </Text>
+                    {pill && row.category && (
+                      <View style={[styles.categoryPill, { backgroundColor: pill.bg }]}>
+                        <Text style={[styles.categoryPillText, { color: pill.fg }]}>
+                          {CATEGORY_LABELS[row.category]}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={[styles.exerciseMeta, { color: C.textSecondary }]}>
+                      {row.isWeighted
+                        ? `${formatWeight(row.bestWeight, weightUnit)} × ${row.bestReps} · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`
+                        : `${row.totalReps} reps · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`}
+                    </Text>
+                  </View>
+                  <Badge row={row} weightUnit={weightUnit} C={C} />
+                </Animated.View>
+              );
+            })}
           </>
         ) : (
           <Animated.View
@@ -408,10 +447,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
   },
+  categoryPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginTop: 5,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+  },
   exerciseMeta: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
-    marginTop: 3,
+    marginTop: 5,
   },
   badge: {
     flexDirection: 'row',

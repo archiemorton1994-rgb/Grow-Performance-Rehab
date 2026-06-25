@@ -1212,3 +1212,53 @@ export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[]
 
   return results;
 }
+
+let _categoryMapCache: Record<string, ExerciseCategory> | null = null;
+
+/**
+ * Build a flat { exerciseId -> category } lookup by deep-walking every exercise
+ * collection in this module. Robust to the nested DB shape: any object that has
+ * both a string `id` and a string `category` is recorded. Memoized.
+ */
+export function getExerciseCategoryMap(): Record<string, ExerciseCategory> {
+  if (_categoryMapCache) return _categoryMapCache;
+
+  const map: Record<string, ExerciseCategory> = {};
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (typeof obj.id === 'string' && typeof obj.category === 'string') {
+      map[obj.id] = obj.category as ExerciseCategory;
+    }
+    for (const key of Object.keys(obj)) walk(obj[key]);
+  };
+
+  walk([
+    CARDIO_WARMUP,
+    PREP,
+    MECHANICAL,
+    NEURO,
+    POWER_MECHANICAL,
+    POWER_NEURO,
+    MAIN_LIFTS,
+    ACCESSORIES,
+    PREHAB,
+    FINISHERS,
+    COOLDOWN,
+    CONDITIONING_WORKOUTS,
+    ORM_TEST,
+    GOAL_CONDITIONING_BLOCKS,
+    STANDALONE_PREHAB,
+    PREHAB_BY_REGION,
+    PREHAB_WARMUP,
+    PREHAB_COOLDOWN,
+    STANDALONE_FLEXIBILITY,
+  ]);
+
+  _categoryMapCache = map;
+  return map;
+}
