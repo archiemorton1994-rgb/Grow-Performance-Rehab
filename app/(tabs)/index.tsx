@@ -9,6 +9,8 @@ import {
   Image,
   Modal,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
-import { getTimeOfDayGreeting, kgToDisplayUnit } from '@/lib/utils';
+import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 
@@ -46,6 +48,7 @@ export default function HomeScreen() {
     getThisWeekCount,
     isTestWeekDue,
     userProfile,
+    setUserProfile,
     activeSession,
     clearActiveSession,
     setCycleStartOffset,
@@ -58,6 +61,9 @@ export default function HomeScreen() {
     sessionEquipmentOverride,
     setSessionEquipmentOverride,
     clearSessionEquipmentOverride,
+    bodyweightUpdatedAt,
+    weightReminderSnoozedAt,
+    setWeightReminderSnoozedAt,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -182,6 +188,49 @@ export default function HomeScreen() {
       ormGain: firstWeight && firstWeight < bestWeight ? Math.round(bestWeight - firstWeight) : 0,
     };
   }, [oneRepMaxes, getBestORM]);
+
+  // ─── Bodyweight reminder logic ──────────────────────────────────────────
+  const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [draftWeight, setDraftWeight] = useState('');
+
+  const isBodyweightStale = useMemo(() => {
+    if (completedSessions.length === 0) return false; // No sessions yet — don't nag brand-new users
+    if (!bodyweightUpdatedAt) return true;
+    return (Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000 > 14;
+  }, [bodyweightUpdatedAt, completedSessions.length]);
+
+  const isSnoozed = useMemo(() => {
+    if (!weightReminderSnoozedAt) return false;
+    return (Date.now() - new Date(weightReminderSnoozedAt).getTime()) / 86400000 < 7;
+  }, [weightReminderSnoozedAt]);
+
+  const showWeightReminder = isBodyweightStale && !isSnoozed;
+
+  const daysSinceWeightUpdate = useMemo(() => {
+    if (!bodyweightUpdatedAt) return null;
+    return Math.floor((Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000);
+  }, [bodyweightUpdatedAt]);
+
+  const handleOpenWeightModal = () => {
+    const displayVal = userProfile.bodyweightKg > 0
+      ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
+      : '';
+    setDraftWeight(displayVal);
+    setWeightModalOpen(true);
+  };
+
+  const handleSaveWeight = () => {
+    const parsed = parseFloat(draftWeight);
+    if (!isNaN(parsed) && parsed > 0) {
+      setUserProfile({ bodyweightKg: displayUnitToKg(parsed, weightUnit) });
+    }
+    setWeightModalOpen(false);
+  };
+
+  const handleSnoozeReminder = () => {
+    setWeightReminderSnoozedAt(new Date().toISOString());
+  };
+  // ────────────────────────────────────────────────────────────────────────
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -513,8 +562,79 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
+        {/* Bodyweight reminder */}
+        {showWeightReminder && (
+          <Animated.View entering={FadeInDown.delay(240).duration(380)} style={styles.weightReminderCard}>
+            <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
+              <Ionicons name="body-outline" size={20} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.weightReminderTitle}>Update your bodyweight</Text>
+              <Text style={styles.weightReminderSub}>
+                {daysSinceWeightUpdate !== null
+                  ? `Last updated ${daysSinceWeightUpdate} days ago`
+                  : 'Keeping this current improves load suggestions'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleOpenWeightModal}
+              style={({ pressed }) => [styles.weightUpdateBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.85 }]}
+              testID="weight-reminder-update"
+            >
+              <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Update</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSnoozeReminder}
+              hitSlop={10}
+              style={styles.weightReminderDismiss}
+              testID="weight-reminder-dismiss"
+            >
+              <Ionicons name="close" size={16} color={C.textTertiary} />
+            </Pressable>
+          </Animated.View>
+        )}
+
       </View>
     </View>
+
+      {/* Bodyweight update modal */}
+      <Modal
+        visible={weightModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setWeightModalOpen(false)}
+      >
+        <Pressable style={modalStyles.backdrop} onPress={() => setWeightModalOpen(false)} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 20, backgroundColor: C.surface }]}>
+            <View style={modalStyles.handle} />
+            <Text style={[modalStyles.sheetTitle, { color: C.text }]}>Update Bodyweight</Text>
+            <Text style={[modalStyles.sheetSubtitle, { color: C.textSecondary, marginBottom: 20, marginTop: 4 }]}>
+              Accurate bodyweight improves suggested loads for every session.
+            </Text>
+            <View style={styles.weightInputRow}>
+              <TextInput
+                style={[styles.weightInput, { borderColor: C.border, color: C.text, backgroundColor: C.surfaceSecondary }]}
+                value={draftWeight}
+                onChangeText={setDraftWeight}
+                keyboardType="decimal-pad"
+                placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
+                placeholderTextColor={C.textTertiary}
+                selectTextOnFocus
+                autoFocus
+              />
+              <Text style={[styles.weightInputUnit, { color: C.textSecondary }]}>{weightUnit}</Text>
+            </View>
+            <Pressable
+              onPress={handleSaveWeight}
+              style={({ pressed }) => [modalStyles.confirmBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.88 }]}
+              testID="weight-save-btn"
+            >
+              <Text style={[modalStyles.confirmBtnText, { color: C.textInverse }]}>Save</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Equipment picker sheet — shared with Train tab via store */}
       <Modal
@@ -792,5 +912,36 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     calibrationTrack: { height: 4, backgroundColor: C.primary + '22', borderRadius: 2, overflow: 'hidden' as const, marginBottom: 8 },
     calibrationFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     calibrationSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    weightReminderCard: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10,
+      backgroundColor: C.primarySurface, borderRadius: 14,
+      paddingHorizontal: 12, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.primary + '30',
+    },
+    weightReminderIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0,
+    },
+    weightReminderTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+    weightReminderSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    weightUpdateBtn: {
+      borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, flexShrink: 0,
+    },
+    weightUpdateBtnText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+    weightReminderDismiss: {
+      width: 26, height: 26, borderRadius: 8,
+      alignItems: 'center' as const, justifyContent: 'center' as const,
+    },
+    weightInputRow: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, marginBottom: 16,
+    },
+    weightInput: {
+      flex: 1, borderWidth: 1.5, borderRadius: 12,
+      paddingHorizontal: 16, paddingVertical: 12,
+      fontSize: 22, fontFamily: 'Inter_600SemiBold',
+      textAlign: 'center' as const,
+    },
+    weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
   });
 }

@@ -198,6 +198,10 @@ interface AppState {
   /** Whether the first-launch guided tour has been completed or skipped. Persisted. */
   tourComplete: boolean;
   weightUnit: WeightUnit;
+  /** ISO timestamp of the last time bodyweightKg was explicitly updated. Null if never updated via app. */
+  bodyweightUpdatedAt: string | null;
+  /** ISO timestamp of when the bodyweight reminder was last snoozed (dismissed without saving). */
+  weightReminderSnoozedAt: string | null;
   lastWeightPromptedAt: number | null;
   hasHydrated: boolean;
   activeSession: ActiveSession | null;
@@ -275,6 +279,7 @@ interface AppState {
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
+  setWeightReminderSnoozedAt: (ts: string | null) => void;
   pendingCustomExercises: CustomExercise[];
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
@@ -340,6 +345,8 @@ export const useAppStore = create<AppState>()(
       savedTemplates: [],
       historyTypeFilter: null,
       tourComplete: false,
+      bodyweightUpdatedAt: null,
+      weightReminderSnoozedAt: null,
       sessionEquipmentOverride: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
@@ -347,6 +354,7 @@ export const useAppStore = create<AppState>()(
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       setUserProfile: (profile) => set((state) => ({
         userProfile: { ...state.userProfile, ...profile },
+        ...(profile.bodyweightKg !== undefined ? { bodyweightUpdatedAt: new Date().toISOString() } : {}),
       })),
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
@@ -367,6 +375,7 @@ export const useAppStore = create<AppState>()(
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setTourComplete: (complete) => set({ tourComplete: complete }),
+      setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
       setSessionEquipmentOverride: (tiers) => set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
       clearSessionEquipmentOverride: () => set({ sessionEquipmentOverride: null }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
@@ -771,12 +780,17 @@ export const useAppStore = create<AppState>()(
           persistedState.lastPainRegion = null;
         }
         if (!('tourComplete' in persistedState)) {
-          // Existing users who already have sessions know the app — skip the tour for them
           persistedState.tourComplete = (persistedState.completedSessions?.length ?? 0) > 0;
+        }
+        if (!('bodyweightUpdatedAt' in persistedState)) {
+          persistedState.bodyweightUpdatedAt = null;
+        }
+        if (!('weightReminderSnoozedAt' in persistedState)) {
+          persistedState.weightReminderSnoozedAt = null;
         }
         return persistedState;
       },
-      version: 16,
+      version: 17,
     }
   )
 );
