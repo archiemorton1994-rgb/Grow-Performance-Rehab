@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BadgeUnlockToastProps {
   name: string;
-  icon: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
   onDismiss: () => void;
 }
@@ -53,7 +53,7 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
     <Animated.View style={[styles.container, { bottom: bottomOffset }, animStyle]}>
       <Pressable onPress={handleTap} style={[styles.toast, { backgroundColor: C.surface, borderColor: C.borderLight }]}>
         <View style={[styles.iconWrap, { backgroundColor: color + '22' }]}>
-          <Ionicons name={icon as React.ComponentProps<typeof Ionicons>['name']} size={22} color={color} />
+          <Ionicons name={icon} size={22} color={color} />
         </View>
         <View style={styles.textWrap}>
           <Text style={[styles.headline, { color: C.text }]}>Badge Unlocked!</Text>
