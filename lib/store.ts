@@ -155,6 +155,22 @@ export interface CompletedSession {
   durationSeconds?: number;
 }
 
+/** One logged appearance of a weighted exercise within a single completed session. */
+export interface ExerciseAppearance {
+  date: string;
+  bestSetWeight: number;
+  avgWorkingWeight: number;
+}
+
+/** All-time progress for a single weighted exercise, aggregated across every completed session. */
+export interface ExerciseProgress {
+  exerciseId: string;
+  exerciseName: string;
+  sessionType: SessionType;
+  /** Chronological, oldest appearance first. */
+  appearances: ExerciseAppearance[];
+}
+
 export type Sex = 'male' | 'female' | 'other';
 
 export interface UserProfile {
@@ -268,6 +284,8 @@ interface AppState {
   getDataForSync: () => SyncPayload;
   /** All completed-set arrays for a given exercise ID across every completed session, newest session first. */
   getExerciseHistory: (exerciseId: string) => { sessionId: string; date: string; sets: SetLog[] }[];
+  /** All-time progress for every weighted exercise ever logged (completed sets with weight > 0). */
+  getAllExerciseProgress: () => ExerciseProgress[];
   mergeServerData: (data: SyncPayload) => void;
 }
 
@@ -601,6 +619,39 @@ export const useAppStore = create<AppState>()(
             return { sessionId: session.id, date: session.date, sets: log.sets };
           })
           .filter((entry): entry is { sessionId: string; date: string; sets: SetLog[] } => entry !== null);
+      },
+
+      getAllExerciseProgress: () => {
+        const { completedSessions } = get();
+        const map = new Map<string, ExerciseProgress>();
+        // completedSessions is stored newest-first; iterate oldest-first so each
+        // exercise's appearances read left-to-right chronologically.
+        const chronological = [...completedSessions].reverse();
+        for (const session of chronological) {
+          for (const log of session.exerciseLogs) {
+            const workingSets = log.sets.filter((s) => s.completed && s.weight > 0);
+            if (workingSets.length === 0) continue;
+            const bestSetWeight = workingSets.reduce((b, s) => (s.weight > b ? s.weight : b), 0);
+            const avgWorkingWeight =
+              workingSets.reduce((sum, s) => sum + s.weight, 0) / workingSets.length;
+            let entry = map.get(log.exerciseId);
+            if (!entry) {
+              entry = {
+                exerciseId: log.exerciseId,
+                exerciseName: log.exerciseName,
+                sessionType: session.sessionType,
+                appearances: [],
+              };
+              map.set(log.exerciseId, entry);
+            }
+            // Iterating oldest->newest means the last write wins, so the row shows
+            // the most recent name/session-type for an exercise that may have moved.
+            entry.exerciseName = log.exerciseName;
+            entry.sessionType = session.sessionType;
+            entry.appearances.push({ date: session.date, bestSetWeight, avgWorkingWeight });
+          }
+        }
+        return Array.from(map.values());
       },
 
       mergeServerData: (data) => {

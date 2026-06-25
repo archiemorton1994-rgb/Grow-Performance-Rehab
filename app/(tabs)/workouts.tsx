@@ -12,13 +12,13 @@ import {
   Modal,
 } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Rect, Line, Circle, Path, Text as SvgText, G } from 'react-native-svg';
+import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
-import { CompletedSession, EnergyLevel, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
+import { CompletedSession, EnergyLevel, ExerciseProgress, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
@@ -898,6 +898,322 @@ function OneRMCalculator({
   );
 }
 
+const PROGRESS_GROUP_ORDER: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom'];
+
+type TrendDirection = 'up' | 'down' | 'flat' | null;
+
+function computeTrend(appearances: { avgWorkingWeight: number }[]): TrendDirection {
+  if (appearances.length < 3) return null;
+  const recent = appearances.slice(-3);
+  const prior = appearances.slice(-6, -3);
+  if (prior.length === 0) return 'flat';
+  const mean = (arr: { avgWorkingWeight: number }[]) =>
+    arr.reduce((sum, a) => sum + a.avgWorkingWeight, 0) / arr.length;
+  const recentAvg = mean(recent);
+  const priorAvg = mean(prior);
+  const threshold = priorAvg * 0.01;
+  if (recentAvg - priorAvg > threshold) return 'up';
+  if (recentAvg - priorAvg < -threshold) return 'down';
+  return 'flat';
+}
+
+function ExerciseSparkline({
+  appearances,
+  color,
+  C,
+}: {
+  appearances: { avgWorkingWeight: number }[];
+  color: string;
+  C: ReturnType<typeof useColors>;
+}) {
+  const W = 78;
+  const H = 32;
+  const pad = 4;
+  const data = appearances.slice(-8).map(a => a.avgWorkingWeight);
+
+  if (data.length < 2) {
+    return (
+      <View style={{ width: W, height: H, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>1 log</Text>
+      </View>
+    );
+  }
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((v - min) / range) * (H - pad * 2);
+    return { x, y };
+  });
+  const polyPoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const last = points[points.length - 1];
+
+  return (
+    <Svg width={W} height={H}>
+      <Polyline points={polyPoints} fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={last.x} cy={last.y} r={2.75} fill={color} />
+    </Svg>
+  );
+}
+
+function TrendArrow({ trend, C }: { trend: TrendDirection; C: ReturnType<typeof useColors> }) {
+  if (trend === null) return <View style={{ width: 18 }} />;
+  const config: Record<'up' | 'down' | 'flat', { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+    up: { icon: 'arrow-up', color: C.primary },
+    flat: { icon: 'remove', color: C.textTertiary },
+    down: { icon: 'arrow-down', color: C.warning },
+  };
+  const c = config[trend];
+  return <Ionicons name={c.icon} size={16} color={c.color} />;
+}
+
+function ExerciseProgressRow({
+  progress,
+  weightUnit,
+  onPress,
+  C,
+}: {
+  progress: ExerciseProgress;
+  weightUnit: 'kg' | 'lbs';
+  onPress: () => void;
+  C: ReturnType<typeof useColors>;
+}) {
+  const pb = useMemo(
+    () => progress.appearances.reduce((b, a) => (a.bestSetWeight > b ? a.bestSetWeight : b), 0),
+    [progress.appearances]
+  );
+  const trend = useMemo(() => computeTrend(progress.appearances), [progress.appearances]);
+  const count = progress.appearances.length;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={`progress-row-${progress.exerciseId}`}
+      style={({ pressed }) => ({
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        paddingHorizontal: 14, paddingVertical: 12, minHeight: 64,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }} numberOfLines={1}>
+          {progress.exerciseName}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <View style={{ backgroundColor: C.primaryMuted, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary }}>
+              PB {formatWeight(pb, weightUnit)}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+            ×{count} session{count !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      </View>
+      <ExerciseSparkline appearances={progress.appearances} color={C.primary} C={C} />
+      <TrendArrow trend={trend} C={C} />
+      <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
+    </Pressable>
+  );
+}
+
+function ExerciseProgressList({
+  weightUnit,
+  totalSessions,
+  onSelect,
+  C,
+}: {
+  weightUnit: 'kg' | 'lbs';
+  totalSessions: number;
+  onSelect: (p: ExerciseProgress) => void;
+  C: ReturnType<typeof useColors>;
+}) {
+  const getAllExerciseProgress = useAppStore(s => s.getAllExerciseProgress);
+  const completedSessions = useAppStore(s => s.completedSessions);
+
+  const progress = useMemo(() => getAllExerciseProgress(), [getAllExerciseProgress, completedSessions]);
+
+  const totalVolumeKg = useMemo(() => {
+    let vol = 0;
+    for (const s of completedSessions) {
+      for (const ex of s.exerciseLogs) {
+        for (const set of ex.sets) {
+          if (set.completed && set.weight > 0) vol += set.weight * set.reps;
+        }
+      }
+    }
+    return vol;
+  }, [completedSessions]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<SessionType, ExerciseProgress[]>();
+    for (const p of progress) {
+      const arr = map.get(p.sessionType) ?? [];
+      arr.push(p);
+      map.set(p.sessionType, arr);
+    }
+    // Heaviest PB first within each group.
+    for (const arr of map.values()) {
+      arr.sort((a, b) => {
+        const pbA = a.appearances.reduce((m, ap) => Math.max(m, ap.bestSetWeight), 0);
+        const pbB = b.appearances.reduce((m, ap) => Math.max(m, ap.bestSetWeight), 0);
+        return pbB - pbA;
+      });
+    }
+    return PROGRESS_GROUP_ORDER
+      .filter(t => map.has(t))
+      .map(t => ({ type: t, items: map.get(t)! }));
+  }, [progress]);
+
+  const totalVolumeDisplay = Math.round(kgToDisplayUnit(totalVolumeKg, weightUnit));
+
+  if (progress.length === 0) {
+    return (
+      <EmptyState
+        icon="trending-up-outline"
+        title="No weighted exercises yet"
+        subtitle="Log a strength session with weights to start tracking lifetime progress for each exercise."
+        cta={{
+          label: 'Start a session',
+          icon: 'flash',
+          onPress: () => router.push('/(tabs)/train'),
+          testID: 'progress-empty-cta',
+        }}
+        testID="progress-empty"
+      />
+    );
+  }
+
+  return (
+    <View>
+      {/* Quick stats */}
+      <View style={{
+        flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, padding: 16,
+        marginBottom: 16, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center',
+      }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>{progress.length}</Text>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, textAlign: 'center' }}>Exercises</Text>
+        </View>
+        <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>{totalSessions}</Text>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, textAlign: 'center' }}>Sessions</Text>
+        </View>
+        <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>{totalVolumeDisplay.toLocaleString()}</Text>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, textAlign: 'center' }}>{weightUnit} lifted</Text>
+        </View>
+      </View>
+
+      {grouped.map(group => (
+        <View key={group.type} style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, marginLeft: 2 }}>
+            {SHARED_SESSION_META[group.type].label}
+          </Text>
+          <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.borderLight, overflow: 'hidden' }}>
+            {group.items.map((p, i) => (
+              <View key={p.exerciseId}>
+                {i > 0 && <View style={{ height: 1, backgroundColor: C.borderLight, marginHorizontal: 14 }} />}
+                <ExerciseProgressRow progress={p} weightUnit={weightUnit} onPress={() => onSelect(p)} C={C} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ExerciseDetailSheet({
+  progress,
+  weightUnit,
+  insets,
+  onClose,
+  C,
+}: {
+  progress: ExerciseProgress | null;
+  weightUnit: 'kg' | 'lbs';
+  insets: { top: number; bottom: number };
+  onClose: () => void;
+  C: ReturnType<typeof useColors>;
+}) {
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const pb = useMemo(
+    () => (progress ? progress.appearances.reduce((b, a) => (a.bestSetWeight > b ? a.bestSetWeight : b), 0) : 0),
+    [progress]
+  );
+  // Newest first for the table.
+  const rows = useMemo(() => (progress ? [...progress.appearances].reverse() : []), [progress]);
+  // Highlight only the first (most recent) all-time-best row to avoid multiple highlights.
+  const pbRowIndex = useMemo(() => rows.findIndex(r => r.bestSetWeight === pb), [rows, pb]);
+
+  return (
+    <Modal
+      visible={progress !== null}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalContainer, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.modalHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.modalTitle} numberOfLines={1}>{progress?.exerciseName ?? ''}</Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 }}>
+              All-time best {formatWeight(pb, weightUnit)} · {rows.length} session{rows.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.7 }]}
+            testID="progress-detail-close"
+          >
+            <Ionicons name="close" size={20} color={C.text} />
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.borderLight, overflow: 'hidden' }}>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: C.surfaceTertiary }}>
+              <Text style={{ flex: 1, fontSize: 11, fontFamily: 'Inter_700Bold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Date</Text>
+              <Text style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Best set</Text>
+            </View>
+            {rows.map((r, i) => {
+              const isPB = i === pbRowIndex;
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center',
+                    paddingHorizontal: 16, paddingVertical: 12,
+                    borderTopWidth: i === 0 ? 0 : 1, borderTopColor: C.borderLight,
+                    backgroundColor: isPB ? C.primarySurface : 'transparent',
+                  }}
+                >
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {isPB && <Ionicons name="trophy" size={13} color={C.primary} />}
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: isPB ? C.primary : C.textSecondary }}>
+                      {formatDate(r.date)}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: isPB ? C.primary : C.text }}>
+                    {formatWeight(r.bestSetWeight, weightUnit)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -915,9 +1231,10 @@ export default function StatsScreen() {
   const historyFilter = historyTypeFilter;
   const setHistoryFilter = setHistoryTypeFilter;
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>('overview');
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
   const [showCalculator, setShowCalculator] = useState(false);
+  const [selectedProgress, setSelectedProgress] = useState<ExerciseProgress | null>(null);
 
   useEffect(() => {
     if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
@@ -972,6 +1289,7 @@ export default function StatsScreen() {
   const TABS = [
     { key: 'overview' as const, label: 'Overview' },
     { key: 'strength' as const, label: 'Strength' },
+    { key: 'progress' as const, label: 'Progress' },
     { key: 'history' as const, label: 'History' },
   ];
 
@@ -1167,6 +1485,24 @@ export default function StatsScreen() {
               />
             </ScrollView>
           )}
+
+          {/* PROGRESS TAB */}
+          {activeTab === 'progress' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.sectionTitle}>Exercise Progress</Text>
+              <Text style={styles.sectionSub}>Every weighted lift you&apos;ve logged · tap one for full history</Text>
+              <ExerciseProgressList
+                weightUnit={weightUnit}
+                totalSessions={completedSessions.length}
+                onSelect={setSelectedProgress}
+                C={C}
+              />
+            </ScrollView>
+          )}
         </View>
       )}
 
@@ -1195,6 +1531,15 @@ export default function StatsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Exercise progress detail sheet */}
+      <ExerciseDetailSheet
+        progress={selectedProgress}
+        weightUnit={weightUnit}
+        insets={{ top: insets.top, bottom: insets.bottom }}
+        onClose={() => setSelectedProgress(null)}
+        C={C}
+      />
     </View>
   );
 }
