@@ -154,6 +154,56 @@ export async function cancelStreakProtectionAlert(): Promise<void> {
   } catch {}
 }
 
+const BODYWEIGHT_NOTIF_ID = 'grow-bodyweight-reminder';
+const BODYWEIGHT_INTERVAL_DAYS = 21;
+
+export async function scheduleBodyweightReminder(
+  bodyweightUpdatedAt: string | null,
+  hasCompletedSessions: boolean,
+): Promise<void> {
+  if (!isNotificationsSupported()) return;
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') return;
+  if (!hasCompletedSessions) return;
+
+  await cancelBodyweightReminder();
+
+  const now = Date.now();
+  const intervalMs = BODYWEIGHT_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+
+  let secondsUntilFire: number;
+  if (!bodyweightUpdatedAt) {
+    secondsUntilFire = 3600;
+  } else {
+    const msRemaining = intervalMs - (now - new Date(bodyweightUpdatedAt).getTime());
+    secondsUntilFire = msRemaining <= 0 ? 3600 : Math.ceil(msRemaining / 1000);
+  }
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: BODYWEIGHT_NOTIF_ID,
+      content: {
+        title: 'Is your weight still accurate?',
+        body: "It's been a while since you logged your bodyweight. Update it to keep your training on track.",
+        sound: true,
+        data: { screen: 'home' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secondsUntilFire,
+        repeats: false,
+      },
+    });
+  } catch {}
+}
+
+export async function cancelBodyweightReminder(): Promise<void> {
+  if (!isNotificationsSupported()) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(BODYWEIGHT_NOTIF_ID);
+  } catch {}
+}
+
 export const REST_TIMER_NOTIF_ID = 'grow-rest-timer';
 
 export async function cancelRestTimerNotification(): Promise<void> {

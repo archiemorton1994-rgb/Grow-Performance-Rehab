@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
+import { scheduleBodyweightReminder } from '@/lib/notifications';
 
 const SESSION_IMAGES: Record<string, any> = {
   squat:        require('@/assets/images/sessions/lower-body.png'),
@@ -194,6 +195,10 @@ export default function HomeScreen() {
   const [draftWeight, setDraftWeight] = useState('');
 
   const showWeightReminder = isWeightReminderVisible();
+
+  useEffect(() => {
+    void scheduleBodyweightReminder(bodyweightUpdatedAt, completedSessions.length > 0);
+  }, [bodyweightUpdatedAt, completedSessions.length]);
 
   const daysSinceWeightUpdate = useMemo(() => {
     if (!bodyweightUpdatedAt) return null;
