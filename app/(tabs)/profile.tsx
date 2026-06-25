@@ -104,6 +104,7 @@ export default function ProfileScreen() {
     getBestORM,
     oneRepMaxes,
     isWeightReminderVisible,
+    setTourComplete,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -1020,6 +1021,28 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
               </Pressable>
             )}
+
+            <View style={styles.settingDivider} />
+
+            <Text style={styles.settingSectionLabel}>App</Text>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setTourComplete(false);
+                setActiveModal(null);
+              }}
+              style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
+              testID="replay-tour"
+            >
+              <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                <Ionicons name="map-outline" size={20} color={C.primary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.navLabel}>Replay Guided Tour</Text>
+                <Text style={styles.navSub}>Walk through the app again</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
 
             <View style={styles.settingDivider} />
 
