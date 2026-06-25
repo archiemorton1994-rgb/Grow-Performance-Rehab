@@ -100,6 +100,9 @@ export default function TrainScreen() {
     clearActiveSession,
     equipmentTiers,
     userProfile,
+    sessionEquipmentOverride,
+    setSessionEquipmentOverride,
+    clearSessionEquipmentOverride,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -111,11 +114,10 @@ export default function TrainScreen() {
     ? equipmentTiers
     : ['bodyweight'];
 
-  const [sessionEquipment, setSessionEquipment] = useState<EquipmentTier[] | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
 
-  const todayTiers = sessionEquipment ?? profileEquipment;
+  const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -216,13 +218,13 @@ export default function TrainScreen() {
 
   const confirmEquipment = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSessionEquipment(sheetDraft);
+    setSessionEquipmentOverride(sheetDraft);
     setSheetOpen(false);
   };
 
   const resetToProfile = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSessionEquipment(null);
+    clearSessionEquipmentOverride();
     setSheetOpen(false);
   };
 
@@ -255,7 +257,7 @@ export default function TrainScreen() {
     );
   };
 
-  const equipmentOverrideParam = sessionEquipment ? JSON.stringify(sessionEquipment) : undefined;
+  const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
 
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
     if (activeSession) {
@@ -294,7 +296,7 @@ export default function TrainScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
-  const isOverrideActive = sessionEquipment !== null;
+  const isOverrideActive = sessionEquipmentOverride !== null;
 
   return (
     <>
@@ -339,7 +341,7 @@ export default function TrainScreen() {
           {isOverrideActive && (
             <Pressable
               onPress={() => {
-                setSessionEquipment(null);
+                clearSessionEquipmentOverride();
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               hitSlop={8}

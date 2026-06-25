@@ -216,6 +216,11 @@ interface AppState {
   streakProtectionTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
+  /**
+   * Transient per-session equipment override. Set by the Train or Home tab chip; cleared on app
+   * restart. NOT persisted — lives only in memory for the current app session.
+   */
+  sessionEquipmentOverride: EquipmentTier[] | null;
   /** URI of the user's profile photo (local file URI from image picker). Null if not set. */
   profilePhotoUri: string | null;
   /**
@@ -262,6 +267,8 @@ interface AppState {
   setStreakProtectionTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
+  setSessionEquipmentOverride: (tiers: EquipmentTier[]) => void;
+  clearSessionEquipmentOverride: () => void;
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
@@ -329,6 +336,7 @@ export const useAppStore = create<AppState>()(
       pendingCustomExercises: [],
       savedTemplates: [],
       historyTypeFilter: null,
+      sessionEquipmentOverride: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -354,6 +362,8 @@ export const useAppStore = create<AppState>()(
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
+      setSessionEquipmentOverride: (tiers) => set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
+      clearSessionEquipmentOverride: () => set({ sessionEquipmentOverride: null }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
       clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
 
@@ -680,6 +690,10 @@ export const useAppStore = create<AppState>()(
     {
       name: 'grow-app-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { sessionEquipmentOverride: _transient, ...persisted } = state;
+        return persisted as typeof state;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) state.setHasHydrated(true);
       },

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Platform,
   Alert,
   Image,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +19,7 @@ import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
+import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 
 const SESSION_IMAGES: Record<string, any> = {
   squat:        require('@/assets/images/sessions/lower-body.png'),
@@ -36,7 +39,7 @@ export default function HomeScreen() {
   const C = useColors();
   const tabBarHeight = insets.bottom + 50;
   const {
-    getEffectiveTier,
+    getEffectiveTier: storeGetEffectiveTier,
     completedSessions,
     getCurrentSessionType,
     getStreakDays,
@@ -51,9 +54,59 @@ export default function HomeScreen() {
     getBestORM,
     oneRepMaxes,
     weightUnit,
+    equipmentTiers,
+    sessionEquipmentOverride,
+    setSessionEquipmentOverride,
+    clearSessionEquipmentOverride,
   } = useAppStore();
 
-  const effectiveTier = getEffectiveTier();
+  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
+  const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const;
+  const availableTiers = isBeginnerExperience
+    ? (['bodyweight', 'bands'] as const)
+    : ALL_TIERS;
+
+  const profileEquipment = (equipmentTiers && equipmentTiers.length > 0) ? equipmentTiers : ['bodyweight' as const];
+  const todayTiers = sessionEquipmentOverride ?? profileEquipment;
+  const todayEffectiveTier = getEffectiveTier(todayTiers);
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetDraft, setSheetDraft] = useState<typeof ALL_TIERS[number][]>([]);
+
+  const openEquipmentSheet = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft([...todayTiers]);
+    setSheetOpen(true);
+  };
+
+  const handleDraftToggle = (tier: typeof ALL_TIERS[number]) => {
+    if (!(availableTiers as readonly string[]).includes(tier)) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft((prev) => {
+      if (tier === 'fullgym') {
+        return prev.includes('fullgym') ? prev.filter(t => t !== 'fullgym') : [...ALL_TIERS];
+      }
+      if (prev.includes(tier)) {
+        const next = prev.filter(t => t !== tier && t !== 'fullgym');
+        return next.length > 0 ? next : [tier];
+      }
+      return [...prev, tier];
+    });
+  };
+
+  const confirmEquipment = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSessionEquipmentOverride([...sheetDraft]);
+    setSheetOpen(false);
+  };
+
+  const resetEquipmentToProfile = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    clearSessionEquipmentOverride();
+    setSheetOpen(false);
+  };
+
+  const effectiveTier = storeGetEffectiveTier();
   const suggestedSession = getCurrentSessionType();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
@@ -152,9 +205,10 @@ export default function HomeScreen() {
   const handleStartSuggested = () => {
     const go = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
       router.push({
         pathname: '/readiness',
-        params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false' },
+        params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false', equipmentOverride: equipmentOverrideParam },
       });
     };
     if (activeSession) { confirmReplaceActive(go); return; }
@@ -214,6 +268,7 @@ export default function HomeScreen() {
     : null;
 
   return (
+    <>
     <View
       style={[
         styles.container,
@@ -310,6 +365,26 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+            <Pressable
+              onPress={openEquipmentSheet}
+              style={({ pressed }) => [
+                styles.equipmentChip,
+                sessionEquipmentOverride !== null && styles.equipmentChipOverride,
+                pressed && { opacity: 0.8 },
+              ]}
+              testID="home-equipment-chip"
+            >
+              <Ionicons
+                name={getEquipmentIcon(todayEffectiveTier) as any}
+                size={13}
+                color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
+              />
+              <Text style={[styles.equipmentChipText, sessionEquipmentOverride !== null && styles.equipmentChipTextOverride]}>
+                {sessionEquipmentOverride !== null ? 'Today: ' : ''}{getEquipmentLabel(todayEffectiveTier)}
+              </Text>
+              {sessionEquipmentOverride !== null && <View style={styles.overrideDot} />}
+              <Ionicons name="chevron-down" size={12} color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary} />
+            </Pressable>
             <Pressable
               onPress={handleStartSuggested}
               style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
@@ -440,8 +515,104 @@ export default function HomeScreen() {
 
       </View>
     </View>
+
+      {/* Equipment picker sheet — shared with Train tab via store */}
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetOpen(false)}
+      >
+        <Pressable style={modalStyles.backdrop} onPress={() => setSheetOpen(false)} />
+        <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 16, backgroundColor: C.surface }]}>
+          <View style={modalStyles.handle} />
+          <View style={modalStyles.sheetHeader}>
+            <View>
+              <Text style={[modalStyles.sheetTitle, { color: C.text }]}>Equipment today</Text>
+              <Text style={[modalStyles.sheetSubtitle, { color: C.textSecondary }]}>This only affects the current session</Text>
+            </View>
+            {sessionEquipmentOverride !== null && (
+              <Pressable onPress={resetEquipmentToProfile} style={[modalStyles.resetBtn, { backgroundColor: C.primaryMuted, borderColor: C.primary + '40' }]}>
+                <Text style={[modalStyles.resetBtnText, { color: C.primary }]}>Reset</Text>
+              </Pressable>
+            )}
+          </View>
+          {sheetDraft.length > 0 && (
+            <View style={[modalStyles.bestMatchRow, { backgroundColor: C.primaryMuted, borderColor: C.primary + '22' }]}>
+              <Text style={[modalStyles.bestMatchText, { color: C.textSecondary }]}>
+                Best match:{' '}
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                  {getEquipmentLabel(getEffectiveTier(sheetDraft))}
+                </Text>
+              </Text>
+            </View>
+          )}
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
+            {(['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const).map((tier) => {
+              const locked = !(availableTiers as readonly string[]).includes(tier);
+              const selected = sheetDraft.includes(tier);
+              return (
+                <Pressable
+                  key={tier}
+                  onPress={() => handleDraftToggle(tier)}
+                  disabled={locked}
+                  style={({ pressed }) => [
+                    modalStyles.tierRow,
+                    { borderBottomColor: C.borderLight },
+                    selected && { backgroundColor: C.primaryMuted },
+                    locked && { opacity: 0.4 },
+                    pressed && !locked && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons
+                    name={getEquipmentIcon(tier) as any}
+                    size={20}
+                    color={selected ? C.primary : C.textSecondary}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}>{getEquipmentLabel(tier)}</Text>
+                  </View>
+                  {selected && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
+                  {locked && <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Pressable
+            onPress={confirmEquipment}
+            style={({ pressed }) => [modalStyles.confirmBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.88 }]}
+          >
+            <Text style={[modalStyles.confirmBtnText, { color: C.textInverse }]}>Confirm</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet: {
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 20,
+  },
+  handle: { width: 36, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  sheetSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  resetBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  resetBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  bestMatchRow: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, marginBottom: 12 },
+  bestMatchText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  tierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tierLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  confirmBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  confirmBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+});
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
@@ -477,6 +648,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14,
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+
+    equipmentChip: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6,
+      alignSelf: 'flex-start' as const,
+      backgroundColor: C.surfaceSecondary ?? C.borderLight, borderRadius: 20,
+      paddingHorizontal: 12, paddingVertical: 6, marginBottom: 10,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    equipmentChipOverride: {
+      backgroundColor: C.primaryMuted, borderColor: C.primary + '40',
+    },
+    equipmentChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    equipmentChipTextOverride: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    overrideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary },
 
     blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginBottom: 10 },
     blockBarTrack: { flex: 1, height: 4, backgroundColor: C.borderLight, borderRadius: 2, overflow: 'hidden' as const },
