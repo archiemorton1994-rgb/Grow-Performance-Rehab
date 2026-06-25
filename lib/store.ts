@@ -656,10 +656,13 @@ export const useAppStore = create<AppState>()(
 
       getThisWeekCount: () => {
         const { completedSessions } = get();
+        // Use the same ISO Mon–Sun week boundary as getStreakDays() to avoid
+        // Sun/Mon boundary mismatches when comparing "this week" to the streak.
         const now = new Date();
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
+        const startOfWeek = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+        const dow = startOfWeek.getUTCDay() || 7; // 1=Mon … 7=Sun
+        startOfWeek.setUTCDate(startOfWeek.getUTCDate() - (dow - 1)); // back to Monday
+        startOfWeek.setUTCHours(0, 0, 0, 0);
 
         return completedSessions.filter((s) => new Date(s.date) >= startOfWeek).length;
       },

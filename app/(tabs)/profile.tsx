@@ -382,7 +382,7 @@ export default function ProfileScreen() {
           <View style={styles.statDiv} />
           <View style={styles.stat}>
             <Text style={styles.statVal}>{streak}</Text>
-            <Text style={styles.statLbl}>Wk Streak</Text>
+            <Text style={styles.statLbl}>Week Streak</Text>
           </View>
           <View style={styles.statDiv} />
           <View style={styles.stat}>
