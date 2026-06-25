@@ -32,6 +32,8 @@ import {
   cancelMissedWorkoutNudge,
   scheduleStreakProtectionAlert,
   cancelStreakProtectionAlert,
+  scheduleBodyweightReminder,
+  cancelBodyweightReminder,
 } from '@/lib/notifications';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
@@ -95,6 +97,8 @@ export default function ProfileScreen() {
     setStreakProtectionEnabled,
     streakProtectionTime,
     setStreakProtectionTime,
+    bodyweightReminderEnabled,
+    setBodyweightReminderEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
     getBestORM,
@@ -896,6 +900,35 @@ export default function ProfileScreen() {
                     ))}
                   </ScrollView>
                 )}
+
+                <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Bodyweight Reminder</Text>
+                <Text style={styles.settingItemSub}>Nudge to update your logged weight after 21 days without a change</Text>
+                <View style={styles.reminderToggleRow}>
+                  <Text style={styles.reminderToggleLabel}>
+                    {bodyweightReminderEnabled ? 'On' : 'Off'}
+                  </Text>
+                  <Switch
+                    value={bodyweightReminderEnabled}
+                    onValueChange={async (value) => {
+                      setBodyweightReminderEnabled(value);
+                      if (value) {
+                        const granted = await requestNotificationPermission();
+                        if (granted) {
+                          const { bodyweightUpdatedAt, completedSessions } = useAppStore.getState();
+                          void scheduleBodyweightReminder(bodyweightUpdatedAt, completedSessions.length > 0);
+                        } else {
+                          setBodyweightReminderEnabled(false);
+                        }
+                      } else {
+                        void cancelBodyweightReminder();
+                      }
+                      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor={C.textInverse}
+                    testID="bodyweight-reminder-toggle"
+                  />
+                </View>
               </>
             ) : (
               <Text style={styles.reminderWebNote}>Reminders are available on iOS and Android only.</Text>

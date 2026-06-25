@@ -218,6 +218,8 @@ interface AppState {
   nudgeEnabled: boolean;
   /** Whether the streak-protection alert (8pm on untrained days) is enabled. */
   streakProtectionEnabled: boolean;
+  /** Whether the bodyweight reminder push notification is enabled. Default true. */
+  bodyweightReminderEnabled: boolean;
   /** Time for the streak-protection alert in "HH:MM" format (24-hour). Default '20:00'. */
   streakProtectionTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
@@ -270,6 +272,7 @@ interface AppState {
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
+  setBodyweightReminderEnabled: (enabled: boolean) => void;
   setStreakProtectionTime: (time: string) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
@@ -339,6 +342,7 @@ export const useAppStore = create<AppState>()(
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
+      bodyweightReminderEnabled: true,
       streakProtectionTime: '20:00',
       cycleStartOffset: 0,
       profilePhotoUri: null,
@@ -373,6 +377,7 @@ export const useAppStore = create<AppState>()(
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
+      setBodyweightReminderEnabled: (enabled) => set({ bodyweightReminderEnabled: enabled }),
       setStreakProtectionTime: (time) => set({ streakProtectionTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
@@ -788,6 +793,9 @@ export const useAppStore = create<AppState>()(
         if (!('streakProtectionEnabled' in persistedState)) {
           persistedState.streakProtectionEnabled = false;
         }
+        if (!('bodyweightReminderEnabled' in persistedState)) {
+          persistedState.bodyweightReminderEnabled = true;
+        }
         if (!('streakProtectionTime' in persistedState)) {
           persistedState.streakProtectionTime = '20:00';
         }
@@ -805,7 +813,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 17,
+      version: 18,
     }
   )
 );
