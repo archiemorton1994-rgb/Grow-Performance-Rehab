@@ -625,7 +625,7 @@ export default function OnboardingScreen() {
                 <Ionicons name="podium-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
-              <Text style={styles.hint}>Optional - used to set starting weights precisely</Text>
+              <Text style={styles.hint}>Optional — leave blank if you're new or returning after a break</Text>
               <View style={styles.liftRows}>
                 <LiftInput
                   label="Back Squat"
@@ -647,7 +647,7 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
-                <Text style={styles.skipText}>Skip - add these later</Text>
+                <Text style={styles.skipText}>I don't know my best lifts</Text>
               </Pressable>
             </ScrollView>
           </View>
@@ -962,12 +962,11 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   },
   chipTextSelected: { color: C.primaryDark },
   liftRows: { width: '100%', marginTop: 4 },
-  skipLink: { marginTop: 16, alignSelf: 'center', padding: 8 },
+  skipLink: { marginTop: 20, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 },
   skipText: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
     color: C.textSecondary,
-    textDecorationLine: 'underline',
   },
   footer: { paddingTop: 12 },
   continueBtn: {
