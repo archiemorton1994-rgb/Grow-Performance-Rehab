@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -104,6 +104,14 @@ export default function TrainScreen() {
     setSessionEquipmentOverride,
     clearSessionEquipmentOverride,
   } = useAppStore();
+
+  const prevSessionCount = useRef(completedSessions.length);
+  useEffect(() => {
+    if (completedSessions.length > prevSessionCount.current) {
+      clearSessionEquipmentOverride();
+    }
+    prevSessionCount.current = completedSessions.length;
+  }, [completedSessions.length]);
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
