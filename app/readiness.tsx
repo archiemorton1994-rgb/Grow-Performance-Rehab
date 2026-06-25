@@ -281,6 +281,12 @@ export default function ReadinessScreen() {
               <Text style={styles.beginnerNoteText}>No Equipment & bands - great for building safe foundations</Text>
             </View>
           )}
+          {overrideTiers !== null && (
+            <View style={styles.beginnerNote}>
+              <Ionicons name="swap-horizontal-outline" size={13} color={C.primary} />
+              <Text style={styles.beginnerNoteText}>Pre-selected from your session choice — adjust below if needed</Text>
+            </View>
+          )}
           {selectedEquipments.length > 0 && (
             <View style={styles.effectiveTierBadge}>
               <Text style={styles.effectiveTierText}>
