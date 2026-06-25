@@ -719,6 +719,19 @@ export default function TabLayout() {
   const [tabsSeen, setTabsSeen] = useState<Set<string>>(new Set());
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
 
+  // When tourComplete flips from true → false (i.e. the user tapped "Replay
+  // guided tour" in Settings), reset all local tour progress so the full 6-step
+  // flow starts fresh: glow icons reappear on all tabs, progress bar resets to
+  // 0/6, and tab presses re-open each sheet.
+  const prevTourComplete = useRef(tourComplete);
+  useEffect(() => {
+    if (prevTourComplete.current === true && tourComplete === false) {
+      setTabsSeen(new Set());
+      setActiveSheet(null);
+    }
+    prevTourComplete.current = tourComplete;
+  }, [tourComplete]);
+
   // Height of the tab bar from the bottom of the screen
   const tabBarBottom = isWeb ? 84 : insets.bottom + 50;
   const tourActive = !tourComplete;
