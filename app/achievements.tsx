@@ -6,7 +6,6 @@ import {
   StyleSheet,
   SectionList,
   Modal,
-  ScrollView,
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -21,9 +20,34 @@ import {
   BADGE_CATEGORY_ORDER,
   Badge,
   BadgeCategory,
+  BadgeCriteriaType,
 } from '@/lib/badges';
 
-const ALL_FILTER = '__all__';
+type FilterTab = 'all' | 'earned' | 'locked';
+
+const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
+  session_count:      'Complete more sessions to unlock this.',
+  streak_days:        'Train on consecutive days to build your streak.',
+  strength_orm:       'Hit a new 1RM on a test week to unlock this.',
+  cumulative_volume:  'Keep logging sets — volume adds up over time.',
+  session_type_count: 'Complete more sessions of this type.',
+  consistency_habit:  'Train regularly each week to build this habit.',
+  goal_progress:      'Keep training toward your selected goals.',
+  profile_action:     'Update your profile to unlock this.',
+  equipment_usage:    'Use different equipment tiers in your sessions.',
+  test_week:          'Complete a 1RM test week to unlock this.',
+  time_based:         'Train at a consistent time of day.',
+  variety:            'Mix up your session types — try them all.',
+  recovery:           'Add prehab or flexibility sessions to your routine.',
+  duration_based:     'Complete a longer session (45 or 60 min) to unlock.',
+  comeback:           'Come back after a break and train again.',
+  session_volume:     'Log heavy sets to hit the volume target for this.',
+  heavy_set:          'Log a heavy weight on any exercise set.',
+  pain_adaptation:    'Complete sessions while managing a pain region.',
+  low_energy:         'Log a session even on a low-energy day.',
+};
+
+const COLS = 4;
 
 export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
@@ -31,30 +55,33 @@ export default function AchievementsScreen() {
   const { earnedBadges } = useAppStore();
   const earnedSet = useMemo(() => new Set(earnedBadges), [earnedBadges]);
 
-  const [activeCategory, setActiveCategory] = useState<BadgeCategory | typeof ALL_FILTER>(ALL_FILTER);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [detailBadge, setDetailBadge] = useState<Badge | null>(null);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  // Build sections grouped by category, filtered by active category
+  // Build sections grouped by category, filtered by earned state
   const sections = useMemo(() => {
     const byCategory = new Map<BadgeCategory, Badge[]>();
     for (const b of BADGE_CATALOG) {
-      const existing = byCategory.get(b.category) ?? [];
-      existing.push(b);
-      byCategory.set(b.category, existing);
+      const list = byCategory.get(b.category) ?? [];
+      list.push(b);
+      byCategory.set(b.category, list);
     }
-    const cats = activeCategory === ALL_FILTER
-      ? BADGE_CATEGORY_ORDER
-      : [activeCategory as BadgeCategory];
-    return cats
+    return BADGE_CATEGORY_ORDER
       .filter(cat => byCategory.has(cat))
       .map(cat => {
         const all = byCategory.get(cat)!;
-        const earned = all.filter(b => earnedSet.has(b.id));
-        return { title: cat, data: all, earnedCount: earned.length };
-      });
-  }, [activeCategory, earnedSet]);
+        const filtered = activeFilter === 'all'
+          ? all
+          : activeFilter === 'earned'
+            ? all.filter(b => earnedSet.has(b.id))
+            : all.filter(b => !earnedSet.has(b.id));
+        const earnedCount = all.filter(b => earnedSet.has(b.id)).length;
+        return { title: cat, data: filtered, earnedCount, totalCount: all.length };
+      })
+      .filter(s => s.data.length > 0);
+  }, [activeFilter, earnedSet]);
 
   const totalEarned = earnedBadges.length;
   const totalBadges = BADGE_CATALOG.length;
@@ -66,10 +93,11 @@ export default function AchievementsScreen() {
 
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const filterCategories = useMemo<(BadgeCategory | typeof ALL_FILTER)[]>(
-    () => [ALL_FILTER, ...BADGE_CATEGORY_ORDER],
-    []
-  );
+  const filterTabs: { key: FilterTab; label: string }[] = [
+    { key: 'all',    label: 'All' },
+    { key: 'earned', label: 'Earned' },
+    { key: 'locked', label: 'Locked' },
+  ];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -91,60 +119,54 @@ export default function AchievementsScreen() {
         </View>
       </View>
 
-      {/* Category filter bar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterBar}
-        style={styles.filterScroll}
-      >
-        {filterCategories.map(cat => {
-          const active = activeCategory === cat;
-          const label = cat === ALL_FILTER ? 'All' : BADGE_CATEGORY_LABELS[cat as BadgeCategory];
+      {/* Filter tabs: All / Earned / Locked */}
+      <View style={styles.filterBar}>
+        {filterTabs.map(tab => {
+          const active = activeFilter === tab.key;
           return (
             <Pressable
-              key={cat}
+              key={tab.key}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActiveCategory(cat);
+                setActiveFilter(tab.key);
               }}
-              style={[styles.filterChip, active && styles.filterChipActive]}
+              style={[styles.filterTab, active && styles.filterTabActive]}
+              testID={`achievements-filter-${tab.key}`}
             >
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                {label}
+              <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
+                {tab.label}
               </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* Badge sections */}
       <SectionList
         sections={sections}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + 24 },
         ]}
-        stickySectionHeadersEnabled={false}
         renderSectionHeader={({ section }) => (
-          <View style={styles.sectionHeader}>
+          <View style={[styles.sectionHeader, { backgroundColor: C.background }]}>
             <Text style={styles.sectionTitle}>
               {BADGE_CATEGORY_LABELS[section.title as BadgeCategory]}
             </Text>
             <Text style={styles.sectionCount}>
-              {section.earnedCount}/{section.data.length}
+              {section.earnedCount}/{section.totalCount}
             </Text>
           </View>
         )}
         renderItem={({ item, index, section }) => {
           const sectionData = section.data as Badge[];
-          const isRowFirst = index % 3 === 0;
+          const isRowStart = index % COLS === 0;
+          if (!isRowStart) return null;
 
-          if (!isRowFirst) return null;
-
-          const rowItems = sectionData.slice(index, index + 3);
+          const rowItems = sectionData.slice(index, index + COLS);
 
           return (
             <View style={styles.badgeRow}>
@@ -156,23 +178,29 @@ export default function AchievementsScreen() {
                     onPress={() => handleBadgePress(badge)}
                     style={({ pressed }) => [
                       styles.badgeCell,
-                      pressed && { opacity: 0.75 },
+                      pressed && { opacity: 0.72 },
                     ]}
                     testID={`badge-${badge.id}`}
                   >
                     <View
                       style={[
-                        styles.badgeIcon,
+                        styles.badgeIconWrap,
                         isEarned
                           ? { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }
                           : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
+                        !isEarned && styles.badgeIconLocked,
                       ]}
                     >
                       <Ionicons
                         name={badge.icon as any}
-                        size={22}
+                        size={20}
                         color={isEarned ? badge.color : C.textTertiary}
                       />
+                      {!isEarned && (
+                        <View style={styles.lockOverlay}>
+                          <Ionicons name="lock-closed" size={9} color={C.textTertiary} />
+                        </View>
+                      )}
                     </View>
                     <Text
                       style={[styles.badgeName, !isEarned && styles.badgeNameLocked]}
@@ -184,9 +212,9 @@ export default function AchievementsScreen() {
                   </Pressable>
                 );
               })}
-              {rowItems.length < 3 &&
-                Array.from({ length: 3 - rowItems.length }).map((_, i) => (
-                  <View key={`empty-${i}`} style={styles.badgeCell} />
+              {rowItems.length < COLS &&
+                Array.from({ length: COLS - rowItems.length }).map((_, i) => (
+                  <View key={`pad-${i}`} style={styles.badgeCell} />
                 ))}
             </View>
           );
@@ -210,7 +238,7 @@ export default function AchievementsScreen() {
           >
             <View style={[styles.sheetHandle, { backgroundColor: C.border }]} />
             <View style={styles.detailContent}>
-              {/* Icon */}
+              {/* Large icon */}
               <View
                 style={[
                   styles.detailIconWrap,
@@ -224,9 +252,17 @@ export default function AchievementsScreen() {
                   size={40}
                   color={earnedSet.has(detailBadge.id) ? detailBadge.color : C.textTertiary}
                 />
+                {!earnedSet.has(detailBadge.id) && (
+                  <View style={styles.detailLockOverlay}>
+                    <Ionicons name="lock-closed" size={14} color={C.textTertiary} />
+                  </View>
+                )}
               </View>
-              {/* Name + status */}
+
+              {/* Name */}
               <Text style={[styles.detailName, { color: C.text }]}>{detailBadge.name}</Text>
+
+              {/* Earned / Locked status pill */}
               <View
                 style={[
                   styles.detailStatusPill,
@@ -249,10 +285,22 @@ export default function AchievementsScreen() {
                   {earnedSet.has(detailBadge.id) ? 'Earned' : 'Locked'}
                 </Text>
               </View>
+
               {/* Description */}
               <Text style={[styles.detailDesc, { color: C.textSecondary }]}>
                 {detailBadge.description}
               </Text>
+
+              {/* Locked hint */}
+              {!earnedSet.has(detailBadge.id) && (
+                <View style={[styles.hintBox, { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight }]}>
+                  <Ionicons name="information-circle-outline" size={15} color={C.primary} />
+                  <Text style={[styles.hintText, { color: C.textSecondary }]}>
+                    {CRITERIA_HINTS[detailBadge.criteriaType]}
+                  </Text>
+                </View>
+              )}
+
               {/* Category */}
               <Text style={[styles.detailCategory, { color: C.textTertiary }]}>
                 {BADGE_CATEGORY_LABELS[detailBadge.category]}
@@ -303,37 +351,37 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     countPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
-    filterScroll: { flexGrow: 0 },
     filterBar: {
-      paddingHorizontal: 20,
-      paddingBottom: 14,
-      gap: 8,
       flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      gap: 8,
     },
-    filterChip: {
-      borderRadius: 20,
-      paddingHorizontal: 14,
-      paddingVertical: 7,
+    filterTab: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 9,
+      borderRadius: 12,
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    filterChipActive: {
+    filterTabActive: {
       backgroundColor: C.primaryMuted,
       borderColor: C.primary + '55',
     },
-    filterChipText: {
-      fontSize: 12,
+    filterTabText: {
+      fontSize: 13,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
-    filterChipTextActive: {
+    filterTabTextActive: {
       color: C.primary,
-      fontFamily: 'Inter_600SemiBold',
+      fontFamily: 'Inter_700Bold',
     },
 
     listContent: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 4,
     },
 
@@ -341,54 +389,72 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingTop: 18,
-      paddingBottom: 10,
+      paddingTop: 16,
+      paddingBottom: 8,
+      paddingHorizontal: 4,
     },
     sectionTitle: {
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: 'Inter_600SemiBold',
       color: C.text,
     },
     sectionCount: {
-      fontSize: 12,
+      fontSize: 11,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
     },
 
     badgeRow: {
       flexDirection: 'row',
-      marginBottom: 4,
+      marginBottom: 2,
     },
     badgeCell: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 2,
     },
-    badgeIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
+    badgeIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1.5,
-      marginBottom: 6,
+      marginBottom: 5,
+      position: 'relative',
+    },
+    badgeIconLocked: {
+      opacity: 0.55,
+    },
+    lockOverlay: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     badgeName: {
-      fontSize: 10,
+      fontSize: 9,
       fontFamily: 'Inter_500Medium',
       color: C.text,
       textAlign: 'center',
-      lineHeight: 13,
+      lineHeight: 12,
     },
     badgeNameLocked: {
       color: C.textTertiary,
     },
     earnedDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      marginTop: 4,
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+      marginTop: 3,
     },
 
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
@@ -415,6 +481,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       borderWidth: 2,
       marginBottom: 4,
+      position: 'relative',
+    },
+    detailLockOverlay: {
+      position: 'absolute',
+      bottom: -4,
+      right: -4,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: C.surface,
+      borderWidth: 1.5,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     detailName: {
       fontSize: 22,
@@ -441,8 +521,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       lineHeight: 22,
       marginTop: 4,
     },
+    hintBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      alignSelf: 'stretch',
+    },
+    hintText: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      lineHeight: 19,
+    },
     detailCategory: {
-      fontSize: 12,
+      fontSize: 11,
       fontFamily: 'Inter_500Medium',
       textTransform: 'uppercase',
       letterSpacing: 0.6,

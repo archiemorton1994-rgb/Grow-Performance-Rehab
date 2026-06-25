@@ -514,7 +514,7 @@ export default function HomeScreen() {
               testID="home-achievements-row"
             >
               <View style={styles.achievementsIcons}>
-                {earnedBadges.slice(0, 5).map(id => {
+                {[...earnedBadges].reverse().slice(0, 3).map(id => {
                   const badge = BADGE_MAP.get(id);
                   if (!badge) return null;
                   return (
