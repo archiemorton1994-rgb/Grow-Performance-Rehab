@@ -464,7 +464,7 @@ export default function ProfileScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.subStripCtaTitle}>Subscribe to Grow</Text>
-                <Text style={styles.subStripCtaSub}>£7.99/month · cancel anytime</Text>
+                <Text style={styles.subStripCtaSub}>£4.99/month · cancel anytime</Text>
               </View>
               <Ionicons name="arrow-forward-circle" size={26} color={C.textInverse} />
             </Pressable>
@@ -1015,7 +1015,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Subscribe to Grow</Text>
-                  <Text style={styles.navSub}>£7.99/month · cancel anytime</Text>
+                  <Text style={styles.navSub}>£4.99/month · cancel anytime</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
               </Pressable>

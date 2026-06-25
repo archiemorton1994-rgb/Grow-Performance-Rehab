@@ -137,7 +137,7 @@ constants/
 - For email sending in production: connect Resend via Replit integration (`RESEND_API_KEY` env var)
 - Dev testing: OTP printed to server console `[OTP] email@example.com → 123456`
 
-### RevenueCat Subscription (£7.99/month + 14-day free trial)
+### RevenueCat Subscription (£4.99/month + 14-day free trial)
 - Requires `EXPO_PUBLIC_REVENUECAT_API_KEY` env var (from RC dashboard → API Keys)
 - Expected entitlement name: `premium`
 - App gate order: onboarding → auth → subscription → tabs
