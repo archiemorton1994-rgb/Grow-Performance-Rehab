@@ -407,6 +407,23 @@ export default function HomeScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Calibration progress — visible after sessions 1 and 2 only */}
+        {completedSessions.length >= 1 && completedSessions.length < 3 && (
+          <Animated.View entering={FadeInDown.delay(210).duration(380)} style={styles.calibrationCard}>
+            <View style={styles.calibrationTop}>
+              <Ionicons name="analytics-outline" size={14} color={C.primary} />
+              <Text style={styles.calibrationTitle}>Getting to know you</Text>
+              <Text style={styles.calibrationCount}>{completedSessions.length} / 3</Text>
+            </View>
+            <View style={styles.calibrationTrack}>
+              <View style={[styles.calibrationFill, { width: `${Math.round((completedSessions.length / 3) * 100)}%` as any }]} />
+            </View>
+            <Text style={styles.calibrationSub}>
+              Complete your first 3 sessions to unlock fully personalised programming.
+            </Text>
+          </Animated.View>
+        )}
+
       </View>
     </View>
   );
@@ -551,5 +568,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todayIconImage: { width: 46, height: 46 },
     firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    calibrationCard: {
+      backgroundColor: C.primaryMuted, borderRadius: 14,
+      padding: 14, borderWidth: 1, borderColor: C.primary + '22',
+    },
+    calibrationTop: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, marginBottom: 8 },
+    calibrationTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary, flex: 1 },
+    calibrationCount: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    calibrationTrack: { height: 4, backgroundColor: C.primary + '22', borderRadius: 2, overflow: 'hidden' as const, marginBottom: 8 },
+    calibrationFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
+    calibrationSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
   });
 }
