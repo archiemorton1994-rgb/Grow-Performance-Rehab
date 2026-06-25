@@ -36,6 +36,7 @@ import {
   TIER_ORDER,
   useAppStore,
 } from '@/lib/store';
+import { requestNotificationPermission, scheduleBodyweightReminder } from '@/lib/notifications';
 
 const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
@@ -129,7 +130,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
-  const { setEquipmentTiers, setOnboardingComplete, setUserProfile, addOneRepMax } = useAppStore();
+  const { setEquipmentTiers, setOnboardingComplete, setUserProfile, addOneRepMax, bodyweightUpdatedAt, completedSessions } = useAppStore();
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -194,6 +195,15 @@ export default function OnboardingScreen() {
       checkOpacity.value = withDelay(200, withTiming(1, { duration: 250 }));
       celebTitleOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
       celebSummaryOpacity.value = withDelay(900, withTiming(1, { duration: 400 }));
+      // Request notification permission, then attempt to prime the bodyweight reminder scheduler.
+      // At onboarding time there are no completed sessions yet, so scheduleBodyweightReminder
+      // returns early — the Home tab's useEffect will schedule it after their first session.
+      (async () => {
+        const granted = await requestNotificationPermission();
+        if (granted) {
+          await scheduleBodyweightReminder(bodyweightUpdatedAt, completedSessions.length > 0);
+        }
+      })();
     }
   }, [currentIndex]);
 
