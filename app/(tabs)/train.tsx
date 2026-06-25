@@ -313,28 +313,43 @@ export default function TrainScreen() {
         <Text style={styles.subtitle}>Choose a session to start</Text>
 
         {/* Equipment chip */}
-        <Pressable
-          onPress={openEquipmentSheet}
-          style={({ pressed }) => [
-            styles.equipmentChip,
-            isOverrideActive && styles.equipmentChipOverride,
-            pressed && { opacity: 0.8 },
-          ]}
-          testID="train-equipment-chip"
-        >
-          <Ionicons
-            name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
-            size={13}
-            color={isOverrideActive ? C.primary : C.textSecondary}
-          />
-          <Text style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}>
-            {isOverrideActive ? 'Today: ' : ''}{getEquipmentLabel(todayEffectiveTier)}
-          </Text>
+        <View style={styles.equipmentChipRow}>
+          <Pressable
+            onPress={openEquipmentSheet}
+            style={({ pressed }) => [
+              styles.equipmentChip,
+              isOverrideActive && styles.equipmentChipOverride,
+              pressed && { opacity: 0.8 },
+            ]}
+            testID="train-equipment-chip"
+          >
+            <Ionicons
+              name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
+              size={13}
+              color={isOverrideActive ? C.primary : C.textSecondary}
+            />
+            <Text style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}>
+              {isOverrideActive ? 'Today: ' : ''}{getEquipmentLabel(todayEffectiveTier)}
+            </Text>
+            {isOverrideActive && (
+              <View style={styles.overrideDot} />
+            )}
+            <Ionicons name="chevron-down" size={12} color={isOverrideActive ? C.primary : C.textTertiary} />
+          </Pressable>
           {isOverrideActive && (
-            <View style={styles.overrideDot} />
+            <Pressable
+              onPress={() => {
+                setSessionEquipment(null);
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              hitSlop={8}
+              style={styles.equipmentDismissBtn}
+              testID="train-equipment-dismiss"
+            >
+              <Ionicons name="close-circle" size={18} color={C.textTertiary} />
+            </Pressable>
           )}
-          <Ionicons name="chevron-down" size={12} color={isOverrideActive ? C.primary : C.textTertiary} />
-        </Pressable>
+        </View>
 
         {/* Resume banner */}
         {activeSession && (
@@ -638,14 +653,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
     subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 10 },
 
+    equipmentChipRow: {
+      flexDirection: 'row' as const, alignItems: 'center' as const,
+      alignSelf: 'flex-start' as const, gap: 6, marginBottom: 16,
+    },
     equipmentChip: {
       flexDirection: 'row', alignItems: 'center', gap: 5,
-      alignSelf: 'flex-start',
       backgroundColor: C.surface,
       borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
       borderWidth: 1, borderColor: C.borderLight,
-      marginBottom: 16,
     },
+    equipmentDismissBtn: { padding: 2 },
     equipmentChipOverride: {
       borderColor: C.primary,
       backgroundColor: C.primarySurface,
