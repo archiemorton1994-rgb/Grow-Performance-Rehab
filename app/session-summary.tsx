@@ -349,6 +349,13 @@ export default function SessionSummaryScreen() {
     ? `${Math.floor(durationSeconds / 3600)}h ${String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, '0')}m`
     : `${Math.floor(durationSeconds / 60)} min`;
   const volumeDisplay = Math.round(kgToDisplayUnit(summary.totalVolumeKg, weightUnit)).toLocaleString();
+  const exerciseCount = session.exerciseLogs.length;
+  const topWeightKg = summary.rows.length > 0
+    ? Math.max(0, ...summary.rows.map(r => r.bestWeight))
+    : 0;
+  const topWeightDisplay = topWeightKg > 0
+    ? formatWeight(topWeightKg, weightUnit)
+    : '—';
 
   const greeting = userName ? `Great work, ${userName}!` : 'Great work!';
 
@@ -392,6 +399,11 @@ export default function SessionSummaryScreen() {
           style={[styles.statsCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
         >
           <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: C.text }]}>{exerciseCount}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Exercises</Text>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
+          <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: C.text }]}>{durationLabel}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>Duration</Text>
           </View>
@@ -405,11 +417,24 @@ export default function SessionSummaryScreen() {
             <Text style={[styles.statValue, { color: C.text }]}>{summary.totalReps}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>Reps</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Vol ({weightUnit})</Text>
-          </View>
+          {topWeightKg > 0 && (
+            <>
+              <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: C.primary }]}>{topWeightDisplay}</Text>
+                <Text style={[styles.statLabel, { color: C.textSecondary }]}>Top Weight</Text>
+              </View>
+            </>
+          )}
+          {summary.totalVolumeKg > 0 && (
+            <>
+              <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
+                <Text style={[styles.statLabel, { color: C.textSecondary }]}>Vol ({weightUnit})</Text>
+              </View>
+            </>
+          )}
         </Animated.View>
 
         {/* Volume comparison */}

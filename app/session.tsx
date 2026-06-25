@@ -1311,8 +1311,6 @@ export default function SessionScreen() {
         const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0);
         if (amrapSet) {
           const estimatedMax = Math.round(amrapSet.weight * (1 + amrapSet.reps / 30));
-          const prevOrm = getBestORM(sessionType);
-          setTestWeekOrmData({ prev: prevOrm?.weight ?? null, next: estimatedMax });
           addOneRepMax({
             lift: sessionType,
             weight: estimatedMax,

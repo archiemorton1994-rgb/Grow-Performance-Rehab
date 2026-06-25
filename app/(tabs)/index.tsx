@@ -204,8 +204,9 @@ export default function HomeScreen() {
     const badges = newlyUnlockedBadges
       .map(id => BADGE_MAP.get(id))
       .filter((b): b is Badge => !!b);
-    clearNewlyUnlockedBadges();
+    if (badges.length === 0) { clearNewlyUnlockedBadges(); return; }
     setToastQueue(q => [...q, ...badges]);
+    clearNewlyUnlockedBadges();
   }, [newlyUnlockedBadges]);
 
   useEffect(() => {
