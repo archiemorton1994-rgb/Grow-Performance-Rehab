@@ -607,6 +607,9 @@ export default function OnboardingScreen() {
                   );
                 })}
               </View>
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginTop: 16 }}>
+                You can change this anytime from your profile.
+              </Text>
             </ScrollView>
           </View>
 
