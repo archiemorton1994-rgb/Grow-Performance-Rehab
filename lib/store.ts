@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
+import { evaluateBadges } from '@/lib/badge-engine';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -295,6 +296,15 @@ interface AppState {
   deleteTemplate: (id: string) => void;
   updateTemplate: (id: string, patch: Partial<Pick<CustomTemplate, 'name' | 'exercises'>>) => void;
 
+  /** IDs of all badges the user has earned. Persisted. */
+  earnedBadges: string[];
+  /** IDs of badges earned since the last time the user viewed their badge toasts. Cleared by `clearNewlyUnlockedBadges`. Persisted so toasts survive app restarts. */
+  newlyUnlockedBadges: string[];
+  /** Evaluate all badge criteria against current state and append newly earned badges to `earnedBadges` and `newlyUnlockedBadges`. */
+  awardNewBadges: () => void;
+  /** Clear the `newlyUnlockedBadges` queue after the user has seen the pop-ups. */
+  clearNewlyUnlockedBadges: () => void;
+
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
   getStreakDays: () => number;
@@ -355,8 +365,13 @@ export const useAppStore = create<AppState>()(
       bodyweightUpdatedAt: null,
       weightReminderSnoozedAt: null,
       sessionEquipmentOverride: null,
+      earnedBadges: [],
+      newlyUnlockedBadges: [],
 
-      setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
+      setOnboardingComplete: (complete) => {
+        set({ onboardingComplete: complete });
+        if (complete) get().awardNewBadges();
+      },
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       setUserProfile: (profile) => set((state) => ({
@@ -380,7 +395,10 @@ export const useAppStore = create<AppState>()(
       setBodyweightReminderEnabled: (enabled) => set({ bodyweightReminderEnabled: enabled }),
       setStreakProtectionTime: (time) => set({ streakProtectionTime: time }),
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
-      setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
+      setProfilePhotoUri: (uri) => {
+        set({ profilePhotoUri: uri });
+        if (uri) get().awardNewBadges();
+      },
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setTourComplete: (complete) => set({ tourComplete: complete }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
@@ -474,12 +492,16 @@ export const useAppStore = create<AppState>()(
             exerciseNormalStreak: newStreak,
           };
         });
+        // Award any newly unlocked badges based on the updated state.
+        get().awardNewBadges();
       },
 
       addOneRepMax: (orm) => {
         set((state) => ({
           oneRepMaxes: [orm, ...state.oneRepMaxes],
         }));
+        // New 1RM may unlock strength badges.
+        get().awardNewBadges();
       },
 
       resetProgress: () => set({
@@ -545,6 +567,28 @@ export const useAppStore = create<AppState>()(
           exerciseNormalStreak: updatedStreak,
         };
       }),
+
+      awardNewBadges: () => {
+        const state = get();
+        const allEarned = evaluateBadges({
+          completedSessions: state.completedSessions,
+          oneRepMaxes: state.oneRepMaxes,
+          userProfile: state.userProfile,
+          profilePhotoUri: state.profilePhotoUri,
+          equipmentTiers: state.equipmentTiers,
+          bodyweightUpdatedAt: state.bodyweightUpdatedAt,
+          onboardingComplete: state.onboardingComplete,
+        });
+        const newlyUnlocked = allEarned.filter(id => !state.earnedBadges.includes(id));
+        if (newlyUnlocked.length > 0) {
+          set((s) => ({
+            earnedBadges: [...new Set([...s.earnedBadges, ...newlyUnlocked])],
+            newlyUnlockedBadges: [...s.newlyUnlockedBadges, ...newlyUnlocked],
+          }));
+        }
+      },
+
+      clearNewlyUnlockedBadges: () => set({ newlyUnlockedBadges: [] }),
 
       getCurrentSessionType: () => {
         const { completedSessions, cycleStartOffset } = get();
@@ -811,9 +855,15 @@ export const useAppStore = create<AppState>()(
         if (!('weightReminderSnoozedAt' in persistedState)) {
           persistedState.weightReminderSnoozedAt = null;
         }
+        if (!persistedState.earnedBadges) {
+          persistedState.earnedBadges = [];
+        }
+        if (!persistedState.newlyUnlockedBadges) {
+          persistedState.newlyUnlockedBadges = [];
+        }
         return persistedState;
       },
-      version: 18,
+      version: 19,
     }
   )
 );
