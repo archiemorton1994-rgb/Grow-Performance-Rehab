@@ -37,6 +37,7 @@ export default function ReadinessScreen() {
     isTestWeek: string;
     energy?: string;
     timeAvailable?: string;
+    equipmentOverride?: string;
   }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
@@ -48,9 +49,21 @@ export default function ReadinessScreen() {
     ? ['bodyweight', 'bands']
     : ALL_TIERS;
 
-  const initialTiers = (equipmentTiers && equipmentTiers.length > 0)
-    ? equipmentTiers.filter(t => availableTiers.includes(t))
-    : ['bodyweight' as EquipmentTier];
+  const overrideTiers: EquipmentTier[] | null = (() => {
+    if (!params.equipmentOverride) return null;
+    try {
+      const parsed = JSON.parse(params.equipmentOverride) as EquipmentTier[];
+      const filtered = parsed.filter(t => availableTiers.includes(t));
+      return filtered.length > 0 ? filtered : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const initialTiers = overrideTiers
+    ?? ((equipmentTiers && equipmentTiers.length > 0)
+      ? equipmentTiers.filter(t => availableTiers.includes(t))
+      : ['bodyweight' as EquipmentTier]);
 
   const [step, setStep] = useState<Step>('main');
   const [selectedEquipments, setSelectedEquipments] = useState<EquipmentTier[]>(

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,8 +17,8 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
-import { SessionType, useAppStore } from '@/lib/store';
-import { getSessionSubtitle, getEquipmentLabel } from '@/lib/workout-engine';
+import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getSessionSubtitle, getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import { SESSION_META as SESSION_META_LABELS, SESSION_DISPLAY_NAMES, getSessionColors } from '@/lib/session-meta';
 
@@ -33,6 +34,17 @@ const SESSION_IMAGES: Record<SessionType, any> = {
   prehab:       require('@/assets/images/sessions/targeted-prehab.png'),
   flexibility:  require('@/assets/images/sessions/mobility.png'),
   custom:       require('@/assets/images/sessions/custom.png'),
+};
+
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+
+const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
+  bodyweight: 'No equipment needed',
+  bands: 'Resistance bands only',
+  dumbbells: 'Dumbbells available',
+  kettlebells: 'Kettlebells available',
+  barbell: 'Barbell and squat rack',
+  fullgym: 'Everything — cables, machines, full setup',
 };
 
 function getContextMessage(
@@ -81,20 +93,34 @@ export default function TrainScreen() {
   const C = useColors();
   const {
     completedSessions,
-    getEffectiveTier,
+    getEffectiveTier: storeGetEffectiveTier,
     isTestWeekDue,
     testWeekFrequency,
     activeSession,
     clearActiveSession,
+    equipmentTiers,
+    userProfile,
   } = useAppStore();
 
-  const equipmentTier = getEffectiveTier();
+  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
+  const availableTiers: EquipmentTier[] = isBeginnerExperience
+    ? ['bodyweight', 'bands']
+    : ALL_TIERS;
+
+  const profileEquipment: EquipmentTier[] = (equipmentTiers && equipmentTiers.length > 0)
+    ? equipmentTiers
+    : ['bodyweight'];
+
+  const [sessionEquipment, setSessionEquipment] = useState<EquipmentTier[] | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
+
+  const todayTiers = sessionEquipment ?? profileEquipment;
+  const todayEffectiveTier = getEffectiveTier(todayTiers);
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const testWeek = isTestWeekDue();
 
-  // Cycle tracking is based on strength sessions only (squat/bench/deadlift).
-  // Conditioning, prehab, flexibility, and custom sessions contribute to total
-  // session count but do not advance the squat→bench→deadlift rotation.
   const strengthCount = useMemo(
     () => completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length,
     [completedSessions],
@@ -163,6 +189,43 @@ export default function TrainScreen() {
     return result;
   }, [C]);
 
+  const openEquipmentSheet = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft([...todayTiers]);
+    setSheetOpen(true);
+  };
+
+  const handleDraftToggle = (tier: EquipmentTier) => {
+    if (!availableTiers.includes(tier)) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSheetDraft((prev) => {
+      if (tier === 'fullgym') {
+        if (prev.includes('fullgym')) {
+          return prev.filter(t => t !== 'fullgym');
+        } else {
+          return [...TIER_ORDER];
+        }
+      }
+      if (prev.includes(tier)) {
+        const next = prev.filter(t => t !== tier && t !== 'fullgym');
+        return next.length > 0 ? next : [tier];
+      }
+      return [...prev, tier];
+    });
+  };
+
+  const confirmEquipment = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSessionEquipment(sheetDraft);
+    setSheetOpen(false);
+  };
+
+  const resetToProfile = () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSessionEquipment(null);
+    setSheetOpen(false);
+  };
+
   const handleResume = () => {
     if (!activeSession) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -192,16 +255,18 @@ export default function TrainScreen() {
     );
   };
 
+  const equipmentOverrideParam = sessionEquipment ? JSON.stringify(sessionEquipment) : undefined;
+
   const handleStart = (sessionType: SessionType, isTest: boolean) => {
     if (activeSession) {
       showActiveSessionPrompt(() => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false', equipmentOverride: equipmentOverrideParam } });
       });
       return;
     }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false' } });
+    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: isTest ? 'true' : 'false', equipmentOverride: equipmentOverrideParam } });
   };
 
   const handleSelect = (sessionType: SessionType) => {
@@ -210,13 +275,13 @@ export default function TrainScreen() {
       if (sessionType === 'custom') {
         router.push({ pathname: '/custom-session' });
       } else if (sessionType === 'prehab') {
-        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam } });
       } else if (sessionType === 'flexibility') {
-        router.push({ pathname: '/session', params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: equipmentTier } });
+        router.push({ pathname: '/session', params: { sessionType, hasAches: 'false', painRegion: '', energy: 'normal', timeAvailable: '60', isTestWeek: 'false', equipment: todayEffectiveTier } });
       } else if (sessionType === 'conditioning') {
-        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false' } });
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam } });
       } else {
-        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: testWeek ? 'true' : 'false' } });
+        router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: testWeek ? 'true' : 'false', equipmentOverride: equipmentOverrideParam } });
       }
     };
     if (activeSession) {
@@ -228,216 +293,341 @@ export default function TrainScreen() {
 
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
+  const isOverrideActive = sessionEquipment !== null;
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: insets.top + webTopInset + 16,
-          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>Train</Text>
-      <Text style={styles.subtitle}>Choose a session to start</Text>
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + webTopInset + 16,
+            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>Train</Text>
+        <Text style={styles.subtitle}>Choose a session to start</Text>
 
-      {/* Resume banner */}
-      {activeSession && (
-        <Animated.View entering={FadeInDown.duration(350)} style={styles.resumeBanner}>
-          <View style={styles.resumeBannerLeft}>
-            <Ionicons name="time-outline" size={20} color={C.warning} />
-            <View>
-              <Text style={styles.resumeBannerTitle}>Session in progress</Text>
-              <Text style={styles.resumeBannerSub}>
-                {SESSION_META_LABELS[activeSession.sessionType]?.label} · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
-              </Text>
-            </View>
-          </View>
-          <Pressable
-            onPress={handleResume}
-            style={({ pressed }) => [styles.resumeBannerBtn, pressed && { opacity: 0.85 }]}
-            testID="train-resume-session"
-          >
-            <Text style={styles.resumeBannerBtnText}>Resume</Text>
-          </Pressable>
-        </Animated.View>
-      )}
-
-      {/* Session selection cards */}
-      <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
-        {ALL_SESSION_TYPES.map((type) => {
-          const meta = SESSION_META[type];
-          return (
-            <Pressable
-              key={type}
-              onPress={() => handleSelect(type)}
-              style={({ pressed }) => [
-                styles.sessionCard,
-                pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-              ]}
-              testID={`train-session-${type}`}
-            >
-              <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
-                <Image source={SESSION_IMAGES[type]} style={styles.sessionCardImage} resizeMode="contain" />
-              </View>
-              <Text style={styles.sessionCardLabel} numberOfLines={1}>{meta.label}</Text>
-              <Text style={styles.sessionCardSub} numberOfLines={1}>{meta.subtitle}</Text>
-            </Pressable>
-          );
-        })}
-      </Animated.View>
-
-      <View style={styles.programDivider}>
-        <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
-        <Text style={styles.programDividerText}>Your Program</Text>
-        <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
-      </View>
-
-      {strengthCount === 0 ? (
-        <EmptyState
-          icon="barbell-outline"
-          title="Your program starts here"
-          subtitle={`Complete your first session from the Home tab to begin your progress timeline - Squat · Bench · Deadlift on ${getEquipmentLabel(equipmentTier)}.`}
-          testID="train-empty-state"
-        />
-      ) : (
-        <>
-          <Text style={styles.programSubtitle}>
-            Squat · Bench · Deadlift · {getEquipmentLabel(equipmentTier)}
+        {/* Equipment chip */}
+        <Pressable
+          onPress={openEquipmentSheet}
+          style={({ pressed }) => [
+            styles.equipmentChip,
+            isOverrideActive && styles.equipmentChipOverride,
+            pressed && { opacity: 0.8 },
+          ]}
+          testID="train-equipment-chip"
+        >
+          <Ionicons
+            name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
+            size={13}
+            color={isOverrideActive ? C.primary : C.textSecondary}
+          />
+          <Text style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}>
+            {isOverrideActive ? 'Today: ' : ''}{getEquipmentLabel(todayEffectiveTier)}
           </Text>
+          {isOverrideActive && (
+            <View style={styles.overrideDot} />
+          )}
+          <Ionicons name="chevron-down" size={12} color={isOverrideActive ? C.primary : C.textTertiary} />
+        </Pressable>
 
-          <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.cycleInfo}>
-            <View style={styles.cycleCard}>
-              <Text style={styles.cycleValue}>Cycle {cycleNumber}</Text>
-              <Text style={styles.cycleLabel}>of your program</Text>
+        {/* Resume banner */}
+        {activeSession && (
+          <Animated.View entering={FadeInDown.duration(350)} style={styles.resumeBanner}>
+            <View style={styles.resumeBannerLeft}>
+              <Ionicons name="time-outline" size={20} color={C.warning} />
+              <View>
+                <Text style={styles.resumeBannerTitle}>Session in progress</Text>
+                <Text style={styles.resumeBannerSub}>
+                  {SESSION_META_LABELS[activeSession.sessionType]?.label} · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                </Text>
+              </View>
             </View>
-            <View style={styles.cycleDivider} />
-            <View style={styles.cycleCard}>
-              <Text style={styles.cycleNumber}>{completedSessions.length}</Text>
-              <Text style={styles.cycleLabel}>sessions completed</Text>
-            </View>
-            <View style={styles.cycleDivider} />
-            <View style={styles.cycleCard}>
-              <Text style={styles.cycleNumber}>{sessionsToTest}</Text>
-              <Text style={styles.cycleLabel}>until test week</Text>
-            </View>
+            <Pressable
+              onPress={handleResume}
+              style={({ pressed }) => [styles.resumeBannerBtn, pressed && { opacity: 0.85 }]}
+              testID="train-resume-session"
+            >
+              <Text style={styles.resumeBannerBtnText}>Resume</Text>
+            </Pressable>
           </Animated.View>
+        )}
 
-          {/* Programme Arc */}
-          <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.arcCard}>
-            <View style={styles.arcHeader}>
-              <Text style={styles.arcLabel}>Session {cyclePosition + 1} of {cycleLength}</Text>
-              <Text style={styles.arcSublabel}>current cycle</Text>
-            </View>
-            <View style={styles.arcDots}>
-              {Array.from({ length: cycleLength }, (_, i) => {
-                const isDone = i < cyclePosition;
-                const isCur = i === cyclePosition;
+        {/* Session selection cards */}
+        <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
+          {ALL_SESSION_TYPES.map((type) => {
+            const meta = SESSION_META[type];
+            return (
+              <Pressable
+                key={type}
+                onPress={() => handleSelect(type)}
+                style={({ pressed }) => [
+                  styles.sessionCard,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                ]}
+                testID={`train-session-${type}`}
+              >
+                <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
+                  <Image source={SESSION_IMAGES[type]} style={styles.sessionCardImage} resizeMode="contain" />
+                </View>
+                <Text style={styles.sessionCardLabel} numberOfLines={1}>{meta.label}</Text>
+                <Text style={styles.sessionCardSub} numberOfLines={1}>{meta.subtitle}</Text>
+              </Pressable>
+            );
+          })}
+        </Animated.View>
+
+        <View style={styles.programDivider}>
+          <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
+          <Text style={styles.programDividerText}>Your Program</Text>
+          <View style={[styles.programDividerLine, { backgroundColor: C.borderLight }]} />
+        </View>
+
+        {strengthCount === 0 ? (
+          <EmptyState
+            icon="barbell-outline"
+            title="Your program starts here"
+            subtitle={`Complete your first session from the Home tab to begin your progress timeline - Squat · Bench · Deadlift on ${getEquipmentLabel(todayEffectiveTier)}.`}
+            testID="train-empty-state"
+          />
+        ) : (
+          <>
+            <Text style={styles.programSubtitle}>
+              Squat · Bench · Deadlift · {getEquipmentLabel(todayEffectiveTier)}
+            </Text>
+
+            <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.cycleInfo}>
+              <View style={styles.cycleCard}>
+                <Text style={styles.cycleValue}>Cycle {cycleNumber}</Text>
+                <Text style={styles.cycleLabel}>of your program</Text>
+              </View>
+              <View style={styles.cycleDivider} />
+              <View style={styles.cycleCard}>
+                <Text style={styles.cycleNumber}>{completedSessions.length}</Text>
+                <Text style={styles.cycleLabel}>sessions completed</Text>
+              </View>
+              <View style={styles.cycleDivider} />
+              <View style={styles.cycleCard}>
+                <Text style={styles.cycleNumber}>{sessionsToTest}</Text>
+                <Text style={styles.cycleLabel}>until test week</Text>
+              </View>
+            </Animated.View>
+
+            {/* Programme Arc */}
+            <Animated.View entering={FadeInDown.delay(40).duration(400)} style={styles.arcCard}>
+              <View style={styles.arcHeader}>
+                <Text style={styles.arcLabel}>Session {cyclePosition + 1} of {cycleLength}</Text>
+                <Text style={styles.arcSublabel}>current cycle</Text>
+              </View>
+              <View style={styles.arcDots}>
+                {Array.from({ length: cycleLength }, (_, i) => {
+                  const isDone = i < cyclePosition;
+                  const isCur = i === cyclePosition;
+                  return (
+                    <View
+                      key={i}
+                      style={[
+                        styles.arcDot,
+                        isDone && styles.arcDotDone,
+                        isCur && styles.arcDotCurrent,
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.contextRow}>
+              <View style={styles.contextDot} />
+              <Text style={styles.contextText}>{contextMessage}</Text>
+            </Animated.View>
+
+            <View style={styles.timeline}>
+              {timelineItems.map((item, index) => {
+                const colors = SESSION_COLORS[item.sessionType];
+                const isCurrent = item.status === 'current';
+                const isCompleted = item.status === 'completed';
+
                 return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.arcDot,
-                      isDone && styles.arcDotDone,
-                      isCur && styles.arcDotCurrent,
-                    ]}
-                  />
+                  <Animated.View key={index} entering={FadeInDown.delay(120 + index * 40).duration(400)}>
+                    <View style={styles.timelineRow}>
+                      <View style={styles.timelineTrack}>
+                        <View style={[
+                          styles.timelineDot,
+                          isCompleted && styles.timelineDotDone,
+                          isCurrent && styles.timelineDotCurrent,
+                          isCurrent && testWeek && styles.timelineDotTest,
+                        ]}>
+                          {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
+                          {isCurrent && (
+                            <View style={[styles.currentPulse, testWeek && { backgroundColor: C.categoryPrehabText }]} />
+                          )}
+                        </View>
+                        {index < timelineItems.length - 1 && (
+                          <View style={[styles.timelineLine, isCompleted && styles.timelineLineDone]} />
+                        )}
+                      </View>
+
+                      <Pressable
+                        onPress={() => isCurrent ? handleStart(item.sessionType, testWeek) : null}
+                        disabled={!isCurrent}
+                        style={({ pressed }) => [
+                          styles.timelineCard,
+                          isCurrent && styles.timelineCardCurrent,
+                          isCurrent && testWeek && styles.timelineCardTest,
+                          isCompleted && styles.timelineCardDone,
+                          pressed && isCurrent && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                        ]}
+                      >
+                        <View style={[styles.cardIcon, { backgroundColor: colors.bg }]}>
+                          <Ionicons
+                            name={isCurrent && testWeek ? 'trophy' : SESSION_META_LABELS[item.sessionType].icon}
+                            size={20}
+                            color={isCurrent && testWeek ? C.categoryPrehabText : colors.accent}
+                          />
+                        </View>
+                        <View style={styles.cardContent}>
+                          <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>
+                            {SESSION_DISPLAY_NAMES[item.sessionType]}
+                          </Text>
+                          <Text style={styles.cardSub}>
+                            {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
+                          </Text>
+                          {!isCompleted && (
+                            <Text style={styles.cardRecency}>
+                              {lastTrainedByType[item.sessionType]}
+                            </Text>
+                          )}
+                        </View>
+                        {isCurrent && !activeSession && (
+                          <View style={[styles.startPill, testWeek && styles.startPillTest]}>
+                            <Ionicons name="play" size={16} color={C.textInverse} />
+                          </View>
+                        )}
+                        {isCurrent && !!activeSession && (
+                          <View style={[styles.startPill, { backgroundColor: C.warning }]}>
+                            <Ionicons name="time-outline" size={16} color={C.textInverse} />
+                          </View>
+                        )}
+                        {isCompleted && (
+                          <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                        )}
+                        {item.isTestMarker && !isCurrent && (
+                          <View style={styles.testMarker}>
+                            <Ionicons name="trophy-outline" size={14} color={C.categoryPrehabText} />
+                          </View>
+                        )}
+                      </Pressable>
+                    </View>
+                  </Animated.View>
                 );
               })}
             </View>
-          </Animated.View>
+          </>
+        )}
+      </ScrollView>
 
-          <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.contextRow}>
-            <View style={styles.contextDot} />
-            <Text style={styles.contextText}>{contextMessage}</Text>
-          </Animated.View>
-
-          <View style={styles.timeline}>
-            {timelineItems.map((item, index) => {
-              const colors = SESSION_COLORS[item.sessionType];
-              const isCurrent = item.status === 'current';
-              const isCompleted = item.status === 'completed';
-
-              return (
-                <Animated.View key={index} entering={FadeInDown.delay(120 + index * 40).duration(400)}>
-                  <View style={styles.timelineRow}>
-                    <View style={styles.timelineTrack}>
-                      <View style={[
-                        styles.timelineDot,
-                        isCompleted && styles.timelineDotDone,
-                        isCurrent && styles.timelineDotCurrent,
-                        isCurrent && testWeek && styles.timelineDotTest,
-                      ]}>
-                        {isCompleted && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
-                        {isCurrent && (
-                          <View style={[styles.currentPulse, testWeek && { backgroundColor: C.categoryPrehabText }]} />
-                        )}
-                      </View>
-                      {index < timelineItems.length - 1 && (
-                        <View style={[styles.timelineLine, isCompleted && styles.timelineLineDone]} />
-                      )}
-                    </View>
-
-                    <Pressable
-                      onPress={() => isCurrent ? handleStart(item.sessionType, testWeek) : null}
-                      disabled={!isCurrent}
-                      style={({ pressed }) => [
-                        styles.timelineCard,
-                        isCurrent && styles.timelineCardCurrent,
-                        isCurrent && testWeek && styles.timelineCardTest,
-                        isCompleted && styles.timelineCardDone,
-                        pressed && isCurrent && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                      ]}
-                    >
-                      <View style={[styles.cardIcon, { backgroundColor: colors.bg }]}>
-                        <Ionicons
-                          name={isCurrent && testWeek ? 'trophy' : SESSION_META_LABELS[item.sessionType].icon}
-                          size={20}
-                          color={isCurrent && testWeek ? C.categoryPrehabText : colors.accent}
-                        />
-                      </View>
-                      <View style={styles.cardContent}>
-                        <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>
-                          {SESSION_DISPLAY_NAMES[item.sessionType]}
-                        </Text>
-                        <Text style={styles.cardSub}>
-                          {isCurrent && testWeek ? 'Strength Test' : getSessionSubtitle(item.sessionType)}
-                        </Text>
-                        {!isCompleted && (
-                          <Text style={styles.cardRecency}>
-                            {lastTrainedByType[item.sessionType]}
-                          </Text>
-                        )}
-                      </View>
-                      {isCurrent && !activeSession && (
-                        <View style={[styles.startPill, testWeek && styles.startPillTest]}>
-                          <Ionicons name="play" size={16} color={C.textInverse} />
-                        </View>
-                      )}
-                      {isCurrent && !!activeSession && (
-                        <View style={[styles.startPill, { backgroundColor: C.warning }]}>
-                          <Ionicons name="time-outline" size={16} color={C.textInverse} />
-                        </View>
-                      )}
-                      {isCompleted && (
-                        <Ionicons name="checkmark-circle" size={22} color={C.primary} />
-                      )}
-                      {item.isTestMarker && !isCurrent && (
-                        <View style={styles.testMarker}>
-                          <Ionicons name="trophy-outline" size={14} color={C.categoryPrehabText} />
-                        </View>
-                      )}
-                    </Pressable>
-                  </View>
-                </Animated.View>
-              );
-            })}
+      {/* Equipment picker sheet */}
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetOpen(false)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSheetOpen(false)} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View>
+              <Text style={styles.sheetTitle}>Equipment today</Text>
+              <Text style={styles.sheetSubtitle}>This only affects the current session</Text>
+            </View>
+            {isOverrideActive && (
+              <Pressable onPress={resetToProfile} style={styles.resetBtn}>
+                <Text style={styles.resetBtnText}>Reset</Text>
+              </Pressable>
+            )}
           </View>
-        </>
-      )}
-    </ScrollView>
+
+          {sheetDraft.length > 0 && (
+            <View style={styles.bestMatchRow}>
+              <Text style={styles.bestMatchText}>
+                Best match:{' '}
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                  {getEquipmentLabel(draftEffectiveTier)}
+                </Text>
+              </Text>
+            </View>
+          )}
+
+          {isBeginnerExperience && (
+            <View style={styles.beginnerNote}>
+              <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
+              <Text style={styles.beginnerNoteText}>Bodyweight & Bands — unlock more in profile</Text>
+            </View>
+          )}
+
+          {ALL_TIERS.map((tier) => {
+            const isAvailable = availableTiers.includes(tier);
+            const isActive = sheetDraft.includes(tier);
+            return (
+              <Pressable
+                key={tier}
+                onPress={() => handleDraftToggle(tier)}
+                style={({ pressed }) => [
+                  styles.tierRow,
+                  isActive && styles.tierRowActive,
+                  !isAvailable && styles.tierRowLocked,
+                  pressed && isAvailable && { opacity: 0.8 },
+                ]}
+                testID={`sheet-equipment-${tier}`}
+              >
+                <View style={[styles.tierIcon, { backgroundColor: isActive ? C.primary : isAvailable ? C.primaryMuted : C.surfaceTertiary }]}>
+                  <Ionicons
+                    name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                    size={16}
+                    color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.tierLabel, isActive && { color: C.primary }, !isAvailable && { color: C.textTertiary }]}>
+                    {getEquipmentLabel(tier)}
+                  </Text>
+                  <Text style={styles.tierSub}>{isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}</Text>
+                </View>
+                {!isAvailable
+                  ? <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
+                  : (
+                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                    </View>
+                  )
+                }
+              </Pressable>
+            );
+          })}
+
+          <Pressable
+            onPress={confirmEquipment}
+            disabled={sheetDraft.length === 0}
+            style={({ pressed }) => [
+              styles.confirmBtn,
+              sheetDraft.length === 0 && { opacity: 0.4 },
+              pressed && sheetDraft.length > 0 && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            ]}
+            testID="sheet-equipment-confirm"
+          >
+            <Ionicons name="checkmark-circle" size={18} color={C.textInverse} />
+            <Text style={styles.confirmBtnText}>Use this equipment</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -446,7 +636,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     container: { flex: 1, backgroundColor: C.background },
     content: { paddingHorizontal: 20 },
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
-    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 16 },
+    subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2, marginBottom: 10 },
+
+    equipmentChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      alignSelf: 'flex-start',
+      backgroundColor: C.surface,
+      borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+      borderWidth: 1, borderColor: C.borderLight,
+      marginBottom: 16,
+    },
+    equipmentChipOverride: {
+      borderColor: C.primary,
+      backgroundColor: C.primarySurface,
+    },
+    equipmentChipText: {
+      fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary,
+    },
+    equipmentChipTextOverride: {
+      color: C.primary, fontFamily: 'Inter_600SemiBold',
+    },
+    overrideDot: {
+      width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary,
+    },
 
     resumeBanner: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -557,5 +769,67 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     startPillTest: { backgroundColor: C.categoryPrehabText },
     testMarker: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.categoryPrehab, alignItems: 'center', justifyContent: 'center' },
 
+    // Equipment sheet
+    sheetBackdrop: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    sheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 22, borderTopRightRadius: 22,
+      paddingHorizontal: 20, paddingTop: 10,
+      gap: 8,
+    },
+    sheetHandle: {
+      width: 36, height: 4, borderRadius: 2,
+      backgroundColor: C.border,
+      alignSelf: 'center', marginBottom: 6,
+    },
+    sheetHeader: {
+      flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 2,
+    },
+    sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
+    sheetSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    resetBtn: {
+      paddingHorizontal: 12, paddingVertical: 5,
+      backgroundColor: C.surfaceTertiary, borderRadius: 10,
+    },
+    resetBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    bestMatchRow: {
+      backgroundColor: C.primarySurface, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 7,
+    },
+    bestMatchText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    beginnerNote: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primarySurface, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 7,
+    },
+    beginnerNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1 },
+    tierRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.background, borderRadius: 12,
+      paddingHorizontal: 12, paddingVertical: 10,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    tierRowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
+    tierRowLocked: { opacity: 0.45 },
+    tierIcon: {
+      width: 34, height: 34, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    tierLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+    tierSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    tierCheck: {
+      width: 20, height: 20, borderRadius: 10,
+      borderWidth: 1.5, borderColor: C.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    tierCheckActive: { backgroundColor: C.primary, borderColor: C.primary },
+    confirmBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: C.primary, borderRadius: 14,
+      paddingVertical: 14, marginTop: 4,
+    },
+    confirmBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
   });
 }
