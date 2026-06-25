@@ -219,6 +219,8 @@ interface AppState {
   nudgeEnabled: boolean;
   /** Whether the streak-protection alert (8pm on untrained days) is enabled. */
   streakProtectionEnabled: boolean;
+  /** Minimum sessions per Mon–Sun week required to keep a streak alive (2–5). Default 2. */
+  weeklyStreakGoal: number;
   /** Whether the bodyweight reminder push notification is enabled. Default true. */
   bodyweightReminderEnabled: boolean;
   /** Time for the streak-protection alert in "HH:MM" format (24-hour). Default '20:00'. */

@@ -22,6 +22,8 @@ export interface BadgeEvalState {
   equipmentTiers: EquipmentTier[];
   bodyweightUpdatedAt: string | null;
   onboardingComplete: boolean;
+  /** Minimum sessions per Mon–Sun week required to keep a streak alive. Default 2. */
+  weeklyStreakGoal: number;
 }
 
 // ─── Pre-computed stats ───────────────────────────────────────────────────────
