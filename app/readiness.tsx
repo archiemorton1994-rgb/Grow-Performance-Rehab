@@ -155,6 +155,12 @@ export default function ReadinessScreen() {
     setStep('painRegion');
   };
 
+  const handleSkipToAllRegions = () => {
+    hapticTap();
+    setPainCategory(undefined);
+    setStep('painRegion');
+  };
+
   const handlePainRegion = (region: PainRegion) => {
     hapticTap();
     setPainRegion(region);
@@ -474,6 +480,24 @@ export default function ReadinessScreen() {
       <Text style={styles.question}>Any pain or muscle soreness?</Text>
       <Text style={styles.questionSub}>Select the affected area - we'll adjust exercises</Text>
       <View style={styles.areaButtons}>
+        <Pressable
+          onPress={handleSkipToAllRegions}
+          style={({ pressed }) => [
+            styles.areaButton,
+            { borderColor: C.warning, backgroundColor: C.warningLight },
+            pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+          ]}
+          testID="pain-cat-all"
+        >
+          <View style={[styles.areaIconWrap, { backgroundColor: C.warning + '22' }]}>
+            <Ionicons name="list-outline" size={24} color={C.warning} />
+          </View>
+          <View style={styles.areaCatContent}>
+            <Text style={[styles.areaLabel, { color: C.warning }]}>All areas</Text>
+            <Text style={styles.areaSublabel}>Skip straight to the region picker</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.warning} />
+        </Pressable>
         {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((key) => {
           const cat = PAIN_CATEGORIES[key];
           const iconInfo = CATEGORY_ICONS[key];
