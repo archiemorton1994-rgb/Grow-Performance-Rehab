@@ -99,6 +99,7 @@ export default function ProfileScreen() {
     setProfilePhotoUri,
     getBestORM,
     oneRepMaxes,
+    isWeightReminderVisible,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -759,6 +760,9 @@ export default function ProfileScreen() {
                     : 'Not set'}
                 </Text>
               </View>
+              {isWeightReminderVisible() && (
+                <View style={styles.staleWeightDot} />
+              )}
               <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
             </Pressable>
 
@@ -1176,6 +1180,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ratioMetaText: { fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     settingSectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4, marginBottom: 12 },
     settingsLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
+    staleWeightDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.warning },
     subStripActive: {
       flexDirection: 'row', alignItems: 'center', gap: 12,
       backgroundColor: C.surface, borderRadius: 14, padding: 14,
