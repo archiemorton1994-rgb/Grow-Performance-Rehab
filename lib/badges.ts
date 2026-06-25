@@ -43,7 +43,8 @@ export type BadgeCategory =
  */
 export type BadgeCriteriaType =
   | 'session_count'       // total sessions completed
-  | 'streak_days'         // consecutive days trained
+  | 'streak_days'         // consecutive days trained (legacy)
+  | 'streak_weeks'        // consecutive training weeks (≥ 2 sessions per week)
   | 'strength_orm'        // 1RM personal bests
   | 'cumulative_volume'   // total kg lifted across all sessions
   | 'session_type_count'  // count of a specific session type
@@ -161,36 +162,28 @@ const milestoneBadges: Badge[] = MILESTONE_DATA.map(([n, name, description]) => 
   color: C.green,
 }));
 
-// ─── 2. Streak Badges (consecutive days trained) ─────────────────────────────
+// ─── 2. Streak Badges (consecutive training weeks with ≥ 2 sessions) ─────────
 const STREAK_DATA: [number, string][] = [
   [2,   'On a Roll'],
-  [3,   'Three in a Row'],
-  [5,   'Five Day Fire'],
-  [7,   'Week Warrior'],
-  [10,  'Ten Day Blaze'],
-  [14,  'Fortnight Force'],
-  [21,  'Three Week Run'],
-  [28,  'Four Week Frenzy'],
-  [30,  'Month of Momentum'],
-  [42,  'Six Week Grind'],
-  [60,  'Two Month Streak'],
-  [75,  'Elite Streak'],
-  [90,  'Quarter Year'],
-  [120, 'Four Month Run'],
-  [150, 'Five Month Beast'],
-  [180, 'Half Year Hero'],
-  [270, 'Nine Month Machine'],
-  [365, 'Year of Iron'],
-  [400, 'Beyond a Year'],
-  [500, 'Five Hundred Days'],
-  [730, 'Two Year Legend'],
+  [4,   'A Month Strong'],
+  [6,   'Six Week Grind'],
+  [8,   'Two Month Run'],
+  [12,  'Three Month Machine'],
+  [16,  'Four Month Force'],
+  [20,  'Five Month Beast'],
+  [26,  'Half Year Hero'],
+  [32,  'Eight Month Titan'],
+  [40,  'Ten Month Legend'],
+  [52,  'Year of Iron'],
+  [78,  'Eighteen Months'],
+  [104, 'Two Year Legend'],
 ];
 const streakBadges: Badge[] = STREAK_DATA.map(([n, name]) => ({
-  id: `streak_${n}`,
+  id: `streak_${n}wk`,
   name,
-  description: `Train ${n} days in a row`,
+  description: `Train at least 2× per week for ${n} consecutive weeks`,
   category: 'streak',
-  criteriaType: 'streak_days',
+  criteriaType: 'streak_weeks',
   icon: 'flame-outline',
   color: C.orange,
 }));
@@ -377,7 +370,7 @@ const goalsBadges: Badge[] = [
   { id: 'goal_fatloss_25',     name: 'Calorie Crusher',   description: 'Complete 25 conditioning sessions',                           category: 'goals', criteriaType: 'goal_progress', icon: 'flame-outline',            color: C.orange },
   { id: 'goal_fatloss_50',     name: 'Burn Artist',       description: 'Complete 50 conditioning sessions',                           category: 'goals', criteriaType: 'goal_progress', icon: 'flame-outline',            color: C.orange },
   { id: 'goal_fatloss_100',    name: 'Inferno',           description: 'Complete 100 conditioning sessions',                          category: 'goals', criteriaType: 'goal_progress', icon: 'trophy-outline',           color: C.orange },
-  { id: 'goal_fatloss_streak', name: 'Cardio Streak',     description: 'Train 5 days in a row',                                       category: 'goals', criteriaType: 'goal_progress', icon: 'medal-outline',            color: C.orange },
+  { id: 'goal_fatloss_streak', name: 'Cardio Week',       description: 'Complete 3 conditioning sessions in a single week',            category: 'goals', criteriaType: 'goal_progress', icon: 'medal-outline',            color: C.orange },
   // Fitness
   { id: 'goal_fitness_1',      name: 'All-Rounder',       description: 'Complete your first session',                                 category: 'goals', criteriaType: 'goal_progress', icon: 'heart-outline',            color: C.mint },
   { id: 'goal_fitness_10',     name: 'Well-Rounded',      description: 'Complete 10 sessions',                                        category: 'goals', criteriaType: 'goal_progress', icon: 'heart-outline',            color: C.mint },

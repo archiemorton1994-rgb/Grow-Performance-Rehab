@@ -169,18 +169,24 @@ function computeStats(state: BadgeEvalState): Stats {
     }
   }
 
-  // Streak
-  const today = new Date().toDateString();
-  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  // Streak — consecutive Mon–Sun training weeks with ≥ 2 sessions each.
+  // If the current week already has ≥ 2 sessions it counts; otherwise the
+  // current week is treated as "in progress" and we start from the prior week
+  // so the streak is not penalised for early-week reads.
+  const streakToday = new Date();
+  const thisWeekKey = isoWeek(streakToday);
+  const thisWeekCount = weeklySessionCounts.get(thisWeekKey) ?? 0;
+  let streakCheckDate = thisWeekCount >= 2
+    ? streakToday
+    : new Date(streakToday.getTime() - 7 * 86400000);
   let streak = 0;
-  if (sessionsByDate.has(new Date().toISOString().slice(0, 10)) ||
-      sessionsByDate.has(new Date(Date.now() - 86400000).toISOString().slice(0, 10))) {
-    let cur = sessionsByDate.has(new Date().toISOString().slice(0, 10))
-      ? new Date()
-      : new Date(Date.now() - 86400000);
-    while (sessionsByDate.has(cur.toISOString().slice(0, 10))) {
+  for (let _i = 0; _i < 200; _i++) {
+    const key = isoWeek(streakCheckDate);
+    if ((weeklySessionCounts.get(key) ?? 0) >= 2) {
       streak++;
-      cur = new Date(cur.getTime() - 86400000);
+      streakCheckDate = new Date(streakCheckDate.getTime() - 7 * 86400000);
+    } else {
+      break;
     }
   }
 
@@ -265,10 +271,10 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
     awardIf(s.total >= n, `milestone_${n}`);
   }
 
-  // ── 2. Streaks ─────────────────────────────────────────────────────────────
-  const streakThresholds = [2,3,5,7,10,14,21,28,30,42,60,75,90,120,150,180,270,365,400,500,730];
-  for (const n of streakThresholds) {
-    awardIf(s.streak >= n, `streak_${n}`);
+  // ── 2. Streaks (consecutive training weeks with ≥ 2 sessions) ──────────────
+  const streakWeekThresholds = [2,4,6,8,12,16,20,26,32,40,52,78,104];
+  for (const n of streakWeekThresholds) {
+    awardIf(s.streak >= n, `streak_${n}wk`);
   }
 
   // ── 3. Strength – Squat 1RM (every 10 kg, 20–400 kg) ────────────────────────
@@ -371,7 +377,15 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.conditioningCount >= 25,  'goal_fatloss_25');
   awardIf(s.conditioningCount >= 50,  'goal_fatloss_50');
   awardIf(s.conditioningCount >= 100, 'goal_fatloss_100');
-  awardIf(s.streak >= 5, 'goal_fatloss_streak');
+  // Cardio Week: any single Mon–Sun week with 3+ conditioning sessions
+  const condPerWeek = new Map<string, number>();
+  for (const sess of state.completedSessions) {
+    if (sess.sessionType === 'conditioning') {
+      const w = isoWeek(new Date(sess.date));
+      condPerWeek.set(w, (condPerWeek.get(w) ?? 0) + 1);
+    }
+  }
+  awardIf(Array.from(condPerWeek.values()).some(c => c >= 3), 'goal_fatloss_streak');
   // Fitness
   awardIf(s.total >= 1,  'goal_fitness_1');
   awardIf(s.total >= 10, 'goal_fitness_10');

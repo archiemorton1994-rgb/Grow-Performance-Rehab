@@ -153,10 +153,14 @@ export default function HomeScreen() {
     completedSessions.length === 3
     && daysSinceLast !== null && daysSinceLast <= 1;
 
+  // Warn when the user has an established streak but this week's sessions
+  // haven't hit the threshold yet. Only show from Wednesday onwards to avoid
+  // alarming people who simply haven't trained early in the week.
   const missedStreakWarning =
-    lastSession && streak === 0
-    && daysSinceLast !== null && daysSinceLast >= 2
-    && completedSessions.length >= 3;
+    completedSessions.length >= 3
+    && streak > 0
+    && weekCount < 2
+    && new Date().getDay() >= 3;
 
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
@@ -488,7 +492,7 @@ export default function HomeScreen() {
         <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{streak}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
+            <Text style={styles.statLabel}>Week Streak</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
@@ -617,9 +621,11 @@ export default function HomeScreen() {
               <Ionicons name="alarm-outline" size={20} color={C.warning} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.warningTitle}>Streak broken</Text>
+              <Text style={styles.warningTitle}>Streak at risk this week</Text>
               <Text style={styles.warningSub}>
-                It's been {daysSinceLast} days. A short session is better than none.
+                {weekCount === 0
+                  ? 'No sessions yet this week — hit 2 to keep your streak going.'
+                  : `${weekCount} session this week — one more keeps your streak alive.`}
               </Text>
             </View>
           </Animated.View>

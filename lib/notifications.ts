@@ -133,8 +133,8 @@ export async function scheduleStreakProtectionAlert(timeStr: string = '20:00'): 
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_PROTECTION_ID,
       content: {
-        title: '🔥 Your streak is at risk!',
-        body: "Train today to keep your streak alive - don't let it slip.",
+        title: '🔥 Your weekly streak is at risk!',
+        body: "You haven't hit 2 sessions this week yet. Train now to keep your streak alive.",
         sound: true,
         data: { screen: 'train' },
       },
