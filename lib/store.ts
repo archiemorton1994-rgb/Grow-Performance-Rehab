@@ -195,6 +195,8 @@ interface AppState {
   lastReadinessEnergy: EnergyLevel;
   lastReadinessTime: TimeAvailable;
   lastPainRegion: PainRegion | null;
+  /** Whether the first-launch guided tour has been completed or skipped. Persisted. */
+  tourComplete: boolean;
   weightUnit: WeightUnit;
   lastWeightPromptedAt: number | null;
   hasHydrated: boolean;
@@ -272,6 +274,7 @@ interface AppState {
   /** Last session-type filter selected on the Stats screen. Persisted so it survives tab switches and app restarts. */
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
+  setTourComplete: (complete: boolean) => void;
   pendingCustomExercises: CustomExercise[];
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
@@ -336,6 +339,7 @@ export const useAppStore = create<AppState>()(
       pendingCustomExercises: [],
       savedTemplates: [],
       historyTypeFilter: null,
+      tourComplete: false,
       sessionEquipmentOverride: null,
 
       setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
@@ -362,6 +366,7 @@ export const useAppStore = create<AppState>()(
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => set({ profilePhotoUri: uri }),
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
+      setTourComplete: (complete) => set({ tourComplete: complete }),
       setSessionEquipmentOverride: (tiers) => set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
       clearSessionEquipmentOverride: () => set({ sessionEquipmentOverride: null }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
@@ -765,9 +770,13 @@ export const useAppStore = create<AppState>()(
         if (!('lastPainRegion' in persistedState)) {
           persistedState.lastPainRegion = null;
         }
+        if (!('tourComplete' in persistedState)) {
+          // Existing users who already have sessions know the app — skip the tour for them
+          persistedState.tourComplete = (persistedState.completedSessions?.length ?? 0) > 0;
+        }
         return persistedState;
       },
-      version: 15,
+      version: 16,
     }
   )
 );
