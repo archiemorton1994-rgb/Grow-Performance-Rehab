@@ -500,30 +500,82 @@ export default function ReadinessScreen() {
   );
 
   const renderPainRegion = () => {
-    const regions = painCategory ? PAIN_CATEGORIES[painCategory as keyof typeof PAIN_CATEGORIES].regions : [];
+    if (!painCategory) {
+      return (
+        <Animated.View key="painRegion-all" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, alignItems: 'stretch' }}
+          >
+            <View style={[styles.questionIcon, { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 12, backgroundColor: C.warningLight }]}>
+              <Ionicons name="locate-outline" size={24} color={C.warning} />
+            </View>
+            <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>Which area is affected?</Text>
+            <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 14 }]}>We'll swap exercises for this region</Text>
+            <View style={{ width: '100%', gap: 7 }}>
+              {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((catKey) => {
+                const cat = PAIN_CATEGORIES[catKey];
+                const iconInfo = CATEGORY_ICONS[catKey];
+                return (
+                  <View key={catKey}>
+                    <View style={styles.sectionHeaderRow}>
+                      <Ionicons name={iconInfo.icon} size={13} color={iconInfo.color} />
+                      <Text style={[styles.sectionHeaderLabel, { color: iconInfo.color }]}>{cat.label}</Text>
+                    </View>
+                    {cat.regions.map((r) => (
+                      <Pressable
+                        key={r.id}
+                        onPress={() => handlePainRegion(r.id)}
+                        style={({ pressed }) => [styles.areaButton, { paddingVertical: 10, marginBottom: 7 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                        testID={`pain-region-${r.id}`}
+                      >
+                        <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight, width: 36, height: 36, borderRadius: 10 }]}>
+                          <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.warning} />
+                        </View>
+                        <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+                        <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+                      </Pressable>
+                    ))}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </Animated.View>
+      );
+    }
+
+    const regions = PAIN_CATEGORIES[painCategory].regions;
     return (
-      <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={styles.stepContent}>
-        <View style={styles.questionIcon}>
-          <Ionicons name="locate-outline" size={28} color={C.warning} />
-        </View>
-        <Text style={styles.question}>Specific area?</Text>
-        <Text style={styles.questionSub}>We will swap exercises for this region</Text>
-        <View style={styles.areaButtons}>
-          {regions.map((r) => (
-            <Pressable
-              key={r.id}
-              onPress={() => handlePainRegion(r.id)}
-              style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-              testID={`pain-region-${r.id}`}
-            >
-              <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight }]}>
-                <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.warning} />
-              </View>
-              <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-            </Pressable>
-          ))}
-        </View>
+      <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          <View style={styles.stepContent}>
+            <View style={styles.questionIcon}>
+              <Ionicons name="locate-outline" size={28} color={C.warning} />
+            </View>
+            <Text style={styles.question}>Specific area?</Text>
+            <Text style={styles.questionSub}>We will swap exercises for this region</Text>
+            <View style={styles.areaButtons}>
+              {regions.map((r) => (
+                <Pressable
+                  key={r.id}
+                  onPress={() => handlePainRegion(r.id)}
+                  style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                  testID={`pain-region-${r.id}`}
+                >
+                  <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight }]}>
+                    <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.warning} />
+                  </View>
+                  <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+                  <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </Animated.View>
     );
   };
@@ -565,11 +617,7 @@ export default function ReadinessScreen() {
           {renderPainCategory()}
         </ScrollView>
       )}
-      {step === 'painRegion' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-          {renderPainRegion()}
-        </ScrollView>
-      )}
+      {step === 'painRegion' && renderPainRegion()}
     </View>
   );
 }
