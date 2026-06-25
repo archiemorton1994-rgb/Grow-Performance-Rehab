@@ -23,6 +23,8 @@ import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/ut
 import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
+import { BADGE_MAP, Badge } from '@/lib/badges';
+import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 
 const SESSION_IMAGES: Record<string, any> = {
   squat:        require('@/assets/images/sessions/lower-body.png'),
@@ -66,6 +68,8 @@ export default function HomeScreen() {
     bodyweightUpdatedAt,
     setWeightReminderSnoozedAt,
     bodyweightReminderEnabled,
+    newlyUnlockedBadges,
+    clearNewlyUnlockedBadges,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -190,6 +194,27 @@ export default function HomeScreen() {
       ormGain: firstWeight && firstWeight < bestWeight ? Math.round(bestWeight - firstWeight) : 0,
     };
   }, [oneRepMaxes, getBestORM]);
+
+  // ─── Badge toast queue ──────────────────────────────────────────────────
+  const [toastQueue, setToastQueue] = useState<Badge[]>([]);
+  const [currentToast, setCurrentToast] = useState<Badge | null>(null);
+
+  useEffect(() => {
+    if (newlyUnlockedBadges.length === 0) return;
+    const badges = newlyUnlockedBadges
+      .map(id => BADGE_MAP.get(id))
+      .filter((b): b is Badge => !!b);
+    clearNewlyUnlockedBadges();
+    setToastQueue(q => [...q, ...badges]);
+  }, [newlyUnlockedBadges]);
+
+  useEffect(() => {
+    if (currentToast || toastQueue.length === 0) return;
+    const [next, ...rest] = toastQueue;
+    setToastQueue(rest);
+    setCurrentToast(next);
+  }, [currentToast, toastQueue]);
+  // ────────────────────────────────────────────────────────────────────────
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -706,6 +731,15 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      {currentToast && (
+        <BadgeUnlockToast
+          name={currentToast.name}
+          icon={currentToast.icon as any}
+          color={currentToast.color}
+          onDismiss={() => setCurrentToast(null)}
+        />
+      )}
     </>
   );
 }

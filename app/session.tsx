@@ -15,9 +15,6 @@ import {
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
-import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,31 +37,6 @@ import {
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 
-const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
-const MILESTONE_STREAKS = [3, 7, 14, 30];
-
-function getMilestoneMessage(count: number): string {
-  if (count === 1) return "Your first session - the hardest step is done!";
-  if (count === 5) return "5 sessions down - you're building real momentum!";
-  if (count === 10) return "10 sessions! Double digits - you're making this a habit.";
-  if (count === 25) return "That's your 25th session - you're building a habit!";
-  if (count === 50) return "50 sessions! You're halfway to triple digits. Incredible.";
-  if (count === 100) return "100 sessions! You've reached an elite level of consistency.";
-  if (count === 150) return "150 sessions - that's genuinely extraordinary dedication.";
-  if (count === 200) return "200 sessions! You are the definition of commitment.";
-  return `Session ${count} - keep going!`;
-}
-
-
-const CONGRATS_MESSAGES = [
-  "Absolutely smashed it! Every rep, every set - you showed up and delivered.",
-  "That's what dedication looks like. Be proud of what you just achieved!",
-  "Another session in the books. Your future self is thanking you right now.",
-  "You did the work when it would have been easier not to. That's the difference maker.",
-  "Champion effort today. Progress doesn't happen by accident - it's built session by session.",
-  "Brilliant work! Consistency like this is what transforms bodies and builds strength.",
-  "One step closer to your goals. Every session counts - and you just added another.",
-];
 
 interface ExerciseSetData {
   sets: SetLog[];
@@ -1019,28 +991,10 @@ export default function SessionScreen() {
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
-  const [showCongratsModal, setShowCongratsModal] = useState(false);
-  const [congratsMessage] = useState(() =>
-    CONGRATS_MESSAGES[Math.floor(Math.random() * CONGRATS_MESSAGES.length)]
-  );
-  const [feedbackStep, setFeedbackStep] = useState<'congrats' | 'rating' | 'tooEasy'>('congrats');
-  const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
-  const [tooEasySelected, setTooEasySelected] = useState<Set<string>>(new Set());
-  const [tooEasySaved, setTooEasySaved] = useState(false);
-  const [isMilestone, setIsMilestone] = useState(false);
-  const [milestoneCount, setMilestoneCount] = useState(0);
-  const [streakMilestone, setStreakMilestone] = useState(0);
-  const [prevSameTypeVolume, setPrevSameTypeVolume] = useState(0);
-  const [testWeekOrmData, setTestWeekOrmData] = useState<{ prev: number | null; next: number } | null>(null);
-  const [shareCardData, setShareCardData] = useState<WorkoutShareCardData | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
-  const shareCardRef = useRef<View>(null);
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecondsRef = useRef(0);
-  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0);
-  const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
   useEffect(() => {
     const timerId = setInterval(() => {
       setElapsedSeconds((s) => { elapsedSecondsRef.current = s + 1; return s + 1; });
@@ -1120,8 +1074,6 @@ export default function SessionScreen() {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const cardYPositions = useRef<Record<number, number>>({});
-  const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current); }, []);
 
   // Helper: attempt to restore stored session state onto loaded exercises.
   // Returns true if restored, false if not (caller decides fallback).
@@ -1381,58 +1333,6 @@ export default function SessionScreen() {
           note: exerciseNotes[i] || undefined,
         }));
 
-    // Compute previous same-type session volume for comparison in the congrats modal
-    const prevSameTypeVol = (() => {
-      const lastSame = completedSessions.find(s => s.sessionType === sessionType);
-      if (!lastSame) return 0;
-      return lastSame.exerciseLogs.reduce((sum, log) =>
-        sum + log.sets
-          .filter(s => s.completed && !s.skipped && s.weight > 0 && s.reps > 0)
-          .reduce((s2, set) => s2 + set.weight * set.reps, 0), 0);
-    })();
-    setPrevSameTypeVolume(prevSameTypeVol);
-
-    // Compute share card data BEFORE updating lastLoggedWeights so we can detect new PBs.
-    // Build all-time max weight per exercise from historical sessions (before this one)
-    const allTimeBestKg: Record<string, number> = {};
-    for (const session of completedSessions) {
-      for (const log of session.exerciseLogs) {
-        const max = Math.max(0, ...log.sets
-          .filter((s) => s.completed && !s.skipped && s.weight > 0)
-          .map((s) => s.weight));
-        if (max > 0) {
-          allTimeBestKg[log.exerciseId] = Math.max(allTimeBestKg[log.exerciseId] ?? 0, max);
-        }
-      }
-    }
-
-    let bestNewPb: { exerciseName: string; weightKg: number } | null = null;
-    let totalVolumeKg = 0;
-    if (!isPrehabOrFlex && exerciseLogs.length > 0) {
-      for (const log of exerciseLogs) {
-        const completedWeights = log.sets
-          .filter((s) => s.completed && !s.skipped && s.weight > 0)
-          .map((s) => s.weight);
-        if (completedWeights.length > 0) {
-          const maxThisSession = Math.max(...completedWeights);
-          const prevBest = allTimeBestKg[log.exerciseId] ?? 0;
-          // New PB: strictly greater than all-time historical best
-          if (maxThisSession > prevBest) {
-            // Keep the exercise with the largest absolute new weight
-            if (!bestNewPb || maxThisSession > bestNewPb.weightKg) {
-              bestNewPb = { exerciseName: log.exerciseName, weightKg: maxThisSession };
-            }
-          }
-        }
-        // Volume = weight × reps for all completed weighted sets
-        for (const s of log.sets) {
-          if (s.completed && !s.skipped && s.weight > 0 && s.reps > 0) {
-            totalVolumeKg += s.weight * s.reps;
-          }
-        }
-      }
-    }
-
     // Extract per-exercise max weight from this session and persist to store.
     // These are used by the workout engine on the NEXT session to apply a
     // deterministic +2.5 kg micro-increment per exercise (progressive overload).
@@ -1452,51 +1352,7 @@ export default function SessionScreen() {
       }
     }
 
-    // Detect milestone before saving - use total session count (all types) so conditioning/
-    // flexibility sessions also trigger milestone messages (1st, 5th, 10th session, etc.)
     const newCount = completedSessions.length + 1;
-    const hitsMilestone = MILESTONE_SESSIONS.includes(newCount);
-
-    // Compute pre-save streak and post-save streak deterministically from session dates.
-    // Only celebrate a streak milestone when this session actually extends the streak
-    // into a new milestone value (avoids repeat badge for a 2nd session on the same day).
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    function computeStreakFromDates(dayTimestamps: Set<number>): number {
-      const sorted = Array.from(dayTimestamps).sort((a, b) => b - a);
-      let streak = 0;
-      for (let i = 0; i < sorted.length; i++) {
-        const checkDate = new Date(today);
-        checkDate.setDate(checkDate.getDate() - i);
-        checkDate.setHours(0, 0, 0, 0);
-        if (sorted.includes(checkDate.getTime())) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-      return streak;
-    }
-
-    const preSaveDays = new Set(
-      completedSessions.map((s) => {
-        const d = new Date(s.date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-      })
-    );
-    const postSaveDays = new Set(preSaveDays);
-    postSaveDays.add(today.getTime()); // include today's session
-
-    const preStreak = computeStreakFromDates(preSaveDays);
-    const postStreak = computeStreakFromDates(postSaveDays);
-
-    // Only show streak milestone badge when streak actually crosses into the milestone value
-    const hitsStreakMilestone = (postStreak > preStreak && MILESTONE_STREAKS.includes(postStreak))
-      ? postStreak
-      : 0;
-
     const capturedDuration = elapsedSeconds;
 
     completeSession({
@@ -1526,8 +1382,6 @@ export default function SessionScreen() {
       }, 3000);
     }
 
-    setCompletedSessionId(useAppStore.getState().completedSessions[0]?.id ?? null);
-
     sessionTerminatedRef.current = true;
     clearActiveSession();
     void uploadUserData(useAppStore.getState().getDataForSync());
@@ -1536,56 +1390,7 @@ export default function SessionScreen() {
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
       void cancelStreakProtectionAlert();
     }
-    setIsMilestone(hitsMilestone);
-    setMilestoneCount(newCount);
-    setStreakMilestone(hitsStreakMilestone);
-    setSessionDurationSeconds(capturedDuration);
-    setShareCardData({
-      sessionLabel: getSessionLabel(sessionType),
-      sessionSubtitle: getSessionSubtitle(sessionType),
-      totalVolumeKg,
-      totalSets: exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0),
-      durationSeconds: capturedDuration,
-      newPb: bestNewPb,
-      streakDays: postStreak,
-      isTestWeek,
-      weightUnit,
-    });
-    setFeedbackStep('rating');
-    setThumbsRatings({});
-    setTooEasySelected(new Set());
-    setTooEasySaved(false);
-    const congratsTimer = setTimeout(() => setShowCongratsModal(true), 400);
-    congratsTimerRef.current = congratsTimer;
-  };
-
-  const handleShare = async () => {
-    if (!shareCardData || isSharing) return;
-    setIsSharing(true);
-    try {
-      if (Platform.OS === 'web') {
-        // On web: capture card to base64 PNG and trigger a browser file download
-        const base64 = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'base64' });
-        const dataUrl = `data:image/png;base64,${base64}`;
-        const dateStr = new Date().toISOString().split('T')[0];
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `grow-workout-${dateStr}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        // On iOS/Android: capture card → tmpfile → native share sheet
-        const uri = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'tmpfile' });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share Your Workout' });
-        }
-      }
-    } catch {
-    } finally {
-      setIsSharing(false);
-    }
+    router.replace('/session-summary');
   };
 
   const handleExit = () => {
@@ -1641,13 +1446,6 @@ export default function SessionScreen() {
       behavior={keyboardBehavior}
       keyboardVerticalOffset={insets.top + webTopInset}
     >
-      {/* Off-screen share card rendered for capture */}
-      {shareCardData && (
-        <View style={{ position: 'absolute', left: -9999, top: 0, pointerEvents: 'none' }}>
-          <WorkoutShareCard ref={shareCardRef} {...shareCardData} />
-        </View>
-      )}
-
       <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
         <Pressable onPress={handleExit} style={styles.closeButton} testID="session-exit">
           <Ionicons name="close" size={24} color={C.text} />
@@ -1895,299 +1693,6 @@ export default function SessionScreen() {
         </Pressable>
       </Modal>
 
-      {/* Congratulations Modal */}
-      <Modal visible={showCongratsModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <Animated.View entering={FadeIn.duration(500)} style={[styles.modalContent, styles.congratsModal]}>
-
-            {/* ── Congrats Step ────────────────────────────────────────────── */}
-            {feedbackStep === 'congrats' && (
-              <>
-                {isMilestone ? (
-                  <View style={styles.milestoneHeader}>
-                    <View style={styles.milestoneIconWrap}>
-                      <Ionicons name="trophy" size={52} color={C.trophy} />
-                    </View>
-                    <Text style={styles.milestoneBadgeText}>MILESTONE</Text>
-                  </View>
-                ) : (
-                  <View style={styles.congratsIcon}>
-                    <Ionicons name="trophy" size={44} color={C.trophy} />
-                  </View>
-                )}
-                <Text style={isMilestone ? styles.congratsTitleMilestone : styles.congratsTitle}>
-                  {isMilestone ? `Session ${milestoneCount}!` : 'Session Complete!'}
-                </Text>
-                <Text style={styles.congratsMessage}>
-                  {isMilestone ? getMilestoneMessage(milestoneCount) : congratsMessage}
-                </Text>
-                <View style={styles.congratsStats}>
-                  <View style={styles.congratsStat}>
-                    <Text style={styles.congratsStatValue}>{exercises.length}</Text>
-                    <Text style={styles.congratsStatLabel}>Exercises</Text>
-                  </View>
-                  <View style={styles.congratsStatDivider} />
-                  <View style={styles.congratsStat}>
-                    <Text style={styles.congratsStatValue}>{totalSets}</Text>
-                    <Text style={styles.congratsStatLabel}>Total Sets</Text>
-                  </View>
-                  <View style={styles.congratsStatDivider} />
-                  <View style={styles.congratsStat}>
-                    <Text style={styles.congratsStatValue}>
-                      {sessionDurationSeconds >= 3600
-                        ? `${Math.floor(sessionDurationSeconds / 3600)}h ${Math.floor((sessionDurationSeconds % 3600) / 60)}m`
-                        : `${Math.floor(sessionDurationSeconds / 60)}m`}
-                    </Text>
-                    <Text style={styles.congratsStatLabel}>Duration</Text>
-                  </View>
-                  {shareCardData?.totalVolumeKg != null && shareCardData.totalVolumeKg > 0 && (
-                    <>
-                      <View style={styles.congratsStatDivider} />
-                      <View style={styles.congratsStat}>
-                        <Text style={styles.congratsStatValue}>
-                          {Math.round(kgToDisplayUnit(shareCardData.totalVolumeKg, weightUnit)).toLocaleString()}
-                        </Text>
-                        <Text style={styles.congratsStatLabel}>Vol ({weightUnit})</Text>
-                      </View>
-                    </>
-                  )}
-                </View>
-                {STRENGTH_SESSION_TYPES.includes(sessionType) && shareCardData?.totalVolumeKg != null && shareCardData.totalVolumeKg > 0 && (
-                  <View style={styles.volumeCompareRow}>
-                    {prevSameTypeVolume > 0 ? (
-                      <>
-                        <Ionicons
-                          name={shareCardData.totalVolumeKg >= prevSameTypeVolume ? 'trending-up' : 'trending-down'}
-                          size={13}
-                          color={shareCardData.totalVolumeKg >= prevSameTypeVolume ? C.primary : C.textTertiary}
-                        />
-                        <Text style={[styles.volumeCompareText, shareCardData.totalVolumeKg > prevSameTypeVolume && { color: C.primary }]}>
-                          {shareCardData.totalVolumeKg > prevSameTypeVolume
-                            ? `↑ ${Math.round(kgToDisplayUnit(shareCardData.totalVolumeKg - prevSameTypeVolume, weightUnit)).toLocaleString()}${weightUnit} more than last ${getSessionLabel(sessionType).toLowerCase()}`
-                            : shareCardData.totalVolumeKg === prevSameTypeVolume
-                              ? `Same volume as last ${getSessionLabel(sessionType).toLowerCase()}`
-                              : `${Math.round(kgToDisplayUnit(prevSameTypeVolume - shareCardData.totalVolumeKg, weightUnit)).toLocaleString()}${weightUnit} less than last ${getSessionLabel(sessionType).toLowerCase()}`}
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons name="star" size={13} color={C.warning} />
-                        <Text style={styles.volumeCompareText}>First {getSessionLabel(sessionType).toLowerCase()} session logged!</Text>
-                      </>
-                    )}
-                  </View>
-                )}
-                {streakMilestone > 0 && (
-                  <View style={styles.streakBadge}>
-                    <Text style={styles.streakBadgeIcon}>🔥</Text>
-                    <Text style={styles.streakBadgeText}>{streakMilestone}-day streak!</Text>
-                  </View>
-                )}
-                {isTestWeek && testWeekOrmData && (
-                  <View style={styles.ormCompareCard}>
-                    <Text style={styles.ormCompareTitle}>
-                      {getSessionLabel(sessionType)} Strength Test
-                    </Text>
-                    <View style={styles.ormCompareRow}>
-                      <View style={styles.ormCompareItem}>
-                        <Text style={styles.ormCompareLabel}>Previous</Text>
-                        <Text style={styles.ormCompareValue}>
-                          {testWeekOrmData.prev ? formatWeight(testWeekOrmData.prev, weightUnit) : '-'}
-                        </Text>
-                      </View>
-                      <Ionicons name="arrow-forward" size={18} color={C.textTertiary} />
-                      <View style={styles.ormCompareItem}>
-                        <Text style={styles.ormCompareLabel}>New 1RM</Text>
-                        <Text style={[styles.ormCompareValue, styles.ormCompareNew]}>
-                          {formatWeight(testWeekOrmData.next, weightUnit)}
-                        </Text>
-                      </View>
-                    </View>
-                    {testWeekOrmData.prev !== null && testWeekOrmData.next > testWeekOrmData.prev && (
-                      <View style={styles.ormPbBadge}>
-                        <Text style={styles.ormPbBadgeText}>🏆 New Personal Best!</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-                {tooEasySaved && (
-                  <View style={styles.feedbackSavedBanner}>
-                    <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-                    <Text style={styles.feedbackSavedText}>Weights adjusted for next session</Text>
-                  </View>
-                )}
-                <Pressable
-                  onPress={() => {
-                    setShowCongratsModal(false);
-                    router.push(`/session-summary?sessionId=${completedSessionId ?? ''}`);
-                  }}
-                  style={[styles.congratsButton, isMilestone && styles.congratsButtonMilestone]}
-                  testID="view-session-summary"
-                >
-                  <Ionicons name="stats-chart" size={17} color={C.textInverse} style={{ marginRight: 7 }} />
-                  <Text style={styles.congratsButtonText}>View Session Summary</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setShowCongratsModal(false);
-                    router.dismissAll();
-                    router.replace('/(tabs)');
-                  }}
-                  style={styles.congratsSecondaryButton}
-                  testID="congrats-close"
-                >
-                  <Text style={styles.congratsSecondaryButtonText}>Back to Home</Text>
-                </Pressable>
-                <View style={styles.feedbackButtonRow}>
-                  <Pressable
-                    onPress={() => setFeedbackStep('rating')}
-                    style={styles.feedbackSecondaryBtn}
-                    testID="open-rate-modal"
-                  >
-                    <Ionicons name="thumbs-up-outline" size={16} color={C.primary} />
-                    <Text style={styles.feedbackSecondaryText}>Rate exercises</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setFeedbackStep('tooEasy')}
-                    style={styles.feedbackSecondaryBtn}
-                    testID="open-too-easy-modal"
-                  >
-                    <Ionicons name="trending-up-outline" size={16} color={C.primary} />
-                    <Text style={styles.feedbackSecondaryText}>Too easy?</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleShare}
-                    style={[styles.feedbackSecondaryBtn, isSharing && { opacity: 0.5 }]}
-                    disabled={isSharing}
-                    testID="share-workout"
-                  >
-                    <Ionicons name="share-outline" size={16} color={C.primary} />
-                    <Text style={styles.feedbackSecondaryText}>
-                      {isSharing ? 'Sharing…' : 'Share'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-
-            {/* ── Rating Step ──────────────────────────────────────────────── */}
-            {feedbackStep === 'rating' && (
-              <>
-                <View style={[styles.modalIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="thumbs-up-outline" size={28} color={C.primary} />
-                </View>
-                <Text style={styles.modalTitle}>Rate Exercises</Text>
-                <Text style={styles.feedbackSubtitle}>How did each exercise feel?</Text>
-                <ScrollView style={styles.feedbackScroll} showsVerticalScrollIndicator={false}>
-                  {exercises.map((ex) => (
-                    <View key={ex.id} style={styles.ratingRow}>
-                      <Text style={styles.ratingName} numberOfLines={2}>{ex.name}</Text>
-                      <View style={styles.ratingButtons}>
-                        <Pressable
-                          onPress={() => setThumbsRatings((prev) => ({ ...prev, [ex.id]: 'up' }))}
-                          style={[styles.thumbBtn, thumbsRatings[ex.id] === 'up' && styles.thumbBtnActive]}
-                          testID={`thumb-up-${ex.id}`}
-                        >
-                          <Ionicons
-                            name="thumbs-up"
-                            size={18}
-                            color={thumbsRatings[ex.id] === 'up' ? C.textInverse : C.textSecondary}
-                          />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setThumbsRatings((prev) => ({ ...prev, [ex.id]: 'down' }))}
-                          style={[styles.thumbBtn, styles.thumbBtnDown, thumbsRatings[ex.id] === 'down' && styles.thumbBtnDownActive]}
-                          testID={`thumb-down-${ex.id}`}
-                        >
-                          <Ionicons
-                            name="thumbs-down"
-                            size={18}
-                            color={thumbsRatings[ex.id] === 'down' ? C.textInverse : C.textSecondary}
-                          />
-                        </Pressable>
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-                <Pressable
-                  onPress={() => {
-                    Object.entries(thumbsRatings).forEach(([id, thumbs]) => {
-                      setExerciseFeedback(id, thumbs);
-                    });
-                    setFeedbackStep('congrats');
-                  }}
-                  style={styles.congratsButton}
-                  testID="submit-ratings"
-                >
-                  <Text style={styles.congratsButtonText}>Submit Ratings</Text>
-                </Pressable>
-                <Pressable onPress={() => setFeedbackStep('congrats')} style={styles.modalClose}>
-                  <Text style={styles.modalCloseText}>Skip</Text>
-                </Pressable>
-              </>
-            )}
-
-            {/* ── Too Easy Step ────────────────────────────────────────────── */}
-            {feedbackStep === 'tooEasy' && (
-              <>
-                <View style={[styles.modalIcon, { backgroundColor: C.categoryPrehab }]}>
-                  <Ionicons name="trending-up-outline" size={28} color={C.categoryPrehabText} />
-                </View>
-                <Text style={styles.modalTitle}>Too Easy?</Text>
-                <Text style={styles.feedbackSubtitle}>Select exercises to make harder next session</Text>
-                <ScrollView style={styles.feedbackScroll} showsVerticalScrollIndicator={false}>
-                  {exercises.map((ex) => {
-                    const selected = tooEasySelected.has(ex.id);
-                    return (
-                      <Pressable
-                        key={ex.id}
-                        onPress={() => {
-                          setTooEasySelected((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(ex.id)) next.delete(ex.id);
-                            else next.add(ex.id);
-                            return next;
-                          });
-                        }}
-                        style={[styles.checklistRow, selected && styles.checklistRowSelected]}
-                        testID={`tooEasy-${ex.id}`}
-                      >
-                        <View style={[styles.checklistBox, selected && styles.checklistBoxSelected]}>
-                          {selected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
-                        </View>
-                        <Text style={[styles.checklistName, selected && styles.checklistNameSelected]} numberOfLines={2}>
-                          {ex.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-                <Pressable
-                  onPress={() => {
-                    if (tooEasySelected.size > 0) {
-                      applyTooEasyAdjustment(Array.from(tooEasySelected));
-                      setTooEasySaved(true);
-                      setTimeout(() => setTooEasySaved(false), 4000);
-                    }
-                    setTooEasySelected(new Set());
-                    setFeedbackStep('congrats');
-                  }}
-                  style={[styles.congratsButton, tooEasySelected.size === 0 && styles.congratsButtonMuted]}
-                  testID="confirm-too-easy"
-                >
-                  <Text style={styles.congratsButtonText}>
-                    {tooEasySelected.size > 0 ? `Adjust ${tooEasySelected.size} exercise${tooEasySelected.size > 1 ? 's' : ''}` : 'Confirm'}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={() => setFeedbackStep('congrats')} style={styles.modalClose}>
-                  <Text style={styles.modalCloseText}>Skip</Text>
-                </Pressable>
-              </>
-            )}
-
-          </Animated.View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
