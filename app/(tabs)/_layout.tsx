@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import { BlurView } from "expo-blur";
 import {
   Platform,
@@ -758,10 +758,19 @@ export default function TabLayout() {
       }
       return next;
     });
-    // After the Home tab sheet is dismissed, immediately auto-show the
-    // Achievements tour stop (it has no tab of its own to tap).
+    // After the Home tab sheet is dismissed, navigate into the Achievements
+    // screen with tour mode active so the user sees their real badge grid.
+    // Mark achievements as seen immediately so it counts toward tour completion.
     if (key === "index") {
-      setTimeout(() => setActiveSheet("achievements"), 300);
+      setTabsSeen((prev) => {
+        const next = new Set(prev);
+        next.add("achievements");
+        if (next.size >= TOUR_TABS.length) {
+          setTourComplete(true);
+        }
+        return next;
+      });
+      setTimeout(() => router.push("/achievements?tour=1"), 350);
     }
   }, [activeSheet, setTourComplete]);
 

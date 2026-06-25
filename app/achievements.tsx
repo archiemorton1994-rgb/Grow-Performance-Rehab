@@ -7,8 +7,9 @@ import {
   SectionList,
   Modal,
   Platform,
+  Animated,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -49,16 +50,197 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
 
 const COLS = 4;
 
+// ─── Tour overlay callout ──────────────────────────────────────────────────────
+
+function TourCallout({ onDismiss }: { onDismiss: () => void }) {
+  const C = useColors();
+  const insets = useSafeAreaInsets();
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handleDismiss = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => onDismiss());
+  };
+
+  return (
+    <Animated.View
+      style={[
+        StyleSheet.absoluteFill,
+        { opacity: fadeAnim, zIndex: 100 },
+      ]}
+      pointerEvents="box-none"
+    >
+      {/* Semi-transparent backdrop */}
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.52)' }}
+        onPress={handleDismiss}
+      />
+
+      {/* Callout card anchored at the bottom */}
+      <View
+        style={[
+          tourStyles.calloutCard,
+          {
+            backgroundColor: C.surface,
+            borderColor: C.borderLight,
+            paddingBottom: insets.bottom + 20,
+          },
+        ]}
+      >
+        {/* Handle */}
+        <View style={[tourStyles.handle, { backgroundColor: C.border }]} />
+
+        {/* Icon + heading */}
+        <View style={tourStyles.calloutHeader}>
+          <View style={[tourStyles.calloutIconBadge, { backgroundColor: C.primarySurface }]}>
+            <Ionicons name="trophy" size={20} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[tourStyles.calloutLabel, { color: C.textTertiary }]}>Achievements</Text>
+            <Text style={[tourStyles.calloutHeadline, { color: C.text }]}>
+              Your real badge collection
+            </Text>
+          </View>
+        </View>
+
+        {/* Body */}
+        <Text style={[tourStyles.calloutBody, { color: C.textSecondary }]}>
+          Earned badges glow with colour — locked ones show exactly what you
+          need to do to unlock them. Tap any badge to see its description.
+        </Text>
+
+        {/* Tips */}
+        <View style={{ gap: 7 }}>
+          {[
+            'Over 400 badges across milestones, streaks, strength, and more',
+            'Tap any badge to see its unlock criteria',
+            'New badges appear as toasts above the tab bar',
+          ].map((tip, i) => (
+            <View key={i} style={tourStyles.tipRow}>
+              <Ionicons name="checkmark-circle" size={15} color={C.primary} />
+              <Text style={[tourStyles.tipText, { color: C.textSecondary }]}>{tip}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Got it button */}
+        <Pressable
+          onPress={handleDismiss}
+          style={({ pressed }) => [
+            tourStyles.gotItBtn,
+            { backgroundColor: C.primary },
+            pressed && { opacity: 0.86 },
+          ]}
+          testID="achievements-tour-got-it"
+        >
+          <Text style={[tourStyles.gotItText, { color: C.textInverse }]}>Got it</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+const tourStyles = StyleSheet.create({
+  calloutCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    gap: 14,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  calloutHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  calloutIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calloutLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  calloutHeadline: {
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    marginTop: 2,
+    lineHeight: 23,
+  },
+  calloutBody: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 21,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 18,
+  },
+  gotItBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  gotItText: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+  },
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const { earnedBadges } = useAppStore();
   const earnedSet = useMemo(() => new Set(earnedBadges), [earnedBadges]);
+  const params = useLocalSearchParams<{ tour?: string }>();
+  const isTourMode = params.tour === '1';
+  const [tourOverlayVisible, setTourOverlayVisible] = useState(isTourMode);
 
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [detailBadge, setDetailBadge] = useState<Badge | null>(null);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
+  const handleTourDismiss = () => {
+    setTourOverlayVisible(false);
+    router.back();
+  };
 
   // Build sections grouped by category, filtered by earned state
   const sections = useMemo(() => {
@@ -220,6 +402,11 @@ export default function AchievementsScreen() {
           );
         }}
       />
+
+      {/* Tour overlay — shown when navigated from the guided tour */}
+      {tourOverlayVisible && (
+        <TourCallout onDismiss={handleTourDismiss} />
+      )}
 
       {/* Badge detail sheet */}
       {detailBadge && (
