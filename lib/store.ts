@@ -266,6 +266,8 @@ interface AppState {
   getEffectiveTier: () => EquipmentTier;
   getInternalTier: () => 'bodyweight' | 'dumbbells' | 'fullgym';
   getDataForSync: () => SyncPayload;
+  /** All completed-set arrays for a given exercise ID across every completed session, newest session first. */
+  getExerciseHistory: (exerciseId: string) => { sessionId: string; date: string; sets: SetLog[] }[];
   mergeServerData: (data: SyncPayload) => void;
 }
 
@@ -588,6 +590,17 @@ export const useAppStore = create<AppState>()(
           exerciseNormalStreak: s.exerciseNormalStreak,
           savedTemplates: s.savedTemplates,
         };
+      },
+
+      getExerciseHistory: (exerciseId) => {
+        const { completedSessions } = get();
+        return completedSessions
+          .map((session) => {
+            const log = session.exerciseLogs.find((el) => el.exerciseId === exerciseId);
+            if (!log) return null;
+            return { sessionId: session.id, date: session.date, sets: log.sets };
+          })
+          .filter((entry): entry is { sessionId: string; date: string; sets: SetLog[] } => entry !== null);
       },
 
       mergeServerData: (data) => {

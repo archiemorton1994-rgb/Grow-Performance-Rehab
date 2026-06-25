@@ -313,6 +313,7 @@ function RootLayoutNav() {
         <Stack.Screen name="subscription" options={{ headerShown: false }} />
         <Stack.Screen name="readiness" options={{ headerShown: false }} />
         <Stack.Screen name="session" options={{ headerShown: false }} />
+        <Stack.Screen name="session-summary" options={{ headerShown: false }} />
       </Stack>
       <WeeklyWeightPrompt />
     </>

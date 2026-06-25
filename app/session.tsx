@@ -1040,6 +1040,7 @@ export default function SessionScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecondsRef = useRef(0);
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0);
+  const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
   useEffect(() => {
     const timerId = setInterval(() => {
       setElapsedSeconds((s) => { elapsedSecondsRef.current = s + 1; return s + 1; });
@@ -1524,6 +1525,8 @@ export default function SessionScreen() {
         }
       }, 3000);
     }
+
+    setCompletedSessionId(useAppStore.getState().completedSessions[0]?.id ?? null);
 
     sessionTerminatedRef.current = true;
     clearActiveSession();
@@ -2016,13 +2019,24 @@ export default function SessionScreen() {
                 <Pressable
                   onPress={() => {
                     setShowCongratsModal(false);
+                    router.push(`/session-summary?sessionId=${completedSessionId ?? ''}`);
+                  }}
+                  style={[styles.congratsButton, isMilestone && styles.congratsButtonMilestone]}
+                  testID="view-session-summary"
+                >
+                  <Ionicons name="stats-chart" size={17} color={C.textInverse} style={{ marginRight: 7 }} />
+                  <Text style={styles.congratsButtonText}>View Session Summary</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setShowCongratsModal(false);
                     router.dismissAll();
                     router.replace('/(tabs)');
                   }}
-                  style={[styles.congratsButton, isMilestone && styles.congratsButtonMilestone]}
+                  style={styles.congratsSecondaryButton}
                   testID="congrats-close"
                 >
-                  <Text style={styles.congratsButtonText}>Back to Home</Text>
+                  <Text style={styles.congratsSecondaryButtonText}>Back to Home</Text>
                 </Pressable>
                 <View style={styles.feedbackButtonRow}>
                   <Pressable
@@ -2286,9 +2300,11 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
   congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
   congratsStatDivider: { width: 1, height: 28, backgroundColor: C.border },
-  congratsButton: { width: '100%', backgroundColor: C.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
+  congratsButton: { width: '100%', flexDirection: 'row', backgroundColor: C.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   congratsButtonMuted: { backgroundColor: C.surfaceTertiary },
   congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+  congratsSecondaryButton: { width: '100%', paddingVertical: 14, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
+  congratsSecondaryButtonText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
   feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
   feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
   feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10, flexWrap: 'wrap' },
