@@ -33,7 +33,6 @@ interface TourTabDef {
   body: string;
   tips: string[];
   showMockup?: boolean;
-  showBadgeMockup?: boolean;
 }
 
 const TOUR_TABS: TourTabDef[] = [
@@ -61,7 +60,6 @@ const TOUR_TABS: TourTabDef[] = [
       "Tap any badge to see its description and how to earn it",
       "New badge unlocks appear as a pop-up toast above the tab bar",
     ],
-    showBadgeMockup: true,
   },
   {
     key: "profile",
@@ -403,141 +401,6 @@ function StatsMockup() {
   );
 }
 
-// ─── Badge mini-mockup ────────────────────────────────────────────────────────
-
-function BadgeMockup() {
-  const C = useColors();
-  const PREVIEW_BADGES = [
-    { emoji: "🏆", label: "First Step", earned: true },
-    { emoji: "🔥", label: "3-Day Streak", earned: true },
-    { emoji: "💪", label: "5 Sessions", earned: true },
-    { emoji: "⚡", label: "10 Sessions", earned: false },
-    { emoji: "🎯", label: "25 Sessions", earned: false },
-    { emoji: "🌟", label: "50 Sessions", earned: false },
-    { emoji: "🦾", label: "100kg Lift", earned: false },
-    { emoji: "🏅", label: "Test Week", earned: false },
-  ];
-  return (
-    <View
-      style={{
-        backgroundColor: C.surfaceSecondary,
-        borderRadius: 14,
-        padding: 14,
-        gap: 10,
-        borderWidth: 1,
-        borderColor: C.borderLight,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 11,
-          fontFamily: "Inter_600SemiBold",
-          color: C.textTertiary,
-          textTransform: "uppercase",
-          letterSpacing: 0.6,
-        }}
-      >
-        Your badge collection
-      </Text>
-
-      {/* 4-column badge grid preview */}
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 6,
-        }}
-      >
-        {PREVIEW_BADGES.map((b, i) => (
-          <View
-            key={i}
-            style={{
-              width: "22%",
-              aspectRatio: 1,
-              borderRadius: 12,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: b.earned ? C.primarySurface : C.surfaceTertiary,
-              borderWidth: 1,
-              borderColor: b.earned ? C.primaryMuted : C.borderLight,
-              opacity: b.earned ? 1 : 0.55,
-              gap: 2,
-            }}
-          >
-            <Text style={{ fontSize: 18 }}>{b.emoji}</Text>
-            <Text
-              style={{
-                fontSize: 8,
-                fontFamily: "Inter_600SemiBold",
-                color: b.earned ? C.primary : C.textTertiary,
-                textAlign: "center",
-              }}
-              numberOfLines={1}
-            >
-              {b.label}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Legend */}
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 14,
-          borderTopWidth: 1,
-          borderTopColor: C.borderLight,
-          paddingTop: 8,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <View
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 3,
-              backgroundColor: C.primarySurface,
-              borderWidth: 1,
-              borderColor: C.primaryMuted,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 10,
-              fontFamily: "Inter_400Regular",
-              color: C.textSecondary,
-            }}
-          >
-            Earned
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <View
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 3,
-              backgroundColor: C.surfaceTertiary,
-              borderWidth: 1,
-              borderColor: C.borderLight,
-              opacity: 0.55,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 10,
-              fontFamily: "Inter_400Regular",
-              color: C.textSecondary,
-            }}
-          >
-            Locked — tap to see how to unlock
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 // ─── Tour sheet (bottom-slide Modal) ─────────────────────────────────────────
 
 function TourSheet({
@@ -625,9 +488,6 @@ function TourSheet({
 
             {/* Stats mockup */}
             {tab.showMockup && <StatsMockup />}
-
-            {/* Badge mockup */}
-            {tab.showBadgeMockup && <BadgeMockup />}
           </ScrollView>
         )}
 
