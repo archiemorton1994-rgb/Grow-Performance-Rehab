@@ -260,32 +260,32 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   function awardIf(condition: boolean, id: string) { if (condition) earned.push(id); }
 
   // ── 1. Milestones ──────────────────────────────────────────────────────────
-  const milestoneCounts = [1,2,3,5,7,10,15,20,25,30,40,50,60,75,100,125,150,175,200,250,300,400,500];
+  const milestoneCounts = [1,2,3,5,7,10,15,20,25,30,40,50,60,75,100,125,150,175,200,250,300,350,400,500,750];
   for (const n of milestoneCounts) {
     awardIf(s.total >= n, `milestone_${n}`);
   }
 
   // ── 2. Streaks ─────────────────────────────────────────────────────────────
-  const streakThresholds = [2,3,5,7,10,14,21,28,30,42,60,75,90,120,150,180,270,365];
+  const streakThresholds = [2,3,5,7,10,14,21,28,30,42,60,75,90,120,150,180,270,365,400,500,730];
   for (const n of streakThresholds) {
     awardIf(s.streak >= n, `streak_${n}`);
   }
 
-  // ── 3. Strength – Squat 1RM ────────────────────────────────────────────────
+  // ── 3. Strength – Squat 1RM (every 10 kg, 20–400 kg) ────────────────────────
   const squatOrm = s.bestOrm['squat'] ?? 0;
-  for (const kg of [40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,300,320,340,360]) {
+  for (let kg = 20; kg <= 400; kg += 10) {
     awardIf(squatOrm >= kg, `squat_${kg}kg`);
   }
 
-  // ── 4. Strength – Bench 1RM ────────────────────────────────────────────────
+  // ── 4. Strength – Bench 1RM (every 10 kg, 20–300 kg) ────────────────────────
   const benchOrm = s.bestOrm['bench'] ?? 0;
-  for (const kg of [20,40,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,240,260,300]) {
+  for (let kg = 20; kg <= 300; kg += 10) {
     awardIf(benchOrm >= kg, `bench_${kg}kg`);
   }
 
-  // ── 5. Strength – Deadlift 1RM ────────────────────────────────────────────
+  // ── 5. Strength – Deadlift 1RM (every 10 kg, 20–500 kg) ──────────────────────
   const dlOrm = s.bestOrm['deadlift'] ?? 0;
-  for (const kg of [60,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,420,440,460,480,500]) {
+  for (let kg = 20; kg <= 500; kg += 10) {
     awardIf(dlOrm >= kg, `deadlift_${kg}kg`);
   }
 
@@ -301,7 +301,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   };
   for (const [storeType, prefix] of Object.entries(typeMap)) {
     const count = s.byType[storeType] ?? 0;
-    for (const n of [1,3,5,10,15,20,25,30,50,75,100]) {
+    for (const n of [1,3,5,10,15,20,25,30,50,75,100,150,200]) {
       awardIf(count >= n, `${prefix}_session_${n}`);
     }
   }
@@ -514,6 +514,19 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   for (const n of [50,75,100,120,140,160,180,200,250,300]) {
     awardIf(s.maxSingleSetWeightKg >= n, `load_${n}kg`);
   }
+
+  // ── 26. Pain Warrior (sessions with a pain adaptation active) ─────────────
+  awardIf(painAdaptCount >= 1,  'pain_warrior_1');
+  awardIf(painAdaptCount >= 3,  'pain_warrior_3');
+  awardIf(painAdaptCount >= 5,  'pain_warrior_5');
+  awardIf(painAdaptCount >= 10, 'pain_warrior_10');
+  awardIf(painAdaptCount >= 20, 'pain_warrior_20');
+
+  // ── 27. Endurance / No Excuses (sessions completed when energy was low) ───
+  awardIf(s.lowEnergyCount >= 1,  'endurance_1');
+  awardIf(s.lowEnergyCount >= 3,  'endurance_3');
+  awardIf(s.lowEnergyCount >= 5,  'endurance_5');
+  awardIf(s.lowEnergyCount >= 10, 'endurance_10');
 
   return earned;
 }

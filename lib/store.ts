@@ -374,10 +374,13 @@ export const useAppStore = create<AppState>()(
       },
       setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
-      setUserProfile: (profile) => set((state) => ({
-        userProfile: { ...state.userProfile, ...profile },
-        ...(profile.bodyweightKg !== undefined ? { bodyweightUpdatedAt: new Date().toISOString() } : {}),
-      })),
+      setUserProfile: (profile) => {
+        set((state) => ({
+          userProfile: { ...state.userProfile, ...profile },
+          ...(profile.bodyweightKg !== undefined ? { bodyweightUpdatedAt: new Date().toISOString() } : {}),
+        }));
+        get().awardNewBadges();
+      },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time, painRegion) => set({ lastReadinessEnergy: energy, lastReadinessTime: time, ...(painRegion !== undefined ? { lastPainRegion: painRegion } : {}) }),
