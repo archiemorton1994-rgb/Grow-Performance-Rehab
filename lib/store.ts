@@ -178,6 +178,7 @@ interface AppState {
   exerciseFeedback: Record<string, ExerciseFeedback>;
   lastReadinessEnergy: EnergyLevel;
   lastReadinessTime: TimeAvailable;
+  lastPainRegion: PainRegion | null;
   weightUnit: WeightUnit;
   lastWeightPromptedAt: number | null;
   hasHydrated: boolean;
@@ -232,7 +233,7 @@ interface AppState {
   resetProgress: () => void;
   setExerciseFeedback: (exerciseId: string, thumbs: 'up' | 'down' | null) => void;
   applyTooEasyAdjustment: (exerciseIds: string[]) => void;
-  setLastReadiness: (energy: EnergyLevel, time: TimeAvailable) => void;
+  setLastReadiness: (energy: EnergyLevel, time: TimeAvailable, painRegion?: PainRegion | null) => void;
   setWeightUnit: (unit: WeightUnit) => void;
   setActiveSession: (session: ActiveSession) => void;
   clearActiveSession: () => void;
@@ -289,6 +290,7 @@ export const useAppStore = create<AppState>()(
       exerciseFeedback: {},
       lastReadinessEnergy: 'normal',
       lastReadinessTime: '45',
+      lastPainRegion: null,
       weightUnit: 'kg',
       lastWeightPromptedAt: null,
       hasHydrated: false,
@@ -316,7 +318,7 @@ export const useAppStore = create<AppState>()(
       })),
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
-      setLastReadiness: (energy, time) => set({ lastReadinessEnergy: energy, lastReadinessTime: time }),
+      setLastReadiness: (energy, time, painRegion) => set({ lastReadinessEnergy: energy, lastReadinessTime: time, ...(painRegion !== undefined ? { lastPainRegion: painRegion } : {}) }),
       setWeightUnit: (unit) => set({ weightUnit: unit }),
       setActiveSession: (session) => set({ activeSession: session }),
       clearActiveSession: () => set({ activeSession: null }),
@@ -681,6 +683,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!('streakProtectionTime' in persistedState)) {
           persistedState.streakProtectionTime = '20:00';
+        }
+        if (!('lastPainRegion' in persistedState)) {
+          persistedState.lastPainRegion = null;
         }
         return persistedState;
       },

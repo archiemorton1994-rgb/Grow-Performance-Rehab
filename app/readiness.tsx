@@ -41,7 +41,7 @@ export default function ReadinessScreen() {
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
 
-  const { equipmentTiers, userProfile, lastReadinessEnergy, lastReadinessTime, setLastReadiness } = useAppStore();
+  const { equipmentTiers, userProfile, lastReadinessEnergy, lastReadinessTime, lastPainRegion, setLastReadiness } = useAppStore();
 
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
@@ -164,7 +164,7 @@ export default function ReadinessScreen() {
   const handlePainRegion = (region: PainRegion) => {
     hapticTap();
     setPainRegion(region);
-    setLastReadiness(energy, timeAvailable);
+    setLastReadiness(energy, timeAvailable, region);
     if (isTestWeek) {
       router.push({
         pathname: '/session',
@@ -546,20 +546,28 @@ export default function ReadinessScreen() {
                       <Ionicons name={iconInfo.icon} size={13} color={iconInfo.color} />
                       <Text style={[styles.sectionHeaderLabel, { color: iconInfo.color }]}>{cat.label}</Text>
                     </View>
-                    {cat.regions.map((r) => (
-                      <Pressable
-                        key={r.id}
-                        onPress={() => handlePainRegion(r.id)}
-                        style={({ pressed }) => [styles.areaButton, { paddingVertical: 10, marginBottom: 7 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-                        testID={`pain-region-${r.id}`}
-                      >
-                        <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight, width: 36, height: 36, borderRadius: 10 }]}>
-                          <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.warning} />
-                        </View>
-                        <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-                        <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-                      </Pressable>
-                    ))}
+                    {cat.regions.map((r) => {
+                      const isLast = lastPainRegion === r.id;
+                      return (
+                        <Pressable
+                          key={r.id}
+                          onPress={() => handlePainRegion(r.id)}
+                          style={({ pressed }) => [styles.areaButton, { paddingVertical: 10, marginBottom: 7 }, isLast && { borderWidth: 1.5, borderColor: C.warning }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                          testID={`pain-region-${r.id}`}
+                        >
+                          <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight, width: 36, height: 36, borderRadius: 10 }]}>
+                            <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.warning} />
+                          </View>
+                          <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+                          {isLast && (
+                            <View style={{ backgroundColor: C.warningLight, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 4 }}>
+                              <Text style={{ fontSize: 10, color: C.warning, fontFamily: 'Inter_600SemiBold' }}>Last</Text>
+                            </View>
+                          )}
+                          <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 );
               })}
@@ -583,20 +591,28 @@ export default function ReadinessScreen() {
             <Text style={styles.question}>Specific area?</Text>
             <Text style={styles.questionSub}>We will swap exercises for this region</Text>
             <View style={styles.areaButtons}>
-              {regions.map((r) => (
-                <Pressable
-                  key={r.id}
-                  onPress={() => handlePainRegion(r.id)}
-                  style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-                  testID={`pain-region-${r.id}`}
-                >
-                  <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight }]}>
-                    <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.warning} />
-                  </View>
-                  <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-                </Pressable>
-              ))}
+              {regions.map((r) => {
+                const isLast = lastPainRegion === r.id;
+                return (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => handlePainRegion(r.id)}
+                    style={({ pressed }) => [styles.areaButton, isLast && { borderWidth: 1.5, borderColor: C.warning }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+                    testID={`pain-region-${r.id}`}
+                  >
+                    <View style={[styles.areaIconWrap, { backgroundColor: C.warningLight }]}>
+                      <Ionicons name={REGION_ICONS[r.id]} size={22} color={C.warning} />
+                    </View>
+                    <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
+                    {isLast && (
+                      <View style={{ backgroundColor: C.warningLight, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 4 }}>
+                        <Text style={{ fontSize: 10, color: C.warning, fontFamily: 'Inter_600SemiBold' }}>Last</Text>
+                      </View>
+                    )}
+                    <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         </ScrollView>
