@@ -83,6 +83,10 @@ export default function HomeScreen() {
       ? completedSessions.length
       : null;
 
+  const calibrationComplete =
+    completedSessions.length === 3
+    && daysSinceLast !== null && daysSinceLast <= 1;
+
   const missedStreakWarning =
     lastSession && streak === 0
     && daysSinceLast !== null && daysSinceLast >= 2
@@ -393,6 +397,16 @@ export default function HomeScreen() {
               <Text style={styles.milestoneSub}>You just unlocked a new milestone - keep it going.</Text>
             </View>
           </Animated.View>
+        ) : calibrationComplete ? (
+          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.calibrationCompleteCard}>
+            <View style={styles.calibrationCompleteIcon}>
+              <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.calibrationCompleteTitle}>You're all set</Text>
+              <Text style={styles.calibrationCompleteSub}>Sessions are now fully personalised to you.</Text>
+            </View>
+          </Animated.View>
         ) : missedStreakWarning ? (
           <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.warningCard}>
             <View style={styles.warningIcon}>
@@ -568,6 +582,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todayIconImage: { width: 46, height: 46 },
     firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    calibrationCompleteCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: C.primaryMuted, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.primary + '44',
+    },
+    calibrationCompleteIcon: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      backgroundColor: C.surface,
+    },
+    calibrationCompleteTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primary },
+    calibrationCompleteSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
 
     calibrationCard: {
       backgroundColor: C.primaryMuted, borderRadius: 14,
