@@ -70,6 +70,7 @@ export default function HomeScreen() {
     bodyweightReminderEnabled,
     newlyUnlockedBadges,
     clearNewlyUnlockedBadges,
+    earnedBadges,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -500,6 +501,39 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Total</Text>
           </View>
         </Animated.View>
+
+        {/* Achievements strip — visible once at least 1 badge is earned */}
+        {earnedBadges.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(140).duration(380)}>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/achievements');
+              }}
+              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
+              testID="home-achievements-row"
+            >
+              <View style={styles.achievementsIcons}>
+                {earnedBadges.slice(0, 5).map(id => {
+                  const badge = BADGE_MAP.get(id);
+                  if (!badge) return null;
+                  return (
+                    <View
+                      key={id}
+                      style={[styles.achievementsDot, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}
+                    >
+                      <Ionicons name={badge.icon as any} size={12} color={badge.color} />
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={styles.achievementsLabel}>
+                {earnedBadges.length} badge{earnedBadges.length !== 1 ? 's' : ''} earned
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* Strength progress insight - best 1RM with gain since first test */}
         {topLift && completedSessions.length > 0 && (
@@ -990,5 +1024,35 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
+
+    achievementsRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    achievementsIcons: {
+      flexDirection: 'row' as const,
+      gap: 4,
+    },
+    achievementsDot: {
+      width: 26,
+      height: 26,
+      borderRadius: 8,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderWidth: 1,
+    },
+    achievementsLabel: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
   });
 }
