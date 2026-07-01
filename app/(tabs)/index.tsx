@@ -12,6 +12,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, G } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,6 +64,15 @@ function WeeklyRing({
     </View>
   );
 }
+
+// Muscle-group → session type mapping for the freshness strip
+const MUSCLE_GROUPS: { key: string; label: string; sessions: SessionType[] }[] = [
+  { key: 'legs',      label: 'Legs',      sessions: ['squat'] },
+  { key: 'push',      label: 'Push',      sessions: ['bench'] },
+  { key: 'pull',      label: 'Pull',      sessions: ['deadlift'] },
+  { key: 'core',      label: 'Core',      sessions: ['prehab', 'flexibility'] },
+  { key: 'fullbody',  label: 'Full Body', sessions: ['conditioning'] },
+];
 
 const SESSION_IMAGES: Record<string, any> = {
   squat:        require('@/assets/images/sessions/lower-body.png'),
@@ -278,6 +288,18 @@ export default function HomeScreen() {
   };
   // ────────────────────────────────────────────────────────────────────────
 
+  // Days since each muscle group was last trained (newest session wins per group)
+  const muscleFreshness = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return MUSCLE_GROUPS.map((group) => {
+      const last = completedSessions.find((s) => group.sessions.includes(s.sessionType));
+      if (!last) return { ...group, days: null };
+      const d = new Date(last.date); d.setHours(0, 0, 0, 0);
+      const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
+      return { ...group, days };
+    });
+  }, [completedSessions]);
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -431,7 +453,13 @@ export default function HomeScreen() {
             ))}
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, { backgroundColor: 'transparent', overflow: 'hidden' }]}>
+            <LinearGradient
+              colors={[suggestedMeta.bg, C.surface]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
             <View style={styles.todayCardTop}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.todayLabel}>Today</Text>
@@ -488,6 +516,34 @@ export default function HomeScreen() {
               <Ionicons name="flash" size={18} color={C.textInverse} />
               <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
             </Pressable>
+          </Animated.View>
+        )}
+
+        {/* Muscle freshness strip — only once there are sessions to compute from */}
+        {completedSessions.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(90).duration(380)}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.freshnessRow}
+            >
+              {muscleFreshness.map(({ key, label, days }) => {
+                const readySoon = days === 2;
+                const recovering = days !== null && days <= 1;
+                const chipBg = recovering ? C.errorLight : readySoon ? C.warningLight : C.primaryMuted;
+                const chipColor = recovering ? C.error : readySoon ? C.warning : C.primary;
+                const dayLabel = days === null ? 'Fresh'
+                  : days === 0 ? 'Today'
+                  : `${days}d`;
+                return (
+                  <View key={key} style={[styles.freshnessChip, { backgroundColor: chipBg }]}>
+                    <View style={[styles.freshnessDot, { backgroundColor: chipColor }]} />
+                    <Text style={[styles.freshnessLabel, { color: chipColor }]}>{label}</Text>
+                    <Text style={[styles.freshnessDays, { color: chipColor }]}>· {dayLabel}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
           </Animated.View>
         )}
 
@@ -1082,6 +1138,33 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
+    },
+
+    freshnessRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      paddingVertical: 2,
+    },
+    freshnessChip: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 5,
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    freshnessDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    freshnessLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+    },
+    freshnessDays: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
     },
   });
 }
