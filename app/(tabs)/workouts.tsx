@@ -235,6 +235,221 @@ function WeeklyVolumeChart({
   );
 }
 
+function MonthCalendar({
+  sessions,
+  C,
+}: {
+  sessions: CompletedSession[];
+  C: ReturnType<typeof useColors>;
+}) {
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [displayMonth, setDisplayMonth] = useState<Date>(() => {
+    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [cellSize, setCellSize] = useState(40);
+
+  const { dayMap, volumeMap, maxVolume } = useMemo(() => {
+    const dMap = new Map<string, CompletedSession[]>();
+    const vMap = new Map<string, number>();
+    let maxVol = 0;
+    for (const session of sessions) {
+      const dk = session.date.slice(0, 10);
+      const arr = dMap.get(dk) ?? [];
+      arr.push(session);
+      dMap.set(dk, arr);
+    }
+    for (const [dk, ss] of dMap.entries()) {
+      let vol = 0;
+      for (const s of ss) {
+        for (const ex of s.exerciseLogs) {
+          for (const set of ex.sets) {
+            if (set.completed && set.weight > 0) vol += set.weight * set.reps;
+          }
+        }
+      }
+      vMap.set(dk, vol);
+      if (vol > maxVol) maxVol = vol;
+    }
+    return { dayMap: dMap, volumeMap: vMap, maxVolume: maxVol };
+  }, [sessions]);
+
+  const monthLabel = useMemo(
+    () => displayMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    [displayMonth]
+  );
+
+  const cells = useMemo(() => {
+    const year = displayMonth.getFullYear();
+    const month = displayMonth.getMonth();
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // Mon=0..Sun=6
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const result: { day: number | null; dateKey: string | null }[] = [];
+    for (let i = 0; i < firstWeekday; i++) result.push({ day: null, dateKey: null });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dk = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      result.push({ day: d, dateKey: dk });
+    }
+    while (result.length % 7 !== 0) result.push({ day: null, dateKey: null });
+    return result;
+  }, [displayMonth]);
+
+  const isCurrentMonth =
+    new Date().getFullYear() === displayMonth.getFullYear() &&
+    new Date().getMonth() === displayMonth.getMonth();
+
+  const prevMonth = () => {
+    setDisplayMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    setSelectedDate(null);
+  };
+  const nextMonth = () => {
+    if (!isCurrentMonth) {
+      setDisplayMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+      setSelectedDate(null);
+    }
+  };
+
+  const getCellColor = (dk: string): string | null => {
+    const ss = dayMap.get(dk);
+    if (!ss || ss.length === 0) return null;
+    const vol = volumeMap.get(dk) ?? 0;
+    if (maxVolume === 0 || vol === 0) return C.primaryMuted;
+    const ratio = vol / maxVolume;
+    if (ratio < 0.4) return C.primaryMuted;
+    if (ratio < 0.75) return C.primaryLight;
+    return C.primary;
+  };
+
+  const selectedSessions = selectedDate ? (dayMap.get(selectedDate) ?? []) : [];
+
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
+      {/* Month nav header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>Training Calendar</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Pressable
+            onPress={prevMonth}
+            hitSlop={8}
+            style={({ pressed }) => ({ padding: 6, borderRadius: 8, backgroundColor: pressed ? C.primaryMuted : 'transparent' })}
+          >
+            <Ionicons name="chevron-back" size={16} color={C.primary} />
+          </Pressable>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text, minWidth: 116, textAlign: 'center' }}>
+            {monthLabel}
+          </Text>
+          <Pressable
+            onPress={nextMonth}
+            disabled={isCurrentMonth}
+            hitSlop={8}
+            style={({ pressed }) => ({ padding: 6, borderRadius: 8, backgroundColor: pressed && !isCurrentMonth ? C.primaryMuted : 'transparent', opacity: isCurrentMonth ? 0.3 : 1 })}
+          >
+            <Ionicons name="chevron-forward" size={16} color={C.primary} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Day-of-week labels */}
+      <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((lbl, i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
+            <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: i >= 5 ? C.textTertiary : C.textSecondary }}>
+              {lbl}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Calendar grid */}
+      <View
+        onLayout={e => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0) setCellSize(Math.floor(w / 7));
+        }}
+        style={{ flexDirection: 'row', flexWrap: 'wrap' }}
+      >
+        {cells.map((cell, i) => {
+          if (!cell.dateKey || cell.day === null) {
+            return <View key={i} style={{ width: cellSize, height: cellSize }} />;
+          }
+          const color = getCellColor(cell.dateKey);
+          const hasSession = color !== null;
+          const isToday = cell.dateKey === todayKey;
+          const isSelected = cell.dateKey === selectedDate;
+          const bgColor = isSelected ? C.primary : hasSession ? color : 'transparent';
+          const darkBg = bgColor === C.primary || bgColor === C.primaryLight;
+          const textColor = isSelected || darkBg ? C.textInverse : hasSession ? C.primary : C.textTertiary;
+
+          return (
+            <Pressable
+              key={i}
+              onPress={() => {
+                if (!hasSession) return;
+                setSelectedDate(isSelected ? null : cell.dateKey);
+              }}
+              style={({ pressed }) => ({
+                width: cellSize,
+                height: cellSize,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                backgroundColor: bgColor,
+                borderWidth: isToday && !isSelected ? 1.5 : 0,
+                borderColor: C.primary,
+                opacity: pressed && hasSession ? 0.75 : 1,
+              })}
+            >
+              <Text style={{
+                fontSize: 12,
+                fontFamily: isToday ? 'Inter_700Bold' : 'Inter_500Medium',
+                color: textColor,
+              }}>
+                {cell.day}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Tapped-day inline summary */}
+      {selectedDate !== null && selectedSessions.length > 0 && (
+        <View style={{ marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.borderLight, paddingTop: 10 }}>
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          </Text>
+          {selectedSessions.map((s, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}>
+              <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={(SHARED_SESSION_META[s.sessionType]?.icon ?? 'fitness-outline') as any} size={14} color={C.primary} />
+              </View>
+              <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text }}>
+                {getSessionLabel(s.sessionType)}
+              </Text>
+              {s.durationSeconds != null && s.durationSeconds > 0 && (
+                <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+                  {formatSessionDuration(s.durationSeconds)}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Volume intensity legend */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
+        <Text style={{ flex: 1, fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          {sessions.length} session{sessions.length !== 1 ? 's' : ''} total
+        </Text>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>Light</Text>
+        {[C.primaryMuted, C.primaryLight, C.primary].map((col, i) => (
+          <View key={i} style={{ width: 14, height: 14, borderRadius: 4, backgroundColor: col }} />
+        ))}
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>Heavy</Text>
+      </View>
+    </View>
+  );
+}
+
 function StrengthLineChart({
   lift,
   orms,
@@ -1371,6 +1586,7 @@ export default function StatsScreen() {
                   <Text style={styles.statLabel}>This Week</Text>
                 </View>
               </View>
+              <MonthCalendar sessions={completedSessions} C={C} />
               <WeeklyBarChart sessions={completedSessions} C={C} />
               <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
               <SessionTypeBreakdown
