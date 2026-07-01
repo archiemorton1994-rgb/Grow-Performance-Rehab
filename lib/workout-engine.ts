@@ -509,7 +509,16 @@ export function generateWorkout(
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'flexibility') {
-    return getStandaloneFlexibilityWorkout().map((t) => templateToExercise(t));
+    // Rotate the middle stretch pool so users see fresh exercises across sessions.
+    // Bookend structure: [warmup (prep)] + [8-of-14 rotated middle] + [cooldown bookend].
+    const PICK = 8;
+    const allFlex  = getStandaloneFlexibilityWorkout();
+    const warmup   = allFlex.slice(0, 1);                  // Diaphragmatic Breathing (always first)
+    const cooldown = allFlex.slice(-1);                     // Legs-Up-The-Wall (always last)
+    const middle   = allFlex.slice(1, -1);                  // 14-exercise shuffleable pool
+    const daySeed  = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
+    const rotated  = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
+    return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'custom') {
     return [];
