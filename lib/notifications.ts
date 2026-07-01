@@ -121,20 +121,35 @@ export async function cancelMissedWorkoutNudge(): Promise<void> {
 
 const STREAK_PROTECTION_ID = 'grow-streak-protection';
 
-export async function scheduleStreakProtectionAlert(timeStr: string = '20:00'): Promise<void> {
+export async function scheduleStreakProtectionAlert(
+  timeStr: string = '20:00',
+  weeklyGoal: number = 2,
+  weekCount: number = 0,
+): Promise<void> {
   if (!isNotificationsSupported()) return;
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
+
+  // Goal already met this week — no risk, cancel any existing alert.
+  if (weekCount >= weeklyGoal) {
+    await cancelStreakProtectionAlert();
+    return;
+  }
+
   await cancelStreakProtectionAlert();
   const [hourStr, minuteStr] = timeStr.split(':');
   const hour = parseInt(hourStr, 10);
   const minute = parseInt(minuteStr ?? '0', 10);
+  const remaining = weeklyGoal - weekCount;
+  const body = remaining === 1
+    ? "Just 1 more session this week to keep your streak alive. Don't stop now!"
+    : `You need ${remaining} more sessions this week to protect your streak. Get one in now!`;
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_PROTECTION_ID,
       content: {
         title: '🔥 Your weekly streak is at risk!',
-        body: "You haven't hit 2 sessions this week yet. Train now to keep your streak alive.",
+        body,
         sound: true,
         data: { screen: 'train' },
       },

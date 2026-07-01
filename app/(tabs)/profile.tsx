@@ -866,7 +866,7 @@ export default function ProfileScreen() {
                           return;
                         }
                         setStreakProtectionEnabled(true);
-                        void scheduleStreakProtectionAlert(streakProtectionTime);
+                        void scheduleStreakProtectionAlert(streakProtectionTime, weeklyStreakGoal, weekCount);
                       } else {
                         setStreakProtectionEnabled(false);
                         void cancelStreakProtectionAlert();
@@ -891,7 +891,7 @@ export default function ProfileScreen() {
                         onPress={async () => {
                           setStreakProtectionTime(t);
                           if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          void scheduleStreakProtectionAlert(t);
+                          void scheduleStreakProtectionAlert(t, weeklyStreakGoal, weekCount);
                         }}
                         style={[styles.timeChip, streakProtectionTime === t && styles.timeChipActive]}
                         testID={`streak-time-${t}`}

@@ -264,7 +264,7 @@ function RootLayoutNav() {
     }
   }, [hasHydrated]);
 
-  const { nudgeEnabled, streakProtectionEnabled, streakProtectionTime, completedSessions, getStreakDays } = useAppStore();
+  const { nudgeEnabled, streakProtectionEnabled, streakProtectionTime, completedSessions, getStreakDays, weeklyStreakGoal, getThisWeekCount } = useAppStore();
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
@@ -281,22 +281,20 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const trainedToday = completedSessions.some(s => s.date.slice(0, 10) === today);
     const streak = getStreakDays();
-    if (streakProtectionEnabled && streak >= 2 && !trainedToday) {
-      scheduleStreakProtectionAlert(streakProtectionTime).catch(() => {});
+    const weekCount = getThisWeekCount();
+    if (streakProtectionEnabled && streak >= 2) {
+      scheduleStreakProtectionAlert(streakProtectionTime, weeklyStreakGoal, weekCount).catch(() => {});
     } else {
       cancelStreakProtectionAlert().catch(() => {});
     }
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (next !== 'active') return;
-      const todayNow = new Date().toISOString().slice(0, 10);
-      const trainedNow = useAppStore.getState().completedSessions.some(s => s.date.slice(0, 10) === todayNow);
-      const streakNow = useAppStore.getState().getStreakDays();
       const state = useAppStore.getState();
-      if (state.streakProtectionEnabled && streakNow >= 2 && !trainedNow) {
-        scheduleStreakProtectionAlert(state.streakProtectionTime).catch(() => {});
+      const streakNow = state.getStreakDays();
+      const weekCountNow = state.getThisWeekCount();
+      if (state.streakProtectionEnabled && streakNow >= 2) {
+        scheduleStreakProtectionAlert(state.streakProtectionTime, state.weeklyStreakGoal, weekCountNow).catch(() => {});
       } else {
         cancelStreakProtectionAlert().catch(() => {});
       }
