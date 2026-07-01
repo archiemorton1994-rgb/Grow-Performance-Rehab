@@ -1,0 +1,21 @@
+Rest timer as a circular countdown ring — The rest timer currently shows a digit count. A draining ring (like Apple Watch's activity rings) would make the remaining rest feel tactile and premium. Especially satisfying when it completes and pulses.
+
+"Last time" load hint per exercise — When a set block appears, show a small sub-line: "Last session: 90kg × 5 — 6 days ago." Users currently have to remember or guess their starting weight; this one line removes that friction entirely.
+
+Plate calculator for gym users — When targeting a barbell weight (say 102.5kg), show a quick-expand line: "= 20kg bar + 2×20 + 2×10 + 2×1.25 per side." Zero extra screens, massively practical mid-lift.
+
+📊 Home & Stats depth
+
+Muscle group freshness strip on Home — A small row of muscle group chips (Legs / Push / Pull / Core) coloured green/amber/red based on days since last trained. Helps users decide whether to train or rest without going to Stats. Recoveries like "Push: 1 day — still recovering" change user behaviour.
+
+Training calendar heatmap on Stats — A month-grid of dots (green = trained, darker = heavier volume day). Runners and cyclists get this in Garmin/Strava — gym users want it too. Visually motivating, one glance shows consistency.
+
+🎮 Retention & delight
+
+Session summary shareable card — After the congrats modal, a "Share" button generates a clean branded card: session type, total volume, top weight, date, GROW logo. Users post these — it's free marketing and a motivation loop.
+
+Body diagram tap UI for pain region selection — The Flex tab currently uses text labels and abstract icons (arrow-up-outline for "front shoulder") for region selection. A simple front/back body silhouette where users tap the aching area is immediately intuitive and much more premium-feeling.
+
+🌙 Visual polish
+
+Colour-coded session card gradients on Home — The suggested session card has the session image but the background is flat. Applying a subtle gradient using the session's existing colour tokens (each session type already has a colour pair in session-meta.ts) would make the card feel alive and distinguish workout types instantly.
