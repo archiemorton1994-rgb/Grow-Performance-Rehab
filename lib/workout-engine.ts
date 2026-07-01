@@ -493,10 +493,20 @@ export function generateWorkout(
     return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
   }
   if (sessionType === 'prehab') {
-    const prehabExercises = readiness?.painRegion
-      ? getRegionPrehabWorkout(readiness.painRegion)
-      : getStandalonePrehabWorkout();
-    return prehabExercises.map((t) => templateToExercise(t));
+    if (readiness?.painRegion) {
+      return getRegionPrehabWorkout(readiness.painRegion).map((t) => templateToExercise(t));
+    }
+    // Standalone prehab: rotate the middle exercise pool so users see
+    // fresh joint-health work across sessions rather than the same 7 each time.
+    // Bookend structure: [warmup (prep)] + [7-of-13 rotated middle (prehab)] + [cooldown].
+    const PICK = 7;
+    const allPrehab = getStandalonePrehabWorkout();
+    const warmup   = allPrehab.filter(e => e.category === 'prep');
+    const middle   = allPrehab.filter(e => e.category === 'prehab');
+    const cooldown = allPrehab.filter(e => e.category === 'cooldown');
+    const daySeed  = strengthSessionCount + Math.floor(Date.now() / 86400000);
+    const rotated  = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
+    return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'flexibility') {
     return getStandaloneFlexibilityWorkout().map((t) => templateToExercise(t));
