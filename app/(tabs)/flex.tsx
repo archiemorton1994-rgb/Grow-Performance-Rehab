@@ -14,30 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import { useAppStore, PAIN_CATEGORIES, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
+import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
+import { BodyDiagram } from '@/components/BodyDiagram';
 
-const REGION_ICONS: Record<PainRegion, keyof typeof Ionicons.glyphMap> = {
-  front_shoulder: 'arrow-up-outline',
-  rear_shoulder: 'arrow-down-outline',
-  elbow_wrist: 'hand-right-outline',
-  neck: 'resize-outline',
-  lower_back: 'chevron-down-circle-outline',
-  upper_back: 'chevron-up-circle-outline',
-  core_ribs: 'ellipse-outline',
-  knee: 'radio-button-on-outline',
-  hip_groin: 'contract-outline',
-  ankle_achilles: 'footsteps-outline',
-  calf_shin: 'trending-down-outline',
-  chest: 'body-outline',
-  bicep: 'hand-right-outline',
-  tricep: 'hand-left-outline',
-  quads: 'walk-outline',
-  hamstrings: 'trending-down-outline',
-  glutes: 'ellipse-outline',
-  lat_mid_back: 'arrow-back-circle-outline',
-};
 
 const FLEX_IMAGES: Record<string, any> = {
   recovery:    require('@/assets/images/sessions/recovery.png'),
@@ -181,6 +162,7 @@ export default function FlexScreen() {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
+  const [prehabDiagramRegion, setPrehabDiagramRegion] = useState<PainRegion | undefined>(undefined);
 
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
@@ -194,10 +176,14 @@ export default function FlexScreen() {
 
   const openModal = (type: NonNullable<ModalType>) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (type === 'prehab') setPrehabDiagramRegion(undefined);
     setActiveModal(type);
   };
 
-  const closeModal = () => setActiveModal(null);
+  const closeModal = () => {
+    setActiveModal(null);
+    setPrehabDiagramRegion(undefined);
+  };
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -488,7 +474,7 @@ export default function FlexScreen() {
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.prehabScroll}
+              contentContainerStyle={[styles.prehabScroll, { alignItems: 'center' }]}
               keyboardShouldPersistTaps="handled"
             >
               {/* Full body option */}
@@ -496,7 +482,7 @@ export default function FlexScreen() {
                 onPress={() => handlePrehabRegion('fullbody')}
                 style={({ pressed }) => [
                   styles.prehabRegionBtn,
-                  { borderColor: C.primary, backgroundColor: C.primarySurface },
+                  { borderColor: C.primary, backgroundColor: C.primarySurface, width: '100%' },
                   pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                 ]}
                 testID="prehab-fullbody"
@@ -508,32 +494,36 @@ export default function FlexScreen() {
                 <Ionicons name="chevron-forward" size={16} color={C.primary} />
               </Pressable>
 
-              {/* All categories with section headers */}
-              {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((catKey) => {
-                const cat = PAIN_CATEGORIES[catKey];
-                return (
-                  <View key={catKey} style={styles.prehabSection}>
-                    <Text style={styles.prehabSectionHeader}>{cat.label}</Text>
-                    {cat.regions.map((r) => (
-                      <Pressable
-                        key={r.id}
-                        onPress={() => handlePrehabRegion(r.id)}
-                        style={({ pressed }) => [
-                          styles.prehabRegionBtn,
-                          pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                        ]}
-                        testID={`prehab-region-${r.id}`}
-                      >
-                        <View style={[styles.prehabRegionIcon, { backgroundColor: C.primaryMuted }]}>
-                          <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.primary} />
-                        </View>
-                        <Text style={[styles.prehabRegionLabel, { flex: 1 }]}>{r.label}</Text>
-                        <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-                      </Pressable>
-                    ))}
-                  </View>
-                );
-              })}
+              {/* Divider */}
+              <View style={styles.prehabDividerRow}>
+                <View style={styles.prehabDividerLine} />
+                <Text style={styles.prehabDividerText}>or target a specific area</Text>
+                <View style={styles.prehabDividerLine} />
+              </View>
+
+              {/* Body diagram */}
+              <BodyDiagram
+                selected={prehabDiagramRegion}
+                onSelect={setPrehabDiagramRegion}
+                accentColor={C.primary}
+                accentColorLight={C.primaryMuted}
+                maxWidth={160}
+              />
+
+              {/* Start CTA — only shown when a region is selected */}
+              {prehabDiagramRegion && (
+                <Pressable
+                  onPress={() => handlePrehabRegion(prehabDiagramRegion)}
+                  style={({ pressed }) => [
+                    styles.prehabStartBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID="prehab-region-start"
+                >
+                  <Ionicons name="play" size={16} color={C.textInverse} />
+                  <Text style={styles.prehabStartBtnText}>Start Session</Text>
+                </Pressable>
+              )}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -849,19 +839,46 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     prehabScroll: {
       paddingHorizontal: 20,
-      paddingBottom: 8,
+      paddingBottom: 16,
     },
-    prehabSection: {
+    prehabDividerRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
       marginTop: 16,
+      marginBottom: 4,
+      width: '100%',
     },
-    prehabSectionHeader: {
+    prehabDividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: C.borderLight,
+    },
+    prehabDividerText: {
       fontSize: 11,
-      fontFamily: 'Inter_600SemiBold',
+      fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: 8,
-      marginLeft: 2,
+    },
+    prehabStartBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+      marginTop: 8,
+      width: '100%',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    prehabStartBtnText: {
+      fontSize: 16,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
     },
     prehabRegionBtn: {
       flexDirection: 'row',
