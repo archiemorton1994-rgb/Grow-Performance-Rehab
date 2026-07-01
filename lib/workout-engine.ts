@@ -511,13 +511,20 @@ export function generateWorkout(
   if (sessionType === 'flexibility') {
     // Rotate the middle stretch pool so users see fresh exercises across sessions.
     // Bookend structure: [warmup (prep)] + [8-of-14 rotated middle] + [cooldown bookend].
-    const PICK = 8;
     const allFlex  = getStandaloneFlexibilityWorkout();
     const warmup   = allFlex.slice(0, 1);                  // Diaphragmatic Breathing (always first)
     const cooldown = allFlex.slice(-1);                     // Legs-Up-The-Wall (always last)
     const middle   = allFlex.slice(1, -1);                  // 14-exercise shuffleable pool
-    const daySeed  = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
-    const rotated  = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
+
+    // Alternate between two complementary 8-exercise subsets on even vs odd days.
+    // subsetA = middle[0..7], subsetB = middle[6..13] — only 2 exercises in common (indices 6–7).
+    // This caps back-to-back day overlap at 2/8 (25%) vs the ~57% from random independent draws.
+    // A seeded shuffle within the chosen subset still varies ordering session-to-session.
+    const dayIndex  = Math.floor(Date.now() / 86400000);
+    const isEvenDay = dayIndex % 2 === 0;
+    const subset    = isEvenDay ? middle.slice(0, 8) : middle.slice(6);
+    const daySeed   = (strengthSessionCount ?? 0) + dayIndex;
+    const rotated   = seededShuffleDiverse(subset, daySeed);
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'custom') {
