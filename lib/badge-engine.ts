@@ -280,30 +280,28 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
     awardIf(s.streak >= n, `streak_${n}wk`);
   }
 
-  // ── 3. Strength – Squat 1RM (every 10 kg, 20–400 kg) ────────────────────────
-  const squatOrm = s.bestOrm['squat'] ?? 0;
-  for (let kg = 20; kg <= 400; kg += 10) {
-    awardIf(squatOrm >= kg, `squat_${kg}kg`);
+  // ── 3. Strength Progress (% improvement from first 1RM to latest) ────────────
+  // Group entries by lift, sort chronologically, then compute % gain.
+  // Awards 5 / 10 / 20 / 30 / 50 % improvement tiers per lift.
+  const ormsByLift: Record<string, typeof state.oneRepMaxes> = {};
+  for (const orm of state.oneRepMaxes) {
+    if (!ormsByLift[orm.lift]) ormsByLift[orm.lift] = [];
+    ormsByLift[orm.lift].push(orm);
+  }
+  for (const liftKey of ['squat', 'bench', 'deadlift'] as const) {
+    const entries = ormsByLift[liftKey];
+    if (!entries || entries.length < 2) continue;
+    const sorted = [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const firstWeight = sorted[0].weight;
+    const latestWeight = sorted[sorted.length - 1].weight;
+    if (firstWeight <= 0) continue;
+    const improvement = ((latestWeight - firstWeight) / firstWeight) * 100;
+    for (const pct of [5, 10, 20, 30, 50]) {
+      awardIf(improvement >= pct, `progress_${liftKey}_${pct}pct`);
+    }
   }
 
-  // ── 4. Strength – Bench 1RM (every 10 kg, 20–300 kg) ────────────────────────
-  const benchOrm = s.bestOrm['bench'] ?? 0;
-  for (let kg = 20; kg <= 300; kg += 10) {
-    awardIf(benchOrm >= kg, `bench_${kg}kg`);
-  }
-
-  // ── 5. Strength – Deadlift 1RM (every 10 kg, 20–500 kg) ──────────────────────
-  const dlOrm = s.bestOrm['deadlift'] ?? 0;
-  for (let kg = 20; kg <= 500; kg += 10) {
-    awardIf(dlOrm >= kg, `deadlift_${kg}kg`);
-  }
-
-  // ── 6. Volume (cumulative) ────────────────────────────────────────────────
-  for (const n of [1_000,5_000,10_000,25_000,50_000,100_000,200_000,500_000,1_000_000,2_000_000,5_000_000,10_000_000]) {
-    awardIf(s.totalVolumeKg >= n, `volume_${n}`);
-  }
-
-  // ── 7-13. Session type counts ─────────────────────────────────────────────
+  // ── 4. Session type counts ─────────────────────────────────────────────────
   const typeMap: Record<string, string> = {
     squat: 'lower', bench: 'upper', deadlift: 'full',
     conditioning: 'conditioning', prehab: 'prehab', flexibility: 'flex', custom: 'custom',
@@ -423,6 +421,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(goals.length >= 3,              'profile_goals_multi');
   awardIf(s.ormLiftsSet.has('squat'),      'profile_1rm_squat');
   awardIf(s.ormLiftsSet.has('bench'),      'profile_1rm_bench');
+  awardIf(s.ormLiftsSet.has('deadlift'),   'profile_1rm_deadlift');
   awardIf(s.ormLiftsSet.has('squat') && s.ormLiftsSet.has('bench') && s.ormLiftsSet.has('deadlift'), 'profile_1rm_all');
   awardIf(!!bodyweightUpdatedAt,           'profile_bodyweight_updated');
   awardIf(onboardingComplete,              'profile_onboarding');
@@ -522,17 +521,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.comebackCount >= 3, 'comeback_3x');
   awardIf(s.comebackCount >= 5, 'comeback_5x');
 
-  // ── 24. Volume Per Session ────────────────────────────────────────────────
-  for (const n of [500,1000,2000,3000,5000,7500,10000,15000]) {
-    awardIf(s.maxSessionVolumeKg >= n, `vol_session_${n}`);
-  }
-
-  // ── 25. Load (heaviest single set) ───────────────────────────────────────
-  for (const n of [50,75,100,120,140,160,180,200,250,300]) {
-    awardIf(s.maxSingleSetWeightKg >= n, `load_${n}kg`);
-  }
-
-  // ── 26. Pain Warrior (sessions with a pain adaptation active) ─────────────
+  // ── 24. Pain Warrior (sessions with a pain adaptation active) ────────────
   awardIf(painAdaptCount >= 1,  'pain_warrior_1');
   awardIf(painAdaptCount >= 3,  'pain_warrior_3');
   awardIf(painAdaptCount >= 5,  'pain_warrior_5');

@@ -10,11 +10,8 @@
 
 export type BadgeCategory =
   | 'milestone'            // total session count
-  | 'streak'               // consecutive training days
-  | 'strength_squat'       // squat 1RM milestones
-  | 'strength_bench'       // bench 1RM milestones
-  | 'strength_deadlift'    // deadlift 1RM milestones
-  | 'volume'               // cumulative volume lifted (kg)
+  | 'streak'               // consecutive training weeks
+  | 'strength_progress'    // % improvement on 1RM lifts
   | 'session_lower'        // lower body session count
   | 'session_upper'        // upper body session count
   | 'session_full'         // full body session count
@@ -32,8 +29,6 @@ export type BadgeCategory =
   | 'recovery'             // combined prehab + flex
   | 'duration'             // session duration milestones
   | 'comeback'             // returning after a break
-  | 'volume_session'       // volume in a single session
-  | 'load'                 // heaviest single-set weight
   | 'pain_warrior'         // sessions completed with pain adaptations
   | 'endurance';           // sessions completed when energy was low
 
@@ -43,10 +38,8 @@ export type BadgeCategory =
  */
 export type BadgeCriteriaType =
   | 'session_count'       // total sessions completed
-  | 'streak_days'         // consecutive days trained (legacy)
-  | 'streak_weeks'        // consecutive training weeks (≥ 2 sessions per week)
-  | 'strength_orm'        // 1RM personal bests
-  | 'cumulative_volume'   // total kg lifted across all sessions
+  | 'streak_weeks'        // consecutive training weeks (≥ N sessions per week)
+  | 'strength_improvement'// % improvement on a lift 1RM vs first entry
   | 'session_type_count'  // count of a specific session type
   | 'consistency_habit'   // weekly/monthly regularity patterns
   | 'goal_progress'       // goal-specific session/lift milestones
@@ -58,8 +51,6 @@ export type BadgeCriteriaType =
   | 'recovery'            // combined prehab + flexibility sessions
   | 'duration_based'      // session duration (timeAvailable)
   | 'comeback'            // gap between consecutive sessions
-  | 'session_volume'      // total volume within a single session
-  | 'heavy_set'           // heaviest weight logged in any set
   | 'pain_adaptation'     // sessions with pain-region adaptation active
   | 'low_energy';         // sessions completed when energy was reported low
 
@@ -97,32 +88,6 @@ const C = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
-function strengthBadges(
-  lift: 'squat' | 'bench' | 'deadlift',
-  kgs: number[],
-  names: Partial<Record<number, string>>,
-): Badge[] {
-  const catMap: Record<string, BadgeCategory> = {
-    squat: 'strength_squat', bench: 'strength_bench', deadlift: 'strength_deadlift',
-  };
-  const iconMap: Record<string, string> = {
-    squat: 'walk-outline', bench: 'person-outline', deadlift: 'body-outline',
-  };
-  const colorMap: Record<string, string> = {
-    squat: C.purple, bench: C.blue, deadlift: C.red,
-  };
-  const liftLabel: Record<string, string> = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift' };
-  return kgs.map((kg) => ({
-    id: `${lift}_${kg}kg`,
-    name: names[kg] ?? `${liftLabel[lift]} ${kg} kg`,
-    description: `${liftLabel[lift]} ${kg} kg on a 1RM test`,
-    category: catMap[lift] as BadgeCategory,
-    criteriaType: 'strength_orm' as BadgeCriteriaType,
-    icon: iconMap[lift],
-    color: colorMap[lift],
-  }));
-}
 
 // ─── 1. Milestone Badges (total session count) ───────────────────────────────
 const MILESTONE_DATA: [number, string, string][] = [
@@ -188,97 +153,37 @@ const streakBadges: Badge[] = STREAK_DATA.map(([n, name]) => ({
   color: C.orange,
 }));
 
-// ─── 3. Strength – Squat (every 10 kg, 20–400 kg) ───────────────────────────
-const SQUAT_NAMES: Partial<Record<number, string>> = {
-  20: 'First Squat',      30: 'Getting Low',       40: 'Planted',
-  50: 'Warming Up',       60: 'Legwork',            70: 'Rising',
-  80: 'Foundation',       90: 'Gaining Ground',    100: 'Triple Figures',
-  110: 'Breaking Through',120: 'Power Stance',     130: 'Heavy Legs',
-  140: 'Quad Destroyer',  150: 'Deep Diver',        160: 'Depth Charge',
-  170: 'Leg Day King',    180: 'Half-Rack',          190: 'Near 200',
-  200: 'Double Century',  210: 'Serious Squatter',  220: 'Elite Legs',
-  230: '230 Club',        240: 'Platform Warrior',  250: 'Quarter Ton',
-  260: 'Iron Legs',       270: 'Squat Beast',       280: 'Legendary Squat',
-  290: '290 Club',        300: 'Three Hundred',     310: 'Beyond 300',
-  320: 'Superhuman Squat',330: '330 Club',          340: 'Absolute Unit',
-  350: '350 Squat Club',  360: 'Squat God',         370: '370 Elite',
-  380: '380 Legend',      390: 'Near 400 Squat',    400: 'Four Hundred Squat',
+// ─── 3. Strength Progress (% improvement on 1RM from first to latest test) ───
+// These badges scale to every user — a 5% gain is meaningful whether you squat
+// 40 kg or 140 kg. Awarded as soon as a 2nd 1RM entry exists for that lift.
+type LiftMeta = { color: string; icon: string; label: string };
+const LIFT_META: Record<'squat' | 'bench' | 'deadlift', LiftMeta> = {
+  squat:    { color: C.purple, icon: 'walk-outline',   label: 'Squat' },
+  bench:    { color: C.blue,   icon: 'person-outline', label: 'Bench' },
+  deadlift: { color: C.red,    icon: 'body-outline',   label: 'Deadlift' },
 };
-const squatBadgeList = strengthBadges(
-  'squat',
-  Array.from({ length: 39 }, (_, i) => 20 + i * 10), // 20, 30, 40, …, 400
-  SQUAT_NAMES,
-);
 
-// ─── 4. Strength – Bench (every 10 kg, 20–300 kg) ───────────────────────────
-const BENCH_NAMES: Partial<Record<number, string>> = {
-  20: 'First Press',      30: 'Bar Only',           40: 'Off the Chest',
-  50: 'Pressing On',      60: 'Pushing On',         70: 'Building Base',
-  80: 'Chest Activated',  90: 'Press Power',        100: 'Centurion Press',
-  110: 'Breaking 100',   120: 'Heavy Hitter',       130: 'Club 130',
-  140: 'Chest Champion', 150: 'Power Press',        160: 'Bench Monster',
-  170: 'Upper Elite',    180: 'Platform Press',     190: 'Near 200 Press',
-  200: 'Double Ton',     210: 'Press Elite',        220: 'Master of Chest',
-  230: '230 Press',      240: 'Bench God',          250: 'Quarter Ton Press',
-  260: '260 Club',       270: '270 Elite',          280: 'Press Legend',
-  290: '290 Press',      300: 'Triple Ton Press',
-};
-const benchBadgeList = strengthBadges(
-  'bench',
-  Array.from({ length: 29 }, (_, i) => 20 + i * 10), // 20, 30, …, 300
-  BENCH_NAMES,
-);
-
-// ─── 5. Strength – Deadlift (every 10 kg, 20–500 kg) ────────────────────────
-const DEADLIFT_NAMES: Partial<Record<number, string>> = {
-  20: 'Bar Only',          30: 'First Pull',          40: 'Off the Floor',
-  50: 'Pull Starting',     60: 'Pulling Up',           70: 'Hinge Starter',
-  80: 'Back in Motion',    90: 'Pulling Power',       100: 'First Ton',
-  110: 'Pulling Strong',  120: 'Hinge Master',        130: 'Heavy Start',
-  140: 'Back Attack',     150: 'Mid-Range Pull',      160: 'Heavy Pull',
-  170: 'Posterior Chain', 180: 'Platform Base',       190: 'Near 200 Pull',
-  200: 'Double Century Pull', 210: 'Hard Puller',    220: 'Deadlift Devotee',
-  230: 'Big Pull',        240: 'Iron Back',           250: 'Heavy Iron Back',
-  260: 'Platform Ready',  270: 'Near 300 Pull',       280: 'Elite Pull Base',
-  290: '290 Pull',        300: 'Three Ton Pull',      310: 'Beyond 300',
-  320: 'Elite Pull',      330: '330 Pull Club',       340: 'Deadlift Machine',
-  350: '350 Pull',        360: 'Unstoppable Force',   370: '370 Elite',
-  380: 'Near 400 Pull',   390: '390 Club',            400: 'Four Hundred Pull',
-  410: '410 Legend',      420: 'Legendary Pull',      430: '430 Club',
-  440: 'Deadlift God',    450: 'Near Half Ton',       460: 'Human Freight',
-  470: '470 Elite',       480: 'The Deadlift',        490: '490 Club',
-  500: 'Half Ton',
-};
-const deadliftBadgeList = strengthBadges(
-  'deadlift',
-  Array.from({ length: 49 }, (_, i) => 20 + i * 10), // 20, 30, …, 500
-  DEADLIFT_NAMES,
-);
-
-// ─── 6. Volume (cumulative kg lifted across all sessions) ────────────────────
-const VOLUME_DATA: [number, string, string][] = [
-  [1_000,      'Volume Rookie',    'Lift 1,000 kg total across all sessions'],
-  [5_000,      'Five Thousand',    'Lift 5,000 kg total'],
-  [10_000,     'Ten Thousand',     'Lift 10,000 kg total'],
-  [25_000,     'Quarter Million',  'Lift 25,000 kg total'],
-  [50_000,     'Fifty Thousand',   'Lift 50,000 kg total'],
-  [100_000,    'One Hundred Tons', 'Lift 100,000 kg total'],
-  [200_000,    'Two Hundred Tons', 'Lift 200,000 kg total'],
-  [500_000,    'Half Million',     'Lift 500,000 kg total'],
-  [1_000_000,  'Million Lifter',   'Lift 1,000,000 kg total'],
-  [2_000_000,  'Two Million',      'Lift 2,000,000 kg total'],
-  [5_000_000,  'Five Million',     'Lift 5,000,000 kg total'],
-  [10_000_000, 'Ten Million',      'Lift 10,000,000 kg total'],
+const PROGRESS_TIERS: [number, string, string][] = [
+  [5,  'First Gains',    'Your first measurable improvement'],
+  [10, 'Getting Stronger', '10% stronger than when you started'],
+  [20, 'Rising Fast',   '20% stronger than your first test'],
+  [30, 'Breakthrough',  '30% stronger than when you started'],
+  [50, 'Transformed',   '50% stronger — a completely different athlete'],
 ];
-const volumeBadges: Badge[] = VOLUME_DATA.map(([n, name, description]) => ({
-  id: `volume_${n}`,
-  name,
-  description,
-  category: 'volume',
-  criteriaType: 'cumulative_volume',
-  icon: 'barbell-outline',
-  color: C.emerald,
-}));
+
+const strengthProgressBadges: Badge[] = (
+  ['squat', 'bench', 'deadlift'] as const
+).flatMap((lift) =>
+  PROGRESS_TIERS.map(([pct, name, descSuffix]) => ({
+    id: `progress_${lift}_${pct}pct`,
+    name: `${LIFT_META[lift].label} ${name}`,
+    description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% — ${descSuffix}`,
+    category: 'strength_progress' as BadgeCategory,
+    criteriaType: 'strength_improvement' as BadgeCriteriaType,
+    icon: LIFT_META[lift].icon,
+    color: LIFT_META[lift].color,
+  }))
+);
 
 // ─── 7–13. Session Type Count Badges ─────────────────────────────────────────
 type SessionTypeConfig = {
@@ -401,6 +306,7 @@ const profileBadges: Badge[] = [
   { id: 'profile_goals_multi',        name: 'Multi-Goal',       description: 'Have 3 or more fitness goals active',              category: 'profile', criteriaType: 'profile_action', icon: 'list-outline',             color: C.sky },
   { id: 'profile_1rm_squat',          name: 'Know Your Squat',  description: 'Log a squat 1RM',                                  category: 'profile', criteriaType: 'profile_action', icon: 'analytics-outline',        color: C.sky },
   { id: 'profile_1rm_bench',          name: 'Know Your Bench',  description: 'Log a bench 1RM',                                  category: 'profile', criteriaType: 'profile_action', icon: 'analytics-outline',        color: C.sky },
+  { id: 'profile_1rm_deadlift',       name: 'Know Your Pull',   description: 'Log a deadlift 1RM',                               category: 'profile', criteriaType: 'profile_action', icon: 'analytics-outline',        color: C.sky },
   { id: 'profile_1rm_all',            name: 'Fully Calibrated', description: 'Log 1RM for squat, bench and deadlift',            category: 'profile', criteriaType: 'profile_action', icon: 'checkmark-circle-outline', color: C.sky },
   { id: 'profile_bodyweight_updated', name: 'Weight Checked',   description: 'Update your logged bodyweight',                    category: 'profile', criteriaType: 'profile_action', icon: 'scale-outline',            color: C.sky },
   { id: 'profile_onboarding',         name: 'Profile Built',    description: 'Complete the onboarding profile setup',            category: 'profile', criteriaType: 'profile_action', icon: 'person-circle-outline',    color: C.sky },
@@ -486,33 +392,7 @@ const comebackBadges: Badge[] = [
   { id: 'comeback_5x',  name: 'Resilient',       description: 'Return after a 7+ day break 5 separate times',  category: 'comeback', criteriaType: 'comeback', icon: 'medal-outline',   color: C.crimson },
 ];
 
-// ─── 24. Volume Per Session Badges ───────────────────────────────────────────
-const volumeSessionBadges: Badge[] = [
-  { id: 'vol_session_500',   name: 'Five Hundred',     description: 'Lift 500 kg in a single session',         category: 'volume_session', criteriaType: 'session_volume', icon: 'barbell-outline', color: C.emerald },
-  { id: 'vol_session_1000',  name: 'One Ton Session',  description: 'Lift 1,000 kg in a single session',       category: 'volume_session', criteriaType: 'session_volume', icon: 'barbell-outline', color: C.emerald },
-  { id: 'vol_session_2000',  name: 'Two Ton Day',      description: 'Lift 2,000 kg in a single session',       category: 'volume_session', criteriaType: 'session_volume', icon: 'barbell-outline', color: C.green },
-  { id: 'vol_session_3000',  name: 'Three Tons',       description: 'Lift 3,000 kg in a single session',       category: 'volume_session', criteriaType: 'session_volume', icon: 'barbell-outline', color: C.green },
-  { id: 'vol_session_5000',  name: 'Five Ton Session', description: 'Lift 5,000 kg in a single session',       category: 'volume_session', criteriaType: 'session_volume', icon: 'trophy-outline',  color: C.green },
-  { id: 'vol_session_7500',  name: 'Volume Monster',   description: 'Lift 7,500 kg in a single session',       category: 'volume_session', criteriaType: 'session_volume', icon: 'trophy-outline',  color: C.emerald },
-  { id: 'vol_session_10000', name: 'Ten Ton Beast',    description: 'Lift 10,000 kg in a single session',      category: 'volume_session', criteriaType: 'session_volume', icon: 'star-outline',    color: C.emerald },
-  { id: 'vol_session_15000', name: 'Freight Train',    description: 'Lift 15,000 kg in a single session',      category: 'volume_session', criteriaType: 'session_volume', icon: 'car-sport-outline',color: C.emerald },
-];
-
-// ─── 25. Load (heaviest single-set weight) Badges ────────────────────────────
-const loadBadges: Badge[] = [
-  { id: 'load_50kg',  name: 'Half Ton Set',   description: 'Log a set with 50 kg on the bar',    category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.blue },
-  { id: 'load_75kg',  name: 'Heavy Work',     description: 'Log a set with 75 kg on the bar',    category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.blue },
-  { id: 'load_100kg', name: 'One Plate',      description: 'Log a set with 100 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.blue },
-  { id: 'load_120kg', name: 'Serious Load',   description: 'Log a set with 120 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.blue },
-  { id: 'load_140kg', name: 'Two Plates',     description: 'Log a set with 140 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.sky },
-  { id: 'load_160kg', name: 'Iron Overload',  description: 'Log a set with 160 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.sky },
-  { id: 'load_180kg', name: 'Three Plates',   description: 'Log a set with 180 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'barbell-outline', color: C.sky },
-  { id: 'load_200kg', name: 'Two Hundred',    description: 'Log a set with 200 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'trophy-outline',  color: C.sky },
-  { id: 'load_250kg', name: 'Heavy Iron',     description: 'Log a set with 250 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'trophy-outline',  color: C.blue },
-  { id: 'load_300kg', name: 'Three Hundred',  description: 'Log a set with 300 kg on the bar',   category: 'load', criteriaType: 'heavy_set', icon: 'ribbon-outline',  color: C.violet },
-];
-
-// ─── 26. Pain Warrior Badges ─────────────────────────────────────────────────
+// ─── 24. Pain Warrior Badges ─────────────────────────────────────────────────
 const painWarriorBadges: Badge[] = [
   { id: 'pain_warrior_1',  name: 'Adapts & Overcomes', description: 'Complete a session with a pain adaptation active',   category: 'pain_warrior', criteriaType: 'pain_adaptation', icon: 'shield-outline',    color: C.teal },
   { id: 'pain_warrior_3',  name: 'Resilient Athlete',  description: 'Complete 3 sessions with pain adaptation active',    category: 'pain_warrior', criteriaType: 'pain_adaptation', icon: 'shield-outline',    color: C.teal },
@@ -534,10 +414,7 @@ const enduranceBadges: Badge[] = [
 export const BADGE_CATALOG: Badge[] = [
   ...milestoneBadges,
   ...streakBadges,
-  ...squatBadgeList,
-  ...benchBadgeList,
-  ...deadliftBadgeList,
-  ...volumeBadges,
+  ...strengthProgressBadges,
   ...sessionTypeBadges,
   ...consistencyBadges,
   ...goalsBadges,
@@ -549,8 +426,6 @@ export const BADGE_CATALOG: Badge[] = [
   ...recoveryBadges,
   ...durationBadges,
   ...comebackBadges,
-  ...volumeSessionBadges,
-  ...loadBadges,
   ...painWarriorBadges,
   ...enduranceBadges,
 ];
@@ -563,10 +438,7 @@ export const BADGE_MAP: ReadonlyMap<string, Badge> = new Map(
 export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   milestone:            'Milestones',
   streak:               'Streaks',
-  strength_squat:       'Squat Strength',
-  strength_bench:       'Bench Strength',
-  strength_deadlift:    'Deadlift Strength',
-  volume:               'Total Volume',
+  strength_progress:    'Lift Progress',
   session_lower:        'Lower Body',
   session_upper:        'Upper Body',
   session_full:         'Full Body',
@@ -584,8 +456,6 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   recovery:             'Recovery',
   duration:             'Session Duration',
   comeback:             'Comebacks',
-  volume_session:       'Session Volume',
-  load:                 'Heavy Lifts',
   pain_warrior:         'Pain Warrior',
   endurance:            'No Excuses',
 };
@@ -595,12 +465,7 @@ export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
   'milestone',
   'streak',
   'consistency',
-  'strength_squat',
-  'strength_bench',
-  'strength_deadlift',
-  'volume',
-  'volume_session',
-  'load',
+  'strength_progress',
   'session_lower',
   'session_upper',
   'session_full',
