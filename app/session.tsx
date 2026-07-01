@@ -25,7 +25,7 @@ import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
 import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, cancelStreakProtectionAlert, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
-import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
+import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString, daysSince } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
@@ -614,6 +614,7 @@ function ExerciseCard({
   onCardLayout,
   previousBest,
   previousSessionWeight,
+  lastSessionHint,
   feedbackMultiplier,
   weightUnit = 'kg',
   note = '',
@@ -633,6 +634,7 @@ function ExerciseCard({
   onCardLayout?: (y: number) => void;
   previousBest?: number;
   previousSessionWeight?: number;
+  lastSessionHint?: { weight: number; reps: number; date: string };
   feedbackMultiplier?: number;
   weightUnit?: WeightUnit;
   note?: string;
@@ -782,14 +784,19 @@ function ExerciseCard({
                 {showDumbbellNote && (
                   <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
                 )}
-                {!isBandExercise && previousSessionWeight !== undefined && previousSessionWeight > 0 && (
-                  <View style={styles.lastSessionRow}>
-                    <Ionicons name="time-outline" size={11} color={C.textTertiary} />
-                    <Text style={styles.lastSessionText}>
-                      Last: {kgToDisplayUnit(previousSessionWeight, weightUnit)} {weightUnit}
-                    </Text>
-                  </View>
-                )}
+                {lastSessionHint && (() => {
+                  const days = daysSince(lastSessionHint.date);
+                  const daysLabel = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+                  const perfLabel = lastSessionHint.weight > 0
+                    ? `${kgToDisplayUnit(lastSessionHint.weight, weightUnit)} ${weightUnit} × ${lastSessionHint.reps}`
+                    : `${lastSessionHint.reps} reps`;
+                  return (
+                    <View style={styles.lastSessionRow}>
+                      <Ionicons name="time-outline" size={11} color={C.textTertiary} />
+                      <Text style={styles.lastSessionText}>Last session: {perfLabel} — {daysLabel}</Text>
+                    </View>
+                  );
+                })()}
                 {exercise.progressionNote && (
                   <View style={styles.progressionNoteRow}>
                     <Ionicons name="trending-up-outline" size={11} color={C.primary} />
@@ -1029,6 +1036,22 @@ export default function SessionScreen() {
         if (completedSets.length === 0) continue;
         const avg = completedSets.reduce((sum, s) => sum + s.weight, 0) / completedSets.length;
         lookup[exLog.exerciseId] = Math.round(avg * 10) / 10;
+      }
+    }
+    return lookup;
+  }, [completedSessions]);
+
+  // Per-exercise last-session hint: last completed set's weight + reps + date.
+  // completedSessions is newest-first, so first match per exercise = most recent.
+  const previousSessionData = useMemo<Record<string, { weight: number; reps: number; date: string }>>(() => {
+    const lookup: Record<string, { weight: number; reps: number; date: string }> = {};
+    for (const session of completedSessions) {
+      for (const exLog of session.exerciseLogs) {
+        if (lookup[exLog.exerciseId] !== undefined) continue;
+        const done = exLog.sets.filter((s) => s.completed && !s.skipped);
+        if (done.length === 0) continue;
+        const last = done[done.length - 1];
+        lookup[exLog.exerciseId] = { weight: last.weight, reps: last.reps, date: session.date };
       }
     }
     return lookup;
@@ -1599,6 +1622,7 @@ export default function SessionScreen() {
               onCardLayout={(y) => { cardYPositions.current[index] = y; }}
               previousBest={previousBest[exercise.id]}
               previousSessionWeight={previousSessionWeights[exercise.id]}
+              lastSessionHint={previousSessionData[exercise.id]}
               feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
               weightUnit={weightUnit}
               note={exerciseNotes[index] ?? ''}
