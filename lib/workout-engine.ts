@@ -3,6 +3,7 @@ import {
   ExerciseCategory,
   ExerciseTemplate,
   CARDIO_WARMUP,
+  CARDIO_WARMUPS,
   getPrep,
   getMechanical,
   getPowerMechanical,
@@ -539,8 +540,13 @@ export function generateWorkout(
     ? getGoalVolumeDeltas(profile.goals)
     : { mainSetsDelta: 0, accSetsDelta: 0 };
 
+  // Shared seed for all seededShuffleDiverse calls in this session: rotates
+  // by session count AND by day so exercises change even on same-day replays.
+  const sessionSeed = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
+
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min - safety requirement) ──
-  exercises.push(templateToExercise(CARDIO_WARMUP));
+  const cardioWarmup = seededShuffleDiverse(CARDIO_WARMUPS, sessionSeed)[0] ?? CARDIO_WARMUP;
+  exercises.push(templateToExercise(cardioWarmup));
 
   // ── 2. Pre-Training Prep ─────────────────────────────────────────────────
   //   30 min → all 3 stretches (safety warmup - never skip)
@@ -554,11 +560,12 @@ export function generateWorkout(
   // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
   // speed squats/bench/good-mornings) instead of slow activation work.
   const hasPowerGoal = profile?.goals?.includes('power') ?? false;
-  const mechanical = (hasPowerGoal && !hasAches)
+  const mechanicalPool = (hasPowerGoal && !hasAches)
     ? getPowerMechanical(mainType, equipmentTier)
     : getMechanical(mainType, equipmentTier);
+  const mechanical = seededShuffleDiverse(mechanicalPool, sessionSeed);
   if (timeAvailable === '60') {
-    for (const m of mechanical) exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
+    for (const m of mechanical.slice(0, 2)) exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
   } else {
     exercises.push(templateToExercise(mechanical[0], undefined, isDumbbellTier(equipmentTier)));
   }
@@ -568,9 +575,10 @@ export function generateWorkout(
   // cleans, clap push-ups) that maximise rate-of-force development before the
   // KPI lift - not just extra sets of the generic explosive exercise.
   if (timeAvailable !== '30') {
-    const neuroTemplate = (hasPowerGoal && !hasAches)
-      ? getPowerNeuro(mainType, equipmentTier)
+    const neuroPool = (hasPowerGoal && !hasAches)
+      ? [getPowerNeuro(mainType, equipmentTier)]
       : getNeuro(mainType, equipmentTier);
+    const neuroTemplate = seededShuffleDiverse(neuroPool, sessionSeed)[0];
     const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
     // Power goal: always perform 5 sets in the neuro block.
     if (hasPowerGoal && !hasAches) {
@@ -614,7 +622,7 @@ export function generateWorkout(
   // users see different exercises rather than always the same first two.
   // Diversify by movement pattern so the 1-2 chosen accessories don't stack the
   // same pattern (e.g. two 'push' moves) within a single session.
-  const allAccessories = seededShuffleDiverse(getAccessories(mainType, equipmentTier), (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000));
+  const allAccessories = seededShuffleDiverse(getAccessories(mainType, equipmentTier), sessionSeed);
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
   // general conditioning capacity. Both benefit from a single conditioning
   // exercise that replaces the standard finisher slot.
@@ -647,7 +655,8 @@ export function generateWorkout(
     }
     for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
   } else if (timeAvailable !== '30') {
-    const finisher = getFinisher(mainType, equipmentTier, finisherKey);
+    const finisherPool = getFinisher(mainType, equipmentTier, finisherKey);
+    const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
     exercises.push(templateToExercise(finisher, finBadge));
   }
 
