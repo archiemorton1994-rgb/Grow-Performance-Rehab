@@ -409,6 +409,20 @@ const enduranceBadges: Badge[] = [
   { id: 'endurance_10', name: 'Iron Resolve',       description: 'Complete 10 sessions when your energy was low',        category: 'endurance', criteriaType: 'low_energy', icon: 'cellular-outline',      color: C.red },
 ];
 
+// ─── Exercise-Milestone / Movement Variety Badges ────────────────────────────
+// Celebrate building a complete movement library and training all patterns.
+const exerciseMilestoneBadges: Badge[] = [
+  { id: 'exercise_all_three_lifts',  name: 'Triple Threat',        description: 'Complete at least one squat, bench and deadlift session', category: 'variety', criteriaType: 'variety',           icon: 'barbell-outline',     color: C.purple },
+  { id: 'exercise_push_pull_hinge',  name: 'Pattern Master',       description: 'Train all three strength types in one week',              category: 'variety', criteriaType: 'variety',           icon: 'shuffle-outline',     color: C.emerald },
+  { id: 'exercise_custom_10',        name: 'Exercise Architect',   description: 'Complete 10 custom sessions',                             category: 'session_custom', criteriaType: 'session_type_count', icon: 'construct-outline', color: C.grey },
+  { id: 'exercise_custom_25',        name: 'Programme Designer',   description: 'Complete 25 custom sessions',                             category: 'session_custom', criteriaType: 'session_type_count', icon: 'construct-outline', color: C.teal },
+  { id: 'exercise_recovery_week',    name: 'Recovery First',       description: 'Complete a prehab and a flexibility session in the same week', category: 'recovery', criteriaType: 'recovery', icon: 'medical-outline',     color: C.teal },
+  { id: 'exercise_recovery_10',      name: 'Body Mechanic',        description: 'Complete 10 total recovery sessions (prehab + flex)',     category: 'recovery', criteriaType: 'recovery',           icon: 'fitness-outline',     color: C.mint },
+  { id: 'exercise_recovery_25',      name: 'Longevity Mindset',    description: 'Complete 25 total recovery sessions (prehab + flex)',     category: 'recovery', criteriaType: 'recovery',           icon: 'leaf-outline',        color: C.emerald },
+  { id: 'exercise_full_spectrum',    name: 'Full Spectrum',        description: 'Complete at least one session of every available type',   category: 'variety', criteriaType: 'variety',           icon: 'star-outline',        color: C.crimson },
+  { id: 'exercise_strength_variety', name: 'Strength Sampler',     description: 'Complete 5 sessions each of lower, upper and full body', category: 'variety', criteriaType: 'variety',           icon: 'layers-outline',      color: C.blue },
+];
+
 // ─── Final catalog assembly ───────────────────────────────────────────────────
 
 export const BADGE_CATALOG: Badge[] = [
@@ -423,6 +437,7 @@ export const BADGE_CATALOG: Badge[] = [
   ...testWeekBadges,
   ...timeOfDayBadges,
   ...varietyBadges,
+  ...exerciseMilestoneBadges,
   ...recoveryBadges,
   ...durationBadges,
   ...comebackBadges,

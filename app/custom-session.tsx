@@ -503,12 +503,31 @@ export default function CustomSessionScreen() {
           testID={`custom-exercise-${item.id}`}
         >
           <View style={styles.exerciseCardLeft}>
-            <View style={[styles.categoryPill, { backgroundColor: getCategoryBg(item.category) }]}>
-              <Text style={[styles.categoryPillText, { color: getCategoryColor(item.category) }]}>
-                {CATEGORY_LABELS[item.category] ?? item.category}
-              </Text>
+            <View style={styles.exerciseCardPills}>
+              <View style={[styles.categoryPill, { backgroundColor: getCategoryBg(item.category) }]}>
+                <Text style={[styles.categoryPillText, { color: getCategoryColor(item.category) }]}>
+                  {CATEGORY_LABELS[item.category] ?? item.category}
+                </Text>
+              </View>
+              {item.movementPattern && (
+                <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
+                  <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>{item.movementPattern}</Text>
+                </View>
+              )}
+              {item.difficulty && (
+                <View style={[styles.categoryPill, {
+                  backgroundColor: item.difficulty === 'advanced' ? '#fde8e8' : item.difficulty === 'intermediate' ? '#fff8e1' : '#e8f5e9',
+                }]}>
+                  <Text style={[styles.categoryPillText, {
+                    color: item.difficulty === 'advanced' ? '#c0392b' : item.difficulty === 'intermediate' ? '#f39c12' : '#27ae60',
+                  }]}>{item.difficulty}</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.exerciseName}>{item.name}</Text>
+            {item.primaryMuscle && (
+              <Text style={styles.exercisePrimary}>{item.primaryMuscle}{item.isUnilateral ? ' · unilateral' : ''}</Text>
+            )}
             <Text style={styles.exerciseMeta}>
               {selEntry ? `${selEntry.sets} sets · ${selEntry.reps}` : `${item.sets} sets · ${item.reps}`}
               {' · '}{item.suggestedLoad}
@@ -1081,10 +1100,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     exerciseCardLeft: { flex: 1, marginRight: 10 },
     categoryPill: {
       alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3,
-      borderRadius: 8, marginBottom: 6,
+      borderRadius: 8,
     },
     categoryPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
-    exerciseName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 3 },
+    exerciseCardPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
+    exerciseName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
+    exercisePrimary: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 3 },
     exerciseMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     checkCircle: {

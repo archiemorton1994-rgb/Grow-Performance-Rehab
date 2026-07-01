@@ -474,6 +474,24 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(top5Sum >= 50 && typesSorted.length >= 5, 'variety_50_per_type');
   awardIf((s.byType['squat'] ?? 0) >= 10 && (s.byType['bench'] ?? 0) >= 10 && (s.byType['deadlift'] ?? 0) >= 10, 'variety_strength_trio');
 
+  // ── Exercise-Milestone Badges ─────────────────────────────────────────────
+  // Triple Threat: done at least one of each strength lift
+  awardIf((s.byType['squat'] ?? 0) >= 1 && (s.byType['bench'] ?? 0) >= 1 && (s.byType['deadlift'] ?? 0) >= 1, 'exercise_all_three_lifts');
+  // Pattern Master: complete squat + bench + deadlift within the same Mon–Sun week
+  awardIf(Array.from(s.weeklyGrouped.values()).some(t => t.has('squat') && t.has('bench') && t.has('deadlift')), 'exercise_push_pull_hinge');
+  // Custom session milestones
+  awardIf((s.byType['custom'] ?? 0) >= 10, 'exercise_custom_10');
+  awardIf((s.byType['custom'] ?? 0) >= 25, 'exercise_custom_25');
+  // Recovery week: prehab AND flex in the same week
+  awardIf(Array.from(s.weeklyGrouped.values()).some(t => t.has('prehab') && t.has('flexibility')), 'exercise_recovery_week');
+  // Recovery volume
+  awardIf(s.recoveryCount >= 10, 'exercise_recovery_10');
+  awardIf(s.recoveryCount >= 25, 'exercise_recovery_25');
+  // Full spectrum: all 7 session types attempted
+  awardIf(s.distinctTypesUsed.size >= 7, 'exercise_full_spectrum');
+  // Strength sampler: 5 of each strength type
+  awardIf((s.byType['squat'] ?? 0) >= 5 && (s.byType['bench'] ?? 0) >= 5 && (s.byType['deadlift'] ?? 0) >= 5, 'exercise_strength_variety');
+
   // ── 21. Recovery ─────────────────────────────────────────────────────────
   awardIf(s.recoveryCount >= 5,   'recovery_5');
   awardIf(s.recoveryCount >= 15,  'recovery_15');

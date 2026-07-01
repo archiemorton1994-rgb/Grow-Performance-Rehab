@@ -53,6 +53,22 @@ interface ReadinessCheck {
 
 type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility' | 'custom'>;
 
+/**
+ * Deterministic Fisher-Yates shuffle seeded by an integer.
+ * Produces consistent ordering for the same seed value, rotating
+ * exercises predictably as the user's session count and date change.
+ */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (Math.imul(s, 1664525) + 1013904223) | 0;
+    const j = Math.abs(s) % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
   // swap1 = swapAlternative (preferred) or comfortVariant
   // swap2 = comfortVariant when swapAlternative is also present (gives two distinct alternatives)
@@ -520,7 +536,9 @@ export function generateWorkout(
   }
 
   // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
-  const allAccessories = getAccessories(mainType, equipmentTier);
+  // Seeded shuffle ensures accessories rotate across sessions and days so
+  // users see different exercises rather than always the same first two.
+  const allAccessories = seededShuffle(getAccessories(mainType, equipmentTier), (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000));
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
   // general conditioning capacity. Both benefit from a single conditioning
   // exercise that replaces the standard finisher slot.
