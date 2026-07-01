@@ -136,6 +136,16 @@ export async function scheduleStreakProtectionAlert(
     return;
   }
 
+  // Only alert from Wednesday onwards (day 3) — Mon/Tue still have plenty of
+  // the week ahead, so nagging is pointless and creates unnecessary anxiety.
+  // Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+  const dayOfWeek = new Date().getDay();
+  const isEarlyWeek = dayOfWeek === 1 || dayOfWeek === 2; // Mon or Tue
+  if (isEarlyWeek) {
+    await cancelStreakProtectionAlert();
+    return;
+  }
+
   await cancelStreakProtectionAlert();
   const [hourStr, minuteStr] = timeStr.split(':');
   const hour = parseInt(hourStr, 10);

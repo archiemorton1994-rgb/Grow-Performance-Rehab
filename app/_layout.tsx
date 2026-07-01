@@ -300,7 +300,7 @@ function RootLayoutNav() {
       }
     });
     return () => sub.remove();
-  }, [hasHydrated, isAuthenticated, hasActiveSubscription, streakProtectionEnabled, completedSessions]);
+  }, [hasHydrated, isAuthenticated, hasActiveSubscription, streakProtectionEnabled, streakProtectionTime, weeklyStreakGoal, completedSessions]);
 
   return (
     <>
