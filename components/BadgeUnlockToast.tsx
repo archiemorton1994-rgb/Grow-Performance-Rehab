@@ -84,6 +84,84 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
   );
 }
 
+export interface BadgeSummaryToastProps {
+  count: number;
+  onDismiss: () => void;
+}
+
+/**
+ * Shown when 2+ badges are unlocked in the same evaluation round.
+ * Replaces the individual-badge queue with a single "N Badges Unlocked" moment.
+ */
+export function BadgeSummaryToast({ count, onDismiss }: BadgeSummaryToastProps) {
+  const C = useColors();
+  const insets = useSafeAreaInsets();
+  const translateY = useSharedValue(ABOVE_SCREEN);
+  const opacity = useSharedValue(0);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  useEffect(() => {
+    translateY.value = withTiming(0, { duration: SLIDE_DURATION });
+    opacity.value = withTiming(1, { duration: SLIDE_DURATION });
+
+    const dismissTimer = setTimeout(() => {
+      translateY.value = withTiming(ABOVE_SCREEN, { duration: SLIDE_DURATION });
+      opacity.value = withTiming(0, { duration: SLIDE_DURATION });
+      setTimeout(onDismiss, SLIDE_DURATION);
+    }, SHOW_DURATION_MS);
+
+    return () => clearTimeout(dismissTimer);
+  }, []);
+
+  const slideOut = (duration: number = 200) => {
+    translateY.value = withTiming(ABOVE_SCREEN, { duration });
+    opacity.value = withTiming(0, { duration });
+  };
+
+  const handleNavigate = () => {
+    slideOut();
+    setTimeout(() => {
+      onDismiss();
+      router.push('/achievements');
+    }, 200);
+  };
+
+  const handleClose = () => {
+    slideOut();
+    setTimeout(onDismiss, 200);
+  };
+
+  const topOffset = Platform.OS === 'web' ? 67 + 12 : insets.top + 12;
+
+  return (
+    <Animated.View style={[styles.container, { top: topOffset }, animStyle]}>
+      <Pressable
+        onPress={handleNavigate}
+        style={({ pressed }) => [
+          styles.toast,
+          { backgroundColor: C.surface, borderColor: C.borderLight },
+          pressed && { opacity: 0.9 },
+        ]}
+      >
+        <View style={[styles.iconWrap, { backgroundColor: C.primary + '22' }]}>
+          <Ionicons name="trophy" size={22} color={C.primary} />
+        </View>
+        <View style={styles.textWrap}>
+          <Text style={[styles.headline, { color: C.text }]}>{count} Badges Unlocked!</Text>
+          <Text style={[styles.badgeName, { color: C.textSecondary }]}>Tap to view your achievements</Text>
+        </View>
+        <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
+          <Ionicons name="close" size={16} color={C.textTertiary} />
+        </Pressable>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',

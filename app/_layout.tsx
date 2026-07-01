@@ -34,7 +34,12 @@ import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
 import { scheduleWorkoutReminder, scheduleMissedWorkoutNudge, scheduleStreakProtectionAlert, cancelStreakProtectionAlert } from "@/lib/notifications";
 import { Ionicons } from "@expo/vector-icons";
 import { BADGE_MAP, Badge } from "@/lib/badges";
-import BadgeUnlockToast from "@/components/BadgeUnlockToast";
+import BadgeUnlockToast, { BadgeSummaryToast } from "@/components/BadgeUnlockToast";
+
+/** A toast queue item: either an individual badge or a batched-summary token. */
+type ToastItem = Badge | { readonly isSummary: true; count: number };
+const isSummaryToast = (t: ToastItem): t is { readonly isSummary: true; count: number } =>
+  'isSummary' in t && (t as { isSummary?: unknown }).isSummary === true;
 
 if (!__DEV__) {
   type EUType = {
@@ -232,25 +237,37 @@ function RootLayoutNav() {
 
   // ─── Badge toast queue (root-level so it floats above all screens) ────────
   const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
-  const [toastQueue, setToastQueue] = useState<Badge[]>([]);
-  const [currentToast, setCurrentToast] = useState<Badge | null>(null);
+  const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
+  const [currentToast, setCurrentToast] = useState<ToastItem | null>(null);
   const enqueuedBadgeIds = useRef<Set<string>>(new Set());
+
+  // Only drain the queue once the user has passed all gate screens (onboarding /
+  // auth / subscription). Badges earned during those flows accumulate silently
+  // and are delivered as a single moment when the user first reaches the tabs.
+  const inMainApp = !isLoading && onboardingComplete && isAuthenticated && hasActiveSubscription;
 
   useEffect(() => {
     if (newlyUnlockedBadges.length === 0) return;
     const newIds = newlyUnlockedBadges.filter(id => !enqueuedBadgeIds.current.has(id));
     if (newIds.length === 0) return;
-    const badges = newIds.map(id => BADGE_MAP.get(id)).filter((b): b is Badge => !!b);
     newIds.forEach(id => enqueuedBadgeIds.current.add(id));
-    setToastQueue(q => [...q, ...badges]);
+    if (newIds.length >= 2) {
+      // Batch simultaneous unlocks into a single summary toast so the user
+      // doesn't get a parade of sequential pop-ups (especially on first use).
+      setToastQueue(q => [...q, { isSummary: true as const, count: newIds.length }]);
+    } else {
+      const badge = BADGE_MAP.get(newIds[0]);
+      if (badge) setToastQueue(q => [...q, badge]);
+    }
   }, [newlyUnlockedBadges]);
 
   useEffect(() => {
+    if (!inMainApp) return;
     if (currentToast || toastQueue.length === 0) return;
     const [next, ...rest] = toastQueue;
     setToastQueue(rest);
     setCurrentToast(next);
-  }, [currentToast, toastQueue]);
+  }, [inMainApp, currentToast, toastQueue]);
 
   useEffect(() => {
     if (currentToast !== null || toastQueue.length > 0) return;
@@ -349,12 +366,19 @@ function RootLayoutNav() {
       </Stack>
       <WeeklyWeightPrompt />
       {currentToast && (
-        <BadgeUnlockToast
-          name={currentToast.name}
-          icon={currentToast.icon as React.ComponentProps<typeof Ionicons>['name']}
-          color={currentToast.color}
-          onDismiss={() => setCurrentToast(null)}
-        />
+        isSummaryToast(currentToast) ? (
+          <BadgeSummaryToast
+            count={currentToast.count}
+            onDismiss={() => setCurrentToast(null)}
+          />
+        ) : (
+          <BadgeUnlockToast
+            name={currentToast.name}
+            icon={currentToast.icon as React.ComponentProps<typeof Ionicons>['name']}
+            color={currentToast.color}
+            onDismiss={() => setCurrentToast(null)}
+          />
+        )
       )}
     </>
   );
