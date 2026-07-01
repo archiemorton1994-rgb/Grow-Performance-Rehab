@@ -23,6 +23,25 @@ import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
 
+// An exercise logged within this many days is considered "recently done".
+const RECENT_WINDOW_DAYS = 7;
+
+/** Whole days elapsed since an ISO date. Returns Infinity for unparseable input. */
+function daysSince(iso: string): number {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return Infinity;
+  return Math.floor((Date.now() - then) / 86400000);
+}
+
+/** Short relative label for a recent date, or null if outside the recent window. */
+function recentLabel(iso: string): string | null {
+  const d = daysSince(iso);
+  if (d <= 0) return 'Today';
+  if (d === 1) return 'Yesterday';
+  if (d <= RECENT_WINDOW_DAYS) return `${d}d ago`;
+  return null;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   main: 'Main Lift',
   accessory: 'Accessory',
@@ -64,7 +83,7 @@ export default function CustomSessionScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate, updateTemplate } = useAppStore();
+  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate, updateTemplate, completedSessions } = useAppStore();
   const tier = getEffectiveTier();
 
   const allExercises = useMemo(() => getAllPickableExercises(tier), [tier]);
@@ -74,6 +93,8 @@ export default function CustomSessionScreen() {
   // Multi-select movement-pattern / difficulty filters. Local state only — must NOT persist between sessions.
   const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set());
   const [difficultyFilters, setDifficultyFilters] = useState<Set<string>>(new Set());
+  // When on, exercises not done in the last week sort to the top. Local state only — must NOT persist.
+  const [freshFirst, setFreshFirst] = useState(false);
   const [selected, setSelected] = useState<SelectedExercise[]>([]);
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
@@ -187,6 +208,49 @@ export default function CustomSessionScreen() {
     }
     return list;
   }, [allExercises, categoryFilter, patternFilters, difficultyFilters, search]);
+
+  // Most-recent completion date per exercise, keyed by both id and name (either can match).
+  // completedSessions is stored newest-first, so the first occurrence seen is the most recent.
+  const { recentById, recentByName } = useMemo(() => {
+    const byId = new Map<string, string>();
+    const byName = new Map<string, string>();
+    for (const s of completedSessions) {
+      for (const log of s.exerciseLogs) {
+        if (!byId.has(log.exerciseId)) byId.set(log.exerciseId, s.date);
+        if (!byName.has(log.exerciseName)) byName.set(log.exerciseName, s.date);
+      }
+    }
+    return { recentById: byId, recentByName: byName };
+  }, [completedSessions]);
+
+  const hasHistory = recentById.size > 0 || recentByName.size > 0;
+
+  // Latest logged date for an exercise (max of id-match and name-match), or null if never done.
+  const getLastDone = useCallback((ex: ExerciseTemplate): string | null => {
+    const a = recentById.get(ex.id);
+    const b = recentByName.get(ex.name);
+    if (a && b) return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+    return a ?? b ?? null;
+  }, [recentById, recentByName]);
+
+  // When "Fresh first" is on, bucket recently-done exercises to the bottom while
+  // preserving the existing category/name ordering within each bucket.
+  const displayList = useMemo(() => {
+    if (!freshFirst) return filtered;
+    const fresh: ExerciseTemplate[] = [];
+    const recent: ExerciseTemplate[] = [];
+    for (const e of filtered) {
+      const last = getLastDone(e);
+      if (last !== null && daysSince(last) <= RECENT_WINDOW_DAYS) recent.push(e);
+      else fresh.push(e);
+    }
+    return [...fresh, ...recent];
+  }, [filtered, freshFirst, getLastDone]);
+
+  const toggleFreshFirst = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setFreshFirst((v) => !v);
+  }, []);
 
   const togglePatternFilter = useCallback((key: string) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
@@ -558,6 +622,8 @@ export default function CustomSessionScreen() {
   const renderExercise = ({ item, index }: { item: ExerciseTemplate; index: number }) => {
     const isSelected = selectedIds.has(item.id);
     const selEntry = selected.find((s) => s.template.id === item.id);
+    const lastDone = getLastDone(item);
+    const recent = lastDone ? recentLabel(lastDone) : null;
 
     return (
       <Animated.View entering={FadeInDown.delay(index * 18).duration(280)}>
@@ -590,6 +656,12 @@ export default function CustomSessionScreen() {
                   <Text style={[styles.categoryPillText, {
                     color: item.difficulty === 'advanced' ? '#c0392b' : item.difficulty === 'intermediate' ? '#f39c12' : '#27ae60',
                   }]}>{item.difficulty}</Text>
+                </View>
+              )}
+              {recent && (
+                <View style={styles.recentPill} testID={`recent-tag-${item.id}`}>
+                  <Ionicons name="time-outline" size={10} color={C.primary} />
+                  <Text style={styles.recentPillText}>{recent}</Text>
                 </View>
               )}
             </View>
@@ -781,11 +853,36 @@ export default function CustomSessionScreen() {
               </Pressable>
             );
           })}
+
+          {hasHistory && (
+            <>
+              <View style={styles.filterDivider} />
+              <Pressable
+                onPress={toggleFreshFirst}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  styles.freshChip,
+                  freshFirst && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID="filter-fresh-first"
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={13}
+                  color={freshFirst ? C.primary : C.textSecondary}
+                />
+                <Text style={[styles.filterChipText, freshFirst && styles.filterChipTextActive]}>
+                  Fresh first
+                </Text>
+              </Pressable>
+            </>
+          )}
         </ScrollView>
       )}
 
       <FlatList
-        data={filtered}
+        data={displayList}
         keyExtractor={(item) => item.id}
         renderItem={renderExercise}
         ListHeaderComponent={
@@ -1241,6 +1338,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 8,
     },
     categoryPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
+    recentPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 3,
+      alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 3,
+      borderRadius: 8, backgroundColor: C.primaryMuted,
+    },
+    recentPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.primary, letterSpacing: 0.2 },
+    freshChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     exerciseCardPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
     exerciseName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
     exercisePrimary: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 3 },
