@@ -93,6 +93,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
   // Circular ring progress: 1 = full arc, 0 = empty. Animated smoothly each tick.
@@ -149,16 +150,22 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
       ringProgress.value = withTiming(remaining / duration, { duration: 950 });
       if (remaining <= 0) {
         setIsRunning(false);
-        setIsDone(true);
+        setIsCompleting(true);
         cancelNotif();
         if (Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
-          pulseScale.value = withTiming(1, { duration: 180 });
+        // Fill ring back to full and pulse the container, then transition to done chip
+        ringProgress.value = withTiming(1, { duration: 350 });
+        pulseScale.value = withTiming(1.1, { duration: 200 }, () => {
+          pulseScale.value = withTiming(1, { duration: 200 });
         });
-        onTimerEnd?.();
+        setTimeout(() => {
+          setIsDone(true);
+          setIsCompleting(false);
+          onTimerEnd?.();
+        }, 520);
       }
     };
     recompute();
@@ -181,18 +188,24 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     setSecondsLeft(duration);
     setIsRunning(false);
     setIsDone(false);
+    setIsCompleting(false);
     ringProgress.value = 1;
   };
   const skip = () => {
     cancelNotif();
     setIsRunning(false);
-    setIsDone(true);
+    setIsCompleting(true);
     setEndAt(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    pulseScale.value = withTiming(1.12, { duration: 180 }, () => {
+    ringProgress.value = withTiming(1, { duration: 300 });
+    pulseScale.value = withTiming(1.1, { duration: 180 }, () => {
       pulseScale.value = withTiming(1, { duration: 180 });
     });
-    onTimerEnd?.();
+    setTimeout(() => {
+      setIsDone(true);
+      setIsCompleting(false);
+      onTimerEnd?.();
+    }, 450);
   };
   const addFifteen = () => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
@@ -236,7 +249,8 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   if (trigger > 0) {
     return (
       <View style={styles.restTimerRingCard}>
-        <View style={styles.restTimerRingContainer}>
+        {/* Ring container — pulses during completion animation */}
+        <Animated.View style={[styles.restTimerRingContainer, isCompleting && pulseStyle]}>
           <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute' }}>
             <G rotation="-90" origin={`${RING_SIZE / 2},${RING_SIZE / 2}`}>
               {/* Track */}
@@ -244,7 +258,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
                 cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
                 stroke={C.primaryMuted} strokeWidth={RING_STROKE} fill="none"
               />
-              {/* Animated draining arc */}
+              {/* Animated draining arc (fills back to full on completion) */}
               <AnimatedSvgCircle
                 cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
                 stroke={C.primary} strokeWidth={RING_STROKE} fill="none"
@@ -255,29 +269,41 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
             </G>
           </Svg>
           <View style={styles.restTimerRingCenter}>
-            <Text style={styles.restTimerRingLabel}>{isRunning ? 'Resting' : 'Paused'}</Text>
-            <Text style={styles.restTimerRingDigits}>{mm}:{ss}</Text>
+            {isCompleting ? (
+              <>
+                <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                <Text style={[styles.restTimerRingLabel, { marginTop: 4 }]}>Complete!</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.restTimerRingLabel}>{isRunning ? 'Resting' : 'Paused'}</Text>
+                <Text style={styles.restTimerRingDigits}>{mm}:{ss}</Text>
+              </>
+            )}
           </View>
-        </View>
-        <View style={styles.restTimerRingControls}>
-          <Pressable onPress={togglePause} style={styles.restTimerRingPauseBtn}>
-            <Ionicons
-              name={isRunning ? 'pause-circle-outline' : 'play-circle-outline'}
-              size={18}
-              color={C.primary}
-            />
-            <Text style={styles.restTimerRingPauseBtnText}>{isRunning ? 'Pause' : 'Resume'}</Text>
-          </Pressable>
-          <Pressable onPress={addFifteen} style={styles.restTimerAddBtn} testID="rest-timer-add-15">
-            <Text style={styles.restTimerAddText}>+15s</Text>
-          </Pressable>
-          <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
-            <Text style={styles.restTimerSkipText}>Done resting</Text>
-          </Pressable>
-          <Pressable onPress={reset} style={styles.restTimerResetBtn}>
-            <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
-          </Pressable>
-        </View>
+        </Animated.View>
+        {/* Controls — hidden during completion flash */}
+        {!isCompleting && (
+          <View style={styles.restTimerRingControls}>
+            <Pressable onPress={togglePause} style={styles.restTimerRingPauseBtn}>
+              <Ionicons
+                name={isRunning ? 'pause-circle-outline' : 'play-circle-outline'}
+                size={18}
+                color={C.primary}
+              />
+              <Text style={styles.restTimerRingPauseBtnText}>{isRunning ? 'Pause' : 'Resume'}</Text>
+            </Pressable>
+            <Pressable onPress={addFifteen} style={styles.restTimerAddBtn} testID="rest-timer-add-15">
+              <Text style={styles.restTimerAddText}>+15s</Text>
+            </Pressable>
+            <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
+              <Text style={styles.restTimerSkipText}>Done resting</Text>
+            </Pressable>
+            <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+              <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }
