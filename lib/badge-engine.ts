@@ -171,20 +171,21 @@ function computeStats(state: BadgeEvalState): Stats {
     }
   }
 
-  // Streak — consecutive Mon–Sun training weeks with ≥ 2 sessions each.
-  // If the current week already has ≥ 2 sessions it counts; otherwise the
-  // current week is treated as "in progress" and we start from the prior week
-  // so the streak is not penalised for early-week reads.
+  // Streak — consecutive Mon–Sun training weeks with ≥ weeklyStreakGoal sessions.
+  // If the current week already qualifies it counts; otherwise it is treated as
+  // "in progress" and we start from the prior week so the streak is not
+  // penalised for early-week reads.
+  const streakGoal = state.weeklyStreakGoal ?? 2;
   const streakToday = new Date();
   const thisWeekKey = isoWeek(streakToday);
   const thisWeekCount = weeklySessionCounts.get(thisWeekKey) ?? 0;
-  let streakCheckDate = thisWeekCount >= 2
+  let streakCheckDate = thisWeekCount >= streakGoal
     ? streakToday
     : new Date(streakToday.getTime() - 7 * 86400000);
   let streak = 0;
   for (let _i = 0; _i < 200; _i++) {
     const key = isoWeek(streakCheckDate);
-    if ((weeklySessionCounts.get(key) ?? 0) >= 2) {
+    if ((weeklySessionCounts.get(key) ?? 0) >= streakGoal) {
       streak++;
       streakCheckDate = new Date(streakCheckDate.getTime() - 7 * 86400000);
     } else {

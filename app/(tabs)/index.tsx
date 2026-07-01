@@ -49,6 +49,7 @@ export default function HomeScreen() {
     getCurrentSessionType,
     getStreakDays,
     getThisWeekCount,
+    weeklyStreakGoal,
     isTestWeekDue,
     isWeightReminderVisible,
     userProfile,
@@ -154,12 +155,13 @@ export default function HomeScreen() {
     && daysSinceLast !== null && daysSinceLast <= 1;
 
   // Warn when the user has an established streak but this week's sessions
-  // haven't hit the threshold yet. Only show from Wednesday onwards to avoid
+  // haven't hit the goal yet. Only show from Wednesday onwards to avoid
   // alarming people who simply haven't trained early in the week.
+  const goal = weeklyStreakGoal ?? 2;
   const missedStreakWarning =
     completedSessions.length >= 3
     && streak > 0
-    && weekCount < 2
+    && weekCount < goal
     && new Date().getDay() >= 3;
 
   const SESSION_TYPE_META = useMemo(() => {
@@ -624,8 +626,8 @@ export default function HomeScreen() {
               <Text style={styles.warningTitle}>Streak at risk this week</Text>
               <Text style={styles.warningSub}>
                 {weekCount === 0
-                  ? 'No sessions yet this week — hit 2 to keep your streak going.'
-                  : `${weekCount} session this week — one more keeps your streak alive.`}
+                  ? `No sessions yet this week — hit ${goal} to keep your streak going.`
+                  : `${weekCount}/${goal} sessions this week — ${goal - weekCount} more to keep your streak alive.`}
               </Text>
             </View>
           </Animated.View>

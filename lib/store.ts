@@ -277,6 +277,7 @@ interface AppState {
   setStreakProtectionEnabled: (enabled: boolean) => void;
   setBodyweightReminderEnabled: (enabled: boolean) => void;
   setStreakProtectionTime: (time: string) => void;
+  setWeeklyStreakGoal: (goal: number) => void;
   setCycleStartOffset: (offset: number) => void;
   setProfilePhotoUri: (uri: string | null) => void;
   setSessionEquipmentOverride: (tiers: EquipmentTier[]) => void;
@@ -356,6 +357,7 @@ export const useAppStore = create<AppState>()(
       streakProtectionEnabled: false,
       bodyweightReminderEnabled: true,
       streakProtectionTime: '20:00',
+      weeklyStreakGoal: 2,
       cycleStartOffset: 0,
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -399,6 +401,10 @@ export const useAppStore = create<AppState>()(
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
       setBodyweightReminderEnabled: (enabled) => set({ bodyweightReminderEnabled: enabled }),
       setStreakProtectionTime: (time) => set({ streakProtectionTime: time }),
+      setWeeklyStreakGoal: (goal) => {
+        set({ weeklyStreakGoal: goal });
+        get().awardNewBadges();
+      },
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
       setProfilePhotoUri: (uri) => {
         set({ profilePhotoUri: uri });
@@ -583,6 +589,7 @@ export const useAppStore = create<AppState>()(
           equipmentTiers: state.equipmentTiers,
           bodyweightUpdatedAt: state.bodyweightUpdatedAt,
           onboardingComplete: state.onboardingComplete,
+          weeklyStreakGoal: state.weeklyStreakGoal ?? 2,
         });
         const newlyUnlocked = allEarned.filter(id => !state.earnedBadges.includes(id));
         if (newlyUnlocked.length > 0) {
@@ -612,8 +619,9 @@ export const useAppStore = create<AppState>()(
       },
 
       getStreakDays: () => {
-        const { completedSessions } = get();
+        const { completedSessions, weeklyStreakGoal } = get();
         if (completedSessions.length === 0) return 0;
+        const goal = weeklyStreakGoal ?? 2;
 
         // Returns ISO 8601 week string (YYYY-Www) for a date. Weeks run Mon–Sun.
         function weekKey(date: Date): string {
@@ -632,21 +640,21 @@ export const useAppStore = create<AppState>()(
           weekCounts.set(w, (weekCounts.get(w) ?? 0) + 1);
         }
 
-        // A "training week" = any Mon–Sun week with ≥ 2 sessions.
+        // A "training week" = any Mon–Sun week with ≥ goal sessions.
         // Streak = consecutive training weeks ending with the most recent one.
         // If the current week already qualifies, include it; otherwise treat it as
         // "in progress" and start counting from the previous week so the streak is
         // not broken just because it is early in the week.
         const thisWeek = weekKey(new Date());
         const thisWeekCount = weekCounts.get(thisWeek) ?? 0;
-        let checkDate = thisWeekCount >= 2
+        let checkDate = thisWeekCount >= goal
           ? new Date()
           : new Date(Date.now() - 7 * 86400000);
 
         let streak = 0;
         for (let i = 0; i < 200; i++) {
           const key = weekKey(checkDate);
-          if ((weekCounts.get(key) ?? 0) >= 2) {
+          if ((weekCounts.get(key) ?? 0) >= goal) {
             streak++;
             checkDate = new Date(checkDate.getTime() - 7 * 86400000);
           } else {
@@ -875,9 +883,12 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.newlyUnlockedBadges) {
           persistedState.newlyUnlockedBadges = [];
         }
+        if (!('weeklyStreakGoal' in persistedState)) {
+          persistedState.weeklyStreakGoal = 2;
+        }
         return persistedState;
       },
-      version: 19,
+      version: 20,
     }
   )
 );

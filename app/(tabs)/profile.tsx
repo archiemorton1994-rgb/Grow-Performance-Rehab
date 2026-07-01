@@ -105,6 +105,8 @@ export default function ProfileScreen() {
     oneRepMaxes,
     isWeightReminderVisible,
     setTourComplete,
+    weeklyStreakGoal,
+    setWeeklyStreakGoal,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -934,6 +936,25 @@ export default function ProfileScreen() {
             ) : (
               <Text style={styles.reminderWebNote}>Reminders are available on iOS and Android only.</Text>
             )}
+
+            <View style={styles.settingDivider} />
+
+            <Text style={styles.settingItemLabel}>Weekly Streak Goal</Text>
+            <Text style={styles.settingItemSub}>Sessions per week needed to maintain your streak</Text>
+            <View style={styles.freqRow}>
+              {([2, 3, 4, 5] as const).map(n => (
+                <Pressable
+                  key={n}
+                  onPress={() => { setWeeklyStreakGoal(n); if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.freqBtn, weeklyStreakGoal === n && styles.freqBtnActive]}
+                  testID={`weekly-goal-${n}`}
+                >
+                  <Text style={[styles.freqBtnText, weeklyStreakGoal === n && styles.freqBtnTextActive]}>
+                    {n}×
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
             <View style={styles.settingDivider} />
 
