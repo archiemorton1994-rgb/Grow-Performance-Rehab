@@ -32,6 +32,9 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useColors } from "@/constants/colors";
 import { kgToDisplayUnit, displayUnitToKg } from "@/lib/utils";
 import { scheduleWorkoutReminder, scheduleMissedWorkoutNudge, scheduleStreakProtectionAlert, cancelStreakProtectionAlert } from "@/lib/notifications";
+import { Ionicons } from "@expo/vector-icons";
+import { BADGE_MAP, Badge } from "@/lib/badges";
+import BadgeUnlockToast from "@/components/BadgeUnlockToast";
 
 if (!__DEV__) {
   type EUType = {
@@ -226,6 +229,36 @@ function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
   const hasNavigated = useRef(false);
+
+  // ─── Badge toast queue (root-level so it floats above all screens) ────────
+  const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
+  const [toastQueue, setToastQueue] = useState<Badge[]>([]);
+  const [currentToast, setCurrentToast] = useState<Badge | null>(null);
+  const enqueuedBadgeIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (newlyUnlockedBadges.length === 0) return;
+    const newIds = newlyUnlockedBadges.filter(id => !enqueuedBadgeIds.current.has(id));
+    if (newIds.length === 0) return;
+    const badges = newIds.map(id => BADGE_MAP.get(id)).filter((b): b is Badge => !!b);
+    newIds.forEach(id => enqueuedBadgeIds.current.add(id));
+    setToastQueue(q => [...q, ...badges]);
+  }, [newlyUnlockedBadges]);
+
+  useEffect(() => {
+    if (currentToast || toastQueue.length === 0) return;
+    const [next, ...rest] = toastQueue;
+    setToastQueue(rest);
+    setCurrentToast(next);
+  }, [currentToast, toastQueue]);
+
+  useEffect(() => {
+    if (currentToast !== null || toastQueue.length > 0) return;
+    if (enqueuedBadgeIds.current.size === 0) return;
+    enqueuedBadgeIds.current.clear();
+    clearNewlyUnlockedBadges();
+  }, [currentToast, toastQueue, clearNewlyUnlockedBadges]);
+  // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
     if (hasNavigated.current) return;
@@ -315,6 +348,14 @@ function RootLayoutNav() {
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
       </Stack>
       <WeeklyWeightPrompt />
+      {currentToast && (
+        <BadgeUnlockToast
+          name={currentToast.name}
+          icon={currentToast.icon as React.ComponentProps<typeof Ionicons>['name']}
+          color={currentToast.color}
+          onDismiss={() => setCurrentToast(null)}
+        />
+      )}
     </>
   );
 }

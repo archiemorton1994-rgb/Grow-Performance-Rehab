@@ -25,7 +25,6 @@ import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import { BADGE_MAP, Badge } from '@/lib/badges';
-import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 
 // ─── Weekly Progress Ring ─────────────────────────────────────────────────────
 function WeeklyRing({
@@ -107,8 +106,6 @@ export default function HomeScreen() {
     bodyweightUpdatedAt,
     setWeightReminderSnoozedAt,
     bodyweightReminderEnabled,
-    newlyUnlockedBadges,
-    clearNewlyUnlockedBadges,
     earnedBadges,
   } = useAppStore();
 
@@ -239,40 +236,6 @@ export default function HomeScreen() {
       ormGain: firstWeight && firstWeight < bestWeight ? Math.round(bestWeight - firstWeight) : 0,
     };
   }, [oneRepMaxes, getBestORM]);
-
-  // ─── Badge toast queue ──────────────────────────────────────────────────
-  const [toastQueue, setToastQueue] = useState<Badge[]>([]);
-  const [currentToast, setCurrentToast] = useState<Badge | null>(null);
-  // Tracks IDs already enqueued so we don't re-enqueue on re-renders while
-  // the store queue is still non-empty (store is cleared only after all shown).
-  const enqueuedBadgeIds = useRef<Set<string>>(new Set());
-
-  // Enqueue newly unlocked badges — do NOT clear store yet.
-  useEffect(() => {
-    if (newlyUnlockedBadges.length === 0) return;
-    const newIds = newlyUnlockedBadges.filter(id => !enqueuedBadgeIds.current.has(id));
-    if (newIds.length === 0) return;
-    const badges = newIds.map(id => BADGE_MAP.get(id)).filter((b): b is Badge => !!b);
-    newIds.forEach(id => enqueuedBadgeIds.current.add(id));
-    setToastQueue(q => [...q, ...badges]);
-  }, [newlyUnlockedBadges]);
-
-  // Drain one toast at a time.
-  useEffect(() => {
-    if (currentToast || toastQueue.length === 0) return;
-    const [next, ...rest] = toastQueue;
-    setToastQueue(rest);
-    setCurrentToast(next);
-  }, [currentToast, toastQueue]);
-
-  // Clear store only after all queued toasts have been displayed.
-  useEffect(() => {
-    if (currentToast !== null || toastQueue.length > 0) return;
-    if (enqueuedBadgeIds.current.size === 0) return;
-    enqueuedBadgeIds.current.clear();
-    clearNewlyUnlockedBadges();
-  }, [currentToast, toastQueue, clearNewlyUnlockedBadges]);
-  // ────────────────────────────────────────────────────────────────────────
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -848,14 +811,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {currentToast && (
-        <BadgeUnlockToast
-          name={currentToast.name}
-          icon={currentToast.icon as React.ComponentProps<typeof Ionicons>['name']}
-          color={currentToast.color}
-          onDismiss={() => setCurrentToast(null)}
-        />
-      )}
     </>
   );
 }

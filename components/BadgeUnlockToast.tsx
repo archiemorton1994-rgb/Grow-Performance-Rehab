@@ -14,11 +14,12 @@ interface BadgeUnlockToastProps {
 
 const SHOW_DURATION_MS = 2500;
 const SLIDE_DURATION = 280;
+const ABOVE_SCREEN = -120;
 
 export default function BadgeUnlockToast({ name, icon, color, onDismiss }: BadgeUnlockToastProps) {
   const C = useColors();
   const insets = useSafeAreaInsets();
-  const translateY = useSharedValue(140);
+  const translateY = useSharedValue(ABOVE_SCREEN);
   const opacity = useSharedValue(0);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -31,7 +32,7 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
     opacity.value = withTiming(1, { duration: SLIDE_DURATION });
 
     const dismissTimer = setTimeout(() => {
-      translateY.value = withTiming(140, { duration: SLIDE_DURATION });
+      translateY.value = withTiming(ABOVE_SCREEN, { duration: SLIDE_DURATION });
       opacity.value = withTiming(0, { duration: SLIDE_DURATION });
       setTimeout(onDismiss, SLIDE_DURATION);
     }, SHOW_DURATION_MS);
@@ -40,17 +41,17 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
   }, []);
 
   const handleTap = () => {
-    translateY.value = withTiming(140, { duration: 200 });
+    translateY.value = withTiming(ABOVE_SCREEN, { duration: 200 });
     opacity.value = withTiming(0, { duration: 200 });
     setTimeout(onDismiss, 200);
   };
 
-  const bottomOffset = Platform.OS === 'web'
-    ? 90
-    : insets.bottom + 80;
+  const topOffset = Platform.OS === 'web'
+    ? 67 + 12
+    : insets.top + 12;
 
   return (
-    <Animated.View style={[styles.container, { bottom: bottomOffset }, animStyle]}>
+    <Animated.View style={[styles.container, { top: topOffset }, animStyle]}>
       <Pressable onPress={handleTap} style={[styles.toast, { backgroundColor: C.surface, borderColor: C.borderLight }]}>
         <View style={[styles.iconWrap, { backgroundColor: color + '22' }]}>
           <Ionicons name={icon} size={22} color={color} />
