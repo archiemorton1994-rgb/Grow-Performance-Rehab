@@ -101,6 +101,8 @@ export default function SessionSummaryScreen() {
   const applyTooEasyAdjustment = useAppStore((s) => s.applyTooEasyAdjustment);
   const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
 
+  const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
+
   const shareCardRef = useRef<View>(null);
 
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -273,8 +275,9 @@ export default function SessionSummaryScreen() {
       streakDays: getStreakDays(),
       isTestWeek: !!session.isTestWeek,
       weightUnit,
+      newlyUnlockedBadgeIds: newlyUnlockedBadges,
     };
-  }, [session, summary, newPb, weightUnit]);
+  }, [session, summary, newPb, weightUnit, newlyUnlockedBadges]);
 
   const handleShare = useCallback(async () => {
     if (!shareCardData || isSharing) return;

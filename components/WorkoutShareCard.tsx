@@ -2,11 +2,11 @@ import React, { forwardRef } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WeightUnit } from '@/lib/store';
+import { BADGE_CATALOG } from '@/lib/badges';
 
 const BRAND_GREEN = '#2f6b46';
-const BRAND_DARK = '#1e4a30';
 const CARD_WIDTH = 480;
-const CARD_HEIGHT = 480;
+const CARD_HEIGHT = 520;
 
 export interface WorkoutShareCardData {
   sessionLabel: string;
@@ -18,6 +18,7 @@ export interface WorkoutShareCardData {
   streakDays: number;
   isTestWeek: boolean;
   weightUnit: WeightUnit;
+  newlyUnlockedBadgeIds?: string[];
 }
 
 const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
@@ -32,6 +33,7 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
       streakDays,
       isTestWeek,
       weightUnit,
+      newlyUnlockedBadgeIds = [],
     },
     ref
   ) => {
@@ -56,6 +58,13 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
         ? `${Math.round(newPb.weightKg * 2.2046)} lbs`
         : `${Math.round(newPb.weightKg)} kg`
       : null;
+
+    const unlockedBadges = newlyUnlockedBadgeIds
+      .map((id) => BADGE_CATALOG.find((b) => b.id === id))
+      .filter(Boolean)
+      .slice(0, 2) as (typeof BADGE_CATALOG)[number][];
+
+    const hasBadges = unlockedBadges.length > 0;
 
     return (
       <View ref={ref} style={styles.card}>
@@ -110,7 +119,7 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
             <View style={styles.pbBadge}>
               <Ionicons name="trophy" size={13} color="#f59e0b" />
               <Text style={styles.pbText} numberOfLines={1}>
-                New PB - {newPb.exerciseName} {pbWeightDisplay}
+                New PB · {newPb.exerciseName} {pbWeightDisplay}
               </Text>
             </View>
           )}
@@ -121,7 +130,23 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
           )}
         </View>
 
-        <View style={styles.footer}>
+        {hasBadges && (
+          <View style={styles.unlockedRow}>
+            <Text style={styles.unlockedLabel}>UNLOCKED</Text>
+            <View style={styles.unlockedBadges}>
+              {unlockedBadges.map((badge) => (
+                <View key={badge.id} style={styles.unlockedBadge}>
+                  <View style={[styles.unlockedBadgeIcon, { backgroundColor: badge.color + '28' }]}>
+                    <Ionicons name={badge.icon as any} size={14} color={badge.color} />
+                  </View>
+                  <Text style={styles.unlockedBadgeName} numberOfLines={1}>{badge.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View style={[styles.footer, hasBadges && styles.footerCompact]}>
           <Text style={styles.footerDate}>{date}</Text>
           <Text style={styles.footerUrl}>growperformance.app</Text>
         </View>
@@ -206,7 +231,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   statItem: {
     flex: 1,
@@ -260,14 +285,54 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  unlockedRow: {
+    marginBottom: 10,
+  },
+  unlockedLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  unlockedBadges: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  unlockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: 140,
+  },
+  unlockedBadgeIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockedBadgeName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  footerCompact: {
+    marginTop: 0,
   },
   footerDate: {
     fontSize: 11,
