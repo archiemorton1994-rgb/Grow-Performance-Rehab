@@ -492,6 +492,50 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   // Strength sampler: 5 of each strength type
   awardIf((s.byType['squat'] ?? 0) >= 5 && (s.byType['bench'] ?? 0) >= 5 && (s.byType['deadlift'] ?? 0) >= 5, 'exercise_strength_variety');
 
+  // ── Exercise-Specific Milestone Badges ───────────────────────────────────
+  // Detect first-time (or repeated) logging of signature exercises by name-matching
+  // across exerciseLogs in all completedSessions.
+  const hasExercise = (needle: string) =>
+    state.completedSessions.some(sess =>
+      (sess.exerciseLogs ?? []).some(log =>
+        log.exerciseName.toLowerCase().includes(needle.toLowerCase())
+      )
+    );
+  const exerciseSessionCount = (needle: string) =>
+    state.completedSessions.filter(sess =>
+      (sess.exerciseLogs ?? []).some(log =>
+        log.exerciseName.toLowerCase().includes(needle.toLowerCase())
+      )
+    ).length;
+
+  // Gravity Fighter — first Pull-Up or Chin-Up
+  awardIf(hasExercise('pull-up') || hasExercise('pullup') || hasExercise('chin-up') || hasExercise('chinup'), 'ex_pull_up_first');
+  // Throne — first Hip Thrust
+  awardIf(hasExercise('hip thrust'), 'ex_hip_thrust_first');
+  // Nordic Warrior — first Nordic Hamstring Curl
+  awardIf(hasExercise('nordic'), 'ex_nordic_first');
+  // Iron Grip — first Farmer's Carry or Suitcase Carry
+  awardIf(hasExercise('farmer') || hasExercise('suitcase carry'), 'ex_farmers_carry_first');
+  // Bird Dog — first Bird Dog
+  awardIf(hasExercise('bird dog'), 'ex_bird_dog_first');
+  // Dead Weight — first Dead Hang
+  awardIf(hasExercise('dead hang'), 'ex_dead_hang_first');
+  // GHD Initiate — first Glute Ham Raise
+  awardIf(hasExercise('glute ham raise') || hasExercise('ghd'), 'ex_ghd_first');
+  // Seal of Approval — first Seal Row
+  awardIf(hasExercise('seal row'), 'ex_seal_row_first');
+  // Clean Sweep — first Front Squat
+  awardIf(hasExercise('front squat'), 'ex_front_squat_first');
+  // Landmine — first Landmine Press
+  awardIf(hasExercise('landmine'), 'ex_landmine_first');
+  // Roller Derby — first Ab Wheel Rollout
+  awardIf(hasExercise('ab wheel') || hasExercise('ab-wheel'), 'ex_ab_wheel_first');
+  // Hamstring Hero — Nordic or GHR in 10+ different sessions
+  awardIf(
+    exerciseSessionCount('nordic') + exerciseSessionCount('glute ham raise') >= 10,
+    'ex_ghd_10_sessions'
+  );
+
   // ── 21. Recovery ─────────────────────────────────────────────────────────
   awardIf(s.recoveryCount >= 5,   'recovery_5');
   awardIf(s.recoveryCount >= 15,  'recovery_15');

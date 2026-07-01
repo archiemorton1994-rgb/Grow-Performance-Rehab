@@ -30,7 +30,8 @@ export type BadgeCategory =
   | 'duration'             // session duration milestones
   | 'comeback'             // returning after a break
   | 'pain_warrior'         // sessions completed with pain adaptations
-  | 'endurance';           // sessions completed when energy was low
+  | 'endurance'            // sessions completed when energy was low
+  | 'exercise_milestone';  // first time logging a specific named exercise
 
 /**
  * The class of criteria used to evaluate a badge.  Downstream UI can use this
@@ -52,7 +53,8 @@ export type BadgeCriteriaType =
   | 'duration_based'      // session duration (timeAvailable)
   | 'comeback'            // gap between consecutive sessions
   | 'pain_adaptation'     // sessions with pain-region adaptation active
-  | 'low_energy';         // sessions completed when energy was reported low
+  | 'low_energy'          // sessions completed when energy was reported low
+  | 'exercise_specific';  // specific named exercise logged for the first time
 
 export interface Badge {
   id: string;
@@ -409,9 +411,11 @@ const enduranceBadges: Badge[] = [
   { id: 'endurance_10', name: 'Iron Resolve',       description: 'Complete 10 sessions when your energy was low',        category: 'endurance', criteriaType: 'low_energy', icon: 'cellular-outline',      color: C.red },
 ];
 
-// ─── Exercise-Milestone / Movement Variety Badges ────────────────────────────
-// Celebrate building a complete movement library and training all patterns.
+// ─── Exercise-Milestone Badges ────────────────────────────────────────────────
+// Celebrate first-time (or repeated) logging of specific signature exercises.
+// Evaluated by name-matching in exerciseLogs across completedSessions.
 const exerciseMilestoneBadges: Badge[] = [
+  // Movement-variety badges (kept here, variety/recovery criteria)
   { id: 'exercise_all_three_lifts',  name: 'Triple Threat',        description: 'Complete at least one squat, bench and deadlift session', category: 'variety', criteriaType: 'variety',           icon: 'barbell-outline',     color: C.purple },
   { id: 'exercise_push_pull_hinge',  name: 'Pattern Master',       description: 'Train all three strength types in one week',              category: 'variety', criteriaType: 'variety',           icon: 'shuffle-outline',     color: C.emerald },
   { id: 'exercise_custom_10',        name: 'Exercise Architect',   description: 'Complete 10 custom sessions',                             category: 'session_custom', criteriaType: 'session_type_count', icon: 'construct-outline', color: C.grey },
@@ -421,6 +425,19 @@ const exerciseMilestoneBadges: Badge[] = [
   { id: 'exercise_recovery_25',      name: 'Longevity Mindset',    description: 'Complete 25 total recovery sessions (prehab + flex)',     category: 'recovery', criteriaType: 'recovery',           icon: 'leaf-outline',        color: C.emerald },
   { id: 'exercise_full_spectrum',    name: 'Full Spectrum',        description: 'Complete at least one session of every available type',   category: 'variety', criteriaType: 'variety',           icon: 'star-outline',        color: C.crimson },
   { id: 'exercise_strength_variety', name: 'Strength Sampler',     description: 'Complete 5 sessions each of lower, upper and full body', category: 'variety', criteriaType: 'variety',           icon: 'layers-outline',      color: C.blue },
+  // ── Specific-exercise milestone badges ──
+  { id: 'ex_pull_up_first',     name: 'Gravity Fighter',  description: 'Log your first Pull-Up or Chin-Up in a session',          category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'git-pull-request-outline', color: C.blue },
+  { id: 'ex_hip_thrust_first',  name: 'Throne',           description: 'Log your first Hip Thrust in a session',                  category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'trending-up-outline',      color: C.emerald },
+  { id: 'ex_nordic_first',      name: 'Nordic Warrior',   description: 'Log your first Nordic Hamstring Curl',                    category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'snow-outline',             color: C.sky },
+  { id: 'ex_farmers_carry_first', name: 'Iron Grip',      description: 'Log your first Farmer\'s Carry or Suitcase Carry',        category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'briefcase-outline',        color: C.orange },
+  { id: 'ex_bird_dog_first',    name: 'Bird Dog',         description: 'Log your first Bird Dog exercise',                        category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'eye-outline',              color: C.teal },
+  { id: 'ex_dead_hang_first',   name: 'Dead Weight',      description: 'Log your first Dead Hang',                                category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'hand-right-outline',       color: C.grey },
+  { id: 'ex_ghd_first',         name: 'GHD Initiate',     description: 'Log your first Glute Ham Raise',                          category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'body-outline',             color: C.crimson },
+  { id: 'ex_seal_row_first',    name: 'Seal of Approval', description: 'Log your first Seal Row',                                 category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'ribbon-outline',           color: C.purple },
+  { id: 'ex_front_squat_first', name: 'Clean Sweep',      description: 'Log your first Front Squat',                              category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'trophy-outline',           color: C.amber },
+  { id: 'ex_landmine_first',    name: 'Landmine',         description: 'Log your first Landmine Press',                           category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'flash-outline',            color: C.red },
+  { id: 'ex_ab_wheel_first',    name: 'Roller Derby',     description: 'Log your first Ab Wheel Rollout',                        category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'radio-button-off-outline', color: C.mint },
+  { id: 'ex_ghd_10_sessions',   name: 'Hamstring Hero',   description: 'Log a Nordic or GHR exercise in 10 different sessions',   category: 'exercise_milestone', criteriaType: 'exercise_specific', icon: 'medal-outline',            color: C.amber },
 ];
 
 // ─── Final catalog assembly ───────────────────────────────────────────────────
@@ -473,6 +490,7 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   comeback:             'Comebacks',
   pain_warrior:         'Pain Warrior',
   endurance:            'No Excuses',
+  exercise_milestone:   'Exercise Milestones',
 };
 
 /** Ordered list of categories for the Achievements screen. */
@@ -499,4 +517,5 @@ export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
   'comeback',
   'pain_warrior',
   'endurance',
+  'exercise_milestone',
 ];

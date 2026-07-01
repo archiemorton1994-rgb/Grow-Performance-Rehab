@@ -43,6 +43,7 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   comeback:            'Come back after a break and train again.',
   pain_adaptation:     'Complete sessions while managing a pain region.',
   low_energy:          'Log a session even on a low-energy day.',
+  exercise_specific:   'Log this specific exercise in one of your sessions.',
 };
 
 const COLS = 4;
