@@ -12,6 +12,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,44 @@ import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/wor
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import { BADGE_MAP, Badge } from '@/lib/badges';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
+
+// ─── Weekly Progress Ring ─────────────────────────────────────────────────────
+function WeeklyRing({
+  count, goal, activeColor, trackColor, textColor,
+}: { count: number; goal: number; activeColor: string; trackColor: string; textColor: string }) {
+  const SIZE = 54;
+  const SW = 5;
+  const radius = (SIZE - SW) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = goal > 0 ? Math.min(count / goal, 1) : 0;
+  const offset = circumference * (1 - progress);
+  const done = count >= goal;
+
+  return (
+    <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={SIZE} height={SIZE} style={{ position: 'absolute' }}>
+        <G rotation="-90" origin={`${SIZE / 2},${SIZE / 2}`}>
+          <Circle cx={SIZE / 2} cy={SIZE / 2} r={radius} stroke={trackColor} strokeWidth={SW} fill="none" />
+          {progress > 0 && (
+            <Circle
+              cx={SIZE / 2} cy={SIZE / 2} r={radius}
+              stroke={activeColor} strokeWidth={SW} fill="none"
+              strokeDasharray={circumference} strokeDashoffset={offset}
+              strokeLinecap="round"
+            />
+          )}
+        </G>
+      </Svg>
+      {done ? (
+        <Ionicons name="checkmark" size={20} color={activeColor} />
+      ) : (
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: textColor, textAlign: 'center' }}>
+          {count}<Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: trackColor }}>/{goal}</Text>
+        </Text>
+      )}
+    </View>
+  );
+}
 
 const SESSION_IMAGES: Record<string, any> = {
   squat:        require('@/assets/images/sessions/lower-body.png'),
@@ -496,10 +535,25 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Week Streak</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{goal}</Text></Text>
-            <Text style={styles.statLabel}>This Week</Text>
-          </View>
+          <Pressable
+            style={styles.statItem}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/workouts');
+            }}
+            testID="weekly-ring-tap"
+          >
+            <WeeklyRing
+              count={weekCount}
+              goal={goal}
+              activeColor={weekCount >= goal ? C.success ?? C.primary : C.primary}
+              trackColor={C.borderLight}
+              textColor={C.text}
+            />
+            <Text style={[styles.statLabel, { marginTop: 4 }]}>
+              {weekCount >= goal ? 'Goal Hit ✓' : 'This Week'}
+            </Text>
+          </Pressable>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{completedSessions.length}</Text>
