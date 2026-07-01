@@ -36,6 +36,24 @@ const CATEGORY_FILTERS = [
   { key: 'prehab', label: 'Prehab' },
 ];
 
+// Movement-pattern & difficulty filters for the picker (multi-select).
+// Only chips whose value is present in the current equipment tier's pool are shown.
+const PATTERN_FILTERS: { key: string; label: string }[] = [
+  { key: 'squat', label: 'Squat' },
+  { key: 'hinge', label: 'Hinge' },
+  { key: 'push', label: 'Push' },
+  { key: 'pull', label: 'Pull' },
+  { key: 'lunge', label: 'Lunge' },
+  { key: 'carry', label: 'Carry' },
+  { key: 'isometric', label: 'Isometric' },
+];
+
+const DIFFICULTY_FILTERS: { key: string; label: string }[] = [
+  { key: 'beginner', label: 'Beginner' },
+  { key: 'intermediate', label: 'Intermediate' },
+  { key: 'advanced', label: 'Advanced' },
+];
+
 interface SelectedExercise {
   template: ExerciseTemplate;
   sets: number;
@@ -53,6 +71,9 @@ export default function CustomSessionScreen() {
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // Multi-select movement-pattern / difficulty filters. Local state only — must NOT persist between sessions.
+  const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set());
+  const [difficultyFilters, setDifficultyFilters] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<SelectedExercise[]>([]);
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
@@ -133,17 +154,63 @@ export default function CustomSessionScreen() {
   const captureChipCenterXRef = useRef(0);
   const containerOwnedRef = useRef(false);
 
+  // Only surface pattern/difficulty chips that actually exist in the current tier's pool.
+  const { availablePatterns, availableDifficulties } = useMemo(() => {
+    const patSet = new Set<string>();
+    const diffSet = new Set<string>();
+    for (const e of allExercises) {
+      if (e.movementPattern) patSet.add(e.movementPattern);
+      if (e.difficulty) diffSet.add(e.difficulty);
+    }
+    return {
+      availablePatterns: PATTERN_FILTERS.filter((p) => patSet.has(p.key)),
+      availableDifficulties: DIFFICULTY_FILTERS.filter((d) => diffSet.has(d.key)),
+    };
+  }, [allExercises]);
+
+  const attrFiltersActive = patternFilters.size > 0 || difficultyFilters.size > 0;
+
   const filtered = useMemo(() => {
     let list = allExercises;
     if (categoryFilter !== 'all') {
       list = list.filter((e) => e.category === categoryFilter);
+    }
+    if (patternFilters.size > 0) {
+      list = list.filter((e) => !!e.movementPattern && patternFilters.has(e.movementPattern));
+    }
+    if (difficultyFilters.size > 0) {
+      list = list.filter((e) => !!e.difficulty && difficultyFilters.has(e.difficulty));
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((e) => e.name.toLowerCase().includes(q));
     }
     return list;
-  }, [allExercises, categoryFilter, search]);
+  }, [allExercises, categoryFilter, patternFilters, difficultyFilters, search]);
+
+  const togglePatternFilter = useCallback((key: string) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setPatternFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const toggleDifficultyFilter = useCallback((key: string) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setDifficultyFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const clearAttrFilters = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setPatternFilters(new Set());
+    setDifficultyFilters(new Set());
+  }, []);
 
   const selectedIds = useMemo(() => new Set(selected.map((s) => s.template.id)), [selected]);
 
@@ -359,6 +426,8 @@ export default function CustomSessionScreen() {
     setLoadedTemplateId(tmpl.id);
     setSearch('');
     setCategoryFilter('all');
+    setPatternFilters(new Set());
+    setDifficultyFilters(new Set());
   }, [allExercises]);
 
   const openRenameModal = useCallback((tmpl: CustomTemplate) => {
@@ -648,6 +717,73 @@ export default function CustomSessionScreen() {
         ))}
       </ScrollView>
 
+      {(availablePatterns.length > 0 || availableDifficulties.length > 0) && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexShrink: 0 }}
+          contentContainerStyle={styles.attrFilterRow}
+        >
+          <Pressable
+            onPress={clearAttrFilters}
+            style={({ pressed }) => [
+              styles.filterChip,
+              !attrFiltersActive && styles.filterChipActive,
+              pressed && { opacity: 0.8 },
+            ]}
+            testID="filter-attr-all"
+          >
+            <Text style={[styles.filterChipText, !attrFiltersActive && styles.filterChipTextActive]}>
+              All
+            </Text>
+          </Pressable>
+
+          {availablePatterns.map((p) => {
+            const active = patternFilters.has(p.key);
+            return (
+              <Pressable
+                key={p.key}
+                onPress={() => togglePatternFilter(p.key)}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`filter-pattern-${p.key}`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {availablePatterns.length > 0 && availableDifficulties.length > 0 && (
+            <View style={styles.filterDivider} />
+          )}
+
+          {availableDifficulties.map((d) => {
+            const active = difficultyFilters.has(d.key);
+            return (
+              <Pressable
+                key={d.key}
+                onPress={() => toggleDifficultyFilter(d.key)}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`filter-difficulty-${d.key}`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {d.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -676,8 +812,8 @@ export default function CustomSessionScreen() {
             icon="search-outline"
             title="No exercises found"
             subtitle={
-              search.trim() || categoryFilter !== 'all'
-                ? 'Try a different search or category'
+              search.trim() || categoryFilter !== 'all' || attrFiltersActive
+                ? 'Try a different search or filter'
                 : 'Pick at least one exercise to start your session'
             }
             testID="custom-session-empty"
@@ -1045,6 +1181,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
 
     filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
+    attrFilterRow: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 10, gap: 8, alignItems: 'center' },
+    filterDivider: { width: 1, height: 22, backgroundColor: C.borderLight, marginHorizontal: 2 },
     filterChip: {
       paddingHorizontal: 14, paddingVertical: 8,
       borderRadius: 20, backgroundColor: C.surface,
