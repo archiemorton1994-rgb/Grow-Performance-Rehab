@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useColors } from '@/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -40,9 +41,21 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
     return () => clearTimeout(dismissTimer);
   }, []);
 
-  const handleTap = () => {
-    translateY.value = withTiming(ABOVE_SCREEN, { duration: 200 });
-    opacity.value = withTiming(0, { duration: 200 });
+  const slideOut = (duration: number = 200) => {
+    translateY.value = withTiming(ABOVE_SCREEN, { duration });
+    opacity.value = withTiming(0, { duration });
+  };
+
+  const handleNavigate = () => {
+    slideOut();
+    setTimeout(() => {
+      onDismiss();
+      router.push('/achievements');
+    }, 200);
+  };
+
+  const handleClose = () => {
+    slideOut();
     setTimeout(onDismiss, 200);
   };
 
@@ -52,7 +65,10 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
 
   return (
     <Animated.View style={[styles.container, { top: topOffset }, animStyle]}>
-      <Pressable onPress={handleTap} style={[styles.toast, { backgroundColor: C.surface, borderColor: C.borderLight }]}>
+      <Pressable
+        onPress={handleNavigate}
+        style={({ pressed }) => [styles.toast, { backgroundColor: C.surface, borderColor: C.borderLight }, pressed && { opacity: 0.9 }]}
+      >
         <View style={[styles.iconWrap, { backgroundColor: color + '22' }]}>
           <Ionicons name={icon} size={22} color={color} />
         </View>
@@ -60,7 +76,9 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
           <Text style={[styles.headline, { color: C.text }]}>Badge Unlocked!</Text>
           <Text style={[styles.badgeName, { color: C.textSecondary }]} numberOfLines={1}>{name}</Text>
         </View>
-        <Ionicons name="close" size={16} color={C.textTertiary} />
+        <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
+          <Ionicons name="close" size={16} color={C.textTertiary} />
+        </Pressable>
       </Pressable>
     </Animated.View>
   );
@@ -106,5 +124,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     marginTop: 1,
+  },
+  closeBtn: {
+    padding: 4,
   },
 });
