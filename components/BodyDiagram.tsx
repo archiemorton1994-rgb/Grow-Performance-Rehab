@@ -112,8 +112,8 @@ export function BodyDiagram({
 
   const renderFrontHotspots = () => (
     <G>
-      {/* Neck */}
-      <Rect x={43} y={33} width={34} height={22} rx={7} {...h('neck')} />
+      {/* Neck — min 33 SVG units tall for ≥44pt at maxWidth=160 */}
+      <Rect x={43} y={30} width={34} height={33} rx={7} {...h('neck')} />
 
       {/* Front Shoulder — bilateral */}
       <Rect x={1} y={44} width={32} height={40} rx={8} {...h('front_shoulder')} />
@@ -129,24 +129,24 @@ export function BodyDiagram({
       {/* Hip / Groin */}
       <Rect x={25} y={137} width={70} height={36} rx={7} {...h('hip_groin')} />
 
-      {/* Knee — bilateral */}
-      <Rect x={23} y={218} width={38} height={28} rx={7} {...h('knee')} />
-      <Rect x={59} y={218} width={38} height={28} rx={7} {...h('knee')} />
+      {/* Knee — bilateral, min 33 SVG units tall */}
+      <Rect x={23} y={213} width={38} height={36} rx={7} {...h('knee')} />
+      <Rect x={59} y={213} width={38} height={36} rx={7} {...h('knee')} />
 
       {/* Calf / Shin — bilateral */}
-      <Rect x={23} y={238} width={38} height={34} rx={7} {...h('calf_shin')} />
-      <Rect x={59} y={238} width={38} height={34} rx={7} {...h('calf_shin')} />
+      <Rect x={23} y={241} width={38} height={34} rx={7} {...h('calf_shin')} />
+      <Rect x={59} y={241} width={38} height={34} rx={7} {...h('calf_shin')} />
 
-      {/* Ankle / Achilles — bilateral */}
-      <Rect x={23} y={266} width={38} height={20} rx={6} {...h('ankle_achilles')} />
-      <Rect x={59} y={266} width={38} height={20} rx={6} {...h('ankle_achilles')} />
+      {/* Ankle / Achilles — bilateral, min 33 SVG units tall */}
+      <Rect x={23} y={261} width={38} height={35} rx={6} {...h('ankle_achilles')} />
+      <Rect x={59} y={261} width={38} height={35} rx={6} {...h('ankle_achilles')} />
     </G>
   );
 
   const renderBackHotspots = () => (
     <G>
-      {/* Neck */}
-      <Rect x={43} y={33} width={34} height={22} rx={7} {...h('neck')} />
+      {/* Neck — min 33 SVG units tall for ≥44pt at maxWidth=160 */}
+      <Rect x={43} y={30} width={34} height={33} rx={7} {...h('neck')} />
 
       {/* Rear Shoulder — bilateral */}
       <Rect x={1} y={44} width={32} height={40} rx={8} {...h('rear_shoulder')} />
@@ -165,17 +165,17 @@ export function BodyDiagram({
       {/* Hip / Groin (gluteal on back) */}
       <Rect x={25} y={137} width={70} height={36} rx={7} {...h('hip_groin')} />
 
-      {/* Knee — bilateral */}
-      <Rect x={23} y={218} width={38} height={28} rx={7} {...h('knee')} />
-      <Rect x={59} y={218} width={38} height={28} rx={7} {...h('knee')} />
+      {/* Knee — bilateral, min 33 SVG units tall */}
+      <Rect x={23} y={213} width={38} height={36} rx={7} {...h('knee')} />
+      <Rect x={59} y={213} width={38} height={36} rx={7} {...h('knee')} />
 
       {/* Calf / Shin — bilateral */}
-      <Rect x={23} y={238} width={38} height={34} rx={7} {...h('calf_shin')} />
-      <Rect x={59} y={238} width={38} height={34} rx={7} {...h('calf_shin')} />
+      <Rect x={23} y={241} width={38} height={34} rx={7} {...h('calf_shin')} />
+      <Rect x={59} y={241} width={38} height={34} rx={7} {...h('calf_shin')} />
 
-      {/* Ankle / Achilles — bilateral */}
-      <Rect x={23} y={266} width={38} height={20} rx={6} {...h('ankle_achilles')} />
-      <Rect x={59} y={266} width={38} height={20} rx={6} {...h('ankle_achilles')} />
+      {/* Ankle / Achilles — bilateral, min 33 SVG units tall */}
+      <Rect x={23} y={261} width={38} height={35} rx={6} {...h('ankle_achilles')} />
+      <Rect x={59} y={261} width={38} height={35} rx={6} {...h('ankle_achilles')} />
     </G>
   );
 

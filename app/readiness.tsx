@@ -131,7 +131,8 @@ export default function ReadinessScreen() {
   const handleStart = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (hasAches) {
-      setStep('painCategory');
+      setDiagramPainRegion(undefined);
+      setStep('painRegion');
     } else {
       setLastReadiness(energy, timeAvailable);
       if (isTestWeek) {
@@ -594,7 +595,7 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
-  const isPainStep = step === 'painCategory' || step === 'painRegion';
+  const isPainStep = step === 'painRegion';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -616,11 +617,9 @@ export default function ReadinessScreen() {
       {isPainStep && (
         <View style={styles.progressContainer}>
           <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, { width: step === 'painCategory' ? '50%' : '100%' }]} />
+            <Animated.View style={[styles.progressFill, { width: '100%' }]} />
           </View>
-          <Text style={styles.stepIndicator}>
-            {step === 'painCategory' ? 'Step 1 of 2' : 'Step 2 of 2'} - Pain Region
-          </Text>
+          <Text style={styles.stepIndicator}>Pain Region</Text>
         </View>
       )}
 
