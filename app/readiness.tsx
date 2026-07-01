@@ -17,7 +17,7 @@ import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAI
 import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { BodyDiagram } from '@/components/BodyDiagram';
 
-type Step = 'main' | 'painCategory' | 'painRegion' | 'prehabFocus';
+type Step = 'main' | 'painRegion' | 'prehabFocus';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
 
@@ -71,7 +71,7 @@ export default function ReadinessScreen() {
     initialTiers.length > 0 ? initialTiers : ['bodyweight']
   );
   const [hasAches, setHasAches] = useState(false);
-  const [painCategory, setPainCategory] = useState<keyof typeof PAIN_CATEGORIES | undefined>();
+
   const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
@@ -165,17 +165,6 @@ export default function ReadinessScreen() {
     }
   };
 
-  const handlePainCategory = (cat: keyof typeof PAIN_CATEGORIES) => {
-    hapticTap();
-    setPainCategory(cat);
-    setStep('painRegion');
-  };
-
-  const handleSkipToAllRegions = () => {
-    hapticTap();
-    setPainCategory(undefined);
-    setStep('painRegion');
-  };
 
   const handlePainRegion = (region: PainRegion) => {
     hapticTap();
@@ -231,8 +220,7 @@ export default function ReadinessScreen() {
     switch (step) {
       case 'main': router.back(); break;
       case 'prehabFocus': router.back(); break;
-      case 'painCategory': setStep('main'); break;
-      case 'painRegion': setStep('painCategory'); break;
+      case 'painRegion': setStep('main'); break;
     }
   };
 
@@ -494,56 +482,6 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
-  const renderPainCategory = () => (
-    <Animated.View key="painCat" entering={FadeInDown.duration(350)} style={styles.stepContent}>
-      <View style={styles.questionIcon}>
-        <Ionicons name="body-outline" size={28} color={C.warning} />
-      </View>
-      <Text style={styles.question}>Any pain or muscle soreness?</Text>
-      <Text style={styles.questionSub}>Select the affected area - we'll adjust exercises</Text>
-      <View style={styles.areaButtons}>
-        <Pressable
-          onPress={handleSkipToAllRegions}
-          style={({ pressed }) => [
-            styles.areaButton,
-            { borderColor: C.warning, backgroundColor: C.warningLight },
-            pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-          ]}
-          testID="pain-cat-all"
-        >
-          <View style={[styles.areaIconWrap, { backgroundColor: C.warning + '22' }]}>
-            <Ionicons name="list-outline" size={24} color={C.warning} />
-          </View>
-          <View style={styles.areaCatContent}>
-            <Text style={[styles.areaLabel, { color: C.warning }]}>All areas</Text>
-            <Text style={styles.areaSublabel}>Skip straight to the region picker</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={C.warning} />
-        </Pressable>
-        {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((key) => {
-          const cat = PAIN_CATEGORIES[key];
-          const iconInfo = CATEGORY_ICONS[key];
-          return (
-            <Pressable
-              key={key}
-              onPress={() => handlePainCategory(key)}
-              style={({ pressed }) => [styles.areaButton, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-              testID={`pain-cat-${key}`}
-            >
-              <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted }]}>
-                <Ionicons name={iconInfo.icon} size={24} color={iconInfo.color} />
-              </View>
-              <View style={styles.areaCatContent}>
-                <Text style={styles.areaLabel}>{cat.label}</Text>
-                <Text style={styles.areaSublabel}>{cat.regions.length} regions</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-            </Pressable>
-          );
-        })}
-      </View>
-    </Animated.View>
-  );
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
@@ -625,11 +563,6 @@ export default function ReadinessScreen() {
 
       {step === 'main' && renderMain()}
       {step === 'prehabFocus' && renderPrehabFocus()}
-      {step === 'painCategory' && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-          {renderPainCategory()}
-        </ScrollView>
-      )}
       {step === 'painRegion' && renderPainRegion()}
     </View>
   );
