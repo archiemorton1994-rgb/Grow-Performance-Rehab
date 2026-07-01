@@ -847,7 +847,7 @@ export default function ProfileScreen() {
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
                     {streakProtectionEnabled && streak >= 2
-                      ? `On at ${formatReminderTime(streakProtectionTime)} - ${streak}-day streak`
+                      ? `On at ${formatReminderTime(streakProtectionTime)} - ${streak}-week streak`
                       : streakProtectionEnabled
                       ? `On at ${formatReminderTime(streakProtectionTime)}`
                       : 'Off'}
