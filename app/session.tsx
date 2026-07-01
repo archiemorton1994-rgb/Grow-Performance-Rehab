@@ -19,7 +19,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, useAnimatedProps, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
+import Svg, { Circle, G } from 'react-native-svg';
 import Colors, { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
@@ -73,6 +74,13 @@ function parseRepsToSeconds(repsStr: string): number {
   return 5 * 60; // fallback 5 minutes
 }
 
+// ─── Rest timer ring constants (module-level for perf) ────────────────────────
+const AnimatedSvgCircle = Animated.createAnimatedComponent(Circle);
+const RING_SIZE = 132;
+const RING_STROKE = 10;
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
 function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['category']; trigger?: number; onTimerEnd?: () => void }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -87,6 +95,11 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   const [isDone, setIsDone] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
+  // Circular ring progress: 1 = full arc, 0 = empty. Animated smoothly each tick.
+  const ringProgress = useSharedValue(1);
+  const animatedRingProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_CIRCUMFERENCE * (1 - ringProgress.value),
+  }));
 
   const notifIdRef = useRef<string | null>(null);
 
@@ -113,8 +126,6 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   }, [cancelNotif]);
 
   // Auto-start when trigger increments (i.e. a set was just completed).
-  // We set an absolute end-time stamp; the tick effect below derives the
-  // displayed seconds purely from (endAt - Date.now()).
   useEffect(() => {
     if (trigger > 0 && duration > 0) {
       const end = Date.now() + duration * 1000;
@@ -122,20 +133,20 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
       setSecondsLeft(duration);
       setIsDone(false);
       setIsRunning(true);
+      ringProgress.value = 1;
       scheduleNotif(duration);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
   }, [trigger]);
 
-  // Wall-clock tick: every second (and on AppState changes via the listener
-  // below), recompute remaining seconds from the absolute `endAt`. This keeps
-  // the display correct after device sleep, backgrounding, or any JS-thread
-  // stalls without manual elapsed-time bookkeeping.
+  // Wall-clock tick: every second derive remaining from absolute endAt.
   useEffect(() => {
     if (!duration || !isRunning || endAt == null) return;
     const recompute = () => {
       const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
       setSecondsLeft(remaining);
+      // Animate ring arc smoothly — 950ms tween so it glides into the next second
+      ringProgress.value = withTiming(remaining / duration, { duration: 950 });
       if (remaining <= 0) {
         setIsRunning(false);
         setIsDone(true);
@@ -152,8 +163,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     };
     recompute();
     const timerId = setInterval(recompute, 1000);
-    // Force a re-sync the moment the app returns from background - without
-    // this the user would see a stale countdown for up to 1s after resume.
+    // Re-sync immediately when app returns from background.
     const sub = Platform.OS !== 'web'
       ? AppState.addEventListener('change', (s: AppStateStatus) => { if (s === 'active') recompute(); })
       : null;
@@ -165,7 +175,14 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
 
   if (!duration) return null;
 
-  const reset = () => { cancelNotif(); setEndAt(null); setSecondsLeft(duration); setIsRunning(false); setIsDone(false); };
+  const reset = () => {
+    cancelNotif();
+    setEndAt(null);
+    setSecondsLeft(duration);
+    setIsRunning(false);
+    setIsDone(false);
+    ringProgress.value = 1;
+  };
   const skip = () => {
     cancelNotif();
     setIsRunning(false);
@@ -179,10 +196,6 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   };
   const addFifteen = () => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    // Push the absolute end-time out by 15s so the wall-clock tick picks up
-    // the change naturally, and reschedule the background notification to
-    // match. Falls back to seconds-from-now when no endAt exists yet (paused
-    // before timer ever started - defensive, shouldn't happen in practice).
     setEndAt((prev) => {
       const base = prev ?? Date.now() + secondsLeft * 1000;
       const next = base + 15 * 1000;
@@ -195,11 +208,9 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
   };
   const togglePause = () => {
     if (isRunning) {
-      // Pausing: capture remaining seconds, drop endAt, cancel notification.
       cancelNotif();
       setIsRunning(false);
     } else {
-      // Resuming: re-anchor endAt to (now + remaining) and reschedule notif.
       if (secondsLeft > 0) {
         setEndAt(Date.now() + secondsLeft * 1000);
         scheduleNotif(secondsLeft);
@@ -221,31 +232,63 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     );
   }
 
-  return (
-    <View style={styles.restTimerRow}>
-      <Pressable
-        onPress={togglePause}
-        style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
-      >
-        <Ionicons
-          name={isRunning ? 'pause-circle' : 'timer'}
-          size={18}
-          color={isRunning ? '#fff' : C.primary}
-        />
-        <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-          {isRunning ? `Resting - ${mm}:${ss}` : `Rest timer - ${mm}:${ss}`}
-        </Text>
-      </Pressable>
-      {isRunning && (
-        <>
+  // ── Ring card — shown once the first set is completed ──────────────────────
+  if (trigger > 0) {
+    return (
+      <View style={styles.restTimerRingCard}>
+        <View style={styles.restTimerRingContainer}>
+          <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute' }}>
+            <G rotation="-90" origin={`${RING_SIZE / 2},${RING_SIZE / 2}`}>
+              {/* Track */}
+              <Circle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
+                stroke={C.primaryMuted} strokeWidth={RING_STROKE} fill="none"
+              />
+              {/* Animated draining arc */}
+              <AnimatedSvgCircle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
+                stroke={C.primary} strokeWidth={RING_STROKE} fill="none"
+                strokeDasharray={RING_CIRCUMFERENCE}
+                strokeLinecap="round"
+                animatedProps={animatedRingProps}
+              />
+            </G>
+          </Svg>
+          <View style={styles.restTimerRingCenter}>
+            <Text style={styles.restTimerRingLabel}>{isRunning ? 'Resting' : 'Paused'}</Text>
+            <Text style={styles.restTimerRingDigits}>{mm}:{ss}</Text>
+          </View>
+        </View>
+        <View style={styles.restTimerRingControls}>
+          <Pressable onPress={togglePause} style={styles.restTimerRingPauseBtn}>
+            <Ionicons
+              name={isRunning ? 'pause-circle-outline' : 'play-circle-outline'}
+              size={18}
+              color={C.primary}
+            />
+            <Text style={styles.restTimerRingPauseBtnText}>{isRunning ? 'Pause' : 'Resume'}</Text>
+          </Pressable>
           <Pressable onPress={addFifteen} style={styles.restTimerAddBtn} testID="rest-timer-add-15">
             <Text style={styles.restTimerAddText}>+15s</Text>
           </Pressable>
           <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
             <Text style={styles.restTimerSkipText}>Done resting</Text>
           </Pressable>
-        </>
-      )}
+          <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+            <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Idle state — quiet hint row before any set is logged ───────────────────
+  return (
+    <View style={styles.restTimerRow}>
+      <View style={[styles.restTimerBtn, { flex: 1 }]}>
+        <Ionicons name="timer" size={18} color={C.primary} />
+        <Text style={styles.restTimerText}>Rest timer — {mm}:{ss}</Text>
+      </View>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
@@ -1857,6 +1900,14 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   restTimerTextActive: { color: '#fff' },
   restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
   restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  restTimerRingCard: { alignItems: 'center', paddingTop: 16, paddingBottom: 14, paddingHorizontal: 12, marginBottom: 10, backgroundColor: C.primarySurface, borderRadius: 16, borderWidth: 1, borderColor: C.primaryMuted },
+  restTimerRingContainer: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  restTimerRingCenter: { alignItems: 'center' },
+  restTimerRingLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 1 },
+  restTimerRingDigits: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.text },
+  restTimerRingControls: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' as any },
+  restTimerRingPauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.primaryMuted, flex: 1 },
+  restTimerRingPauseBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   // Spotter advisory
   spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   spotterAdvisoryText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, fontStyle: 'italic' },
