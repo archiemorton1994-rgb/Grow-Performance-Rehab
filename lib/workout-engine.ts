@@ -69,6 +69,54 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return result;
 }
 
+type MovementPattern = NonNullable<ExerciseTemplate['movementPattern']>;
+
+/**
+ * Reorder a list to spread out repeated movement patterns while preserving as
+ * much of the incoming (already-shuffled) order as possible. Greedy and fully
+ * deterministic: walk the list in order, but whenever the next item would repeat
+ * the previous item's movement pattern, pull forward the earliest later item
+ * with a different pattern instead. Items without a movementPattern share a
+ * single "undefined" bucket, so untagged items are treated as one pattern.
+ *
+ * Because it only reorders (never drops) and adds no randomness, it composes
+ * cleanly on top of `seededShuffle` as a secondary sort key.
+ */
+function diversifyByMovementPattern<T extends { movementPattern?: MovementPattern }>(arr: T[]): T[] {
+  if (arr.length <= 2) return [...arr];
+  const remaining = [...arr];
+  const result: T[] = [];
+  let prevPattern: MovementPattern | undefined;
+  let hasPrev = false;
+  while (remaining.length > 0) {
+    let idx = 0;
+    if (hasPrev) {
+      const diffIdx = remaining.findIndex((e) => e.movementPattern !== prevPattern);
+      if (diffIdx !== -1) idx = diffIdx;
+    }
+    const [next] = remaining.splice(idx, 1);
+    result.push(next);
+    prevPattern = next.movementPattern;
+    hasPrev = true;
+  }
+  return result;
+}
+
+/**
+ * `seededShuffle` with an optional secondary pass that spreads out repeated
+ * movement patterns (see `diversifyByMovementPattern`). When `diversify` is
+ * true, a rotated selection is far less likely to stack two same-pattern
+ * exercises back to back — e.g. two 'push' accessories in the same session.
+ */
+function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
+  arr: T[],
+  seed: number,
+  diversify: boolean = true,
+): T[] {
+  const shuffled = seededShuffle(arr, seed);
+  return diversify ? diversifyByMovementPattern(shuffled) : shuffled;
+}
+
 function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
   // swap1 = swapAlternative (preferred) or comfortVariant
   // swap2 = comfortVariant when swapAlternative is also present (gives two distinct alternatives)
@@ -538,7 +586,9 @@ export function generateWorkout(
   // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
   // Seeded shuffle ensures accessories rotate across sessions and days so
   // users see different exercises rather than always the same first two.
-  const allAccessories = seededShuffle(getAccessories(mainType, equipmentTier), (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000));
+  // Diversify by movement pattern so the 1-2 chosen accessories don't stack the
+  // same pattern (e.g. two 'push' moves) within a single session.
+  const allAccessories = seededShuffleDiverse(getAccessories(mainType, equipmentTier), (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000));
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
   // general conditioning capacity. Both benefit from a single conditioning
   // exercise that replaces the standard finisher slot.
