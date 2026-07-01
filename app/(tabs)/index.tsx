@@ -36,7 +36,6 @@ const SESSION_IMAGES: Record<string, any> = {
   custom:       require('@/assets/images/sessions/custom.png'),
 };
 
-const WEEKLY_GOAL = 3;
 
 
 export default function HomeScreen() {
@@ -498,7 +497,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{WEEKLY_GOAL}</Text></Text>
+            <Text style={styles.statValue}>{weekCount}<Text style={styles.statGoal}>/{goal}</Text></Text>
             <Text style={styles.statLabel}>This Week</Text>
           </View>
           <View style={styles.statDivider} />
