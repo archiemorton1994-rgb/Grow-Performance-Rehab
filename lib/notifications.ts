@@ -121,6 +121,29 @@ export async function cancelMissedWorkoutNudge(): Promise<void> {
 
 const STREAK_PROTECTION_ID = 'grow-streak-protection';
 
+/**
+ * Returns the number of seconds until the next Wed/Thu/Fri/Sat/Sun occurrence
+ * of the given time string. Mon (1) and Tue (2) are skipped — too early in the
+ * Mon–Sun week to be at risk. Returns null if no eligible slot is found within
+ * the next 7 days (shouldn't happen in practice).
+ *
+ * Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+ */
+function secondsUntilNextRiskAlert(timeStr: string): number | null {
+  const [h, m] = timeStr.split(':').map((s) => parseInt(s, 10));
+  const now = new Date();
+  const riskDays = new Set([0, 3, 4, 5, 6]); // Sun, Wed, Thu, Fri, Sat
+  for (let daysAhead = 0; daysAhead <= 7; daysAhead++) {
+    const candidate = new Date(
+      now.getFullYear(), now.getMonth(), now.getDate() + daysAhead, h, m, 0, 0,
+    );
+    if (candidate <= now) continue; // time has already passed today
+    if (!riskDays.has(candidate.getDay())) continue; // safe (Mon/Tue)
+    return Math.ceil((candidate.getTime() - now.getTime()) / 1000);
+  }
+  return null;
+}
+
 export async function scheduleStreakProtectionAlert(
   timeStr: string = '20:00',
   weeklyGoal: number = 2,
@@ -136,24 +159,25 @@ export async function scheduleStreakProtectionAlert(
     return;
   }
 
-  // Only alert from Wednesday onwards (day 3) — Mon/Tue still have plenty of
-  // the week ahead, so nagging is pointless and creates unnecessary anxiety.
-  // Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
-  const dayOfWeek = new Date().getDay();
-  const isEarlyWeek = dayOfWeek === 1 || dayOfWeek === 2; // Mon or Tue
-  if (isEarlyWeek) {
+  // Compute the next eligible day/time (Wed–Sun only). If there is no upcoming
+  // risk slot this week (e.g. it's already Sunday evening past alert time),
+  // cancel and let the next app-open / session-complete re-evaluate.
+  const secondsUntil = secondsUntilNextRiskAlert(timeStr);
+  if (secondsUntil === null) {
     await cancelStreakProtectionAlert();
     return;
   }
 
   await cancelStreakProtectionAlert();
-  const [hourStr, minuteStr] = timeStr.split(':');
-  const hour = parseInt(hourStr, 10);
-  const minute = parseInt(minuteStr ?? '0', 10);
   const remaining = weeklyGoal - weekCount;
   const body = remaining === 1
     ? "Just 1 more session this week to keep your streak alive. Don't stop now!"
     : `You need ${remaining} more sessions this week to protect your streak. Get one in now!`;
+
+  // Schedule a ONE-SHOT notification for the next eligible risk day/time.
+  // Non-repeating means it cannot leak into Mon/Tue of the following week.
+  // The app-foreground AppState listener and the completedSessions effect both
+  // reschedule (or cancel) whenever state changes.
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_PROTECTION_ID,
@@ -164,9 +188,9 @@ export async function scheduleStreakProtectionAlert(
         data: { screen: 'train' },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secondsUntil,
+        repeats: false,
       },
     });
   } catch {}
