@@ -55,6 +55,10 @@ args = "Start Frontend"
 task = "workflow.run"
 args = "Start Backend"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "body-diagram-fill-check"
+
 [[workflows.workflow]]
 name = "Start Backend"
 author = "agent"
@@ -79,6 +83,17 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN npx expo start --port 8082 --localhost"
+
+[[workflows.workflow]]
+name = "body-diagram-fill-check"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/check-body-diagram-fill.sh"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
