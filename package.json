@@ -13,7 +13,8 @@
     "db:push": "drizzle-kit push",
     "start": "npx expo start",
     "lint": "npx expo lint",
-    "lint:fix": "npx expo lint --fix"
+    "lint:fix": "npx expo lint --fix",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.0",
@@ -54,6 +55,7 @@
     "express": "^5.0.1",
     "http-proxy-middleware": "^3.0.5",
     "jest": "^30.4.2",
+    "jest-environment-node": "^30.4.1",
     "jest-expo": "^57.0.0",
     "jsonwebtoken": "^9.0.3",
     "node-addon-api": "^8.8.0",
