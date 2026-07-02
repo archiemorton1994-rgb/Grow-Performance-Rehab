@@ -13,9 +13,10 @@
  *   [1] Source-code static guards   (5 tests)  — identical to body-diagram.spec.ts §1
  *   [2] Flex tab — Targeted Prehab (22 tests)  — BodyDiagram prehab context
  *   [3] Readiness — pain-region    (15 tests)  — BodyDiagram readiness context
+ *   [4] Prehab modal reset guard    (6 tests)  — prehabDiagramRegion cleared on close/re-open
  *
  * Run:  node tests/body-diagram-e2e.mjs
- * Exit: 0 = all 42 pass, 1 = one or more failures
+ * Exit: 0 = all 48 pass, 1 = one or more failures
  */
 
 import { readFileSync } from 'fs';
@@ -294,6 +295,71 @@ check(
   readySrc.includes("pathname: '/session'") &&
   readySrc.includes('painRegion'),
   "readiness.tsx confirm handler must navigate to pathname: '/session' with painRegion param",
+);
+
+// ─── [4] Prehab modal reset guard ─────────────────────────────────────────────
+//
+// Guards the two reset paths that ensure prehabDiagramRegion is always undefined
+// before the prehab modal is shown.  If either is removed, a user who selects a
+// region, closes the modal, and re-opens it will see their stale selection still
+// highlighted and the Start Session button already active — a confusing UX.
+
+console.log('\n[4] Prehab modal reset guard — prehabDiagramRegion cleared on close/re-open');
+
+// Extract relevant function bodies (sliceBetween is already defined above)
+const openModalBody  = sliceBetween(flexSrc, 'const openModal = (', 'const closeModal = (');
+const closeModalBody = sliceBetween(flexSrc, 'const closeModal = (', 'const openEquipmentSheet = (');
+
+check(
+  'prehabDiagramRegion state is initialised to undefined in flex.tsx',
+  flexSrc.includes('prehabDiagramRegion') &&
+  flexSrc.includes('setPrehabDiagramRegion') &&
+  flexSrc.includes('useState<PainRegion | undefined>(undefined)'),
+  'useState must init to undefined so every re-open starts with no selection',
+);
+
+check(
+  "openModal resets prehabDiagramRegion before showing the prehab modal",
+  openModalBody.includes("type === 'prehab'") &&
+  openModalBody.includes('setPrehabDiagramRegion(undefined)'),
+  "openModal must contain: if (type === 'prehab') setPrehabDiagramRegion(undefined)",
+);
+
+check(
+  "openModal reset is guarded by type === 'prehab' (not applied to all modal types)",
+  (() => {
+    // Accept either an inline guard or a block where the 'prehab' condition line
+    // precedes the setPrehabDiagramRegion call — either layout is valid.
+    const lines = openModalBody.split('\n');
+    const inlineGuard = lines.some(
+      l => l.includes("type === 'prehab'") && l.includes('setPrehabDiagramRegion'),
+    );
+    if (inlineGuard) return true;
+    const guardIdx = lines.findIndex(l => l.includes("type === 'prehab'"));
+    const resetIdx = lines.findIndex(l => l.includes('setPrehabDiagramRegion(undefined)'));
+    return guardIdx !== -1 && resetIdx !== -1 && guardIdx <= resetIdx;
+  })(),
+  "reset must only run for 'prehab' modals, not for conditioning/flexibility/etc",
+);
+
+check(
+  'closeModal unconditionally resets prehabDiagramRegion to undefined',
+  closeModalBody.includes('setPrehabDiagramRegion(undefined)'),
+  'closeModal must always clear the selection so re-open starts fresh',
+);
+
+check(
+  "closeModal reset has no 'prehab' type guard (applies regardless of which modal was open)",
+  closeModalBody.includes('setPrehabDiagramRegion(undefined)') &&
+  !closeModalBody.includes("type === 'prehab'"),
+  'closeModal takes no args and must not check modal type — always resets',
+);
+
+check(
+  'round-trip guard: both openModal and closeModal reset prehabDiagramRegion',
+  openModalBody.includes('setPrehabDiagramRegion(undefined)') &&
+  closeModalBody.includes('setPrehabDiagramRegion(undefined)'),
+  'both the open-path guard and the close-path reset must be present for clean round-trip UX',
 );
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
