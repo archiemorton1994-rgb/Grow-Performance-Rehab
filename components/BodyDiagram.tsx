@@ -485,6 +485,7 @@ export function BodyDiagram({
           <Pressable
             onPress={() => handleCategoryChange('muscles')}
             style={[styles.catBtn, category === 'muscles' && styles.catBtnActive]}
+            testID="body-diagram-muscles"
           >
             <Text style={[
               styles.catText,
@@ -494,6 +495,7 @@ export function BodyDiagram({
           <Pressable
             onPress={() => handleCategoryChange('joints')}
             style={[styles.catBtn, category === 'joints' && styles.catBtnActive]}
+            testID="body-diagram-joints"
           >
             <Text style={[
               styles.catText,

@@ -1,7 +1,7 @@
 /**
  * body-diagram-e2e.mjs
  *
- * 42 behavioral contract tests for the BodyDiagram component.
+ * 46 behavioral contract tests for the BodyDiagram component.
  * Ported from body-diagram.spec.ts (Playwright) to plain Node.js.
  *
  * No browser, no React renderer, no native modules required.
@@ -14,9 +14,10 @@
  *   [2] Flex tab — Targeted Prehab (22 tests)  — BodyDiagram prehab context
  *   [3] Readiness — pain-region    (15 tests)  — BodyDiagram readiness context
  *   [4] Prehab modal reset guard    (6 tests)  — prehabDiagramRegion cleared on close/re-open
+ *   [5] Category filter toggle      (4 tests)  — Muscles / Joints toggle behavior
  *
  * Run:  node tests/body-diagram-e2e.mjs
- * Exit: 0 = all 48 pass, 1 = one or more failures
+ * Exit: 0 = all 52 pass, 1 = one or more failures
  */
 
 import { readFileSync } from 'fs';
@@ -62,6 +63,8 @@ const frontHotspots = sliceBetween(bdSrc, 'const renderFrontHotspots', 'const re
 const backHotspots  = sliceBetween(bdSrc, 'const renderBackHotspots', 'const label = ');
 // handleViewChange body: from handleViewChange up to handleCategoryChange
 const hViewChange   = sliceBetween(bdSrc, 'const handleViewChange', 'const handleCategoryChange');
+// handleCategoryChange body: from handleCategoryChange up to "return ("
+const hCatChange    = sliceBetween(bdSrc, 'const handleCategoryChange', 'return (');
 
 // BODY_DIAGRAM_LABELS as expected by the test suite
 const EXPECTED_LABELS = {
@@ -360,6 +363,54 @@ check(
   openModalBody.includes('setPrehabDiagramRegion(undefined)') &&
   closeModalBody.includes('setPrehabDiagramRegion(undefined)'),
   'both the open-path guard and the close-path reset must be present for clean round-trip UX',
+);
+
+// ─── [5] Category filter toggle ──────────────────────────────────────────────
+
+console.log('\n[5] Category filter toggle');
+
+// The 11 muscle regions in MUSCLE_SET
+const MUSCLE_REGIONS = [
+  'chest', 'bicep', 'tricep', 'core_ribs',
+  'quads', 'hamstrings', 'glutes', 'lat_mid_back',
+  'upper_back', 'lower_back', 'calf_shin',
+];
+
+// The 7 joint regions (not in MUSCLE_SET)
+const JOINT_REGIONS = [
+  'neck', 'front_shoulder', 'rear_shoulder', 'elbow_wrist',
+  'hip_groin', 'knee', 'ankle_achilles',
+];
+
+check(
+  'category toggle testIDs: body-diagram-muscles and body-diagram-joints present',
+  bdSrc.includes('testID="body-diagram-muscles"') && bdSrc.includes('testID="body-diagram-joints"'),
+  'category toggle buttons must have testID="body-diagram-muscles" and testID="body-diagram-joints" for automation',
+);
+
+check(
+  'handleCategoryChange calls onSelect(undefined) to reset selection on every category switch',
+  hCatChange.includes('onSelect(undefined)'),
+  'handleCategoryChange must call onSelect(undefined) — missing this silently preserves a stale selection when the user switches category',
+);
+
+check(
+  'MUSCLE_SET contains all 11 muscle regions and excludes all 7 joint regions',
+  (() => {
+    // Extract the MUSCLE_SET literal from source — it lives between "new Set<PainRegion>([" and "]);"
+    const setBlock = sliceBetween(bdSrc, 'new Set<PainRegion>([', ']);');
+    if (!setBlock) return false;
+    const allMusclesPresent = MUSCLE_REGIONS.every(r => setBlock.includes(`'${r}'`));
+    const noJointsPresent   = JOINT_REGIONS.every(r => !setBlock.includes(`'${r}'`));
+    return allMusclesPresent && noJointsPresent;
+  })(),
+  `MUSCLE_SET must include all 11 muscle regions (${MUSCLE_REGIONS.join(', ')}) and exclude all 7 joint regions`,
+);
+
+check(
+  'Both "Muscles" and "Joints" button labels are present in the source',
+  bdSrc.includes('>Muscles<') && bdSrc.includes('>Joints<'),
+  'category toggle buttons must render the text labels "Muscles" and "Joints"',
 );
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
