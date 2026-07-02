@@ -1,7 +1,7 @@
 /**
  * body-diagram-e2e.mjs
  *
- * 46 behavioral contract tests for the BodyDiagram component.
+ * 52 behavioral contract tests for the BodyDiagram component.
  * Ported from body-diagram.spec.ts (Playwright) to plain Node.js.
  *
  * No browser, no React renderer, no native modules required.
@@ -13,8 +13,23 @@
  *   [1] Source-code static guards   (5 tests)  — identical to body-diagram.spec.ts §1
  *   [2] Flex tab — Targeted Prehab (22 tests)  — BodyDiagram prehab context
  *   [3] Readiness — pain-region    (15 tests)  — BodyDiagram readiness context
- *   [4] Prehab modal reset guard    (6 tests)  — prehabDiagramRegion cleared on close/re-open
- *   [5] Category filter toggle      (4 tests)  — Muscles / Joints toggle behavior
+ *   [4] Modal selection-state reset  (6 tests) — assertModalResetPattern convention
+ *   [5] Category filter toggle       (4 tests) — Muscles / Joints toggle behavior
+ *
+ * ── Modal reset convention (enforced by assertModalResetPattern in §4) ───
+ *   Any modal in flex.tsx that owns a selection/state variable MUST follow
+ *   this two-reset pattern so re-opening always starts from a clean state:
+ *
+ *     openModal (type-guarded):
+ *       if (type === '<modalType>') setState(undefined);
+ *       — resets BEFORE the modal opens, scoped to that modal type only.
+ *
+ *     closeModal (unconditional):
+ *       setState(undefined);
+ *       — resets on EVERY close regardless of which modal was open.
+ *
+ *   To guard a new modal state: call assertModalResetPattern() in §4.
+ *   Currently guarded: prehabDiagramRegion (prehab modal).
  *
  * Run:  node tests/body-diagram-e2e.mjs
  * Exit: 0 = all 52 pass, 1 = one or more failures
@@ -55,6 +70,92 @@ function sliceBetween(src, startMarker, endMarker) {
   if (s === -1) return '';
   const e = src.indexOf(endMarker, s + startMarker.length);
   return e === -1 ? src.slice(s) : src.slice(s, e);
+}
+
+/**
+ * assertModalResetPattern — reusable convention guard for modal selection state.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * PROJECT CONVENTION (flex.tsx modal reset pattern)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Any modal that owns a selection / state variable (e.g. prehabDiagramRegion)
+ * MUST reset it in TWO places:
+ *
+ *   1. openModal — type-guarded reset BEFORE the modal opens:
+ *        if (type === '<modalType>') set<State>(undefined);
+ *      Scoped to that modal type so other modals are not affected.
+ *
+ *   2. closeModal — unconditional reset on EVERY close:
+ *        set<State>(undefined);
+ *      Ensures re-opening always starts from a clean state, regardless
+ *      of which modal was previously open.
+ *
+ * Both resets are required for a clean round-trip.  Removing either causes
+ * the prior selection to persist on the next open (stale-state UX bug).
+ *
+ * ── To guard a NEW modal state ────────────────────────────────────────────
+ * Add a call to assertModalResetPattern() in section [4] with:
+ *   @param {string}  src            — source text to analyse (flex.tsx)
+ *   @param {string}  stateName      — human-readable state name for labels
+ *   @param {string}  setter         — exact setter call, e.g. 'setMyState'
+ *   @param {string}  openBodyMarker — start marker for sliceBetween on openModal
+ *   @param {string}  openBodyEnd    — end   marker for sliceBetween on openModal
+ *   @param {string}  closeBodyMarker— start marker for sliceBetween on closeModal
+ *   @param {string}  closeBodyEnd   — end   marker for sliceBetween on closeModal
+ *   @param {string}  modalType      — the ModalType string literal, e.g. 'prehab'
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+function assertModalResetPattern(src, {
+  stateName, setter, openBodyMarker, openBodyEnd,
+  closeBodyMarker, closeBodyEnd, modalType,
+}) {
+  const openBody  = sliceBetween(src, openBodyMarker,  openBodyEnd);
+  const closeBody = sliceBetween(src, closeBodyMarker, closeBodyEnd);
+  const setCall   = `${setter}(undefined)`;
+  const typeGuard = `type === '${modalType}'`;
+
+  check(
+    `${stateName}: state initialised to undefined in flex.tsx`,
+    src.includes(setter) && src.includes('(undefined)'),
+    `useState for ${stateName} must initialise to undefined so every re-open starts clean`,
+  );
+
+  check(
+    `${stateName}: openModal resets state when type === '${modalType}'`,
+    openBody.includes(typeGuard) && openBody.includes(setCall),
+    `openModal must contain: if (${typeGuard}) ${setCall}`,
+  );
+
+  check(
+    `${stateName}: openModal reset is guarded by type — not applied to all modals`,
+    (() => {
+      const lines = openBody.split('\n');
+      const inlineGuard = lines.some(l => l.includes(typeGuard) && l.includes(setter));
+      if (inlineGuard) return true;
+      const guardIdx = lines.findIndex(l => l.includes(typeGuard));
+      const resetIdx = lines.findIndex(l => l.includes(setCall));
+      return guardIdx !== -1 && resetIdx !== -1 && guardIdx <= resetIdx;
+    })(),
+    `reset must only run for '${modalType}' modals, not conditioning/flexibility/etc`,
+  );
+
+  check(
+    `${stateName}: closeModal unconditionally resets to undefined`,
+    closeBody.includes(setCall),
+    `closeModal must always call ${setCall} — no type guard allowed`,
+  );
+
+  check(
+    `${stateName}: closeModal reset has no type guard (applies to every close)`,
+    closeBody.includes(setCall) && !closeBody.includes(typeGuard),
+    `closeModal takes no args and must not check modal type — it always resets`,
+  );
+
+  check(
+    `${stateName}: round-trip guard — both openModal and closeModal reset state`,
+    openBody.includes(setCall) && closeBody.includes(setCall),
+    `both the open-path guard and the close-path reset must be present for clean round-trip UX`,
+  );
 }
 
 // Front hotspots: from renderFrontHotspots up to renderBackHotspots
@@ -300,70 +401,30 @@ check(
   "readiness.tsx confirm handler must navigate to pathname: '/session' with painRegion param",
 );
 
-// ─── [4] Prehab modal reset guard ─────────────────────────────────────────────
+// ─── [4] Modal selection-state reset guard ────────────────────────────────────
 //
-// Guards the two reset paths that ensure prehabDiagramRegion is always undefined
-// before the prehab modal is shown.  If either is removed, a user who selects a
-// region, closes the modal, and re-opens it will see their stale selection still
-// highlighted and the Start Session button already active — a confusing UX.
+// Uses assertModalResetPattern() (defined above) to verify every modal that owns
+// a selection state follows the project convention:  type-guarded open reset +
+// unconditional close reset.
+//
+// Currently guarded state: prehabDiagramRegion (prehab modal).
+//
+// To guard a NEW modal state when conditioning/flexibility gain their own
+// selection variables, add another assertModalResetPattern() call here with
+// the appropriate markers and modalType.  The helper's JSDoc above explains
+// each parameter.
 
-console.log('\n[4] Prehab modal reset guard — prehabDiagramRegion cleared on close/re-open');
+console.log('\n[4] Modal selection-state reset guard — assertModalResetPattern convention');
 
-// Extract relevant function bodies (sliceBetween is already defined above)
-const openModalBody  = sliceBetween(flexSrc, 'const openModal = (', 'const closeModal = (');
-const closeModalBody = sliceBetween(flexSrc, 'const closeModal = (', 'const openEquipmentSheet = (');
-
-check(
-  'prehabDiagramRegion state is initialised to undefined in flex.tsx',
-  flexSrc.includes('prehabDiagramRegion') &&
-  flexSrc.includes('setPrehabDiagramRegion') &&
-  flexSrc.includes('useState<PainRegion | undefined>(undefined)'),
-  'useState must init to undefined so every re-open starts with no selection',
-);
-
-check(
-  "openModal resets prehabDiagramRegion before showing the prehab modal",
-  openModalBody.includes("type === 'prehab'") &&
-  openModalBody.includes('setPrehabDiagramRegion(undefined)'),
-  "openModal must contain: if (type === 'prehab') setPrehabDiagramRegion(undefined)",
-);
-
-check(
-  "openModal reset is guarded by type === 'prehab' (not applied to all modal types)",
-  (() => {
-    // Accept either an inline guard or a block where the 'prehab' condition line
-    // precedes the setPrehabDiagramRegion call — either layout is valid.
-    const lines = openModalBody.split('\n');
-    const inlineGuard = lines.some(
-      l => l.includes("type === 'prehab'") && l.includes('setPrehabDiagramRegion'),
-    );
-    if (inlineGuard) return true;
-    const guardIdx = lines.findIndex(l => l.includes("type === 'prehab'"));
-    const resetIdx = lines.findIndex(l => l.includes('setPrehabDiagramRegion(undefined)'));
-    return guardIdx !== -1 && resetIdx !== -1 && guardIdx <= resetIdx;
-  })(),
-  "reset must only run for 'prehab' modals, not for conditioning/flexibility/etc",
-);
-
-check(
-  'closeModal unconditionally resets prehabDiagramRegion to undefined',
-  closeModalBody.includes('setPrehabDiagramRegion(undefined)'),
-  'closeModal must always clear the selection so re-open starts fresh',
-);
-
-check(
-  "closeModal reset has no 'prehab' type guard (applies regardless of which modal was open)",
-  closeModalBody.includes('setPrehabDiagramRegion(undefined)') &&
-  !closeModalBody.includes("type === 'prehab'"),
-  'closeModal takes no args and must not check modal type — always resets',
-);
-
-check(
-  'round-trip guard: both openModal and closeModal reset prehabDiagramRegion',
-  openModalBody.includes('setPrehabDiagramRegion(undefined)') &&
-  closeModalBody.includes('setPrehabDiagramRegion(undefined)'),
-  'both the open-path guard and the close-path reset must be present for clean round-trip UX',
-);
+assertModalResetPattern(flexSrc, {
+  stateName:        'prehabDiagramRegion',
+  setter:           'setPrehabDiagramRegion',
+  openBodyMarker:   'const openModal = (',
+  openBodyEnd:      'const closeModal = (',
+  closeBodyMarker:  'const closeModal = (',
+  closeBodyEnd:     'const openEquipmentSheet = (',
+  modalType:        'prehab',
+});
 
 // ─── [5] Category filter toggle ──────────────────────────────────────────────
 
