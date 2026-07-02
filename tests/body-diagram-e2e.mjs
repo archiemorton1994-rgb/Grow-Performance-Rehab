@@ -1,38 +1,22 @@
 /**
  * body-diagram-e2e.mjs
  *
- * 52 behavioral contract tests for the BodyDiagram component.
+ * 45 behavioral contract tests for the BodyDiagram component.
  * Ported from body-diagram.spec.ts (Playwright) to plain Node.js.
  *
  * No browser, no React renderer, no native modules required.
  * Tests verify the same behaviors through source-code analysis:
  *   tap-to-select, category toggle, Front/Back view switching,
- *   label chip text, and the parent-screen UX (Start Session / Confirm Region).
+ *   label chip text, and the parent-screen UX (Confirm Region).
  *
  * ── Section layout ─────────────────────────────────────────────────────────
  *   [1] Source-code static guards   (5 tests)  — identical to body-diagram.spec.ts §1
- *   [2] Flex tab — Targeted Prehab (22 tests)  — BodyDiagram prehab context
+ *   [2] Flex tab — Targeted Prehab (21 tests)  — BodyDiagram prehab context
  *   [3] Readiness — pain-region    (15 tests)  — BodyDiagram readiness context
- *   [4] Modal selection-state reset  (6 tests) — assertModalResetPattern convention
- *   [5] Category filter toggle       (4 tests) — Muscles / Joints toggle behavior
- *
- * ── Modal reset convention (enforced by assertModalResetPattern in §4) ───
- *   Any modal in flex.tsx that owns a selection/state variable MUST follow
- *   this two-reset pattern so re-opening always starts from a clean state:
- *
- *     openModal (type-guarded):
- *       if (type === '<modalType>') setState(undefined);
- *       — resets BEFORE the modal opens, scoped to that modal type only.
- *
- *     closeModal (unconditional):
- *       setState(undefined);
- *       — resets on EVERY close regardless of which modal was open.
- *
- *   To guard a new modal state: call assertModalResetPattern() in §4.
- *   Currently guarded: prehabDiagramRegion (prehab modal).
+ *   [4] Category filter toggle      (4 tests)  — Muscles / Joints toggle behavior
  *
  * Run:  node tests/body-diagram-e2e.mjs
- * Exit: 0 = all 52 pass, 1 = one or more failures
+ * Exit: 0 = all 45 pass, 1 = one or more failures
  */
 
 import { readFileSync } from 'fs';
@@ -70,97 +54,6 @@ function sliceBetween(src, startMarker, endMarker) {
   if (s === -1) return '';
   const e = src.indexOf(endMarker, s + startMarker.length);
   return e === -1 ? src.slice(s) : src.slice(s, e);
-}
-
-/**
- * assertModalResetPattern — reusable convention guard for modal selection state.
- *
- * ═══════════════════════════════════════════════════════════════════════════
- * PROJECT CONVENTION (flex.tsx modal reset pattern)
- * ═══════════════════════════════════════════════════════════════════════════
- * Any modal that owns a selection / state variable (e.g. prehabDiagramRegion)
- * MUST reset it in TWO places:
- *
- *   1. openModal — type-guarded reset BEFORE the modal opens:
- *        if (type === '<modalType>') set<State>(undefined);
- *      Scoped to that modal type so other modals are not affected.
- *
- *   2. closeModal — unconditional reset on EVERY close:
- *        set<State>(undefined);
- *      Ensures re-opening always starts from a clean state, regardless
- *      of which modal was previously open.
- *
- * Both resets are required for a clean round-trip.  Removing either causes
- * the prior selection to persist on the next open (stale-state UX bug).
- *
- * ── To guard a NEW modal state ────────────────────────────────────────────
- * Add a call to assertModalResetPattern() in section [4] of THIS file with:
- *   @param {string}  src            — source text to analyse (flex.tsx)
- *   @param {string}  stateName      — human-readable state name for labels
- *   @param {string}  setter         — exact setter call, e.g. 'setMyState'
- *   @param {string}  openBodyMarker — start marker for sliceBetween on openModal
- *   @param {string}  openBodyEnd    — end   marker for sliceBetween on openModal
- *   @param {string}  closeBodyMarker— start marker for sliceBetween on closeModal
- *   @param {string}  closeBodyEnd   — end   marker for sliceBetween on closeModal
- *   @param {string}  modalType      — the ModalType string literal, e.g. 'prehab'
- *
- * Also add a matching `describeModalLifecycle()` call in section [4] of
- * `tests/body-diagram-component.test.tsx` — the runtime counterpart that
- * verifies the same open→select→close→re-open behaviour through actual React
- * rendering rather than source-code analysis.
- * ─────────────────────────────────────────────────────────────────────────
- */
-function assertModalResetPattern(src, {
-  stateName, setter, openBodyMarker, openBodyEnd,
-  closeBodyMarker, closeBodyEnd, modalType,
-}) {
-  const openBody  = sliceBetween(src, openBodyMarker,  openBodyEnd);
-  const closeBody = sliceBetween(src, closeBodyMarker, closeBodyEnd);
-  const setCall   = `${setter}(undefined)`;
-  const typeGuard = `type === '${modalType}'`;
-
-  check(
-    `${stateName}: state initialised to undefined in flex.tsx`,
-    src.includes(setter) && src.includes('(undefined)'),
-    `useState for ${stateName} must initialise to undefined so every re-open starts clean`,
-  );
-
-  check(
-    `${stateName}: openModal resets state when type === '${modalType}'`,
-    openBody.includes(typeGuard) && openBody.includes(setCall),
-    `openModal must contain: if (${typeGuard}) ${setCall}`,
-  );
-
-  check(
-    `${stateName}: openModal reset is guarded by type — not applied to all modals`,
-    (() => {
-      const lines = openBody.split('\n');
-      const inlineGuard = lines.some(l => l.includes(typeGuard) && l.includes(setter));
-      if (inlineGuard) return true;
-      const guardIdx = lines.findIndex(l => l.includes(typeGuard));
-      const resetIdx = lines.findIndex(l => l.includes(setCall));
-      return guardIdx !== -1 && resetIdx !== -1 && guardIdx <= resetIdx;
-    })(),
-    `reset must only run for '${modalType}' modals, not conditioning/flexibility/etc`,
-  );
-
-  check(
-    `${stateName}: closeModal unconditionally resets to undefined`,
-    closeBody.includes(setCall),
-    `closeModal must always call ${setCall} — no type guard allowed`,
-  );
-
-  check(
-    `${stateName}: closeModal reset has no type guard (applies to every close)`,
-    closeBody.includes(setCall) && !closeBody.includes(typeGuard),
-    `closeModal takes no args and must not check modal type — it always resets`,
-  );
-
-  check(
-    `${stateName}: round-trip guard — both openModal and closeModal reset state`,
-    openBody.includes(setCall) && closeBody.includes(setCall),
-    `both the open-path guard and the close-path reset must be present for clean round-trip UX`,
-  );
 }
 
 // Front hotspots: from renderFrontHotspots up to renderBackHotspots
@@ -332,18 +225,6 @@ for (const [region, label] of NEW_BACK_REGIONS) {
   );
 }
 
-// "Start Session" button revealed when a region is selected
-// flex.tsx: {prehabDiagramRegion && (<View ... testID="prehab-region-start" ... >Start Session</View>)}
-check(
-  'selecting a region reveals the Start Session button',
-  flexSrc.includes('prehabDiagramRegion') &&
-  flexSrc.includes('Start Session') &&
-  flexSrc.includes('testID="prehab-region-start"') &&
-  // The button is conditionally rendered when prehabDiagramRegion is truthy
-  /prehabDiagramRegion\s*&&/.test(flexSrc),
-  'flex.tsx must conditionally render the Start Session button when prehabDiagramRegion is set',
-);
-
 // ─── [3] Readiness screen — pain-region step ─────────────────────────────────
 
 console.log('\n[3] Readiness screen — pain-region step');
@@ -406,34 +287,9 @@ check(
   "readiness.tsx confirm handler must navigate to pathname: '/session' with painRegion param",
 );
 
-// ─── [4] Modal selection-state reset guard ────────────────────────────────────
-//
-// Uses assertModalResetPattern() (defined above) to verify every modal that owns
-// a selection state follows the project convention:  type-guarded open reset +
-// unconditional close reset.
-//
-// Currently guarded state: prehabDiagramRegion (prehab modal).
-//
-// To guard a NEW modal state when conditioning/flexibility gain their own
-// selection variables, add another assertModalResetPattern() call here with
-// the appropriate markers and modalType.  The helper's JSDoc above explains
-// each parameter.
+// ─── [4] Category filter toggle ──────────────────────────────────────────────
 
-console.log('\n[4] Modal selection-state reset guard — assertModalResetPattern convention');
-
-assertModalResetPattern(flexSrc, {
-  stateName:        'prehabDiagramRegion',
-  setter:           'setPrehabDiagramRegion',
-  openBodyMarker:   'const openModal = (',
-  openBodyEnd:      'const closeModal = (',
-  closeBodyMarker:  'const closeModal = (',
-  closeBodyEnd:     'const openEquipmentSheet = (',
-  modalType:        'prehab',
-});
-
-// ─── [5] Category filter toggle ──────────────────────────────────────────────
-
-console.log('\n[5] Category filter toggle');
+console.log('\n[4] Category filter toggle');
 
 // The 11 muscle regions in MUSCLE_SET
 const MUSCLE_REGIONS = [

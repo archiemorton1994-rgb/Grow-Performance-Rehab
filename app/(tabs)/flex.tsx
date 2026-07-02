@@ -17,8 +17,6 @@ import { useColors } from '@/constants/colors';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
-import { BodyDiagram } from '@/components/BodyDiagram';
-
 
 const FLEX_IMAGES: Record<string, any> = {
   recovery:    require('@/assets/images/sessions/recovery.png'),
@@ -28,6 +26,20 @@ const FLEX_IMAGES: Record<string, any> = {
 };
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+
+const PREHAB_REGION_LIST: Array<{ region: PainRegion; label: string; icon: string }> = [
+  { region: 'neck',           label: 'Neck',             icon: 'scan-outline' },
+  { region: 'front_shoulder', label: 'Front Shoulder',   icon: 'fitness-outline' },
+  { region: 'rear_shoulder',  label: 'Rear Shoulder',    icon: 'fitness-outline' },
+  { region: 'elbow_wrist',    label: 'Elbow / Wrist',    icon: 'hand-left-outline' },
+  { region: 'upper_back',     label: 'Upper Back',       icon: 'arrow-up-outline' },
+  { region: 'lower_back',     label: 'Lower Back',       icon: 'arrow-down-outline' },
+  { region: 'core_ribs',      label: 'Core / Ribs',      icon: 'shield-outline' },
+  { region: 'hip_groin',      label: 'Hip / Groin',      icon: 'walk-outline' },
+  { region: 'knee',           label: 'Knee',             icon: 'walk-outline' },
+  { region: 'ankle_achilles', label: 'Ankle / Achilles', icon: 'footsteps-outline' },
+  { region: 'calf_shin',      label: 'Calf / Shin',      icon: 'footsteps-outline' },
+];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -162,8 +174,6 @@ export default function FlexScreen() {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
-  const [prehabDiagramRegion, setPrehabDiagramRegion] = useState<PainRegion | undefined>(undefined);
-
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
@@ -176,13 +186,11 @@ export default function FlexScreen() {
 
   const openModal = (type: NonNullable<ModalType>) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (type === 'prehab') setPrehabDiagramRegion(undefined);
     setActiveModal(type);
   };
 
   const closeModal = () => {
     setActiveModal(null);
-    setPrehabDiagramRegion(undefined);
   };
 
   const openEquipmentSheet = () => {
@@ -474,7 +482,7 @@ export default function FlexScreen() {
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={[styles.prehabScroll, { alignItems: 'center' }]}
+              contentContainerStyle={styles.prehabScroll}
               keyboardShouldPersistTaps="handled"
             >
               {/* Full body option */}
@@ -482,7 +490,7 @@ export default function FlexScreen() {
                 onPress={() => handlePrehabRegion('fullbody')}
                 style={({ pressed }) => [
                   styles.prehabRegionBtn,
-                  { borderColor: C.primary, backgroundColor: C.primarySurface, width: '100%' },
+                  { borderColor: C.primary, backgroundColor: C.primarySurface },
                   pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                 ]}
                 testID="prehab-fullbody"
@@ -501,32 +509,25 @@ export default function FlexScreen() {
                 <View style={styles.prehabDividerLine} />
               </View>
 
-              {/* Body diagram */}
-              <BodyDiagram
-                selected={prehabDiagramRegion}
-                onSelect={setPrehabDiagramRegion}
-                accentColor={C.primary}
-                accentColorLight={C.primaryMuted}
-                maxWidth={200}
-              />
-            </ScrollView>
-
-            {/* Start CTA — sticky footer, always visible once a region is selected */}
-            {prehabDiagramRegion && (
-              <View style={[styles.prehabCtaFooter, { paddingBottom: insets.bottom + 8 }]}>
+              {/* Region list — single tap launches session */}
+              {PREHAB_REGION_LIST.map(({ region, label, icon }) => (
                 <Pressable
-                  onPress={() => handlePrehabRegion(prehabDiagramRegion)}
+                  key={region}
+                  onPress={() => handlePrehabRegion(region)}
                   style={({ pressed }) => [
-                    styles.prehabStartBtn,
-                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                    styles.prehabRegionBtn,
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
                   ]}
-                  testID="prehab-region-start"
+                  testID={`prehab-region-${region}`}
                 >
-                  <Ionicons name="play" size={16} color={C.textInverse} />
-                  <Text style={styles.prehabStartBtnText}>Start Session</Text>
+                  <View style={[styles.prehabRegionIcon, { backgroundColor: C.surfaceTertiary }]}>
+                    <Ionicons name={icon as any} size={18} color={C.textSecondary} />
+                  </View>
+                  <Text style={[styles.prehabRegionLabel, { flex: 1 }]}>{label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
                 </Pressable>
-              </View>
-            )}
+              ))}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -839,13 +840,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingTop: 10,
       maxHeight: '90%',
     },
-    prehabCtaFooter: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      backgroundColor: C.surface,
-      borderTopWidth: 1,
-      borderTopColor: C.borderLight,
-    },
     prehabScroll: {
       paddingHorizontal: 20,
       paddingBottom: 16,
@@ -867,27 +861,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
-    },
-    prehabStartBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 8,
-      backgroundColor: C.primary,
-      borderRadius: 14,
-      paddingVertical: 15,
-      marginTop: 8,
-      width: '100%',
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 4,
-    },
-    prehabStartBtnText: {
-      fontSize: 16,
-      fontFamily: 'Inter_700Bold',
-      color: C.textInverse,
     },
     prehabRegionBtn: {
       flexDirection: 'row',
