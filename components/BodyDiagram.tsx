@@ -63,6 +63,8 @@ interface BodyDiagramProps {
   accentColorLight?: string;
   defaultView?: BodyView;
   maxWidth?: number;
+  /** When provided, activates heatmap mode: zones are coloured by frequency instead of category */
+  heatmapCounts?: Partial<Record<PainRegion, number>>;
 }
 
 export function BodyDiagram({
@@ -72,6 +74,7 @@ export function BodyDiagram({
   accentColorLight,
   defaultView = 'front',
   maxWidth = 200,
+  heatmapCounts,
 }: BodyDiagramProps) {
   const [view, setView] = useState<BodyView>(defaultView);
   const [category, setCategory] = useState<BodyCategory>('muscles');
@@ -86,10 +89,19 @@ export function BodyDiagram({
   const svgWidth  = Math.min(screenWidth - 80, maxWidth);
   const svgHeight = svgWidth * (VH / VW);
 
+  // ─── Heatmap mode: frequency-based opacity ───────────────────────────────────
+  const heatmapMaxCount = useMemo(() => {
+    if (!heatmapCounts) return 1;
+    const vals = Object.values(heatmapCounts).filter((v): v is number => v !== undefined);
+    return Math.max(...vals, 1);
+  }, [heatmapCounts]);
+
   // ─── Affordance pulse animation ──────────────────────────────────────────────
   const pulseAnim = useSharedValue(1);
 
   useEffect(() => {
+    // Skip pulse in heatmap mode — it's a data display, not a first-time affordance
+    if (heatmapCounts) return;
     // 3 gentle pulses on first render — signals zones are tappable
     pulseAnim.value = withRepeat(
       withSequence(
@@ -132,6 +144,17 @@ export function BodyDiagram({
   const dz = (r: PainRegion) => {
     if (selected === r) {
       return { fill: accent, fillOpacity: 0.82, stroke: accent, strokeWidth: 1.5 };
+    }
+    if (heatmapCounts !== undefined) {
+      // Heatmap mode: opacity driven by frequency (0.06 = none, 0.82 = max)
+      const count = heatmapCounts[r] ?? 0;
+      const opacity = count > 0 ? 0.14 + (count / heatmapMaxCount) * 0.68 : 0.06;
+      return {
+        fill: MUSCLE_SET.has(r) ? MUSCLE_CLR : JOINT_CLR,
+        fillOpacity: opacity,
+        stroke: 'none' as const,
+        strokeWidth: 0,
+      };
     }
     return {
       fill: MUSCLE_SET.has(r) ? MUSCLE_CLR : JOINT_CLR,

@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
-import { CompletedSession, EnergyLevel, ExerciseProgress, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
+import { CompletedSession, EnergyLevel, ExerciseProgress, PainRegion, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
+import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
@@ -1450,6 +1451,7 @@ export default function StatsScreen() {
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
   const [showCalculator, setShowCalculator] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState<ExerciseProgress | null>(null);
+  const [painRegionFilter, setPainRegionFilter] = useState<PainRegion | null>(null);
 
   useEffect(() => {
     if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
@@ -1461,6 +1463,18 @@ export default function StatsScreen() {
   const weekCount = getThisWeekCount();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
+
+  const painRegionCounts = useMemo(() => {
+    const counts: Partial<Record<PainRegion, number>> = {};
+    for (const s of completedSessions) {
+      if (s.painRegion) {
+        counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [completedSessions]);
+
+  const hasAnyPainHistory = Object.keys(painRegionCounts).length > 0;
 
   const filteredSessions = useMemo(() => {
     const now = new Date();
@@ -1475,9 +1489,10 @@ export default function StatsScreen() {
     return completedSessions.filter(s => {
       if (historyFilter && s.sessionType !== historyFilter) return false;
       if (cutoff && new Date(s.date) < cutoff) return false;
+      if (painRegionFilter && s.painRegion !== painRegionFilter) return false;
       return true;
     });
-  }, [completedSessions, historyFilter, dateFilter]);
+  }, [completedSessions, historyFilter, dateFilter, painRegionFilter]);
 
   const DATE_FILTER_LABELS: Record<typeof dateFilter, string> = {
     all: 'All', this_week: 'This week', this_month: 'This month',
@@ -1486,8 +1501,12 @@ export default function StatsScreen() {
     all: '', this_week: 'this week', this_month: 'this month',
   };
 
-  const historyHeading = historyFilter ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions` : 'Session History';
-  const hasActiveFilter = historyFilter !== null || dateFilter !== 'all';
+  const historyHeading = painRegionFilter
+    ? `${BODY_DIAGRAM_LABELS[painRegionFilter]} Pain`
+    : historyFilter
+      ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions`
+      : 'Session History';
+  const hasActiveFilter = historyFilter !== null || dateFilter !== 'all' || painRegionFilter !== null;
   const sessionWord = `session${filteredSessions.length !== 1 ? 's' : ''}`;
   const scope = DATE_FILTER_SCOPE[dateFilter];
   const historySubheading = hasActiveFilter
@@ -1495,6 +1514,10 @@ export default function StatsScreen() {
     : 'Tap a row to see exercise details';
 
   const historyEmptyMessage = (() => {
+    if (painRegionFilter) {
+      const regionName = BODY_DIAGRAM_LABELS[painRegionFilter];
+      return `No sessions with ${regionName} flagged${scope ? ` ${scope}` : ''}`;
+    }
     const typePart = historyFilter ? ` ${SESSION_TYPE_LABELS[historyFilter].toLowerCase()}` : '';
     if (scope) return `No${typePart} sessions ${scope} yet`;
     if (historyFilter) return `No${typePart} sessions yet`;
@@ -1644,7 +1667,7 @@ export default function StatsScreen() {
                 <Text style={styles.sectionTitle}>{historyHeading}</Text>
                 {hasActiveFilter && (
                   <Pressable
-                    onPress={() => { setHistoryFilter(null); setDateFilter('all'); }}
+                    onPress={() => { setHistoryFilter(null); setDateFilter('all'); setPainRegionFilter(null); }}
                     style={({ pressed }) => ({
                       flexDirection: 'row', alignItems: 'center', gap: 4,
                       backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
@@ -1692,8 +1715,50 @@ export default function StatsScreen() {
                   );
                 })}
               </View>
+              {/* Pain Region Heatmap Filter */}
+              {hasAnyPainHistory && (
+                <View style={{
+                  backgroundColor: C.surface, borderRadius: 16,
+                  borderWidth: 1, borderColor: C.borderLight,
+                  marginBottom: 12, overflow: 'hidden',
+                }}>
+                  <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>Body Region</Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 }}>
+                        {painRegionFilter
+                          ? `Filtering by ${BODY_DIAGRAM_LABELS[painRegionFilter]} — tap again to clear`
+                          : 'Tap a zone to filter sessions by pain area'}
+                      </Text>
+                    </View>
+                    {painRegionFilter && (
+                      <Pressable
+                        onPress={() => setPainRegionFilter(null)}
+                        hitSlop={8}
+                        style={({ pressed }) => ({
+                          marginTop: 2,
+                          backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                          borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                          borderWidth: 1, borderColor: C.primaryMuted,
+                          flexDirection: 'row', alignItems: 'center', gap: 4,
+                        })}
+                      >
+                        <Ionicons name="close-circle" size={13} color={C.primary} />
+                        <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Clear</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <BodyDiagram
+                    selected={painRegionFilter ?? undefined}
+                    onSelect={(r) => setPainRegionFilter(prev => (r === prev ? null : (r ?? null)))}
+                    heatmapCounts={painRegionCounts}
+                    maxWidth={150}
+                  />
+                </View>
+              )}
+
               <SessionHistoryList
-                key={`${historyFilter ?? 'all'}-${dateFilter}`}
+                key={`${historyFilter ?? 'all'}-${dateFilter}-${painRegionFilter ?? 'none'}`}
                 sessions={filteredSessions}
                 weightUnit={weightUnit}
                 emptyMessage={historyEmptyMessage}
