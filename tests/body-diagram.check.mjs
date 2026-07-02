@@ -6,7 +6,7 @@
  *
  *   1. FILL GUARD — the unselected-hotspot fill must be rgba(0,0,0,0.001).
  *      On iOS/Android, react-native-svg only fires onPress for painted fills.
- *      Reverting to 'transparent' silently removes touch events from all 11
+ *      Reverting to 'transparent' silently removes touch events from all
  *      hotspots while appearing fine in the web preview.
  *
  *   2. TESTID WIRING — every PainRegion must have a testID on its hotspot Rect
@@ -14,7 +14,7 @@
  *      making hotspots targetable in Playwright / accessibility trees.
  *
  *   3. LABEL COMPLETENESS — BODY_DIAGRAM_LABELS must have a human-readable
- *      string for all 11 regions.  Missing entries silently render nothing.
+ *      string for all 18 regions.  Missing entries silently render nothing.
  *
  *   4. LABEL CORRECTNESS — each label string must match the expected copy.
  *      Protects against accidental rename causing the label chip to show the
@@ -66,6 +66,13 @@ const EXPECTED_LABELS = {
   knee:           'Knee',
   calf_shin:      'Calf / Shin',
   ankle_achilles: 'Ankle / Achilles',
+  chest:          'Chest',
+  bicep:          'Biceps',
+  tricep:         'Triceps',
+  quads:          'Quads',
+  hamstrings:     'Hamstrings',
+  glutes:         'Glutes',
+  lat_mid_back:   'Lats / Mid Back',
 };
 
 const ALL_REGIONS = Object.keys(EXPECTED_LABELS);
@@ -97,7 +104,7 @@ check(
 );
 
 // ─── 2. testID wiring ──────────────────────────────────────────────────────────
-console.log('\n[2] testID wiring — all 11 regions via h() helper');
+console.log('\n[2] testID wiring — all 18 regions via h() helper');
 
 check(
   'h() spreads testID: `body-diagram-region-${r}`',
@@ -106,7 +113,7 @@ check(
 );
 
 // ─── 3. Label completeness ────────────────────────────────────────────────────
-console.log('\n[3] BODY_DIAGRAM_LABELS — all 11 keys present');
+console.log('\n[3] BODY_DIAGRAM_LABELS — all 18 keys present');
 
 for (const region of ALL_REGIONS) {
   check(

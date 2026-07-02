@@ -187,10 +187,12 @@ test.describe('Flex tab — Targeted Prehab modal (Expo web)', () => {
     // Navigate to Flex tab via [role="tab"] — getByText('Flex') is unreliable
     // because the TourSheet modal also contains "Flex" in its content.
     await page.locator('[role="tab"]').filter({ hasText: 'Flex' }).click();
-    // Open "Targeted Prehab" entry sheet
-    const prehabBtn = page.getByText('Targeted Prehab');
+    // Open "Targeted Prehab" entry sheet via testID — getByText('Targeted Prehab')
+    // is unreliable because the Home tab's Full Body session card sits behind it
+    // in the DOM (all tab panes are mounted simultaneously) and intercepts clicks
+    // at those coordinates. The testID targets the Pressable that owns onPress.
+    const prehabBtn = page.locator('[data-testid="flex-row-prehab"]');
     await prehabBtn.waitFor({ state: 'visible' });
-    await prehabBtn.scrollIntoViewIfNeeded();
     await prehabBtn.click();
     // Wait until the BodyDiagram is mounted before each test
     await page.locator('[data-testid="body-diagram-front"]').waitFor({ state: 'visible' });
