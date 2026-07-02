@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,15 @@ import {
   Platform,
 } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withRepeat,
+  Easing,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { PainRegion } from '@/lib/store';
 import { useColors } from '@/constants/colors';
@@ -77,8 +86,34 @@ export function BodyDiagram({
   const svgWidth  = Math.min(screenWidth - 80, maxWidth);
   const svgHeight = svgWidth * (VH / VW);
 
+  // ─── Affordance pulse animation ──────────────────────────────────────────────
+  const pulseAnim = useSharedValue(1);
+
+  useEffect(() => {
+    // 3 gentle pulses on first render — signals zones are tappable
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1.022, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,   { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ),
+      3,
+      false,
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const svgAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseAnim.value }],
+  }));
+
+  const stopPulse = () => {
+    cancelAnimation(pulseAnim);
+    pulseAnim.value = withTiming(1.0, { duration: 150 });
+  };
+
+  // ─── Tap + press ─────────────────────────────────────────────────────────────
   const tap   = () => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
-  const press = (r: PainRegion) => { tap(); onSelect(r); };
+  const press = (r: PainRegion) => { stopPulse(); tap(); onSelect(r); };
 
   const isInCat = (r: PainRegion) =>
     category === 'muscles' ? MUSCLE_SET.has(r) : !MUSCLE_SET.has(r);
@@ -388,12 +423,14 @@ export function BodyDiagram({
   }), [C]);
 
   const handleViewChange = (v: BodyView) => {
+    stopPulse();
     tap();
     setView(v);
     if (v !== view) onSelect(undefined);
   };
 
   const handleCategoryChange = (cat: BodyCategory) => {
+    stopPulse();
     tap();
     setCategory(cat);
     onSelect(undefined);
@@ -443,7 +480,7 @@ export function BodyDiagram({
         </View>
       </View>
 
-      <View style={styles.svgWrap}>
+      <Animated.View style={[styles.svgWrap, svgAnimStyle]}>
         <Svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${VW} ${VH}`}>
           {/* Layer 1: silhouette base */}
           {view === 'front' ? renderFrontSilhouette() : renderBackSilhouette()}
@@ -452,7 +489,7 @@ export function BodyDiagram({
           {/* Layer 3: interactive touch zones (transparent) */}
           {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
         </Svg>
-      </View>
+      </Animated.View>
 
       <View style={styles.labelRow}>
         {label ? (
