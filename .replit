@@ -118,12 +118,12 @@ isValidation = true
 name = "body-diagram-e2e"
 author = "agent"
 
-[workflows.workflow.metadata]
-isValidation = true
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash scripts/run-playwright.sh tests/body-diagram.spec.ts --reporter=line"
+args = "node -r ./jest-mock-polyfill.js node_modules/.bin/jest --config jest-component.config.js --forceExit"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
