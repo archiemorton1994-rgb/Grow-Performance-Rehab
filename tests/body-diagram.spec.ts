@@ -286,6 +286,49 @@ test.describe('Flex tab — Targeted Prehab modal (Expo web)', () => {
     await expect(page.getByText('Tap a region on the diagram')).toBeVisible();
   });
 
+  // New front-view regions (chest, biceps, quads)
+  // Note: exact:true needed — label text also appears in session-card subtitles
+  // mounted in the background DOM (e.g. "Chest · Shoulders · Triceps").
+  test('Front: tapping chest shows "Chest" label chip', async ({ page }) => {
+    await hotspot(page, 'chest').click();
+    await expect(page.getByText('Chest', { exact: true })).toBeVisible();
+  });
+
+  test('Front: tapping bicep shows "Biceps" label chip', async ({ page }) => {
+    await hotspot(page, 'bicep').click();
+    await expect(page.getByText('Biceps', { exact: true })).toBeVisible();
+  });
+
+  test('Front: tapping quads shows "Quads" label chip', async ({ page }) => {
+    await hotspot(page, 'quads').click();
+    await expect(page.getByText('Quads', { exact: true })).toBeVisible();
+  });
+
+  // New back-view regions (tricep, lats, glutes, hamstrings)
+  test('Back: tapping tricep shows "Triceps" label chip', async ({ page }) => {
+    await toggleBtn(page, 'back').click();
+    await hotspot(page, 'tricep').click();
+    await expect(page.getByText('Triceps', { exact: true })).toBeVisible();
+  });
+
+  test('Back: tapping lat_mid_back shows "Lats / Mid Back" label chip', async ({ page }) => {
+    await toggleBtn(page, 'back').click();
+    await hotspot(page, 'lat_mid_back').click();
+    await expect(page.getByText('Lats / Mid Back')).toBeVisible();
+  });
+
+  test('Back: tapping glutes shows "Glutes" label chip', async ({ page }) => {
+    await toggleBtn(page, 'back').click();
+    await hotspot(page, 'glutes').click();
+    await expect(page.getByText('Glutes', { exact: true })).toBeVisible();
+  });
+
+  test('Back: tapping hamstrings shows "Hamstrings" label chip', async ({ page }) => {
+    await toggleBtn(page, 'back').click();
+    await hotspot(page, 'hamstrings').click();
+    await expect(page.getByText('Hamstrings', { exact: true })).toBeVisible();
+  });
+
   test('selecting a region reveals the Start Session button', async ({ page }) => {
     await hotspot(page, 'core_ribs').click();
     await expect(page.getByText(/Start Session/i)).toBeVisible();
