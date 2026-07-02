@@ -94,7 +94,7 @@ function sliceBetween(src, startMarker, endMarker) {
  * the prior selection to persist on the next open (stale-state UX bug).
  *
  * ── To guard a NEW modal state ────────────────────────────────────────────
- * Add a call to assertModalResetPattern() in section [4] with:
+ * Add a call to assertModalResetPattern() in section [4] of THIS file with:
  *   @param {string}  src            — source text to analyse (flex.tsx)
  *   @param {string}  stateName      — human-readable state name for labels
  *   @param {string}  setter         — exact setter call, e.g. 'setMyState'
@@ -103,6 +103,11 @@ function sliceBetween(src, startMarker, endMarker) {
  *   @param {string}  closeBodyMarker— start marker for sliceBetween on closeModal
  *   @param {string}  closeBodyEnd   — end   marker for sliceBetween on closeModal
  *   @param {string}  modalType      — the ModalType string literal, e.g. 'prehab'
+ *
+ * Also add a matching `describeModalLifecycle()` call in section [4] of
+ * `tests/body-diagram-component.test.tsx` — the runtime counterpart that
+ * verifies the same open→select→close→re-open behaviour through actual React
+ * rendering rather than source-code analysis.
  * ─────────────────────────────────────────────────────────────────────────
  */
 function assertModalResetPattern(src, {

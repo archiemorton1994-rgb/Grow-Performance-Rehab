@@ -171,6 +171,119 @@ function ModalLifecycleWrapper() {
   );
 }
 
+// ─── Modal lifecycle helper ───────────────────────────────────────────────────
+
+/**
+ * describeModalLifecycle — runtime counterpart to `assertModalResetPattern`.
+ *
+ * Generates the standard 6-test `describe` block that verifies the
+ * open → select → close → re-open lifecycle for any modal that owns a
+ * selection/state variable.  Parallels the static source-code checks
+ * performed by `assertModalResetPattern` in `tests/body-diagram-e2e.mjs`.
+ *
+ * @see assertModalResetPattern in tests/body-diagram-e2e.mjs — the static
+ *   counterpart that verifies the same pattern at the flex.tsx source level.
+ *
+ * Usage — call once per modal in section [4]:
+ * ```ts
+ * describeModalLifecycle('[4] Prehab modal open → select → close → re-open reset guard', {
+ *   Wrapper:          ModalLifecycleWrapper,
+ *   openBtnId:        'open-modal-btn',
+ *   closeBtnId:       'close-modal-btn',
+ *   modalContainerId: 'prehab-modal',
+ *   startBtnId:       'prehab-start-btn',
+ *   selectRegionId:   'body-diagram-region-knee',
+ *   selectLabel:      'Knee',
+ *   selectRegion2Id:  'body-diagram-region-hip_groin',
+ *   selectLabel2:     'Hip / Groin',
+ * });
+ * ```
+ *
+ * To add coverage for a new modal, create a wrapper component that mirrors the
+ * modal's open/close/reset logic (see `ModalLifecycleWrapper` for the pattern),
+ * then call `describeModalLifecycle` with the appropriate options.  Also add the
+ * matching `assertModalResetPattern` call in `tests/body-diagram-e2e.mjs` §4.
+ */
+function describeModalLifecycle(
+  label: string,
+  opts: {
+    Wrapper: React.ComponentType;
+    openBtnId: string;
+    closeBtnId: string;
+    modalContainerId: string;
+    startBtnId: string;
+    selectRegionId: string;
+    selectLabel: string;
+    selectRegion2Id: string;
+    selectLabel2: string;
+  },
+): void {
+  const {
+    Wrapper, openBtnId, closeBtnId, modalContainerId,
+    startBtnId, selectRegionId, selectLabel, selectRegion2Id, selectLabel2,
+  } = opts;
+
+  describe(label, () => {
+    test('Start Session button is hidden when the modal first opens', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      expect(hasTestId(root, startBtnId)).toBe(false);
+    });
+
+    test('selecting a region after open shows the Start Session button', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      press(root, selectRegionId);
+      expect(hasTestId(root, startBtnId)).toBe(true);
+    });
+
+    test('closing the modal hides the modal container', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      press(root, selectRegionId);
+      press(root, closeBtnId);
+      expect(hasTestId(root, modalContainerId)).toBe(false);
+    });
+
+    test('re-opening modal after a selection shows NO Start Session button (stale-region regression guard)', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      press(root, selectRegionId);
+      expect(hasTestId(root, startBtnId)).toBe(true);
+      press(root, closeBtnId);
+      press(root, openBtnId);
+      expect(hasTestId(root, startBtnId)).toBe(false);
+    });
+
+    test('can select a different region on re-open — prior selection does not bleed through', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      press(root, selectRegionId);
+      expect(hasText(root, selectLabel)).toBe(true);
+      press(root, closeBtnId);
+      press(root, openBtnId);
+      expect(hasText(root, selectLabel)).toBe(false);
+      press(root, selectRegion2Id);
+      expect(hasText(root, selectLabel2)).toBe(true);
+      expect(hasTestId(root, startBtnId)).toBe(true);
+    });
+
+    test('closing without selecting leaves modal in clean state on re-open', () => {
+      let root!: renderer.ReactTestRenderer;
+      act(() => { root = renderer.create(<Wrapper />); });
+      press(root, openBtnId);
+      press(root, closeBtnId);
+      press(root, openBtnId);
+      expect(hasTestId(root, startBtnId)).toBe(false);
+    });
+  });
+}
+
 // ─── [1] Source-code static guards ───────────────────────────────────────────
 
 describe('[1] Source-code static guards', () => {
@@ -374,79 +487,25 @@ describe('[3] Readiness screen — pain-region step', () => {
 
 // ─── [4] Prehab modal open → select → close → re-open reset guard ─────────────
 //
-// This is the runtime counterpart to the static checks in body-diagram-e2e.mjs
-// section [4].  Rather than grep-ing source text, these tests actually render
-// ModalLifecycleWrapper — which mirrors flex.tsx's openModal/closeModal logic —
-// and assert that React's state machine behaves correctly at each lifecycle step.
+// Uses describeModalLifecycle() (defined above) to generate the standard 6-test
+// block.  This is the runtime counterpart to the static checks in
+// body-diagram-e2e.mjs section [4] / assertModalResetPattern().
 //
-// Regression story: if openModal's prehab guard or closeModal's unconditional
-// reset is accidentally removed, the prehabRegion state persists across cycles.
-// Test 4 ("re-opening modal … shows NO Start Session button") catches exactly
-// that regression at the rendered-output level.
+// To add coverage for a new modal (e.g. conditioning or flexibility gains its
+// own selection variable):
+//   1. Create a new wrapper component mirroring that modal's open/close/reset
+//      logic (use ModalLifecycleWrapper below as a template).
+//   2. Call describeModalLifecycle() here with the new wrapper and testIDs.
+//   3. Add a matching assertModalResetPattern() call in body-diagram-e2e.mjs §4.
 
-describe('[4] Prehab modal open → select → close → re-open reset guard', () => {
-  test('Start Session button is hidden when the modal first opens', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    press(root, 'open-modal-btn');
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(false);
-  });
-
-  test('selecting a region after open shows the Start Session button', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    press(root, 'open-modal-btn');
-    press(root, 'body-diagram-region-knee');
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(true);
-  });
-
-  test('closing the modal hides the modal container', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    press(root, 'open-modal-btn');
-    press(root, 'body-diagram-region-knee');
-    press(root, 'close-modal-btn');
-    expect(hasTestId(root, 'prehab-modal')).toBe(false);
-  });
-
-  test('re-opening modal after a selection shows NO Start Session button (stale-region regression guard)', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    // First visit: open, pick a region, confirm Start Session appears
-    press(root, 'open-modal-btn');
-    press(root, 'body-diagram-region-knee');
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(true);
-    // Close the modal
-    press(root, 'close-modal-btn');
-    // Re-open: prehabRegion must have been cleared — Start Session must be hidden
-    press(root, 'open-modal-btn');
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(false);
-  });
-
-  test('can select a different region on re-open — prior selection does not bleed through', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    // First visit: select knee
-    press(root, 'open-modal-btn');
-    press(root, 'body-diagram-region-knee');
-    expect(hasText(root, 'Knee')).toBe(true);
-    press(root, 'close-modal-btn');
-    // Second visit: no label from first visit, can pick a fresh region
-    press(root, 'open-modal-btn');
-    expect(hasText(root, 'Knee')).toBe(false);
-    press(root, 'body-diagram-region-hip_groin');
-    expect(hasText(root, 'Hip / Groin')).toBe(true);
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(true);
-  });
-
-  test('closing without selecting leaves modal in clean state on re-open', () => {
-    let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ModalLifecycleWrapper />); });
-    press(root, 'open-modal-btn');
-    // Close immediately without selecting anything
-    press(root, 'close-modal-btn');
-    // Re-open — still no Start Session button
-    press(root, 'open-modal-btn');
-    expect(hasTestId(root, 'prehab-start-btn')).toBe(false);
-  });
+describeModalLifecycle('[4] Prehab modal open → select → close → re-open reset guard', {
+  Wrapper:          ModalLifecycleWrapper,
+  openBtnId:        'open-modal-btn',
+  closeBtnId:       'close-modal-btn',
+  modalContainerId: 'prehab-modal',
+  startBtnId:       'prehab-start-btn',
+  selectRegionId:   'body-diagram-region-knee',
+  selectLabel:      'Knee',
+  selectRegion2Id:  'body-diagram-region-hip_groin',
+  selectLabel2:     'Hip / Groin',
 });
