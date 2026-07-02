@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, PAIN_CATEGORIES, TIER_ORDER, useAppStore } from '@/lib/store';
+import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle, getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { BodyDiagram } from '@/components/BodyDiagram';
 
@@ -76,6 +76,7 @@ export default function ReadinessScreen() {
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
   const [diagramPainRegion, setDiagramPainRegion] = useState<PainRegion | undefined>(undefined);
+  const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
 
   useEffect(() => {
     if (sessionType === 'prehab') {
@@ -228,34 +229,6 @@ export default function ReadinessScreen() {
   const effectiveTier = getEffectiveTier(selectedEquipments);
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const CATEGORY_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-    upper: { icon: 'hand-left-outline', color: '#4285f4' },
-    torso: { icon: 'swap-vertical-outline', color: '#e65100' },
-    lower: { icon: 'footsteps-outline', color: C.primary },
-    upper_muscles: { icon: 'barbell-outline', color: '#9c27b0' },
-    lower_muscles: { icon: 'walk-outline', color: '#ff5722' },
-  };
-
-  const REGION_ICONS: Record<PainRegion, keyof typeof Ionicons.glyphMap> = {
-    front_shoulder: 'arrow-up-outline',
-    rear_shoulder: 'arrow-down-outline',
-    elbow_wrist: 'hand-right-outline',
-    neck: 'resize-outline',
-    lower_back: 'chevron-down-circle-outline',
-    upper_back: 'chevron-up-circle-outline',
-    core_ribs: 'ellipse-outline',
-    knee: 'radio-button-on-outline',
-    hip_groin: 'contract-outline',
-    ankle_achilles: 'footsteps-outline',
-    calf_shin: 'trending-down-outline',
-    chest: 'body-outline',
-    bicep: 'hand-right-outline',
-    tricep: 'hand-left-outline',
-    quads: 'walk-outline',
-    hamstrings: 'trending-down-outline',
-    glutes: 'ellipse-outline',
-    lat_mid_back: 'arrow-back-circle-outline',
-  };
 
   const renderMain = () => (
     <Animated.View key="main" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
@@ -431,53 +404,46 @@ export default function ReadinessScreen() {
     <Animated.View key="prehabFocus" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, alignItems: 'stretch' }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, alignItems: 'center' }}
       >
-        <View style={[styles.questionIcon, { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 12 }]}>
+        <View style={[styles.questionIcon, { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 10 }]}>
           <Ionicons name="body-outline" size={24} color={C.primary} />
         </View>
         <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>What area to target today?</Text>
-        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 14 }]}>Your circuit will focus on this region</Text>
-        <View style={{ width: '100%', gap: 7 }}>
+        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>Tap a region — or run a full body circuit</Text>
+        <BodyDiagram
+          selected={diagramPrehabRegion}
+          onSelect={setDiagramPrehabRegion}
+          accentColor={C.primary}
+          accentColorLight={C.primarySurface}
+        />
+        {diagramPrehabRegion ? (
           <Pressable
-            key="fullbody"
+            onPress={() => handlePrehabFocus(diagramPrehabRegion)}
+            style={({ pressed }) => [
+              styles.startButton,
+              { marginTop: 12, width: '100%' },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
+            testID="prehab-region-confirm"
+          >
+            <Ionicons name="flash" size={18} color={C.textInverse} />
+            <Text style={styles.startButtonText}>Start targeted prehab</Text>
+          </Pressable>
+        ) : (
+          <Pressable
             onPress={() => handlePrehabFocus('fullbody')}
-            style={({ pressed }) => [styles.areaButton, { borderColor: C.primary, backgroundColor: C.primarySurface, paddingVertical: 10 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
+            style={({ pressed }) => [
+              styles.startButton,
+              { marginTop: 12, width: '100%' },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
             testID="prehab-fullbody"
           >
-            <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
-              <Ionicons name="flash-outline" size={18} color={C.primary} />
-            </View>
-            <Text style={[styles.areaLabel, { flex: 1, color: C.primary }]}>Full body circuit</Text>
-            <Ionicons name="chevron-forward" size={16} color={C.primary} />
+            <Ionicons name="flash-outline" size={18} color={C.textInverse} />
+            <Text style={styles.startButtonText}>Full body circuit</Text>
           </Pressable>
-          {(Object.keys(PAIN_CATEGORIES) as Array<keyof typeof PAIN_CATEGORIES>).map((catKey) => {
-            const cat = PAIN_CATEGORIES[catKey];
-            const iconInfo = CATEGORY_ICONS[catKey];
-            return (
-              <View key={catKey}>
-                <View style={styles.sectionHeaderRow}>
-                  <Ionicons name={iconInfo.icon} size={13} color={iconInfo.color} />
-                  <Text style={[styles.sectionHeaderLabel, { color: iconInfo.color }]}>{cat.label}</Text>
-                </View>
-                {cat.regions.map((r) => (
-                  <Pressable
-                    key={r.id}
-                    onPress={() => handlePrehabFocus(r.id)}
-                    style={({ pressed }) => [styles.areaButton, { paddingVertical: 10, marginBottom: 7 }, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}
-                    testID={`prehab-region-${r.id}`}
-                  >
-                    <View style={[styles.areaIconWrap, { backgroundColor: C.primaryMuted, width: 36, height: 36, borderRadius: 10 }]}>
-                      <Ionicons name={REGION_ICONS[r.id]} size={18} color={C.primary} />
-                    </View>
-                    <Text style={[styles.areaLabel, { flex: 1 }]}>{r.label}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-                  </Pressable>
-                ))}
-              </View>
-            );
-          })}
-        </View>
+        )}
       </ScrollView>
     </Animated.View>
   );
