@@ -7,8 +7,9 @@
 # in the web preview. The fix: use rgba(0,0,0,0.001) which is visually
 # identical to transparent but registers as a painted area for hit-testing.
 #
-# This script fails if the workaround is missing or the fill has been
-# reverted to 'transparent'.
+# Exit codes:
+#   0 — workaround is intact
+#   1 — workaround is missing or transparent fill detected in hotspot code
 
 FILE="components/BodyDiagram.tsx"
 
@@ -17,6 +18,8 @@ if [ ! -f "$FILE" ]; then
   exit 1
 fi
 
+FAIL=0
+
 # 1. Ensure the non-transparent hit-area fill value is present in the h() helper
 if ! grep -q "rgba(0,0,0,0.001)" "$FILE"; then
   echo "FAIL: rgba(0,0,0,0.001) not found in $FILE"
@@ -24,17 +27,23 @@ if ! grep -q "rgba(0,0,0,0.001)" "$FILE"; then
   echo "The body diagram hotspot fill has been changed away from the required workaround."
   echo "On iOS/Android, react-native-svg only fires onPress for painted (non-transparent) fills."
   echo "Restore the unselected fill in the h() helper to: rgba(0,0,0,0.001)"
-  exit 1
+  FAIL=1
 fi
 
-# 2. Extra guard: detect if 'transparent' is now used as a hotspot fill value
-# (exclude lines that are comments, stroke values, or silhouette shapes)
-TRANSPARENT_HITS=$(grep -n "fill:.*'transparent'" "$FILE" | grep -v "^[[:space:]]*\/\/" | grep -v "stroke:" | grep -v "silhouette" || true)
-if [ -n "$TRANSPARENT_HITS" ]; then
-  echo "WARNING: Possible transparent hotspot fill detected:"
-  echo "$TRANSPARENT_HITS"
+# 2. Extract the h() helper block and check it does NOT use 'transparent' as a fill value.
+# (stroke: 'transparent' is acceptable; only fill: 'transparent' breaks touch hit-testing)
+H_BLOCK=$(awk '/const h = \(r: PainRegion\)/,/^[[:space:]]*\}\);/' "$FILE" 2>/dev/null)
+if echo "$H_BLOCK" | grep -E "fill:.*['\"]transparent['\"]" > /dev/null 2>&1; then
+  echo "FAIL: 'transparent' detected as a fill value inside the h() hotspot helper:"
+  echo "$H_BLOCK" | grep -n -E "fill:.*['\"]transparent['\"]"
   echo ""
-  echo "Verify these are not in the h() hotspot helper — transparent fills break native touch events."
+  echo "Transparent fills break native touch hit-testing on iOS/Android."
+  echo "Use rgba(0,0,0,0.001) instead."
+  FAIL=1
+fi
+
+if [ "$FAIL" -eq 1 ]; then
+  exit 1
 fi
 
 echo "OK: BodyDiagram touch-hit workaround intact"

@@ -6,3 +6,4 @@
 - [Web preview blank screen fix](web-preview-blank-screen.md) — react/react-dom version mismatch silently crashes on web; cross-origin bundle src hides error as "Script error."
 - [Expo SDK vs Expo Go support](expo-sdk-vs-expo-go.md) — SDK newer than user's Expo Go = "incompatible" / iOS-sim hang; web preview still works and masks it. Manifest exposdk:NN is the tell.
 - [Metro stale file-map cache](metro-stale-filemap-cache.md) — "Unable to resolve module" for files that DO exist right after a reinstall; clear /tmp/metro-cache + restart Metro.
+- [Playwright Chromium in NixOS](playwright-nixos.md) — Playwright's pre-built Chromium shell can't find libglib in Nix store paths; use Node.js contract tests instead for CI.

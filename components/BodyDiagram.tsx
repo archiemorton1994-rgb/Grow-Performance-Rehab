@@ -71,6 +71,7 @@ export function BodyDiagram({
     stroke: selected === r ? accent : 'transparent',
     strokeWidth: selected === r ? 2.5 : 0,
     onPress: () => press(r),
+    testID: `body-diagram-region-${r}` as string,
   });
 
   const renderSilhouette = () => (

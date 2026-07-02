@@ -1,5 +1,5 @@
 entrypoint = "README.md"
-modules = ["nodejs-22", "node", "postgresql-16", "python-3.11"]
+modules = ["nodejs-22", "node", "postgresql-16", "python-3.11", "javascript"]
 
 [nix]
 channel = "stable-24_05"
@@ -59,6 +59,10 @@ args = "Start Backend"
 task = "workflow.run"
 args = "body-diagram-fill-check"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "body-diagram-contracts"
+
 [[workflows.workflow]]
 name = "Start Backend"
 author = "agent"
@@ -91,6 +95,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bash scripts/check-body-diagram-fill.sh"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "body-diagram-contracts"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node tests/body-diagram.check.mjs"
 
 [workflows.workflow.metadata]
 isValidation = true
