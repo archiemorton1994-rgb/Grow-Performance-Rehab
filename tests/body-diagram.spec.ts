@@ -16,14 +16,13 @@
  *
  * ── Section layout ───────────────────────────────────────────────────────────
  *   [1] Source-code static guards  — run always, no browser needed
- *   [2] Flex tab browser E2E       — skipped: requires libglib in NixOS env
- *   [3] Readiness browser E2E      — skipped: requires libglib in NixOS env
+ *   [2] Flex tab browser E2E       — Playwright Chromium, Expo web localhost:8082
+ *   [3] Readiness browser E2E      — Playwright Chromium, Expo web localhost:8082
  *
- * Browser tests are annotated with test.describe.skip() because
- * Playwright's bundled Chromium shell cannot find libglib-2.0.so.0 in
- * Replit's NixOS store paths (nix-store hash dirs are not in LD_LIBRARY_PATH).
- * They run correctly in any standard Linux/macOS CI (GitHub Actions ubuntu-latest,
- * macOS runners) or locally via: nix-shell -p glib nss nspr ... --run "npx playwright test ..."
+ * Browser tests run via scripts/run-playwright.sh which derives LD_LIBRARY_PATH
+ * from $HOST_PATH (Replit NixOS exposes each installed package's /bin/ in
+ * HOST_PATH; replacing /bin with /lib surfaces all glib, dbus, eudev, X11 etc.
+ * libraries that Playwright's Chromium binary needs).
  *
  * Auth bypass: OTP devCode returned in response body when NODE_ENV=development.
  * State:       grow-app-storage v20, grow_auth_token in localStorage.
@@ -71,6 +70,11 @@ async function injectAuthAndNavigate(page: Page): Promise<void> {
         JSON.stringify({
           state: {
             onboardingComplete: true,
+            // tourComplete: true stops the guided TourSheet from intercepting
+            // tab presses (the sheet contains "Flex" text which confuses selectors).
+            tourComplete: true,
+            // Prevent the weekly weight-prompt modal from blocking navigation.
+            lastWeightPromptedAt: Date.now(),
             equipmentTiers: ['bodyweight'],
             userProfile: {
               name: 'CI Tester',
@@ -86,7 +90,13 @@ async function injectAuthAndNavigate(page: Page): Promise<void> {
     },
     { token },
   );
-  await page.reload({ waitUntil: 'networkidle' });
+  // 'load' instead of 'networkidle': Expo HMR WebSocket prevents networkidle
+  // from ever resolving, burning up to 20 s per test on the navigation timeout.
+  await page.reload({ waitUntil: 'load' });
+  // Use [role="tab"] to anchor on the actual tab bar — avoids matching "Flex"
+  // text that also appears inside tour-sheet modal content.
+  await page.locator('[role="tab"]').filter({ hasText: 'Flex' })
+    .waitFor({ state: 'visible', timeout: 12000 });
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -169,24 +179,21 @@ test.describe('Source-code static guards', () => {
 });
 
 // ─── [2] Flex tab — Targeted Prehab modal (browser E2E) ───────────────────────
-//
-// SKIP REASON: Playwright's bundled Chromium shell cannot find libglib-2.0.so.0
-// in Replit NixOS. Tests are structurally complete and run on any standard Linux/
-// macOS CI (GitHub Actions ubuntu-latest) or locally via:
-//   nix-shell -p glib nss nspr atk cups pango cairo xorg.libX11 ... \
-//     --run "npx playwright test tests/body-diagram.spec.ts"
+// Run via: bash scripts/run-playwright.sh (sets LD_LIBRARY_PATH from HOST_PATH)
 
-test.describe.skip('Flex tab — Targeted Prehab modal [browser; libglib required]', () => {
+test.describe('Flex tab — Targeted Prehab modal (Expo web)', () => {
   test.beforeEach(async ({ page }) => {
     await injectAuthAndNavigate(page);
-    // Navigate to Flex tab
-    await page.getByText('Flex').last().click();
-    await page.waitForTimeout(600);
+    // Navigate to Flex tab via [role="tab"] — getByText('Flex') is unreliable
+    // because the TourSheet modal also contains "Flex" in its content.
+    await page.locator('[role="tab"]').filter({ hasText: 'Flex' }).click();
     // Open "Targeted Prehab" entry sheet
     const prehabBtn = page.getByText('Targeted Prehab');
+    await prehabBtn.waitFor({ state: 'visible' });
     await prehabBtn.scrollIntoViewIfNeeded();
     await prehabBtn.click();
-    await page.waitForTimeout(600);
+    // Wait until the BodyDiagram is mounted before each test
+    await page.locator('[data-testid="body-diagram-front"]').waitFor({ state: 'visible' });
   });
 
   test('body diagram renders with Front and Back toggle buttons', async ({ page }) => {
@@ -284,22 +291,35 @@ test.describe.skip('Flex tab — Targeted Prehab modal [browser; libglib require
 //   → BodyDiagram renders with amber accent
 //   → tap each hotspot → verify label chip + testID="pain-region-confirm" button
 //
-// SKIP REASON: same libglib constraint as section [2] above. See comment there.
+// Run via: bash scripts/run-playwright.sh (sets LD_LIBRARY_PATH from HOST_PATH)
 
-test.describe.skip('Readiness screen — pain-region step [browser; libglib required]', () => {
+test.describe('Readiness screen — pain-region step (Expo web)', () => {
   test.beforeEach(async ({ page }) => {
     await injectAuthAndNavigate(page);
-    // Navigate directly to a strength readiness screen
-    await page.goto(
-      `${APP_BASE}/readiness?sessionType=squat&isTestWeek=false`,
-      { waitUntil: 'networkidle' },
-    );
+    // Direct URL navigation to /readiness always fails: the app gate in
+    // _layout.tsx unconditionally calls router.replace("/(tabs)") for every
+    // authenticated user on first mount, regardless of the requested URL.
+    // We must navigate in-app instead:
+    //   1. Click the Train tab → session list
+    //   2. Click "Lower Body" (squat — always the first rotation session for a
+    //      user with no completedSessions, so isCurrent = true)
+    //   3. handleStart() → router.push('/readiness', params) → readiness screen
+    await page.locator('[role="tab"]').filter({ hasText: 'Train' }).click();
+    // Use testID to target the squat session card directly.
+    // getByText('Lower Body').first() finds the Home tab's suggested-session text
+    // (DOM-first, pointer-events:none), and the Train tab's bench card intercepts
+    // the click at those coordinates. Clicking the testID element targets the card
+    // that owns the onPress handler, which is inside the active Train tab container.
+    await page.locator('[data-testid="train-session-squat"]')
+      .waitFor({ state: 'visible' });
+    await page.locator('[data-testid="train-session-squat"]').click();
     // Mark "Yes →" to indicate aches (hasAches = true)
+    await page.getByTestId('aches-yes').waitFor({ state: 'visible', timeout: 10000 });
     await page.getByTestId('aches-yes').click();
-    await page.waitForTimeout(300);
     // Tap Start — because hasAches is true, transitions to painRegion step
     await page.getByTestId('readiness-start').click();
-    await page.waitForTimeout(600);
+    // Wait until the BodyDiagram is mounted before each test
+    await page.locator('[data-testid="body-diagram-front"]').waitFor({ state: 'visible' });
   });
 
   test('body diagram renders with Front and Back toggle on pain-region step', async ({ page }) => {

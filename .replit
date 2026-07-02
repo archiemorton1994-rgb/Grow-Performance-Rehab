@@ -118,12 +118,12 @@ isValidation = true
 name = "body-diagram-e2e"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx playwright test tests/body-diagram.spec.ts --reporter=line"
-
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/run-playwright.sh tests/body-diagram.spec.ts --reporter=line"
 
 [postMerge]
 path = "scripts/post-merge.sh"

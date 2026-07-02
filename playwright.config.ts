@@ -13,6 +13,8 @@ export default defineConfig({
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
+    navigationTimeout: 15000,
+    actionTimeout: 10000,
   },
   projects: [
     {

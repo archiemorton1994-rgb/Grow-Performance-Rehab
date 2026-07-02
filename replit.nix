@@ -1,5 +1,7 @@
 {pkgs}: {
   deps = [
+    pkgs.eudev
+    pkgs.dbus
     pkgs.alsa-lib
     pkgs.libxkbcommon
     pkgs.expat
