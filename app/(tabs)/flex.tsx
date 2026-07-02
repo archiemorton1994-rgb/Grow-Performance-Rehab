@@ -452,7 +452,7 @@ export default function FlexScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={[styles.prehabSheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.prehabSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
 
             <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
@@ -507,11 +507,13 @@ export default function FlexScreen() {
                 onSelect={setPrehabDiagramRegion}
                 accentColor={C.primary}
                 accentColorLight={C.primaryMuted}
-                maxWidth={160}
+                maxWidth={200}
               />
+            </ScrollView>
 
-              {/* Start CTA — only shown when a region is selected */}
-              {prehabDiagramRegion && (
+            {/* Start CTA — sticky footer, always visible once a region is selected */}
+            {prehabDiagramRegion && (
+              <View style={[styles.prehabCtaFooter, { paddingBottom: insets.bottom + 8 }]}>
                 <Pressable
                   onPress={() => handlePrehabRegion(prehabDiagramRegion)}
                   style={({ pressed }) => [
@@ -523,8 +525,8 @@ export default function FlexScreen() {
                   <Ionicons name="play" size={16} color={C.textInverse} />
                   <Text style={styles.prehabStartBtnText}>Start Session</Text>
                 </Pressable>
-              )}
-            </ScrollView>
+              </View>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -835,7 +837,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 10,
-      maxHeight: '85%',
+      maxHeight: '90%',
+    },
+    prehabCtaFooter: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      backgroundColor: C.surface,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
     },
     prehabScroll: {
       paddingHorizontal: 20,
