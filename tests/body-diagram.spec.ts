@@ -134,20 +134,21 @@ test.describe('Source-code static guards', () => {
     expect(src).toContain('testID: `body-diagram-region-${r}`');
   });
 
-  test('h() coverage: all 11 PainRegion values appear as h(\'region\') calls', () => {
+  test('h() coverage: all 18 PainRegion values appear as h(\'region\') calls', () => {
     const src = fs.readFileSync(
       path.join(__dirname, '../components/BodyDiagram.tsx'), 'utf8');
     const regions = [
       'neck', 'front_shoulder', 'rear_shoulder', 'elbow_wrist',
       'upper_back', 'lower_back', 'core_ribs', 'hip_groin',
       'knee', 'calf_shin', 'ankle_achilles',
+      'chest', 'bicep', 'tricep', 'quads', 'hamstrings', 'glutes', 'lat_mid_back',
     ];
     for (const r of regions) {
       expect(src, `h('${r}') not found`).toMatch(new RegExp(`h\\('${r}'\\)`));
     }
   });
 
-  test('label completeness: BODY_DIAGRAM_LABELS has entries for all 11 regions', () => {
+  test('label completeness: BODY_DIAGRAM_LABELS has entries for all 18 regions', () => {
     const src = fs.readFileSync(
       path.join(__dirname, '../components/BodyDiagram.tsx'), 'utf8');
     const expected: Record<string, string> = {
@@ -162,6 +163,13 @@ test.describe('Source-code static guards', () => {
       knee:           'Knee',
       calf_shin:      'Calf / Shin',
       ankle_achilles: 'Ankle / Achilles',
+      chest:          'Chest',
+      bicep:          'Biceps',
+      tricep:         'Triceps',
+      quads:          'Quads',
+      hamstrings:     'Hamstrings',
+      glutes:         'Glutes',
+      lat_mid_back:   'Lats / Mid Back',
     };
     for (const [region, label] of Object.entries(expected)) {
       expect(src, `key '${region}' not in BODY_DIAGRAM_LABELS`).toContain(`${region}:`);
