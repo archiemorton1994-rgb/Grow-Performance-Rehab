@@ -30,7 +30,7 @@ export const BODY_DIAGRAM_LABELS: Partial<Record<PainRegion, string>> = {
 
 interface BodyDiagramProps {
   selected: PainRegion | undefined;
-  onSelect: (region: PainRegion) => void;
+  onSelect: (region: PainRegion | undefined) => void;
   accentColor?: string;
   accentColorLight?: string;
   defaultView?: BodyView;
@@ -67,7 +67,7 @@ export function BodyDiagram({
   const press = (r: PainRegion) => { tap(); onSelect(r); };
 
   const h = (r: PainRegion) => ({
-    fill: selected === r ? accent + '55' : 'transparent',
+    fill: selected === r ? accent + '55' : 'rgba(0,0,0,0.001)',
     stroke: selected === r ? accent : 'transparent',
     strokeWidth: selected === r ? 2.5 : 0,
     onPress: () => press(r),
@@ -239,14 +239,14 @@ export function BodyDiagram({
     <View style={styles.container}>
       <View style={styles.toggleRow}>
         <Pressable
-          onPress={() => { tap(); setView('front'); }}
+          onPress={() => { tap(); setView('front'); if (view !== 'front') onSelect(undefined); }}
           style={[styles.toggleBtn, view === 'front' && styles.toggleBtnActive]}
           testID="body-diagram-front"
         >
           <Text style={[styles.toggleText, view === 'front' && styles.toggleTextActive]}>Front</Text>
         </Pressable>
         <Pressable
-          onPress={() => { tap(); setView('back'); }}
+          onPress={() => { tap(); setView('back'); if (view !== 'back') onSelect(undefined); }}
           style={[styles.toggleBtn, view === 'back' && styles.toggleBtnActive]}
           testID="body-diagram-back"
         >
