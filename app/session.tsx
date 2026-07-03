@@ -620,6 +620,7 @@ function ExerciseCard({
   note = '',
   onNoteChange,
   isLastExercise = false,
+  comfortRegionLabel,
 }: {
   exercise: Exercise;
   index: number;
@@ -640,6 +641,7 @@ function ExerciseCard({
   note?: string;
   onNoteChange?: (text: string) => void;
   isLastExercise?: boolean;
+  comfortRegionLabel?: string;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -821,6 +823,15 @@ function ExerciseCard({
                 </Pressable>
               )}
             </View>
+
+            {exercise.badge === 'comfort' && comfortRegionLabel && (
+              <View style={styles.comfortNote}>
+                <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
+                <Text style={styles.comfortNoteText}>
+                  Adapted for {comfortRegionLabel} — skip if still uncomfortable
+                </Text>
+              </View>
+            )}
 
             {expanded && (
               <View style={styles.setsContainer}>
@@ -1080,9 +1091,12 @@ export default function SessionScreen() {
     return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
   }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
 
+  const comfortCount = useMemo(() => exercises.filter(ex => ex.badge === 'comfort').length, [exercises]);
+
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
+  const [painBannerDismissed, setPainBannerDismissed] = useState(false);
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -1588,6 +1602,27 @@ export default function SessionScreen() {
         </View>
       )}
 
+      {hasAches && painRegion && !painBannerDismissed && (
+        <Animated.View entering={FadeInDown.duration(350)} style={styles.painAdaptBanner}>
+          <View style={styles.painAdaptBannerLeft}>
+            <Ionicons name="shield-checkmark" size={16} color={C.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.painAdaptBannerTitle}>
+                Adapted for {getPainRegionLabel(painRegion)}
+              </Text>
+              <Text style={styles.painAdaptBannerSub}>
+                {comfortCount > 0
+                  ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — skip any that still hurt`
+                  : 'No exercises needed swapping — skip any that hurt'}
+              </Text>
+            </View>
+          </View>
+          <Pressable onPress={() => setPainBannerDismissed(true)} style={styles.painAdaptDismiss} testID="pain-banner-dismiss">
+            <Ionicons name="close" size={16} color={C.warning} />
+          </Pressable>
+        </Animated.View>
+      )}
+
       <ScrollView
         ref={scrollViewRef}
         style={styles.exerciseList}
@@ -1628,6 +1663,7 @@ export default function SessionScreen() {
               note={exerciseNotes[index] ?? ''}
               onNoteChange={(text) => handleNoteChange(index, text)}
               isLastExercise={index === exercises.length - 1}
+              comfortRegionLabel={exercise.badge === 'comfort' && hasAches && painRegion ? getPainRegionLabel(painRegion) : undefined}
             />
           );
         })}
@@ -1995,6 +2031,15 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   // Skip exercise link
   skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
   skipExerciseLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
+  // Pain adaptation banner
+  painAdaptBanner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: C.warningLight, borderRadius: 10, borderWidth: 1, borderColor: C.warning + '44', gap: 10 },
+  painAdaptBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  painAdaptBannerTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.warning, marginBottom: 1 },
+  painAdaptBannerSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.warning, opacity: 0.85, lineHeight: 17 },
+  painAdaptDismiss: { padding: 4, alignItems: 'center', justifyContent: 'center' },
+  // Comfort adaptation note on exercise cards
+  comfortNote: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, paddingHorizontal: 4, paddingVertical: 5, backgroundColor: C.warningLight, borderRadius: 7, borderWidth: 1, borderColor: C.warning + '33', marginLeft: 32 },
+  comfortNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.warning, flex: 1 },
   // ── Set-by-set new UI ────────────────────────────────────────────────────
   // Completed set chips strip
   doneChipsScroll: { marginBottom: 12 },
