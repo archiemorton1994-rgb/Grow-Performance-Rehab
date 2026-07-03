@@ -1454,6 +1454,8 @@ export default function StatsScreen() {
   const [selectedProgress, setSelectedProgress] = useState<ExerciseProgress | null>(null);
   const [painRegionFilter, setPainRegionFilter] = useState<PainRegion | null>(null);
   const [painInsightRegion, setPainInsightRegion] = useState<PainRegion | null>(null);
+  const [painHeatmapMode, setPainHeatmapMode] = useState<'all' | 'recent'>('all');
+  const [painOverviewSelected, setPainOverviewSelected] = useState<PainRegion | null>(null);
 
   useEffect(() => {
     if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
@@ -1475,6 +1477,52 @@ export default function StatsScreen() {
     }
     return counts;
   }, [completedSessions]);
+
+  const recentPainCounts = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 28);
+    const counts: Partial<Record<PainRegion, number>> = {};
+    for (const s of completedSessions) {
+      if (s.painRegion && new Date(s.date) >= cutoff) {
+        counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [completedSessions]);
+
+  const previousPainCounts = useMemo(() => {
+    const now = new Date();
+    const recentCutoff = new Date(now);
+    recentCutoff.setDate(now.getDate() - 28);
+    const prevCutoff = new Date(now);
+    prevCutoff.setDate(now.getDate() - 56);
+    const counts: Partial<Record<PainRegion, number>> = {};
+    for (const s of completedSessions) {
+      if (s.painRegion) {
+        const d = new Date(s.date);
+        if (d >= prevCutoff && d < recentCutoff) {
+          counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [completedSessions]);
+
+  const painTrends = useMemo((): Partial<Record<PainRegion, '↑' | '↓' | '→'>> => {
+    const allRegions = new Set([
+      ...Object.keys(recentPainCounts),
+      ...Object.keys(previousPainCounts),
+    ]) as Set<PainRegion>;
+    const trends: Partial<Record<PainRegion, '↑' | '↓' | '→'>> = {};
+    for (const region of allRegions) {
+      const recent = recentPainCounts[region] ?? 0;
+      const prev = previousPainCounts[region] ?? 0;
+      if (recent > prev) trends[region] = '↑';
+      else if (recent < prev) trends[region] = '↓';
+      else trends[region] = '→';
+    }
+    return trends;
+  }, [recentPainCounts, previousPainCounts]);
 
   const hasAnyPainHistory = Object.keys(painRegionCounts).length > 0;
 
@@ -1630,22 +1678,159 @@ export default function StatsScreen() {
                     borderWidth: 1, borderColor: C.borderLight,
                     overflow: 'hidden', marginBottom: 16,
                   }}>
-                    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
-                      <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>
-                        Pain Patterns
-                      </Text>
-                      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
-                        Darker = flagged more often · tap to act
-                      </Text>
+                    {/* Card header + mode toggle */}
+                    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>
+                          Pain Patterns
+                        </Text>
+                        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+                          {painHeatmapMode === 'all'
+                            ? 'Darker = flagged more often · tap to act'
+                            : 'Last 4 weeks · ↑ worse · ↓ better · → stable'}
+                        </Text>
+                      </View>
+                      {/* Toggle: All time / Last 4 wks */}
+                      <View style={{
+                        flexDirection: 'row', backgroundColor: C.surfaceTertiary,
+                        borderRadius: 8, padding: 2,
+                        borderWidth: 1, borderColor: C.borderLight, marginLeft: 10,
+                      }}>
+                        {(['all', 'recent'] as const).map(mode => {
+                          const active = painHeatmapMode === mode;
+                          return (
+                            <Pressable
+                              key={mode}
+                              onPress={() => { setPainHeatmapMode(mode); setPainOverviewSelected(null); }}
+                              style={({ pressed }) => ({
+                                paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+                                backgroundColor: active ? C.surface : 'transparent',
+                                opacity: pressed && !active ? 0.7 : 1,
+                                ...(active ? {
+                                  shadowColor: C.shadow, shadowOpacity: 0.06,
+                                  shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+                                  elevation: 1,
+                                } : {}),
+                              })}
+                            >
+                              <Text style={{
+                                fontSize: 11,
+                                fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
+                                color: active ? C.text : C.textSecondary,
+                              }}>
+                                {mode === 'all' ? 'All time' : 'Last 4 wks'}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     </View>
+
                     <BodyDiagram
-                      selected={undefined}
+                      selected={painOverviewSelected ?? undefined}
                       onSelect={(r) => {
-                        if (r) setPainInsightRegion(r);
+                        if (r) {
+                          setPainInsightRegion(r);
+                          setPainOverviewSelected(prev => prev === r ? null : r);
+                        } else {
+                          setPainOverviewSelected(null);
+                        }
                       }}
-                      heatmapCounts={painRegionCounts}
+                      heatmapCounts={painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts}
                       maxWidth={160}
                     />
+
+                    {/* Detail strip — shown when a region is tapped */}
+                    {painOverviewSelected && (
+                      <View style={{
+                        marginHorizontal: 12, marginBottom: 12, marginTop: -4,
+                        backgroundColor: C.surfaceTertiary, borderRadius: 10,
+                        borderWidth: 1, borderColor: C.borderLight,
+                        paddingHorizontal: 12, paddingVertical: 9,
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                            {BODY_DIAGRAM_LABELS[painOverviewSelected]}
+                          </Text>
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 }}>
+                            {painRegionCounts[painOverviewSelected] ?? 0} all-time · {recentPainCounts[painOverviewSelected] ?? 0} last 4 wks
+                          </Text>
+                        </View>
+                        {(() => {
+                          const trend = painTrends[painOverviewSelected];
+                          if (!trend) return null;
+                          const isUp = trend === '↑';
+                          const isDown = trend === '↓';
+                          const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
+                          const trendLabel = isDown ? 'Improving' : isUp ? 'Worsening' : 'Stable';
+                          const recentVal = recentPainCounts[painOverviewSelected] ?? 0;
+                          const prevVal = previousPainCounts[painOverviewSelected] ?? 0;
+                          const hasComparison = recentVal > 0 || prevVal > 0;
+                          if (!hasComparison) return null;
+                          return (
+                            <View style={{
+                              flexDirection: 'row', alignItems: 'center', gap: 4,
+                              backgroundColor: isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary,
+                              borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                            }}>
+                              <Text style={{ fontSize: 14, color: trendColor, lineHeight: 18 }}>{trend}</Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: trendColor }}>{trendLabel}</Text>
+                            </View>
+                          );
+                        })()}
+                        <Pressable
+                          onPress={() => { setPainRegionFilter(painOverviewSelected); setActiveTab('history'); }}
+                          hitSlop={8}
+                          style={({ pressed }) => ({
+                            marginLeft: 8,
+                            backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                            borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                            borderWidth: 1, borderColor: C.primaryMuted,
+                          })}
+                        >
+                          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>History</Text>
+                        </Pressable>
+                      </View>
+                    )}
+
+                    {/* Trend chips — shown in "Last 4 wks" mode for active regions */}
+                    {painHeatmapMode === 'recent' && Object.keys(painTrends).length > 0 && !painOverviewSelected && (
+                      <View style={{
+                        flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+                        paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0,
+                      }}>
+                        {(Object.entries(painTrends) as [PainRegion, '↑' | '↓' | '→'][])
+                          .sort((a, b) => {
+                            const order = { '↑': 0, '→': 1, '↓': 2 };
+                            return order[a[1]] - order[b[1]];
+                          })
+                          .map(([region, trend]) => {
+                            const isUp = trend === '↑';
+                            const isDown = trend === '↓';
+                            const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
+                            const chipBg = isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary;
+                            return (
+                              <Pressable
+                                key={region}
+                                onPress={() => setPainOverviewSelected(region)}
+                                style={({ pressed }) => ({
+                                  flexDirection: 'row', alignItems: 'center', gap: 3,
+                                  backgroundColor: pressed ? C.borderLight : chipBg,
+                                  borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4,
+                                  borderWidth: 1,
+                                  borderColor: isDown ? '#b7deca' : isUp ? '#f5bdb8' : C.borderLight,
+                                })}
+                              >
+                                <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: trendColor }}>
+                                  {BODY_DIAGRAM_LABELS[region]}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: trendColor }}>{trend}</Text>
+                              </Pressable>
+                            );
+                          })}
+                      </View>
+                    )}
                   </View>
                 </Animated.View>
               )}
