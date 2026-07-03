@@ -17,29 +17,37 @@ import { useColors } from '@/constants/colors';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
+import { BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 
 const FLEX_IMAGES: Record<string, any> = {
-  recovery:    require('@/assets/images/sessions/recovery.png'),
   mobility:    require('@/assets/images/sessions/mobility.png'),
-  prehab:      require('@/assets/images/sessions/targeted-prehab.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
 };
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
 
-const PREHAB_REGION_LIST: Array<{ region: PainRegion; label: string; icon: string }> = [
-  { region: 'neck',           label: 'Neck',             icon: 'scan-outline' },
-  { region: 'front_shoulder', label: 'Front Shoulder',   icon: 'fitness-outline' },
-  { region: 'rear_shoulder',  label: 'Rear Shoulder',    icon: 'fitness-outline' },
-  { region: 'elbow_wrist',    label: 'Elbow / Wrist',    icon: 'hand-left-outline' },
-  { region: 'upper_back',     label: 'Upper Back',       icon: 'arrow-up-outline' },
-  { region: 'lower_back',     label: 'Lower Back',       icon: 'arrow-down-outline' },
-  { region: 'core_ribs',      label: 'Core / Ribs',      icon: 'shield-outline' },
-  { region: 'hip_groin',      label: 'Hip / Groin',      icon: 'walk-outline' },
-  { region: 'knee',           label: 'Knee',             icon: 'walk-outline' },
-  { region: 'ankle_achilles', label: 'Ankle / Achilles', icon: 'footsteps-outline' },
-  { region: 'calf_shin',      label: 'Calf / Shin',      icon: 'footsteps-outline' },
-];
+type RegionView     = 'front' | 'back';
+type RegionCategory = 'muscles' | 'joints';
+
+const REGION_FRONT = new Set<PainRegion>([
+  'neck', 'front_shoulder', 'chest', 'bicep', 'elbow_wrist',
+  'core_ribs', 'hip_groin', 'quads', 'knee', 'calf_shin', 'ankle_achilles',
+]);
+const REGION_BACK = new Set<PainRegion>([
+  'neck', 'rear_shoulder', 'tricep', 'elbow_wrist', 'upper_back',
+  'lat_mid_back', 'lower_back', 'glutes', 'hamstrings', 'knee', 'calf_shin', 'ankle_achilles',
+]);
+const REGION_MUSCLE = new Set<PainRegion>([
+  'chest', 'bicep', 'tricep', 'core_ribs', 'quads', 'hamstrings',
+  'glutes', 'lat_mid_back', 'upper_back', 'lower_back', 'calf_shin',
+]);
+
+function getFilteredRegions(view: RegionView, category: RegionCategory): PainRegion[] {
+  const viewSet = view === 'front' ? REGION_FRONT : REGION_BACK;
+  return [...viewSet].filter(r =>
+    category === 'muscles' ? REGION_MUSCLE.has(r) : !REGION_MUSCLE.has(r),
+  );
+}
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -150,6 +158,99 @@ function getConditioningLevels(C: ReturnType<typeof useColors>): ConditioningLev
   ];
 }
 
+type PickerStyles = {
+  pickerScroll: any; pickerToggleRow: any; pickerToggleBtn: any; pickerToggleBtnActive: any;
+  pickerToggleText: any; pickerToggleTextActive: any; pickerCatRow: any; pickerCatBtn: any;
+  pickerCatBtnActive: any; pickerCatText: any; pickerCatMuscleActive: any; pickerCatJointActive: any;
+  pickerRegionBtn: any; pickerRegionDot: any; pickerRegionLabel: any;
+  pickerFullBodyBtn: any; pickerFullBodyText: any;
+};
+
+function RegionPickerBody({
+  view, category, onViewChange, onCategoryChange, onSelectRegion, bottomInset, testPrefix, C, styles,
+}: {
+  view: RegionView;
+  category: RegionCategory;
+  onViewChange: (v: RegionView) => void;
+  onCategoryChange: (c: RegionCategory) => void;
+  onSelectRegion: (region: PainRegion | 'fullbody') => void;
+  bottomInset: number;
+  testPrefix: string;
+  C: ReturnType<typeof useColors>;
+  styles: PickerStyles;
+}) {
+  const regions = getFilteredRegions(view, category);
+  const dotColor = category === 'muscles' ? '#2f6b46' : '#4a7e9b';
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.pickerScroll, { paddingBottom: bottomInset + 24 }]}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.pickerToggleRow}>
+        {(['front', 'back'] as RegionView[]).map((v) => (
+          <Pressable
+            key={v}
+            onPress={() => onViewChange(v)}
+            style={[styles.pickerToggleBtn, view === v && styles.pickerToggleBtnActive]}
+            testID={`${testPrefix}-view-${v}`}
+          >
+            <Text style={[styles.pickerToggleText, view === v && styles.pickerToggleTextActive]}>
+              {v === 'front' ? 'Front' : 'Back'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.pickerCatRow}>
+        <Pressable
+          onPress={() => onCategoryChange('muscles')}
+          style={[styles.pickerCatBtn, category === 'muscles' && styles.pickerCatBtnActive]}
+          testID={`${testPrefix}-cat-muscles`}
+        >
+          <Text style={[styles.pickerCatText, category === 'muscles' && styles.pickerCatMuscleActive]}>Muscles</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onCategoryChange('joints')}
+          style={[styles.pickerCatBtn, category === 'joints' && styles.pickerCatBtnActive]}
+          testID={`${testPrefix}-cat-joints`}
+        >
+          <Text style={[styles.pickerCatText, category === 'joints' && styles.pickerCatJointActive]}>Joints</Text>
+        </Pressable>
+      </View>
+
+      {regions.map((region) => (
+        <Pressable
+          key={region}
+          onPress={() => onSelectRegion(region)}
+          style={({ pressed }) => [
+            styles.pickerRegionBtn,
+            pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+          ]}
+          testID={`${testPrefix}-region-${region}`}
+        >
+          <View style={[styles.pickerRegionDot, { backgroundColor: dotColor }]} />
+          <Text style={styles.pickerRegionLabel}>{BODY_DIAGRAM_LABELS[region]}</Text>
+          <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+        </Pressable>
+      ))}
+
+      <Pressable
+        onPress={() => onSelectRegion('fullbody')}
+        style={({ pressed }) => [
+          styles.pickerFullBodyBtn,
+          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+        ]}
+        testID={`${testPrefix}-fullbody`}
+      >
+        <Ionicons name="flash-outline" size={16} color={C.textInverse} />
+        <Text style={styles.pickerFullBodyText}>Full body circuit</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
 export default function FlexScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -174,6 +275,11 @@ export default function FlexScreen() {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
+
+  const [recoveryView, setRecoveryView]         = useState<RegionView>('front');
+  const [recoveryCategory, setRecoveryCategory] = useState<RegionCategory>('joints');
+  const [prehabView, setPrehabView]             = useState<RegionView>('front');
+  const [prehabCategory, setPrehabCategory]     = useState<RegionCategory>('joints');
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
@@ -191,6 +297,10 @@ export default function FlexScreen() {
 
   const closeModal = () => {
     setActiveModal(null);
+    setRecoveryView('front');
+    setRecoveryCategory('joints');
+    setPrehabView('front');
+    setPrehabCategory('joints');
   };
 
   const openEquipmentSheet = () => {
@@ -317,7 +427,7 @@ export default function FlexScreen() {
     },
   ];
 
-  const activeInfo = activeModal && activeModal !== 'conditioning' ? SESSION_INFO[activeModal] : null;
+  const activeInfo = activeModal === 'mobility' ? SESSION_INFO['mobility'] : null;
 
   return (
     <ScrollView
@@ -389,7 +499,10 @@ export default function FlexScreen() {
                 testID={`flex-row-${row.key}`}
               >
                 <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                  <Image source={FLEX_IMAGES[row.key]} style={styles.navIconImage} resizeMode="contain" />
+                  {FLEX_IMAGES[row.key]
+                    ? <Image source={FLEX_IMAGES[row.key]} style={styles.navIconImage} resizeMode="contain" />
+                    : <Ionicons name={row.icon} size={26} color={row.iconColor} />
+                  }
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>{row.title}</Text>
@@ -403,9 +516,48 @@ export default function FlexScreen() {
         </View>
       </View>
 
-      {/* Recovery / Mobility sheet */}
+      {/* Recovery — region picker (Front/Back + Muscles/Joints + list) */}
       <Modal
-        visible={activeModal === 'recovery' || activeModal === 'mobility'}
+        visible={activeModal === 'recovery'}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={closeModal}>
+          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
+              <View style={[styles.sheetIconWrap, { backgroundColor: C.categoryCooldown }]}>
+                <Ionicons name="shield-checkmark" size={26} color={C.categoryCooldownText} />
+              </View>
+              <View style={styles.sheetHeaderText}>
+                <Text style={styles.sheetTitle}>Recovery</Text>
+                <Text style={styles.sheetDuration}>Full-body joint circuit · 20–30 min</Text>
+              </View>
+              <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={20} color={C.textSecondary} />
+              </Pressable>
+            </View>
+
+            <RegionPickerBody
+              view={recoveryView}
+              category={recoveryCategory}
+              onViewChange={(v) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRecoveryView(v); }}
+              onCategoryChange={(c) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRecoveryCategory(c); }}
+              onSelectRegion={handlePrehabRegion}
+              bottomInset={insets.bottom}
+              testPrefix="recovery"
+              C={C}
+              styles={styles}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Mobility sheet */}
+      <Modal
+        visible={activeModal === 'mobility'}
         transparent
         animationType="slide"
         onRequestClose={closeModal}
@@ -418,17 +570,13 @@ export default function FlexScreen() {
               <>
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
-                    <Image source={activeModal ? FLEX_IMAGES[activeModal] : FLEX_IMAGES.recovery} style={styles.sheetIconImage} resizeMode="contain" />
+                    <Image source={FLEX_IMAGES['mobility']} style={styles.sheetIconImage} resizeMode="contain" />
                   </View>
                   <View style={styles.sheetHeaderText}>
                     <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
                     <Text style={styles.sheetDuration}>{activeInfo.duration}</Text>
                   </View>
-                  <Pressable
-                    onPress={closeModal}
-                    style={styles.closeBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
+                  <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={20} color={C.textSecondary} />
                   </Pressable>
                 </View>
@@ -441,7 +589,7 @@ export default function FlexScreen() {
                     styles.startBtn,
                     pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
                   ]}
-                  testID={`flex-start-${activeModal}`}
+                  testID="flex-start-mobility"
                 >
                   <Ionicons name="play" size={16} color={C.textInverse} />
                   <Text style={styles.startBtnText}>{activeInfo.cta}</Text>
@@ -452,7 +600,7 @@ export default function FlexScreen() {
         </Pressable>
       </Modal>
 
-      {/* Targeted Prehab — region picker sheet */}
+      {/* Targeted Prehab — region picker (Front/Back + Muscles/Joints + list) */}
       <Modal
         visible={activeModal === 'prehab'}
         transparent
@@ -460,74 +608,33 @@ export default function FlexScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={styles.prehabSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
 
             <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
               <View style={[styles.sheetIconWrap, { backgroundColor: C.categoryPrehab }]}>
-                <Image source={FLEX_IMAGES.prehab} style={styles.sheetIconImage} resizeMode="contain" />
+                <Ionicons name="locate-outline" size={26} color={C.categoryPrehabText} />
               </View>
               <View style={styles.sheetHeaderText}>
                 <Text style={styles.sheetTitle}>Targeted Prehab</Text>
-                <Text style={styles.sheetDuration}>Choose a region to target</Text>
+                <Text style={styles.sheetDuration}>Area-focused circuit · 20–30 min</Text>
               </View>
-              <Pressable
-                onPress={closeModal}
-                style={styles.closeBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
+              <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close" size={20} color={C.textSecondary} />
               </Pressable>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.prehabScroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* Full body option */}
-              <Pressable
-                onPress={() => handlePrehabRegion('fullbody')}
-                style={({ pressed }) => [
-                  styles.prehabRegionBtn,
-                  { borderColor: C.primary, backgroundColor: C.primarySurface },
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                ]}
-                testID="prehab-fullbody"
-              >
-                <View style={[styles.prehabRegionIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="flash-outline" size={18} color={C.primary} />
-                </View>
-                <Text style={[styles.prehabRegionLabel, { flex: 1, color: C.primary }]}>Full body circuit</Text>
-                <Ionicons name="chevron-forward" size={16} color={C.primary} />
-              </Pressable>
-
-              {/* Divider */}
-              <View style={styles.prehabDividerRow}>
-                <View style={styles.prehabDividerLine} />
-                <Text style={styles.prehabDividerText}>or target a specific area</Text>
-                <View style={styles.prehabDividerLine} />
-              </View>
-
-              {/* Region list — single tap launches session */}
-              {PREHAB_REGION_LIST.map(({ region, label, icon }) => (
-                <Pressable
-                  key={region}
-                  onPress={() => handlePrehabRegion(region)}
-                  style={({ pressed }) => [
-                    styles.prehabRegionBtn,
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                  ]}
-                  testID={`prehab-region-${region}`}
-                >
-                  <View style={[styles.prehabRegionIcon, { backgroundColor: C.surfaceTertiary }]}>
-                    <Ionicons name={icon as any} size={18} color={C.textSecondary} />
-                  </View>
-                  <Text style={[styles.prehabRegionLabel, { flex: 1 }]}>{label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-                </Pressable>
-              ))}
-            </ScrollView>
+            <RegionPickerBody
+              view={prehabView}
+              category={prehabCategory}
+              onViewChange={(v) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPrehabView(v); }}
+              onCategoryChange={(c) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPrehabCategory(c); }}
+              onSelectRegion={handlePrehabRegion}
+              bottomInset={insets.bottom}
+              testPrefix="prehab"
+              C={C}
+              styles={styles}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -833,58 +940,125 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     levelLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
     levelDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
 
-    prehabSheet: {
+    pickerSheet: {
       backgroundColor: C.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 10,
-      maxHeight: '90%',
+      maxHeight: '92%',
     },
-    prehabScroll: {
+    pickerScroll: {
       paddingHorizontal: 20,
-      paddingBottom: 16,
+      paddingBottom: 8,
     },
-    prehabDividerRow: {
+    pickerToggleRow: {
+      flexDirection: 'row' as const,
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 10,
+      padding: 3,
+      gap: 2,
+      marginBottom: 8,
+    },
+    pickerToggleBtn: {
+      flex: 1,
+      paddingVertical: 7,
+      alignItems: 'center' as const,
+      borderRadius: 8,
+    },
+    pickerToggleBtnActive: {
+      backgroundColor: C.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    pickerToggleText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    pickerToggleTextActive: {
+      color: C.text,
+      fontFamily: 'Inter_600SemiBold',
+    },
+    pickerCatRow: {
+      flexDirection: 'row' as const,
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 10,
+      padding: 3,
+      gap: 2,
+      marginBottom: 14,
+    },
+    pickerCatBtn: {
+      flex: 1,
+      paddingVertical: 7,
+      alignItems: 'center' as const,
+      borderRadius: 8,
+    },
+    pickerCatBtnActive: {
+      backgroundColor: C.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    pickerCatText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    pickerCatMuscleActive: {
+      color: '#2f6b46',
+      fontFamily: 'Inter_600SemiBold',
+    },
+    pickerCatJointActive: {
+      color: '#4a7e9b',
+      fontFamily: 'Inter_600SemiBold',
+    },
+    pickerRegionBtn: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      gap: 10,
-      marginTop: 16,
-      marginBottom: 4,
-      width: '100%',
-    },
-    prehabDividerLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: C.borderLight,
-    },
-    prehabDividerText: {
-      fontSize: 11,
-      fontFamily: 'Inter_400Regular',
-      color: C.textTertiary,
-    },
-    prehabRegionBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
       gap: 12,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: C.borderLight,
       backgroundColor: C.surfaceSecondary,
       paddingHorizontal: 14,
-      paddingVertical: 11,
+      paddingVertical: 12,
       marginBottom: 6,
     },
-    prehabRegionIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
+    pickerRegionDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
-    prehabRegionLabel: {
+    pickerRegionLabel: {
+      flex: 1,
       fontSize: 15,
       fontFamily: 'Inter_500Medium',
       color: C.text,
+    },
+    pickerFullBodyBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+      marginTop: 4,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    pickerFullBodyText: {
+      fontSize: 16,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
     },
 
     equipmentChipRow: {
