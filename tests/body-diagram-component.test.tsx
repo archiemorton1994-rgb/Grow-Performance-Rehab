@@ -35,6 +35,8 @@ const bodyHighlighterMock = require('../__mocks__/react-native-body-highlighter'
 import type { PainRegion } from '../lib/store';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '../components/BodyDiagram';
 import { PainInsightSheet } from '../components/PainInsightSheet';
+// router is mapped to __mocks__/expo-router.js by moduleNameMapper
+import { router } from 'expo-router';
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
@@ -568,11 +570,74 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // [5] Stats — Pain Insight Sheet
 //
-// PainInsightSheet is extracted from the inline Modal in workouts.tsx so it
-// can be tested in isolation. It receives region, sessionCount, and three
-// callbacks (onStartPrehab, onViewHistory, onDismiss) as props and renders a
-// bottom-sheet style Modal with testID-tagged interactive elements.
+// Two layers of test coverage:
+//
+//  a) Isolated unit tests — render <PainInsightSheet> directly with explicit
+//     props and assert on testID presence and callback invocation.
+//
+//  b) Integration tests — render <StatsHeatmapHarness> which mirrors the
+//     workouts.tsx heatmap section: it derives painRegionCounts from session
+//     history, renders <BodyDiagram heatmapCounts={...}>, and wires
+//     <PainInsightSheet> so that pressing "Start Targeted Prehab" calls
+//     router.push() with the correct { painRegion, sessionType } params —
+//     replicating the full workouts.tsx path end-to-end.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mirrors the heatmap section of workouts.tsx:
+ *   session history → painRegionCounts → BodyDiagram (heatmapCounts) →
+ *   tap region → PainInsightSheet opens → Start Prehab → router.push()
+ */
+function StatsHeatmapHarness({
+  sessions,
+}: {
+  sessions: Array<{ painRegion?: string; date: string }>;
+}) {
+  const [painInsightRegion, setPainInsightRegion] = React.useState<PainRegion | null>(null);
+
+  const painRegionCounts = React.useMemo(() => {
+    const counts: Partial<Record<PainRegion, number>> = {};
+    for (const s of sessions) {
+      if (s.painRegion) {
+        const r = s.painRegion as PainRegion;
+        counts[r] = (counts[r] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [sessions]);
+
+  return (
+    // Wrap in View so root.toJSON() is a single node, not an array
+    <View testID="stats-heatmap-harness">
+      <BodyDiagram
+        selected={undefined}
+        onSelect={(r) => { if (r) setPainInsightRegion(r); }}
+        heatmapCounts={painRegionCounts}
+      />
+      <PainInsightSheet
+        region={painInsightRegion}
+        sessionCount={painInsightRegion ? (painRegionCounts[painInsightRegion] ?? 0) : 0}
+        onStartPrehab={(region) => {
+          setPainInsightRegion(null);
+          router.push({
+            pathname: '/session',
+            params: {
+              sessionType: 'prehab',
+              hasAches: 'false',
+              painRegion: region,
+              energy: 'normal',
+              timeAvailable: '60',
+              isTestWeek: 'false',
+              equipment: 'bodyweight',
+            },
+          });
+        }}
+        onViewHistory={jest.fn()}
+        onDismiss={() => setPainInsightRegion(null)}
+      />
+    </View>
+  );
+}
 
 describe('[5] Stats — Pain Insight Sheet', () => {
   test('sheet is not rendered when region is null (Modal visible=false)', () => {
@@ -729,6 +794,85 @@ describe('[5] Stats — Pain Insight Sheet', () => {
         );
       });
     }).not.toThrow();
+  });
+
+  // ── Integration tests ──────────────────────────────────────────────────────
+  // These render StatsHeatmapHarness and verify the full heatmap tap →
+  // sheet open → navigation path, mirroring workouts.tsx end-to-end.
+
+  beforeEach(() => {
+    (router.push as jest.Mock).mockClear();
+  });
+
+  test('integration: tapping a heatmap region opens the sheet with the correct label', () => {
+    const sessions = [
+      { painRegion: 'knee', date: '2026-07-01' },
+      { painRegion: 'knee', date: '2026-06-28' },
+    ];
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<StatsHeatmapHarness sessions={sessions} />);
+    });
+    // Sheet must not be visible before tapping
+    expect(hasTestId(root, 'pain-insight-sheet')).toBe(false);
+    // Tap the front-view knee hotspot (always rendered — front view is default)
+    press(root, 'body-diagram-region-knee');
+    // Sheet must now be visible with the correct region label
+    expect(hasTestId(root, 'pain-insight-sheet')).toBe(true);
+    expect(hasText(root, BODY_DIAGRAM_LABELS['knee'])).toBe(true);
+  });
+
+  test('integration: pressing Start Targeted Prehab calls router.push with the correct painRegion', () => {
+    const sessions = [
+      { painRegion: 'knee', date: '2026-07-01' },
+      { painRegion: 'knee', date: '2026-06-28' },
+    ];
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<StatsHeatmapHarness sessions={sessions} />);
+    });
+    // Open sheet by tapping the knee region on the heatmap
+    press(root, 'body-diagram-region-knee');
+    expect(hasTestId(root, 'pain-insight-sheet')).toBe(true);
+    // The count derived from session history must be shown
+    expect(hasText(root, 'Flagged in 2 sessions')).toBe(true);
+    // Press the primary CTA
+    press(root, 'pain-insight-start-prehab');
+    // router.push must have been called exactly once with the correct params
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/session',
+        params: expect.objectContaining({
+          sessionType: 'prehab',
+          painRegion: 'knee',
+        }),
+      }),
+    );
+  });
+
+  test('integration: region absent from history (count=0) opens sheet without crash and navigates correctly', () => {
+    // hip_groin has no sessions → count=0 → fallback label "Flagged in 1 session"
+    const sessions = [
+      { painRegion: 'knee', date: '2026-07-01' },
+    ];
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<StatsHeatmapHarness sessions={sessions} />);
+    });
+    // Tap hip_groin (front view hotspot, always present regardless of count)
+    press(root, 'body-diagram-region-hip_groin');
+    expect(hasTestId(root, 'pain-insight-sheet')).toBe(true);
+    // Count=0 → fallback message shown
+    expect(hasText(root, 'Flagged in 1 session')).toBe(true);
+    // Navigation still works for zero-count regions
+    press(root, 'pain-insight-start-prehab');
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({ painRegion: 'hip_groin' }),
+      }),
+    );
   });
 });
 
