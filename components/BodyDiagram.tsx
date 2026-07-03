@@ -19,7 +19,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { PainRegion, useStore } from '@/lib/store';
+import { PainRegion, useAppStore } from '@/lib/store';
 import { useColors } from '@/constants/colors';
 
 type BodyView = 'front' | 'back';
@@ -175,7 +175,7 @@ export function BodyDiagram({
   const [view, setView] = useState<BodyView>(defaultView);
   const [category, setCategory] = useState<BodyCategory>('muscles');
   const C = useColors();
-  const sex = useStore(s => s.userProfile.sex);
+  const sex = useAppStore(s => s.userProfile.sex);
   const gender = sex === 'female' ? 'female' : 'male';
   const { width: screenWidth } = useWindowDimensions();
 

@@ -1621,6 +1621,35 @@ export default function StatsScreen() {
                 }}
                 C={C}
               />
+              {hasAnyPainHistory && (
+                <Animated.View entering={FadeInDown.delay(120).duration(380)}>
+                  <View style={{
+                    backgroundColor: C.surface, borderRadius: 16,
+                    borderWidth: 1, borderColor: C.borderLight,
+                    overflow: 'hidden', marginBottom: 16,
+                  }}>
+                    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
+                      <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>
+                        Pain Patterns
+                      </Text>
+                      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+                        Darker = flagged more often · tap a zone to filter history
+                      </Text>
+                    </View>
+                    <BodyDiagram
+                      selected={undefined}
+                      onSelect={(r) => {
+                        if (r) {
+                          setPainRegionFilter(r);
+                          setActiveTab('history');
+                        }
+                      }}
+                      heatmapCounts={painRegionCounts}
+                      maxWidth={160}
+                    />
+                  </View>
+                </Animated.View>
+              )}
             </ScrollView>
           )}
 
