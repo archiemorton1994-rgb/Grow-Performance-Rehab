@@ -9,6 +9,7 @@
  *   [1]  5 source-code static guards
  *   [2] 22 Flex tab / Targeted Prehab render tests (BodyDiagram component behaviour)
  *   [3] 15 Readiness screen render tests
+ *   [4] 10 Stats heatmap mode tests (heatmapCounts prop — no crash, correct interaction)
  */
 
 import React, { useState } from 'react';
@@ -319,6 +320,161 @@ describe('[3] Readiness screen — pain-region step', () => {
     press(root, 'body-diagram-region-core_ribs');
     press(root, 'pain-region-confirm');
     expect(confirmedRegion).toBe('core_ribs');
+  });
+});
+
+// ─── [4] Stats heatmap mode — Pain Patterns card ─────────────────────────────
+// Verifies that BodyDiagram with heatmapCounts prop (used by the Stats screen
+// Overview tab) renders safely across all edge cases and fires onSelect correctly.
+// Note: The react-native-svg mock strips fill/style props, so opacity is verified
+// via source-code static guards rather than inspecting rendered tree props.
+
+describe('[4] Stats heatmap mode — Pain Patterns card', () => {
+  const src = readFileSync(resolve(__dirname, '../components/BodyDiagram.tsx'), 'utf8');
+
+  // Typical heatmap data: some regions hot, others absent (count treated as 0)
+  const SAMPLE_COUNTS: Partial<Record<PainRegion, number>> = {
+    knee: 10, neck: 5, lower_back: 3,
+  };
+
+  // ── Opacity formula static guards ────────────────────────────────────────────
+  // The SVG mock only forwards testID + onPress; fill is stripped. We verify the
+  // opacity branching logic exists in source to prove different opacities are used.
+
+  test('opacity formula: non-zero counts use 0.14 + scaled 0.68 range', () => {
+    expect(src).toContain('0.14 + (count / heatmapMaxCount) * 0.68');
+  });
+
+  test('opacity formula: zero-count regions use 0.06 baseline (faint, not invisible)', () => {
+    // Formula: count > 0 ? 0.14 + … : 0.06
+    expect(src).toContain(': 0.06');
+    // Both values must differ — verified by their co-presence in the ternary
+    expect(src).toContain('count > 0');
+  });
+
+  // ── Runtime rendering — no crash on any edge case ────────────────────────────
+
+  test('renders without throwing with typical non-empty heatmapCounts', () => {
+    let root!: renderer.ReactTestRenderer;
+    expect(() => {
+      act(() => {
+        root = renderer.create(
+          <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
+        );
+      });
+    }).not.toThrow();
+    expect(root).toBeDefined();
+  });
+
+  test('renders without throwing when heatmapCounts is an empty object {}', () => {
+    let root!: renderer.ReactTestRenderer;
+    expect(() => {
+      act(() => {
+        root = renderer.create(
+          <BodyDiagram heatmapCounts={{}} onSelect={() => {}} />,
+        );
+      });
+    }).not.toThrow();
+    expect(root).toBeDefined();
+  });
+
+  test('renders without throwing when all counts are zero', () => {
+    const zeroCounts: Partial<Record<PainRegion, number>> = {
+      knee: 0, neck: 0, lower_back: 0,
+    };
+    let root!: renderer.ReactTestRenderer;
+    expect(() => {
+      act(() => {
+        root = renderer.create(
+          <BodyDiagram heatmapCounts={zeroCounts} onSelect={() => {}} />,
+        );
+      });
+    }).not.toThrow();
+    expect(root).toBeDefined();
+  });
+
+  // ── Region hotspot testIDs present ───────────────────────────────────────────
+  // h() hotspot paths render for the current view regardless of heatmap mode.
+
+  test('all front-view region hotspot testIDs are present in heatmap mode', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
+      );
+    });
+    const frontRegions: PainRegion[] = [
+      'neck', 'front_shoulder', 'elbow_wrist', 'core_ribs',
+      'hip_groin', 'knee', 'calf_shin', 'ankle_achilles',
+      'chest', 'bicep', 'quads', 'upper_back',
+    ];
+    for (const r of frontRegions) {
+      expect(hasTestId(root, `body-diagram-region-${r}`)).toBe(true);
+    }
+  });
+
+  test('all back-view region hotspot testIDs are present after switching to Back in heatmap mode', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
+      );
+    });
+    press(root, 'body-diagram-back');
+    const backRegions: PainRegion[] = [
+      'neck', 'rear_shoulder', 'upper_back', 'lower_back',
+      'elbow_wrist', 'lat_mid_back', 'glutes', 'hamstrings',
+      'knee', 'calf_shin', 'ankle_achilles', 'hip_groin', 'tricep',
+    ];
+    for (const r of backRegions) {
+      expect(hasTestId(root, `body-diagram-region-${r}`)).toBe(true);
+    }
+  });
+
+  // ── onSelect interaction ─────────────────────────────────────────────────────
+
+  test('onSelect fires with correct region when a hot region is pressed in heatmap mode', () => {
+    let selected: PainRegion | undefined;
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BodyDiagram
+          heatmapCounts={SAMPLE_COUNTS}
+          onSelect={(r) => { selected = r; }}
+        />,
+      );
+    });
+    press(root, 'body-diagram-region-knee');
+    expect(selected).toBe('knee');
+  });
+
+  test('onSelect fires for a region with count 0 (absent from heatmapCounts)', () => {
+    let selected: PainRegion | undefined;
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BodyDiagram
+          heatmapCounts={{ knee: 5 }}
+          onSelect={(r) => { selected = r; }}
+        />,
+      );
+    });
+    // core_ribs has no count entry (treated as 0) — should still be tappable
+    press(root, 'body-diagram-region-core_ribs');
+    expect(selected).toBe('core_ribs');
+  });
+
+  // ── Read-only display — no label chip ────────────────────────────────────────
+
+  test('hint text "Tap a region on the diagram" shows in heatmap mode (no label chip)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
+      );
+    });
+    // selected is undefined in heatmap mode → label is null → hint text shown
+    expect(hasText(root, 'Tap a region on the diagram')).toBe(true);
   });
 });
 
