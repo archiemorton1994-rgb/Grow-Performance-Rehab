@@ -19,7 +19,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { PainRegion } from '@/lib/store';
+import { PainRegion, useStore } from '@/lib/store';
 import { useColors } from '@/constants/colors';
 
 type BodyView = 'front' | 'back';
@@ -175,6 +175,8 @@ export function BodyDiagram({
   const [view, setView] = useState<BodyView>(defaultView);
   const [category, setCategory] = useState<BodyCategory>('muscles');
   const C = useColors();
+  const sex = useStore(s => s.userProfile.sex);
+  const gender = sex === 'female' ? 'female' : 'male';
   const { width: screenWidth } = useWindowDimensions();
 
   const accent   = accentColor ?? C.warning;
@@ -461,17 +463,27 @@ export function BodyDiagram({
       </View>
 
       <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
-        <Body
-          data={bodyData}
-          side={view}
-          gender="male"
-          scale={scale}
-          onBodyPartPress={handleBodyPartPress}
-          defaultFill={defaultFill}
-          border="none"
-          defaultStroke="none"
-          defaultStrokeWidth={0}
-        />
+        <View style={{ width: svgWidth, height: svgWidth * 2.4 }}>
+          <Body
+            data={bodyData}
+            side={view}
+            gender={gender}
+            scale={scale}
+            onBodyPartPress={handleBodyPartPress}
+            defaultFill={defaultFill}
+            border="none"
+            defaultStroke="none"
+            defaultStrokeWidth={0}
+          />
+          <Svg
+            width={svgWidth}
+            height={svgWidth * 2.4}
+            viewBox="0 0 200 480"
+            style={StyleSheet.absoluteFillObject}
+          >
+            {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
+          </Svg>
+        </View>
       </Animated.View>
 
       <View style={styles.labelRow}>

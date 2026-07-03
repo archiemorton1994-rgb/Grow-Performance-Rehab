@@ -10,6 +10,8 @@ module.exports = {
     '^react-native-svg$': '<rootDir>/__mocks__/react-native-svg.js',
     '^expo-haptics$': '<rootDir>/__mocks__/expo-haptics.js',
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
+    '^react-native-body-highlighter$': '<rootDir>/__mocks__/react-native-body-highlighter.js',
+    '^@/lib/store$': '<rootDir>/__mocks__/store.js',
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: [
