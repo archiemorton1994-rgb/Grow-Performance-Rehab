@@ -31,8 +31,8 @@ import { BADGE_MAP, Badge } from '@/lib/badges';
 function WeeklyRing({
   count, goal, activeColor, trackColor, textColor,
 }: { count: number; goal: number; activeColor: string; trackColor: string; textColor: string }) {
-  const SIZE = 54;
-  const SW = 5;
+  const SIZE = 70;
+  const SW = 6;
   const radius = (SIZE - SW) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = goal > 0 ? Math.min(count / goal, 1) : 0;
@@ -55,12 +55,52 @@ function WeeklyRing({
         </G>
       </Svg>
       {done ? (
-        <Ionicons name="checkmark" size={20} color={activeColor} />
+        <Ionicons name="checkmark" size={24} color={activeColor} />
       ) : (
-        <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: textColor, textAlign: 'center' }}>
-          {count}<Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: trackColor }}>/{goal}</Text>
+        <Text style={{ fontSize: 20, fontFamily: 'Inter_700Bold', color: textColor, textAlign: 'center' }}>
+          {count}
         </Text>
       )}
+    </View>
+  );
+}
+
+// ─── Weekly Session Dots ──────────────────────────────────────────────────────
+const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function WeekDots({
+  completedSessions,
+  activeColor,
+  emptyColor,
+}: { completedSessions: { date: string }[]; activeColor: string; emptyColor: string }) {
+  const activeDays = useMemo(() => {
+    const now = new Date();
+    const dow = now.getDay();
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    const result = new Set<number>();
+    for (const s of completedSessions) {
+      const d = new Date(s.date);
+      d.setHours(0, 0, 0, 0);
+      const diff = Math.floor((d.getTime() - monday.getTime()) / 86400000);
+      if (diff >= 0 && diff <= 6) result.add(diff);
+    }
+    return result;
+  }, [completedSessions]);
+
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      {WEEK_DAY_LETTERS.map((letter, i) => (
+        <View key={i} style={{ alignItems: 'center', gap: 5 }}>
+          <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
+          <View style={{
+            width: 8, height: 8, borderRadius: 4,
+            backgroundColor: activeDays.has(i) ? activeColor : emptyColor,
+          }} />
+        </View>
+      ))}
     </View>
   );
 }
@@ -476,18 +516,6 @@ export default function HomeScreen() {
                 {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
               </Text>
             )}
-            {showBlockProgress && (
-              <View style={styles.blockProgressRow}>
-                <View style={styles.blockBarTrack}>
-                  <View style={[styles.blockBarFill, { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any }]} />
-                </View>
-                <Text style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}>
-                  {sessionsUntilTest <= 2
-                    ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                    : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
-                </Text>
-              </View>
-            )}
             <Pressable
               onPress={openEquipmentSheet}
               style={({ pressed }) => [
@@ -516,6 +544,21 @@ export default function HomeScreen() {
               <Ionicons name="flash" size={18} color={C.textInverse} />
               <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
             </Pressable>
+          </Animated.View>
+        )}
+
+        {/* Block progress — standalone slim row between hero card and freshness chips */}
+        {completedSessions.length > 0 && showBlockProgress && (
+          <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
+            <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
+            <View style={styles.blockBarTrack}>
+              <View style={[styles.blockBarFill, { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any }]} />
+            </View>
+            <Text style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}>
+              {sessionsUntilTest <= 2
+                ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
+                : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
+            </Text>
           </Animated.View>
         )}
 
@@ -580,6 +623,17 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
+        {/* Weekly session dots — which days this week had a session */}
+        {completedSessions.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(130).duration(380)} style={styles.weekDotsRow}>
+            <WeekDots
+              completedSessions={completedSessions}
+              activeColor={C.primary}
+              emptyColor={C.borderLight}
+            />
+          </Animated.View>
+        )}
+
         {/* Achievements strip — always visible so users can browse locked badges too */}
         <Animated.View entering={FadeInDown.delay(140).duration(380)}>
           <Pressable
@@ -591,52 +645,58 @@ export default function HomeScreen() {
             testID="home-achievements-row"
           >
             <View style={styles.achievementsIcons}>
-              {earnedBadges.length > 0
-                ? [...earnedBadges].reverse().slice(0, 3).map(id => {
+              {earnedBadges.length > 0 ? (
+                <>
+                  {[...earnedBadges].reverse().slice(0, 5).map((id, idx, arr) => {
                     const badge = BADGE_MAP.get(id);
                     if (!badge) return null;
+                    const isLast = idx === arr.length - 1;
+                    const showCount = isLast && earnedBadges.length > 5;
                     return (
-                      <View
-                        key={id}
-                        style={[styles.achievementsDot, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}
-                      >
-                        <Ionicons name={badge.icon as any} size={12} color={badge.color} />
+                      <View key={id} style={{ position: 'relative' }}>
+                        <View style={[styles.achievementsDot, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}>
+                          <Ionicons name={badge.icon as any} size={12} color={badge.color} />
+                        </View>
+                        {showCount && (
+                          <View style={styles.badgeCountBubble}>
+                            <Text style={styles.badgeCountText}>{earnedBadges.length}</Text>
+                          </View>
+                        )}
                       </View>
                     );
-                  })
-                : (
-                  <View style={[styles.achievementsDot, { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight }]}>
-                    <Ionicons name="trophy-outline" size={12} color={C.textTertiary} />
-                  </View>
-                )
-              }
+                  })}
+                </>
+              ) : (
+                <View style={[styles.achievementsDot, { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight }]}>
+                  <Ionicons name="trophy-outline" size={12} color={C.textTertiary} />
+                </View>
+              )}
             </View>
-            <Text style={styles.achievementsLabel}>
-              {earnedBadges.length > 0
-                ? `${earnedBadges.length} badge${earnedBadges.length !== 1 ? 's' : ''} earned`
-                : 'Achievements'}
+            <Text style={styles.achievementsSeeAll}>
+              {earnedBadges.length === 0 ? 'Earn your first badge' : 'See all'}
             </Text>
-            <Text style={styles.achievementsSeeAll}>See all</Text>
             <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
           </Pressable>
         </Animated.View>
 
-        {/* Strength progress insight - best 1RM with gain since first test */}
+        {/* Strength progress insight - compact pill chip */}
         {topLift && completedSessions.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(150).duration(380)} style={styles.strengthInsightCard}>
-            <Ionicons name="barbell-outline" size={14} color={C.primary} />
-            <Text style={styles.insightLiftLabel}>
-              {topLift.lift.charAt(0).toUpperCase() + topLift.lift.slice(1)} 1RM
-            </Text>
-            <Text style={styles.insightLiftValue}>
-              {kgToDisplayUnit(topLift.weight, weightUnit)} {weightUnit}
-            </Text>
-            {ormGain > 0 && (
-              <View style={styles.gainBadge}>
-                <Ionicons name="trending-up" size={10} color={C.primary} />
-                <Text style={styles.gainBadgeText}>+{kgToDisplayUnit(ormGain, weightUnit)}{weightUnit}</Text>
-              </View>
-            )}
+          <Animated.View entering={FadeInDown.delay(150).duration(380)}>
+            <View style={styles.strengthInsightPill}>
+              <Ionicons name="barbell-outline" size={13} color={C.primary} />
+              <Text style={styles.insightLiftLabel}>
+                {topLift.lift.charAt(0).toUpperCase() + topLift.lift.slice(1)} 1RM
+              </Text>
+              <Text style={styles.insightLiftValue}>
+                {kgToDisplayUnit(topLift.weight, weightUnit)} {weightUnit}
+              </Text>
+              {ormGain > 0 && (
+                <View style={styles.gainBadge}>
+                  <Ionicons name="trending-up" size={10} color={C.primary} />
+                  <Text style={styles.gainBadgeText}>+{kgToDisplayUnit(ormGain, weightUnit)}{weightUnit}</Text>
+                </View>
+              )}
+            </View>
           </Animated.View>
         )}
 
@@ -705,8 +765,8 @@ export default function HomeScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Calibration progress — visible after sessions 1 and 2 only */}
-        {completedSessions.length >= 1 && completedSessions.length < 3 && (
+        {/* Calibration progress — visible after sessions 1 and 2 only (suppressed when a higher-priority banner shows) */}
+        {completedSessions.length >= 1 && completedSessions.length < 3 && !activeSession && milestoneHit === null && (
           <Animated.View entering={FadeInDown.delay(210).duration(380)} style={styles.calibrationCard}>
             <View style={styles.calibrationTop}>
               <Ionicons name="analytics-outline" size={14} color={C.primary} />
@@ -898,7 +958,7 @@ const modalStyles = StyleSheet.create({
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    inner: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 18 },
+    inner: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 12 },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
@@ -944,18 +1004,31 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     equipmentChipTextOverride: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
     overrideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary },
 
-    blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginBottom: 10 },
+    blockRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+    blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
     blockBarTrack: { flex: 1, height: 4, backgroundColor: C.borderLight, borderRadius: 2, overflow: 'hidden' as const },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    weekDotsRow: {
+      backgroundColor: C.surface, borderRadius: 14,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderWidth: 1, borderColor: C.borderLight,
+    },
+    strengthInsightPill: {
+      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
+      alignSelf: 'flex-start' as const,
+      backgroundColor: C.primaryMuted, borderRadius: 20,
+      paddingHorizontal: 12, paddingVertical: 7,
+      borderWidth: 1, borderColor: C.primary + '22',
+    },
     strengthInsightCard: {
       flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
       backgroundColor: C.primaryMuted, borderRadius: 12,
       paddingHorizontal: 14, paddingVertical: 10,
-      borderWidth: 1, borderColor: C.primary + '22', marginBottom: 12,
+      borderWidth: 1, borderColor: C.primary + '22',
     },
     insightLiftLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    insightLiftValue: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text, flex: 1 },
+    insightLiftValue: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
     gainBadge: {
       flexDirection: 'row' as const, alignItems: 'center' as const, gap: 3,
       backgroundColor: C.surface, borderRadius: 8,
@@ -1135,10 +1208,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
     },
     achievementsSeeAll: {
+      flex: 1,
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
+      textAlign: 'right' as const,
     },
+    badgeCountBubble: {
+      position: 'absolute' as const,
+      top: -5, right: -5,
+      minWidth: 16, height: 16, borderRadius: 8,
+      backgroundColor: C.primary,
+      alignItems: 'center' as const, justifyContent: 'center' as const,
+      paddingHorizontal: 3,
+    },
+    badgeCountText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     freshnessRow: {
       flexDirection: 'row' as const,
