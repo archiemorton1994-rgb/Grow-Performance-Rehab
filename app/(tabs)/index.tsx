@@ -276,22 +276,39 @@ export default function HomeScreen() {
   } = useAppStore();
 
   // ─── Badge animation tracking ────────────────────────────────────────────
-  const prevBadgeCountRef = useRef(earnedBadges.length);
-  const [animatingBadgeId, setAnimatingBadgeId] = useState<string | null>(null);
+  const prevBadgeIdsRef = useRef<Set<string>>(new Set(earnedBadges));
+  const [animatingBadgeIds, setAnimatingBadgeIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (earnedBadges.length > prevBadgeCountRef.current) {
-      const newestId = earnedBadges[earnedBadges.length - 1] ?? null;
-      prevBadgeCountRef.current = earnedBadges.length;
-      if (newestId) {
-        setAnimatingBadgeId(newestId);
-        const t = setTimeout(() => setAnimatingBadgeId(null), 800);
-        return () => clearTimeout(t);
-      }
-    } else {
-      prevBadgeCountRef.current = earnedBadges.length;
-    }
-  }, [earnedBadges.length]);
+    const prev = prevBadgeIdsRef.current;
+    const newIds = earnedBadges.filter(id => !prev.has(id));
+    prevBadgeIdsRef.current = new Set(earnedBadges);
+
+    if (newIds.length === 0) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    newIds.forEach((id, i) => {
+      const startDelay = i * 80;
+      const clearDelay = startDelay + 800;
+
+      const tStart = setTimeout(() => {
+        setAnimatingBadgeIds(prev => new Set([...prev, id]));
+      }, startDelay);
+
+      const tClear = setTimeout(() => {
+        setAnimatingBadgeIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, clearDelay);
+
+      timers.push(tStart, tClear);
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [earnedBadges]);
   // ─────────────────────────────────────────────────────────────────────────
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -789,7 +806,7 @@ export default function HomeScreen() {
                     const showCount = isLast && earnedBadges.length > 5;
                     return (
                       <View key={id} style={{ position: 'relative' }}>
-                        <AnimatedBadgeDot badge={badge} animate={id === animatingBadgeId} />
+                        <AnimatedBadgeDot badge={badge} animate={animatingBadgeIds.has(id)} />
                         {showCount && (
                           <View style={styles.badgeCountBubble}>
                             <Text style={styles.badgeCountText}>{earnedBadges.length}</Text>
