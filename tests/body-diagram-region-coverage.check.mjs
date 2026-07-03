@@ -30,7 +30,10 @@
  *        Reverse: every value listed in MUSCLE_SET is still a valid
  *                 PainRegion (catches renames that leave stale entries)
  *   4. h() hotspot coverage  — every PainRegion has an h('region') call in the
- *                              SVG body, confirming it is tappable on the diagram
+ *                              correct SVG view block(s).  A region placed only
+ *                              in one view is tappable from that view but
+ *                              invisible from the other.  REGION_VIEWS (section
+ *                              4) declares which view(s) each region requires.
  *
  * ── Classification contract ───────────────────────────────────────────────────
  * BodyDiagram.tsx classifies each PainRegion into one of two visual categories:
@@ -253,17 +256,111 @@ for (const joint of KNOWN_JOINTS) {
   );
 }
 
-// ─── 4. h() hotspot coverage — every PainRegion has a tappable hotspot ─────────
-console.log("\n[4] h() hotspot coverage — every PainRegion appears as h('region') in the SVG body");
+// ─── 4. h() hotspot coverage — per-view check ────────────────────────────────
+//
+// A region placed only in one view is tappable from that view but invisible
+// from the other.  This section verifies that each PainRegion has an h() call
+// in EVERY view that should show it.
+//
+// REGION_VIEWS is the authoritative map of which SVG view(s) each region must
+// appear in.  When a new PainRegion is added to lib/store.ts, add it here too
+// and specify 'front', 'back', or both.
+//
+// BodyDiagram.tsx currently has two hotspot render functions:
+//   • renderFrontHotspots  →  front body view
+//   • renderBackHotspots   →  back body view
 
+console.log("\n[4] h() hotspot coverage — per-view (front / back)");
+
+const REGION_VIEWS = {
+  // Front-only regions
+  front_shoulder: ['front'],
+  chest:          ['front'],
+  bicep:          ['front'],
+  quads:          ['front'],
+  hip_groin:      ['front'],
+  core_ribs:      ['front'],
+  // Back-only regions
+  rear_shoulder:  ['back'],
+  tricep:         ['back'],
+  upper_back:     ['back'],
+  lat_mid_back:   ['back'],
+  lower_back:     ['back'],
+  glutes:         ['back'],
+  hamstrings:     ['back'],
+  // Regions visible in both views (limbs, neck)
+  neck:           ['front', 'back'],
+  elbow_wrist:    ['front', 'back'],
+  knee:           ['front', 'back'],
+  calf_shin:      ['front', 'back'],
+  ankle_achilles: ['front', 'back'],
+};
+
+// ── Helper: extract the source text of a named arrow-function block ──────────
+// Finds  const <funcName> = () => ( … );  and returns the slice from the
+// const keyword to the closing ')' of the function body.
+function extractFunctionBlock(src, funcName) {
+  const declStart = src.indexOf(`const ${funcName}`);
+  if (declStart === -1) return null;
+  const arrowIdx = src.indexOf('=>', declStart);
+  if (arrowIdx === -1) return null;
+  const parenOpen = src.indexOf('(', arrowIdx);
+  if (parenOpen === -1) return null;
+  let depth = 0;
+  let end = -1;
+  for (let i = parenOpen; i < src.length; i++) {
+    if (src[i] === '(') depth++;
+    else if (src[i] === ')') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  return end !== -1 ? src.slice(declStart, end + 1) : null;
+}
+
+const frontHotspotsBlock = extractFunctionBlock(diagramSrc, 'renderFrontHotspots');
+const backHotspotsBlock  = extractFunctionBlock(diagramSrc, 'renderBackHotspots');
+
+check(
+  'renderFrontHotspots function found in BodyDiagram.tsx',
+  frontHotspotsBlock !== null,
+  'renderFrontHotspots not found — check components/BodyDiagram.tsx',
+);
+check(
+  'renderBackHotspots function found in BodyDiagram.tsx',
+  backHotspotsBlock !== null,
+  'renderBackHotspots not found — check components/BodyDiagram.tsx',
+);
+
+// ── Per-region, per-view checks ───────────────────────────────────────────────
 for (const region of painRegions) {
-  const pattern = new RegExp(`h\\('${region}'\\)`);
-  check(
-    `h('${region}') call exists in BodyDiagram.tsx`,
-    pattern.test(diagramSrc),
-    `no h('${region}') call found — the region cannot be tapped on the diagram; ` +
-    `add a hotspot Rect via h('${region}') in the SVG body`,
-  );
+  const requiredViews = REGION_VIEWS[region];
+
+  if (!requiredViews) {
+    // New region added to PainRegion but REGION_VIEWS not updated — fail clearly.
+    check(
+      `'${region}' is listed in REGION_VIEWS (section 4 of this test)`,
+      false,
+      `'${region}' is a PainRegion but has no entry in REGION_VIEWS — ` +
+      `add it with ['front'], ['back'], or ['front','back'] to this test file`,
+    );
+    continue;
+  }
+
+  const viewBlocks = { front: frontHotspotsBlock, back: backHotspotsBlock };
+
+  for (const view of requiredViews) {
+    const block = viewBlocks[view];
+    const pattern = new RegExp(`h\\('${region}'\\)`);
+    const found = block !== null && pattern.test(block);
+    check(
+      `h('${region}') exists in render${view.charAt(0).toUpperCase() + view.slice(1)}Hotspots`,
+      found,
+      `missing h('${region}') in the ${view} hotspot block — ` +
+      `the region cannot be tapped from the ${view} view; ` +
+      `add a hotspot shape via h('${region}') inside render${view.charAt(0).toUpperCase() + view.slice(1)}Hotspots in BodyDiagram.tsx`,
+    );
+  }
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
