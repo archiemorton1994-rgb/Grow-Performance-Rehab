@@ -1,7 +1,7 @@
 /**
  * Minimal react-native-svg mock for jest component tests.
- * SVG elements forward testID + onPress so react-test-renderer
- * can find hotspots and trigger press handlers.
+ * SVG elements forward testID, onPress, fill, and style so react-test-renderer
+ * can find hotspots, trigger press handlers, and inspect visual fill values.
  */
 const React = require('react');
 
@@ -9,7 +9,12 @@ const makeEl = (name) => {
   const El = (props) =>
     React.createElement(
       name,
-      { testID: props.testID, onPress: props.onPress },
+      {
+        testID: props.testID,
+        onPress: props.onPress,
+        fill: props.fill,
+        style: props.style,
+      },
       props.children || null,
     );
   El.displayName = name;

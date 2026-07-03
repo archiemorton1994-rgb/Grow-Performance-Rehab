@@ -9,7 +9,8 @@
  *   [1]  5 source-code static guards
  *   [2] 22 Flex tab / Targeted Prehab render tests (BodyDiagram component behaviour)
  *   [3] 15 Readiness screen render tests
- *   [4] 10 Stats heatmap mode tests (heatmapCounts prop — no crash, correct interaction)
+ *   [4] 13 Stats heatmap mode tests (heatmapCounts prop — no crash, correct interaction,
+ *          and runtime opacity assertions via the extended body-highlighter mock)
  */
 
 import React, { useState } from 'react';
@@ -20,6 +21,14 @@ import { resolve } from 'path';
 
 // react-native is redirected to __mocks__/react-native.js via moduleNameMapper
 import { View, Text, Pressable } from 'react-native';
+
+// Body-highlighter mock exposes getCapturedBodyData() so tests can inspect the
+// heatmap data array passed to <Body data={...}> and assert on fill/opacity values.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const bodyHighlighterMock = require('../__mocks__/react-native-body-highlighter') as {
+  getCapturedBodyData: () => Array<{ slug: string; styles: { fill: string } }> | null;
+  clearCapturedBodyData: () => void;
+};
 
 // PainRegion is a compile-time type — stripped by babel, no runtime load of store.ts
 import type { PainRegion } from '../lib/store';
@@ -325,9 +334,8 @@ describe('[3] Readiness screen — pain-region step', () => {
 
 // ─── [4] Stats heatmap mode — Pain Patterns card ─────────────────────────────
 // Verifies that BodyDiagram with heatmapCounts prop (used by the Stats screen
-// Overview tab) renders safely across all edge cases and fires onSelect correctly.
-// Note: The react-native-svg mock strips fill/style props, so opacity is verified
-// via source-code static guards rather than inspecting rendered tree props.
+// Overview tab) renders safely across all edge cases, fires onSelect correctly,
+// and produces the expected fill/opacity values via the body-highlighter data prop.
 
 describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   const src = readFileSync(resolve(__dirname, '../components/BodyDiagram.tsx'), 'utf8');
@@ -338,8 +346,8 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   };
 
   // ── Opacity formula static guards ────────────────────────────────────────────
-  // The SVG mock only forwards testID + onPress; fill is stripped. We verify the
-  // opacity branching logic exists in source to prove different opacities are used.
+  // Source-level guards ensure the formula structure doesn't silently disappear.
+  // Runtime opacity assertions follow below using the extended body-highlighter mock.
 
   test('opacity formula: non-zero counts use 0.14 + scaled 0.68 range', () => {
     expect(src).toContain('0.14 + (count / heatmapMaxCount) * 0.68');
@@ -475,6 +483,83 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     });
     // selected is undefined in heatmap mode → label is null → hint text shown
     expect(hasText(root, 'Tap a region on the diagram')).toBe(true);
+  });
+
+  // ── Runtime opacity assertions (via extended body-highlighter mock) ───────────
+  // BodyDiagram passes { slug, styles: { fill: 'rgba(r,g,b,opacity)' } } entries
+  // to <Body data={...}>. The mock captures that array so tests can assert on the
+  // actual computed opacity values, catching any silent formula change immediately.
+  //
+  // Slug mapping (FRONT_REGION_SLUGS in BodyDiagram.tsx):
+  //   knee  → 'knees'   (JOINT_CLR: #4a7e9b)
+  //   neck  → 'neck'    (JOINT_CLR: #4a7e9b)
+  //   hip_groin → 'adductors' (JOINT_CLR: #4a7e9b)
+  //
+  // Formula:  count > 0  ? 0.14 + (count / maxCount) * 0.68  : 0.06
+  //   count=10, max=10  → 0.14 + 1.00 * 0.68 = 0.82
+  //   count=5,  max=10  → 0.14 + 0.50 * 0.68 = 0.48
+  //   count=0  (absent) → 0.06
+
+  /** Parses the alpha component from an rgba(r,g,b,a) string. */
+  function parseOpacity(fill: string): number {
+    const m = fill.match(/rgba\(\d+,\d+,\d+,([\d.]+)\)/);
+    if (!m) throw new Error(`Unexpected fill format: ${fill}`);
+    return parseFloat(m[1]);
+  }
+
+  test('runtime opacity: max-count region (count=10) gets fill opacity 0.82', () => {
+    act(() => {
+      renderer.create(
+        <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
+      );
+    });
+    const data = bodyHighlighterMock.getCapturedBodyData();
+    expect(data).not.toBeNull();
+    const kneeEntry = data!.find(e => e.slug === 'knees');
+    expect(kneeEntry).toBeDefined();
+    // knee=10, maxCount=max(10,1)=10: 0.14 + (10/10)*0.68 = 0.82
+    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.82, 2);
+  });
+
+  test('runtime opacity: zero-count region gets baseline fill opacity 0.06', () => {
+    // knee=10 is the only hot region; hip_groin is absent → count=0
+    act(() => {
+      renderer.create(
+        <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
+      );
+    });
+    const data = bodyHighlighterMock.getCapturedBodyData();
+    expect(data).not.toBeNull();
+    const hipEntry = data!.find(e => e.slug === 'adductors');
+    expect(hipEntry).toBeDefined();
+    // hip_groin count=0: opacity = 0.06
+    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.06, 2);
+  });
+
+  test('runtime opacity: three counts produce three distinct opacity values in the correct order', () => {
+    // knee=10 (max), neck=5 (mid), hip_groin=0 (absent)
+    act(() => {
+      renderer.create(
+        <BodyDiagram heatmapCounts={{ knee: 10, neck: 5 }} onSelect={() => {}} />,
+      );
+    });
+    const data = bodyHighlighterMock.getCapturedBodyData();
+    expect(data).not.toBeNull();
+    const kneeEntry  = data!.find(e => e.slug === 'knees');
+    const neckEntry  = data!.find(e => e.slug === 'neck');
+    const hipEntry   = data!.find(e => e.slug === 'adductors');
+    expect(kneeEntry).toBeDefined();
+    expect(neckEntry).toBeDefined();
+    expect(hipEntry).toBeDefined();
+    // Exact values
+    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.82, 2); // 0.14+1.00*0.68
+    expect(parseOpacity(neckEntry!.styles.fill)).toBeCloseTo(0.48, 2); // 0.14+0.50*0.68
+    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.06, 2);  // baseline
+    // Ordering
+    expect(parseOpacity(kneeEntry!.styles.fill))
+      .toBeGreaterThan(parseOpacity(neckEntry!.styles.fill));
+    expect(parseOpacity(neckEntry!.styles.fill))
+      .toBeGreaterThan(parseOpacity(hipEntry!.styles.fill));
   });
 });
 
