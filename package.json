@@ -14,7 +14,8 @@
     "start": "npx expo start",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
-    "test": "jest"
+    "test": "jest",
+    "check": "node tests/prehab-regions.check.mjs && node tests/body-diagram.check.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.0",
