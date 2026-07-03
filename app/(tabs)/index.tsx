@@ -25,6 +25,7 @@ import Animated, {
   withSequence,
   withTiming,
   withDelay,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
@@ -91,7 +92,13 @@ function WeekDots({
   emptyColor: string;
 }) {
   const [activeDotIndex, setActiveDotIndex] = useState<number | null>(null);
+  const [displayInfo, setDisplayInfo] = useState<{ label: string; color: string } | null>(null);
+  const labelOpacity = useSharedValue(0);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const animatedLabelStyle = useAnimatedStyle(() => ({
+    opacity: labelOpacity.value,
+  }));
 
   useEffect(() => () => {
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
@@ -125,20 +132,34 @@ function WeekDots({
     return result;
   }, [completedSessions]);
 
+  const clearLabel = () => {
+    setActiveDotIndex(null);
+    setDisplayInfo(null);
+  };
+
+  const dismissLabel = () => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    labelOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+      if (finished) runOnJS(clearLabel)();
+    });
+  };
+
   const handleDotPress = (i: number) => {
     if (!daySessionMap.has(i)) return;
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
     if (activeDotIndex === i) {
-      setActiveDotIndex(null);
+      dismissLabel();
       return;
     }
+    const sessionType = daySessionMap.get(i)!;
+    setDisplayInfo({
+      label: SESSION_META[sessionType].label,
+      color: sessionColors[sessionType].color,
+    });
     setActiveDotIndex(i);
-    dismissTimer.current = setTimeout(() => setActiveDotIndex(null), 1500);
+    labelOpacity.value = withTiming(1, { duration: 200 });
+    dismissTimer.current = setTimeout(() => dismissLabel(), 1500);
   };
-
-  const activeSessionType = activeDotIndex !== null ? daySessionMap.get(activeDotIndex) : undefined;
-  const activeLabel = activeSessionType ? SESSION_META[activeSessionType].label : null;
-  const activeLabelColor = activeSessionType ? sessionColors[activeSessionType].color : undefined;
 
   return (
     <View>
@@ -166,11 +187,9 @@ function WeekDots({
         })}
       </View>
       <View style={{ minHeight: 20, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-        {activeLabel != null && activeLabelColor != null && (
-          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: activeLabelColor }}>
-            {activeLabel}
-          </Text>
-        )}
+        <Animated.Text style={[animatedLabelStyle, { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: displayInfo?.color ?? 'transparent' }]}>
+          {displayInfo?.label ?? ''}
+        </Animated.Text>
       </View>
     </View>
   );
