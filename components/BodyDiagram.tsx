@@ -35,6 +35,20 @@ const MUSCLE_SET = new Set<PainRegion>([
 const MUSCLE_CLR = '#2f6b46'; // brand emerald
 const JOINT_CLR  = '#4a7e9b'; // complementary slate-blue
 
+// ── ADDING A NEW PAIN REGION — update ALL four of these: ─────────────────────
+//
+//  1. lib/store.ts              → add the literal to the PainRegion union type
+//  2. BODY_DIAGRAM_LABELS       → add a human-readable label  (this file, below)
+//  3. MUSCLE_SET                → add it here if it is a muscle region;
+//                                 joint regions are classified automatically
+//                                 (this file, above — no change needed for joints)
+//  4. renderFrontHotspots /     → add the h('region') hotspot shape(s) inside
+//     renderBackHotspots          the correct view function(s)  (this file, below)
+//
+//  The contract test at tests/body-diagram-region-coverage.check.mjs verifies
+//  steps 2–4 automatically on every run; step 1 is checked by TypeScript.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const BODY_DIAGRAM_LABELS: Record<PainRegion, string> = {
   neck:           'Neck',
   front_shoulder: 'Front Shoulder',
@@ -55,6 +69,7 @@ export const BODY_DIAGRAM_LABELS: Record<PainRegion, string> = {
   glutes:         'Glutes',
   lat_mid_back:   'Lats / Mid Back',
 };
+
 
 interface BodyDiagramProps {
   selected: PainRegion | undefined;
