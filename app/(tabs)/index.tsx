@@ -27,6 +27,7 @@ import Animated, {
   withDelay,
   withSpring,
   runOnJS,
+  interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
@@ -78,18 +79,20 @@ function WeeklyRing({
 // ─── Weekly Session Dots ──────────────────────────────────────────────────────
 const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-function AnimatedDot({ isActive, dotColor }: { isActive: boolean; dotColor: string }) {
+function AnimatedDot({ isActive, dotColor, emptyColor }: { isActive: boolean; dotColor: string; emptyColor: string }) {
   const size = useSharedValue(8);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     size.value = withSpring(isActive ? 10 : 8, { damping: 12, stiffness: 200, mass: 0.6 });
+    progress.value = withTiming(isActive ? 1 : 0, { duration: 150 });
   }, [isActive]);
 
   const dotStyle = useAnimatedStyle(() => ({
     width: size.value,
     height: size.value,
     borderRadius: size.value / 2,
-    backgroundColor: dotColor,
+    backgroundColor: interpolateColor(progress.value, [0, 1], [emptyColor, dotColor]),
   }));
 
   return <Animated.View style={dotStyle} />;
@@ -194,7 +197,7 @@ function WeekDots({
               style={{ alignItems: 'center', gap: 5 }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
-              <AnimatedDot isActive={isActive} dotColor={dotColor} />
+              <AnimatedDot isActive={isActive} dotColor={dotColor} emptyColor={emptyColor} />
             </Pressable>
           );
         })}
