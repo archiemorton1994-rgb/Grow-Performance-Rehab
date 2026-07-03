@@ -1,6 +1,6 @@
 /**
  * Minimal react-native mock for jest component tests.
- * Maps View/Text/Pressable to plain React.createElement calls
+ * Maps View/Text/Pressable/Modal to plain React.createElement calls
  * so react-test-renderer can render them in Node.js.
  */
 const React = require('react');
@@ -17,6 +17,10 @@ const Pressable = ({ children, testID, onPress, style, disabled, ...rest }) =>
   React.createElement('Pressable', { testID, onPress, disabled, ...rest }, children);
 Pressable.displayName = 'Pressable';
 
+const Modal = ({ children, visible, transparent, animationType, onRequestClose, testID, ...rest }) =>
+  visible ? React.createElement('View', { testID: testID ?? 'modal', ...rest }, children) : null;
+Modal.displayName = 'Modal';
+
 const StyleSheet = {
   create: (s) => s,
   flatten: (s) => s || {},
@@ -31,6 +35,7 @@ module.exports = {
   View,
   Text,
   Pressable,
+  Modal,
   StyleSheet,
   useWindowDimensions,
   Platform,

@@ -11,6 +11,7 @@
  *   [3] 15 Readiness screen render tests
  *   [4] 13 Stats heatmap mode tests (heatmapCounts prop — no crash, correct interaction,
  *          and runtime opacity assertions via the extended body-highlighter mock)
+ *   [5]  9 Stats — Pain Insight Sheet (PainInsightSheet component extracted from workouts.tsx)
  */
 
 import React, { useState } from 'react';
@@ -33,6 +34,7 @@ const bodyHighlighterMock = require('../__mocks__/react-native-body-highlighter'
 // PainRegion is a compile-time type — stripped by babel, no runtime load of store.ts
 import type { PainRegion } from '../lib/store';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '../components/BodyDiagram';
+import { PainInsightSheet } from '../components/PainInsightSheet';
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
@@ -560,6 +562,173 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
       .toBeGreaterThan(parseOpacity(neckEntry!.styles.fill));
     expect(parseOpacity(neckEntry!.styles.fill))
       .toBeGreaterThan(parseOpacity(hipEntry!.styles.fill));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [5] Stats — Pain Insight Sheet
+//
+// PainInsightSheet is extracted from the inline Modal in workouts.tsx so it
+// can be tested in isolation. It receives region, sessionCount, and three
+// callbacks (onStartPrehab, onViewHistory, onDismiss) as props and renders a
+// bottom-sheet style Modal with testID-tagged interactive elements.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('[5] Stats — Pain Insight Sheet', () => {
+  test('sheet is not rendered when region is null (Modal visible=false)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region={null}
+          sessionCount={0}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    // Modal mock returns null when visible=false, so toJSON() is null
+    expect(root.toJSON()).toBeNull();
+  });
+
+  test('sheet renders with the correct region label when region is set', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="knee"
+          sessionCount={3}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    expect(hasTestId(root, 'pain-insight-sheet')).toBe(true);
+    expect(hasTestId(root, 'pain-insight-region-label')).toBe(true);
+    // BODY_DIAGRAM_LABELS['knee'] === 'Knee'
+    expect(hasText(root, BODY_DIAGRAM_LABELS['knee'])).toBe(true);
+  });
+
+  test('session count text uses plural form when count > 1', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="elbow_wrist"
+          sessionCount={5}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    expect(hasText(root, 'Flagged in 5 sessions')).toBe(true);
+  });
+
+  test('session count text uses singular form when count = 1', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="neck"
+          sessionCount={1}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    expect(hasText(root, 'Flagged in 1 session')).toBe(true);
+  });
+
+  test('session count text shows fallback when count = 0 (region absent from history)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="lower_back"
+          sessionCount={0}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    expect(hasText(root, 'Flagged in 1 session')).toBe(true);
+  });
+
+  test('"Start Targeted Prehab" button calls onStartPrehab with the correct region', () => {
+    const onStartPrehab = jest.fn();
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="knee"
+          sessionCount={5}
+          onStartPrehab={onStartPrehab}
+          onViewHistory={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    press(root, 'pain-insight-start-prehab');
+    expect(onStartPrehab).toHaveBeenCalledTimes(1);
+    expect(onStartPrehab).toHaveBeenCalledWith('knee');
+  });
+
+  test('"View in History" button calls onViewHistory with the correct region', () => {
+    const onViewHistory = jest.fn();
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="hip_groin"
+          sessionCount={2}
+          onStartPrehab={jest.fn()}
+          onViewHistory={onViewHistory}
+          onDismiss={jest.fn()}
+        />,
+      );
+    });
+    press(root, 'pain-insight-view-history');
+    expect(onViewHistory).toHaveBeenCalledTimes(1);
+    expect(onViewHistory).toHaveBeenCalledWith('hip_groin');
+  });
+
+  test('close (×) button calls onDismiss', () => {
+    const onDismiss = jest.fn();
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <PainInsightSheet
+          region="ankle_achilles"
+          sessionCount={3}
+          onStartPrehab={jest.fn()}
+          onViewHistory={jest.fn()}
+          onDismiss={onDismiss}
+        />,
+      );
+    });
+    press(root, 'pain-insight-close');
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  test('renders without crash when sessionCount is zero (region absent from pain history)', () => {
+    expect(() => {
+      act(() => {
+        renderer.create(
+          <PainInsightSheet
+            region="calf_shin"
+            sessionCount={0}
+            onStartPrehab={jest.fn()}
+            onViewHistory={jest.fn()}
+            onDismiss={jest.fn()}
+          />,
+        );
+      });
+    }).not.toThrow();
   });
 });
 
