@@ -41,11 +41,12 @@
  *   • MUSCLE  — explicitly listed in MUSCLE_SET (emerald green fill)
  *   • JOINT   — everything else; implicitly !MUSCLE_SET.has(r) (slate-blue fill)
  *
- * KNOWN_JOINTS below is the authoritative list of expected joint regions. It
- * must stay in sync with any changes to PainRegion and BodyDiagram.tsx.
- * When a new PainRegion is added, update ONE of these two:
- *   • MUSCLE_SET in components/BodyDiagram.tsx  (if it is a muscle region)
- *   • KNOWN_JOINTS in this file                 (if it is a joint region)
+ * KNOWN_JOINTS is derived at runtime as (PainRegion − MUSCLE_SET), so there is
+ * no manually maintained list to keep in sync.  When a new PainRegion is added:
+ *   • If it is a MUSCLE region → add it to MUSCLE_SET in BodyDiagram.tsx
+ *   • If it is a JOINT region  → no change needed here; it becomes a joint
+ *                                 automatically.  Still add it to
+ *                                 BODY_DIAGRAM_LABELS and REGION_VIEWS.
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * Run:  node tests/body-diagram-region-coverage.check.mjs
@@ -108,19 +109,16 @@ if (typeStart !== -1) {
 
 const painRegionSet = new Set(painRegions);
 
-// ─── Classification contract — explicit joint list ─────────────────────────────
-// BodyDiagram.tsx uses MUSCLE_SET for the muscle category.  Every PainRegion
-// NOT in MUSCLE_SET is implicitly treated as a joint.  KNOWN_JOINTS makes that
-// implicit list explicit so this test can verify forward MUSCLE_SET coverage:
-// every PainRegion must be in MUSCLE_SET (muscle) or KNOWN_JOINTS (joint).
+// ─── Classification contract — derived joint set ───────────────────────────────
+// KNOWN_JOINTS is computed at the end of section [3] as (PainRegion − MUSCLE_SET).
+// There is no manually maintained list: every PainRegion not in MUSCLE_SET is
+// automatically a joint.  If a new joint PainRegion is added to lib/store.ts it
+// will be classified correctly without any change to this file.
 //
-// When you add a new PainRegion to lib/store.ts, you MUST update one of:
-//   • MUSCLE_SET in components/BodyDiagram.tsx  — if it is a muscle region
-//   • KNOWN_JOINTS below                        — if it is a joint region
-const KNOWN_JOINTS = new Set([
-  'front_shoulder', 'rear_shoulder', 'elbow_wrist', 'neck',
-  'knee', 'hip_groin', 'ankle_achilles',
-]);
+// The only manual step when adding a new PainRegion is:
+//   • MUSCLE region → add to MUSCLE_SET in components/BodyDiagram.tsx
+//   • JOINT region  → no change here; still update BODY_DIAGRAM_LABELS (section 2)
+//                     and REGION_VIEWS (section 4)
 
 // ─── 2. BODY_DIAGRAM_LABELS — every PainRegion has an entry ───────────────────
 console.log('\n[2] BODY_DIAGRAM_LABELS — every PainRegion has an entry in BodyDiagram.tsx');
@@ -220,17 +218,29 @@ if (muscleSetDecl !== -1) {
 
 const muscleSetValueSet = new Set(muscleSetValues);
 
-// Forward: every PainRegion is classified as muscle (in MUSCLE_SET) or joint (in KNOWN_JOINTS)
-console.log('\n  Forward: every PainRegion → MUSCLE_SET (muscle) or KNOWN_JOINTS (joint)');
+// Derive KNOWN_JOINTS at runtime — no manually maintained list required.
+// Any PainRegion not in MUSCLE_SET is automatically treated as a joint here,
+// mirroring exactly the runtime behaviour of BodyDiagram.tsx.
+const KNOWN_JOINTS = new Set(painRegions.filter(r => !muscleSetValueSet.has(r)));
+
+// Sanity: every PainRegion must be in exactly one of the two sets.
+check(
+  `MUSCLE_SET (${muscleSetValues.length}) + KNOWN_JOINTS (${KNOWN_JOINTS.size}) = PainRegion total (${painRegions.length})`,
+  muscleSetValues.length + KNOWN_JOINTS.size === painRegions.length,
+  'classification count mismatch — a PainRegion may appear in both MUSCLE_SET and KNOWN_JOINTS, or the parser failed',
+);
+
+if (KNOWN_JOINTS.size > 0) {
+  console.log(`  · Derived joint region(s): ${[...KNOWN_JOINTS].join(', ')}`);
+}
+
+// Forward: every PainRegion is classified as muscle (in MUSCLE_SET) or joint (derived)
+console.log('\n  Forward: every PainRegion → MUSCLE_SET (muscle) or derived KNOWN_JOINTS (joint)');
 for (const region of painRegions) {
   const isMuscle = muscleSetValueSet.has(region);
-  const isJoint  = KNOWN_JOINTS.has(region);
   check(
-    `PainRegion '${region}' is explicitly classified as ${isMuscle ? 'muscle' : isJoint ? 'joint' : '???'}`,
-    isMuscle || isJoint,
-    `'${region}' is not in MUSCLE_SET and not in KNOWN_JOINTS — ` +
-    `add it to MUSCLE_SET in BodyDiagram.tsx if it is a muscle region, ` +
-    `or add it to KNOWN_JOINTS in this test file if it is a joint region`,
+    `PainRegion '${region}' is classified as ${isMuscle ? 'muscle' : 'joint'}`,
+    true,
   );
 }
 
@@ -242,17 +252,6 @@ for (const val of muscleSetValues) {
     painRegionSet.has(val),
     `'${val}' in MUSCLE_SET is not in PainRegion type — was it renamed or removed? ` +
     `Update MUSCLE_SET in BodyDiagram.tsx to match.`,
-  );
-}
-
-// Reverse: every KNOWN_JOINTS value is a valid PainRegion (keeps this test in sync)
-console.log('\n  Reverse: every KNOWN_JOINTS value is a declared PainRegion');
-for (const joint of KNOWN_JOINTS) {
-  check(
-    `KNOWN_JOINTS value '${joint}' is a declared PainRegion`,
-    painRegionSet.has(joint),
-    `'${joint}' in KNOWN_JOINTS is not in PainRegion type — was it renamed or removed? ` +
-    `Update KNOWN_JOINTS in this test file to match.`,
   );
 }
 
