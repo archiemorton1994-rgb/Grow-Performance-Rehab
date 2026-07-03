@@ -18,7 +18,8 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore, SetLog, ExerciseCategory } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
-import { getExerciseCategoryMap } from '@/lib/exercise-db';
+import { getExerciseCategoryMap, getExerciseTargetRegionsMap } from '@/lib/exercise-db';
+import { BodyDiagram } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
 
@@ -262,6 +263,21 @@ export default function SessionSummaryScreen() {
     }
     return best;
   }, [session, completedSessions]);
+
+  const workedRegions = useMemo(() => {
+    if (!session || session.exerciseLogs.length === 0) return null;
+    const targetMap = getExerciseTargetRegionsMap();
+    const regionSet = new Set<string>();
+    for (const log of session.exerciseLogs) {
+      for (const r of (targetMap[log.exerciseId] ?? [])) {
+        if (r) regionSet.add(r);
+      }
+    }
+    if (regionSet.size === 0) return null;
+    const counts: Record<string, number> = {};
+    regionSet.forEach(r => { counts[r] = 1; });
+    return counts as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
+  }, [session]);
 
   const shareCardData: WorkoutShareCardData | null = useMemo(() => {
     if (!session) return null;
@@ -549,6 +565,22 @@ export default function SessionSummaryScreen() {
               <Ionicons name="share-outline" size={18} color={C.primary} />
               <Text style={[styles.actionBtnText, { color: C.text }]}>{isSharing ? '…' : 'Share'}</Text>
             </Pressable>
+          </Animated.View>
+        )}
+
+        {/* Muscles worked heatmap */}
+        {workedRegions && (
+          <Animated.View
+            entering={FadeInDown.delay(180).duration(420)}
+            style={[styles.bodyCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Muscles Worked</Text>
+            <BodyDiagram
+              selected={undefined}
+              onSelect={() => {}}
+              heatmapCounts={workedRegions}
+              maxWidth={160}
+            />
           </Animated.View>
         )}
 
@@ -940,6 +972,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
     marginBottom: 12,
+  },
+  bodyCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    marginBottom: 16,
+    alignItems: 'center' as const,
   },
   exerciseCard: {
     flexDirection: 'row',

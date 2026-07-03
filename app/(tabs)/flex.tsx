@@ -17,7 +17,7 @@ import { useColors } from '@/constants/colors';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
-import { BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 
 const FLEX_IMAGES: Record<string, any> = {
   mobility:    require('@/assets/images/sessions/mobility.png'),
@@ -25,29 +25,6 @@ const FLEX_IMAGES: Record<string, any> = {
 };
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
-
-type RegionView     = 'front' | 'back';
-type RegionCategory = 'muscles' | 'joints';
-
-const REGION_FRONT = new Set<PainRegion>([
-  'neck', 'front_shoulder', 'chest', 'bicep', 'elbow_wrist',
-  'core_ribs', 'hip_groin', 'quads', 'knee', 'calf_shin', 'ankle_achilles',
-]);
-const REGION_BACK = new Set<PainRegion>([
-  'neck', 'rear_shoulder', 'tricep', 'elbow_wrist', 'upper_back',
-  'lat_mid_back', 'lower_back', 'glutes', 'hamstrings', 'knee', 'calf_shin', 'ankle_achilles',
-]);
-const REGION_MUSCLE = new Set<PainRegion>([
-  'chest', 'bicep', 'tricep', 'core_ribs', 'quads', 'hamstrings',
-  'glutes', 'lat_mid_back', 'upper_back', 'lower_back', 'calf_shin',
-]);
-
-function getFilteredRegions(view: RegionView, category: RegionCategory): PainRegion[] {
-  const viewSet = view === 'front' ? REGION_FRONT : REGION_BACK;
-  return [...viewSet].filter(r =>
-    category === 'muscles' ? REGION_MUSCLE.has(r) : !REGION_MUSCLE.has(r),
-  );
-}
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -158,94 +135,83 @@ function getConditioningLevels(C: ReturnType<typeof useColors>): ConditioningLev
   ];
 }
 
-type PickerStyles = {
-  pickerScroll: any; pickerToggleRow: any; pickerToggleBtn: any; pickerToggleBtnActive: any;
-  pickerToggleText: any; pickerToggleTextActive: any; pickerCatRow: any; pickerCatBtn: any;
-  pickerCatBtnActive: any; pickerCatText: any; pickerCatMuscleActive: any; pickerCatJointActive: any;
-  pickerRegionBtn: any; pickerRegionDot: any; pickerRegionLabel: any;
-  pickerFullBodyBtn: any; pickerFullBodyText: any;
-};
-
-function RegionPickerBody({
-  view, category, onViewChange, onCategoryChange, onSelectRegion, bottomInset, testPrefix, C, styles,
+function RegionBodyPicker({
+  pending,
+  onPendingChange,
+  onConfirm,
+  onFullBody,
+  bottomInset,
+  testPrefix,
 }: {
-  view: RegionView;
-  category: RegionCategory;
-  onViewChange: (v: RegionView) => void;
-  onCategoryChange: (c: RegionCategory) => void;
-  onSelectRegion: (region: PainRegion | 'fullbody') => void;
+  pending: PainRegion | undefined;
+  onPendingChange: (r: PainRegion | undefined) => void;
+  onConfirm: (region: PainRegion) => void;
+  onFullBody: () => void;
   bottomInset: number;
   testPrefix: string;
-  C: ReturnType<typeof useColors>;
-  styles: PickerStyles;
 }) {
-  const regions = getFilteredRegions(view, category);
-  const dotColor = category === 'muscles' ? '#2f6b46' : '#4a7e9b';
-
+  const C = useColors();
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={[styles.pickerScroll, { paddingBottom: bottomInset + 24 }]}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomInset + 24, gap: 10 }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.pickerToggleRow}>
-        {(['front', 'back'] as RegionView[]).map((v) => (
-          <Pressable
-            key={v}
-            onPress={() => onViewChange(v)}
-            style={[styles.pickerToggleBtn, view === v && styles.pickerToggleBtnActive]}
-            testID={`${testPrefix}-view-${v}`}
-          >
-            <Text style={[styles.pickerToggleText, view === v && styles.pickerToggleTextActive]}>
-              {v === 'front' ? 'Front' : 'Back'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.pickerCatRow}>
+      <BodyDiagram
+        selected={pending}
+        onSelect={onPendingChange}
+      />
+      {pending && (
         <Pressable
-          onPress={() => onCategoryChange('muscles')}
-          style={[styles.pickerCatBtn, category === 'muscles' && styles.pickerCatBtnActive]}
-          testID={`${testPrefix}-cat-muscles`}
+          onPress={() => onConfirm(pending)}
+          style={({ pressed }) => [{
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+            gap: 8,
+            backgroundColor: C.primary,
+            borderRadius: 14,
+            paddingVertical: 15,
+            shadowColor: C.primary,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.35,
+            shadowRadius: 8,
+            elevation: 5,
+          }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] }]}
+          testID={`${testPrefix}-start-region`}
         >
-          <Text style={[styles.pickerCatText, category === 'muscles' && styles.pickerCatMuscleActive]}>Muscles</Text>
+          <Ionicons name="play" size={16} color={C.textInverse} />
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+            Start {BODY_DIAGRAM_LABELS[pending]}
+          </Text>
         </Pressable>
-        <Pressable
-          onPress={() => onCategoryChange('joints')}
-          style={[styles.pickerCatBtn, category === 'joints' && styles.pickerCatBtnActive]}
-          testID={`${testPrefix}-cat-joints`}
-        >
-          <Text style={[styles.pickerCatText, category === 'joints' && styles.pickerCatJointActive]}>Joints</Text>
-        </Pressable>
-      </View>
-
-      {regions.map((region) => (
-        <Pressable
-          key={region}
-          onPress={() => onSelectRegion(region)}
-          style={({ pressed }) => [
-            styles.pickerRegionBtn,
-            pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-          ]}
-          testID={`${testPrefix}-region-${region}`}
-        >
-          <View style={[styles.pickerRegionDot, { backgroundColor: dotColor }]} />
-          <Text style={styles.pickerRegionLabel}>{BODY_DIAGRAM_LABELS[region]}</Text>
-          <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-        </Pressable>
-      ))}
-
+      )}
       <Pressable
-        onPress={() => onSelectRegion('fullbody')}
-        style={({ pressed }) => [
-          styles.pickerFullBodyBtn,
-          pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-        ]}
+        onPress={onFullBody}
+        style={({ pressed }) => [{
+          flexDirection: 'row' as const,
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+          gap: 8,
+          backgroundColor: pending ? C.surfaceTertiary : C.primary,
+          borderRadius: 14,
+          paddingVertical: 15,
+          borderWidth: pending ? 1 : 0,
+          borderColor: C.borderLight,
+          ...(pending ? {} : {
+            shadowColor: C.primary,
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.35,
+            shadowRadius: 8,
+            elevation: 5,
+          }),
+        }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] }]}
         testID={`${testPrefix}-fullbody`}
       >
-        <Ionicons name="flash-outline" size={16} color={C.textInverse} />
-        <Text style={styles.pickerFullBodyText}>Full body circuit</Text>
+        <Ionicons name="flash-outline" size={16} color={pending ? C.textSecondary : C.textInverse} />
+        <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: pending ? C.textSecondary : C.textInverse }}>
+          Full body circuit
+        </Text>
       </Pressable>
     </ScrollView>
   );
@@ -276,10 +242,8 @@ export default function FlexScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
 
-  const [recoveryView, setRecoveryView]         = useState<RegionView>('front');
-  const [recoveryCategory, setRecoveryCategory] = useState<RegionCategory>('joints');
-  const [prehabView, setPrehabView]             = useState<RegionView>('front');
-  const [prehabCategory, setPrehabCategory]     = useState<RegionCategory>('joints');
+  const [recoveryPending, setRecoveryPending] = useState<PainRegion | undefined>(undefined);
+  const [prehabPending, setPrehabPending]     = useState<PainRegion | undefined>(undefined);
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
   const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
@@ -297,10 +261,8 @@ export default function FlexScreen() {
 
   const closeModal = () => {
     setActiveModal(null);
-    setRecoveryView('front');
-    setRecoveryCategory('joints');
-    setPrehabView('front');
-    setPrehabCategory('joints');
+    setRecoveryPending(undefined);
+    setPrehabPending(undefined);
   };
 
   const openEquipmentSheet = () => {
@@ -516,7 +478,7 @@ export default function FlexScreen() {
         </View>
       </View>
 
-      {/* Recovery — region picker (Front/Back + Muscles/Joints + list) */}
+      {/* Recovery — body diagram region picker */}
       <Modal
         visible={activeModal === 'recovery'}
         transparent
@@ -540,16 +502,13 @@ export default function FlexScreen() {
               </Pressable>
             </View>
 
-            <RegionPickerBody
-              view={recoveryView}
-              category={recoveryCategory}
-              onViewChange={(v) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRecoveryView(v); }}
-              onCategoryChange={(c) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRecoveryCategory(c); }}
-              onSelectRegion={handlePrehabRegion}
+            <RegionBodyPicker
+              pending={recoveryPending}
+              onPendingChange={setRecoveryPending}
+              onConfirm={handlePrehabRegion}
+              onFullBody={() => handlePrehabRegion('fullbody')}
               bottomInset={insets.bottom}
               testPrefix="recovery"
-              C={C}
-              styles={styles}
             />
           </Pressable>
         </Pressable>
@@ -600,7 +559,7 @@ export default function FlexScreen() {
         </Pressable>
       </Modal>
 
-      {/* Targeted Prehab — region picker (Front/Back + Muscles/Joints + list) */}
+      {/* Targeted Prehab — body diagram region picker */}
       <Modal
         visible={activeModal === 'prehab'}
         transparent
@@ -624,16 +583,13 @@ export default function FlexScreen() {
               </Pressable>
             </View>
 
-            <RegionPickerBody
-              view={prehabView}
-              category={prehabCategory}
-              onViewChange={(v) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPrehabView(v); }}
-              onCategoryChange={(c) => { if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPrehabCategory(c); }}
-              onSelectRegion={handlePrehabRegion}
+            <RegionBodyPicker
+              pending={prehabPending}
+              onPendingChange={setPrehabPending}
+              onConfirm={handlePrehabRegion}
+              onFullBody={() => handlePrehabRegion('fullbody')}
               bottomInset={insets.bottom}
               testPrefix="prehab"
-              C={C}
-              styles={styles}
             />
           </Pressable>
         </Pressable>
@@ -946,119 +902,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopRightRadius: 24,
       paddingTop: 10,
       maxHeight: '92%',
-    },
-    pickerScroll: {
-      paddingHorizontal: 20,
-      paddingBottom: 8,
-    },
-    pickerToggleRow: {
-      flexDirection: 'row' as const,
-      backgroundColor: C.surfaceTertiary,
-      borderRadius: 10,
-      padding: 3,
-      gap: 2,
-      marginBottom: 8,
-    },
-    pickerToggleBtn: {
-      flex: 1,
-      paddingVertical: 7,
-      alignItems: 'center' as const,
-      borderRadius: 8,
-    },
-    pickerToggleBtnActive: {
-      backgroundColor: C.surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    pickerToggleText: {
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-    },
-    pickerToggleTextActive: {
-      color: C.text,
-      fontFamily: 'Inter_600SemiBold',
-    },
-    pickerCatRow: {
-      flexDirection: 'row' as const,
-      backgroundColor: C.surfaceTertiary,
-      borderRadius: 10,
-      padding: 3,
-      gap: 2,
-      marginBottom: 14,
-    },
-    pickerCatBtn: {
-      flex: 1,
-      paddingVertical: 7,
-      alignItems: 'center' as const,
-      borderRadius: 8,
-    },
-    pickerCatBtnActive: {
-      backgroundColor: C.surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    pickerCatText: {
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-    },
-    pickerCatMuscleActive: {
-      color: '#2f6b46',
-      fontFamily: 'Inter_600SemiBold',
-    },
-    pickerCatJointActive: {
-      color: '#4a7e9b',
-      fontFamily: 'Inter_600SemiBold',
-    },
-    pickerRegionBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      marginBottom: 6,
-    },
-    pickerRegionDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
-    },
-    pickerRegionLabel: {
-      flex: 1,
-      fontSize: 15,
-      fontFamily: 'Inter_500Medium',
-      color: C.text,
-    },
-    pickerFullBodyBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 8,
-      backgroundColor: C.primary,
-      borderRadius: 14,
-      paddingVertical: 15,
-      marginTop: 4,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.35,
-      shadowRadius: 8,
-      elevation: 5,
-    },
-    pickerFullBodyText: {
-      fontSize: 16,
-      fontFamily: 'Inter_700Bold',
-      color: C.textInverse,
     },
 
     equipmentChipRow: {
