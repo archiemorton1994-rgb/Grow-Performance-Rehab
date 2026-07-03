@@ -33,6 +33,7 @@ import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import { BADGE_MAP, Badge } from '@/lib/badges';
+import { useBadgeAnimation } from '@/hooks/useBadgeAnimation';
 
 // ─── Weekly Progress Ring ─────────────────────────────────────────────────────
 function WeeklyRing({
@@ -276,39 +277,7 @@ export default function HomeScreen() {
   } = useAppStore();
 
   // ─── Badge animation tracking ────────────────────────────────────────────
-  const prevBadgeIdsRef = useRef<Set<string>>(new Set(earnedBadges));
-  const [animatingBadgeIds, setAnimatingBadgeIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const prev = prevBadgeIdsRef.current;
-    const newIds = earnedBadges.filter(id => !prev.has(id));
-    prevBadgeIdsRef.current = new Set(earnedBadges);
-
-    if (newIds.length === 0) return;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    newIds.forEach((id, i) => {
-      const startDelay = i * 80;
-      const clearDelay = startDelay + 800;
-
-      const tStart = setTimeout(() => {
-        setAnimatingBadgeIds(prev => new Set([...prev, id]));
-      }, startDelay);
-
-      const tClear = setTimeout(() => {
-        setAnimatingBadgeIds(prev => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-      }, clearDelay);
-
-      timers.push(tStart, tClear);
-    });
-
-    return () => timers.forEach(clearTimeout);
-  }, [earnedBadges]);
+  const animatingBadgeIds = useBadgeAnimation(earnedBadges);
   // ─────────────────────────────────────────────────────────────────────────
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';

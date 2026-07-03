@@ -42,7 +42,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(__dir, '../app/(tabs)/index.tsx'), 'utf8');
+
+// Logic lives in the extracted hook; index.tsx wires it in.
+const hookSrc  = readFileSync(join(__dir, '../hooks/useBadgeAnimation.ts'), 'utf8');
+const indexSrc = readFileSync(join(__dir, '../app/(tabs)/index.tsx'), 'utf8');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,13 +62,8 @@ function check(label, condition, detail = '') {
   }
 }
 
-// ─── Isolate the badge tracking block ─────────────────────────────────────────
-
-// Extract from "Badge animation tracking" comment to end of the closing //─── line
-const blockMatch = src.match(
-  /\/\/ ─+ Badge animation tracking ─+[\s\S]*?\/\/ ─+/
-);
-const block = blockMatch ? blockMatch[0] : src; // fall back to full file if not found
+// For structural checks we use the hook source as "block"
+const block = hookSrc;
 
 // ─── Section 1: Static structure ──────────────────────────────────────────────
 

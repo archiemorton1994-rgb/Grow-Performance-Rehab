@@ -12,7 +12,10 @@ module.exports = {
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testMatch: ['<rootDir>/tests/body-diagram-component.test.tsx'],
+  testMatch: [
+    '<rootDir>/tests/body-diagram-component.test.tsx',
+    '<rootDir>/tests/badge-animation.test.tsx',
+  ],
   modulePathIgnorePatterns: ['<rootDir>/.cache/'],
   testTimeout: 15000,
   globals: {
