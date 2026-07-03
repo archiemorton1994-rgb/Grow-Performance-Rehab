@@ -1,8 +1,11 @@
 /**
- * Contract tests: every region in PREHAB_REGION_LIST has exercises in the DB.
+ * Contract tests: every region reachable via the prehab/recovery region picker
+ * has exercises in PREHAB_BY_REGION.
  *
- * The Targeted Prehab modal in flex.tsx shows a hardcoded list of regions
- * (PREHAB_REGION_LIST).  When a user taps one, handlePrehabRegion() calls
+ * The Recovery and Targeted Prehab modals in flex.tsx use REGION_FRONT and
+ * REGION_BACK sets filtered by REGION_MUSCLE (muscles/joints toggle) to build
+ * the region list.  The union of REGION_FRONT ∪ REGION_BACK is the full set of
+ * regions a user can ever tap.  When a user taps one, handlePrehabRegion() calls
  * getRegionPrehabWorkout(region) in workout-engine.ts, which delegates to:
  *
  *   exercise-db.ts: return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN];
@@ -13,12 +16,10 @@
  *
  * NOTE on tiers: getRegionPrehabWorkout() takes only a region, not an equipment
  * tier — targeted prehab exercises are all bodyweight/band and tier-agnostic.
- * The workout-engine.ts call site confirms this: it passes readiness.painRegion
- * with no tier argument.
  *
  * These checks guard against regressions:
- *   1. REGION PARSING    — extract regions dynamically from PREHAB_REGION_LIST
- *                          in flex.tsx (not a hardcoded expected list).
+ *   1. REGION PARSING    — extract regions dynamically from REGION_FRONT and
+ *                          REGION_BACK in flex.tsx (not a hardcoded expected list).
  *   2. DB KEY COVERAGE   — every UI region has a matching key in PREHAB_BY_REGION.
  *   3. EXERCISE COUNT    — every DB key array has ≥ 1 exercise template.
  *   4. SET EQUALITY      — no DB key is missing from the UI list and vice-versa.
@@ -53,57 +54,67 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Parse PREHAB_REGION_LIST from flex.tsx ────────────────────────────────
-console.log('\n[1] Parse PREHAB_REGION_LIST from flex.tsx');
+/**
+ * Parse a `new Set<PainRegion>([ ... ])` literal from source, returning an
+ * array of string values extracted from the array body.
+ */
+function parseSetLiteral(src, constName) {
+  const constStart = src.indexOf(`const ${constName}`);
+  if (constStart === -1) return null;
 
-// Locate the constant block start ("const PREHAB_REGION_LIST") and extract
-// its array body using bracket counting so we're never reading past the "];"
-const listConstStart = flexSrc.indexOf('const PREHAB_REGION_LIST');
+  // Find the opening '[' of the Set constructor's argument
+  const arrayOpen = src.indexOf('[', constStart);
+  if (arrayOpen === -1) return null;
+
+  let depth = 0;
+  let arrayEnd = -1;
+  for (let i = arrayOpen; i < src.length; i++) {
+    if (src[i] === '[') depth++;
+    else if (src[i] === ']') {
+      depth--;
+      if (depth === 0) { arrayEnd = i; break; }
+    }
+  }
+  if (arrayEnd === -1) return null;
+
+  const body = src.slice(arrayOpen, arrayEnd + 1);
+  const matches = [...body.matchAll(/'([^']+)'/g)];
+  return matches.map(m => m[1]);
+}
+
+// ─── 1. Parse REGION_FRONT and REGION_BACK from flex.tsx ─────────────────────
+console.log('\n[1] Parse REGION_FRONT and REGION_BACK from flex.tsx');
+
+const frontRegions = parseSetLiteral(flexSrc, 'REGION_FRONT');
+const backRegions  = parseSetLiteral(flexSrc, 'REGION_BACK');
+
 check(
-  'PREHAB_REGION_LIST constant found in flex.tsx',
-  listConstStart !== -1,
+  'REGION_FRONT constant found in flex.tsx',
+  frontRegions !== null,
   'constant not found — check app/(tabs)/flex.tsx',
 );
+check(
+  'REGION_BACK constant found in flex.tsx',
+  backRegions !== null,
+  'constant not found — check app/(tabs)/flex.tsx',
+);
+check(
+  `REGION_FRONT contains at least 1 region (found ${(frontRegions ?? []).length})`,
+  (frontRegions ?? []).length >= 1,
+  'no region entries found in REGION_FRONT',
+);
+check(
+  `REGION_BACK contains at least 1 region (found ${(backRegions ?? []).length})`,
+  (backRegions ?? []).length >= 1,
+  'no region entries found in REGION_BACK',
+);
 
-let uiRegions = [];
+// The full set of reachable UI regions is the union of front and back
+const uiRegionSet = new Set([...(frontRegions ?? []), ...(backRegions ?? [])]);
+const uiRegions   = [...uiRegionSet];
 
-if (listConstStart !== -1) {
-  // Find the opening '[' of the array
-  const arrayOpen = flexSrc.indexOf('[', listConstStart);
-  let bracketDepth = 0;
-  let arrayEnd     = -1;
-
-  for (let i = arrayOpen; i < flexSrc.length; i++) {
-    if (flexSrc[i] === '[') bracketDepth++;
-    else if (flexSrc[i] === ']') {
-      bracketDepth--;
-      if (bracketDepth === 0) { arrayEnd = i; break; }
-    }
-  }
-
-  check(
-    'PREHAB_REGION_LIST array boundary found',
-    arrayEnd !== -1,
-    'bracket counting failed — unbalanced brackets in PREHAB_REGION_LIST?',
-  );
-
-  if (arrayEnd !== -1) {
-    const listBlock = flexSrc.slice(arrayOpen, arrayEnd + 1);
-    // Extract every  region: 'some_value'  within this block
-    const regionMatches = [...listBlock.matchAll(/region:\s*'([^']+)'/g)];
-    uiRegions = regionMatches.map(m => m[1]);
-
-    check(
-      `PREHAB_REGION_LIST contains at least 1 region (found ${uiRegions.length})`,
-      uiRegions.length >= 1,
-      'no region entries found — check PREHAB_REGION_LIST in flex.tsx',
-    );
-
-    for (const region of uiRegions) {
-      console.log(`  · UI region: '${region}'`);
-    }
-  }
-}
+console.log(`  · Union of REGION_FRONT ∪ REGION_BACK (${uiRegions.length} unique regions):`);
+for (const r of uiRegions) console.log(`    · '${r}'`);
 
 // ─── 2. Parse PREHAB_BY_REGION from exercise-db.ts ────────────────────────────
 console.log('\n[2] Parse PREHAB_BY_REGION from exercise-db.ts');
@@ -118,7 +129,6 @@ check(
 let dbRegionExercises = {}; // region -> count
 
 if (byRegionStart !== -1) {
-  // Find the opening '{' of the Record object
   const objOpen = dbSrc.indexOf('{', byRegionStart);
   let braceDepth = 0;
   let objEnd     = -1;
@@ -140,9 +150,6 @@ if (byRegionStart !== -1) {
   if (objEnd !== -1) {
     const block = dbSrc.slice(objOpen, objEnd + 1);
 
-    // Find top-level keys — lines at depth-1 that look like:  region: [
-    // We walk character by character tracking brace+bracket depth so we only
-    // match keys at the outermost level of the Record (depth 1 inside the `{}`).
     let depth = 0;
     let i     = 0;
 
@@ -151,12 +158,10 @@ if (byRegionStart !== -1) {
       if (ch === '{' || ch === '[') depth++;
       else if (ch === '}' || ch === ']') depth--;
 
-      // At depth 1 we're at the top-level of the Record — look for a key: [
       if (depth === 1) {
         const keyMatch = block.slice(i).match(/^([a-z_]+):\s*\[/);
         if (keyMatch) {
-          const regionKey  = keyMatch[1];
-          // Advance to the '[' that opens this region's array
+          const regionKey   = keyMatch[1];
           const relArrayOpen = block.indexOf('[', i + keyMatch[0].indexOf('['));
           let   bracketD    = 0;
           let   arrayEnd    = -1;
@@ -173,7 +178,6 @@ if (byRegionStart !== -1) {
           const exerciseCount = (arraySlice.match(/id:\s*'/g) || []).length;
           dbRegionExercises[regionKey] = exerciseCount;
 
-          // Jump past the end of this array so we don't re-scan it
           if (arrayEnd !== -1) { i = arrayEnd; }
         }
       }
@@ -200,7 +204,7 @@ for (const region of uiRegions) {
   check(
     `PREHAB_BY_REGION has key '${region}'`,
     Object.prototype.hasOwnProperty.call(dbRegionExercises, region),
-    `'${region}' is in PREHAB_REGION_LIST but has no key in PREHAB_BY_REGION — tapping this tile launches an empty session`,
+    `'${region}' is reachable in the picker but has no key in PREHAB_BY_REGION — tapping this tile launches an empty session`,
   );
 }
 
@@ -217,10 +221,9 @@ for (const region of uiRegions) {
 }
 
 // ─── 5. Coverage direction — every UI region must have DB coverage ─────────────
-// NOTE: PREHAB_BY_REGION is intentionally a superset of PREHAB_REGION_LIST.
-// It also holds regions used for body-diagram / readiness pain-region selection
-// (e.g. chest, bicep, quads, glutes) that are not exposed in the targeted prehab
-// UI. The meaningful guarantee is one-directional: all UI regions → DB coverage.
+// NOTE: PREHAB_BY_REGION is intentionally a superset of the UI region set.
+// It may also hold regions used only for pain-region selection in readiness.tsx
+// that are not exposed in the picker UI. The meaningful guarantee is one-directional.
 console.log('\n[5] Coverage direction — every UI region has DB coverage');
 
 const uiSet = new Set(uiRegions);
@@ -229,14 +232,13 @@ const dbSet = new Set(Object.keys(dbRegionExercises));
 const inUINotDB = [...uiSet].filter(r => !dbSet.has(r));
 
 check(
-  'every UI region from PREHAB_REGION_LIST has a key in PREHAB_BY_REGION',
+  'every UI region (REGION_FRONT ∪ REGION_BACK) has a key in PREHAB_BY_REGION',
   inUINotDB.length === 0,
   inUINotDB.length > 0
     ? `UI regions with no DB key: ${inUINotDB.join(', ')} — tapping these tiles launches an empty session`
     : '',
 );
 
-// Informational: note any DB-only regions (not a failure — they serve other features)
 const inDBNotUI = [...dbSet].filter(r => !uiSet.has(r));
 if (inDBNotUI.length > 0) {
   console.log(`  · DB-only regions (used elsewhere, not a failure): ${inDBNotUI.join(', ')}`);
