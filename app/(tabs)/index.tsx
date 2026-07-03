@@ -18,7 +18,14 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -105,6 +112,52 @@ function WeekDots({
   );
 }
 
+// ─── Animated Badge Dot ───────────────────────────────────────────────────────
+function AnimatedBadgeDot({ badge, animate }: { badge: Badge; animate: boolean }) {
+  const scale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (!animate) return;
+    scale.value = withSequence(
+      withTiming(0.6, { duration: 80 }),
+      withTiming(1.2, { duration: 200 }),
+      withTiming(1.0, { duration: 160 }),
+    );
+    glowOpacity.value = withSequence(
+      withTiming(1, { duration: 120 }),
+      withDelay(320, withTiming(0, { duration: 220 })),
+    );
+  }, [animate]);
+
+  const dotAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const glowAnimStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
+  return (
+    <Animated.View style={dotAnimStyle}>
+      <View style={{
+        width: 26, height: 26, borderRadius: 8,
+        alignItems: 'center', justifyContent: 'center', borderWidth: 1,
+        backgroundColor: badge.color + '22', borderColor: badge.color + '55',
+      }}>
+        <Ionicons name={badge.icon as any} size={12} color={badge.color} />
+      </View>
+      <Animated.View
+        pointerEvents="none"
+        style={[{
+          position: 'absolute', top: -3, left: -3, right: -3, bottom: -3,
+          borderRadius: 10, borderWidth: 2, borderColor: badge.color,
+        }, glowAnimStyle]}
+      />
+    </Animated.View>
+  );
+}
+
 // Muscle-group → session type mapping for the freshness strip
 const MUSCLE_GROUPS: { key: string; label: string; sessions: SessionType[] }[] = [
   { key: 'legs',      label: 'Legs',      sessions: ['squat'] },
@@ -158,6 +211,25 @@ export default function HomeScreen() {
     bodyweightReminderEnabled,
     earnedBadges,
   } = useAppStore();
+
+  // ─── Badge animation tracking ────────────────────────────────────────────
+  const prevBadgeCountRef = useRef(earnedBadges.length);
+  const [animatingBadgeId, setAnimatingBadgeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (earnedBadges.length > prevBadgeCountRef.current) {
+      const newestId = earnedBadges[earnedBadges.length - 1] ?? null;
+      prevBadgeCountRef.current = earnedBadges.length;
+      if (newestId) {
+        setAnimatingBadgeId(newestId);
+        const t = setTimeout(() => setAnimatingBadgeId(null), 800);
+        return () => clearTimeout(t);
+      }
+    } else {
+      prevBadgeCountRef.current = earnedBadges.length;
+    }
+  }, [earnedBadges.length]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const;
@@ -654,9 +726,7 @@ export default function HomeScreen() {
                     const showCount = isLast && earnedBadges.length > 5;
                     return (
                       <View key={id} style={{ position: 'relative' }}>
-                        <View style={[styles.achievementsDot, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}>
-                          <Ionicons name={badge.icon as any} size={12} color={badge.color} />
-                        </View>
+                        <AnimatedBadgeDot badge={badge} animate={id === animatingBadgeId} />
                         {showCount && (
                           <View style={styles.badgeCountBubble}>
                             <Text style={styles.badgeCountText}>{earnedBadges.length}</Text>
