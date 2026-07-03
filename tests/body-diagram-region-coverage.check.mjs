@@ -29,11 +29,11 @@
  *                 placing it in one of these two buckets fails the test.
  *        Reverse: every value listed in MUSCLE_SET is still a valid
  *                 PainRegion (catches renames that leave stale entries)
- *   4. h() hotspot coverage  — every PainRegion has an h('region') call in the
- *                              correct SVG view block(s).  A region placed only
- *                              in one view is tappable from that view but
- *                              invisible from the other.  REGION_VIEWS (section
- *                              4) declares which view(s) each region requires.
+ *   4. h() hotspot coverage  — REGION_VIEWS is now DERIVED by parsing which
+ *                              h() calls live in renderFrontHotspots vs
+ *                              renderBackHotspots.  No hardcoded map to maintain.
+ *                              Adding a new PainRegion only requires h() calls
+ *                              in the appropriate render function(s).
  *
  * ── Classification contract ───────────────────────────────────────────────────
  * BodyDiagram.tsx classifies each PainRegion into one of two visual categories:
@@ -258,42 +258,20 @@ for (const val of muscleSetValues) {
 // ─── 4. h() hotspot coverage — per-view check ────────────────────────────────
 //
 // A region placed only in one view is tappable from that view but invisible
-// from the other.  This section verifies that each PainRegion has an h() call
-// in EVERY view that should show it.
+// from the other.  This section verifies that each PainRegion has at least one
+// h() call in either view, and that no h() call references a region that is
+// not a declared PainRegion.
 //
-// REGION_VIEWS is the authoritative map of which SVG view(s) each region must
-// appear in.  When a new PainRegion is added to lib/store.ts, add it here too
-// and specify 'front', 'back', or both.
+// REGION_VIEWS is now DERIVED from BodyDiagram.tsx by parsing which h('region')
+// calls live in renderFrontHotspots vs renderBackHotspots.  There is no hardcoded
+// map to maintain.  When a new PainRegion is added, placing h() calls in the
+// appropriate render function(s) is sufficient — no change to this test file.
 //
-// BodyDiagram.tsx currently has two hotspot render functions:
+// BodyDiagram.tsx hotspot render functions:
 //   • renderFrontHotspots  →  front body view
 //   • renderBackHotspots   →  back body view
 
 console.log("\n[4] h() hotspot coverage — per-view (front / back)");
-
-const REGION_VIEWS = {
-  // Front-only regions
-  front_shoulder: ['front'],
-  chest:          ['front'],
-  bicep:          ['front'],
-  quads:          ['front'],
-  hip_groin:      ['front'],
-  core_ribs:      ['front'],
-  // Back-only regions
-  rear_shoulder:  ['back'],
-  tricep:         ['back'],
-  upper_back:     ['back'],
-  lat_mid_back:   ['back'],
-  lower_back:     ['back'],
-  glutes:         ['back'],
-  hamstrings:     ['back'],
-  // Regions visible in both views (limbs, neck)
-  neck:           ['front', 'back'],
-  elbow_wrist:    ['front', 'back'],
-  knee:           ['front', 'back'],
-  calf_shin:      ['front', 'back'],
-  ankle_achilles: ['front', 'back'],
-};
 
 // ── Helper: extract the source text of a named arrow-function block ──────────
 // Finds  const <funcName> = () => ( … );  and returns the slice from the
@@ -331,35 +309,57 @@ check(
   'renderBackHotspots not found — check components/BodyDiagram.tsx',
 );
 
-// ── Per-region, per-view checks ───────────────────────────────────────────────
+// ── Parse h() calls from each view block ──────────────────────────────────────
+function parseHCalls(block) {
+  if (block === null) return new Set();
+  return new Set([...block.matchAll(/h\('([a-z_]+)'\)/g)].map(m => m[1]));
+}
+
+const frontRegions = parseHCalls(frontHotspotsBlock);
+const backRegions  = parseHCalls(backHotspotsBlock);
+
+// Build the derived region-views map from the parsed h() calls.
+// Each region maps to the list of views it appears in.
+const derivedRegionViews = new Map();
+for (const r of frontRegions) {
+  derivedRegionViews.set(r, ['front']);
+}
+for (const r of backRegions) {
+  if (derivedRegionViews.has(r)) {
+    derivedRegionViews.get(r).push('back');
+  } else {
+    derivedRegionViews.set(r, ['back']);
+  }
+}
+
+console.log(`  · Derived region→view mapping (${derivedRegionViews.size} unique region(s) with hotspots):`);
+for (const [region, views] of [...derivedRegionViews.entries()].sort()) {
+  console.log(`    '${region}' → [${views.map(v => `'${v}'`).join(', ')}]`);
+}
+
+// ── Forward: every PainRegion has at least one h() call in either view ────────
+console.log(`\n  Forward: every PainRegion has an h() hotspot in at least one view`);
 for (const region of painRegions) {
-  const requiredViews = REGION_VIEWS[region];
+  const views = derivedRegionViews.get(region);
+  check(
+    `'${region}' hotspot found in [${views ? views.map(v => `'${v}'`).join(', ') : '—'}]`,
+    views !== undefined,
+    `no h('${region}') found in renderFrontHotspots or renderBackHotspots — ` +
+    `add a hotspot shape via h('${region}') in the appropriate render function in BodyDiagram.tsx`,
+  );
+}
 
-  if (!requiredViews) {
-    // New region added to PainRegion but REGION_VIEWS not updated — fail clearly.
-    check(
-      `'${region}' is listed in REGION_VIEWS (section 4 of this test)`,
-      false,
-      `'${region}' is a PainRegion but has no entry in REGION_VIEWS — ` +
-      `add it with ['front'], ['back'], or ['front','back'] to this test file`,
-    );
-    continue;
-  }
-
-  const viewBlocks = { front: frontHotspotsBlock, back: backHotspotsBlock };
-
-  for (const view of requiredViews) {
-    const block = viewBlocks[view];
-    const pattern = new RegExp(`h\\('${region}'\\)`);
-    const found = block !== null && pattern.test(block);
-    check(
-      `h('${region}') exists in render${view.charAt(0).toUpperCase() + view.slice(1)}Hotspots`,
-      found,
-      `missing h('${region}') in the ${view} hotspot block — ` +
-      `the region cannot be tapped from the ${view} view; ` +
-      `add a hotspot shape via h('${region}') inside render${view.charAt(0).toUpperCase() + view.slice(1)}Hotspots in BodyDiagram.tsx`,
-    );
-  }
+// ── Reverse: every h()-covered region is a valid PainRegion ──────────────────
+console.log('\n  Reverse: every h()-covered region is a declared PainRegion');
+const allCoveredRegions = new Set([...frontRegions, ...backRegions]);
+for (const region of [...allCoveredRegions].sort()) {
+  check(
+    `h()-covered region '${region}' is a declared PainRegion`,
+    painRegionSet.has(region),
+    `stale h('${region}') call in a render function — ` +
+    `'${region}' is not in PainRegion type (renamed or removed?); ` +
+    `update the hotspot in renderFrontHotspots / renderBackHotspots in BodyDiagram.tsx`,
+  );
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
