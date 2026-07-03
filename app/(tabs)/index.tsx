@@ -25,6 +25,7 @@ import Animated, {
   withSequence,
   withTiming,
   withDelay,
+  withSpring,
   runOnJS,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -76,6 +77,23 @@ function WeeklyRing({
 
 // ─── Weekly Session Dots ──────────────────────────────────────────────────────
 const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function AnimatedDot({ isActive, dotColor }: { isActive: boolean; dotColor: string }) {
+  const size = useSharedValue(8);
+
+  useEffect(() => {
+    size.value = withSpring(isActive ? 10 : 8, { damping: 12, stiffness: 200, mass: 0.6 });
+  }, [isActive]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    width: size.value,
+    height: size.value,
+    borderRadius: size.value / 2,
+    backgroundColor: dotColor,
+  }));
+
+  return <Animated.View style={dotStyle} />;
+}
 
 // Priority order for picking the dominant session colour on multi-session days
 const SESSION_TYPE_PRIORITY: SessionType[] = [
@@ -176,12 +194,7 @@ function WeekDots({
               style={{ alignItems: 'center', gap: 5 }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
-              <View style={{
-                width: isActive ? 10 : 8,
-                height: isActive ? 10 : 8,
-                borderRadius: isActive ? 5 : 4,
-                backgroundColor: dotColor,
-              }} />
+              <AnimatedDot isActive={isActive} dotColor={dotColor} />
             </Pressable>
           );
         })}
