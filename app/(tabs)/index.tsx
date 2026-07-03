@@ -79,6 +79,24 @@ function WeeklyRing({
 // ─── Weekly Session Dots ──────────────────────────────────────────────────────
 const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+function AnimatedDayLetter({ isActive, dotColor, emptyColor, letter }: { isActive: boolean; dotColor: string; emptyColor: string; letter: string }) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(isActive ? 1 : 0, { duration: 150 });
+  }, [isActive]);
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [emptyColor, dotColor]),
+  }));
+
+  return (
+    <Animated.Text style={[textStyle, { fontSize: 10, fontFamily: 'Inter_500Medium' }]}>
+      {letter}
+    </Animated.Text>
+  );
+}
+
 function AnimatedDot({ isActive, dotColor, emptyColor }: { isActive: boolean; dotColor: string; emptyColor: string }) {
   const size = useSharedValue(8);
   const progress = useSharedValue(0);
@@ -196,7 +214,7 @@ function WeekDots({
               hitSlop={8}
               style={{ alignItems: 'center', gap: 5 }}
             >
-              <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
+              <AnimatedDayLetter isActive={isActive} dotColor={dotColor} emptyColor={emptyColor} letter={letter} />
               <AnimatedDot isActive={isActive} dotColor={dotColor} emptyColor={emptyColor} />
             </Pressable>
           );
