@@ -19,7 +19,7 @@ import { useColors } from '@/constants/colors';
 import { useAppStore, SetLog, ExerciseCategory } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
 import { getExerciseCategoryMap, getExerciseTargetRegionsMap } from '@/lib/exercise-db';
-import { BodyDiagram } from '@/components/BodyDiagram';
+import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
 
@@ -270,7 +270,7 @@ export default function SessionSummaryScreen() {
     const regionSet = new Set<string>();
     for (const log of session.exerciseLogs) {
       for (const r of (targetMap[log.exerciseId] ?? [])) {
-        if (r) regionSet.add(r);
+        if (r && MUSCLE_SET.has(r as any)) regionSet.add(r);
       }
     }
     if (regionSet.size === 0) return null;

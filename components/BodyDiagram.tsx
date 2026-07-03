@@ -26,7 +26,7 @@ type BodyView = 'front' | 'back';
 type BodyCategory = 'muscles' | 'joints';
 
 // ─── Region categorisation ────────────────────────────────────────────────────
-const MUSCLE_SET = new Set<PainRegion>([
+export const MUSCLE_SET = new Set<PainRegion>([
   'chest', 'bicep', 'tricep', 'core_ribs',
   'quads', 'hamstrings', 'glutes', 'lat_mid_back',
   'upper_back', 'lower_back', 'calf_shin',

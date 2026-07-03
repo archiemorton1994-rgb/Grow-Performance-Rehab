@@ -19,6 +19,22 @@ import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/wor
 import { daysSince } from '@/lib/utils';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 
+// ── Regions visible on each body diagram face ────────────────────────────────
+// Mirrors FRONT_REGION_SLUGS / BACK_REGION_SLUGS in BodyDiagram.tsx.
+// Used by contract tests (tests/prehab-regions.check.mjs) to verify that
+// every region reachable via the picker has exercises in PREHAB_BY_REGION.
+export const REGION_FRONT = new Set<PainRegion>([
+  'neck', 'front_shoulder', 'chest', 'bicep', 'elbow_wrist',
+  'core_ribs', 'hip_groin', 'quads', 'knee', 'calf_shin', 'ankle_achilles',
+  'upper_back',
+]);
+
+export const REGION_BACK = new Set<PainRegion>([
+  'neck', 'rear_shoulder', 'tricep', 'elbow_wrist', 'upper_back',
+  'lat_mid_back', 'lower_back', 'hip_groin', 'glutes', 'hamstrings',
+  'knee', 'calf_shin', 'ankle_achilles',
+]);
+
 const FLEX_IMAGES: Record<string, any> = {
   mobility:    require('@/assets/images/sessions/mobility.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
