@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,23 +20,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withSequence,
-  withTiming,
-  withDelay,
-  withSpring,
-  runOnJS,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
-import { SESSION_META, getSessionColors, SessionMeta, SessionColorPair } from '@/lib/session-meta';
+import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
-import { BADGE_MAP, Badge } from '@/lib/badges';
-import { useBadgeAnimation } from '@/hooks/useBadgeAnimation';
 
 // ─── Weekly Progress Ring ─────────────────────────────────────────────────────
 function WeeklyRing({
@@ -73,205 +63,6 @@ function WeeklyRing({
         </Text>
       )}
     </View>
-  );
-}
-
-// ─── Weekly Session Dots ──────────────────────────────────────────────────────
-const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-function AnimatedDayLetter({ isActive, dotColor, emptyColor, letter }: { isActive: boolean; dotColor: string; emptyColor: string; letter: string }) {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withTiming(isActive ? 1 : 0, { duration: 150 });
-  }, [isActive]);
-
-  const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [emptyColor, dotColor]),
-  }));
-
-  return (
-    <Animated.Text style={[textStyle, { fontSize: 10, fontFamily: 'Inter_500Medium' }]}>
-      {letter}
-    </Animated.Text>
-  );
-}
-
-function AnimatedDot({ isActive, dotColor, emptyColor }: { isActive: boolean; dotColor: string; emptyColor: string }) {
-  const size = useSharedValue(8);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    size.value = withSpring(isActive ? 10 : 8, { damping: 12, stiffness: 200, mass: 0.6 });
-    progress.value = withTiming(isActive ? 1 : 0, { duration: 150 });
-  }, [isActive]);
-
-  const dotStyle = useAnimatedStyle(() => ({
-    width: size.value,
-    height: size.value,
-    borderRadius: size.value / 2,
-    backgroundColor: interpolateColor(progress.value, [0, 1], [emptyColor, dotColor]),
-  }));
-
-  return <Animated.View style={dotStyle} />;
-}
-
-// Priority order for picking the dominant session colour on multi-session days
-const SESSION_TYPE_PRIORITY: SessionType[] = [
-  'squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom',
-];
-
-function WeekDots({
-  completedSessions,
-  sessionColors,
-  emptyColor,
-}: {
-  completedSessions: { date: string; sessionType: SessionType }[];
-  sessionColors: Record<SessionType, SessionColorPair>;
-  emptyColor: string;
-}) {
-  const [activeDotIndex, setActiveDotIndex] = useState<number | null>(null);
-  const [displayInfo, setDisplayInfo] = useState<{ label: string; color: string } | null>(null);
-  const labelOpacity = useSharedValue(0);
-  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const animatedLabelStyle = useAnimatedStyle(() => ({
-    opacity: labelOpacity.value,
-  }));
-
-  useEffect(() => () => {
-    if (dismissTimer.current) clearTimeout(dismissTimer.current);
-  }, []);
-
-  // Map day index (0=Mon … 6=Sun) → dominant session type for that day
-  const daySessionMap = useMemo(() => {
-    const now = new Date();
-    const dow = now.getDay();
-    const mondayOffset = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + mondayOffset);
-    monday.setHours(0, 0, 0, 0);
-
-    const result = new Map<number, SessionType>();
-    for (const s of completedSessions) {
-      const d = new Date(s.date);
-      d.setHours(0, 0, 0, 0);
-      const diff = Math.floor((d.getTime() - monday.getTime()) / 86400000);
-      if (diff < 0 || diff > 6) continue;
-      const existing = result.get(diff);
-      if (!existing) {
-        result.set(diff, s.sessionType);
-      } else {
-        // Keep the higher-priority type
-        const existingPri = SESSION_TYPE_PRIORITY.indexOf(existing);
-        const newPri = SESSION_TYPE_PRIORITY.indexOf(s.sessionType);
-        if (newPri < existingPri) result.set(diff, s.sessionType);
-      }
-    }
-    return result;
-  }, [completedSessions]);
-
-  const clearLabel = () => {
-    setActiveDotIndex(null);
-    setDisplayInfo(null);
-  };
-
-  const dismissLabel = () => {
-    if (dismissTimer.current) clearTimeout(dismissTimer.current);
-    labelOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-      if (finished) runOnJS(clearLabel)();
-    });
-  };
-
-  const handleDotPress = (i: number) => {
-    if (!daySessionMap.has(i)) return;
-    if (dismissTimer.current) clearTimeout(dismissTimer.current);
-    if (activeDotIndex === i) {
-      dismissLabel();
-      return;
-    }
-    const sessionType = daySessionMap.get(i)!;
-    setDisplayInfo({
-      label: SESSION_META[sessionType].label,
-      color: sessionColors[sessionType].color,
-    });
-    setActiveDotIndex(i);
-    labelOpacity.value = withTiming(1, { duration: 200 });
-    dismissTimer.current = setTimeout(() => dismissLabel(), 1500);
-  };
-
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        {WEEK_DAY_LETTERS.map((letter, i) => {
-          const sessionType = daySessionMap.get(i);
-          const dotColor = sessionType ? sessionColors[sessionType].color : emptyColor;
-          const isActive = activeDotIndex === i;
-          return (
-            <Pressable
-              key={i}
-              onPress={() => handleDotPress(i)}
-              hitSlop={8}
-              style={{ alignItems: 'center', gap: 5 }}
-            >
-              <AnimatedDayLetter isActive={isActive} dotColor={dotColor} emptyColor={emptyColor} letter={letter} />
-              <AnimatedDot isActive={isActive} dotColor={dotColor} emptyColor={emptyColor} />
-            </Pressable>
-          );
-        })}
-      </View>
-      <View style={{ minHeight: 20, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-        <Animated.Text style={[animatedLabelStyle, { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: displayInfo?.color ?? 'transparent' }]}>
-          {displayInfo?.label ?? ''}
-        </Animated.Text>
-      </View>
-    </View>
-  );
-}
-
-// ─── Animated Badge Dot ───────────────────────────────────────────────────────
-function AnimatedBadgeDot({ badge, animate }: { badge: Badge; animate: boolean }) {
-  const scale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    if (!animate) return;
-    scale.value = withSequence(
-      withTiming(0.6, { duration: 80 }),
-      withTiming(1.2, { duration: 200 }),
-      withTiming(1.0, { duration: 160 }),
-    );
-    glowOpacity.value = withSequence(
-      withTiming(1, { duration: 120 }),
-      withDelay(320, withTiming(0, { duration: 220 })),
-    );
-  }, [animate]);
-
-  const dotAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const glowAnimStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
-
-  return (
-    <Animated.View style={dotAnimStyle}>
-      <View style={{
-        width: 26, height: 26, borderRadius: 8,
-        alignItems: 'center', justifyContent: 'center', borderWidth: 1,
-        backgroundColor: badge.color + '22', borderColor: badge.color + '55',
-      }}>
-        <Ionicons name={badge.icon as any} size={12} color={badge.color} />
-      </View>
-      <Animated.View
-        pointerEvents="none"
-        style={[{
-          position: 'absolute', top: -3, left: -3, right: -3, bottom: -3,
-          borderRadius: 10, borderWidth: 2, borderColor: badge.color,
-        }, glowAnimStyle]}
-      />
-    </Animated.View>
   );
 }
 
@@ -316,8 +107,6 @@ export default function HomeScreen() {
     setCycleStartOffset,
     profilePhotoUri,
     testWeekFrequency,
-    getBestORM,
-    oneRepMaxes,
     weightUnit,
     equipmentTiers,
     sessionEquipmentOverride,
@@ -328,10 +117,6 @@ export default function HomeScreen() {
     bodyweightReminderEnabled,
     earnedBadges,
   } = useAppStore();
-
-  // ─── Badge animation tracking ────────────────────────────────────────────
-  const animatingBadgeIds = useBadgeAnimation(earnedBadges);
-  // ─────────────────────────────────────────────────────────────────────────
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const;
@@ -425,7 +210,7 @@ export default function HomeScreen() {
 
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
-    const result = {} as Record<SessionType, SessionMeta & SessionColorPair>;
+    const result = {} as Record<SessionType, SessionMeta & ReturnType<typeof getSessionColors>[SessionType]>;
     (Object.keys(SESSION_META) as SessionType[]).forEach(type => {
       result[type] = { ...SESSION_META[type], ...colors[type] };
     });
@@ -444,22 +229,6 @@ export default function HomeScreen() {
     : 0;
   const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
   const showBlockProgress = strengthCount >= 1 && !testWeek;
-
-  const { topLift, ormGain } = useMemo(() => {
-    const lifts: SessionType[] = ['squat', 'deadlift', 'bench'];
-    let bestLift: SessionType | null = null;
-    let bestWeight = 0;
-    for (const lift of lifts) {
-      const orm = getBestORM(lift);
-      if (orm && orm.weight > bestWeight) { bestWeight = orm.weight; bestLift = lift; }
-    }
-    if (!bestLift) return { topLift: null, ormGain: 0 };
-    const firstWeight = oneRepMaxes.filter(o => o.lift === bestLift).at(-1)?.weight ?? null;
-    return {
-      topLift: { lift: bestLift as SessionType, weight: bestWeight },
-      ormGain: firstWeight && firstWeight < bestWeight ? Math.round(bestWeight - firstWeight) : 0,
-    };
-  }, [oneRepMaxes, getBestORM]);
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -797,19 +566,8 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
 
-        {/* Weekly session dots — which days this week had a session */}
-        {completedSessions.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(130).duration(380)} style={styles.weekDotsRow}>
-            <WeekDots
-              completedSessions={completedSessions}
-              sessionColors={getSessionColors(C)}
-              emptyColor={C.borderLight}
-            />
-          </Animated.View>
-        )}
-
-        {/* Achievements strip — always visible so users can browse locked badges too */}
-        <Animated.View entering={FadeInDown.delay(140).duration(380)}>
+        {/* Achievements — single tappable row navigating to /achievements */}
+        <Animated.View entering={FadeInDown.delay(130).duration(380)}>
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -818,59 +576,16 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
             testID="home-achievements-row"
           >
-            <View style={styles.achievementsIcons}>
-              {earnedBadges.length > 0 ? (
-                <>
-                  {[...earnedBadges].reverse().slice(0, 5).map((id, idx, arr) => {
-                    const badge = BADGE_MAP.get(id);
-                    if (!badge) return null;
-                    const isLast = idx === arr.length - 1;
-                    const showCount = isLast && earnedBadges.length > 5;
-                    return (
-                      <View key={id} style={{ position: 'relative' }}>
-                        <AnimatedBadgeDot badge={badge} animate={animatingBadgeIds.has(id)} />
-                        {showCount && (
-                          <View style={styles.badgeCountBubble}>
-                            <Text style={styles.badgeCountText}>{earnedBadges.length}</Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </>
-              ) : (
-                <View style={[styles.achievementsDot, { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight }]}>
-                  <Ionicons name="trophy-outline" size={12} color={C.textTertiary} />
-                </View>
-              )}
-            </View>
-            <Text style={styles.achievementsSeeAll}>
-              {earnedBadges.length === 0 ? 'Earn your first badge' : 'See all'}
-            </Text>
+            <Ionicons name="medal" size={18} color={C.primary} />
+            <Text style={styles.achievementsLabel}>Badges</Text>
+            {earnedBadges.length > 0 && (
+              <View style={styles.badgeCountChip}>
+                <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
+              </View>
+            )}
             <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
           </Pressable>
         </Animated.View>
-
-        {/* Strength progress insight - compact pill chip */}
-        {topLift && completedSessions.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(150).duration(380)}>
-            <View style={styles.strengthInsightPill}>
-              <Ionicons name="barbell-outline" size={13} color={C.primary} />
-              <Text style={styles.insightLiftLabel}>
-                {topLift.lift.charAt(0).toUpperCase() + topLift.lift.slice(1)} 1RM
-              </Text>
-              <Text style={styles.insightLiftValue}>
-                {kgToDisplayUnit(topLift.weight, weightUnit)} {weightUnit}
-              </Text>
-              {ormGain > 0 && (
-                <View style={styles.gainBadge}>
-                  <Ionicons name="trending-up" size={10} color={C.primary} />
-                  <Text style={styles.gainBadgeText}>+{kgToDisplayUnit(ormGain, weightUnit)}{weightUnit}</Text>
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
 
         {/* Secondary actionable card - priority: resume > milestone > broken streak (mutually exclusive) */}
         {activeSession ? (
@@ -1181,39 +896,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     blockBarTrack: { flex: 1, height: 4, backgroundColor: C.borderLight, borderRadius: 2, overflow: 'hidden' as const },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    weekDotsRow: {
-      backgroundColor: C.surface, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.borderLight,
-    },
-    strengthInsightPill: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
-      alignSelf: 'flex-start' as const,
-      backgroundColor: C.primaryMuted, borderRadius: 20,
-      paddingHorizontal: 12, paddingVertical: 7,
-      borderWidth: 1, borderColor: C.primary + '22',
-    },
-    strengthInsightCard: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
-      backgroundColor: C.primaryMuted, borderRadius: 12,
-      paddingHorizontal: 14, paddingVertical: 10,
-      borderWidth: 1, borderColor: C.primary + '22',
-    },
-    insightLiftLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    insightLiftValue: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
-    gainBadge: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 3,
-      backgroundColor: C.surface, borderRadius: 8,
-      paddingHorizontal: 8, paddingVertical: 4,
-      borderWidth: 1, borderColor: C.primary + '30',
-    },
-    gainBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    progressionChip: {
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      marginBottom: 10,
-    },
-    progressionChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-
     statsStrip: {
       flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4,
     },
@@ -1361,40 +1043,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    achievementsIcons: {
-      flexDirection: 'row' as const,
-      gap: 4,
-    },
-    achievementsDot: {
-      width: 26,
-      height: 26,
-      borderRadius: 8,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      borderWidth: 1,
-    },
     achievementsLabel: {
       flex: 1,
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
+      fontSize: 14,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
     },
-    achievementsSeeAll: {
-      flex: 1,
-      fontSize: 12,
-      fontFamily: 'Inter_500Medium',
-      color: C.textTertiary,
-      textAlign: 'right' as const,
+    badgeCountChip: {
+      backgroundColor: C.primaryMuted,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderColor: C.primary + '44',
     },
-    badgeCountBubble: {
-      position: 'absolute' as const,
-      top: -5, right: -5,
-      minWidth: 16, height: 16, borderRadius: 8,
-      backgroundColor: C.primary,
-      alignItems: 'center' as const, justifyContent: 'center' as const,
-      paddingHorizontal: 3,
-    },
-    badgeCountText: { fontSize: 9, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
     freshnessRow: {
       flexDirection: 'row' as const,
