@@ -89,6 +89,13 @@ function WeekDots({
   sessionColors: Record<SessionType, SessionColorPair>;
   emptyColor: string;
 }) {
+  const [activeDotIndex, setActiveDotIndex] = useState<number | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+  }, []);
+
   // Map day index (0=Mon … 6=Sun) → dominant session type for that day
   const daySessionMap = useMemo(() => {
     const now = new Date();
@@ -117,21 +124,53 @@ function WeekDots({
     return result;
   }, [completedSessions]);
 
+  const handleDotPress = (i: number) => {
+    if (!daySessionMap.has(i)) return;
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    if (activeDotIndex === i) {
+      setActiveDotIndex(null);
+      return;
+    }
+    setActiveDotIndex(i);
+    dismissTimer.current = setTimeout(() => setActiveDotIndex(null), 1500);
+  };
+
+  const activeSessionType = activeDotIndex !== null ? daySessionMap.get(activeDotIndex) : undefined;
+  const activeLabel = activeSessionType ? SESSION_META[activeSessionType].label : null;
+  const activeLabelColor = activeSessionType ? sessionColors[activeSessionType].color : undefined;
+
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      {WEEK_DAY_LETTERS.map((letter, i) => {
-        const sessionType = daySessionMap.get(i);
-        const dotColor = sessionType ? sessionColors[sessionType].color : emptyColor;
-        return (
-          <View key={i} style={{ alignItems: 'center', gap: 5 }}>
-            <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
-            <View style={{
-              width: 8, height: 8, borderRadius: 4,
-              backgroundColor: dotColor,
-            }} />
-          </View>
-        );
-      })}
+    <View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {WEEK_DAY_LETTERS.map((letter, i) => {
+          const sessionType = daySessionMap.get(i);
+          const dotColor = sessionType ? sessionColors[sessionType].color : emptyColor;
+          const isActive = activeDotIndex === i;
+          return (
+            <Pressable
+              key={i}
+              onPress={() => handleDotPress(i)}
+              hitSlop={8}
+              style={{ alignItems: 'center', gap: 5 }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
+              <View style={{
+                width: isActive ? 10 : 8,
+                height: isActive ? 10 : 8,
+                borderRadius: isActive ? 5 : 4,
+                backgroundColor: dotColor,
+              }} />
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={{ minHeight: 20, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+        {activeLabel != null && activeLabelColor != null && (
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: activeLabelColor }}>
+            {activeLabel}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
