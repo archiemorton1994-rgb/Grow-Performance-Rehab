@@ -22,6 +22,7 @@
  *
  * These checks guard against that regression:
  *   1. EXERCISE PARSING  — extract all main/accessory exercises from exercise-db.ts
+ *                          using brace-depth block scanning (exercises are multi-line)
  *   2. SWAP COVERAGE     — every strength session exercise has swapAlternative
  *                          (conditioning circuits and 1RM test sets are excluded —
  *                           they are not individual exercises users would swap)
@@ -58,30 +59,87 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Parse main/accessory exercises from lib/exercise-db.ts ────────────────
+// ─── 1. Parse main/accessory exercise objects from lib/exercise-db.ts ─────────
 console.log('\n[1] Parse main/accessory exercises from lib/exercise-db.ts');
 
-// Each exercise is written as a single-line object in exercise-db.ts.
-// Strategy: scan every line that contains category: 'main' or category: 'accessory',
-// extract the id and name, then check whether swapAlternative: and comfortVariant:
-// appear on the same line.
+// Exercises are multi-line objects.  Strategy:
+//   1. Find each occurrence of  category: 'main'  or  category: 'accessory'
+//   2. Scan BACKWARDS from that point with brace-depth tracking to find the
+//      opening '{' of the enclosing exercise object.
+//   3. Scan FORWARDS from that '{' to find the matching closing '}' at depth 0.
+//   4. Extract the full block and check for swapAlternative: and comfortVariant:.
+//
+// This mirrors the approach used in comfort-variant-coverage.check.mjs for
+// comfortVariant block extraction.
 
 const exercises = [];
+let searchPos = 0;
 
-for (const line of dbSrc.split('\n')) {
-  if (!line.includes("category: 'main'") && !line.includes("category: 'accessory'")) continue;
+while (true) {
+  // Locate the next category: 'main' or category: 'accessory' occurrence.
+  const catMainIdx = dbSrc.indexOf("category: 'main'",      searchPos);
+  const catAccIdx  = dbSrc.indexOf("category: 'accessory'", searchPos);
 
-  const idMatch   = line.match(/id:\s*'([^']+)'/);
-  const nameMatch = line.match(/name:\s*'([^']+)'/);
-  if (!idMatch) continue;
+  if (catMainIdx === -1 && catAccIdx === -1) break;
+
+  let catPos;
+  let category;
+  if (catMainIdx === -1 || (catAccIdx !== -1 && catAccIdx < catMainIdx)) {
+    catPos   = catAccIdx;
+    category = 'accessory';
+  } else {
+    catPos   = catMainIdx;
+    category = 'main';
+  }
+
+  // Scan backwards to find the opening '{' of the exercise object.
+  // Between the exercise's opening '{' and 'category:' all properties (id, name,
+  // sets, reps, cue, suggestedLoad) are plain scalar values — no nested braces —
+  // so the first '{' encountered while scanning backwards at depth 0 IS the
+  // opening brace of the exercise object.
+  let backDepth = 0;
+  let objOpen   = -1;
+  for (let i = catPos - 1; i >= 0; i--) {
+    if (dbSrc[i] === '}') backDepth++;
+    else if (dbSrc[i] === '{') {
+      if (backDepth === 0) { objOpen = i; break; }
+      backDepth--;
+    }
+  }
+
+  if (objOpen === -1) { searchPos = catPos + 1; continue; }
+
+  // Scan forwards from objOpen to find the matching closing '}'.
+  let fwdDepth = 0;
+  let objEnd   = -1;
+  for (let i = objOpen; i < dbSrc.length; i++) {
+    if (dbSrc[i] === '{') fwdDepth++;
+    else if (dbSrc[i] === '}') {
+      fwdDepth--;
+      if (fwdDepth === 0) { objEnd = i; break; }
+    }
+  }
+
+  if (objEnd === -1) { searchPos = catPos + 1; continue; }
+
+  const block = dbSrc.slice(objOpen, objEnd + 1);
+
+  // Extract id and name — both always use single quotes in exercise-db.ts.
+  // Use the first match to get the exercise's own id/name, not the swapAlternative's.
+  const idMatch   = block.match(/\bid:\s*'([^']+)'/);
+  const nameMatch = block.match(/\bname:\s*'([^']+)'/);
+
+  if (!idMatch) { searchPos = objEnd + 1; continue; }
 
   exercises.push({
     id:                 idMatch[1],
     name:               nameMatch ? nameMatch[1] : '(unknown)',
-    category:           line.includes("category: 'main'") ? 'main' : 'accessory',
-    hasSwapAlternative: line.includes('swapAlternative:'),
-    hasComfortVariant:  line.includes('comfortVariant:'),
+    category,
+    hasSwapAlternative: block.includes('swapAlternative:'),
+    hasComfortVariant:  block.includes('comfortVariant:'),
   });
+
+  searchPos = objEnd + 1;
 }
 
 // Conditioning circuits (cond-*) and 1RM test protocols (*-1rm-*) are excluded
@@ -109,15 +167,15 @@ check(
   'no accessory-category exercises found — check lib/exercise-db.ts',
 );
 
-console.log(`  · ${mainCount} main, ${accessoryCount} accessory → ${strengthExercises.length} strength exercises checked`);
-console.log(`  · ${condExercises.length} conditioning circuit(s) and ${testExercises.length} 1RM test protocol(s) skipped (not swappable)`);
+console.log(`  · ${mainCount} main, ${accessoryCount} accessory → ${strengthExercises.length} strength exercises to check`);
+console.log(`  · ${condExercises.length} conditioning circuit(s) and ${testExercises.length} 1RM test protocol(s) skipped (not individually swappable)`);
 
 // ─── 2. Swap coverage — every strength exercise has swapAlternative ────────────
 console.log('\n[2] Swap coverage — every strength main/accessory exercise has swapAlternative');
 
 for (const ex of strengthExercises) {
   const detail = ex.hasComfortVariant
-    ? `comfortVariant present as fallback swap (button shows), but a dedicated ` +
+    ? `comfortVariant present as fallback swap (button will show), but a dedicated ` +
       `swapAlternative is still needed so users see a true exercise alternative ` +
       `rather than the pain-adaptation variant`
     : `neither swapAlternative nor comfortVariant — hasSwap = false, swap button ` +
