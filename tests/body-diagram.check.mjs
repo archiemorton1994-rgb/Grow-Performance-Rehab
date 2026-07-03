@@ -14,7 +14,7 @@
  *      making hotspots targetable in Playwright / accessibility trees.
  *
  *   3. LABEL COMPLETENESS — BODY_DIAGRAM_LABELS must have a human-readable
- *      string for all 18 regions.  Missing entries silently render nothing.
+ *      string for all regions.  Missing entries silently render nothing.
  *
  *   4. LABEL CORRECTNESS — each label string must match the expected copy.
  *      Protects against accidental rename causing the label chip to show the
@@ -28,6 +28,9 @@
  *      and testID="body-diagram-back" so Playwright and accessibility tools can
  *      target the view-switch control.
  *
+ * ALL_REGIONS is derived dynamically from the PainRegion type in lib/store.ts
+ * so that adding a new region automatically extends all checks here.
+ *
  * Run:  node tests/body-diagram.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -37,6 +40,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
+const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
 const srcPath = join(__dir, '../components/BodyDiagram.tsx');
 const src = readFileSync(srcPath, 'utf8');
 
@@ -53,7 +57,43 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── Expected label copy (source of truth for chip text) ──────────────────────
+// ─── Parse PainRegion literals from lib/store.ts ──────────────────────────────
+// Uses the same extraction logic as body-diagram-region-coverage.check.mjs so
+// that both tests always agree on the ground-truth region list.
+console.log('\n[0] Parse PainRegion type from lib/store.ts');
+
+const typeStart = storeSrc.indexOf('export type PainRegion =');
+check(
+  'PainRegion type declaration found in lib/store.ts',
+  typeStart !== -1,
+  'declaration not found — check lib/store.ts',
+);
+
+let ALL_REGIONS = [];
+
+if (typeStart !== -1) {
+  const eqPos     = storeSrc.indexOf('=', typeStart);
+  const semi      = storeSrc.indexOf(';', eqPos);
+  const typeBlock = storeSrc.slice(eqPos, semi + 1);
+
+  const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
+  ALL_REGIONS = regionMatches.map(m => m[1]);
+
+  check(
+    `PainRegion type contains at least 1 value (found ${ALL_REGIONS.length})`,
+    ALL_REGIONS.length >= 1,
+    'no quoted identifiers found in PainRegion type block',
+  );
+
+  for (const r of ALL_REGIONS) {
+    console.log(`  · PainRegion: '${r}'`);
+  }
+}
+
+// ─── Manually-curated expected label copy (source of truth for chip text) ─────
+// These strings must stay in sync with the actual BODY_DIAGRAM_LABELS values in
+// BodyDiagram.tsx.  When a new PainRegion is added to lib/store.ts, add its
+// expected label here too — section [4b] below will fail until you do.
 const EXPECTED_LABELS = {
   neck:           'Neck',
   front_shoulder: 'Front Shoulder',
@@ -74,8 +114,6 @@ const EXPECTED_LABELS = {
   glutes:         'Glutes',
   lat_mid_back:   'Lats / Mid Back',
 };
-
-const ALL_REGIONS = Object.keys(EXPECTED_LABELS);
 
 // ─── 1. Fill guard ─────────────────────────────────────────────────────────────
 console.log('\n[1] Fill guard — rgba(0,0,0,0.001) workaround');
@@ -104,7 +142,7 @@ check(
 );
 
 // ─── 2. testID wiring ──────────────────────────────────────────────────────────
-console.log('\n[2] testID wiring — all 18 regions via h() helper');
+console.log('\n[2] testID wiring — all regions via h() helper');
 
 check(
   'h() spreads testID: `body-diagram-region-${r}`',
@@ -113,7 +151,7 @@ check(
 );
 
 // ─── 3. Label completeness ────────────────────────────────────────────────────
-console.log('\n[3] BODY_DIAGRAM_LABELS — all 18 keys present');
+console.log(`\n[3] BODY_DIAGRAM_LABELS — all ${ALL_REGIONS.length} keys present`);
 
 for (const region of ALL_REGIONS) {
   check(
@@ -125,6 +163,7 @@ for (const region of ALL_REGIONS) {
 // ─── 4. Label correctness ─────────────────────────────────────────────────────
 console.log('\n[4] Label string correctness — chip text matches expected copy');
 
+// 4a. Every entry in EXPECTED_LABELS has the correct string in source
 for (const [region, expected] of Object.entries(EXPECTED_LABELS)) {
   check(
     `label for '${region}' equals '${expected}'`,
@@ -133,8 +172,20 @@ for (const [region, expected] of Object.entries(EXPECTED_LABELS)) {
   );
 }
 
+// 4b. Every dynamic PainRegion is covered by EXPECTED_LABELS
+// This fails when a new region is added to PainRegion but not to EXPECTED_LABELS above.
+console.log('\n[4b] EXPECTED_LABELS coverage — every PainRegion has a curated label entry');
+for (const region of ALL_REGIONS) {
+  check(
+    `EXPECTED_LABELS has a curated entry for '${region}'`,
+    Object.prototype.hasOwnProperty.call(EXPECTED_LABELS, region),
+    `'${region}' is in PainRegion but missing from EXPECTED_LABELS in this test file — ` +
+    `add  ${region}: '<Human Label>',  to EXPECTED_LABELS above`,
+  );
+}
+
 // ─── 5. h() coverage — every region used via h(), not bare Rect ───────────────
-console.log('\n[5] h() coverage — every region appears as h(\'region\') call');
+console.log(`\n[5] h() coverage — every region appears as h('region') call`);
 
 for (const region of ALL_REGIONS) {
   const pattern = new RegExp(`h\\('${region}'\\)`);
