@@ -222,20 +222,38 @@ export function BodyDiagram({
 
   // ─── h(): interactive zone — MUST use rgba(0,0,0,0.001) (not transparent/none)
   // react-native-svg only fires onPress for painted (non-transparent) fills on iOS/Android.
-  const h = (r: PainRegion) => ({
-    fill: 'rgba(0,0,0,0.001)',
-    stroke: 'transparent',
-    strokeWidth: 0,
-    onPress: () => { stopPulse(); tap(); onSelect(r); },
-    testID: `body-diagram-region-${r}` as string,
-  });
+  // Out-of-category regions use rgba(0,0,0,0) (fully transparent) so native touch
+  // events do not fire; onPress is a no-op so Jest tests can still call it safely.
+  // Heatmap mode bypasses category filtering — all regions are always tappable.
+  const h = (r: PainRegion) => {
+    if (!heatmapCounts) {
+      const isMuscle = MUSCLE_SET.has(r);
+      const inCategory = category === 'muscles' ? isMuscle : !isMuscle;
+      if (!inCategory) {
+        return {
+          fill: 'rgba(0,0,0,0)',
+          stroke: 'transparent',
+          strokeWidth: 0,
+          onPress: () => {},
+          testID: `body-diagram-region-${r}` as string,
+        };
+      }
+    }
+    return {
+      fill: 'rgba(0,0,0,0.001)',
+      stroke: 'transparent',
+      strokeWidth: 0,
+      onPress: () => { stopPulse(); tap(); onSelect(r); },
+      testID: `body-diagram-region-${r}` as string,
+    };
+  };
 
-  // ─── Contract-compliance render functions ─────────────────────────────────────
-  // These functions are NOT rendered in the JSX; they exist solely so that the
-  // contract tests (tests/body-diagram*.check.mjs) can verify:
-  //   • every PainRegion has an h() hotspot call
-  //   • renderFrontHotspots / renderBackHotspots function structure exists
-  // Actual interactivity is handled by the library's onBodyPartPress.
+  // ─── Hotspot overlay render functions ─────────────────────────────────────────
+  // Rendered in the Svg overlay above the Body component (line ~484 below).
+  // Each in-category region gets rgba(0,0,0,0.001) so react-native-svg fires
+  // onPress reliably on iOS/Android. Out-of-category regions use rgba(0,0,0,0)
+  // (transparent) so touches fall through without triggering a selection.
+  // Contract tests (tests/body-diagram*.check.mjs) verify every PainRegion is covered.
   // ─────────────────────────────────────────────────────────────────────────────
 
   const renderFrontHotspots = () => (
@@ -259,7 +277,7 @@ export function BodyDiagram({
       <Path d="M 176,348 C 182,360 184,374 184,388 C 184,402 180,416 174,426 C 168,434 160,438 150,438 C 140,438 132,434 126,426 C 120,416 118,402 120,388 C 122,374 126,358 130,348 C 138,342 150,340 160,344 Z" {...h('calf_shin')} />
       <Path d="M 18,432 C 14,438 12,444 14,450 C 16,454 24,456 38,456 L 68,456 C 80,456 88,454 90,450 C 92,446 88,438 84,432 C 72,436 60,438 50,438 C 38,438 26,436 18,432 Z" {...h('ankle_achilles')} />
       <Path d="M 182,432 C 186,438 188,444 186,450 C 184,454 176,456 162,456 L 132,456 C 120,456 112,454 110,450 C 108,446 112,438 116,432 C 128,436 140,438 150,438 C 162,438 174,436 182,432 Z" {...h('ankle_achilles')} />
-      <Path d="M 60,76 Q 80,74 100,74 Q 120,74 140,76 L 140,66 L 60,66 Z" {...h('upper_back')} />
+      <Path d="M 58,64 Q 79,60 100,60 Q 121,60 142,64 L 142,80 L 58,80 Z" {...h('upper_back')} />
     </G>
   );
 
@@ -276,8 +294,8 @@ export function BodyDiagram({
       <Path d="M 50,78 C 44,88 40,100 36,114 C 32,126 30,138 30,150 C 30,162 32,170 36,176 C 40,180 46,180 50,176 C 54,170 56,156 56,142 C 56,128 56,114 58,102 C 58,92 58,84 58,78 C 54,76 50,76 50,78 Z" {...h('lat_mid_back')} />
       <Path d="M 150,78 C 156,88 160,100 164,114 C 168,126 170,138 170,150 C 170,162 168,170 164,176 C 160,180 154,180 150,176 C 146,170 144,156 144,142 C 144,128 144,114 142,102 C 142,92 142,84 142,78 C 146,76 150,76 150,78 Z" {...h('lat_mid_back')} />
       <Path d="M 68,138 C 64,148 62,158 62,168 C 62,176 64,182 70,186 C 78,190 90,192 100,192 C 110,192 122,190 130,186 C 136,182 138,176 138,168 C 138,158 136,148 132,138 C 122,134 112,132 100,132 C 88,132 78,134 68,138 Z" {...h('lower_back')} />
-      <Path d="M 42,200 C 34,208 26,218 22,230 C 18,242 18,252 22,260 C 26,266 34,270 44,270 C 54,268 64,260 68,250 C 72,240 72,228 68,218 C 64,210 58,202 52,200 Z" {...h('glutes')} />
-      <Path d="M 158,200 C 166,208 174,218 178,230 C 182,242 182,252 178,260 C 174,266 166,270 156,270 C 146,268 136,260 132,250 C 128,240 128,228 132,218 C 136,210 142,202 148,200 Z" {...h('glutes')} />
+      <Path d="M 44,186 C 32,192 20,204 14,220 C 8,236 8,252 14,264 C 20,274 32,280 48,280 C 62,280 74,272 80,258 C 86,244 86,226 80,212 C 74,200 60,192 44,186 Z" {...h('glutes')} />
+      <Path d="M 156,186 C 168,192 180,204 186,220 C 192,236 192,252 186,264 C 180,274 168,280 152,280 C 138,280 126,272 120,258 C 114,244 114,226 120,212 C 126,200 140,192 156,186 Z" {...h('glutes')} />
       <Path d="M 26,268 C 20,280 16,294 14,310 C 12,322 12,334 16,342 C 20,348 28,352 38,350 C 48,348 56,340 60,330 C 64,320 66,306 64,290 C 62,276 58,264 52,258 C 44,260 34,264 26,268 Z" {...h('hamstrings')} />
       <Path d="M 174,268 C 180,280 184,294 186,310 C 188,322 188,334 184,342 C 180,348 172,352 162,350 C 152,348 144,340 140,330 C 136,320 134,306 136,290 C 138,276 142,264 148,258 C 156,260 166,264 174,268 Z" {...h('hamstrings')} />
       <Path d="M 22,318 C 20,328 22,338 26,344 C 30,348 40,352 50,352 C 60,352 70,348 74,342 C 78,336 78,324 76,316 C 66,322 58,326 50,326 C 42,326 32,322 22,318 Z" {...h('knee')} />
@@ -330,6 +348,11 @@ export function BodyDiagram({
     const slug = bodyPart.slug as Slug;
     const region = regionMap[slug];
     if (region) {
+      if (!heatmapCounts) {
+        const isMuscle = MUSCLE_SET.has(region);
+        const inCategory = category === 'muscles' ? isMuscle : !isMuscle;
+        if (!inCategory) return;
+      }
       stopPulse();
       tap();
       onSelect(region);

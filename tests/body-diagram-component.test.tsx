@@ -33,7 +33,7 @@ const bodyHighlighterMock = require('../__mocks__/react-native-body-highlighter'
 
 // PainRegion is a compile-time type — stripped by babel, no runtime load of store.ts
 import type { PainRegion } from '../lib/store';
-import { BodyDiagram, BODY_DIAGRAM_LABELS } from '../components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '../components/BodyDiagram';
 import { PainInsightSheet } from '../components/PainInsightSheet';
 // router is mapped to __mocks__/expo-router.js by moduleNameMapper
 import { router } from 'expo-router';
@@ -200,6 +200,8 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
     test(`Front: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
       act(() => { root = renderer.create(<FlexWrapper />); });
+      // Joint regions are only tappable in Joints mode; muscle regions use default Muscles mode
+      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -208,7 +210,8 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   test('Back: switching to Back clears selection and shows hint', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => { root = renderer.create(<FlexWrapper />); });
-    // Select a front region first
+    // Select a front region first — neck is a joint so switch to Joints mode
+    press(root, 'body-diagram-joints');
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, 'Neck')).toBe(true);
     // Switch to Back — handleViewChange calls onSelect(undefined)
@@ -232,6 +235,8 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
       let root!: renderer.ReactTestRenderer;
       act(() => { root = renderer.create(<FlexWrapper />); });
       press(root, 'body-diagram-back');
+      // Joint regions are only tappable in Joints mode
+      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -240,6 +245,7 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   test('Front→Back→Front toggle: each switch clears selection', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => { root = renderer.create(<FlexWrapper />); });
+    press(root, 'body-diagram-joints'); // neck is a joint region
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, 'Neck')).toBe(true);
     press(root, 'body-diagram-back');
@@ -252,8 +258,41 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => { root = renderer.create(<FlexWrapper />); });
     expect(hasTestId(root, 'start-session-btn')).toBe(false);
+    press(root, 'body-diagram-joints'); // knee is a joint region
     press(root, 'body-diagram-region-knee');
     expect(hasTestId(root, 'start-session-btn')).toBe(true);
+  });
+
+  // ── Category-gating verification ──────────────────────────────────────────
+  test('Muscles mode: pressing a joint region (knee) is a no-op', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(<FlexWrapper />); });
+    // category defaults to 'muscles'; knee is a joint region
+    press(root, 'body-diagram-region-knee');
+    expect(hasText(root, BODY_DIAGRAM_LABELS['knee'])).toBe(false);
+    expect(hasText(root, 'Tap a region on the diagram')).toBe(true);
+  });
+
+  test('Joints mode: pressing a muscle region (chest) is a no-op', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(<FlexWrapper />); });
+    press(root, 'body-diagram-joints');
+    // chest is in MUSCLE_SET — not selectable in joints mode
+    press(root, 'body-diagram-region-chest');
+    expect(hasText(root, BODY_DIAGRAM_LABELS['chest'])).toBe(false);
+    expect(hasText(root, 'Tap a region on the diagram')).toBe(true);
+  });
+
+  test('switching to Joints mode makes joint regions selectable', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(<FlexWrapper />); });
+    // In Muscles mode, neck does nothing
+    press(root, 'body-diagram-region-neck');
+    expect(hasText(root, BODY_DIAGRAM_LABELS['neck'])).toBe(false);
+    // Switch to Joints mode — neck should now respond
+    press(root, 'body-diagram-joints');
+    press(root, 'body-diagram-region-neck');
+    expect(hasText(root, BODY_DIAGRAM_LABELS['neck'])).toBe(true);
   });
 });
 
@@ -283,6 +322,8 @@ describe('[3] Readiness screen — pain-region step', () => {
     test(`Front: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
       act(() => { root = renderer.create(<ReadinessWrapper />); });
+      // Joint regions are only tappable in Joints mode
+      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -291,6 +332,7 @@ describe('[3] Readiness screen — pain-region step', () => {
   test('Back: switching to Back clears selection', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => { root = renderer.create(<ReadinessWrapper />); });
+    press(root, 'body-diagram-joints'); // neck is a joint region
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, 'Neck')).toBe(true);
     press(root, 'body-diagram-back');
@@ -309,6 +351,8 @@ describe('[3] Readiness screen — pain-region step', () => {
       let root!: renderer.ReactTestRenderer;
       act(() => { root = renderer.create(<ReadinessWrapper />); });
       press(root, 'body-diagram-back');
+      // Joint regions are only tappable in Joints mode
+      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -318,6 +362,7 @@ describe('[3] Readiness screen — pain-region step', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => { root = renderer.create(<ReadinessWrapper />); });
     expect(hasTestId(root, 'pain-region-confirm')).toBe(false);
+    press(root, 'body-diagram-joints'); // knee is a joint region
     press(root, 'body-diagram-region-knee');
     expect(hasTestId(root, 'pain-region-confirm')).toBe(true);
   });

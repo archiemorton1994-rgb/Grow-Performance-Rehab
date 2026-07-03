@@ -123,8 +123,11 @@ check(
   src.includes('rgba(0,0,0,0.001)'),
 );
 
-// Extract the h() helper block only — don't flag rgba usages elsewhere
-const hBlock = src.match(/const h = \(r: PainRegion\) => \(\{[\s\S]*?\}\);/)?.[0] ?? '';
+// Extract the h() helper block only — don't flag rgba usages elsewhere.
+// Accepts both concise-return form `=> ({...});` and block form `=> {...\n  };`
+const hBlock = src.match(
+  /const h = \(r: PainRegion\) => (?:\(\{[\s\S]*?\}\);|\{[\s\S]*?\n  \};)/,
+)?.[0] ?? '';
 check(
   'h() block was found in source',
   hBlock.length > 0,
