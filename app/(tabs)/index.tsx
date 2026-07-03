@@ -75,39 +75,63 @@ function WeeklyRing({
 // ─── Weekly Session Dots ──────────────────────────────────────────────────────
 const WEEK_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+// Priority order for picking the dominant session colour on multi-session days
+const SESSION_TYPE_PRIORITY: SessionType[] = [
+  'squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom',
+];
+
 function WeekDots({
   completedSessions,
-  activeColor,
+  sessionColors,
   emptyColor,
-}: { completedSessions: { date: string }[]; activeColor: string; emptyColor: string }) {
-  const activeDays = useMemo(() => {
+}: {
+  completedSessions: { date: string; sessionType: SessionType }[];
+  sessionColors: Record<SessionType, SessionColorPair>;
+  emptyColor: string;
+}) {
+  // Map day index (0=Mon … 6=Sun) → dominant session type for that day
+  const daySessionMap = useMemo(() => {
     const now = new Date();
     const dow = now.getDay();
     const mondayOffset = dow === 0 ? -6 : 1 - dow;
     const monday = new Date(now);
     monday.setDate(now.getDate() + mondayOffset);
     monday.setHours(0, 0, 0, 0);
-    const result = new Set<number>();
+
+    const result = new Map<number, SessionType>();
     for (const s of completedSessions) {
       const d = new Date(s.date);
       d.setHours(0, 0, 0, 0);
       const diff = Math.floor((d.getTime() - monday.getTime()) / 86400000);
-      if (diff >= 0 && diff <= 6) result.add(diff);
+      if (diff < 0 || diff > 6) continue;
+      const existing = result.get(diff);
+      if (!existing) {
+        result.set(diff, s.sessionType);
+      } else {
+        // Keep the higher-priority type
+        const existingPri = SESSION_TYPE_PRIORITY.indexOf(existing);
+        const newPri = SESSION_TYPE_PRIORITY.indexOf(s.sessionType);
+        if (newPri < existingPri) result.set(diff, s.sessionType);
+      }
     }
     return result;
   }, [completedSessions]);
 
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      {WEEK_DAY_LETTERS.map((letter, i) => (
-        <View key={i} style={{ alignItems: 'center', gap: 5 }}>
-          <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
-          <View style={{
-            width: 8, height: 8, borderRadius: 4,
-            backgroundColor: activeDays.has(i) ? activeColor : emptyColor,
-          }} />
-        </View>
-      ))}
+      {WEEK_DAY_LETTERS.map((letter, i) => {
+        const sessionType = daySessionMap.get(i);
+        const dotColor = sessionType ? sessionColors[sessionType].color : emptyColor;
+        return (
+          <View key={i} style={{ alignItems: 'center', gap: 5 }}>
+            <Text style={{ fontSize: 10, fontFamily: 'Inter_500Medium', color: emptyColor }}>{letter}</Text>
+            <View style={{
+              width: 8, height: 8, borderRadius: 4,
+              backgroundColor: dotColor,
+            }} />
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -700,7 +724,7 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(130).duration(380)} style={styles.weekDotsRow}>
             <WeekDots
               completedSessions={completedSessions}
-              activeColor={C.primary}
+              sessionColors={getSessionColors(C)}
               emptyColor={C.borderLight}
             />
           </Animated.View>
