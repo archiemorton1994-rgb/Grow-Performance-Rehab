@@ -828,7 +828,7 @@ function ExerciseCard({
               <View style={styles.comfortNote}>
                 <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
                 <Text style={styles.comfortNoteText}>
-                  Adapted for {comfortRegionLabel} — skip if still uncomfortable
+                  Adapted for {comfortRegionLabel} — tap Swap or skip if still uncomfortable
                 </Text>
               </View>
             )}
@@ -1618,8 +1618,8 @@ export default function SessionScreen() {
               </Text>
               <Text style={styles.painAdaptBannerSub}>
                 {comfortCount > 0
-                  ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — skip any that still hurt`
-                  : 'No exercises needed swapping — skip any that hurt'}
+                  ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — tap Swap or skip any that still hurt`
+                  : 'No exercises needed swapping — tap Swap or skip anything that hurts'}
               </Text>
             </View>
           </View>
