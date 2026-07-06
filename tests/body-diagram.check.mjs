@@ -204,6 +204,130 @@ check(
   src.includes('testID="body-diagram-back"') || src.includes("testID='body-diagram-back'")
 );
 
+// ─── 7. View-placement check ──────────────────────────────────────────────────
+// Each PainRegion must appear in the correct renderer(s).  This is the contract
+// that would have caught the hip_groin/adductors bug where a region silently
+// ended up in the back view without any automated check failing.
+//
+// front  = must appear ONLY in renderFrontHotspots (not in renderBackHotspots)
+// back   = must appear ONLY in renderBackHotspots  (not in renderFrontHotspots)
+// both   = must appear in BOTH renderers
+//
+// When a new PainRegion is added, add it here too — section [7b] fails if it
+// is missing.
+console.log('\n[7] View placement — every region in the correct front/back/both renderer');
+
+const EXPECTED_VIEW = {
+  // Front-only
+  chest: 'front',
+  bicep: 'front',
+  quads: 'front',
+  core_ribs: 'front',
+  hip_groin: 'front',
+  front_shoulder: 'front',
+  // Back-only
+  glutes: 'back',
+  hamstrings: 'back',
+  tricep: 'back',
+  lower_back: 'back',
+  lat_mid_back: 'back',
+  rear_shoulder: 'back',
+  // Bilateral — intentionally present in both views
+  neck: 'both',
+  elbow_wrist: 'both',
+  knee: 'both',
+  calf_shin: 'both',
+  ankle_achilles: 'both',
+  upper_back: 'both',
+};
+
+// Slice each renderer's source block by known function markers so we can scan
+// them independently.  The back renderer is bounded on the right by the next
+// section comment that follows it in the file.
+const FRONT_MARKER = 'const renderFrontHotspots = () => (';
+const BACK_MARKER = 'const renderBackHotspots = () => (';
+const AFTER_BACK_MARKER = '// ─── Build library data array';
+
+const frontFnIdx = src.indexOf(FRONT_MARKER);
+const backFnIdx = src.indexOf(BACK_MARKER);
+const afterBackIdx = src.indexOf(AFTER_BACK_MARKER);
+
+check(
+  'renderFrontHotspots function marker found',
+  frontFnIdx !== -1,
+  'marker not found — did renderFrontHotspots get renamed?'
+);
+check(
+  'renderBackHotspots function marker found',
+  backFnIdx !== -1,
+  'marker not found — did renderBackHotspots get renamed?'
+);
+check(
+  'post-back-renderer anchor marker found',
+  afterBackIdx !== -1,
+  `"${AFTER_BACK_MARKER}" not found — update AFTER_BACK_MARKER if a nearby comment changed`
+);
+
+if (frontFnIdx !== -1 && backFnIdx !== -1 && afterBackIdx !== -1) {
+  const frontSrc = src.slice(frontFnIdx, backFnIdx);
+  const backSrc = src.slice(backFnIdx, afterBackIdx);
+
+  for (const [region, expected] of Object.entries(EXPECTED_VIEW)) {
+    const pat = new RegExp(`h\\('${region}'\\)`);
+    const inFront = pat.test(frontSrc);
+    const inBack = pat.test(backSrc);
+
+    if (expected === 'front') {
+      check(
+        `'${region}' (front-only) is present in renderFrontHotspots`,
+        inFront,
+        `h('${region}') not found in renderFrontHotspots`
+      );
+      check(
+        `'${region}' (front-only) is absent from renderBackHotspots`,
+        !inBack,
+        `h('${region}') found in renderBackHotspots — front-only region on the wrong side`
+      );
+    } else if (expected === 'back') {
+      check(
+        `'${region}' (back-only) is present in renderBackHotspots`,
+        inBack,
+        `h('${region}') not found in renderBackHotspots`
+      );
+      check(
+        `'${region}' (back-only) is absent from renderFrontHotspots`,
+        !inFront,
+        `h('${region}') found in renderFrontHotspots — back-only region on the wrong side`
+      );
+    } else {
+      // 'both'
+      check(
+        `'${region}' (bilateral) is present in renderFrontHotspots`,
+        inFront,
+        `h('${region}') not found in renderFrontHotspots`
+      );
+      check(
+        `'${region}' (bilateral) is present in renderBackHotspots`,
+        inBack,
+        `h('${region}') not found in renderBackHotspots`
+      );
+    }
+  }
+}
+
+// 7b. Every dynamic PainRegion must have a curated EXPECTED_VIEW entry so that
+//     adding a new region to PainRegion automatically forces placement to be
+//     declared here before the check can pass.
+console.log('\n[7b] EXPECTED_VIEW coverage — every PainRegion has a curated view entry');
+for (const region of ALL_REGIONS) {
+  check(
+    `EXPECTED_VIEW has an entry for '${region}'`,
+    Object.prototype.hasOwnProperty.call(EXPECTED_VIEW, region),
+    `'${region}' is in PainRegion but missing from EXPECTED_VIEW above — ` +
+      `add  ${region}: 'front' | 'back' | 'both',  with the correct view`
+  );
+}
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
