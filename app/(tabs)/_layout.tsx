@@ -1,5 +1,4 @@
 import { Tabs, router } from "expo-router";
-import { BlurView } from "expo-blur";
 import {
   Platform,
   StyleSheet,
@@ -644,22 +643,16 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: {
             position: "absolute",
-            backgroundColor: isIOS ? "transparent" : C.surface,
-            borderTopWidth: isWeb ? 1 : 0,
+            backgroundColor: C.background,
+            borderTopWidth: 1,
             borderTopColor: C.border,
             elevation: 0,
             ...(isWeb ? { height: 84 } : {}),
           },
           tabBarBackground: () =>
-            isIOS ? (
-              <BlurView
-                intensity={100}
-                tint={isDark ? "dark" : "light"}
-                style={StyleSheet.absoluteFill}
-              />
-            ) : isWeb ? (
+            isWeb ? (
               <View
-                style={[StyleSheet.absoluteFill, { backgroundColor: C.surface }]}
+                style={[StyleSheet.absoluteFill, { backgroundColor: C.background }]}
               />
             ) : null,
         }}

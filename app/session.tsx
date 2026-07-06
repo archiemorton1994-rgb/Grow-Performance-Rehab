@@ -719,6 +719,7 @@ export function ExerciseCard({
               <Text style={styles.lockedName} numberOfLines={1}>{exercise.name}</Text>
               <View style={styles.lockedMeta}>
                 <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                  <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
                   <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
                 </View>
                 <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
@@ -737,6 +738,7 @@ export function ExerciseCard({
               <Text style={styles.pastName} numberOfLines={1}>{exercise.name}</Text>
               <View style={styles.lockedMeta}>
                 <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                  <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
                   <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
                 </View>
                 <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
@@ -775,6 +777,7 @@ export function ExerciseCard({
                 </View>
                 <View style={styles.exerciseMeta}>
                   <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                    <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
                     <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
                   </View>
                   <Text style={styles.metaText}>{setsLabel} × {repDisplay}</Text>
@@ -1894,7 +1897,8 @@ function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create(
   badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
   badgeText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  categoryPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  categoryPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4 },
+  categoryDot: { width: 5, height: 5, borderRadius: 3 },
   categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
   loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },

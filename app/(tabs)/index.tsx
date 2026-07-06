@@ -12,7 +12,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, G } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -436,13 +435,7 @@ export default function HomeScreen() {
             ))}
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, { backgroundColor: 'transparent', overflow: 'hidden' }]}>
-            <LinearGradient
-              colors={[suggestedMeta.bg, C.surface]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, { borderLeftWidth: 4, borderLeftColor: suggestedMeta.color, borderColor: C.borderLight, borderWidth: 1 }]}>
             <View style={styles.todayCardTop}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.todayLabel}>Today</Text>
