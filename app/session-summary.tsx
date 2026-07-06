@@ -40,7 +40,6 @@ const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
 const CARD_BG = '#F5F0E8'; // warm parchment
 const OUTER_BG = '#1A1611'; // dark-warm surround so the card floats visibly
 const BRAND_GREEN = '#2f6b46';
-const BRAND_GREEN_LIGHT = '#5fbf87'; // kept for non-card uses
 const CARD_TEXT = '#1A1A1A'; // near-black ink
 const CARD_MUTED = '#5C5248'; // warm dark muted
 const CARD_FAINT = '#9C8E82'; // warm medium gray
