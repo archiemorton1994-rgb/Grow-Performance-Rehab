@@ -170,11 +170,19 @@ function colorWithAlpha(hex: string, alpha: number): string {
 }
 
 /** Map a heatmap count to the 4-state colour vocabulary */
-function heatmapColor(count: number): string {
+export function heatmapColor(count: number): string {
   if (count <= 0) return colorWithAlpha(VOCAB_REST, 0.55);
   if (count === 1) return colorWithAlpha(VOCAB_WORKED, 0.82);
   if (count <= 3)  return colorWithAlpha(VOCAB_ATTENTION, 0.82);
   return colorWithAlpha(VOCAB_OVERLOADED, 0.88);
+}
+
+/** Solid (full-opacity) bucket colour for a given heatmap count */
+export function heatmapBucketColor(count: number): string {
+  if (count <= 0) return VOCAB_REST;
+  if (count === 1) return VOCAB_WORKED;
+  if (count <= 3)  return VOCAB_ATTENTION;
+  return VOCAB_OVERLOADED;
 }
 
 // Approximate SVG-viewBox centre point for each region (viewBox: 0 0 200 480).
@@ -218,6 +226,13 @@ interface BodyDiagramProps {
    * custom container. Silhouette is drawn white (suitable for dark backgrounds).
    */
   compact?: boolean;
+  /**
+   * Override the three heatmap legend labels [low, medium, high].
+   * Defaults to ['Worked', 'Secondary', 'High load'].
+   * Use context-specific labels when the diagram is showing pain frequency
+   * rather than muscle-training volume.
+   */
+  legendLabels?: [string, string, string];
 }
 
 export function BodyDiagram({
@@ -230,6 +245,7 @@ export function BodyDiagram({
   heatmapCounts,
   darkPanel = true,
   compact = false,
+  legendLabels = ['Worked', 'Secondary', 'High load'],
 }: BodyDiagramProps) {
   const [view, setView] = useState<BodyView>(defaultView);
   const [category, setCategory] = useState<BodyCategory>('muscles');
@@ -693,15 +709,15 @@ export function BodyDiagram({
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: VOCAB_WORKED }]} />
-            <Text style={styles.legendText}>Worked</Text>
+            <Text style={styles.legendText}>{legendLabels[0]}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: VOCAB_ATTENTION }]} />
-            <Text style={styles.legendText}>Secondary</Text>
+            <Text style={styles.legendText}>{legendLabels[1]}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: VOCAB_OVERLOADED }]} />
-            <Text style={styles.legendText}>High load</Text>
+            <Text style={styles.legendText}>{legendLabels[2]}</Text>
           </View>
         </View>
       )}

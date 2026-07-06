@@ -19,7 +19,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
 import { CompletedSession, EnergyLevel, ExerciseProgress, PainRegion, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
-import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '@/components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET, heatmapBucketColor } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
 import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
@@ -2026,6 +2026,7 @@ export default function StatsScreen() {
                             }
                           }}
                           heatmapCounts={painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts}
+                          legendLabels={['Occasional', 'Regular', 'Frequent']}
                           maxWidth={160}
                         />
 
@@ -2039,6 +2040,23 @@ export default function StatsScreen() {
                             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                           }}>
                             <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                                {(() => {
+                                  const activeCount = painHeatmapMode === 'recent'
+                                    ? (recentPainCounts[painOverviewSelected] ?? 0)
+                                    : (painRegionCounts[painOverviewSelected] ?? 0);
+                                  const bucketColor = heatmapBucketColor(activeCount);
+                                  const bucketLabel = activeCount === 0 ? 'No pain' : activeCount === 1 ? 'Occasional' : activeCount <= 3 ? 'Regular' : 'Frequent';
+                                  return (
+                                    <>
+                                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: bucketColor }} />
+                                      <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: bucketColor, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                                        {bucketLabel}
+                                      </Text>
+                                    </>
+                                  );
+                                })()}
+                              </View>
                               <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text }}>
                                 {BODY_DIAGRAM_LABELS[painOverviewSelected]}
                               </Text>
@@ -2256,6 +2274,7 @@ export default function StatsScreen() {
                     selected={painRegionFilter ?? undefined}
                     onSelect={(r) => setPainRegionFilter(prev => (r === prev ? null : (r ?? null)))}
                     heatmapCounts={painRegionCounts}
+                    legendLabels={['Occasional', 'Regular', 'Frequent']}
                     maxWidth={150}
                   />
                 </View>
