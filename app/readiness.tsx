@@ -35,15 +35,6 @@ const ALL_TIERS: EquipmentTier[] = [
   'fullgym',
 ];
 
-const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
-  bodyweight: 'No equipment needed',
-  bands: 'Resistance bands only',
-  dumbbells: 'Dumbbells available',
-  kettlebells: 'Kettlebells available',
-  barbell: 'Barbell and squat rack',
-  fullgym: 'Everything - cables, machines, full setup',
-};
-
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -262,12 +253,17 @@ export default function ReadinessScreen() {
   };
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const effectiveTier = getEffectiveTier(selectedEquipments);
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const renderMain = () => (
     <Animated.View key="main" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.mainContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.mainContent}
+      >
         {/* Equipment */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Equipment today</Text>
@@ -297,7 +293,7 @@ export default function ReadinessScreen() {
               </Text>
             </View>
           )}
-          <View style={styles.tierList}>
+          <View style={styles.tierGrid}>
             {ALL_TIERS.map((tier) => {
               const isAvailable = availableTiers.includes(tier);
               const isActive = selectedEquipments.includes(tier);
@@ -306,7 +302,7 @@ export default function ReadinessScreen() {
                   key={tier}
                   onPress={() => handleTierToggle(tier)}
                   style={({ pressed }) => [
-                    styles.tierRow,
+                    styles.tierTile,
                     isActive && styles.tierRowActive,
                     !isAvailable && styles.tierRowLocked,
                     pressed && isAvailable && { opacity: 0.8 },
@@ -326,32 +322,26 @@ export default function ReadinessScreen() {
                     ]}
                   >
                     <Ionicons
-                      name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
-                      size={18}
+                      name={
+                        (isAvailable
+                          ? getEquipmentIcon(tier)
+                          : 'lock-closed-outline') as keyof typeof Ionicons.glyphMap
+                      }
+                      size={16}
                       color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
                     />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.tierLabel,
-                        isActive && { color: C.primary },
-                        !isAvailable && { color: C.textTertiary },
-                      ]}
-                    >
-                      {getEquipmentLabel(tier)}
-                    </Text>
-                    <Text style={styles.tierSub}>
-                      {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
-                    </Text>
-                  </View>
-                  {!isAvailable ? (
-                    <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
-                  ) : (
-                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                      {isActive && <Ionicons name="checkmark" size={12} color={C.textInverse} />}
-                    </View>
-                  )}
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      styles.tierLabel,
+                      { flex: 1 },
+                      isActive && { color: C.primary },
+                      !isAvailable && { color: C.textTertiary },
+                    ]}
+                  >
+                    {getEquipmentLabel(tier)}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -491,7 +481,8 @@ export default function ReadinessScreen() {
             </View>
           </>
         )}
-
+      </ScrollView>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + webBottomInset + 12 }]}>
         <Pressable
           onPress={handleStart}
           disabled={selectedEquipments.length === 0}
@@ -515,7 +506,7 @@ export default function ReadinessScreen() {
             </>
           )}
         </Pressable>
-      </ScrollView>
+      </View>
     </Animated.View>
   );
 
@@ -722,13 +713,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center',
     },
 
-    mainContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
-    section: { paddingVertical: 16 },
+    mainContent: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
+    section: { paddingVertical: 8 },
     sectionTitle: {
       fontSize: 14,
       fontFamily: 'Inter_700Bold',
       color: C.text,
-      marginBottom: 10,
+      marginBottom: 6,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
     },
@@ -738,8 +729,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primaryMuted,
       borderRadius: 8,
       paddingHorizontal: 12,
-      paddingVertical: 6,
-      marginBottom: 10,
+      paddingVertical: 5,
+      marginBottom: 8,
       borderWidth: 1,
       borderColor: C.primaryLight,
       alignSelf: 'flex-start' as const,
@@ -753,45 +744,36 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 8,
       paddingHorizontal: 10,
       paddingVertical: 7,
-      marginBottom: 10,
+      marginBottom: 8,
       borderWidth: 1,
       borderColor: C.primaryLight,
     },
     beginnerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.text },
 
-    tierList: { gap: 8 },
-    tierRow: {
+    tierGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    tierTile: {
+      width: '48%',
+      minHeight: 52,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
       backgroundColor: C.surface,
       borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     tierRowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
     tierRowLocked: { opacity: 0.55 },
     tierIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: 30,
+      height: 30,
+      borderRadius: 9,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    tierLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
-    tierSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
-    tierCheck: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 2,
-      borderColor: C.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tierCheckActive: { backgroundColor: C.primary, borderColor: C.primary },
+    tierLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
 
     pillRow: { flexDirection: 'row', gap: 8 },
     pill: {
@@ -827,11 +809,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
       backgroundColor: C.primary,
       borderRadius: 14,
-      paddingVertical: 17,
-      marginTop: 24,
+      paddingVertical: 16,
     },
     startButtonDisabled: { backgroundColor: C.surfaceTertiary },
     startButtonText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    footer: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
+      backgroundColor: C.background,
+    },
 
     stepContent: {
       flex: 1,
