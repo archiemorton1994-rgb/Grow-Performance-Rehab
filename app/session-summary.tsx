@@ -327,6 +327,7 @@ export default function SessionSummaryScreen() {
       }
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Save failed', "Couldn't save photo — please try again");
     } finally {
       setIsSaving(false);
     }
