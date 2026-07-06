@@ -35,6 +35,15 @@ const ALL_TIERS: EquipmentTier[] = [
   'fullgym',
 ];
 
+const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
+  bodyweight: 'No equipment',
+  bands: 'Bands only',
+  dumbbells: 'Available',
+  kettlebells: 'Available',
+  barbell: 'Barbell + rack',
+  fullgym: 'Everything',
+};
+
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -322,26 +331,33 @@ export default function ReadinessScreen() {
                     ]}
                   >
                     <Ionicons
-                      name={
-                        (isAvailable
-                          ? getEquipmentIcon(tier)
-                          : 'lock-closed-outline') as keyof typeof Ionicons.glyphMap
-                      }
+                      name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
                       size={16}
                       color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
                     />
                   </View>
-                  <Text
-                    numberOfLines={2}
-                    style={[
-                      styles.tierLabel,
-                      { flex: 1 },
-                      isActive && { color: C.primary },
-                      !isAvailable && { color: C.textTertiary },
-                    ]}
-                  >
-                    {getEquipmentLabel(tier)}
-                  </Text>
+                  <View style={styles.tierText}>
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.tierLabel,
+                        isActive && { color: C.primary },
+                        !isAvailable && { color: C.textTertiary },
+                      ]}
+                    >
+                      {getEquipmentLabel(tier)}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.tierSub}>
+                      {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
+                    </Text>
+                  </View>
+                  {!isAvailable ? (
+                    <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
+                  ) : (
+                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                    </View>
+                  )}
                 </Pressable>
               );
             })}
@@ -713,8 +729,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center',
     },
 
-    mainContent: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
-    section: { paddingVertical: 8 },
+    mainContent: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6 },
+    section: { paddingVertical: 7 },
     sectionTitle: {
       fontSize: 14,
       fontFamily: 'Inter_700Bold',
@@ -753,14 +769,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     tierGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     tierTile: {
       width: '48%',
-      minHeight: 52,
+      minHeight: 58,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
       backgroundColor: C.surface,
       borderRadius: 12,
       paddingHorizontal: 10,
-      paddingVertical: 9,
+      paddingVertical: 8,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
@@ -773,7 +789,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    tierText: { flex: 1 },
     tierLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+    tierSub: {
+      fontSize: 10,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
+    tierCheck: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 2,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tierCheckActive: { backgroundColor: C.primary, borderColor: C.primary },
 
     pillRow: { flexDirection: 'row', gap: 8 },
     pill: {
@@ -781,7 +814,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 6,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingVertical: 9,
       borderRadius: 20,
       borderWidth: 1.5,
       borderColor: C.borderLight,
@@ -809,13 +842,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
       backgroundColor: C.primary,
       borderRadius: 14,
-      paddingVertical: 16,
+      paddingVertical: 15,
     },
     startButtonDisabled: { backgroundColor: C.surfaceTertiary },
     startButtonText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
     footer: {
       paddingHorizontal: 20,
-      paddingTop: 12,
+      paddingTop: 10,
       borderTopWidth: 1,
       borderTopColor: C.borderLight,
       backgroundColor: C.background,
