@@ -450,7 +450,19 @@ export function BodyDiagram({
     <G>
       {/* Neck */}
       <Path d="M 88,48 C 85,53 84,59 84,66 L 116,66 C 116,59 115,53 112,48 Z" {...h('neck')} />
-      {/* Rear shoulders — enlarged */}
+      {/* Front shoulder — rendered beneath rear_shoulder so rear_shoulder captures
+          taps from the back view; front_shoulder is still selectable from the sides
+          of the shoulder area not covered by the rear_shoulder path */}
+      <Path
+        d="M 50,72 C 38,70 22,68 10,72 C 2,76 0,88 0,102 C 0,116 4,128 12,136 C 18,142 28,146 38,144 C 48,142 54,134 54,122 L 54,94 Z"
+        {...h('front_shoulder')}
+      />
+      <Path
+        d="M 150,72 C 162,70 178,68 190,72 C 198,76 200,88 200,102 C 200,116 196,128 188,136 C 182,142 172,146 162,144 C 152,142 146,134 146,122 L 146,94 Z"
+        {...h('front_shoulder')}
+      />
+      {/* Rear shoulders — enlarged; rendered after front_shoulder so they sit on
+          top and are the default tap target for the shoulder area from back view */}
       <Path
         d="M 50,72 C 38,70 22,68 10,72 C 2,76 0,88 0,102 C 0,116 4,128 12,136 C 18,142 28,146 38,144 C 48,142 54,134 54,122 L 54,94 Z"
         {...h('rear_shoulder')}

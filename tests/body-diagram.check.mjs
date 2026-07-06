@@ -224,7 +224,6 @@ const EXPECTED_VIEW = {
   quads: 'front',
   core_ribs: 'front',
   hip_groin: 'front',
-  front_shoulder: 'front',
   // Back-only
   glutes: 'back',
   hamstrings: 'back',
@@ -233,6 +232,7 @@ const EXPECTED_VIEW = {
   lat_mid_back: 'back',
   rear_shoulder: 'back',
   // Bilateral — intentionally present in both views
+  front_shoulder: 'both',
   neck: 'both',
   elbow_wrist: 'both',
   knee: 'both',
