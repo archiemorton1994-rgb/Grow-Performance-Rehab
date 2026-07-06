@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { CompletedSession, EnergyLevel, ExerciseProgress, PainRegion, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
 import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
-import { getExerciseTargetRegionsMap } from '@/lib/exercise-db';
+import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
@@ -135,20 +135,36 @@ function MuscleProgressPanel({
   const insightData = useMemo(() => {
     if (!insightRegion) return null;
     const targetRegionsMap = getExerciseTargetRegionsMap();
+    const nameMap = getExerciseNameMap();
     const cutoff7 = new Date();
     cutoff7.setDate(cutoff7.getDate() - 7);
     const daySet = new Set<string>();
     let totalSets = 0;
+    const exSets = new Map<string, { name: string; sets: number }>();
     for (const session of completedSessions) {
       if (new Date(session.date) < cutoff7) continue;
       for (const log of session.exerciseLogs) {
         const regions = targetRegionsMap[log.exerciseId] ?? [];
         if (regions.includes(insightRegion)) {
           daySet.add(session.date.slice(0, 10));
-          totalSets += log.sets.filter(s => s.completed).length;
+          const completed = log.sets.filter(s => s.completed).length;
+          totalSets += completed;
+          const entry = exSets.get(log.exerciseId);
+          if (entry) {
+            entry.sets += completed;
+          } else {
+            exSets.set(log.exerciseId, {
+              name: nameMap[log.exerciseId] ?? log.exerciseId,
+              sets: completed,
+            });
+          }
         }
       }
     }
+    const topExercises = Array.from(exSets.entries())
+      .map(([id, { name, sets }]) => ({ id, name, sets }))
+      .sort((a, b) => b.sets - a.sets)
+      .slice(0, 3);
     const count = progressCounts[insightRegion] ?? 0;
     const statusKey = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : 4;
     const status = MUSCLE_INSIGHT_STATUS[statusKey] ?? MUSCLE_INSIGHT_STATUS[0];
@@ -156,6 +172,7 @@ function MuscleProgressPanel({
       days: daySet.size,
       avgSets: daySet.size > 0 ? Math.round(totalSets / daySet.size) : 0,
       status,
+      topExercises,
     };
   }, [insightRegion, completedSessions, progressCounts]);
 
@@ -253,6 +270,23 @@ function MuscleProgressPanel({
             <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
               {insightData.status.message}
             </Text>
+            {insightData.topExercises.length > 0 && (
+              <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border }}>
+                <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.textTertiary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>
+                  Top exercises this week
+                </Text>
+                {insightData.topExercises.map((ex, i) => (
+                  <View key={ex.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 3 }}>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 }} numberOfLines={1}>
+                      {i + 1}. {ex.name}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginLeft: 8 }}>
+                      {ex.sets} set{ex.sets !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
           <Pressable onPress={() => setInsightRegion(null)} hitSlop={8} style={{ paddingTop: 2 }}>
             <Ionicons name="close" size={16} color={C.textTertiary} />

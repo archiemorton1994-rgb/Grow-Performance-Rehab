@@ -2222,6 +2222,7 @@ export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[]
 
 let _categoryMapCache: Record<string, ExerciseCategory> | null = null;
 let _targetRegionsMapCache: Record<string, PainRegion[]> | null = null;
+let _nameMapCache: Record<string, string> | null = null;
 
 /**
  * Build a flat { exerciseId -> category } lookup by deep-walking every exercise
@@ -2316,5 +2317,53 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
   ]);
 
   _targetRegionsMapCache = map;
+  return map;
+}
+
+/**
+ * Build a flat { exerciseId -> name } lookup by deep-walking every exercise
+ * collection in this module. Any object that has both a string `id` and a
+ * string `name` is recorded. Memoized.
+ */
+export function getExerciseNameMap(): Record<string, string> {
+  if (_nameMapCache) return _nameMapCache;
+
+  const map: Record<string, string> = {};
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (typeof obj.id === 'string' && typeof obj.name === 'string') {
+      map[obj.id] = obj.name;
+    }
+    for (const key of Object.keys(obj)) walk(obj[key]);
+  };
+
+  walk([
+    CARDIO_WARMUPS,
+    PREP,
+    MECHANICAL,
+    NEURO,
+    POWER_MECHANICAL,
+    POWER_NEURO,
+    MAIN_LIFTS,
+    ACCESSORIES,
+    PREHAB,
+    FINISHERS,
+    COOLDOWN,
+    CONDITIONING_WORKOUTS,
+    ORM_TEST,
+    GOAL_CONDITIONING_BLOCKS,
+    STANDALONE_PREHAB,
+    PREHAB_BY_REGION,
+    PREHAB_WARMUP,
+    PREHAB_COOLDOWN,
+    STANDALONE_FLEXIBILITY,
+  ]);
+
+  _nameMapCache = map;
   return map;
 }
