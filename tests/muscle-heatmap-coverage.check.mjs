@@ -85,21 +85,56 @@ function findConstBlockBoundary(src, constName) {
 }
 
 // ─── Helper: from a source block, extract all { id, targetRegions } pairs ────
-// Each exercise is declared on a long single line.  We find every
-//   id: 'xxx', ..., targetRegions: ['a', 'b']
-// pattern, handling both empty and non-empty arrays.
+// Handles both single-line and multi-line exercise objects.
+// Tracks the most-recently-seen id: '...' and pairs it with the next
+// targetRegions: [...] that appears before a new id: resets the cursor.
 function parseExercises(block) {
   const results = [];
-  // Match id:'...' on a line that also has targetRegions:[...]
-  // Uses global regex over lines to avoid cross-exercise matches.
+  let currentId = null;
+  let inTargetRegions = false;
+  let regionBuffer = '';
+
   for (const line of block.split('\n')) {
+    // Detect id: '...' — starts a new exercise object context
     const idMatch = line.match(/\bid:\s*'([^']+)'/);
-    const regMatch = line.match(/\btargetRegions:\s*\[([^\]]*)\]/);
-    if (idMatch && regMatch) {
-      const id = idMatch[1];
-      const regionsRaw = regMatch[1];
-      const regions = [...regionsRaw.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
-      results.push({ id, regions });
+    if (idMatch) {
+      currentId = idMatch[1];
+      inTargetRegions = false;
+      regionBuffer = '';
+    }
+
+    if (currentId === null) continue;
+
+    // Check if targetRegions: [...] is fully on this line
+    const inlineMatch = line.match(/\btargetRegions:\s*\[([^\]]*)\]/);
+    if (inlineMatch) {
+      const regions = [...inlineMatch[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+      results.push({ id: currentId, regions });
+      currentId = null;
+      inTargetRegions = false;
+      regionBuffer = '';
+      continue;
+    }
+
+    // Multi-line targetRegions: [ starts but doesn't close on same line
+    if (!inTargetRegions && line.match(/\btargetRegions:\s*\[/)) {
+      inTargetRegions = true;
+      regionBuffer = line.slice(line.indexOf('[') + 1);
+      continue;
+    }
+
+    if (inTargetRegions) {
+      const closeIdx = line.indexOf(']');
+      if (closeIdx !== -1) {
+        regionBuffer += line.slice(0, closeIdx);
+        const regions = [...regionBuffer.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+        results.push({ id: currentId, regions });
+        currentId = null;
+        inTargetRegions = false;
+        regionBuffer = '';
+      } else {
+        regionBuffer += line;
+      }
     }
   }
   return results;
