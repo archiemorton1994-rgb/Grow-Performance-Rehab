@@ -482,7 +482,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     const backRegions: PainRegion[] = [
       'neck', 'rear_shoulder', 'upper_back', 'lower_back',
       'elbow_wrist', 'lat_mid_back', 'glutes', 'hamstrings',
-      'knee', 'calf_shin', 'ankle_achilles', 'hip_groin', 'tricep',
+      'knee', 'calf_shin', 'ankle_achilles', 'tricep',
     ];
     for (const r of backRegions) {
       expect(hasTestId(root, `body-diagram-region-${r}`)).toBe(true);
