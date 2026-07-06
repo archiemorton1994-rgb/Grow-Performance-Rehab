@@ -1,7 +1,7 @@
 module.exports = {
   __esModule: true,
   scheduleNotificationAsync: jest.fn(),
-  cancelScheduledNotificationAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),

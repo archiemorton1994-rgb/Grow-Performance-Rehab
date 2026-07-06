@@ -15,9 +15,9 @@ import React, { useState } from 'react';
 import renderer from 'react-test-renderer';
 import { act } from 'react';
 
-// Both components are exported from session.tsx for testability.
-// All session.tsx dependencies are mapped in jest-component.config.js.
-import { PainAdaptBanner, ExerciseCard } from '../app/session';
+// Both components and SessionScreen (default export) are exported from session.tsx
+// for testability. All session.tsx dependencies are mapped in jest-component.config.js.
+import SessionScreen, { PainAdaptBanner, ExerciseCard } from '../app/session';
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
@@ -489,5 +489,176 @@ describe('[3] PainAdaptBanner — session restore path', () => {
       });
       expect(hasText(root, `Adapted for ${label}`)).toBe(true);
     }
+  });
+});
+
+// ─── [4] SessionScreen — restore from stored activeSession ────────────────────
+//
+// Integration-style tests that render the full SessionScreen component with a
+// mocked Zustand store containing a persisted ActiveSession snapshot, then
+// assert that the pain banner and comfort-note driven by `hasAches` / `painRegion`
+// survive the restore path in `tryRestoreFromStored`.
+//
+// Mock wiring:
+//   store      → __mocks__/store.js      (__setStoreOverride / __clearStoreOverride)
+//   router     → __mocks__/expo-router.js (__setParams / __clearParams)
+//   exercises  → __mocks__/lib-workout-engine.js (generateWorkout is a jest.fn())
+//
+// All three mocks share the same Jest module-registry entry as what session.tsx
+// imports, so overrides set here are seen by the component at render time.
+
+// ── Fixture data ──────────────────────────────────────────────────────────────
+
+/** Comfort-badged exercise matching the stored exerciseIds below. */
+const RESTORE_EXERCISES = [
+  {
+    id: 'restore-comfort-ex',
+    name: 'Goblet Squat',
+    sets: 2,
+    reps: '8-10',
+    cue: 'Keep chest tall.',
+    suggestedLoad: '20 kg',
+    category: 'main',
+    badge: 'comfort',
+    videoId: '',
+    hasSwap: true,
+    isDumbbellExercise: true,
+  },
+];
+
+/** URL params that navigate into a lower-body pain session. */
+const SESSION_PARAMS = {
+  sessionType: 'squat',
+  hasAches: 'true',
+  painRegion: 'knee',
+  energy: 'normal',
+  timeAvailable: '60',
+  isTestWeek: 'false',
+  equipment: 'dumbbells',
+};
+
+/** Build a stored ActiveSession that matches SESSION_PARAMS and RESTORE_EXERCISES. */
+function buildStoredSession(overrides: Record<string, unknown> = {}) {
+  return {
+    sessionType: 'squat',
+    equipmentTier: 'dumbbells',
+    hasAches: true,
+    painRegion: 'knee',
+    energy: 'normal',
+    timeAvailable: '60',
+    isTestWeek: false,
+    exerciseData: [
+      {
+        sets: [
+          { setNumber: 1, weight: 30, reps: 8, completed: true, skipped: false },
+          { setNumber: 2, weight: 30, reps: 8, completed: false, skipped: false },
+        ],
+        swapCount: 0,
+        activeSetIndex: 1,
+      },
+    ],
+    exerciseNotes: [''],
+    activeIndex: 0,
+    savedAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+    completedSetsCount: 1,
+    totalSets: 2,
+    sessionName: 'Lower Body',
+    elapsedSeconds: 180,
+    exerciseIds: ['restore-comfort-ex'],
+    painBannerDismissed: false,
+    ...overrides,
+  };
+}
+
+/** Minimal store state providing every field that SessionScreen destructures. */
+const STORE_BASE = {
+  userProfile: { sex: 'male', name: 'Test', experienceLevel: 'intermediate', goals: [], bodyweightKg: 80 },
+  weightUnit: 'kg',
+  equipmentTiers: ['dumbbells'],
+  exerciseFeedback: {},
+  exerciseNormalStreak: {},
+  reviewPromptShown: false,
+  completedSessions: [],
+  getEffectiveTier: () => 'dumbbells',
+  completeSession: () => {},
+  addOneRepMax: () => {},
+  setExerciseFeedback: () => {},
+  applyTooEasyAdjustment: () => {},
+  getBestORM: () => undefined,
+  setActiveSession: () => {},
+  clearActiveSession: () => {},
+  updateLastLoggedWeights: () => {},
+  lastLoggedWeights: {},
+  setReviewPromptShown: () => {},
+  lastSessionPerformance: {},
+  pendingCustomExercises: [],
+  clearPendingCustomExercises: () => {},
+};
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('[4] SessionScreen — restore from stored activeSession', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const storeMock = require('../__mocks__/store');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const routerMock = require('../__mocks__/expo-router');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const workoutMock = require('../__mocks__/lib-workout-engine');
+
+  beforeEach(() => {
+    routerMock.__setParams(SESSION_PARAMS);
+    workoutMock.generateWorkout.mockReturnValue(RESTORE_EXERCISES);
+  });
+
+  afterEach(() => {
+    storeMock.__clearStoreOverride();
+    routerMock.__clearParams();
+    workoutMock.generateWorkout.mockReset();
+  });
+
+  test('pain banner visible after session restore when not previously dismissed', () => {
+    storeMock.__setStoreOverride({
+      ...STORE_BASE,
+      activeSession: buildStoredSession({ painBannerDismissed: false }),
+    });
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
+    root.unmount();
+  });
+
+  test('pain banner hidden after session restore when previously dismissed', () => {
+    storeMock.__setStoreOverride({
+      ...STORE_BASE,
+      activeSession: buildStoredSession({ painBannerDismissed: true }),
+    });
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+    root.unmount();
+  });
+
+  test('comfort note visible on restored comfort-badged exercise', () => {
+    storeMock.__setStoreOverride({
+      ...STORE_BASE,
+      activeSession: buildStoredSession({ painBannerDismissed: false }),
+    });
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    expect(hasText(root, 'Adapted for Knee')).toBe(true);
+    root.unmount();
+  });
+
+  test('pain banner absent after restore when stored session has no pain (hasAches=false)', () => {
+    storeMock.__setStoreOverride({
+      ...STORE_BASE,
+      activeSession: buildStoredSession({ hasAches: false, painBannerDismissed: false }),
+    });
+    // Also update params so SessionScreen sees hasAches=false (no pain nav)
+    routerMock.__setParams({ ...SESSION_PARAMS, hasAches: 'false' });
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+    root.unmount();
   });
 });
