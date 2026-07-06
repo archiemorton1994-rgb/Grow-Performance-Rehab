@@ -398,15 +398,16 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   // Source-level guards ensure the formula structure doesn't silently disappear.
   // Runtime opacity assertions follow below using the extended body-highlighter mock.
 
-  test('opacity formula: non-zero counts use 0.14 + scaled 0.68 range', () => {
-    expect(src).toContain('0.14 + (count / heatmapMaxCount) * 0.68');
+  test('opacity formula: non-zero counts use 4-state colour vocabulary (VOCAB_WORKED/ATTENTION/OVERLOADED)', () => {
+    expect(src).toContain('VOCAB_WORKED');
+    expect(src).toContain('VOCAB_ATTENTION');
+    expect(src).toContain('VOCAB_OVERLOADED');
   });
 
-  test('opacity formula: zero-count regions use 0.06 baseline (faint, not invisible)', () => {
-    // Formula: count > 0 ? 0.14 + … : 0.06
-    expect(src).toContain(': 0.06');
-    // Both values must differ — verified by their co-presence in the ternary
-    expect(src).toContain('count > 0');
+  test('opacity formula: zero-count regions use VOCAB_REST (faint, not invisible)', () => {
+    expect(src).toContain('VOCAB_REST');
+    // All four vocab constants must be present
+    expect(src).toContain('heatmapColor');
   });
 
   // ── Runtime rendering — no crash on any edge case ────────────────────────────
@@ -537,17 +538,18 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   // ── Runtime opacity assertions (via extended body-highlighter mock) ───────────
   // BodyDiagram passes { slug, styles: { fill: 'rgba(r,g,b,opacity)' } } entries
   // to <Body data={...}>. The mock captures that array so tests can assert on the
-  // actual computed opacity values, catching any silent formula change immediately.
+  // actual computed opacity values.
   //
   // Slug mapping (FRONT_REGION_SLUGS in BodyDiagram.tsx):
-  //   knee  → 'knees'   (JOINT_CLR: #4a7e9b)
-  //   neck  → 'neck'    (JOINT_CLR: #4a7e9b)
+  //   knee      → 'knees'     (JOINT_CLR: #4a7e9b)
+  //   neck      → 'neck'      (JOINT_CLR: #4a7e9b)
   //   hip_groin → 'adductors' (JOINT_CLR: #4a7e9b)
   //
-  // Formula:  count > 0  ? 0.14 + (count / maxCount) * 0.68  : 0.06
-  //   count=10, max=10  → 0.14 + 1.00 * 0.68 = 0.82
-  //   count=5,  max=10  → 0.14 + 0.50 * 0.68 = 0.48
-  //   count=0  (absent) → 0.06
+  // 4-colour vocabulary (heatmapColor):
+  //   count=0          → VOCAB_REST      opacity 0.55
+  //   count=1          → VOCAB_WORKED    opacity 0.82
+  //   count=2-3        → VOCAB_ATTENTION opacity 0.82
+  //   count≥4          → VOCAB_OVERLOADED opacity 0.88
 
   /** Parses the alpha component from an rgba(r,g,b,a) string. */
   function parseOpacity(fill: string): number {
@@ -556,7 +558,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     return parseFloat(m[1]);
   }
 
-  test('runtime opacity: max-count region (count=10) gets fill opacity 0.82', () => {
+  test('runtime opacity: overloaded region (count≥4) gets fill opacity 0.88', () => {
     act(() => {
       renderer.create(
         <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
@@ -566,12 +568,12 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     expect(data).not.toBeNull();
     const kneeEntry = data!.find(e => e.slug === 'knees');
     expect(kneeEntry).toBeDefined();
-    // knee=10, maxCount=max(10,1)=10: 0.14 + (10/10)*0.68 = 0.82
-    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.82, 2);
+    // knee=10 → OVERLOADED → opacity 0.88
+    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.88, 2);
   });
 
-  test('runtime opacity: zero-count region gets baseline fill opacity 0.06', () => {
-    // knee=10 is the only hot region; hip_groin is absent → count=0
+  test('runtime opacity: zero-count region gets REST fill opacity 0.55 (faint, not invisible)', () => {
+    // knee=10 is the only hot region; hip_groin is absent → count=0 → REST
     act(() => {
       renderer.create(
         <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
@@ -581,15 +583,15 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     expect(data).not.toBeNull();
     const hipEntry = data!.find(e => e.slug === 'adductors');
     expect(hipEntry).toBeDefined();
-    // hip_groin count=0: opacity = 0.06
-    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.06, 2);
+    // hip_groin count=0 → REST → opacity 0.55
+    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2);
   });
 
-  test('runtime opacity: three counts produce three distinct opacity values in the correct order', () => {
-    // knee=10 (max), neck=5 (mid), hip_groin=0 (absent)
+  test('runtime opacity: three vocabulary tiers produce three distinct opacity values in the correct order', () => {
+    // knee=5 (OVERLOADED ≥4), neck=1 (WORKED =1), hip_groin=0 (REST =0)
     act(() => {
       renderer.create(
-        <BodyDiagram heatmapCounts={{ knee: 10, neck: 5 }} onSelect={() => {}} />,
+        <BodyDiagram heatmapCounts={{ knee: 5, neck: 1 }} onSelect={() => {}} />,
       );
     });
     const data = bodyHighlighterMock.getCapturedBodyData();
@@ -600,11 +602,11 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     expect(kneeEntry).toBeDefined();
     expect(neckEntry).toBeDefined();
     expect(hipEntry).toBeDefined();
-    // Exact values
-    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.82, 2); // 0.14+1.00*0.68
-    expect(parseOpacity(neckEntry!.styles.fill)).toBeCloseTo(0.48, 2); // 0.14+0.50*0.68
-    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.06, 2);  // baseline
-    // Ordering
+    // Exact values per vocabulary
+    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.88, 2); // OVERLOADED
+    expect(parseOpacity(neckEntry!.styles.fill)).toBeCloseTo(0.82, 2); // WORKED
+    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2);  // REST
+    // Ordering: overloaded > worked > rest
     expect(parseOpacity(kneeEntry!.styles.fill))
       .toBeGreaterThan(parseOpacity(neckEntry!.styles.fill));
     expect(parseOpacity(neckEntry!.styles.fill))

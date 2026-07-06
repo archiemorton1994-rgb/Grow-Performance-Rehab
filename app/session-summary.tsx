@@ -579,7 +579,7 @@ export default function SessionSummaryScreen() {
               selected={undefined}
               onSelect={() => {}}
               heatmapCounts={workedRegions}
-              maxWidth={160}
+              maxWidth={130}
             />
           </Animated.View>
         )}
