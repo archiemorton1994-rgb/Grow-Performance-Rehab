@@ -21,7 +21,6 @@ export type BadgeCategory =
   | 'session_custom' // custom session count
   | 'consistency' // weekly / monthly training habits
   | 'goals' // goal-specific achievements
-  | 'profile' // profile completion actions
   | 'equipment' // equipment tier usage
   | 'test_week' // 1RM test week completions
   | 'time_of_day' // when you train
@@ -751,90 +750,20 @@ const goalsBadges: Badge[] = [
   },
 ];
 
-// ─── 16. Profile Badges ───────────────────────────────────────────────────────
-const profileBadges: Badge[] = [
-  {
-    id: 'profile_photo',
-    name: 'Face of Grow',
-    description: 'Add a profile photo',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'camera-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_goals_set',
-    name: 'Goal Setter',
-    description: 'Set at least one fitness goal',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'flag-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_goals_multi',
-    name: 'Multi-Goal',
-    description: 'Have 3 or more fitness goals active',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'list-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_1rm_squat',
-    name: 'Know Your Squat',
-    description: 'Log a squat 1RM',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'analytics-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_1rm_bench',
-    name: 'Know Your Bench',
-    description: 'Log a bench 1RM',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'analytics-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_1rm_deadlift',
-    name: 'Know Your Pull',
-    description: 'Log a deadlift 1RM',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'analytics-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_1rm_all',
-    name: 'Fully Calibrated',
-    description: 'Log 1RM for squat, bench and deadlift',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'checkmark-circle-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_bodyweight_updated',
-    name: 'Weight Checked',
-    description: 'Update your logged bodyweight',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'scale-outline',
-    color: C.sky,
-  },
-  {
-    id: 'profile_onboarding',
-    name: 'Profile Built',
-    description: 'Complete the onboarding profile setup',
-    category: 'profile',
-    criteriaType: 'profile_action',
-    icon: 'person-circle-outline',
-    color: C.sky,
-  },
-];
+// ─── Onboarding Welcome Badge ─────────────────────────────────────────────────
+// The ONLY badge that is not earned through training. It marks the start of the
+// journey and is awarded once when onboarding completes. Every other badge is a
+// training reward (see lib/badge-engine.ts), so a brand-new user finishes
+// onboarding with EXACTLY ONE earned badge. Do NOT add profile-setup badges.
+const onboardingBadge: Badge = {
+  id: 'onboarding_complete',
+  name: 'First Steps',
+  description: 'You built your GROW profile and started your journey.',
+  category: 'milestone',
+  criteriaType: 'profile_action',
+  icon: 'rocket-outline',
+  color: '#f59e0b',
+};
 
 // ─── 17. Equipment Badges ─────────────────────────────────────────────────────
 const equipmentBadges: Badge[] = [
@@ -904,7 +833,7 @@ const equipmentBadges: Badge[] = [
   {
     id: 'equip_upgraded',
     name: 'Levelled Up',
-    description: 'Access equipment beyond bodyweight-only',
+    description: 'Complete a session with equipment beyond bodyweight',
     category: 'equipment',
     criteriaType: 'equipment_usage',
     icon: 'arrow-up-outline',
@@ -1621,13 +1550,13 @@ const exerciseMilestoneBadges: Badge[] = [
 // ─── Final catalog assembly ───────────────────────────────────────────────────
 
 export const BADGE_CATALOG: Badge[] = [
+  onboardingBadge,
   ...milestoneBadges,
   ...streakBadges,
   ...strengthProgressBadges,
   ...sessionTypeBadges,
   ...consistencyBadges,
   ...goalsBadges,
-  ...profileBadges,
   ...equipmentBadges,
   ...testWeekBadges,
   ...timeOfDayBadges,
@@ -1656,7 +1585,6 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   session_custom: 'Custom Sessions',
   consistency: 'Consistency',
   goals: 'Goals',
-  profile: 'Profile',
   equipment: 'Equipment',
   test_week: 'Test Weeks',
   time_of_day: 'Time of Day',
@@ -1687,7 +1615,6 @@ export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
   'variety',
   'goals',
   'test_week',
-  'profile',
   'equipment',
   'time_of_day',
   'comeback',

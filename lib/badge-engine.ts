@@ -18,7 +18,6 @@ import type {
   UserProfile,
   EquipmentTier,
   SessionType,
-  FitnessGoal,
 } from '@/lib/store';
 
 export interface BadgeEvalState {
@@ -270,9 +269,7 @@ function consecutiveWeeksWithMinSessions(
 export function evaluateBadges(state: BadgeEvalState): string[] {
   const earned: string[] = [];
   const s = computeStats(state);
-  const { userProfile, profilePhotoUri, equipmentTiers, bodyweightUpdatedAt, onboardingComplete } =
-    state;
-  const goals: FitnessGoal[] = userProfile.goals ?? [];
+  const { onboardingComplete } = state;
 
   function award(id: string) {
     earned.push(id);
@@ -398,12 +395,12 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   const strengthSessions =
     (s.byType['squat'] ?? 0) + (s.byType['bench'] ?? 0) + (s.byType['deadlift'] ?? 0);
   // Strength
-  awardIf(s.ormLiftsSet.size >= 1, 'goal_strength_1rm');
+  awardIf(s.total >= 1 && s.ormLiftsSet.size >= 1, 'goal_strength_1rm');
   awardIf(strengthSessions >= 10, 'goal_strength_10');
   awardIf(strengthSessions >= 25, 'goal_strength_25');
   awardIf(strengthSessions >= 50, 'goal_strength_50');
   awardIf(strengthSessions >= 100, 'goal_strength_100');
-  awardIf(state.oneRepMaxes.length >= 2, 'goal_strength_pb'); // at least 2 tests = at least one follow-up PB
+  awardIf(s.total >= 1 && state.oneRepMaxes.length >= 2, 'goal_strength_pb'); // at least 2 tests = at least one follow-up PB
   // Muscle
   awardIf(s.total >= 1, 'goal_muscle_1');
   awardIf(s.total >= 10, 'goal_muscle_10');
@@ -465,21 +462,15 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.total >= 10, 'goal_power_10');
   awardIf(s.total >= 25, 'goal_power_25');
   awardIf(s.total >= 50, 'goal_power_50');
-  awardIf(s.ormLiftsSet.size >= 3, 'goal_power_max');
+  awardIf(s.total >= 1 && s.ormLiftsSet.size >= 3, 'goal_power_max');
 
-  // ── 16. Profile ───────────────────────────────────────────────────────────
-  awardIf(!!profilePhotoUri, 'profile_photo');
-  awardIf(goals.length >= 1, 'profile_goals_set');
-  awardIf(goals.length >= 3, 'profile_goals_multi');
-  awardIf(s.ormLiftsSet.has('squat'), 'profile_1rm_squat');
-  awardIf(s.ormLiftsSet.has('bench'), 'profile_1rm_bench');
-  awardIf(s.ormLiftsSet.has('deadlift'), 'profile_1rm_deadlift');
-  awardIf(
-    s.ormLiftsSet.has('squat') && s.ormLiftsSet.has('bench') && s.ormLiftsSet.has('deadlift'),
-    'profile_1rm_all'
-  );
-  awardIf(!!bodyweightUpdatedAt, 'profile_bodyweight_updated');
-  awardIf(onboardingComplete, 'profile_onboarding');
+  // ── 16. Onboarding ──────────────────────────────────────────────────────────
+  // The ONLY badge awarded outside of training. Every other award in this engine
+  // is gated on completedSessions (or on 1RMs logged AFTER at least one session),
+  // so a fresh user finishes onboarding with EXACTLY ONE earned badge:
+  // 'onboarding_complete'. Do NOT reintroduce profile-setup awards here — badges
+  // are a training reward, not a profile-completion reward.
+  awardIf(onboardingComplete, 'onboarding_complete');
 
   // ── 17. Equipment ─────────────────────────────────────────────────────────
   awardIf(s.uniqueEquipmentUsed.has('bodyweight'), 'equip_bodyweight');
@@ -489,11 +480,9 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.uniqueEquipmentUsed.has('barbell'), 'equip_barbell');
   awardIf(s.uniqueEquipmentUsed.has('fullgym'), 'equip_fullgym');
   awardIf(s.uniqueEquipmentUsed.size >= 4, 'equip_all');
-  // "Levelled up" = currently has more than one tier (upgraded beyond bodyweight only)
+  // "Levelled up" = trained with any equipment beyond bodyweight-only
   awardIf(
-    equipmentTiers.length > 1 ||
-      equipmentTiers.includes('fullgym') ||
-      equipmentTiers.includes('dumbbells'),
+    Array.from(s.uniqueEquipmentUsed).some((tier) => tier !== 'bodyweight'),
     'equip_upgraded'
   );
 

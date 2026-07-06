@@ -940,9 +940,41 @@ export const useAppStore = create<AppState>()(
         if (!('weeklyStreakGoal' in persistedState)) {
           persistedState.weeklyStreakGoal = 2;
         }
+        // v21: badge prestige revamp. Profile-setup badges were removed — badges
+        // are now earned through training only. Strip the 9 retired profile IDs
+        // from persisted state, and for already-onboarded users seed the single
+        // 'onboarding_complete' welcome badge so their count stays correct and no
+        // spurious unlock toast fires on next launch.
+        const RETIRED_BADGE_IDS = [
+          'profile_photo',
+          'profile_goals_set',
+          'profile_goals_multi',
+          'profile_1rm_squat',
+          'profile_1rm_bench',
+          'profile_1rm_deadlift',
+          'profile_1rm_all',
+          'profile_bodyweight_updated',
+          'profile_onboarding',
+        ];
+        if (Array.isArray(persistedState.earnedBadges)) {
+          persistedState.earnedBadges = persistedState.earnedBadges.filter(
+            (id: string) => !RETIRED_BADGE_IDS.includes(id)
+          );
+          if (
+            persistedState.onboardingComplete === true &&
+            !persistedState.earnedBadges.includes('onboarding_complete')
+          ) {
+            persistedState.earnedBadges.push('onboarding_complete');
+          }
+        }
+        if (Array.isArray(persistedState.newlyUnlockedBadges)) {
+          persistedState.newlyUnlockedBadges = persistedState.newlyUnlockedBadges.filter(
+            (id: string) => !RETIRED_BADGE_IDS.includes(id)
+          );
+        }
         return persistedState;
       },
-      version: 20,
+      version: 21,
     }
   )
 );

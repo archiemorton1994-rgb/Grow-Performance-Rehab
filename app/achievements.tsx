@@ -33,7 +33,7 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   session_type_count: 'Complete more sessions of this type.',
   consistency_habit: 'Train regularly each week to build this habit.',
   goal_progress: 'Keep training toward your selected goals.',
-  profile_action: 'Update your profile to unlock this.',
+  profile_action: 'Awarded when you finish setting up your profile.',
   equipment_usage: 'Use different equipment tiers in your sessions.',
   test_week: 'Complete a 1RM test week to unlock this.',
   time_based: 'Train at a consistent time of day.',
@@ -47,6 +47,34 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
 };
 
 const COLS = 4;
+
+// Category-specific accent colours give each badge family its own identity.
+// Earned badges render in full colour with a soft glow; locked badges are shown
+// as a desaturated silhouette (see makeStyles.badgeIconLocked).
+const CATEGORY_COLORS: Record<BadgeCategory, string> = {
+  milestone: '#f59e0b', // amber / gold
+  streak: '#3b82f6', // blue
+  strength_progress: '#dc2626', // crimson
+  session_lower: '#8b5cf6', // violet
+  session_upper: '#0ea5e9', // sky
+  session_full: '#ef4444', // red
+  session_conditioning: '#f97316', // orange
+  session_prehab: '#10b981', // emerald
+  session_flex: '#06b6d4', // cyan
+  session_custom: '#64748b', // slate
+  consistency: '#22c55e', // green
+  goals: '#a855f7', // purple
+  equipment: '#94a3b8', // steel
+  test_week: '#6366f1', // indigo
+  time_of_day: '#eab308', // yellow
+  variety: '#d946ef', // fuchsia
+  recovery: '#14b8a6', // teal
+  duration: '#0891b2', // deep cyan
+  comeback: '#ec4899', // pink
+  pain_warrior: '#e11d48', // rose
+  endurance: '#fb923c', // light orange
+  exercise_milestone: '#7c3aed', // deep violet
+};
 
 // ─── Tour overlay callout ──────────────────────────────────────────────────────
 
@@ -260,6 +288,9 @@ export default function AchievementsScreen() {
 
   const totalEarned = earnedBadges.length;
   const totalBadges = BADGE_CATALOG.length;
+  const detailColor = detailBadge
+    ? (CATEGORY_COLORS[detailBadge.category] ?? detailBadge.color)
+    : '';
 
   const handleBadgePress = (badge: Badge) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -346,6 +377,7 @@ export default function AchievementsScreen() {
             <View style={styles.badgeRow}>
               {rowItems.map((badge) => {
                 const isEarned = earnedSet.has(badge.id);
+                const badgeColor = CATEGORY_COLORS[badge.category] ?? badge.color;
                 return (
                   <Pressable
                     key={badge.id}
@@ -357,7 +389,15 @@ export default function AchievementsScreen() {
                       style={[
                         styles.badgeIconWrap,
                         isEarned
-                          ? { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }
+                          ? {
+                              backgroundColor: badgeColor + '26',
+                              borderColor: badgeColor + '80',
+                              shadowColor: badgeColor,
+                              shadowOpacity: 0.5,
+                              shadowRadius: 8,
+                              shadowOffset: { width: 0, height: 0 },
+                              elevation: 6,
+                            }
                           : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                         !isEarned && styles.badgeIconLocked,
                       ]}
@@ -365,7 +405,7 @@ export default function AchievementsScreen() {
                       <Ionicons
                         name={badge.icon as any}
                         size={20}
-                        color={isEarned ? badge.color : C.textTertiary}
+                        color={isEarned ? badgeColor : C.textTertiary}
                       />
                       {!isEarned && (
                         <View style={styles.lockOverlay}>
@@ -380,7 +420,7 @@ export default function AchievementsScreen() {
                       {badge.name}
                     </Text>
                     {isEarned && (
-                      <View style={[styles.earnedDot, { backgroundColor: badge.color }]} />
+                      <View style={[styles.earnedDot, { backgroundColor: badgeColor }]} />
                     )}
                   </Pressable>
                 );
@@ -420,8 +460,13 @@ export default function AchievementsScreen() {
                   styles.detailIconWrap,
                   earnedSet.has(detailBadge.id)
                     ? {
-                        backgroundColor: detailBadge.color + '22',
-                        borderColor: detailBadge.color + '55',
+                        backgroundColor: detailColor + '26',
+                        borderColor: detailColor + '80',
+                        shadowColor: detailColor,
+                        shadowOpacity: 0.5,
+                        shadowRadius: 14,
+                        shadowOffset: { width: 0, height: 0 },
+                        elevation: 8,
                       }
                     : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                 ]}
@@ -429,7 +474,7 @@ export default function AchievementsScreen() {
                 <Ionicons
                   name={detailBadge.icon as any}
                   size={40}
-                  color={earnedSet.has(detailBadge.id) ? detailBadge.color : C.textTertiary}
+                  color={earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary}
                 />
                 {!earnedSet.has(detailBadge.id) && (
                   <View style={styles.detailLockOverlay}>
@@ -447,8 +492,8 @@ export default function AchievementsScreen() {
                   styles.detailStatusPill,
                   earnedSet.has(detailBadge.id)
                     ? {
-                        backgroundColor: detailBadge.color + '22',
-                        borderColor: detailBadge.color + '55',
+                        backgroundColor: detailColor + '22',
+                        borderColor: detailColor + '55',
                       }
                     : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                 ]}
@@ -456,12 +501,12 @@ export default function AchievementsScreen() {
                 <Ionicons
                   name={earnedSet.has(detailBadge.id) ? 'checkmark-circle' : 'lock-closed-outline'}
                   size={13}
-                  color={earnedSet.has(detailBadge.id) ? detailBadge.color : C.textTertiary}
+                  color={earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary}
                 />
                 <Text
                   style={[
                     styles.detailStatusText,
-                    { color: earnedSet.has(detailBadge.id) ? detailBadge.color : C.textTertiary },
+                    { color: earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary },
                   ]}
                 >
                   {earnedSet.has(detailBadge.id) ? 'Earned' : 'Locked'}
@@ -615,7 +660,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       position: 'relative',
     },
     badgeIconLocked: {
-      opacity: 0.55,
+      opacity: 0.3,
     },
     lockOverlay: {
       position: 'absolute',
