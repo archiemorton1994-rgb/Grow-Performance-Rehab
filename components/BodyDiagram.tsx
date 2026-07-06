@@ -210,7 +210,7 @@ const REGION_ANCHOR: Record<PainRegion, { x: number; y: number }> = {
 };
 
 interface BodyDiagramProps {
-  selected: PainRegion | undefined;
+  selected?: PainRegion | undefined;
   onSelect: (region: PainRegion | undefined) => void;
   accentColor?: string;
   accentColorLight?: string;

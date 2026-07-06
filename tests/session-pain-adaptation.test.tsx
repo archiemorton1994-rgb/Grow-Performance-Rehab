@@ -249,7 +249,7 @@ function makeExercise(overrides: Partial<{
 /** Minimal ExerciseSetData satisfying the interface. */
 function makeSetData(): Parameters<typeof ExerciseCard>[0]['setData'] {
   return {
-    sets: [{ reps: 10, weight: 20, completed: false }],
+    sets: [{ setNumber: 1, reps: 10, weight: 20, completed: false }],
     swapCount: 0,
     activeSetIndex: 0,
   };
@@ -785,7 +785,7 @@ function SwapSessionFixture({
       <ExerciseCard
         {...defaultCardProps}
         exercise={displayExercise}
-        setData={{ sets: [{ reps: 10, weight: 20, completed: false }], swapCount, activeSetIndex: 0 }}
+        setData={{ sets: [{ setNumber: 1, reps: 10, weight: 20, completed: false }], swapCount, activeSetIndex: 0 }}
         comfortRegionLabel={comfortRegionLabel}
         onSwapPress={() => setSwapCount((c) => Math.min(c + 1, 2) as 0 | 1 | 2)}
       />
