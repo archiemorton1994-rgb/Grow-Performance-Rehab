@@ -113,7 +113,6 @@ const BACK_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
   upper_back: ['trapezius'],
   lower_back: ['lower-back'],
   lat_mid_back: ['upper-back'],
-  hip_groin: ['adductors'],
   knee: ['knees'],
   calf_shin: ['calves'],
   ankle_achilles: ['ankles'],
@@ -147,7 +146,6 @@ const BACK_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
   trapezius: 'upper_back',
   'lower-back': 'lower_back',
   'upper-back': 'lat_mid_back',
-  adductors: 'hip_groin',
   knees: 'knee',
   calves: 'calf_shin',
   ankles: 'ankle_achilles',
@@ -536,11 +534,6 @@ export function BodyDiagram({
       <Path
         d="M 182,432 C 186,438 188,444 186,450 C 184,454 176,456 162,456 L 132,456 C 120,456 112,454 110,450 C 108,446 112,438 116,432 C 128,436 140,438 150,438 C 162,438 174,436 182,432 Z"
         {...h('ankle_achilles')}
-      />
-      {/* Hip / Groin (back view) */}
-      <Path
-        d="M 58,178 C 52,184 48,192 46,200 C 50,206 62,210 78,212 L 122,212 C 138,210 150,206 154,200 C 152,192 148,184 142,178 Z"
-        {...h('hip_groin')}
       />
     </G>
   );
