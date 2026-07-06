@@ -460,6 +460,7 @@ function RootLayoutNav() {
         <Stack.Screen name="session" options={{ headerShown: false }} />
         <Stack.Screen name="session-summary" options={{ headerShown: false }} />
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
+        <Stack.Screen name="past-sessions" options={{ headerShown: false }} />
       </Stack>
       <WeeklyWeightPrompt />
       {currentToast &&

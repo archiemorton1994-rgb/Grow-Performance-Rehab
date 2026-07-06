@@ -92,15 +92,6 @@ function WeeklyRing({
   );
 }
 
-// Muscle-group → session type mapping for the freshness strip
-const MUSCLE_GROUPS: { key: string; label: string; sessions: SessionType[] }[] = [
-  { key: 'legs', label: 'Legs', sessions: ['squat'] },
-  { key: 'push', label: 'Push', sessions: ['bench'] },
-  { key: 'pull', label: 'Pull', sessions: ['deadlift'] },
-  { key: 'core', label: 'Core', sessions: ['prehab', 'flexibility'] },
-  { key: 'fullbody', label: 'Full Body', sessions: ['conditioning'] },
-];
-
 const SESSION_IMAGES: Record<string, any> = {
   squat: require('@/assets/images/sessions/lower-body.png'),
   bench: require('@/assets/images/sessions/upper-body.png'),
@@ -304,20 +295,6 @@ export default function HomeScreen() {
     setWeightReminderSnoozedAt(new Date().toISOString());
   };
   // ────────────────────────────────────────────────────────────────────────
-
-  // Days since each muscle group was last trained (newest session wins per group)
-  const muscleFreshness = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return MUSCLE_GROUPS.map((group) => {
-      const last = completedSessions.find((s) => group.sessions.includes(s.sessionType));
-      if (!last) return { ...group, days: null };
-      const d = new Date(last.date);
-      d.setHours(0, 0, 0, 0);
-      const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
-      return { ...group, days };
-    });
-  }, [completedSessions]);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -591,7 +568,7 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Block progress — standalone slim row between hero card and freshness chips */}
+          {/* Block progress — standalone slim row between hero card and stats strip */}
           {completedSessions.length > 0 && showBlockProgress && (
             <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
               <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
@@ -610,36 +587,6 @@ export default function HomeScreen() {
                   ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
                   : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
               </Text>
-            </Animated.View>
-          )}
-
-          {/* Muscle freshness strip — only once there are sessions to compute from */}
-          {completedSessions.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(90).duration(380)}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.freshnessRow}
-              >
-                {muscleFreshness.map(({ key, label, days }) => {
-                  const readySoon = days === 2;
-                  const recovering = days !== null && days <= 1;
-                  const chipBg = recovering
-                    ? C.errorLight
-                    : readySoon
-                      ? C.warningLight
-                      : C.primaryMuted;
-                  const chipColor = recovering ? C.error : readySoon ? C.warning : C.primary;
-                  const dayLabel = days === null ? 'Fresh' : days === 0 ? 'Today' : `${days}d`;
-                  return (
-                    <View key={key} style={[styles.freshnessChip, { backgroundColor: chipBg }]}>
-                      <View style={[styles.freshnessDot, { backgroundColor: chipColor }]} />
-                      <Text style={[styles.freshnessLabel, { color: chipColor }]}>{label}</Text>
-                      <Text style={[styles.freshnessDays, { color: chipColor }]}>· {dayLabel}</Text>
-                    </View>
-                  );
-                })}
-              </ScrollView>
             </Animated.View>
           )}
 
@@ -670,10 +617,20 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            <Pressable
+              style={styles.statItem}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/past-sessions');
+              }}
+              testID="total-sessions-tap"
+            >
               <Text style={styles.statValue}>{completedSessions.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
+              <View style={styles.statLabelRow}>
+                <Text style={styles.statLabel}>Total</Text>
+                <Ionicons name="chevron-forward" size={11} color={C.textTertiary} />
+              </View>
+            </Pressable>
           </Animated.View>
 
           {/* Achievements — single tappable row navigating to /achievements */}
@@ -1171,6 +1128,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     statValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
     statGoal: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, marginTop: 2 },
+    statLabelRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 2,
+    },
     statDivider: { width: 1, backgroundColor: C.borderLight, marginVertical: 6 },
 
     lastInline: {
@@ -1440,32 +1402,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary + '44',
     },
     badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
-
-    freshnessRow: {
-      flexDirection: 'row' as const,
-      gap: 8,
-      paddingVertical: 2,
-    },
-    freshnessChip: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 5,
-      borderRadius: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-    },
-    freshnessDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    freshnessLabel: {
-      fontSize: 12,
-      fontFamily: 'Inter_600SemiBold',
-    },
-    freshnessDays: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-    },
   });
 }
