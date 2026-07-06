@@ -491,15 +491,7 @@ export default function HomeScreen() {
           ) : (
             <Animated.View
               entering={FadeInDown.delay(60).duration(380)}
-              style={[
-                styles.todayCard,
-                {
-                  borderLeftWidth: 4,
-                  borderLeftColor: suggestedMeta.color,
-                  borderColor: C.borderLight,
-                  borderWidth: 1,
-                },
-              ]}
+              style={styles.todayCard}
             >
               <View style={styles.todayCardTop}>
                 <View style={{ flex: 1 }}>
@@ -1045,16 +1037,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.warning },
 
     todayCard: {
-      backgroundColor: C.surface,
+      backgroundColor: C.primaryMuted,
       borderRadius: 20,
       padding: 20,
       borderWidth: 1.5,
       borderColor: C.primary,
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: Platform.OS !== 'web' ? 4 : 0,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: Platform.OS !== 'web' ? 5 : 0,
     },
     todayCardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
     todayLabel: {
@@ -1092,13 +1084,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center' as const,
       gap: 6,
       alignSelf: 'flex-start' as const,
-      backgroundColor: C.surfaceSecondary ?? C.borderLight,
+      backgroundColor: C.surface,
       borderRadius: 20,
       paddingHorizontal: 12,
       paddingVertical: 6,
       marginBottom: 10,
       borderWidth: 1,
-      borderColor: C.borderLight,
+      borderColor: C.primary + '30',
     },
     equipmentChipOverride: {
       backgroundColor: C.primaryMuted,
