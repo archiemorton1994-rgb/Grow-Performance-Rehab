@@ -33,17 +33,17 @@ const WEB_BOTTOM_INSET = 34;
 
 const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
 
-// ── Certificate palette (fixed dark, branded — matches BodyDiagram panel bg so
-//    the compact silhouettes blend seamlessly and the shared image is on-brand
-//    regardless of theme) ─────────────────────────────────────────────────────
-const CARD_BG = '#0d0d0d';
+// ── Certificate palette (fixed ecru/parchment — always light regardless of
+//    device theme so the shareable card reads as a physical document) ──────────
+const CARD_BG = '#F5F0E8'; // warm parchment
+const OUTER_BG = '#1A1611'; // dark-warm surround so the card floats visibly
 const BRAND_GREEN = '#2f6b46';
-const BRAND_GREEN_LIGHT = '#5fbf87';
-const CARD_TEXT = '#ffffff';
-const CARD_MUTED = 'rgba(255,255,255,0.55)';
-const CARD_FAINT = 'rgba(255,255,255,0.38)';
-const CARD_HAIRLINE = 'rgba(255,255,255,0.08)';
-const PILL_BG = 'rgba(255,255,255,0.05)';
+const BRAND_GREEN_LIGHT = '#5fbf87'; // kept for non-card uses
+const CARD_TEXT = '#1A1A1A'; // near-black ink
+const CARD_MUTED = '#5C5248'; // warm dark muted
+const CARD_FAINT = '#9C8E82'; // warm medium gray
+const CARD_HAIRLINE = 'rgba(60,45,30,0.14)'; // warm dark divider
+const PILL_BG = 'rgba(60,45,30,0.06)'; // subtle warm tint for stat strip
 const GOLD = '#fbbf24';
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
@@ -339,7 +339,7 @@ export default function SessionSummaryScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <View style={[styles.container, { backgroundColor: OUTER_BG }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <View
@@ -411,7 +411,7 @@ export default function SessionSummaryScreen() {
                     {i > 0 && <View style={styles.statSep} />}
                     <View style={styles.statItem}>
                       <Text
-                        style={[styles.statValue, s.accent && { color: BRAND_GREEN_LIGHT }]}
+                        style={[styles.statValue, s.accent && { color: BRAND_GREEN }]}
                         numberOfLines={1}
                         adjustsFontSizeToFit
                       >
@@ -430,6 +430,7 @@ export default function SessionSummaryScreen() {
                 <View style={styles.diagramCol}>
                   <BodyDiagram
                     compact
+                    lightBg
                     defaultView="front"
                     heatmapCounts={heatmap}
                     maxWidth={bodyMaxWidth}
@@ -440,6 +441,7 @@ export default function SessionSummaryScreen() {
                 <View style={styles.diagramCol}>
                   <BodyDiagram
                     compact
+                    lightBg
                     defaultView="back"
                     heatmapCounts={heatmap}
                     maxWidth={bodyMaxWidth}
@@ -740,7 +742,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   testPill: {
-    backgroundColor: 'rgba(95,191,135,0.18)',
+    backgroundColor: 'rgba(47,107,70,0.12)',
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -748,7 +750,7 @@ const styles = StyleSheet.create({
   testPillText: {
     fontSize: 8,
     fontFamily: 'Inter_700Bold',
-    color: BRAND_GREEN_LIGHT,
+    color: BRAND_GREEN,
     letterSpacing: 0.8,
   },
   headline: {

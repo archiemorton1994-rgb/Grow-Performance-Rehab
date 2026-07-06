@@ -221,6 +221,11 @@ interface BodyDiagramProps {
    */
   compact?: boolean;
   /**
+   * When true, the silhouette defaultFill switches to a warm dark ink colour
+   * so the body shape is legible on a light/ecru background (certificate card).
+   */
+  lightBg?: boolean;
+  /**
    * Override the three heatmap legend labels [low, medium, high].
    * Defaults to ['Worked', 'Secondary', 'High load'].
    * Use context-specific labels when the diagram is showing pain frequency
@@ -239,6 +244,7 @@ export function BodyDiagram({
   heatmapCounts,
   darkPanel = true,
   compact = false,
+  lightBg = false,
   legendLabels = ['Worked', 'Secondary', 'High load'],
 }: BodyDiagramProps) {
   const [view, setView] = useState<BodyView>(defaultView);
@@ -591,9 +597,12 @@ export function BodyDiagram({
 
   const label = selected ? BODY_DIAGRAM_LABELS[selected] : null;
 
-  // defaultFill: body silhouette — white on dark panel/compact mode, themed otherwise
-  const defaultFill =
-    darkPanel || compact ? colorWithAlpha('#ffffff', 0.12) : colorWithAlpha(C.text, 0.7);
+  // defaultFill: body silhouette — warm dark ink on light bg, white on dark panel/compact, themed otherwise
+  const defaultFill = lightBg
+    ? colorWithAlpha('#2C1F0F', 0.22)
+    : darkPanel || compact
+      ? colorWithAlpha('#ffffff', 0.12)
+      : colorWithAlpha(C.text, 0.7);
 
   const styles = useMemo(
     () =>
