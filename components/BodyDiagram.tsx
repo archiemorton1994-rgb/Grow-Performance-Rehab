@@ -212,6 +212,12 @@ interface BodyDiagramProps {
   heatmapCounts?: Partial<Record<PainRegion, number>>;
   /** Set false to opt out of the dark panel container (rare) */
   darkPanel?: boolean;
+  /**
+   * Compact mode: renders just the body SVG with no toggles, label, legend,
+   * or panel wrapper. Use when embedding multiple diagrams side-by-side in a
+   * custom container. Silhouette is drawn white (suitable for dark backgrounds).
+   */
+  compact?: boolean;
 }
 
 export function BodyDiagram({
@@ -223,6 +229,7 @@ export function BodyDiagram({
   maxWidth = 200,
   heatmapCounts,
   darkPanel = true,
+  compact = false,
 }: BodyDiagramProps) {
   const [view, setView] = useState<BodyView>(defaultView);
   const [category, setCategory] = useState<BodyCategory>('muscles');
@@ -466,8 +473,8 @@ export function BodyDiagram({
 
   const label = selected ? BODY_DIAGRAM_LABELS[selected] : null;
 
-  // defaultFill: body silhouette — white on dark panel, themed otherwise
-  const defaultFill = darkPanel
+  // defaultFill: body silhouette — white on dark panel/compact mode, themed otherwise
+  const defaultFill = (darkPanel || compact)
     ? colorWithAlpha('#ffffff', 0.12)
     : colorWithAlpha(C.text, 0.70);
 
@@ -586,45 +593,47 @@ export function BodyDiagram({
 
   const diagramContent = (
     <>
-      <View style={styles.toggleGroup}>
-        {/* Front / Back toggle */}
-        <View style={styles.toggleRow}>
-          <Pressable
-            onPress={() => handleViewChange('front')}
-            style={[styles.toggleBtn, view === 'front' && styles.toggleBtnActive]}
-            testID="body-diagram-front"
-          >
-            <Text style={[styles.toggleText, view === 'front' && styles.toggleTextActive]}>Front</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => handleViewChange('back')}
-            style={[styles.toggleBtn, view === 'back' && styles.toggleBtnActive]}
-            testID="body-diagram-back"
-          >
-            <Text style={[styles.toggleText, view === 'back' && styles.toggleTextActive]}>Back</Text>
-          </Pressable>
-        </View>
-
-        {/* Muscles / Joints category toggle — hidden in heatmap mode */}
-        {!heatmapCounts && (
-          <View style={styles.catRow}>
+      {!compact && (
+        <View style={styles.toggleGroup}>
+          {/* Front / Back toggle */}
+          <View style={styles.toggleRow}>
             <Pressable
-              onPress={() => handleCategoryChange('muscles')}
-              style={[styles.catBtn, category === 'muscles' && styles.catBtnActive]}
-              testID="body-diagram-muscles"
+              onPress={() => handleViewChange('front')}
+              style={[styles.toggleBtn, view === 'front' && styles.toggleBtnActive]}
+              testID="body-diagram-front"
             >
-              <Text style={[styles.catText, category === 'muscles' && styles.catMuscleActive]}>Muscles</Text>
+              <Text style={[styles.toggleText, view === 'front' && styles.toggleTextActive]}>Front</Text>
             </Pressable>
             <Pressable
-              onPress={() => handleCategoryChange('joints')}
-              style={[styles.catBtn, category === 'joints' && styles.catBtnActive]}
-              testID="body-diagram-joints"
+              onPress={() => handleViewChange('back')}
+              style={[styles.toggleBtn, view === 'back' && styles.toggleBtnActive]}
+              testID="body-diagram-back"
             >
-              <Text style={[styles.catText, category === 'joints' && styles.catJointActive]}>Joints</Text>
+              <Text style={[styles.toggleText, view === 'back' && styles.toggleTextActive]}>Back</Text>
             </Pressable>
           </View>
-        )}
-      </View>
+
+          {/* Muscles / Joints category toggle — hidden in heatmap mode */}
+          {!heatmapCounts && (
+            <View style={styles.catRow}>
+              <Pressable
+                onPress={() => handleCategoryChange('muscles')}
+                style={[styles.catBtn, category === 'muscles' && styles.catBtnActive]}
+                testID="body-diagram-muscles"
+              >
+                <Text style={[styles.catText, category === 'muscles' && styles.catMuscleActive]}>Muscles</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleCategoryChange('joints')}
+                style={[styles.catBtn, category === 'joints' && styles.catBtnActive]}
+                testID="body-diagram-joints"
+              >
+                <Text style={[styles.catText, category === 'joints' && styles.catJointActive]}>Joints</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Body diagram + hotspot overlay */}
       <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
@@ -666,19 +675,21 @@ export function BodyDiagram({
         )}
       </Animated.View>
 
-      {/* Label / hint */}
-      <View style={styles.labelRow}>
-        {label ? (
-          <View style={[styles.labelChip, { backgroundColor: accentBg, borderColor: accent }]}>
-            <Text style={[styles.labelText, { color: accent }]}>{label}</Text>
-          </View>
-        ) : (
-          <Text style={styles.hintText}>Tap a region on the diagram</Text>
-        )}
-      </View>
+      {/* Label / hint — hidden in compact mode */}
+      {!compact && (
+        <View style={styles.labelRow}>
+          {label ? (
+            <View style={[styles.labelChip, { backgroundColor: accentBg, borderColor: accent }]}>
+              <Text style={[styles.labelText, { color: accent }]}>{label}</Text>
+            </View>
+          ) : (
+            <Text style={styles.hintText}>Tap a region on the diagram</Text>
+          )}
+        </View>
+      )}
 
-      {/* Colour legend for heatmap mode */}
-      {heatmapCounts && (
+      {/* Colour legend for heatmap mode — hidden in compact mode */}
+      {!compact && heatmapCounts && (
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: VOCAB_WORKED }]} />
@@ -696,6 +707,14 @@ export function BodyDiagram({
       )}
     </>
   );
+
+  if (compact) {
+    return (
+      <View style={{ alignItems: 'center' }}>
+        {diagramContent}
+      </View>
+    );
+  }
 
   if (darkPanel) {
     return (

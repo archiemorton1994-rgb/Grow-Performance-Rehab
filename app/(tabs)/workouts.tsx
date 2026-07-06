@@ -19,13 +19,14 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
 import { CompletedSession, EnergyLevel, ExerciseProgress, PainRegion, SessionType, STRENGTH_SESSION_TYPES, useAppStore } from '@/lib/store';
-import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
+import { getExerciseTargetRegionsMap } from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
 
-const BAR_CHART_HEIGHT = 120;
+const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;
 const HISTORY_PAGE_SIZE = 30;
 
@@ -55,6 +56,211 @@ function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, s
     normal: C.primary,
     high:   C.primaryLight,
   };
+}
+
+// ─── Muscle Progress data layer ───────────────────────────────────────────────
+// Maps each MUSCLE_SET region to a heatmapCounts value:
+//   0     → inactive (grey)   — not trained in 14 days
+//   1     → progressing (green) — trained 1–4 days in last 7 days
+//   2     → attention (orange)  — trained 8–14 days ago only
+//   4     → overloaded (red)    — trained 5+ days in last 7 days
+function getMuscleProgressCounts(sessions: CompletedSession[]): Partial<Record<PainRegion, number>> {
+  const targetRegionsMap = getExerciseTargetRegionsMap();
+  const now = new Date();
+  const cutoff7 = new Date(now);
+  cutoff7.setDate(now.getDate() - 7);
+  const cutoff14 = new Date(now);
+  cutoff14.setDate(now.getDate() - 14);
+
+  const regionDays7 = new Map<PainRegion, Set<string>>();
+  const regionDays8to14 = new Map<PainRegion, Set<string>>();
+
+  for (const session of sessions) {
+    const sessionDate = new Date(session.date);
+    if (sessionDate < cutoff14) continue;
+    const dateKey = session.date.slice(0, 10);
+    const inLast7 = sessionDate >= cutoff7;
+    for (const log of session.exerciseLogs) {
+      const regions = targetRegionsMap[log.exerciseId] ?? [];
+      for (const region of regions) {
+        if (!MUSCLE_SET.has(region)) continue;
+        if (inLast7) {
+          if (!regionDays7.has(region)) regionDays7.set(region, new Set());
+          regionDays7.get(region)!.add(dateKey);
+        } else {
+          if (!regionDays8to14.has(region)) regionDays8to14.set(region, new Set());
+          regionDays8to14.get(region)!.add(dateKey);
+        }
+      }
+    }
+  }
+
+  const counts: Partial<Record<PainRegion, number>> = {};
+  for (const region of MUSCLE_SET) {
+    const days7 = regionDays7.get(region)?.size ?? 0;
+    const days8to14 = regionDays8to14.get(region)?.size ?? 0;
+    if (days7 >= 5) {
+      counts[region] = 4; // overloaded — red
+    } else if (days7 >= 1) {
+      counts[region] = 1; // progressing — green
+    } else if (days8to14 >= 1) {
+      counts[region] = 2; // attention — orange
+    }
+    // else leave undefined → 0 = inactive (grey)
+  }
+  return counts;
+}
+
+const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; message: string }> = {
+  0: { label: 'Not Trained', color: '#6b7280', message: 'No sessions targeting this muscle in the last 2 weeks.' },
+  1: { label: 'Progressing', color: '#2f6b46', message: 'Good training frequency — keep it up!' },
+  2: { label: 'Attention', color: '#d97706', message: 'Last trained 8–14 days ago — consider adding a session this week.' },
+  4: { label: 'High Load', color: '#dc2626', message: 'Trained on 5+ days this week. Allow some recovery time.' },
+};
+
+function MuscleProgressPanel({
+  completedSessions,
+  C,
+}: {
+  completedSessions: CompletedSession[];
+  C: ReturnType<typeof useColors>;
+}) {
+  const [insightRegion, setInsightRegion] = useState<PainRegion | null>(null);
+
+  const progressCounts = useMemo(
+    () => getMuscleProgressCounts(completedSessions),
+    [completedSessions]
+  );
+
+  const insightData = useMemo(() => {
+    if (!insightRegion) return null;
+    const targetRegionsMap = getExerciseTargetRegionsMap();
+    const cutoff7 = new Date();
+    cutoff7.setDate(cutoff7.getDate() - 7);
+    const daySet = new Set<string>();
+    let totalSets = 0;
+    for (const session of completedSessions) {
+      if (new Date(session.date) < cutoff7) continue;
+      for (const log of session.exerciseLogs) {
+        const regions = targetRegionsMap[log.exerciseId] ?? [];
+        if (regions.includes(insightRegion)) {
+          daySet.add(session.date.slice(0, 10));
+          totalSets += log.sets.filter(s => s.completed).length;
+        }
+      }
+    }
+    const count = progressCounts[insightRegion] ?? 0;
+    const statusKey = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : 4;
+    const status = MUSCLE_INSIGHT_STATUS[statusKey] ?? MUSCLE_INSIGHT_STATUS[0];
+    return {
+      days: daySet.size,
+      avgSets: daySet.size > 0 ? Math.round(totalSets / daySet.size) : 0,
+      status,
+    };
+  }, [insightRegion, completedSessions, progressCounts]);
+
+  const handleSelect = useCallback((r: PainRegion | undefined) => {
+    setInsightRegion(prev => (r ? (prev === r ? null : r) : null));
+  }, []);
+
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: C.borderLight }}>
+      <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>Muscle Progress</Text>
+      <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 12 }}>
+        Last 14 days · tap a region for details
+      </Text>
+
+      {/* Dark panel — front + back side by side */}
+      <View style={{
+        backgroundColor: '#0d0d0d', borderRadius: 16,
+        paddingVertical: 10, paddingHorizontal: 6,
+        flexDirection: 'row', alignItems: 'flex-start',
+      }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.35)', marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            Front
+          </Text>
+          <BodyDiagram
+            selected={insightRegion ?? undefined}
+            onSelect={handleSelect}
+            heatmapCounts={progressCounts}
+            defaultView="front"
+            compact={true}
+            maxWidth={120}
+          />
+        </View>
+        <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 8 }} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 10, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.35)', marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            Back
+          </Text>
+          <BodyDiagram
+            selected={insightRegion ?? undefined}
+            onSelect={handleSelect}
+            heatmapCounts={progressCounts}
+            defaultView="back"
+            compact={true}
+            maxWidth={120}
+          />
+        </View>
+      </View>
+
+      {/* Legend */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+        {[
+          { color: '#2f6b46', label: 'Progressing' },
+          { color: '#d97706', label: 'Attention' },
+          { color: '#dc2626', label: 'Too much' },
+          { color: '#3a3a3a', label: 'Not trained', border: true },
+        ].map(item => (
+          <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <View style={{
+              width: 10, height: 10, borderRadius: 5, backgroundColor: item.color,
+              ...(item.border ? { borderWidth: 1, borderColor: '#666' } : {}),
+            }} />
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Tap-to-insight callout */}
+      {insightData && insightRegion && (
+        <Animated.View
+          entering={FadeInDown.duration(220)}
+          style={{
+            marginTop: 10, backgroundColor: C.surfaceTertiary, borderRadius: 12,
+            padding: 12, borderWidth: 1, borderColor: C.borderLight,
+            flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+          }}
+        >
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: insightData.status.color, flexShrink: 0, marginTop: 3 }} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                {BODY_DIAGRAM_LABELS[insightRegion]}
+              </Text>
+              <View style={{ backgroundColor: insightData.status.color + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: insightData.status.color }}>
+                  {insightData.status.label}
+                </Text>
+              </View>
+            </View>
+            {insightData.days > 0 && (
+              <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 2 }}>
+                {insightData.days} training day{insightData.days !== 1 ? 's' : ''} this week · avg {insightData.avgSets} set{insightData.avgSets !== 1 ? 's' : ''}/day
+              </Text>
+            )}
+            <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+              {insightData.status.message}
+            </Text>
+          </View>
+          <Pressable onPress={() => setInsightRegion(null)} hitSlop={8} style={{ paddingTop: 2 }}>
+            <Ionicons name="close" size={16} color={C.textTertiary} />
+          </Pressable>
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 function WeeklyBarChart({
@@ -1457,6 +1663,8 @@ export default function StatsScreen() {
   const [painInsightRegion, setPainInsightRegion] = useState<PainRegion | null>(null);
   const [painHeatmapMode, setPainHeatmapMode] = useState<'all' | 'recent'>('all');
   const [painOverviewSelected, setPainOverviewSelected] = useState<PainRegion | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [painPatternsExpanded, setPainPatternsExpanded] = useState(false);
 
   useEffect(() => {
     if (historyFilter && !completedSessions.some(s => s.sessionType === historyFilter)) {
@@ -1660,7 +1868,33 @@ export default function StatsScreen() {
                   <Text style={styles.statLabel}>This Week</Text>
                 </View>
               </View>
-              <MonthCalendar sessions={completedSessions} C={C} />
+
+              {/* Training Calendar — compact row, opens modal */}
+              <Pressable
+                onPress={() => setShowCalendar(true)}
+                style={({ pressed }) => ({
+                  backgroundColor: C.surface, borderRadius: 16,
+                  padding: 14, marginBottom: 16,
+                  borderWidth: 1, borderColor: C.borderLight,
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  opacity: pressed ? 0.82 : 1,
+                })}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="calendar-outline" size={18} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>Training Calendar</Text>
+                  <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 }}>
+                    {completedSessions.length} session{completedSessions.length !== 1 ? 's' : ''} logged · tap to view
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+              </Pressable>
+
+              {/* Muscle Progress — front + back body view */}
+              <MuscleProgressPanel completedSessions={completedSessions} C={C} />
+
               <WeeklyBarChart sessions={completedSessions} C={C} />
               <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
               <SessionTypeBreakdown
@@ -1679,158 +1913,180 @@ export default function StatsScreen() {
                     borderWidth: 1, borderColor: C.borderLight,
                     overflow: 'hidden', marginBottom: 16,
                   }}>
-                    {/* Card header + mode toggle */}
-                    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    {/* Collapsible header row */}
+                    <Pressable
+                      onPress={() => setPainPatternsExpanded(e => !e)}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14,
+                        flexDirection: 'row', alignItems: 'center',
+                        opacity: pressed ? 0.8 : 1,
+                      })}
+                    >
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}>
                           Pain Patterns
                         </Text>
                         <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
-                          {painHeatmapMode === 'all'
-                            ? 'Darker = flagged more often · tap to act'
-                            : 'Last 4 weeks · ↑ worse · ↓ better · → stable'}
+                          {Object.keys(painRegionCounts).length} region{Object.keys(painRegionCounts).length !== 1 ? 's' : ''} flagged · tap to {painPatternsExpanded ? 'collapse' : 'expand'}
                         </Text>
                       </View>
-                      {/* Toggle: All time / Last 4 wks */}
-                      <View style={{
-                        flexDirection: 'row', backgroundColor: C.surfaceTertiary,
-                        borderRadius: 8, padding: 2,
-                        borderWidth: 1, borderColor: C.borderLight, marginLeft: 10,
-                      }}>
-                        {(['all', 'recent'] as const).map(mode => {
-                          const active = painHeatmapMode === mode;
-                          return (
+                      <Ionicons
+                        name={painPatternsExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color={C.textTertiary}
+                      />
+                    </Pressable>
+
+                    {painPatternsExpanded && (
+                      <>
+                        {/* Mode toggle */}
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, flex: 1 }}>
+                            {painHeatmapMode === 'all'
+                              ? 'Darker = flagged more often · tap to act'
+                              : 'Last 4 weeks · ↑ worse · ↓ better · → stable'}
+                          </Text>
+                          <View style={{
+                            flexDirection: 'row', backgroundColor: C.surfaceTertiary,
+                            borderRadius: 8, padding: 2,
+                            borderWidth: 1, borderColor: C.borderLight, marginLeft: 10,
+                          }}>
+                            {(['all', 'recent'] as const).map(mode => {
+                              const active = painHeatmapMode === mode;
+                              return (
+                                <Pressable
+                                  key={mode}
+                                  onPress={() => { setPainHeatmapMode(mode); setPainOverviewSelected(null); }}
+                                  style={({ pressed }) => ({
+                                    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+                                    backgroundColor: active ? C.surface : 'transparent',
+                                    opacity: pressed && !active ? 0.7 : 1,
+                                    ...(active ? {
+                                      shadowColor: C.shadow, shadowOpacity: 0.06,
+                                      shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+                                      elevation: 1,
+                                    } : {}),
+                                  })}
+                                >
+                                  <Text style={{
+                                    fontSize: 11,
+                                    fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
+                                    color: active ? C.text : C.textSecondary,
+                                  }}>
+                                    {mode === 'all' ? 'All time' : 'Last 4 wks'}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+
+                        <BodyDiagram
+                          selected={painOverviewSelected ?? undefined}
+                          onSelect={(r) => {
+                            if (r) {
+                              setPainInsightRegion(r);
+                              setPainOverviewSelected(prev => prev === r ? null : r);
+                            } else {
+                              setPainOverviewSelected(null);
+                            }
+                          }}
+                          heatmapCounts={painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts}
+                          maxWidth={160}
+                        />
+
+                        {/* Detail strip — shown when a region is tapped */}
+                        {painOverviewSelected && (
+                          <View style={{
+                            marginHorizontal: 12, marginBottom: 12, marginTop: -4,
+                            backgroundColor: C.surfaceTertiary, borderRadius: 10,
+                            borderWidth: 1, borderColor: C.borderLight,
+                            paddingHorizontal: 12, paddingVertical: 9,
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                          }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                                {BODY_DIAGRAM_LABELS[painOverviewSelected]}
+                              </Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 }}>
+                                {painRegionCounts[painOverviewSelected] ?? 0} all-time · {recentPainCounts[painOverviewSelected] ?? 0} last 4 wks
+                              </Text>
+                            </View>
+                            {(() => {
+                              const trend = painTrends[painOverviewSelected];
+                              if (!trend) return null;
+                              const isUp = trend === '↑';
+                              const isDown = trend === '↓';
+                              const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
+                              const trendLabel = isDown ? 'Improving' : isUp ? 'Worsening' : 'Stable';
+                              const recentVal = recentPainCounts[painOverviewSelected] ?? 0;
+                              const prevVal = previousPainCounts[painOverviewSelected] ?? 0;
+                              const hasComparison = recentVal > 0 || prevVal > 0;
+                              if (!hasComparison) return null;
+                              return (
+                                <View style={{
+                                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                                  backgroundColor: isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary,
+                                  borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                                }}>
+                                  <Text style={{ fontSize: 14, color: trendColor, lineHeight: 18 }}>{trend}</Text>
+                                  <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: trendColor }}>{trendLabel}</Text>
+                                </View>
+                              );
+                            })()}
                             <Pressable
-                              key={mode}
-                              onPress={() => { setPainHeatmapMode(mode); setPainOverviewSelected(null); }}
+                              onPress={() => { setPainRegionFilter(painOverviewSelected); setActiveTab('history'); }}
+                              hitSlop={8}
                               style={({ pressed }) => ({
-                                paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
-                                backgroundColor: active ? C.surface : 'transparent',
-                                opacity: pressed && !active ? 0.7 : 1,
-                                ...(active ? {
-                                  shadowColor: C.shadow, shadowOpacity: 0.06,
-                                  shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
-                                  elevation: 1,
-                                } : {}),
+                                marginLeft: 8,
+                                backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                                borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                                borderWidth: 1, borderColor: C.primaryMuted,
                               })}
                             >
-                              <Text style={{
-                                fontSize: 11,
-                                fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
-                                color: active ? C.text : C.textSecondary,
-                              }}>
-                                {mode === 'all' ? 'All time' : 'Last 4 wks'}
-                              </Text>
+                              <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>History</Text>
                             </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
+                          </View>
+                        )}
 
-                    <BodyDiagram
-                      selected={painOverviewSelected ?? undefined}
-                      onSelect={(r) => {
-                        if (r) {
-                          setPainInsightRegion(r);
-                          setPainOverviewSelected(prev => prev === r ? null : r);
-                        } else {
-                          setPainOverviewSelected(null);
-                        }
-                      }}
-                      heatmapCounts={painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts}
-                      maxWidth={160}
-                    />
-
-                    {/* Detail strip — shown when a region is tapped */}
-                    {painOverviewSelected && (
-                      <View style={{
-                        marginHorizontal: 12, marginBottom: 12, marginTop: -4,
-                        backgroundColor: C.surfaceTertiary, borderRadius: 10,
-                        borderWidth: 1, borderColor: C.borderLight,
-                        paddingHorizontal: 12, paddingVertical: 9,
-                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                      }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text }}>
-                            {BODY_DIAGRAM_LABELS[painOverviewSelected]}
-                          </Text>
-                          <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 }}>
-                            {painRegionCounts[painOverviewSelected] ?? 0} all-time · {recentPainCounts[painOverviewSelected] ?? 0} last 4 wks
-                          </Text>
-                        </View>
-                        {(() => {
-                          const trend = painTrends[painOverviewSelected];
-                          if (!trend) return null;
-                          const isUp = trend === '↑';
-                          const isDown = trend === '↓';
-                          const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
-                          const trendLabel = isDown ? 'Improving' : isUp ? 'Worsening' : 'Stable';
-                          const recentVal = recentPainCounts[painOverviewSelected] ?? 0;
-                          const prevVal = previousPainCounts[painOverviewSelected] ?? 0;
-                          const hasComparison = recentVal > 0 || prevVal > 0;
-                          if (!hasComparison) return null;
-                          return (
-                            <View style={{
-                              flexDirection: 'row', alignItems: 'center', gap: 4,
-                              backgroundColor: isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary,
-                              borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
-                            }}>
-                              <Text style={{ fontSize: 14, color: trendColor, lineHeight: 18 }}>{trend}</Text>
-                              <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: trendColor }}>{trendLabel}</Text>
-                            </View>
-                          );
-                        })()}
-                        <Pressable
-                          onPress={() => { setPainRegionFilter(painOverviewSelected); setActiveTab('history'); }}
-                          hitSlop={8}
-                          style={({ pressed }) => ({
-                            marginLeft: 8,
-                            backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
-                            borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
-                            borderWidth: 1, borderColor: C.primaryMuted,
-                          })}
-                        >
-                          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>History</Text>
-                        </Pressable>
-                      </View>
-                    )}
-
-                    {/* Trend chips — shown in "Last 4 wks" mode for active regions */}
-                    {painHeatmapMode === 'recent' && Object.keys(painTrends).length > 0 && !painOverviewSelected && (
-                      <View style={{
-                        flexDirection: 'row', flexWrap: 'wrap', gap: 6,
-                        paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0,
-                      }}>
-                        {(Object.entries(painTrends) as [PainRegion, '↑' | '↓' | '→'][])
-                          .sort((a, b) => {
-                            const order = { '↑': 0, '→': 1, '↓': 2 };
-                            return order[a[1]] - order[b[1]];
-                          })
-                          .map(([region, trend]) => {
-                            const isUp = trend === '↑';
-                            const isDown = trend === '↓';
-                            const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
-                            const chipBg = isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary;
-                            return (
-                              <Pressable
-                                key={region}
-                                onPress={() => setPainOverviewSelected(region)}
-                                style={({ pressed }) => ({
-                                  flexDirection: 'row', alignItems: 'center', gap: 3,
-                                  backgroundColor: pressed ? C.borderLight : chipBg,
-                                  borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4,
-                                  borderWidth: 1,
-                                  borderColor: isDown ? '#b7deca' : isUp ? '#f5bdb8' : C.borderLight,
-                                })}
-                              >
-                                <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: trendColor }}>
-                                  {BODY_DIAGRAM_LABELS[region]}
-                                </Text>
-                                <Text style={{ fontSize: 12, color: trendColor }}>{trend}</Text>
-                              </Pressable>
-                            );
-                          })}
-                      </View>
+                        {/* Trend chips — shown in "Last 4 wks" mode for active regions */}
+                        {painHeatmapMode === 'recent' && Object.keys(painTrends).length > 0 && !painOverviewSelected && (
+                          <View style={{
+                            flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+                            paddingHorizontal: 12, paddingBottom: 12, paddingTop: 0,
+                          }}>
+                            {(Object.entries(painTrends) as [PainRegion, '↑' | '↓' | '→'][])
+                              .sort((a, b) => {
+                                const order = { '↑': 0, '→': 1, '↓': 2 };
+                                return order[a[1]] - order[b[1]];
+                              })
+                              .map(([region, trend]) => {
+                                const isUp = trend === '↑';
+                                const isDown = trend === '↓';
+                                const trendColor = isDown ? '#2f6b46' : isUp ? '#c0392b' : C.textSecondary;
+                                const chipBg = isDown ? '#e8f5ee' : isUp ? '#fdecea' : C.surfaceTertiary;
+                                return (
+                                  <Pressable
+                                    key={region}
+                                    onPress={() => setPainOverviewSelected(region)}
+                                    style={({ pressed }) => ({
+                                      flexDirection: 'row', alignItems: 'center', gap: 3,
+                                      backgroundColor: pressed ? C.borderLight : chipBg,
+                                      borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4,
+                                      borderWidth: 1,
+                                      borderColor: isDown ? '#b7deca' : isUp ? '#f5bdb8' : C.borderLight,
+                                    })}
+                                  >
+                                    <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: trendColor }}>
+                                      {BODY_DIAGRAM_LABELS[region]}
+                                    </Text>
+                                    <Text style={{ fontSize: 12, color: trendColor }}>{trend}</Text>
+                                  </Pressable>
+                                );
+                              })}
+                          </View>
+                        )}
+                      </>
                     )}
                   </View>
                 </Animated.View>
@@ -2035,6 +2291,26 @@ export default function StatsScreen() {
         onClose={() => setSelectedProgress(null)}
         C={C}
       />
+
+      {/* Training Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <View style={[styles.modalContainer, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Training Calendar</Text>
+            <Pressable onPress={() => setShowCalendar(false)} style={styles.modalClose} hitSlop={8}>
+              <Ionicons name="close" size={18} color={C.text} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, paddingBottom: insets.bottom + 16 }}>
+            <MonthCalendar sessions={completedSessions} C={C} />
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Pain Insight sheet — appears when user taps a region on the Pain Patterns heatmap */}
       <PainInsightSheet
