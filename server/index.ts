@@ -371,8 +371,9 @@ function setupErrorHandler(app: express.Application) {
         },
         error: (err, req, res) => {
           const nodeErr = err as NodeJS.ErrnoException;
-          console.error(`[devProxy] error proxying ${req.method} ${(req as express.Request).path}: ${nodeErr.code}`);
-          if ('writeHead' in res && typeof (res as import('http').ServerResponse).writeHead === 'function') {
+          const typedReq = req as express.Request;
+          console.error(`[devProxy] error proxying ${typedReq.method} ${typedReq.path}: ${nodeErr.code}`);
+          if ('writeHead' in (res as object) && typeof (res as import('http').ServerResponse).writeHead === 'function') {
             const sr = res as import('http').ServerResponse;
             if (!sr.headersSent) {
               if (nodeErr.code === 'ECONNREFUSED' || nodeErr.code === 'ECONNRESET') {
