@@ -1010,6 +1010,47 @@ export function getWeightGuide(
 }
 
 /**
+ * Returns the recommended numeric kg for each set, mirroring the percentage
+ * ramps used by `getWeightGuide`. Used to pre-fill weight inputs in the
+ * session screen so users don't have to type in the recommended value.
+ *
+ * Returns 0 for sets with no numeric recommendation (band/bodyweight exercises
+ * or categories where no specific weight is prescribed).
+ */
+export function getWeightGuideKg(
+  category: ExerciseCategory,
+  sets: number,
+  suggestedLoad?: string
+): number[] {
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  let targetKg: number | null = null;
+  if (suggestedLoad) {
+    const numMatch = suggestedLoad.match(/(\d+(?:\.\d+)?)/);
+    if (numMatch) targetKg = parseFloat(numMatch[1]);
+  }
+  if (targetKg === null) return Array(sets).fill(0);
+
+  const w = (pct: number) => roundTo2_5(targetKg! * pct);
+
+  if (category === 'main') {
+    if (sets <= 3) return [w(0.5), w(0.7), targetKg];
+    if (sets === 4) return [w(0.5), w(0.65), w(0.875), targetKg];
+    const result: number[] = [w(0.4), w(0.55)];
+    const middleCount = sets - 4;
+    for (let i = 0; i < middleCount; i++) {
+      result.push(w(Math.min(0.7 + 0.05 * i, 0.8)));
+    }
+    result.push(w(0.875));
+    result.push(targetKg);
+    return result;
+  }
+  if (category === 'accessory') {
+    return Array(sets).fill(targetKg);
+  }
+  return Array(sets).fill(0);
+}
+
+/**
  * Applies a stored "too easy" multiplier to a personalised load string.
  * Used by the post-session feedback flow to adjust future session weights.
  */

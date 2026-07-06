@@ -25,12 +25,10 @@ import Animated, {
   FadeIn,
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedProps,
   withSpring,
   withTiming,
   interpolateColor,
 } from 'react-native-reanimated';
-import Svg, { Circle, G } from 'react-native-svg';
 import { useColors } from '@/constants/colors';
 import {
   EquipmentTier,
@@ -53,14 +51,14 @@ import {
   cancelStreakProtectionAlert,
   REST_TIMER_NOTIF_ID,
 } from '@/lib/notifications';
-import { kgToDisplayUnit, displayUnitToKg, convertLoadString, daysSince } from '@/lib/utils';
+import { kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
   generate1RMWorkout,
   getSessionLabel,
   getPainRegionLabel,
-  getWeightGuide,
+  getWeightGuideKg,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 
@@ -95,13 +93,6 @@ function parseRepsToSeconds(repsStr: string): number {
   return 5 * 60; // fallback 5 minutes
 }
 
-// ─── Rest timer ring constants (module-level for perf) ────────────────────────
-const AnimatedSvgCircle = Animated.createAnimatedComponent(Circle);
-const RING_SIZE = 132;
-const RING_STROKE = 10;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
 function RestTimer({
   category,
   trigger = 0,
@@ -125,11 +116,6 @@ function RestTimer({
   const [isCompleting, setIsCompleting] = useState(false);
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
-  // Circular ring progress: 1 = full arc, 0 = empty. Animated smoothly each tick.
-  const ringProgress = useSharedValue(1);
-  const animatedRingProps = useAnimatedProps(() => ({
-    strokeDashoffset: RING_CIRCUMFERENCE * (1 - ringProgress.value),
-  }));
 
   const notifIdRef = useRef<string | null>(null);
 
@@ -170,7 +156,6 @@ function RestTimer({
       setSecondsLeft(duration);
       setIsDone(false);
       setIsRunning(true);
-      ringProgress.value = 1;
       scheduleNotif(duration);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -183,8 +168,6 @@ function RestTimer({
     const recompute = () => {
       const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
       setSecondsLeft(remaining);
-      // Animate ring arc smoothly — 950ms tween so it glides into the next second
-      ringProgress.value = withTiming(remaining / duration, { duration: 950 });
       if (remaining <= 0) {
         setIsRunning(false);
         setIsCompleting(true);
@@ -193,8 +176,6 @@ function RestTimer({
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        // Fill ring back to full and pulse the container, then transition to done chip
-        ringProgress.value = withTiming(1, { duration: 350 });
         pulseScale.value = withTiming(1.1, { duration: 200 }, () => {
           pulseScale.value = withTiming(1, { duration: 200 });
         });
@@ -239,7 +220,6 @@ function RestTimer({
     setIsRunning(false);
     setIsDone(false);
     setIsCompleting(false);
-    ringProgress.value = 1;
   };
   const skip = () => {
     cancelNotif();
@@ -247,7 +227,6 @@ function RestTimer({
     setIsCompleting(true);
     setEndAt(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    ringProgress.value = withTiming(1, { duration: 300 });
     pulseScale.value = withTiming(1.1, { duration: 180 }, () => {
       pulseScale.value = withTiming(1, { duration: 180 });
     });
@@ -295,80 +274,50 @@ function RestTimer({
     );
   }
 
-  // ── Ring card — shown once the first set is completed ──────────────────────
+  // ── Active pill — shown once the first set is completed ────────────────────
   if (trigger > 0) {
     return (
-      <View style={styles.restTimerRingCard}>
-        {/* Ring container — pulses during completion animation */}
-        <Animated.View style={[styles.restTimerRingContainer, isCompleting && pulseStyle]}>
-          <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute' }}>
-            <G rotation="-90" origin={`${RING_SIZE / 2},${RING_SIZE / 2}`}>
-              {/* Track */}
-              <Circle
-                cx={RING_SIZE / 2}
-                cy={RING_SIZE / 2}
-                r={RING_RADIUS}
-                stroke={C.primaryMuted}
-                strokeWidth={RING_STROKE}
-                fill="none"
-              />
-              {/* Animated draining arc (fills back to full on completion) */}
-              <AnimatedSvgCircle
-                cx={RING_SIZE / 2}
-                cy={RING_SIZE / 2}
-                r={RING_RADIUS}
-                stroke={C.primary}
-                strokeWidth={RING_STROKE}
-                fill="none"
-                strokeDasharray={RING_CIRCUMFERENCE}
-                strokeLinecap="round"
-                animatedProps={animatedRingProps}
-              />
-            </G>
-          </Svg>
-          <View style={styles.restTimerRingCenter}>
-            {isCompleting ? (
-              <>
-                <Ionicons name="checkmark-circle" size={22} color={C.primary} />
-                <Text style={[styles.restTimerRingLabel, { marginTop: 4 }]}>Complete!</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.restTimerRingLabel}>{isRunning ? 'Resting' : 'Paused'}</Text>
-                <Text style={styles.restTimerRingDigits}>
-                  {mm}:{ss}
-                </Text>
-              </>
-            )}
+      <Animated.View style={[styles.restTimerPill, isCompleting && pulseStyle]}>
+        {isCompleting ? (
+          <View style={styles.restTimerPillInner}>
+            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+            <Text style={styles.restTimerPillCompleteText}>Done!</Text>
           </View>
-        </Animated.View>
-        {/* Controls — hidden during completion flash */}
-        {!isCompleting && (
-          <View style={styles.restTimerRingControls}>
-            <Pressable onPress={togglePause} style={styles.restTimerRingPauseBtn}>
-              <Ionicons
-                name={isRunning ? 'pause-circle-outline' : 'play-circle-outline'}
-                size={18}
-                color={C.primary}
-              />
-              <Text style={styles.restTimerRingPauseBtnText}>{isRunning ? 'Pause' : 'Resume'}</Text>
-            </Pressable>
-            <Pressable
-              onPress={addFifteen}
-              style={styles.restTimerAddBtn}
-              testID="rest-timer-add-15"
-            >
-              <Text style={styles.restTimerAddText}>+15s</Text>
-            </Pressable>
-            <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
-              <Text style={styles.restTimerSkipText}>Done resting</Text>
-            </Pressable>
-            <Pressable onPress={reset} style={styles.restTimerResetBtn}>
-              <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
-            </Pressable>
-          </View>
+        ) : (
+          <>
+            <View style={styles.restTimerPillLeft}>
+              <Text style={styles.restTimerPillDigits}>
+                {mm}:{ss}
+              </Text>
+              <Text style={styles.restTimerPillState}>
+                {isRunning ? 'resting' : 'paused'}
+              </Text>
+            </View>
+            <View style={styles.restTimerPillActions}>
+              <Pressable onPress={togglePause} style={styles.restTimerIconBtn}>
+                <Ionicons
+                  name={isRunning ? 'pause' : 'play'}
+                  size={15}
+                  color={C.primary}
+                />
+              </Pressable>
+              <Pressable
+                onPress={addFifteen}
+                style={styles.restTimerIconBtn}
+                testID="rest-timer-add-15"
+              >
+                <Text style={styles.restTimerAddText}>+15s</Text>
+              </Pressable>
+              <Pressable onPress={skip} style={styles.restTimerPillSkip}>
+                <Text style={styles.restTimerPillSkipText}>Done resting</Text>
+              </Pressable>
+              <Pressable onPress={reset} style={styles.restTimerIconBtn}>
+                <Ionicons name="refresh-outline" size={14} color={C.textTertiary} />
+              </Pressable>
+            </View>
+          </>
         )}
-      </View>
+      </Animated.View>
     );
   }
 
@@ -377,9 +326,7 @@ function RestTimer({
     <View style={styles.restTimerRow}>
       <View style={[styles.restTimerBtn, { flex: 1 }]}>
         <Ionicons name="timer" size={18} color={C.primary} />
-        <Text style={styles.restTimerText}>
-          Rest timer — {mm}:{ss}
-        </Text>
+        <Text style={styles.restTimerText}>Rest timer · {mm}:{ss}</Text>
       </View>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
@@ -465,11 +412,11 @@ const ActiveSetBlock = React.forwardRef<
     totalSets: number;
     data: SetLog;
     onChange: (updated: SetLog) => void;
-    weightGuide?: string;
     isBandExercise?: boolean;
     isTimeExercise?: boolean;
     previousBest?: number;
     prevSetWeight?: number;
+    recommendedWeightKg?: number;
     weightUnit?: WeightUnit;
     onCompleted?: () => void;
   }
@@ -479,11 +426,11 @@ const ActiveSetBlock = React.forwardRef<
     totalSets,
     data,
     onChange,
-    weightGuide,
     isBandExercise,
     isTimeExercise,
     previousBest,
     prevSetWeight,
+    recommendedWeightKg,
     weightUnit = 'kg',
     onCompleted,
   },
@@ -492,13 +439,15 @@ const ActiveSetBlock = React.forwardRef<
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  // Pre-fill weight from previous set if current set has no weight yet
+  // Pre-fill weight: prefer stored > previous set > recommended guide > empty
   const initialWeight =
     data.weight > 0
       ? String(kgToDisplayUnit(data.weight, weightUnit))
       : prevSetWeight && prevSetWeight > 0
         ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
-        : '';
+        : recommendedWeightKg && recommendedWeightKg > 0
+          ? String(kgToDisplayUnit(recommendedWeightKg, weightUnit))
+          : '';
 
   // Parent keys this component by setNum so it re-mounts on each new set,
   // which resets weightText state automatically.
@@ -595,12 +544,6 @@ const ActiveSetBlock = React.forwardRef<
         <Text style={styles.activeSetLabel}>
           Set {setNum} of {totalSets}
         </Text>
-        {weightGuide && (
-          <View style={styles.activeSetGuideRow}>
-            <Ionicons name="information-circle-outline" size={12} color={C.primary} />
-            <Text style={styles.activeSetGuideText}>{weightGuide}</Text>
-          </View>
-        )}
         <Pressable
           onPress={handleComplete}
           style={styles.completeSetBtn}
@@ -655,13 +598,6 @@ const ActiveSetBlock = React.forwardRef<
           <Text style={styles.activeInputUnit}>reps</Text>
         </View>
       </View>
-
-      {weightGuide && (
-        <View style={styles.activeSetGuideRow}>
-          <Ionicons name="information-circle-outline" size={12} color={C.primary} />
-          <Text style={styles.activeSetGuideText}>{weightGuide}</Text>
-        </View>
-      )}
 
       {isNewRecord && (
         <View style={styles.newRecordBadge}>
@@ -748,10 +684,9 @@ export function ExerciseCard({
   const [timerTrigger, setTimerTrigger] = useState(0);
   const activeSetRef = useRef<ActiveSetBlockHandle>(null);
   const allDone = setData.sets.every((s) => s.completed);
-  const weightGuides = getWeightGuide(
+  const weightGuidesKg = getWeightGuideKg(
     exercise.category,
     exercise.sets,
-    weightUnit,
     exercise.suggestedLoad
   );
 
@@ -939,24 +874,6 @@ export function ExerciseCard({
                       Weight shown is per hand (each dumbbell)
                     </Text>
                   )}
-                  {lastSessionHint &&
-                    (() => {
-                      const days = daysSince(lastSessionHint.date);
-                      const daysLabel =
-                        days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
-                      const perfLabel =
-                        lastSessionHint.weight > 0
-                          ? `${kgToDisplayUnit(lastSessionHint.weight, weightUnit)} ${weightUnit} × ${lastSessionHint.reps}`
-                          : `${lastSessionHint.reps} reps`;
-                      return (
-                        <View style={styles.lastSessionRow}>
-                          <Ionicons name="time-outline" size={11} color={C.textTertiary} />
-                          <Text style={styles.lastSessionText}>
-                            Last session: {perfLabel} — {daysLabel}
-                          </Text>
-                        </View>
-                      );
-                    })()}
                   {exercise.progressionNote && (
                     <View style={styles.progressionNoteRow}>
                       <Ionicons name="trending-up-outline" size={11} color={C.primary} />
@@ -1005,7 +922,7 @@ export function ExerciseCard({
                 <View style={styles.comfortNote}>
                   <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
                   <Text style={styles.comfortNoteText}>
-                    Adapted for {comfortRegionLabel} — tap Swap or skip if still uncomfortable
+                    Adapted for {comfortRegionLabel}. Tap Swap or skip if still uncomfortable
                   </Text>
                 </View>
               )}
@@ -1103,7 +1020,7 @@ export function ExerciseCard({
                               totalSets={setData.sets.length}
                               data={setData.sets[activeSetIndex]}
                               onChange={(u) => onSetChange(activeSetIndex, u)}
-                              weightGuide={weightGuides[activeSetIndex]}
+                              recommendedWeightKg={weightGuidesKg[activeSetIndex]}
                               isBandExercise={isBandExercise}
                               isTimeExercise={isTimeExercise}
                               previousBest={previousBest}
@@ -1227,8 +1144,8 @@ export function PainAdaptBanner({
             }}
           >
             {comfortCount > 0
-              ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — tap Swap or skip any that still hurt`
-              : 'No exercises needed swapping — tap Swap or skip anything that hurts'}
+              ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort. Tap Swap or skip any that still hurt`
+              : 'No exercises needed swapping. Tap Swap or skip anything that hurts'}
           </Text>
         </View>
       </View>
@@ -2930,53 +2847,68 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignSelf: 'flex-start',
     },
     restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    restTimerRingCard: {
+    restTimerPill: {
+      flexDirection: 'row',
       alignItems: 'center',
-      paddingTop: 16,
-      paddingBottom: 14,
+      justifyContent: 'space-between',
       paddingHorizontal: 12,
-      marginBottom: 10,
+      paddingVertical: 8,
+      borderRadius: 12,
       backgroundColor: C.primarySurface,
-      borderRadius: 16,
       borderWidth: 1,
       borderColor: C.primaryMuted,
+      marginBottom: 10,
+      minHeight: 44,
     },
-    restTimerRingContainer: {
-      width: RING_SIZE,
-      height: RING_SIZE,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 14,
-    },
-    restTimerRingCenter: { alignItems: 'center' },
-    restTimerRingLabel: {
-      fontSize: 10,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.textSecondary,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 1,
-      marginBottom: 1,
-    },
-    restTimerRingDigits: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.text },
-    restTimerRingControls: {
+    restTimerPillLeft: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      width: '100%' as any,
     },
-    restTimerRingPauseBtn: {
+    restTimerPillDigits: {
+      fontSize: 20,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+    },
+    restTimerPillState: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    restTimerPillActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
       gap: 6,
-      paddingVertical: 9,
-      borderRadius: 10,
+    },
+    restTimerIconBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
       backgroundColor: C.surface,
       borderWidth: 1,
-      borderColor: C.primaryMuted,
-      flex: 1,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    restTimerRingPauseBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerPillSkip: {
+      paddingHorizontal: 10,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    restTimerPillSkipText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerPillInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+      justifyContent: 'center',
+    },
+    restTimerPillCompleteText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
     // Spotter advisory
     spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
     spotterAdvisoryText: {
@@ -3186,13 +3118,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: 96,
       height: 64,
       borderRadius: 12,
-      backgroundColor: C.surface,
+      backgroundColor: C.primaryMuted,
       textAlign: 'center',
       fontSize: 28,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       borderWidth: 2,
-      borderColor: C.border,
+      borderColor: C.primary,
     },
     activeInputUnit: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     activeSetGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
