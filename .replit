@@ -87,6 +87,10 @@ args = "conditioning-check"
 task = "workflow.run"
 args = "custom-session-check"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "typecheck"
+
 [[workflows.workflow]]
 name = "Start Backend"
 author = "agent"
@@ -196,6 +200,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node tests/custom-session.check.mjs"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "typecheck"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx tsc --noEmit"
 
 [workflows.workflow.metadata]
 isValidation = true
