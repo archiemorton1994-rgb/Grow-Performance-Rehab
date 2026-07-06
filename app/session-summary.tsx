@@ -7,6 +7,7 @@ import {
   Pressable,
   Platform,
   Modal,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
@@ -24,14 +25,26 @@ import {
   getExerciseTargetRegionsMap,
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
-import { BodyDiagram, MUSCLE_SET, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
-import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
-import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
+import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
+import { formatDate, formatWeight } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
 const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
+
+// ── Certificate palette (fixed dark, branded — matches BodyDiagram panel bg so
+//    the compact silhouettes blend seamlessly and the shared image is on-brand
+//    regardless of theme) ─────────────────────────────────────────────────────
+const CARD_BG = '#0d0d0d';
+const BRAND_GREEN = '#2f6b46';
+const BRAND_GREEN_LIGHT = '#5fbf87';
+const CARD_TEXT = '#ffffff';
+const CARD_MUTED = 'rgba(255,255,255,0.55)';
+const CARD_FAINT = 'rgba(255,255,255,0.38)';
+const CARD_HAIRLINE = 'rgba(255,255,255,0.08)';
+const PILL_BG = 'rgba(255,255,255,0.05)';
+const GOLD = '#fbbf24';
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 
@@ -75,26 +88,21 @@ function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | nu
 export default function SessionSummaryScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
 
   const completedSessions = useAppStore((s) => s.completedSessions);
   const getExerciseHistory = useAppStore((s) => s.getExerciseHistory);
   const userName = useAppStore((s) => s.userProfile?.name);
+  const profilePhotoUri = useAppStore((s) => s.profilePhotoUri);
   const weightUnit = useAppStore((s) => s.weightUnit);
   const getStreakDays = useAppStore((s) => s.getStreakDays);
   const setExerciseFeedback = useAppStore((s) => s.setExerciseFeedback);
-  const applyTooEasyAdjustment = useAppStore((s) => s.applyTooEasyAdjustment);
-  const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
-  const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
 
-  const shareCardRef = useRef<View>(null);
+  const certRef = useRef<View>(null);
 
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [showTooEasyModal, setShowTooEasyModal] = useState(false);
   const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
-  const [tooEasySelected, setTooEasySelected] = useState<Set<string>>(new Set());
-  const [tooEasySaved, setTooEasySaved] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
   const session = useMemo(() => {
@@ -193,22 +201,6 @@ export default function SessionSummaryScreen() {
     return { totalSets, totalReps, totalVolumeKg, rows, hasWeighted };
   }, [session, getExerciseHistory, categoryMap]);
 
-  const prevSameTypeVol = useMemo(() => {
-    if (!session) return 0;
-    const prev = completedSessions.find(
-      (s) => s.id !== session.id && s.sessionType === session.sessionType
-    );
-    if (!prev) return 0;
-    return prev.exerciseLogs.reduce(
-      (sum, log) =>
-        sum +
-        log.sets
-          .filter((s) => s.completed && !s.skipped && s.weight > 0 && s.reps > 0)
-          .reduce((s2, set) => s2 + set.weight * set.reps, 0),
-      0
-    );
-  }, [session, completedSessions]);
-
   const sessionNumber = useMemo(() => {
     if (!session) return 0;
     const idx = completedSessions.findIndex((s) => s.id === session.id);
@@ -216,47 +208,6 @@ export default function SessionSummaryScreen() {
   }, [session, completedSessions]);
 
   const isMilestone = MILESTONE_SESSIONS.includes(sessionNumber);
-
-  const testWeekOrmData = useMemo(() => {
-    if (!session?.isTestWeek) return null;
-    const orms = oneRepMaxes
-      .filter((o) => o.lift === session.sessionType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    if (orms.length === 0) return null;
-    return { next: orms[0].weight, prev: orms[1]?.weight ?? null };
-  }, [session, oneRepMaxes]);
-
-  const newPb = useMemo(() => {
-    if (!session) return null;
-    const prevBests: Record<string, number> = {};
-    for (const s of completedSessions) {
-      if (s.id === session.id) continue;
-      for (const log of s.exerciseLogs) {
-        const max = Math.max(
-          0,
-          ...log.sets
-            .filter((sl) => sl.completed && !sl.skipped && sl.weight > 0)
-            .map((sl) => sl.weight)
-        );
-        if (max > 0) prevBests[log.exerciseId] = Math.max(prevBests[log.exerciseId] ?? 0, max);
-      }
-    }
-    let best: { exerciseName: string; weightKg: number } | null = null;
-    for (const log of session.exerciseLogs) {
-      const max = Math.max(
-        0,
-        ...log.sets
-          .filter((sl) => sl.completed && !sl.skipped && sl.weight > 0)
-          .map((sl) => sl.weight)
-      );
-      if (max > 0 && max > (prevBests[log.exerciseId] ?? 0)) {
-        if (!best || max > best.weightKg) {
-          best = { exerciseName: log.exerciseName, weightKg: max };
-        }
-      }
-    }
-    return best;
-  }, [session, completedSessions]);
 
   const workedRegions = useMemo(() => {
     if (!session || session.exerciseLogs.length === 0) return null;
@@ -288,30 +239,13 @@ export default function SessionSummaryScreen() {
       : null;
   }, [session]);
 
-  const shareCardData: WorkoutShareCardData | null = useMemo(() => {
-    if (!session) return null;
-    return {
-      sessionLabel: getSessionLabel(session.sessionType),
-      sessionSubtitle: getSessionSubtitle(session.sessionType),
-      totalVolumeKg: summary.totalVolumeKg,
-      totalSets: summary.totalSets,
-      durationSeconds: session.durationSeconds ?? 0,
-      newPb,
-      streakDays: getStreakDays(),
-      isTestWeek: !!session.isTestWeek,
-      weightUnit,
-      newlyUnlockedBadgeIds: newlyUnlockedBadges,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, summary, newPb, weightUnit, newlyUnlockedBadges]);
-
   const handleShare = useCallback(async () => {
-    if (!shareCardData || isSharing) return;
+    if (isSharing) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSharing(true);
     try {
       if (Platform.OS === 'web') {
-        const base64 = await captureRef(shareCardRef, {
+        const base64 = await captureRef(certRef, {
           format: 'png',
           quality: 1,
           result: 'base64',
@@ -325,7 +259,7 @@ export default function SessionSummaryScreen() {
         a.click();
         document.body.removeChild(a);
       } else {
-        const uri = await captureRef(shareCardRef, {
+        const uri = await captureRef(certRef, {
           format: 'png',
           quality: 1,
           result: 'tmpfile',
@@ -342,7 +276,7 @@ export default function SessionSummaryScreen() {
     } finally {
       setIsSharing(false);
     }
-  }, [shareCardData, isSharing]);
+  }, [isSharing]);
 
   const submitRatings = useCallback(() => {
     Object.entries(thumbsRatings).forEach(([id, thumbs]) => {
@@ -350,16 +284,6 @@ export default function SessionSummaryScreen() {
     });
     setShowRatingModal(false);
   }, [thumbsRatings, setExerciseFeedback]);
-
-  const confirmTooEasy = useCallback(() => {
-    if (tooEasySelected.size > 0) {
-      applyTooEasyAdjustment(Array.from(tooEasySelected));
-      setTooEasySaved(true);
-      setTimeout(() => setTooEasySaved(false), 4000);
-    }
-    setTooEasySelected(new Set());
-    setShowTooEasyModal(false);
-  }, [tooEasySelected, applyTooEasyAdjustment]);
 
   const goHome = () => {
     router.dismissAll();
@@ -392,296 +316,185 @@ export default function SessionSummaryScreen() {
     durationSeconds >= 3600
       ? `${Math.floor(durationSeconds / 3600)}h ${String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, '0')}m`
       : `${Math.floor(durationSeconds / 60)}m`;
-  const volumeDisplay = Math.round(
-    kgToDisplayUnit(summary.totalVolumeKg, weightUnit)
-  ).toLocaleString();
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
   const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '—';
+  const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
+  const streakDays = getStreakDays();
 
-  const greeting = userName ? `Great work, ${userName}!` : 'Great work!';
-  const STRENGTH_TYPES = ['squat', 'bench', 'deadlift'];
-  const showVolumeCompare =
-    STRENGTH_TYPES.includes(session.sessionType) && summary.totalVolumeKg > 0;
+  const firstInitial =
+    userName && userName.trim().length > 0 ? userName.trim()[0].toUpperCase() : '?';
 
-  const workedMuscleLabels: string[] = workedRegions
-    ? (Object.keys(workedRegions) as PainRegion[])
-        .filter((r) => MUSCLE_SET.has(r))
-        .map((r) => BODY_DIAGRAM_LABELS[r])
-        .filter(Boolean)
-    : [];
+  // Responsive compact-diagram sizing: larger on tall phones, smaller on short
+  // ones so the certificate always fits on one screen without scrolling.
+  const bodyMaxWidth = Math.min(84, Math.max(58, Math.floor((screenHeight - 560) / 2.4)));
 
-  const diagramMaxWidth = Math.floor((screenWidth - 40) / 2 - 8);
+  const heatmap = (workedRegions ?? {}) as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
+
+  const stats: { label: string; value: string; accent?: boolean }[] = [
+    { label: 'Duration', value: durationLabel },
+    { label: 'Sets', value: String(summary.totalSets) },
+    { label: 'Top Weight', value: topWeightDisplay, accent: topWeightKg > 0 },
+    { label: 'Muscles', value: String(musclesHit) },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {shareCardData && (
-        <View style={{ position: 'absolute', left: -9999, top: 0, pointerEvents: 'none' }}>
-          <WorkoutShareCard ref={shareCardRef} {...shareCardData} />
-        </View>
-      )}
-
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: topPad + 20,
-          paddingBottom: bottomPad + 100,
-          paddingHorizontal: 20,
+      <View
+        style={{
+          flex: 1,
+          paddingTop: topPad + 10,
+          paddingHorizontal: 16,
+          paddingBottom: bottomPad + 12,
         }}
-        showsVerticalScrollIndicator={false}
       >
-        {/* ── Hero ── */}
-        <Animated.View entering={FadeIn.duration(450)} style={styles.hero}>
-          <View
-            style={[
-              styles.checkCircle,
-              { backgroundColor: isMilestone ? C.trophyBg : C.primaryMuted },
-            ]}
-          >
-            <Ionicons
-              name={isMilestone ? 'trophy' : 'checkmark'}
-              size={28}
-              color={isMilestone ? C.trophy : C.primary}
-            />
-          </View>
+        <View style={styles.cardWrap}>
+          {/* ── Certificate card (this View is captured for sharing) ── */}
+          <Animated.View entering={FadeIn.duration(450)}>
+            <View ref={certRef} collapsable={false} style={styles.card}>
+              <View style={styles.accentBar} />
 
-          {isMilestone && (
-            <View
-              style={[
-                styles.milestonePill,
-                { backgroundColor: C.trophyBg, borderColor: C.trophyBorder },
-              ]}
-            >
-              <Text style={[styles.milestonePillText, { color: C.trophy }]}>
-                SESSION {sessionNumber} MILESTONE 🏆
-              </Text>
-            </View>
-          )}
-
-          <Text style={[styles.greetingText, { color: C.textSecondary }]}>{greeting}</Text>
-          <Text style={[styles.sessionName, { color: C.text }]}>
-            {getSessionLabel(session.sessionType)}
-          </Text>
-          <Text style={[styles.sessionMeta, { color: C.textTertiary }]}>
-            {getSessionSubtitle(session.sessionType)} · {formatDate(session.date)}
-          </Text>
-        </Animated.View>
-
-        {/* ── Stats tiles ── */}
-        <Animated.View entering={FadeInDown.delay(80).duration(450)} style={styles.statsRow}>
-          <View
-            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.statValue, { color: C.text }]}>{durationLabel}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Duration</Text>
-          </View>
-          <View
-            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.statValue, { color: C.text }]}>{summary.totalSets}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Sets</Text>
-          </View>
-          <View
-            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.statValue, { color: C.text }]}>{session.exerciseLogs.length}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Exercises</Text>
-          </View>
-          {topWeightKg > 0 && (
-            <View
-              style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-            >
-              <Text style={[styles.statValue, { color: C.primary }]}>{topWeightDisplay}</Text>
-              <Text style={[styles.statLabel, { color: C.textSecondary }]}>Top Weight</Text>
-            </View>
-          )}
-        </Animated.View>
-
-        {summary.totalVolumeKg > 0 && (
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(420)}
-            style={[styles.volumeRow, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Ionicons name="barbell-outline" size={15} color={C.primary} />
-            <Text style={[styles.volumeLabel, { color: C.textSecondary }]}>Total volume</Text>
-            <Text style={[styles.volumeValue, { color: C.text }]}>
-              {volumeDisplay} {weightUnit}
-            </Text>
-          </Animated.View>
-        )}
-
-        {/* ── Muscles worked ── */}
-        {workedRegions && (
-          <Animated.View
-            entering={FadeInDown.delay(120).duration(450)}
-            style={[styles.muscleCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.sectionTitle, { color: C.text }]}>Muscles Worked</Text>
-            <BodyDiagram
-              selected={undefined}
-              onSelect={() => {}}
-              heatmapCounts={workedRegions}
-              maxWidth={diagramMaxWidth}
-            />
-            {workedMuscleLabels.length > 0 && (
-              <View style={styles.muscleChips}>
-                {workedMuscleLabels.map((label) => (
-                  <View
-                    key={label}
-                    style={[styles.muscleChip, { backgroundColor: C.primaryMuted }]}
-                  >
-                    <View style={[styles.chipDot, { backgroundColor: C.primary }]} />
-                    <Text style={[styles.chipLabel, { color: C.primary }]}>{label}</Text>
+              {/* Header: brand + date */}
+              <View style={styles.cardHeader}>
+                <View style={styles.brandRow}>
+                  <View style={styles.logoCircle}>
+                    <Image
+                      source={require('@/assets/images/logo.png')}
+                      style={styles.logoImg}
+                      resizeMode="cover"
+                    />
                   </View>
+                  <Text style={styles.brandText}>GROW</Text>
+                </View>
+                <Text style={styles.dateText}>{formatDate(session.date)}</Text>
+              </View>
+
+              {/* Identity: avatar + headline */}
+              <View style={styles.identityRow}>
+                <View style={[styles.avatar, isMilestone && styles.avatarMilestone]}>
+                  {profilePhotoUri ? (
+                    <Image source={{ uri: profilePhotoUri }} style={styles.avatarImg} />
+                  ) : (
+                    <Text style={styles.avatarInitial}>{firstInitial}</Text>
+                  )}
+                </View>
+                <View style={styles.identityText}>
+                  <View style={styles.tagRow}>
+                    <Text style={styles.sessionTag}>SESSION {sessionNumber}</Text>
+                    {isMilestone && (
+                      <View style={styles.milestonePill}>
+                        <Ionicons name="trophy" size={9} color="#0d0d0d" />
+                        <Text style={styles.milestonePillText}>MILESTONE</Text>
+                      </View>
+                    )}
+                    {session.isTestWeek && (
+                      <View style={styles.testPill}>
+                        <Text style={styles.testPillText}>TEST WEEK</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.headline} numberOfLines={1} adjustsFontSizeToFit>
+                    {getSessionLabel(session.sessionType)}
+                  </Text>
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    {getSessionSubtitle(session.sessionType)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Stat strip */}
+              <View style={styles.statStrip}>
+                {stats.map((s, i) => (
+                  <React.Fragment key={s.label}>
+                    {i > 0 && <View style={styles.statSep} />}
+                    <View style={styles.statItem}>
+                      <Text
+                        style={[styles.statValue, s.accent && { color: BRAND_GREEN_LIGHT }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                      >
+                        {s.value}
+                      </Text>
+                      <Text style={styles.statLabel} numberOfLines={1}>
+                        {s.label}
+                      </Text>
+                    </View>
+                  </React.Fragment>
                 ))}
               </View>
-            )}
-          </Animated.View>
-        )}
 
-        {/* ── Volume compare ── */}
-        {showVolumeCompare && (
-          <Animated.View
-            entering={FadeInDown.delay(140).duration(400)}
-            style={[styles.compareRow, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            {prevSameTypeVol > 0 ? (
-              <>
-                <Ionicons
-                  name={summary.totalVolumeKg >= prevSameTypeVol ? 'trending-up' : 'trending-down'}
-                  size={15}
-                  color={summary.totalVolumeKg >= prevSameTypeVol ? C.primary : C.textTertiary}
-                />
-                <Text
-                  style={[
-                    styles.compareText,
-                    {
-                      color: summary.totalVolumeKg > prevSameTypeVol ? C.primary : C.textSecondary,
-                    },
-                  ]}
-                >
-                  {summary.totalVolumeKg > prevSameTypeVol
-                    ? `↑ ${Math.round(kgToDisplayUnit(summary.totalVolumeKg - prevSameTypeVol, weightUnit)).toLocaleString()} ${weightUnit} more than last ${getSessionLabel(session.sessionType).toLowerCase()}`
-                    : summary.totalVolumeKg === prevSameTypeVol
-                      ? `Same volume as last ${getSessionLabel(session.sessionType).toLowerCase()}`
-                      : `${Math.round(kgToDisplayUnit(prevSameTypeVol - summary.totalVolumeKg, weightUnit)).toLocaleString()} ${weightUnit} less than last ${getSessionLabel(session.sessionType).toLowerCase()}`}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="star" size={15} color={C.warning ?? '#f59e0b'} />
-                <Text style={[styles.compareText, { color: C.textSecondary }]}>
-                  First {getSessionLabel(session.sessionType).toLowerCase()} session logged!
-                </Text>
-              </>
-            )}
-          </Animated.View>
-        )}
-
-        {/* ── Test week ORM card ── */}
-        {testWeekOrmData && (
-          <Animated.View
-            entering={FadeInDown.delay(160).duration(420)}
-            style={[styles.ormCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.ormTitle, { color: C.text }]}>
-              {getSessionLabel(session.sessionType)} Strength Test
-            </Text>
-            <View style={styles.ormRow}>
-              <View style={styles.ormItem}>
-                <Text style={[styles.ormLabel, { color: C.textSecondary }]}>Previous</Text>
-                <Text style={[styles.ormValue, { color: C.text }]}>
-                  {testWeekOrmData.prev ? formatWeight(testWeekOrmData.prev, weightUnit) : '—'}
-                </Text>
+              {/* Dual body diagram — front + back side by side */}
+              <View style={styles.diagramRow}>
+                <View style={styles.diagramCol}>
+                  <BodyDiagram
+                    compact
+                    defaultView="front"
+                    heatmapCounts={heatmap}
+                    maxWidth={bodyMaxWidth}
+                    onSelect={() => {}}
+                  />
+                  <Text style={styles.diagramLabel}>FRONT</Text>
+                </View>
+                <View style={styles.diagramCol}>
+                  <BodyDiagram
+                    compact
+                    defaultView="back"
+                    heatmapCounts={heatmap}
+                    maxWidth={bodyMaxWidth}
+                    onSelect={() => {}}
+                  />
+                  <Text style={styles.diagramLabel}>BACK</Text>
+                </View>
               </View>
-              <Ionicons name="arrow-forward" size={18} color={C.textTertiary} />
-              <View style={styles.ormItem}>
-                <Text style={[styles.ormLabel, { color: C.primary }]}>New 1RM</Text>
-                <Text style={[styles.ormValue, { color: C.primary }]}>
-                  {formatWeight(testWeekOrmData.next, weightUnit)}
-                </Text>
+
+              {/* Footer */}
+              <View style={styles.cardFooter}>
+                {streakDays >= 1 ? (
+                  <Text style={styles.footerStreak}>
+                    🔥 {streakDays} day{streakDays > 1 ? 's' : ''} streak
+                  </Text>
+                ) : (
+                  <Text style={styles.footerStreak}>Keep it going</Text>
+                )}
+                <Text style={styles.footerBrand}>growperformance.app</Text>
               </View>
             </View>
-            {testWeekOrmData.prev !== null && testWeekOrmData.next > testWeekOrmData.prev && (
-              <View style={[styles.ormPbPill, { backgroundColor: C.trophyBg }]}>
-                <Text style={[styles.ormPbText, { color: C.trophy }]}>🏆 New Personal Best!</Text>
-              </View>
-            )}
           </Animated.View>
-        )}
+        </View>
 
-        {/* ── Too easy saved confirmation ── */}
-        {tooEasySaved && (
-          <Animated.View
-            entering={FadeIn.duration(300)}
-            style={[
-              styles.savedBanner,
-              { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
-            ]}
+        {/* ── Actions (not captured) ── */}
+        <Animated.View entering={FadeInDown.delay(120).duration(420)} style={styles.actionRow}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowRatingModal(true);
+            }}
+            style={[styles.actionBtn, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+            testID="open-rate-modal"
           >
-            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-            <Text style={[styles.savedText, { color: C.primary }]}>
-              Weights adjusted for next session
+            <Ionicons name="thumbs-up-outline" size={18} color={C.primary} />
+            <Text style={[styles.actionBtnText, { color: C.text }]}>Rate</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleShare}
+            disabled={isSharing}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: C.surface, borderColor: C.borderLight },
+              isSharing && { opacity: 0.5 },
+            ]}
+            testID="share-workout"
+          >
+            <Ionicons name="share-outline" size={18} color={C.primary} />
+            <Text style={[styles.actionBtnText, { color: C.text }]}>
+              {isSharing ? '…' : 'Share'}
             </Text>
-          </Animated.View>
-        )}
+          </Pressable>
+        </Animated.View>
 
-        {/* ── Action row ── */}
-        {session.exerciseLogs.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(180).duration(420)} style={styles.actionRow}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowRatingModal(true);
-              }}
-              style={[styles.actionBtn, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-              testID="open-rate-modal"
-            >
-              <Ionicons name="thumbs-up-outline" size={18} color={C.primary} />
-              <Text style={[styles.actionBtnText, { color: C.text }]}>Rate</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowTooEasyModal(true);
-              }}
-              style={[styles.actionBtn, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-              testID="open-too-easy-modal"
-            >
-              <Ionicons name="trending-up-outline" size={18} color={C.primary} />
-              <Text style={[styles.actionBtnText, { color: C.text }]}>Too Easy?</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleShare}
-              disabled={isSharing}
-              style={[
-                styles.actionBtn,
-                { backgroundColor: C.surface, borderColor: C.borderLight },
-                isSharing && { opacity: 0.5 },
-              ]}
-              testID="share-workout"
-            >
-              <Ionicons name="share-outline" size={18} color={C.primary} />
-              <Text style={[styles.actionBtnText, { color: C.text }]}>
-                {isSharing ? '…' : 'Share'}
-              </Text>
-            </Pressable>
-          </Animated.View>
-        )}
-      </ScrollView>
-
-      {/* Done button pinned to bottom */}
-      <View
-        style={[
-          styles.footer,
-          {
-            paddingBottom: bottomPad + 14,
-            backgroundColor: C.background,
-            borderTopColor: C.borderLight,
-          },
-        ]}
-      >
+        {/* Done */}
         <Pressable
           onPress={goHome}
           style={[styles.doneButton, { backgroundColor: C.primary }]}
@@ -792,100 +605,6 @@ export default function SessionSummaryScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Too Easy Modal */}
-      <Modal
-        visible={showTooEasyModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTooEasyModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: C.borderLight }]}>
-              <View style={[styles.modalIconWrap, { backgroundColor: C.categoryPrehab }]}>
-                <Ionicons name="trending-up-outline" size={24} color={C.categoryPrehabText} />
-              </View>
-              <View style={styles.modalHeaderText}>
-                <Text style={[styles.modalTitle, { color: C.text }]}>Too Easy?</Text>
-                <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
-                  Select exercises to increase next session
-                </Text>
-              </View>
-            </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {session.exerciseLogs.map((log) => {
-                const selected = tooEasySelected.has(log.exerciseId);
-                return (
-                  <Pressable
-                    key={log.exerciseId}
-                    onPress={() => {
-                      setTooEasySelected((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(log.exerciseId)) next.delete(log.exerciseId);
-                        else next.add(log.exerciseId);
-                        return next;
-                      });
-                    }}
-                    style={[
-                      styles.checkRow,
-                      { borderBottomColor: C.borderLight },
-                      selected && { backgroundColor: C.primarySurface },
-                    ]}
-                    testID={`tooEasy-${log.exerciseId}`}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        { borderColor: selected ? C.primary : C.border },
-                        selected && { backgroundColor: C.primary },
-                      ]}
-                    >
-                      {selected && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
-                    </View>
-                    <Text
-                      style={[styles.checkName, { color: selected ? C.primaryDark : C.text }]}
-                      numberOfLines={2}
-                    >
-                      {log.exerciseName}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              <View style={{ height: 16 }} />
-            </ScrollView>
-            <View
-              style={[
-                styles.modalFooter,
-                { borderTopColor: C.borderLight, paddingBottom: bottomPad + 16 },
-              ]}
-            >
-              <Pressable
-                onPress={confirmTooEasy}
-                style={[
-                  styles.modalPrimaryBtn,
-                  { backgroundColor: tooEasySelected.size > 0 ? C.primary : C.surfaceTertiary },
-                ]}
-                testID="confirm-too-easy"
-              >
-                <Text
-                  style={[
-                    styles.modalPrimaryBtnText,
-                    { color: tooEasySelected.size > 0 ? C.textInverse : C.textTertiary },
-                  ]}
-                >
-                  {tooEasySelected.size > 0
-                    ? `Increase ${tooEasySelected.size} exercise${tooEasySelected.size > 1 ? 's' : ''}`
-                    : 'Confirm'}
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => setShowTooEasyModal(false)} style={styles.modalSkipBtn}>
-                <Text style={[styles.modalSkipText, { color: C.textSecondary }]}>Skip</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -895,264 +614,266 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  hero: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  checkCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  emptyWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 24,
   },
-  milestonePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  milestonePillText: {
-    fontSize: 11,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.8,
-  },
-  greetingText: {
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    marginBottom: 4,
-  },
-  sessionName: {
-    fontSize: 32,
-    fontFamily: 'Inter_700Bold',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  sessionMeta: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-
-  // ── Stats tiles ───────────────────────────────────────────────────────────
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  statTile: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_500Medium',
-    marginTop: 3,
-  },
-  volumeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  volumeLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    flex: 1,
-  },
-  volumeValue: {
-    fontSize: 13,
-    fontFamily: 'Inter_700Bold',
-  },
-
-  // ── Muscles worked ────────────────────────────────────────────────────────
-  muscleCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingTop: 16,
-    paddingHorizontal: 12,
-    paddingBottom: 16,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  sectionTitle: {
+  emptyText: {
     fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  muscleChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
+    fontFamily: 'Inter_500Medium',
     marginTop: 12,
-    justifyContent: 'center',
-  },
-  muscleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  chipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  chipLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
   },
 
-  // ── Volume compare ────────────────────────────────────────────────────────
-  compareRow: {
+  // ── Certificate card ────────────────────────────────────────────────────────
+  cardWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 24,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: CARD_HAIRLINE,
+  },
+  accentBar: {
+    height: 5,
+    backgroundColor: BRAND_GREEN,
+    marginHorizontal: -20,
+    marginBottom: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
   },
-  compareText: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    flex: 1,
+  logoCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
   },
-
-  // ── ORM card ──────────────────────────────────────────────────────────────
-  ormCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
+  logoImg: {
+    width: 26,
+    height: 26,
   },
-  ormTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 12,
+  brandText: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_TEXT,
+    letterSpacing: 2,
   },
-  ormRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    marginBottom: 10,
-  },
-  ormItem: {
-    alignItems: 'center',
-  },
-  ormLabel: {
+  dateText: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    marginBottom: 4,
+    color: CARD_MUTED,
   },
-  ormValue: {
+
+  // ── Identity ────────────────────────────────────────────────────────────────
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 18,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: BRAND_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarMilestone: {
+    borderWidth: 2,
+    borderColor: GOLD,
+  },
+  avatarImg: {
+    width: 52,
+    height: 52,
+  },
+  avatarInitial: {
     fontSize: 22,
     fontFamily: 'Inter_700Bold',
+    color: '#fff',
   },
-  ormPbPill: {
-    alignSelf: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+  identityText: {
+    flex: 1,
   },
-  ormPbText: {
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-  },
-
-  // ── Too easy banner ───────────────────────────────────────────────────────
-  savedBanner: {
+  tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 2,
   },
-  savedText: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
+  sessionTag: {
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_FAINT,
+    letterSpacing: 1.5,
+  },
+  milestonePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: GOLD,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  milestonePillText: {
+    fontSize: 8,
+    fontFamily: 'Inter_700Bold',
+    color: '#0d0d0d',
+    letterSpacing: 0.8,
+  },
+  testPill: {
+    backgroundColor: 'rgba(95,191,135,0.18)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  testPillText: {
+    fontSize: 8,
+    fontFamily: 'Inter_700Bold',
+    color: BRAND_GREEN_LIGHT,
+    letterSpacing: 0.8,
+  },
+  headline: {
+    fontSize: 28,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_TEXT,
+    lineHeight: 32,
+  },
+  subtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: CARD_MUTED,
+    marginTop: 1,
   },
 
-  // ── Action row ────────────────────────────────────────────────────────────
+  // ── Stat strip ──────────────────────────────────────────────────────────────
+  statStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PILL_BG,
+    borderRadius: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  statSep: {
+    width: 1,
+    height: 30,
+    backgroundColor: CARD_HAIRLINE,
+  },
+  statValue: {
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_TEXT,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontFamily: 'Inter_600SemiBold',
+    color: CARD_FAINT,
+    letterSpacing: 0.8,
+    marginTop: 3,
+    textTransform: 'uppercase',
+  },
+
+  // ── Body diagram ────────────────────────────────────────────────────────────
+  diagramRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 20,
+    marginBottom: 14,
+  },
+  diagramCol: {
+    alignItems: 'center',
+  },
+  diagramLabel: {
+    fontSize: 9,
+    fontFamily: 'Inter_600SemiBold',
+    color: CARD_FAINT,
+    letterSpacing: 1.5,
+    marginTop: 2,
+  },
+
+  // ── Card footer ─────────────────────────────────────────────────────────────
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: CARD_HAIRLINE,
+  },
+  footerStreak: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: CARD_MUTED,
+  },
+  footerBrand: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: CARD_FAINT,
+  },
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
   actionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginTop: 14,
   },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 12,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    paddingVertical: 12,
   },
   actionBtnText: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
   },
 
-  // ── Footer / Done ─────────────────────────────────────────────────────────
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
+  // ── Done ────────────────────────────────────────────────────────────────────
   doneButton: {
-    borderRadius: 14,
+    marginTop: 10,
     paddingVertical: 16,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   doneButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_700Bold',
   },
 
-  // ── Empty state ───────────────────────────────────────────────────────────
-  emptyWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-  },
-
-  // ── Modals ────────────────────────────────────────────────────────────────
+  // ── Rate modal ──────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -1163,15 +884,14 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    gap: 14,
+    padding: 20,
     borderBottomWidth: 1,
   },
   modalIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1179,7 +899,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: 'Inter_700Bold',
   },
   modalSubtitle: {
@@ -1188,19 +908,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   modalScroll: {
-    maxHeight: 360,
+    paddingHorizontal: 20,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
     gap: 12,
   },
   ratingName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter_500Medium',
   },
   ratingButtons: {
@@ -1208,52 +928,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   thumbBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  checkName: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
   },
   modalFooter: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
+    padding: 20,
     borderTopWidth: 1,
-    gap: 4,
+    gap: 8,
   },
   modalPrimaryBtn: {
-    borderRadius: 14,
     paddingVertical: 15,
+    borderRadius: 14,
     alignItems: 'center',
   },
   modalPrimaryBtnText: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
   },
   modalSkipBtn: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   modalSkipText: {
