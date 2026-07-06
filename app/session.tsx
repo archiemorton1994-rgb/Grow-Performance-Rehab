@@ -600,7 +600,7 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
 
 type ExerciseState = 'active' | 'past' | 'future';
 
-function ExerciseCard({
+export function ExerciseCard({
   exercise,
   index,
   setData,
@@ -964,6 +964,49 @@ function ExerciseCard({
         )}
 
       </View>
+    </Animated.View>
+  );
+}
+
+/**
+ * Exported for unit testing. Renders the pain-adaptation banner that appears
+ * at the top of a session when `hasAches && painRegion && !dismissed`.
+ * The parent (SessionScreen) owns the `dismissed` state so it can persist it
+ * with the rest of the stored session.
+ */
+export function PainAdaptBanner({
+  hasAches,
+  painRegion,
+  comfortCount,
+  dismissed,
+  onDismiss,
+}: {
+  hasAches: boolean;
+  painRegion: PainRegion | undefined;
+  comfortCount: number;
+  dismissed: boolean;
+  onDismiss: () => void;
+}) {
+  const C = useColors();
+  if (!hasAches || !painRegion || dismissed) return null;
+  return (
+    <Animated.View entering={FadeInDown.duration(350)} style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: C.warningLight, borderRadius: 10, borderWidth: 1, borderColor: C.warning + '44', gap: 10 }}>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+        <Ionicons name="shield-checkmark" size={16} color={C.warning} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.warning, marginBottom: 1 }}>
+            Adapted for {getPainRegionLabel(painRegion)}
+          </Text>
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.warning, opacity: 0.85, lineHeight: 17 }}>
+            {comfortCount > 0
+              ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — tap Swap or skip any that still hurt`
+              : 'No exercises needed swapping — tap Swap or skip anything that hurts'}
+          </Text>
+        </View>
+      </View>
+      <Pressable onPress={onDismiss} style={{ padding: 4, alignItems: 'center', justifyContent: 'center' }} testID="pain-banner-dismiss">
+        <Ionicons name="close" size={16} color={C.warning} />
+      </Pressable>
     </Animated.View>
   );
 }
@@ -1608,26 +1651,13 @@ export default function SessionScreen() {
         </View>
       )}
 
-      {hasAches && painRegion && !painBannerDismissed && (
-        <Animated.View entering={FadeInDown.duration(350)} style={styles.painAdaptBanner}>
-          <View style={styles.painAdaptBannerLeft}>
-            <Ionicons name="shield-checkmark" size={16} color={C.warning} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.painAdaptBannerTitle}>
-                Adapted for {getPainRegionLabel(painRegion)}
-              </Text>
-              <Text style={styles.painAdaptBannerSub}>
-                {comfortCount > 0
-                  ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — tap Swap or skip any that still hurt`
-                  : 'No exercises needed swapping — tap Swap or skip anything that hurts'}
-              </Text>
-            </View>
-          </View>
-          <Pressable onPress={() => setPainBannerDismissed(true)} style={styles.painAdaptDismiss} testID="pain-banner-dismiss">
-            <Ionicons name="close" size={16} color={C.warning} />
-          </Pressable>
-        </Animated.View>
-      )}
+      <PainAdaptBanner
+        hasAches={hasAches}
+        painRegion={painRegion}
+        comfortCount={comfortCount}
+        dismissed={painBannerDismissed}
+        onDismiss={() => setPainBannerDismissed(true)}
+      />
 
       <ScrollView
         ref={scrollViewRef}

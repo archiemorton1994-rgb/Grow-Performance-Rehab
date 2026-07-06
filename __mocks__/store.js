@@ -13,13 +13,23 @@ const defaultState = {
     goals: [],
     bodyweightKg: 80,
   },
+  weightUnit: 'kg',
+  equipmentTiers: ['dumbbells'],
+  sessions: [],
+  customExercises: [],
+  exerciseFeedback: {},
+  exerciseNormalStreak: {},
+  reviewPromptShown: false,
 };
 
 const useAppStore = (selector) => selector ? selector(defaultState) : defaultState;
 const useStore = useAppStore;
 
+const STRENGTH_SESSION_TYPES = ['squat', 'bench', 'deadlift'];
+
 module.exports = {
   __esModule: true,
   useAppStore,
   useStore,
+  STRENGTH_SESSION_TYPES,
 };

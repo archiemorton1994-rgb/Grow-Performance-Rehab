@@ -21,6 +21,28 @@ const Modal = ({ children, visible, transparent, animationType, onRequestClose, 
   visible ? React.createElement('View', { testID: testID ?? 'modal', ...rest }, children) : null;
 Modal.displayName = 'Modal';
 
+const ScrollView = ({ children, testID, style, contentContainerStyle, ...rest }) =>
+  React.createElement('View', { testID, ...rest }, children);
+ScrollView.displayName = 'ScrollView';
+
+const TextInput = ({ testID, style, onChangeText, value, ...rest }) =>
+  React.createElement('TextInput', { testID, onChangeText, value, ...rest });
+TextInput.displayName = 'TextInput';
+
+const KeyboardAvoidingView = ({ children, testID, style, behavior, ...rest }) =>
+  React.createElement('View', { testID, ...rest }, children);
+KeyboardAvoidingView.displayName = 'KeyboardAvoidingView';
+
+const Linking = {
+  openURL: jest.fn(() => Promise.resolve()),
+  canOpenURL: jest.fn(() => Promise.resolve(true)),
+};
+
+const AppState = {
+  currentState: 'active',
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+};
+
 const StyleSheet = {
   create: (s) => s,
   flatten: (s) => s || {},
@@ -36,6 +58,11 @@ module.exports = {
   Text,
   Pressable,
   Modal,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Linking,
+  AppState,
   StyleSheet,
   useWindowDimensions,
   Platform,
