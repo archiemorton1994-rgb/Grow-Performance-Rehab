@@ -124,6 +124,8 @@ export interface ActiveSession {
   elapsedSeconds: number;
   exerciseIds: string[];
   customExercises?: CustomExercise[];
+  /** Whether the user has already dismissed the pain-adaptation banner. Persisted so it stays gone on session resume. */
+  painBannerDismissed?: boolean;
 }
 
 export interface ExerciseLog {

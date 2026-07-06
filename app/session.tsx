@@ -1115,6 +1115,7 @@ export default function SessionScreen() {
   const exerciseNotesRef = useRef<string[]>([]);
   const activeIndexRef = useRef<number>(0);
   const exerciseIdsRef = useRef<string[]>([]);
+  const painBannerDismissedRef = useRef(false);
   // Ref to always-current activeSession (used in effects whose deps don't include activeSession)
   const activeSessionRef = useRef(activeSession);
   useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
@@ -1125,6 +1126,7 @@ export default function SessionScreen() {
   useEffect(() => { exerciseDataRef.current = exerciseData; }, [exerciseData]);
   useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
   useEffect(() => { exerciseIdsRef.current = exercises.map(ex => ex.id); }, [exercises]);
+  useEffect(() => { painBannerDismissedRef.current = painBannerDismissed; }, [painBannerDismissed]);
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -1168,6 +1170,7 @@ export default function SessionScreen() {
         sessionName: getSessionLabel(sessionType),
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
+        painBannerDismissed: painBannerDismissedRef.current,
         ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
       });
     };
@@ -1224,6 +1227,7 @@ export default function SessionScreen() {
     setExerciseData(restoredData);
     setExerciseNotes(stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => ''));
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
+    if (stored.painBannerDismissed) setPainBannerDismissed(true);
     return true;
   };
 
@@ -1310,9 +1314,10 @@ export default function SessionScreen() {
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds: elapsedSecondsRef.current,
       exerciseIds: exercises.map(ex => ex.id),
+      painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
-  }, [exerciseData, exerciseNotes, activeIndex]);
+  }, [exerciseData, exerciseNotes, activeIndex, painBannerDismissed]);
 
   const openYouTube = (exerciseName: string) => {
     const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
@@ -1535,6 +1540,7 @@ export default function SessionScreen() {
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds,
       exerciseIds: exercises.map(ex => ex.id),
+      painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
     setShowAbandonModal(false);
