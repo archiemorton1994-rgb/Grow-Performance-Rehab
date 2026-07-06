@@ -28,5 +28,7 @@ module.exports = {
   /** Returns the most-recently-rendered data array, or null if Body has not rendered. */
   getCapturedBodyData: () => _capturedData,
   /** Resets captured state between tests that need a clean slate. */
-  clearCapturedBodyData: () => { _capturedData = null; },
+  clearCapturedBodyData: () => {
+    _capturedData = null;
+  },
 };

@@ -37,12 +37,12 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const flexSrc   = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
-const dbSrc     = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const flexSrc = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
+const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
 const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 
 let failures = 0;
-let total    = 0;
+let total = 0;
 
 function check(label, condition, detail) {
   total++;
@@ -72,46 +72,49 @@ function parseSetLiteral(src, constName) {
     if (src[i] === '[') depth++;
     else if (src[i] === ']') {
       depth--;
-      if (depth === 0) { arrayEnd = i; break; }
+      if (depth === 0) {
+        arrayEnd = i;
+        break;
+      }
     }
   }
   if (arrayEnd === -1) return null;
 
   const body = src.slice(arrayOpen, arrayEnd + 1);
   const matches = [...body.matchAll(/'([^']+)'/g)];
-  return matches.map(m => m[1]);
+  return matches.map((m) => m[1]);
 }
 
 // ─── 1. Parse REGION_FRONT and REGION_BACK from flex.tsx ─────────────────────
 console.log('\n[1] Parse REGION_FRONT and REGION_BACK from flex.tsx');
 
 const frontRegions = parseSetLiteral(flexSrc, 'REGION_FRONT');
-const backRegions  = parseSetLiteral(flexSrc, 'REGION_BACK');
+const backRegions = parseSetLiteral(flexSrc, 'REGION_BACK');
 
 check(
   'REGION_FRONT constant found in flex.tsx',
   frontRegions !== null,
-  'constant not found — check app/(tabs)/flex.tsx',
+  'constant not found — check app/(tabs)/flex.tsx'
 );
 check(
   'REGION_BACK constant found in flex.tsx',
   backRegions !== null,
-  'constant not found — check app/(tabs)/flex.tsx',
+  'constant not found — check app/(tabs)/flex.tsx'
 );
 check(
   `REGION_FRONT contains at least 1 region (found ${(frontRegions ?? []).length})`,
   (frontRegions ?? []).length >= 1,
-  'no region entries found in REGION_FRONT',
+  'no region entries found in REGION_FRONT'
 );
 check(
   `REGION_BACK contains at least 1 region (found ${(backRegions ?? []).length})`,
   (backRegions ?? []).length >= 1,
-  'no region entries found in REGION_BACK',
+  'no region entries found in REGION_BACK'
 );
 
 // The full set of reachable UI regions is the union of front and back
 const uiRegionSet = new Set([...(frontRegions ?? []), ...(backRegions ?? [])]);
-const uiRegions   = [...uiRegionSet];
+const uiRegions = [...uiRegionSet];
 
 console.log(`  · Union of REGION_FRONT ∪ REGION_BACK (${uiRegions.length} unique regions):`);
 for (const r of uiRegions) console.log(`    · '${r}'`);
@@ -123,7 +126,7 @@ const byRegionStart = dbSrc.indexOf('const PREHAB_BY_REGION');
 check(
   'PREHAB_BY_REGION constant found in exercise-db.ts',
   byRegionStart !== -1,
-  'constant not found — check lib/exercise-db.ts',
+  'constant not found — check lib/exercise-db.ts'
 );
 
 let dbRegionExercises = {}; // region -> count
@@ -131,27 +134,30 @@ let dbRegionExercises = {}; // region -> count
 if (byRegionStart !== -1) {
   const objOpen = dbSrc.indexOf('{', byRegionStart);
   let braceDepth = 0;
-  let objEnd     = -1;
+  let objEnd = -1;
 
   for (let i = objOpen; i < dbSrc.length; i++) {
     if (dbSrc[i] === '{') braceDepth++;
     else if (dbSrc[i] === '}') {
       braceDepth--;
-      if (braceDepth === 0) { objEnd = i; break; }
+      if (braceDepth === 0) {
+        objEnd = i;
+        break;
+      }
     }
   }
 
   check(
     'PREHAB_BY_REGION object boundary found',
     objEnd !== -1,
-    'brace counting failed — unbalanced braces in PREHAB_BY_REGION?',
+    'brace counting failed — unbalanced braces in PREHAB_BY_REGION?'
   );
 
   if (objEnd !== -1) {
     const block = dbSrc.slice(objOpen, objEnd + 1);
 
     let depth = 0;
-    let i     = 0;
+    let i = 0;
 
     while (i < block.length) {
       const ch = block[i];
@@ -161,24 +167,29 @@ if (byRegionStart !== -1) {
       if (depth === 1) {
         const keyMatch = block.slice(i).match(/^([a-z_]+):\s*\[/);
         if (keyMatch) {
-          const regionKey   = keyMatch[1];
+          const regionKey = keyMatch[1];
           const relArrayOpen = block.indexOf('[', i + keyMatch[0].indexOf('['));
-          let   bracketD    = 0;
-          let   arrayEnd    = -1;
+          let bracketD = 0;
+          let arrayEnd = -1;
 
           for (let j = relArrayOpen; j < block.length; j++) {
             if (block[j] === '[') bracketD++;
             else if (block[j] === ']') {
               bracketD--;
-              if (bracketD === 0) { arrayEnd = j; break; }
+              if (bracketD === 0) {
+                arrayEnd = j;
+                break;
+              }
             }
           }
 
-          const arraySlice    = arrayEnd !== -1 ? block.slice(relArrayOpen, arrayEnd + 1) : '';
+          const arraySlice = arrayEnd !== -1 ? block.slice(relArrayOpen, arrayEnd + 1) : '';
           const exerciseCount = (arraySlice.match(/id:\s*'/g) || []).length;
           dbRegionExercises[regionKey] = exerciseCount;
 
-          if (arrayEnd !== -1) { i = arrayEnd; }
+          if (arrayEnd !== -1) {
+            i = arrayEnd;
+          }
         }
       }
       i++;
@@ -188,7 +199,7 @@ if (byRegionStart !== -1) {
     check(
       `PREHAB_BY_REGION contains at least 1 region (found ${dbRegions.length})`,
       dbRegions.length >= 1,
-      'no top-level region keys found in PREHAB_BY_REGION block',
+      'no top-level region keys found in PREHAB_BY_REGION block'
     );
 
     for (const [region, count] of Object.entries(dbRegionExercises)) {
@@ -204,7 +215,7 @@ for (const region of uiRegions) {
   check(
     `PREHAB_BY_REGION has key '${region}'`,
     Object.prototype.hasOwnProperty.call(dbRegionExercises, region),
-    `'${region}' is reachable in the picker but has no key in PREHAB_BY_REGION — tapping this tile launches an empty session`,
+    `'${region}' is reachable in the picker but has no key in PREHAB_BY_REGION — tapping this tile launches an empty session`
   );
 }
 
@@ -216,7 +227,7 @@ for (const region of uiRegions) {
   check(
     `'${region}' has ≥ 1 exercise in PREHAB_BY_REGION (found ${count})`,
     count >= 1,
-    `'${region}' array is empty — session launches with only warmup + cooldown`,
+    `'${region}' array is empty — session launches with only warmup + cooldown`
   );
 }
 
@@ -229,17 +240,17 @@ console.log('\n[5] Coverage direction — every UI region has DB coverage');
 const uiSet = new Set(uiRegions);
 const dbSet = new Set(Object.keys(dbRegionExercises));
 
-const inUINotDB = [...uiSet].filter(r => !dbSet.has(r));
+const inUINotDB = [...uiSet].filter((r) => !dbSet.has(r));
 
 check(
   'every UI region (REGION_FRONT ∪ REGION_BACK) has a key in PREHAB_BY_REGION',
   inUINotDB.length === 0,
   inUINotDB.length > 0
     ? `UI regions with no DB key: ${inUINotDB.join(', ')} — tapping these tiles launches an empty session`
-    : '',
+    : ''
 );
 
-const inDBNotUI = [...dbSet].filter(r => !uiSet.has(r));
+const inDBNotUI = [...dbSet].filter((r) => !uiSet.has(r));
 if (inDBNotUI.length > 0) {
   console.log(`  · DB-only regions (used elsewhere, not a failure): ${inDBNotUI.join(', ')}`);
 }
@@ -250,28 +261,28 @@ console.log('\n[6] Engine wiring — getRegionPrehabWorkout uses PREHAB_BY_REGIO
 check(
   'getRegionPrehabWorkout is exported from exercise-db.ts',
   dbSrc.includes('export function getRegionPrehabWorkout'),
-  'function not found in exercise-db.ts',
+  'function not found in exercise-db.ts'
 );
 
 check(
   'getRegionPrehabWorkout spreads PREHAB_BY_REGION[region]',
   dbSrc.includes('...PREHAB_BY_REGION[region]'),
-  'spread operator missing — region exercises may not reach the returned array',
+  'spread operator missing — region exercises may not reach the returned array'
 );
 
 check(
   'workout-engine.ts calls getRegionPrehabWorkout when painRegion is set',
   engineSrc.includes('getRegionPrehabWorkout(readiness.painRegion)'),
-  'wiring between session generator and region workout builder is broken',
+  'wiring between session generator and region workout builder is broken'
 );
 
 // ─── 7. ID uniqueness — no duplicate exercise IDs across all region arrays ─────
 console.log('\n[7] ID uniqueness — no duplicate exercise IDs across region arrays');
 
 const idMatches = dbSrc.match(/id:\s*'ph-r-[^']+'/g) ?? [];
-const ids       = idMatches.map(m => m.replace(/id:\s*'/, '').replace(/'$/, ''));
-const seen      = new Set();
-const dupes     = [];
+const ids = idMatches.map((m) => m.replace(/id:\s*'/, '').replace(/'$/, ''));
+const seen = new Set();
+const dupes = [];
 
 for (const id of ids) {
   if (seen.has(id)) dupes.push(id);
@@ -281,7 +292,7 @@ for (const id of ids) {
 check(
   `all ${ids.length} region exercise IDs are unique (no duplicates)`,
   dupes.length === 0,
-  dupes.length > 0 ? `duplicate IDs: ${dupes.join(', ')}` : '',
+  dupes.length > 0 ? `duplicate IDs: ${dupes.join(', ')}` : ''
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

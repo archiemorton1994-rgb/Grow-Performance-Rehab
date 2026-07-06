@@ -30,12 +30,12 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const storeSrc  = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
-const dbSrc     = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
+const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
 const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 
 let failures = 0;
-let total    = 0;
+let total = 0;
 
 function check(label, condition, detail) {
   total++;
@@ -54,7 +54,7 @@ const typeStart = storeSrc.indexOf('export type PainRegion =');
 check(
   'PainRegion type declaration found in lib/store.ts',
   typeStart !== -1,
-  'declaration not found — check lib/store.ts',
+  'declaration not found — check lib/store.ts'
 );
 
 let painRegions = [];
@@ -62,17 +62,17 @@ let painRegions = [];
 if (typeStart !== -1) {
   // The type declaration ends at the first semicolon after the '=' sign.
   // Extract that slice then pull all single-quoted identifiers.
-  const eqPos  = storeSrc.indexOf('=', typeStart);
-  const semi   = storeSrc.indexOf(';', eqPos);
+  const eqPos = storeSrc.indexOf('=', typeStart);
+  const semi = storeSrc.indexOf(';', eqPos);
   const typeBlock = storeSrc.slice(eqPos, semi + 1);
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
-  painRegions = regionMatches.map(m => m[1]);
+  painRegions = regionMatches.map((m) => m[1]);
 
   check(
     `PainRegion type contains at least 1 value (found ${painRegions.length})`,
     painRegions.length >= 1,
-    'no quoted identifiers found in PainRegion type block',
+    'no quoted identifiers found in PainRegion type block'
   );
 
   for (const r of painRegions) {
@@ -92,7 +92,7 @@ console.log('\n[2] Collect comfortVariant.triggerRegions from lib/exercise-db.ts
 const coveredByRegion = new Map(); // region -> count of covering exercises
 
 let searchPos = 0;
-let cvFound   = 0;
+let cvFound = 0;
 
 while (true) {
   const cvIdx = dbSrc.indexOf('comfortVariant:', searchPos);
@@ -101,20 +101,29 @@ while (true) {
 
   // Find the opening '{' of this comfortVariant object
   const objOpen = dbSrc.indexOf('{', cvIdx);
-  if (objOpen === -1) { searchPos = cvIdx + 1; continue; }
+  if (objOpen === -1) {
+    searchPos = cvIdx + 1;
+    continue;
+  }
 
   // Walk forward tracking brace depth to find the end of this comfortVariant object
-  let depth  = 0;
+  let depth = 0;
   let objEnd = -1;
   for (let i = objOpen; i < dbSrc.length; i++) {
     if (dbSrc[i] === '{') depth++;
     else if (dbSrc[i] === '}') {
       depth--;
-      if (depth === 0) { objEnd = i; break; }
+      if (depth === 0) {
+        objEnd = i;
+        break;
+      }
     }
   }
 
-  if (objEnd === -1) { searchPos = cvIdx + 1; continue; }
+  if (objEnd === -1) {
+    searchPos = cvIdx + 1;
+    continue;
+  }
 
   const cvBlock = dbSrc.slice(objOpen, objEnd + 1);
 
@@ -142,13 +151,13 @@ while (true) {
 check(
   `at least 1 comfortVariant block found in exercise-db.ts (found ${cvFound})`,
   cvFound >= 1,
-  'no comfortVariant entries found — check lib/exercise-db.ts',
+  'no comfortVariant entries found — check lib/exercise-db.ts'
 );
 
 check(
   `at least 1 PainRegion is covered by a comfortVariant (found ${coveredByRegion.size})`,
   coveredByRegion.size >= 1,
-  'no triggerRegions values extracted — comfortVariant blocks may be malformed',
+  'no triggerRegions values extracted — comfortVariant blocks may be malformed'
 );
 
 console.log(`  · Covered regions (${coveredByRegion.size} unique):`);
@@ -165,7 +174,7 @@ for (const region of painRegions) {
     `'${region}' is covered by ≥ 1 comfortVariant (found ${count})`,
     count >= 1,
     `'${region}' has no exercise with comfortVariant.triggerRegions including this region — ` +
-    `users who flag this pain area during readiness will receive no exercise swap`,
+      `users who flag this pain area during readiness will receive no exercise swap`
   );
 }
 
@@ -175,19 +184,19 @@ console.log('\n[4] Engine wiring — swap path is reachable in workout-engine.ts
 check(
   'shouldSwapForComfort function exists in workout-engine.ts',
   engineSrc.includes('function shouldSwapForComfort'),
-  'function not found — pain-region swap path may be broken',
+  'function not found — pain-region swap path may be broken'
 );
 
 check(
   'shouldSwapForComfort checks comfortVariant.triggerRegions',
   engineSrc.includes('comfortVariant.triggerRegions.includes(painRegion)'),
-  'triggerRegions check missing — swap logic may never fire',
+  'triggerRegions check missing — swap logic may never fire'
 );
 
 check(
   'applyComfortOrBadge (or equivalent) uses shouldSwapForComfort',
   engineSrc.includes('shouldSwapForComfort('),
-  'shouldSwapForComfort is never called — swap logic is dead code',
+  'shouldSwapForComfort is never called — swap logic is dead code'
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Tabs, router } from "expo-router";
+import { Tabs, router } from 'expo-router';
 import {
   Platform,
   StyleSheet,
@@ -8,18 +8,12 @@ import {
   Modal,
   Animated,
   ScrollView,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import React, {
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
-import { useColors } from "@/constants/colors";
-import { useAppStore } from "@/lib/store";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useRef, useEffect, useState, useCallback, ReactNode } from 'react';
+import { useColors } from '@/constants/colors';
+import { useAppStore } from '@/lib/store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ─── Tour content ─────────────────────────────────────────────────────────────
 
@@ -35,76 +29,76 @@ interface TourTabDef {
 
 const TOUR_TABS: TourTabDef[] = [
   {
-    key: "index",
-    label: "Home",
-    icon: "home",
-    headline: "Your daily starting point",
-    body: "Shows your next suggested session based on where you are in your strength rotation. Tap the session card to begin, or use the quick-start options below for any session type.",
+    key: 'index',
+    label: 'Home',
+    icon: 'home',
+    headline: 'Your daily starting point',
+    body: 'Shows your next suggested session based on where you are in your strength rotation. Tap the session card to begin, or use the quick-start options below for any session type.',
     tips: [
-      "Suggested session updates automatically each day",
-      "Equipment chip overrides your gear for today without changing your profile",
-      "Resume banner appears if you have an unfinished session",
-      "Achievements row shows your latest badges — tap it to see your full collection",
+      'Suggested session updates automatically each day',
+      'Equipment chip overrides your gear for today without changing your profile',
+      'Resume banner appears if you have an unfinished session',
+      'Achievements row shows your latest badges — tap it to see your full collection',
     ],
   },
   {
-    key: "achievements",
-    label: "Achievements",
-    icon: "trophy",
-    headline: "Earn badges as you train",
-    body: "Every session, streak, and milestone you hit unlocks a badge. Tap the Achievements row on Home to see your full collection — earned badges glow with colour, locked ones show exactly what you need to do to unlock them.",
+    key: 'achievements',
+    label: 'Achievements',
+    icon: 'trophy',
+    headline: 'Earn badges as you train',
+    body: 'Every session, streak, and milestone you hit unlocks a badge. Tap the Achievements row on Home to see your full collection — earned badges glow with colour, locked ones show exactly what you need to do to unlock them.',
     tips: [
-      "Over 400 badges across milestones, streaks, strength, volume, and more",
-      "Tap any badge to see its description and how to earn it",
-      "New badge unlocks appear as a pop-up toast above the tab bar",
+      'Over 400 badges across milestones, streaks, strength, volume, and more',
+      'Tap any badge to see its description and how to earn it',
+      'New badge unlocks appear as a pop-up toast above the tab bar',
     ],
   },
   {
-    key: "profile",
-    label: "Profile",
-    icon: "person",
-    headline: "Your stats and settings",
-    body: "All your personal data in one place. Tap your avatar to set a photo. Update your bodyweight regularly — it drives suggested loads for every single session.",
+    key: 'profile',
+    label: 'Profile',
+    icon: 'person',
+    headline: 'Your stats and settings',
+    body: 'All your personal data in one place. Tap your avatar to set a photo. Update your bodyweight regularly — it drives suggested loads for every single session.',
     tips: [
-      "1RM records are tracked automatically from your sessions",
-      "Milestone badges unlock at 1, 5, 10, 25, 50+ sessions",
-      "Change equipment, experience level and goals anytime",
+      '1RM records are tracked automatically from your sessions',
+      'Milestone badges unlock at 1, 5, 10, 25, 50+ sessions',
+      'Change equipment, experience level and goals anytime',
     ],
   },
   {
-    key: "train",
-    label: "Train",
-    icon: "barbell",
-    headline: "Your strength program",
-    body: "Follows a structured Lower Body → Upper Body → Full Body rotation so every muscle group gets hit. Every session adapts exercises, sets and loads to your equipment and energy level.",
+    key: 'train',
+    label: 'Train',
+    icon: 'barbell',
+    headline: 'Your strength program',
+    body: 'Follows a structured Lower Body → Upper Body → Full Body rotation so every muscle group gets hit. Every session adapts exercises, sets and loads to your equipment and energy level.',
     tips: [
-      "Custom sessions let you design your own workout",
-      "Pain settings automatically swap exercises to protect problem areas",
-      "Test weeks every 12–18 sessions measure your strength gains",
+      'Custom sessions let you design your own workout',
+      'Pain settings automatically swap exercises to protect problem areas',
+      'Test weeks every 12–18 sessions measure your strength gains',
     ],
   },
   {
-    key: "flex",
-    label: "Flex",
-    icon: "leaf",
-    headline: "Recovery and conditioning",
-    body: "Your active recovery toolkit. Mobility flows, prehab circuits, flexibility sessions and conditioning workouts — all designed to keep you moving on rest days.",
+    key: 'flex',
+    label: 'Flex',
+    icon: 'leaf',
+    headline: 'Recovery and conditioning',
+    body: 'Your active recovery toolkit. Mobility flows, prehab circuits, flexibility sessions and conditioning workouts — all designed to keep you moving on rest days.',
     tips: [
-      "Targeted prehab focuses on a specific joint or region",
-      "Conditioning ranges from light aerobic to full HIIT",
-      "Flexibility sessions use long holds for deep mobility work",
+      'Targeted prehab focuses on a specific joint or region',
+      'Conditioning ranges from light aerobic to full HIIT',
+      'Flexibility sessions use long holds for deep mobility work',
     ],
   },
   {
-    key: "workouts",
-    label: "Stats",
-    icon: "bar-chart",
-    headline: "Your progress over time",
-    body: "Every session, set and weight is logged here. Your charts and KPIs fill in as you train — the more you do, the more insight you get.",
+    key: 'workouts',
+    label: 'Stats',
+    icon: 'bar-chart',
+    headline: 'Your progress over time',
+    body: 'Every session, set and weight is logged here. Your charts and KPIs fill in as you train — the more you do, the more insight you get.',
     tips: [
-      "Session breakdown shows volume by session type",
-      "Strength KPIs track your best squat, bench and deadlift",
-      "Weekly volume chart shows if you are consistently doing more work",
+      'Session breakdown shows volume by session type',
+      'Strength KPIs track your best squat, bench and deadlift',
+      'Weekly volume chart shows if you are consistently doing more work',
     ],
     showMockup: true,
   },
@@ -151,11 +145,11 @@ function GlowIcon({
   }, [active]);
 
   return (
-    <View style={{ alignItems: "center", justifyContent: "center" }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       {active && (
         <Animated.View
           style={{
-            position: "absolute",
+            position: 'absolute',
             width: 42,
             height: 42,
             borderRadius: 21,
@@ -182,13 +176,7 @@ function GlowIcon({
 
 // ─── Train tab icon (elevated circle + optional glow) ────────────────────────
 
-function TrainTabIcon({
-  focused,
-  glowing,
-}: {
-  focused: boolean;
-  glowing: boolean;
-}) {
+function TrainTabIcon({ focused, glowing }: { focused: boolean; glowing: boolean }) {
   const C = useColors();
   const btnColor = C.primaryLight;
   const pulse = useRef(new Animated.Value(0)).current;
@@ -221,11 +209,11 @@ function TrainTabIcon({
   }, [glowing]);
 
   return (
-    <View style={{ alignItems: "center", justifyContent: "center" }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       {glowing && (
         <Animated.View
           style={{
-            position: "absolute",
+            position: 'absolute',
             width: 62,
             height: 62,
             borderRadius: 31,
@@ -251,8 +239,8 @@ function TrainTabIcon({
           width: 48,
           height: 48,
           borderRadius: 24,
-          alignItems: "center",
-          justifyContent: "center",
+          alignItems: 'center',
+          justifyContent: 'center',
           transform: [{ translateY: -6 }],
           backgroundColor: btnColor,
           opacity: focused ? 1 : 0.7,
@@ -292,9 +280,9 @@ function StatsMockup() {
       <Text
         style={{
           fontSize: 11,
-          fontFamily: "Inter_600SemiBold",
+          fontFamily: 'Inter_600SemiBold',
           color: C.textTertiary,
-          textTransform: "uppercase",
+          textTransform: 'uppercase',
           letterSpacing: 0.6,
         }}
       >
@@ -304,8 +292,8 @@ function StatsMockup() {
       {/* Mini bar chart */}
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
+          flexDirection: 'row',
+          alignItems: 'flex-end',
           height: 44,
           gap: 5,
         }}
@@ -316,8 +304,7 @@ function StatsMockup() {
             style={{
               flex: 1,
               height: (h / 100) * 44,
-              backgroundColor:
-                i === bars.length - 1 ? C.primary : C.primaryMuted,
+              backgroundColor: i === bars.length - 1 ? C.primary : C.primaryMuted,
               borderRadius: 4,
             }}
           />
@@ -325,42 +312,38 @@ function StatsMockup() {
       </View>
 
       {/* Session type badges */}
-      <View style={{ flexDirection: "row", gap: 6 }}>
-        {(
-          [
-            { label: "Lower ×4" },
-            { label: "Upper ×4" },
-            { label: "Full ×4" },
-          ] as const
-        ).map((b, i) => (
-          <View
-            key={i}
-            style={{
-              backgroundColor: C.primarySurface,
-              borderRadius: 8,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderWidth: 1,
-              borderColor: C.primaryMuted,
-            }}
-          >
-            <Text
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {([{ label: 'Lower ×4' }, { label: 'Upper ×4' }, { label: 'Full ×4' }] as const).map(
+          (b, i) => (
+            <View
+              key={i}
               style={{
-                fontSize: 10,
-                fontFamily: "Inter_600SemiBold",
-                color: C.primary,
+                backgroundColor: C.primarySurface,
+                borderRadius: 8,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderWidth: 1,
+                borderColor: C.primaryMuted,
               }}
             >
-              {b.label}
-            </Text>
-          </View>
-        ))}
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: 'Inter_600SemiBold',
+                  color: C.primary,
+                }}
+              >
+                {b.label}
+              </Text>
+            </View>
+          )
+        )}
       </View>
 
       {/* Strength KPIs */}
       <View
         style={{
-          flexDirection: "row",
+          flexDirection: 'row',
           borderTopWidth: 1,
           borderTopColor: C.borderLight,
           paddingTop: 8,
@@ -368,16 +351,16 @@ function StatsMockup() {
       >
         {(
           [
-            { label: "Squat", value: "120kg" },
-            { label: "Bench", value: "85kg" },
-            { label: "Deadlift", value: "140kg" },
+            { label: 'Squat', value: '120kg' },
+            { label: 'Bench', value: '85kg' },
+            { label: 'Deadlift', value: '140kg' },
           ] as const
         ).map((kpi, i) => (
-          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
             <Text
               style={{
                 fontSize: 15,
-                fontFamily: "Inter_700Bold",
+                fontFamily: 'Inter_700Bold',
                 color: C.primary,
               }}
             >
@@ -386,7 +369,7 @@ function StatsMockup() {
             <Text
               style={{
                 fontSize: 10,
-                fontFamily: "Inter_400Regular",
+                fontFamily: 'Inter_400Regular',
                 color: C.textTertiary,
               }}
             >
@@ -417,18 +400,10 @@ function TourSheet({
   const tab = tabKey ? TOUR_TABS.find((t) => t.key === tabKey) : null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onDismiss}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
       <Pressable style={styles.backdrop} onPress={onDismiss} />
       <View
-        style={[
-          styles.sheet,
-          { paddingBottom: insets.bottom + 20, backgroundColor: C.surface },
-        ]}
+        style={[styles.sheet, { paddingBottom: insets.bottom + 20, backgroundColor: C.surface }]}
       >
         <View style={[styles.sheetHandle, { backgroundColor: C.border }]} />
 
@@ -439,47 +414,24 @@ function TourSheet({
           >
             {/* Header */}
             <View style={styles.sheetHeaderRow}>
-              <View
-                style={[
-                  styles.sheetIconBadge,
-                  { backgroundColor: C.primarySurface },
-                ]}
-              >
-                <Ionicons
-                  name={tab.icon as any}
-                  size={20}
-                  color={C.primary}
-                />
+              <View style={[styles.sheetIconBadge, { backgroundColor: C.primarySurface }]}>
+                <Ionicons name={tab.icon as any} size={20} color={C.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text
-                  style={[styles.sheetTabLabel, { color: C.textTertiary }]}
-                >
-                  {tab.label}
-                </Text>
-                <Text style={[styles.sheetHeadline, { color: C.text }]}>
-                  {tab.headline}
-                </Text>
+                <Text style={[styles.sheetTabLabel, { color: C.textTertiary }]}>{tab.label}</Text>
+                <Text style={[styles.sheetHeadline, { color: C.text }]}>{tab.headline}</Text>
               </View>
             </View>
 
             {/* Body */}
-            <Text style={[styles.sheetBody, { color: C.textSecondary }]}>
-              {tab.body}
-            </Text>
+            <Text style={[styles.sheetBody, { color: C.textSecondary }]}>{tab.body}</Text>
 
             {/* Tips */}
             <View style={{ gap: 8 }}>
               {tab.tips.map((tip, i) => (
                 <View key={i} style={styles.tipRow}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={15}
-                    color={C.primary}
-                  />
-                  <Text style={[styles.tipText, { color: C.textSecondary }]}>
-                    {tip}
-                  </Text>
+                  <Ionicons name="checkmark-circle" size={15} color={C.primary} />
+                  <Text style={[styles.tipText, { color: C.textSecondary }]}>{tip}</Text>
                 </View>
               ))}
             </View>
@@ -500,7 +452,7 @@ function TourSheet({
           testID="tour-sheet-got-it"
         >
           <Text style={[styles.gotItText, { color: C.textInverse }]}>
-            {isLast ? "Let's go!" : "Got it"}
+            {isLast ? "Let's go!" : 'Got it'}
           </Text>
         </Pressable>
       </View>
@@ -523,23 +475,14 @@ function TourPromptBar({
   const progress = tabsSeen / totalTabs;
 
   return (
-    <View
-      style={[
-        styles.promptBar,
-        { backgroundColor: C.surface, borderColor: C.borderLight },
-      ]}
-    >
+    <View style={[styles.promptBar, { backgroundColor: C.surface, borderColor: C.borderLight }]}>
       <View style={{ flex: 1, gap: 3 }}>
-        <Text style={[styles.promptTitle, { color: C.text }]}>
-          Explore the app ✦
-        </Text>
+        <Text style={[styles.promptTitle, { color: C.text }]}>Explore the app ✦</Text>
         <Text style={[styles.promptSub, { color: C.textSecondary }]}>
           {"Tap each tab to discover what's inside"}
         </Text>
         {/* Progress track */}
-        <View
-          style={[styles.progressTrack, { backgroundColor: C.surfaceTertiary }]}
-        >
+        <View style={[styles.progressTrack, { backgroundColor: C.surfaceTertiary }]}>
           <View
             style={[
               styles.progressFill,
@@ -567,7 +510,7 @@ function TourPromptBar({
 
 export default function TabLayout() {
   const C = useColors();
-  const isWeb = Platform.OS === "web";
+  const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
 
   const { tourComplete, setTourComplete } = useAppStore();
@@ -616,16 +559,16 @@ export default function TabLayout() {
     // After the Home tab sheet is dismissed, navigate into the Achievements
     // screen with tour mode active so the user sees their real badge grid.
     // Mark achievements as seen immediately so it counts toward tour completion.
-    if (key === "index") {
+    if (key === 'index') {
       setTabsSeen((prev) => {
         const next = new Set(prev);
-        next.add("achievements");
+        next.add('achievements');
         if (next.size >= TOUR_TABS.length) {
           setTourComplete(true);
         }
         return next;
       });
-      setTimeout(() => router.push("/achievements?tour=1"), 350);
+      setTimeout(() => router.push('/achievements?tour=1'), 350);
     }
   }, [activeSheet, setTourComplete]);
 
@@ -642,7 +585,7 @@ export default function TabLayout() {
           tabBarInactiveTintColor: C.tabInactive,
           headerShown: false,
           tabBarStyle: {
-            position: "absolute",
+            position: 'absolute',
             backgroundColor: C.background,
             borderTopWidth: 1,
             borderTopColor: C.border,
@@ -651,24 +594,19 @@ export default function TabLayout() {
           },
           tabBarBackground: () =>
             isWeb ? (
-              <View
-                style={[StyleSheet.absoluteFill, { backgroundColor: C.background }]}
-              />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: C.background }]} />
             ) : null,
         }}
       >
         <Tabs.Screen
           name="index"
-          listeners={{ tabPress: () => handleTabPress("index") }}
+          listeners={{ tabPress: () => handleTabPress('index') }}
           options={{
-            title: "Home",
+            title: 'Home',
             tabBarIcon: ({ color, size, focused }) => (
-              <GlowIcon
-                active={tourActive && !tabsSeen.has("index")}
-                primaryColor={C.primary}
-              >
+              <GlowIcon active={tourActive && !tabsSeen.has('index')} primaryColor={C.primary}>
                 <Ionicons
-                  name={focused ? "home" : "home-outline"}
+                  name={focused ? 'home' : 'home-outline'}
                   size={size || 24}
                   color={color}
                 />
@@ -678,16 +616,13 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="profile"
-          listeners={{ tabPress: () => handleTabPress("profile") }}
+          listeners={{ tabPress: () => handleTabPress('profile') }}
           options={{
-            title: "Profile",
+            title: 'Profile',
             tabBarIcon: ({ color, size, focused }) => (
-              <GlowIcon
-                active={tourActive && !tabsSeen.has("profile")}
-                primaryColor={C.primary}
-              >
+              <GlowIcon active={tourActive && !tabsSeen.has('profile')} primaryColor={C.primary}>
                 <Ionicons
-                  name={focused ? "person" : "person-outline"}
+                  name={focused ? 'person' : 'person-outline'}
                   size={size || 24}
                   color={color}
                 />
@@ -697,35 +632,29 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="train"
-          listeners={{ tabPress: () => handleTabPress("train") }}
+          listeners={{ tabPress: () => handleTabPress('train') }}
           options={{
-            title: "Train",
-            tabBarItemStyle: { overflow: "visible" },
+            title: 'Train',
+            tabBarItemStyle: { overflow: 'visible' },
             tabBarIcon: ({ focused }) => (
-              <TrainTabIcon
-                focused={focused}
-                glowing={tourActive && !tabsSeen.has("train")}
-              />
+              <TrainTabIcon focused={focused} glowing={tourActive && !tabsSeen.has('train')} />
             ),
             tabBarLabelStyle: {
               fontSize: 10,
-              fontWeight: "600",
+              fontWeight: '600',
               marginTop: 2,
             },
           }}
         />
         <Tabs.Screen
           name="flex"
-          listeners={{ tabPress: () => handleTabPress("flex") }}
+          listeners={{ tabPress: () => handleTabPress('flex') }}
           options={{
-            title: "Flex",
+            title: 'Flex',
             tabBarIcon: ({ color, size, focused }) => (
-              <GlowIcon
-                active={tourActive && !tabsSeen.has("flex")}
-                primaryColor={C.primary}
-              >
+              <GlowIcon active={tourActive && !tabsSeen.has('flex')} primaryColor={C.primary}>
                 <Ionicons
-                  name={focused ? "leaf" : "leaf-outline"}
+                  name={focused ? 'leaf' : 'leaf-outline'}
                   size={size || 24}
                   color={color}
                 />
@@ -735,16 +664,13 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="workouts"
-          listeners={{ tabPress: () => handleTabPress("workouts") }}
+          listeners={{ tabPress: () => handleTabPress('workouts') }}
           options={{
-            title: "Stats",
+            title: 'Stats',
             tabBarIcon: ({ color, size, focused }) => (
-              <GlowIcon
-                active={tourActive && !tabsSeen.has("workouts")}
-                primaryColor={C.primary}
-              >
+              <GlowIcon active={tourActive && !tabsSeen.has('workouts')} primaryColor={C.primary}>
                 <Ionicons
-                  name={focused ? "bar-chart" : "bar-chart-outline"}
+                  name={focused ? 'bar-chart' : 'bar-chart-outline'}
                   size={size || 24}
                   color={color}
                 />
@@ -758,12 +684,7 @@ export default function TabLayout() {
       {tourActive && (
         <>
           {/* Prompt bar floats above the tab bar */}
-          <View
-            style={[
-              styles.promptWrapper,
-              { bottom: tabBarBottom + 10 },
-            ]}
-          >
+          <View style={[styles.promptWrapper, { bottom: tabBarBottom + 10 }]}>
             <TourPromptBar
               tabsSeen={tabsSeen.size}
               totalTabs={TOUR_TABS.length}
@@ -787,88 +708,88 @@ export default function TabLayout() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 22,
     paddingTop: 10,
-    maxHeight: "88%",
+    maxHeight: '88%',
     gap: 16,
   },
   sheetHandle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    alignSelf: "center",
+    alignSelf: 'center',
     marginBottom: 4,
   },
   sheetHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
   sheetIconBadge: {
     width: 42,
     height: 42,
     borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetTabLabel: {
     fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    textTransform: "uppercase",
+    fontFamily: 'Inter_500Medium',
+    textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   sheetHeadline: {
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: 'Inter_700Bold',
     marginTop: 2,
     lineHeight: 23,
   },
   sheetBody: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: 'Inter_400Regular',
     lineHeight: 21,
   },
   tipRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
   },
   tipText: {
     flex: 1,
     fontSize: 13,
-    fontFamily: "Inter_400Regular",
+    fontFamily: 'Inter_400Regular',
     lineHeight: 18,
   },
   gotItBtn: {
     borderRadius: 14,
     paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 4,
   },
   gotItText: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: 'Inter_700Bold',
   },
   promptWrapper: {
-    position: "absolute",
+    position: 'absolute',
     left: 16,
     right: 16,
     zIndex: 99,
   },
   promptBar: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -876,17 +797,17 @@ const styles = StyleSheet.create({
   },
   promptTitle: {
     fontSize: 13,
-    fontFamily: "Inter_700Bold",
+    fontFamily: 'Inter_700Bold',
   },
   promptSub: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: 'Inter_400Regular',
   },
   progressTrack: {
     height: 3,
     borderRadius: 2,
     marginTop: 5,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   progressFill: {
     height: 3,
@@ -899,6 +820,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: 'Inter_600SemiBold',
   },
 });

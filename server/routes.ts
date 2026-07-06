@@ -37,9 +37,11 @@ class PersistedRateLimitMap {
   set(email: string, timestamps: number[]): void {
     this.mem.set(email, timestamps);
     if (this.ready) {
-      storage.saveRateLimits(this.storeName, email, timestamps).catch(err =>
-        console.error(`[RateLimit] Failed to persist ${this.storeName} for ${email}:`, err),
-      );
+      storage
+        .saveRateLimits(this.storeName, email, timestamps)
+        .catch((err) =>
+          console.error(`[RateLimit] Failed to persist ${this.storeName} for ${email}:`, err)
+        );
     }
   }
 }
@@ -62,18 +64,25 @@ class PersistedCounterMap {
   set(email: string, count: number): void {
     this.mem.set(email, count);
     if (this.ready) {
-      storage.saveCounter(this.storeName, email, count).catch(err =>
-        console.error(`[RateLimit] Failed to persist counter ${this.storeName} for ${email}:`, err),
-      );
+      storage
+        .saveCounter(this.storeName, email, count)
+        .catch((err) =>
+          console.error(
+            `[RateLimit] Failed to persist counter ${this.storeName} for ${email}:`,
+            err
+          )
+        );
     }
   }
 
   delete(email: string): void {
     this.mem.delete(email);
     if (this.ready) {
-      storage.deleteCounter(this.storeName, email).catch(err =>
-        console.error(`[RateLimit] Failed to delete counter ${this.storeName} for ${email}:`, err),
-      );
+      storage
+        .deleteCounter(this.storeName, email)
+        .catch((err) =>
+          console.error(`[RateLimit] Failed to delete counter ${this.storeName} for ${email}:`, err)
+        );
     }
   }
 }
@@ -85,7 +94,7 @@ const otpFailureStore = new PersistedCounterMap('otp_failures');
 function isRateLimited(store: PersistedRateLimitMap, max: number, email: string): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = store.get(email).filter(t => t > windowStart);
+  const timestamps = store.get(email).filter((t) => t > windowStart);
   if (timestamps.length >= max) {
     store.set(email, timestamps);
     return true;
@@ -99,9 +108,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-const resendClient = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 function signToken(userId: string, email: string): string {
   return jwt.sign({ userId, email }, JWT_SECRET!, { expiresIn: JWT_EXPIRY });
@@ -176,7 +183,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const normalised = email.trim().toLowerCase();
 
     if (isRateLimited(otpRateLimitStore, REQUEST_RATE_LIMIT_MAX, normalised)) {
-      return res.status(429).json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
+      return res
+        .status(429)
+        .json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
     }
 
     const code = generateOtp();
@@ -206,13 +215,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const normalised = email.trim().toLowerCase();
 
     if (isRateLimited(verifyRateLimitStore, VERIFY_RATE_LIMIT_MAX, normalised)) {
-      return res.status(429).json({ message: 'Too many verification attempts. Please wait a few minutes and try again.' });
+      return res.status(429).json({
+        message: 'Too many verification attempts. Please wait a few minutes and try again.',
+      });
     }
 
     const entry = await storage.getOtp(normalised);
 
     if (!entry) {
-      return res.status(401).json({ message: 'No code was requested for this email. Please request a new one.' });
+      return res
+        .status(401)
+        .json({ message: 'No code was requested for this email. Please request a new one.' });
     }
     if (Date.now() > entry.expiresAt) {
       await storage.clearOtp(normalised);
@@ -224,7 +237,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (failures >= OTP_MAX_FAILURES) {
         await storage.clearOtp(normalised);
         otpFailureStore.delete(normalised);
-        return res.status(401).json({ message: 'Too many incorrect attempts. Please request a new code.' });
+        return res
+          .status(401)
+          .json({ message: 'Too many incorrect attempts. Please request a new code.' });
       }
       otpFailureStore.set(normalised, failures);
       return res.status(401).json({ message: 'Incorrect code. Please try again.' });
@@ -262,7 +277,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!token) return res.status(401).json({ message: 'Unauthorised.' });
     const payload = verifyToken(token);
     if (!payload) return res.status(401).json({ message: 'Invalid or expired token.' });
-    const result = await pool.query('SELECT data FROM user_data WHERE user_id = $1', [payload.userId]);
+    const result = await pool.query('SELECT data FROM user_data WHERE user_id = $1', [
+      payload.userId,
+    ]);
     return res.json({ data: result.rows[0]?.data ?? null });
   });
 
@@ -311,7 +328,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/privacy', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(legalPageHtml('Privacy Policy', `
+    res.status(200).send(
+      legalPageHtml(
+        'Privacy Policy',
+        `
       <p>This Privacy Policy describes how Grow Performance &amp; Rehab ("Grow", "we", "us", or "our") collects, uses, and protects information about you when you use our mobile application and related services (collectively, the "Service").</p>
 
       <h2>1. Information We Collect</h2>
@@ -363,12 +383,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       <h2>9. Contact</h2>
       <p>Questions or requests regarding this Privacy Policy should be directed to: <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>.</p>
-    `));
+    `
+      )
+    );
   });
 
   app.get('/terms', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(200).send(legalPageHtml('Terms of Service', `
+    res.status(200).send(
+      legalPageHtml(
+        'Terms of Service',
+        `
       <p>These Terms of Service ("Terms") govern your access to and use of the Grow Performance &amp; Rehab mobile application and related services (collectively, the "Service"), provided by Grow Performance &amp; Rehab ("Grow", "we", "us", or "our"). By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</p>
 
       <h2>1. Eligibility</h2>
@@ -421,7 +446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       <h2>11. Contact</h2>
       <p>Questions about these Terms? Contact us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>.</p>
-    `));
+    `
+      )
+    );
   });
 
   const httpServer = createServer(app);

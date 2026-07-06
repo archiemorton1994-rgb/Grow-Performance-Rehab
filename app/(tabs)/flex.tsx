@@ -24,23 +24,49 @@ import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 // Used by contract tests (tests/prehab-regions.check.mjs) to verify that
 // every region reachable via the picker has exercises in PREHAB_BY_REGION.
 export const REGION_FRONT = new Set<PainRegion>([
-  'neck', 'front_shoulder', 'chest', 'bicep', 'elbow_wrist',
-  'core_ribs', 'hip_groin', 'quads', 'knee', 'calf_shin', 'ankle_achilles',
+  'neck',
+  'front_shoulder',
+  'chest',
+  'bicep',
+  'elbow_wrist',
+  'core_ribs',
+  'hip_groin',
+  'quads',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
   'upper_back',
 ]);
 
 export const REGION_BACK = new Set<PainRegion>([
-  'neck', 'rear_shoulder', 'tricep', 'elbow_wrist', 'upper_back',
-  'lat_mid_back', 'lower_back', 'hip_groin', 'glutes', 'hamstrings',
-  'knee', 'calf_shin', 'ankle_achilles',
+  'neck',
+  'rear_shoulder',
+  'tricep',
+  'elbow_wrist',
+  'upper_back',
+  'lat_mid_back',
+  'lower_back',
+  'hip_groin',
+  'glutes',
+  'hamstrings',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
 ]);
 
 const FLEX_IMAGES: Record<string, any> = {
-  mobility:    require('@/assets/images/sessions/mobility.png'),
+  mobility: require('@/assets/images/sessions/mobility.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
 };
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+const ALL_TIERS: EquipmentTier[] = [
+  'bodyweight',
+  'bands',
+  'dumbbells',
+  'kettlebells',
+  'barbell',
+  'fullgym',
+];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -54,8 +80,11 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
 type ModalType = 'recovery' | 'mobility' | 'prehab' | 'conditioning' | null;
 type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
 
-function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility' | 'conditioning'): string {
-  const matches = completedSessions.filter(s => s.sessionType === sessionType);
+function getFlexRecency(
+  completedSessions: any[],
+  sessionType: 'prehab' | 'flexibility' | 'conditioning'
+): string {
+  const matches = completedSessions.filter((s) => s.sessionType === sessionType);
   if (matches.length === 0) return 'Not tried yet';
   const days = daysSince(matches[0].date);
   if (days === 0) return 'Done today';
@@ -74,7 +103,9 @@ type FlexSessionInfo = {
   sessionType: 'prehab' | 'flexibility';
 };
 
-function getSessionInfo(C: ReturnType<typeof useColors>): Record<Exclude<ModalType, 'conditioning' | null>, FlexSessionInfo> {
+function getSessionInfo(
+  C: ReturnType<typeof useColors>
+): Record<Exclude<ModalType, 'conditioning' | null>, FlexSessionInfo> {
   return {
     recovery: {
       title: 'Recovery',
@@ -82,7 +113,8 @@ function getSessionInfo(C: ReturnType<typeof useColors>): Record<Exclude<ModalTy
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       duration: 'Full-body joint circuit · 20–30 min',
-      description: 'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
+      description:
+        'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
       cta: 'Start Recovery',
       sessionType: 'prehab',
     },
@@ -92,7 +124,8 @@ function getSessionInfo(C: ReturnType<typeof useColors>): Record<Exclude<ModalTy
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       duration: 'Full-body stretch session · 30–40 min',
-      description: 'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
+      description:
+        'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
       cta: 'Start Mobility',
       sessionType: 'flexibility',
     },
@@ -102,7 +135,8 @@ function getSessionInfo(C: ReturnType<typeof useColors>): Record<Exclude<ModalTy
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
       duration: 'Area-focused circuit · 20–30 min',
-      description: 'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
+      description:
+        'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
       cta: 'Choose Area & Start',
       sessionType: 'prehab',
     },
@@ -173,27 +207,27 @@ function RegionBodyPicker({
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomInset + 24, gap: 10 }}
       keyboardShouldPersistTaps="handled"
     >
-      <BodyDiagram
-        selected={pending}
-        onSelect={onPendingChange}
-      />
+      <BodyDiagram selected={pending} onSelect={onPendingChange} />
       {pending && (
         <Pressable
           onPress={() => onConfirm(pending)}
-          style={({ pressed }) => [{
-            flexDirection: 'row' as const,
-            alignItems: 'center' as const,
-            justifyContent: 'center' as const,
-            gap: 8,
-            backgroundColor: C.primary,
-            borderRadius: 14,
-            paddingVertical: 15,
-            shadowColor: C.primary,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.35,
-            shadowRadius: 8,
-            elevation: 5,
-          }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] }]}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row' as const,
+              alignItems: 'center' as const,
+              justifyContent: 'center' as const,
+              gap: 8,
+              backgroundColor: C.primary,
+              borderRadius: 14,
+              paddingVertical: 15,
+              shadowColor: C.primary,
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.35,
+              shadowRadius: 8,
+              elevation: 5,
+            },
+            pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
+          ]}
           testID={`${testPrefix}-start-region`}
         >
           <Ionicons name="play" size={16} color={C.textInverse} />
@@ -204,28 +238,43 @@ function RegionBodyPicker({
       )}
       <Pressable
         onPress={onFullBody}
-        style={({ pressed }) => [{
-          flexDirection: 'row' as const,
-          alignItems: 'center' as const,
-          justifyContent: 'center' as const,
-          gap: 8,
-          backgroundColor: pending ? C.surfaceTertiary : C.primary,
-          borderRadius: 14,
-          paddingVertical: 15,
-          borderWidth: pending ? 1 : 0,
-          borderColor: C.borderLight,
-          ...(pending ? {} : {
-            shadowColor: C.primary,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.35,
-            shadowRadius: 8,
-            elevation: 5,
-          }),
-        }, pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] }]}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+            gap: 8,
+            backgroundColor: pending ? C.surfaceTertiary : C.primary,
+            borderRadius: 14,
+            paddingVertical: 15,
+            borderWidth: pending ? 1 : 0,
+            borderColor: C.borderLight,
+            ...(pending
+              ? {}
+              : {
+                  shadowColor: C.primary,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }),
+          },
+          pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
+        ]}
         testID={`${testPrefix}-fullbody`}
       >
-        <Ionicons name="flash-outline" size={16} color={pending ? C.textSecondary : C.textInverse} />
-        <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: pending ? C.textSecondary : C.textInverse }}>
+        <Ionicons
+          name="flash-outline"
+          size={16}
+          color={pending ? C.textSecondary : C.textInverse}
+        />
+        <Text
+          style={{
+            fontSize: 16,
+            fontFamily: 'Inter_700Bold',
+            color: pending ? C.textSecondary : C.textInverse,
+          }}
+        >
           Full body circuit
         </Text>
       </Pressable>
@@ -248,8 +297,11 @@ export default function FlexScreen() {
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
-  const availableTiers: EquipmentTier[] = isBeginnerExperience ? ['bodyweight', 'bands'] : ALL_TIERS;
-  const profileEquipment: EquipmentTier[] = (equipmentTiers && equipmentTiers.length > 0) ? equipmentTiers : ['bodyweight'];
+  const availableTiers: EquipmentTier[] = isBeginnerExperience
+    ? ['bodyweight', 'bands']
+    : ALL_TIERS;
+  const profileEquipment: EquipmentTier[] =
+    equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight'];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
   const isOverrideActive = sessionEquipmentOverride !== null;
@@ -259,12 +311,21 @@ export default function FlexScreen() {
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
 
   const [recoveryPending, setRecoveryPending] = useState<PainRegion | undefined>(undefined);
-  const [prehabPending, setPrehabPending]     = useState<PainRegion | undefined>(undefined);
+  const [prehabPending, setPrehabPending] = useState<PainRegion | undefined>(undefined);
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
 
-  const prehabRecency = useMemo(() => getFlexRecency(completedSessions, 'prehab'), [completedSessions]);
-  const flexRecency = useMemo(() => getFlexRecency(completedSessions, 'flexibility'), [completedSessions]);
-  const condRecency = useMemo(() => getFlexRecency(completedSessions, 'conditioning'), [completedSessions]);
+  const prehabRecency = useMemo(
+    () => getFlexRecency(completedSessions, 'prehab'),
+    [completedSessions]
+  );
+  const flexRecency = useMemo(
+    () => getFlexRecency(completedSessions, 'flexibility'),
+    [completedSessions]
+  );
+  const condRecency = useMemo(
+    () => getFlexRecency(completedSessions, 'conditioning'),
+    [completedSessions]
+  );
 
   const SESSION_INFO = useMemo(() => getSessionInfo(C), [C]);
   const CONDITIONING_LEVELS = useMemo(() => getConditioningLevels(C), [C]);
@@ -293,13 +354,13 @@ export default function FlexScreen() {
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
         if (prev.includes('fullgym')) {
-          return prev.filter(t => t !== 'fullgym');
+          return prev.filter((t) => t !== 'fullgym');
         } else {
           return [...TIER_ORDER];
         }
       }
       if (prev.includes(tier)) {
-        const next = prev.filter(t => t !== tier && t !== 'fullgym');
+        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
         return next.length > 0 ? next : [tier];
       }
       return [...prev, tier];
@@ -321,8 +382,17 @@ export default function FlexScreen() {
   const handleStart = (sessionType: 'prehab' | 'flexibility') => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
-    router.push({ pathname: '/readiness', params: { sessionType, isTestWeek: 'false', ...(equipmentOverrideParam ? { equipmentOverride: equipmentOverrideParam } : {}) } });
+    const equipmentOverrideParam = sessionEquipmentOverride
+      ? JSON.stringify(sessionEquipmentOverride)
+      : undefined;
+    router.push({
+      pathname: '/readiness',
+      params: {
+        sessionType,
+        isTestWeek: 'false',
+        ...(equipmentOverrideParam ? { equipmentOverride: equipmentOverrideParam } : {}),
+      },
+    });
   };
 
   const handlePrehabRegion = (region: PainRegion | 'fullbody') => {
@@ -342,10 +412,12 @@ export default function FlexScreen() {
     });
   };
 
-  const handleConditioningStart = (level: typeof CONDITIONING_LEVELS[number]) => {
+  const handleConditioningStart = (level: (typeof CONDITIONING_LEVELS)[number]) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
-    const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
+    const equipmentOverrideParam = sessionEquipmentOverride
+      ? JSON.stringify(sessionEquipmentOverride)
+      : undefined;
     router.push({
       pathname: '/readiness',
       params: {
@@ -441,10 +513,18 @@ export default function FlexScreen() {
             size={13}
             color={isOverrideActive ? C.primary : C.textSecondary}
           />
-          <Text style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}>
-            {isOverrideActive ? `Today: ${getEquipmentLabel(todayEffectiveTier)}` : getEquipmentLabel(todayEffectiveTier)}
+          <Text
+            style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}
+          >
+            {isOverrideActive
+              ? `Today: ${getEquipmentLabel(todayEffectiveTier)}`
+              : getEquipmentLabel(todayEffectiveTier)}
           </Text>
-          <Ionicons name="chevron-down" size={11} color={isOverrideActive ? C.primary : C.textTertiary} />
+          <Ionicons
+            name="chevron-down"
+            size={11}
+            color={isOverrideActive ? C.primary : C.textTertiary}
+          />
         </Pressable>
         {isOverrideActive && (
           <Pressable
@@ -477,10 +557,15 @@ export default function FlexScreen() {
                 testID={`flex-row-${row.key}`}
               >
                 <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
-                  {FLEX_IMAGES[row.key]
-                    ? <Image source={FLEX_IMAGES[row.key]} style={styles.navIconImage} resizeMode="contain" />
-                    : <Ionicons name={row.icon} size={26} color={row.iconColor} />
-                  }
+                  {FLEX_IMAGES[row.key] ? (
+                    <Image
+                      source={FLEX_IMAGES[row.key]}
+                      style={styles.navIconImage}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Ionicons name={row.icon} size={26} color={row.iconColor} />
+                  )}
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>{row.title}</Text>
@@ -513,7 +598,11 @@ export default function FlexScreen() {
                 <Text style={styles.sheetTitle}>Recovery</Text>
                 <Text style={styles.sheetDuration}>Full-body joint circuit · 20–30 min</Text>
               </View>
-              <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Pressable
+                onPress={closeModal}
+                style={styles.closeBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={20} color={C.textSecondary} />
               </Pressable>
             </View>
@@ -538,20 +627,31 @@ export default function FlexScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.sheetHandle} />
 
             {activeInfo && (
               <>
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
-                    <Image source={FLEX_IMAGES['mobility']} style={styles.sheetIconImage} resizeMode="contain" />
+                    <Image
+                      source={FLEX_IMAGES['mobility']}
+                      style={styles.sheetIconImage}
+                      resizeMode="contain"
+                    />
                   </View>
                   <View style={styles.sheetHeaderText}>
                     <Text style={styles.sheetTitle}>{activeInfo.title}</Text>
                     <Text style={styles.sheetDuration}>{activeInfo.duration}</Text>
                   </View>
-                  <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Pressable
+                    onPress={closeModal}
+                    style={styles.closeBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
                     <Ionicons name="close" size={20} color={C.textSecondary} />
                   </Pressable>
                 </View>
@@ -594,7 +694,11 @@ export default function FlexScreen() {
                 <Text style={styles.sheetTitle}>Targeted Prehab</Text>
                 <Text style={styles.sheetDuration}>Area-focused circuit · 20–30 min</Text>
               </View>
-              <Pressable onPress={closeModal} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Pressable
+                onPress={closeModal}
+                style={styles.closeBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close" size={20} color={C.textSecondary} />
               </Pressable>
             </View>
@@ -619,7 +723,10 @@ export default function FlexScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.sheetHandle} />
 
             <View style={styles.sheetHeader}>
@@ -640,7 +747,8 @@ export default function FlexScreen() {
             </View>
 
             <Text style={styles.sheetDesc}>
-              Pick your intensity. Your session will be matched to your equipment and the selected level - from a steady aerobic circuit to a high-intensity HIIT blast.
+              Pick your intensity. Your session will be matched to your equipment and the selected
+              level - from a steady aerobic circuit to a high-intensity HIIT blast.
             </Text>
 
             <View style={styles.levelList}>
@@ -679,7 +787,17 @@ export default function FlexScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setSheetOpen(false)} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16, gap: 8 }]}>
           <View style={styles.sheetHandle} />
-          <View style={[styles.sheetHeader, { justifyContent: 'space-between', alignItems: 'flex-start', gap: 0, marginBottom: 2 }]}>
+          <View
+            style={[
+              styles.sheetHeader,
+              {
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: 0,
+                marginBottom: 2,
+              },
+            ]}
+          >
             <View>
               <Text style={[styles.sheetTitle, { fontSize: 17 }]}>Equipment today</Text>
               <Text style={styles.sheetSubtitle}>This only affects the current session</Text>
@@ -705,7 +823,9 @@ export default function FlexScreen() {
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
-              <Text style={styles.beginnerNoteText}>Bodyweight & Bands — unlock more in profile</Text>
+              <Text style={styles.beginnerNoteText}>
+                Bodyweight & Bands — unlock more in profile
+              </Text>
             </View>
           )}
 
@@ -724,7 +844,18 @@ export default function FlexScreen() {
                 ]}
                 testID={`flex-sheet-equipment-${tier}`}
               >
-                <View style={[styles.tierIcon, { backgroundColor: isActive ? C.primary : isAvailable ? C.primaryMuted : C.surfaceTertiary }]}>
+                <View
+                  style={[
+                    styles.tierIcon,
+                    {
+                      backgroundColor: isActive
+                        ? C.primary
+                        : isAvailable
+                          ? C.primaryMuted
+                          : C.surfaceTertiary,
+                    },
+                  ]}
+                >
                   <Ionicons
                     name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
                     size={16}
@@ -732,19 +863,26 @@ export default function FlexScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.tierLabel, isActive && { color: C.primary }, !isAvailable && { color: C.textTertiary }]}>
+                  <Text
+                    style={[
+                      styles.tierLabel,
+                      isActive && { color: C.primary },
+                      !isAvailable && { color: C.textTertiary },
+                    ]}
+                  >
                     {getEquipmentLabel(tier)}
                   </Text>
-                  <Text style={styles.tierSub}>{isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}</Text>
+                  <Text style={styles.tierSub}>
+                    {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
+                  </Text>
                 </View>
-                {!isAvailable
-                  ? <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
-                  : (
-                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
-                    </View>
-                  )
-                }
+                {!isAvailable ? (
+                  <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
+                ) : (
+                  <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                    {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                  </View>
+                )}
               </Pressable>
             );
           })}
@@ -815,7 +953,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     navBtnText: { flex: 1 },
     navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
     navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
-    navRecency: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
+    navRecency: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 2,
+    },
 
     sheetOverlay: {
       flex: 1,
@@ -853,7 +996,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sheetIconImage: { width: 38, height: 38 },
     sheetHeaderText: { flex: 1 },
     sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
-    sheetDuration: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 3 },
+    sheetDuration: {
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 3,
+    },
     closeBtn: {
       width: 32,
       height: 32,
@@ -910,7 +1058,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     levelTextWrap: { flex: 1 },
     levelLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
-    levelDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    levelDesc: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 2,
+    },
 
     pickerSheet: {
       backgroundColor: C.surface,

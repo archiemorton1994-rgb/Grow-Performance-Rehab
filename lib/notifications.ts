@@ -17,10 +17,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 const REMINDER_BODIES = [
   "Your session is ready. Let's go 💪",
-  "Consistency builds strength. Time to train.",
+  'Consistency builds strength. Time to train.',
   "You'll feel great after. Let's get started.",
-  "Ready to move? Your workout is waiting.",
-  "Another session, another step forward.",
+  'Ready to move? Your workout is waiting.',
+  'Another session, another step forward.',
 ];
 
 export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
@@ -54,8 +54,7 @@ export async function cancelWorkoutReminder(): Promise<void> {
   if (!isNotificationsSupported()) return;
   try {
     await Notifications.cancelScheduledNotificationAsync(REMINDER_ID);
-  } catch {
-  }
+  } catch {}
 }
 
 export function formatReminderTime(timeStr: string): string {
@@ -69,13 +68,19 @@ export function formatReminderTime(timeStr: string): string {
 }
 
 export const REMINDER_TIME_OPTIONS: string[] = [
-  '06:00', '07:00', '08:00', '09:00', '10:00',
-  '12:00', '17:00', '18:00', '19:00', '20:00',
+  '06:00',
+  '07:00',
+  '08:00',
+  '09:00',
+  '10:00',
+  '12:00',
+  '17:00',
+  '18:00',
+  '19:00',
+  '20:00',
 ];
 
-export const STREAK_TIME_OPTIONS: string[] = [
-  '17:00', '18:00', '19:00', '20:00', '21:00',
-];
+export const STREAK_TIME_OPTIONS: string[] = ['17:00', '18:00', '19:00', '20:00', '21:00'];
 
 const NUDGE_ID = 'grow-missed-workout';
 const NUDGE_INTERVAL_SECONDS = 72000; // 20 hours
@@ -83,8 +88,8 @@ const NUDGE_INTERVAL_SECONDS = 72000; // 20 hours
 const NUDGE_BODIES = [
   "Ready for today's session? Your next workout is waiting.",
   "You haven't trained today. Even 30 minutes makes a difference.",
-  "Consistency is everything. Time to get one in.",
-  "Your body is ready. Come get a session in.",
+  'Consistency is everything. Time to get one in.',
+  'Your body is ready. Come get a session in.',
   "Don't break the streak - your workout is right here.",
 ];
 
@@ -135,7 +140,13 @@ function secondsUntilNextRiskAlert(timeStr: string): number | null {
   const riskDays = new Set([0, 3, 4, 5, 6]); // Sun, Wed, Thu, Fri, Sat
   for (let daysAhead = 0; daysAhead <= 7; daysAhead++) {
     const candidate = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate() + daysAhead, h, m, 0, 0,
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + daysAhead,
+      h,
+      m,
+      0,
+      0
     );
     if (candidate <= now) continue; // time has already passed today
     if (!riskDays.has(candidate.getDay())) continue; // safe (Mon/Tue)
@@ -147,7 +158,7 @@ function secondsUntilNextRiskAlert(timeStr: string): number | null {
 export async function scheduleStreakProtectionAlert(
   timeStr: string = '20:00',
   weeklyGoal: number = 2,
-  weekCount: number = 0,
+  weekCount: number = 0
 ): Promise<void> {
   if (!isNotificationsSupported()) return;
   const { status } = await Notifications.getPermissionsAsync();
@@ -170,9 +181,10 @@ export async function scheduleStreakProtectionAlert(
 
   await cancelStreakProtectionAlert();
   const remaining = weeklyGoal - weekCount;
-  const body = remaining === 1
-    ? "Just 1 more session this week to keep your streak alive. Don't stop now!"
-    : `You need ${remaining} more sessions this week to protect your streak. Get one in now!`;
+  const body =
+    remaining === 1
+      ? "Just 1 more session this week to keep your streak alive. Don't stop now!"
+      : `You need ${remaining} more sessions this week to protect your streak. Get one in now!`;
 
   // Schedule a ONE-SHOT notification for the next eligible risk day/time.
   // Non-repeating means it cannot leak into Mon/Tue of the following week.
@@ -208,7 +220,7 @@ const BODYWEIGHT_INTERVAL_DAYS = 21;
 
 export async function scheduleBodyweightReminder(
   bodyweightUpdatedAt: string | null,
-  hasCompletedSessions: boolean,
+  hasCompletedSessions: boolean
 ): Promise<void> {
   if (!isNotificationsSupported()) return;
   const { status } = await Notifications.getPermissionsAsync();

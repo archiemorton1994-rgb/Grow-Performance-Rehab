@@ -9,13 +9,17 @@ export interface SessionMeta {
 }
 
 export const SESSION_META: Record<SessionType, SessionMeta> = {
-  squat:        { label: 'Lower Body',   subtitle: 'Quads · Glutes · Hamstrings', icon: 'walk-outline' },
-  bench:        { label: 'Upper Body',   subtitle: 'Chest · Shoulders · Triceps', icon: 'person-outline' },
-  deadlift:     { label: 'Full Body',    subtitle: 'Back · Hips · Legs',          icon: 'body-outline' },
-  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina',            icon: 'flame-outline' },
-  prehab:       { label: 'Prehab',       subtitle: 'Joint health & Mobility',     icon: 'shield-checkmark-outline' },
-  flexibility:  { label: 'Flexibility',  subtitle: 'Stretching & Recovery',       icon: 'leaf-outline' },
-  custom:       { label: 'Custom',       subtitle: 'Pick your own exercises',     icon: 'create-outline' },
+  squat: { label: 'Lower Body', subtitle: 'Quads · Glutes · Hamstrings', icon: 'walk-outline' },
+  bench: { label: 'Upper Body', subtitle: 'Chest · Shoulders · Triceps', icon: 'person-outline' },
+  deadlift: { label: 'Full Body', subtitle: 'Back · Hips · Legs', icon: 'body-outline' },
+  conditioning: { label: 'Conditioning', subtitle: 'Cardio & Stamina', icon: 'flame-outline' },
+  prehab: {
+    label: 'Prehab',
+    subtitle: 'Joint health & Mobility',
+    icon: 'shield-checkmark-outline',
+  },
+  flexibility: { label: 'Flexibility', subtitle: 'Stretching & Recovery', icon: 'leaf-outline' },
+  custom: { label: 'Custom', subtitle: 'Pick your own exercises', icon: 'create-outline' },
 };
 
 export const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
@@ -45,12 +49,12 @@ export interface SessionColorPair {
 
 export function getSessionColors(C: AppColors): Record<SessionType, SessionColorPair> {
   return {
-    squat:        { bg: C.primaryMuted,        color: C.primary },
-    bench:        { bg: C.badgeVolume,         color: C.badgeVolumeText },
-    deadlift:     { bg: C.categoryNeuro,       color: C.categoryNeuroText },
-    conditioning: { bg: C.categoryPrehab,      color: C.categoryPrehabText },
-    prehab:       { bg: C.categoryMechanical,  color: C.categoryMechanicalText },
-    flexibility:  { bg: C.categoryCooldown,    color: C.categoryCooldownText },
-    custom:       { bg: C.categoryFinisher,    color: C.categoryFinisherText },
+    squat: { bg: C.primaryMuted, color: C.primary },
+    bench: { bg: C.badgeVolume, color: C.badgeVolumeText },
+    deadlift: { bg: C.categoryNeuro, color: C.categoryNeuroText },
+    conditioning: { bg: C.categoryPrehab, color: C.categoryPrehabText },
+    prehab: { bg: C.categoryMechanical, color: C.categoryMechanicalText },
+    flexibility: { bg: C.categoryCooldown, color: C.categoryCooldownText },
+    custom: { bg: C.categoryFinisher, color: C.categoryFinisherText },
   };
 }

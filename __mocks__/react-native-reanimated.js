@@ -8,17 +8,25 @@ const React = require('react');
 const useSharedValue = (initial) => ({ value: initial });
 
 const useAnimatedStyle = (fn) => {
-  try { return fn(); } catch (_) { return {}; }
+  try {
+    return fn();
+  } catch (_) {
+    return {};
+  }
 };
 
 const useAnimatedProps = (fn) => {
-  try { return fn(); } catch (_) { return {}; }
+  try {
+    return fn();
+  } catch (_) {
+    return {};
+  }
 };
 
 const withSequence = (...args) => args[args.length - 1];
-const withTiming   = (toValue) => toValue;
-const withRepeat   = (animation) => animation;
-const withSpring   = (toValue) => toValue;
+const withTiming = (toValue) => toValue;
+const withRepeat = (animation) => animation;
+const withSpring = (toValue) => toValue;
 const cancelAnimation = () => {};
 const interpolateColor = () => 'transparent';
 
@@ -38,14 +46,14 @@ const makeEntryAnimation = () => {
 };
 
 const FadeInDown = makeEntryAnimation();
-const FadeInUp   = makeEntryAnimation();
-const FadeIn     = makeEntryAnimation();
+const FadeInUp = makeEntryAnimation();
+const FadeIn = makeEntryAnimation();
 
 const Easing = {
   inOut: (fn) => fn,
-  ease:  (t) => t,
-  out:   (fn) => fn,
-  in:    (fn) => fn,
+  ease: (t) => t,
+  out: (fn) => fn,
+  in: (fn) => fn,
   linear: (t) => t,
   bezier: () => (t) => t,
 };

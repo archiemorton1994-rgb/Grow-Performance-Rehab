@@ -42,12 +42,12 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const dbSrc      = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
-const engineSrc  = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
+const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 const sessionSrc = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
 
 let failures = 0;
-let total    = 0;
+let total = 0;
 
 function check(label, condition, detail) {
   total++;
@@ -77,18 +77,18 @@ let searchPos = 0;
 
 while (true) {
   // Locate the next category: 'main' or category: 'accessory' occurrence.
-  const catMainIdx = dbSrc.indexOf("category: 'main'",      searchPos);
-  const catAccIdx  = dbSrc.indexOf("category: 'accessory'", searchPos);
+  const catMainIdx = dbSrc.indexOf("category: 'main'", searchPos);
+  const catAccIdx = dbSrc.indexOf("category: 'accessory'", searchPos);
 
   if (catMainIdx === -1 && catAccIdx === -1) break;
 
   let catPos;
   let category;
   if (catMainIdx === -1 || (catAccIdx !== -1 && catAccIdx < catMainIdx)) {
-    catPos   = catAccIdx;
+    catPos = catAccIdx;
     category = 'accessory';
   } else {
-    catPos   = catMainIdx;
+    catPos = catMainIdx;
     category = 'main';
   }
 
@@ -98,45 +98,60 @@ while (true) {
   // so the first '{' encountered while scanning backwards at depth 0 IS the
   // opening brace of the exercise object.
   let backDepth = 0;
-  let objOpen   = -1;
+  let objOpen = -1;
   for (let i = catPos - 1; i >= 0; i--) {
     if (dbSrc[i] === '}') backDepth++;
     else if (dbSrc[i] === '{') {
-      if (backDepth === 0) { objOpen = i; break; }
+      if (backDepth === 0) {
+        objOpen = i;
+        break;
+      }
       backDepth--;
     }
   }
 
-  if (objOpen === -1) { searchPos = catPos + 1; continue; }
+  if (objOpen === -1) {
+    searchPos = catPos + 1;
+    continue;
+  }
 
   // Scan forwards from objOpen to find the matching closing '}'.
   let fwdDepth = 0;
-  let objEnd   = -1;
+  let objEnd = -1;
   for (let i = objOpen; i < dbSrc.length; i++) {
     if (dbSrc[i] === '{') fwdDepth++;
     else if (dbSrc[i] === '}') {
       fwdDepth--;
-      if (fwdDepth === 0) { objEnd = i; break; }
+      if (fwdDepth === 0) {
+        objEnd = i;
+        break;
+      }
     }
   }
 
-  if (objEnd === -1) { searchPos = catPos + 1; continue; }
+  if (objEnd === -1) {
+    searchPos = catPos + 1;
+    continue;
+  }
 
   const block = dbSrc.slice(objOpen, objEnd + 1);
 
   // Extract id and name — both always use single quotes in exercise-db.ts.
   // Use the first match to get the exercise's own id/name, not the swapAlternative's.
-  const idMatch   = block.match(/\bid:\s*'([^']+)'/);
+  const idMatch = block.match(/\bid:\s*'([^']+)'/);
   const nameMatch = block.match(/\bname:\s*'([^']+)'/);
 
-  if (!idMatch) { searchPos = objEnd + 1; continue; }
+  if (!idMatch) {
+    searchPos = objEnd + 1;
+    continue;
+  }
 
   exercises.push({
-    id:                 idMatch[1],
-    name:               nameMatch ? nameMatch[1] : '(unknown)',
+    id: idMatch[1],
+    name: nameMatch ? nameMatch[1] : '(unknown)',
     category,
     hasSwapAlternative: block.includes('swapAlternative:'),
-    hasComfortVariant:  block.includes('comfortVariant:'),
+    hasComfortVariant: block.includes('comfortVariant:'),
   });
 
   searchPos = objEnd + 1;
@@ -147,28 +162,32 @@ while (true) {
 // exercises users would swap one-for-one), and 1RM tests are assessment protocols
 // where substituting a different exercise would invalidate the test.
 const strengthExercises = exercises.filter(
-  e => !e.id.startsWith('cond-') && !e.id.includes('-1rm-'),
+  (e) => !e.id.startsWith('cond-') && !e.id.includes('-1rm-')
 );
-const condExercises = exercises.filter(e => e.id.startsWith('cond-'));
-const testExercises = exercises.filter(e => e.id.includes('-1rm-'));
+const condExercises = exercises.filter((e) => e.id.startsWith('cond-'));
+const testExercises = exercises.filter((e) => e.id.includes('-1rm-'));
 
-const mainCount      = strengthExercises.filter(e => e.category === 'main').length;
-const accessoryCount = strengthExercises.filter(e => e.category === 'accessory').length;
+const mainCount = strengthExercises.filter((e) => e.category === 'main').length;
+const accessoryCount = strengthExercises.filter((e) => e.category === 'accessory').length;
 
 check(
   `at least 1 'main' strength exercise found (found ${mainCount})`,
   mainCount >= 1,
-  'no main-category exercises found — check lib/exercise-db.ts',
+  'no main-category exercises found — check lib/exercise-db.ts'
 );
 
 check(
   `at least 1 'accessory' strength exercise found (found ${accessoryCount})`,
   accessoryCount >= 1,
-  'no accessory-category exercises found — check lib/exercise-db.ts',
+  'no accessory-category exercises found — check lib/exercise-db.ts'
 );
 
-console.log(`  · ${mainCount} main, ${accessoryCount} accessory → ${strengthExercises.length} strength exercises to check`);
-console.log(`  · ${condExercises.length} conditioning circuit(s) and ${testExercises.length} 1RM test protocol(s) skipped (not individually swappable)`);
+console.log(
+  `  · ${mainCount} main, ${accessoryCount} accessory → ${strengthExercises.length} strength exercises to check`
+);
+console.log(
+  `  · ${condExercises.length} conditioning circuit(s) and ${testExercises.length} 1RM test protocol(s) skipped (not individually swappable)`
+);
 
 // ─── 2. Swap coverage — every strength exercise has swapAlternative ────────────
 console.log('\n[2] Swap coverage — every strength main/accessory exercise has swapAlternative');
@@ -184,7 +203,7 @@ for (const ex of strengthExercises) {
   check(
     `'${ex.id}' (${ex.name}) [${ex.category}] has swapAlternative`,
     ex.hasSwapAlternative,
-    detail,
+    detail
   );
 }
 
@@ -194,25 +213,25 @@ console.log('\n[3] Engine wiring — swap path is reachable in workout-engine.ts
 check(
   'swapAlternative is read from ExerciseTemplate in workout-engine.ts',
   engineSrc.includes('swapAlternative'),
-  'swapAlternative reference missing — swap feature may be broken',
+  'swapAlternative reference missing — swap feature may be broken'
 );
 
 check(
   'swap1 falls back to comfortVariant when swapAlternative is absent',
   engineSrc.includes('swapAlternative ?? t.comfortVariant'),
-  'fallback missing — exercises with only comfortVariant would show empty swap modal',
+  'fallback missing — exercises with only comfortVariant would show empty swap modal'
 );
 
 check(
   'hasSwap is derived from swap alternative in workout-engine.ts',
   engineSrc.includes('hasSwap'),
-  'hasSwap field not found — swap button visibility may be uncontrolled',
+  'hasSwap field not found — swap button visibility may be uncontrolled'
 );
 
 check(
   'swap button is gated on exercise.hasSwap in session.tsx',
   sessionSrc.includes('exercise.hasSwap'),
-  'exercise.hasSwap not referenced in session.tsx — swap button may always show/hide incorrectly',
+  'exercise.hasSwap not referenced in session.tsx — swap button may always show/hide incorrectly'
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

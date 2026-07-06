@@ -55,9 +55,13 @@ const useAppStore = (selector) => {
 const useStore = useAppStore;
 
 /** Override store state for a single test. Call __clearStoreOverride() in afterEach. */
-const __setStoreOverride = (state) => { _storeOverride = state; };
+const __setStoreOverride = (state) => {
+  _storeOverride = state;
+};
 /** Restore default store state after a test that called __setStoreOverride. */
-const __clearStoreOverride = () => { _storeOverride = null; };
+const __clearStoreOverride = () => {
+  _storeOverride = null;
+};
 
 const STRENGTH_SESSION_TYPES = ['squat', 'bench', 'deadlift'];
 

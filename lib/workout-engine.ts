@@ -1,4 +1,13 @@
-import { EquipmentTier, EnergyLevel, ExerciseFeedback, FitnessGoal, PainRegion, SessionType, TimeAvailable, UserProfile } from './store';
+import {
+  EquipmentTier,
+  EnergyLevel,
+  ExerciseFeedback,
+  FitnessGoal,
+  PainRegion,
+  SessionType,
+  TimeAvailable,
+  UserProfile,
+} from './store';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -83,7 +92,9 @@ type MovementPattern = NonNullable<ExerciseTemplate['movementPattern']>;
  * Because it only reorders (never drops) and adds no randomness, it composes
  * cleanly on top of `seededShuffle` as a secondary sort key.
  */
-function diversifyByMovementPattern<T extends { movementPattern?: MovementPattern }>(arr: T[]): T[] {
+function diversifyByMovementPattern<T extends { movementPattern?: MovementPattern }>(
+  arr: T[]
+): T[] {
   if (arr.length <= 2) return [...arr];
   const remaining = [...arr];
   const result: T[] = [];
@@ -112,13 +123,17 @@ function diversifyByMovementPattern<T extends { movementPattern?: MovementPatter
 function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
   arr: T[],
   seed: number,
-  diversify: boolean = true,
+  diversify: boolean = true
 ): T[] {
   const shuffled = seededShuffle(arr, seed);
   return diversify ? diversifyByMovementPattern(shuffled) : shuffled;
 }
 
-function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', isDumbbell?: boolean): Exercise {
+function templateToExercise(
+  t: ExerciseTemplate,
+  badge?: 'comfort' | 'volume',
+  isDumbbell?: boolean
+): Exercise {
   // swap1 = swapAlternative (preferred) or comfortVariant
   // swap2 = comfortVariant when swapAlternative is also present (gives two distinct alternatives)
   const swap1 = t.swapAlternative ?? t.comfortVariant;
@@ -133,7 +148,7 @@ function templateToExercise(t: ExerciseTemplate, badge?: 'comfort' | 'volume', i
     category: t.category,
     badge,
     videoId: t.videoId,
-    hasSwap: !!(swap1),
+    hasSwap: !!swap1,
     swapName: swap1?.name,
     swapCue: swap1?.cue,
     swapLoad: swap1?.suggestedLoad,
@@ -193,15 +208,16 @@ function personalizeLoad(
     lower.includes('moderate pace') ||
     lower.includes('circuit') ||
     lower.includes('effort') ||
-    !(/\d/.test(rawLoad))
+    !/\d/.test(rawLoad)
   ) {
     return rawLoad;
   }
 
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
-  const feedbackMult = (exerciseId && exerciseFeedback?.[exerciseId]?.multiplier)
-    ? exerciseFeedback[exerciseId].multiplier
-    : 1.0;
+  const feedbackMult =
+    exerciseId && exerciseFeedback?.[exerciseId]?.multiplier
+      ? exerciseFeedback[exerciseId].multiplier
+      : 1.0;
 
   // ── Auto session-count multiplier (+1% per 3 strength sessions, max +20%) ──
   // This baseline increment models the natural progressive overload across a
@@ -209,7 +225,7 @@ function personalizeLoad(
   // only (squat / bench / deadlift) - conditioning, prehab, and flexibility
   // do not load the main lifts and so must not advance the multiplier.
   // The caller is responsible for filtering; the parameter name reflects this.
-  const autoMult = Math.min(1.20, 1 + Math.floor(strengthSessionCount / 3) * 0.01);
+  const autoMult = Math.min(1.2, 1 + Math.floor(strengthSessionCount / 3) * 0.01);
   // Combine feedback and auto progression, capped at the existing 1.5 max.
   // feedbackMult: carries "too easy" (+7%), thumbs up (+3%), thumbs down (-5%)
   // adjustments from prior sessions and stacks multiplicatively on top of the
@@ -253,7 +269,9 @@ function personalizeLoad(
     if (performance === 'failed') {
       // Incomplete sets or thumbs-down - hold at same weight
       if (__DEV__) {
-        console.log(`[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed)`);
+        console.log(
+          `[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed)`
+        );
       }
       return `${lastKg} kg`;
     }
@@ -262,7 +280,7 @@ function personalizeLoad(
     // store so it resets to 0 precisely when feedback is received for *this*
     // exercise, not based on unrelated global session count changes.
     const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
-    const step = (performance === 'easy' || normalStreak >= 3) ? 5 : 2.5;
+    const step = performance === 'easy' || normalStreak >= 3 ? 5 : 2.5;
     // Apply exact additive step (hold / +2.5 / +5) as specified.
     // feedbackMult is NOT applied on top - it is only used in the heuristic
     // path below (when there is no previous logged weight to anchor from).
@@ -278,8 +296,8 @@ function personalizeLoad(
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
       `[personalizeLoad] ex=${exerciseId} (heuristic) strengthSessions=${strengthSessionCount}` +
-      ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
-      ` combinedMult=${combinedMult.toFixed(3)}`
+        ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
+        ` combinedMult=${combinedMult.toFixed(3)}`
     );
   }
 
@@ -289,10 +307,16 @@ function personalizeLoad(
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
     const goalPct: Record<string, number> = {
-      strength: 0.85, muscle: 0.75, fat_loss: 0.65, fitness: 0.70, rehab: 0.50, power: 0.90,
+      strength: 0.85,
+      muscle: 0.75,
+      fat_loss: 0.65,
+      fitness: 0.7,
+      rehab: 0.5,
+      power: 0.9,
     };
     const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
-    const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.70), 0) / activeGoals.length;
+    const avgPct =
+      activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.7), 0) / activeGoals.length;
     const targetKg = roundTo2_5(ormKg * avgPct * combinedMult);
     return `${targetKg} kg`;
   }
@@ -301,15 +325,29 @@ function personalizeLoad(
   const REF_BW = 80;
   const bwRatio = profile.bodyweightKg / REF_BW;
 
-  const expFactor: Record<string, number> = { beginner: 0.45, intermediate: 0.70, advanced: 1.0 };
-  const goalFactor: Record<string, number> = { strength: 1.08, muscle: 1.0, fat_loss: 0.72, fitness: 0.85, rehab: 0.50, power: 1.05 };
-  const sexFactor = profile.sex === 'female' ? (isUpperBodySession ? 0.55 : 0.72) :
-                    profile.sex === 'other' ? 0.85 : 1.0;
+  const expFactor: Record<string, number> = { beginner: 0.45, intermediate: 0.7, advanced: 1.0 };
+  const goalFactor: Record<string, number> = {
+    strength: 1.08,
+    muscle: 1.0,
+    fat_loss: 0.72,
+    fitness: 0.85,
+    rehab: 0.5,
+    power: 1.05,
+  };
+  const sexFactor =
+    profile.sex === 'female'
+      ? isUpperBodySession
+        ? 0.55
+        : 0.72
+      : profile.sex === 'other'
+        ? 0.85
+        : 1.0;
 
   const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
-  const avgGoalFactor = activeGoals.reduce((sum, g) => sum + (goalFactor[g] ?? 1.0), 0) / activeGoals.length;
+  const avgGoalFactor =
+    activeGoals.reduce((sum, g) => sum + (goalFactor[g] ?? 1.0), 0) / activeGoals.length;
 
-  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.70) * avgGoalFactor * sexFactor;
+  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.7) * avgGoalFactor * sexFactor;
 
   return rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
@@ -379,12 +417,29 @@ function applyComfortOrBadge(
  *
  * When two goals are selected the deltas are averaged and rounded.
  */
-function getGoalVolumeDeltas(goals: FitnessGoal[]): { mainSetsDelta: number; accSetsDelta: number } {
-  const mainDelta: Record<FitnessGoal, number> = { strength: 1, muscle: 0, fat_loss: 0, fitness: 0, rehab: -1, power: 1 };
-  const accDelta: Record<FitnessGoal, number>  = { strength: -1, muscle: 1, fat_loss: 1, fitness: 0, rehab: -1, power: 0 };
+function getGoalVolumeDeltas(goals: FitnessGoal[]): {
+  mainSetsDelta: number;
+  accSetsDelta: number;
+} {
+  const mainDelta: Record<FitnessGoal, number> = {
+    strength: 1,
+    muscle: 0,
+    fat_loss: 0,
+    fitness: 0,
+    rehab: -1,
+    power: 1,
+  };
+  const accDelta: Record<FitnessGoal, number> = {
+    strength: -1,
+    muscle: 1,
+    fat_loss: 1,
+    fitness: 0,
+    rehab: -1,
+    power: 0,
+  };
   const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
   const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
-  const avgAcc  = active.reduce((s, g) => s + (accDelta[g]  ?? 0), 0) / active.length;
+  const avgAcc = active.reduce((s, g) => s + (accDelta[g] ?? 0), 0) / active.length;
   return { mainSetsDelta: Math.round(avgMain), accSetsDelta: Math.round(avgAcc) };
 }
 
@@ -471,8 +526,34 @@ function applyPersonalization(
 
   return {
     ...ex,
-    suggestedLoad: personalizeLoad(ex.suggestedLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance),
-    swapLoad: ex.swapLoad ? personalizeLoad(ex.swapLoad, profile, isUpperBody, ex.id, exerciseFeedback, ormKg, isMainLift, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance) : ex.swapLoad,
+    suggestedLoad: personalizeLoad(
+      ex.suggestedLoad,
+      profile,
+      isUpperBody,
+      ex.id,
+      exerciseFeedback,
+      ormKg,
+      isMainLift,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    ),
+    swapLoad: ex.swapLoad
+      ? personalizeLoad(
+          ex.swapLoad,
+          profile,
+          isUpperBody,
+          ex.id,
+          exerciseFeedback,
+          ormKg,
+          isMainLift,
+          strengthSessionCount,
+          lastLoggedWeights,
+          exerciseNormalStreak,
+          lastSessionPerformance
+        )
+      : ex.swapLoad,
     progressionNote,
   };
 }
@@ -491,7 +572,16 @@ export function generateWorkout(
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
+    return generateConditioningWorkout(
+      equipmentTier,
+      readiness,
+      profile,
+      exerciseFeedback,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    );
   }
   if (sessionType === 'prehab') {
     if (readiness?.painRegion) {
@@ -502,30 +592,30 @@ export function generateWorkout(
     // Bookend structure: [warmup (prep)] + [7-of-13 rotated middle (prehab)] + [cooldown].
     const PICK = 7;
     const allPrehab = getStandalonePrehabWorkout();
-    const warmup   = allPrehab.filter(e => e.category === 'prep');
-    const middle   = allPrehab.filter(e => e.category === 'prehab');
-    const cooldown = allPrehab.filter(e => e.category === 'cooldown');
-    const daySeed  = strengthSessionCount + Math.floor(Date.now() / 86400000);
-    const rotated  = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
+    const warmup = allPrehab.filter((e) => e.category === 'prep');
+    const middle = allPrehab.filter((e) => e.category === 'prehab');
+    const cooldown = allPrehab.filter((e) => e.category === 'cooldown');
+    const daySeed = strengthSessionCount + Math.floor(Date.now() / 86400000);
+    const rotated = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'flexibility') {
     // Rotate the middle stretch pool so users see fresh exercises across sessions.
     // Bookend structure: [warmup (prep)] + [8-of-14 rotated middle] + [cooldown bookend].
-    const allFlex  = getStandaloneFlexibilityWorkout();
-    const warmup   = allFlex.slice(0, 1);                  // Diaphragmatic Breathing (always first)
-    const cooldown = allFlex.slice(-1);                     // Legs-Up-The-Wall (always last)
-    const middle   = allFlex.slice(1, -1);                  // 14-exercise shuffleable pool
+    const allFlex = getStandaloneFlexibilityWorkout();
+    const warmup = allFlex.slice(0, 1); // Diaphragmatic Breathing (always first)
+    const cooldown = allFlex.slice(-1); // Legs-Up-The-Wall (always last)
+    const middle = allFlex.slice(1, -1); // 14-exercise shuffleable pool
 
     // Alternate between two complementary 8-exercise subsets on even vs odd days.
     // subsetA = middle[0..7], subsetB = middle[6..13] — only 2 exercises in common (indices 6–7).
     // This caps back-to-back day overlap at 2/8 (25%) vs the ~57% from random independent draws.
     // A seeded shuffle within the chosen subset still varies ordering session-to-session.
-    const dayIndex  = Math.floor(Date.now() / 86400000);
+    const dayIndex = Math.floor(Date.now() / 86400000);
     const isEvenDay = dayIndex % 2 === 0;
-    const subset    = isEvenDay ? middle.slice(0, 8) : middle.slice(6);
-    const daySeed   = (strengthSessionCount ?? 0) + dayIndex;
-    const rotated   = seededShuffleDiverse(subset, daySeed);
+    const subset = isEvenDay ? middle.slice(0, 8) : middle.slice(6);
+    const daySeed = (strengthSessionCount ?? 0) + dayIndex;
+    const rotated = seededShuffleDiverse(subset, daySeed);
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
   if (sessionType === 'custom') {
@@ -560,12 +650,14 @@ export function generateWorkout(
   // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
   // speed squats/bench/good-mornings) instead of slow activation work.
   const hasPowerGoal = profile?.goals?.includes('power') ?? false;
-  const mechanicalPool = (hasPowerGoal && !hasAches)
-    ? getPowerMechanical(mainType, equipmentTier)
-    : getMechanical(mainType, equipmentTier);
+  const mechanicalPool =
+    hasPowerGoal && !hasAches
+      ? getPowerMechanical(mainType, equipmentTier)
+      : getMechanical(mainType, equipmentTier);
   const mechanical = seededShuffleDiverse(mechanicalPool, sessionSeed);
   if (timeAvailable === '60') {
-    for (const m of mechanical.slice(0, 2)) exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
+    for (const m of mechanical.slice(0, 2))
+      exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
   } else {
     exercises.push(templateToExercise(mechanical[0], undefined, isDumbbellTier(equipmentTier)));
   }
@@ -575,9 +667,10 @@ export function generateWorkout(
   // cleans, clap push-ups) that maximise rate-of-force development before the
   // KPI lift - not just extra sets of the generic explosive exercise.
   if (timeAvailable !== '30') {
-    const neuroPool = (hasPowerGoal && !hasAches)
-      ? [getPowerNeuro(mainType, equipmentTier)]
-      : getNeuro(mainType, equipmentTier);
+    const neuroPool =
+      hasPowerGoal && !hasAches
+        ? [getPowerNeuro(mainType, equipmentTier)]
+        : getNeuro(mainType, equipmentTier);
     const neuroTemplate = seededShuffleDiverse(neuroPool, sessionSeed)[0];
     const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
     // Power goal: always perform 5 sets in the neuro block.
@@ -611,7 +704,7 @@ export function generateWorkout(
       isDumbbellExercise: isDumbbellTier(equipmentTier),
     });
   } else {
-    const badge = energy !== 'normal' ? 'volume' as const : undefined;
+    const badge = energy !== 'normal' ? ('volume' as const) : undefined;
     const ex = templateToExercise(mainTemplate, badge, isDumbbellTier(equipmentTier));
     ex.sets = baseSets;
     exercises.push(ex);
@@ -630,10 +723,10 @@ export function generateWorkout(
   //  30-min + other goals       : 1 accessory (no finisher)
   //  45/60-min + conditioning   : 1 accessory (1 conditioning ex replaces the 2nd)
   //  45/60-min + other goals    : 2 accessories + standard single finisher
-  const hasConditioningGoal = (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
-  const accCount = timeAvailable === '30'
-    ? (hasConditioningGoal ? 0 : 1)
-    : (hasConditioningGoal ? 1 : 2);
+  const hasConditioningGoal =
+    (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
+  const accCount =
+    timeAvailable === '30' ? (hasConditioningGoal ? 0 : 1) : hasConditioningGoal ? 1 : 2;
 
   for (const acc of allAccessories.slice(0, accCount)) {
     const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
@@ -647,11 +740,20 @@ export function generateWorkout(
   // slot that would otherwise have no finisher, keeping total load appropriate.
   // Other goals: standard single-exercise finisher at 45 and 60 min only
   // (30-min sessions remain tight with 1 accessory + KPI lift, no finisher).
-  const finBadge = energy !== 'normal' ? 'volume' as const : undefined;
+  const finBadge = energy !== 'normal' ? ('volume' as const) : undefined;
   if (hasConditioningGoal) {
-    const condBlock = getGoalConditioningBlock(equipmentTier, finisherKey, profile?.experienceLevel);
+    const condBlock = getGoalConditioningBlock(
+      equipmentTier,
+      finisherKey,
+      profile?.experienceLevel
+    );
     if (__DEV__) {
-      console.log('[workout-engine] Conditioning block injected (goal=fat_loss|fitness, level=' + (profile?.experienceLevel ?? 'intermediate') + '):', condBlock.map(e => e.name));
+      console.log(
+        '[workout-engine] Conditioning block injected (goal=fat_loss|fitness, level=' +
+          (profile?.experienceLevel ?? 'intermediate') +
+          '):',
+        condBlock.map((e) => e.name)
+      );
     }
     for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
   } else if (timeAvailable !== '30') {
@@ -677,8 +779,21 @@ export function generateWorkout(
   }
 
   const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) => applyPersonalization(ex, profile, isUpperBody, exerciseFeedback, bestOrmKg, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
-  const kettlebelled = equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+  const personalized = exercises.map((ex) =>
+    applyPersonalization(
+      ex,
+      profile,
+      isUpperBody,
+      exerciseFeedback,
+      bestOrmKg,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    )
+  );
+  const kettlebelled =
+    equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
   const seenNames = new Set<string>();
@@ -698,8 +813,7 @@ export function generateWorkout(
   // Guarantee ordering: finisher always last, cooldown always after finisher.
   // This is a stable sort - all non-finisher/non-cooldown exercises keep their
   // relative order exactly as assembled above.
-  const catOrder = (cat: string) =>
-    cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0;
+  const catOrder = (cat: string) => (cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0);
   return setsEnforced.sort((a, b) => catOrder(a.category) - catOrder(b.category));
 }
 
@@ -717,17 +831,32 @@ function generateConditioningWorkout(
   const { energy } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) => applyPersonalization(templateToExercise(t), profile, false, exerciseFeedback, undefined, strengthSessionCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance));
+  const personalized = templates.map((t) =>
+    applyPersonalization(
+      templateToExercise(t),
+      profile,
+      false,
+      exerciseFeedback,
+      undefined,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    )
+  );
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
 /** Named conditioning intensity levels, mapped from the Flex tab level picker. */
 export type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
 
-const CONDITIONING_LEVEL_TO_READINESS: Record<ConditioningLevel, Pick<ReadinessCheck, 'energy' | 'timeAvailable'>> = {
-  beginner:     { energy: 'low',    timeAvailable: '30' },
+const CONDITIONING_LEVEL_TO_READINESS: Record<
+  ConditioningLevel,
+  Pick<ReadinessCheck, 'energy' | 'timeAvailable'>
+> = {
+  beginner: { energy: 'low', timeAvailable: '30' },
   intermediate: { energy: 'normal', timeAvailable: '45' },
-  advanced:     { energy: 'high',   timeAvailable: '60' },
+  advanced: { energy: 'high', timeAvailable: '60' },
 };
 
 /**
@@ -749,7 +878,14 @@ export function generateWorkoutForConditioningLevel(
     painRegion: undefined,
     ...CONDITIONING_LEVEL_TO_READINESS[level],
   };
-  return generateConditioningWorkout(equipmentTier, readiness, profile, exerciseFeedback, strengthSessionCount, lastLoggedWeights);
+  return generateConditioningWorkout(
+    equipmentTier,
+    readiness,
+    profile,
+    exerciseFeedback,
+    strengthSessionCount,
+    lastLoggedWeights
+  );
 }
 
 export function generate1RMWorkout(
@@ -774,28 +910,42 @@ export function generate1RMWorkout(
  * misses.
  */
 export const REST_PERIOD_SECONDS: Partial<Record<ExerciseCategory, number>> = {
-  main: 150,        // 2–3 min → midpoint
-  accessory: 75,    // 60–90 s → midpoint
-  neuro: 60,        // 45–60 s
-  mechanical: 45,   // 30–45 s
-  prehab: 35,       // 30–45 s
+  main: 150, // 2–3 min → midpoint
+  accessory: 75, // 60–90 s → midpoint
+  neuro: 60, // 45–60 s
+  mechanical: 45, // 30–45 s
+  prehab: 35, // 30–45 s
 };
 
 export function getRestPeriod(category: ExerciseCategory): string {
   switch (category) {
-    case 'prep': return 'Move between exercises without rest - breathe into each stretch';
-    case 'mechanical': return 'Rest 30–45 sec between sets';
-    case 'neuro': return 'Rest 45–60 sec between sets - full recovery before each';
-    case 'main': return 'Rest 2–3 min between sets - full recovery is key';
-    case 'accessory': return 'Rest 60–90 sec between sets';
-    case 'prehab': return 'Rest 30–45 sec between sets';
-    case 'finisher': return 'Rest only if you need to - keep moving';
-    case 'cooldown': return 'Breathe slowly - no rest needed';
-    default: return 'Rest as needed';
+    case 'prep':
+      return 'Move between exercises without rest - breathe into each stretch';
+    case 'mechanical':
+      return 'Rest 30–45 sec between sets';
+    case 'neuro':
+      return 'Rest 45–60 sec between sets - full recovery before each';
+    case 'main':
+      return 'Rest 2–3 min between sets - full recovery is key';
+    case 'accessory':
+      return 'Rest 60–90 sec between sets';
+    case 'prehab':
+      return 'Rest 30–45 sec between sets';
+    case 'finisher':
+      return 'Rest only if you need to - keep moving';
+    case 'cooldown':
+      return 'Breathe slowly - no rest needed';
+    default:
+      return 'Rest as needed';
   }
 }
 
-export function getWeightGuide(category: ExerciseCategory, sets: number, weightUnit: 'kg' | 'lbs' = 'kg', suggestedLoad?: string): string[] {
+export function getWeightGuide(
+  category: ExerciseCategory,
+  sets: number,
+  weightUnit: 'kg' | 'lbs' = 'kg',
+  suggestedLoad?: string
+): string[] {
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
   const unit = weightUnit === 'lbs' ? 'lbs' : 'kg';
 
@@ -813,17 +963,19 @@ export function getWeightGuide(category: ExerciseCategory, sets: number, weightU
   };
 
   if (category === 'main') {
-    if (sets <= 3) return [
-      `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
-      `Set 2: Build up${w(0.7)} - approaching working weight`,
-      `Set 3: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - challenging but fully controlled`,
-    ];
-    if (sets === 4) return [
-      `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
-      `Set 2: Build up${w(0.65)} - getting into position`,
-      `Set 3: Approach set${w(0.875)} - close to working weight, stay sharp`,
-      `Set 4: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - your one quality set`,
-    ];
+    if (sets <= 3)
+      return [
+        `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
+        `Set 2: Build up${w(0.7)} - approaching working weight`,
+        `Set 3: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - challenging but fully controlled`,
+      ];
+    if (sets === 4)
+      return [
+        `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
+        `Set 2: Build up${w(0.65)} - getting into position`,
+        `Set 3: Approach set${w(0.875)} - close to working weight, stay sharp`,
+        `Set 4: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - your one quality set`,
+      ];
     // 5+ sets: ramp progressively; penultimate set is always ~87.5%, final set is working weight
     const rampGuides: string[] = [
       `Set 1: Very light warm-up${w(0.4)} - just waking up the pattern`,
@@ -832,11 +984,13 @@ export function getWeightGuide(category: ExerciseCategory, sets: number, weightU
     // Middle sets ramp from 70% up to ~75% (before the fixed penultimate ~87.5%)
     const middleCount = sets - 4; // sets after Set 2 and before penultimate and final
     for (let i = 0; i < middleCount; i++) {
-      const pct = 0.7 + (0.05 * i);
+      const pct = 0.7 + 0.05 * i;
       rampGuides.push(`Set ${i + 3}: Getting close${w(Math.min(pct, 0.8))} - building confidence`);
     }
     // Penultimate set: always ~87.5%
-    rampGuides.push(`Set ${sets - 1}: Approach set${w(0.875)} - close to working weight, stay sharp`);
+    rampGuides.push(
+      `Set ${sets - 1}: Approach set${w(0.875)} - close to working weight, stay sharp`
+    );
     // Final set: working weight
     rampGuides.push(
       `Set ${sets}: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - your one quality set, full control`
@@ -860,7 +1014,7 @@ export function getWeightGuide(category: ExerciseCategory, sets: number, weightU
  * Used by the post-session feedback flow to adjust future session weights.
  */
 export function applyFeedbackMultiplier(load: string, multiplier: number): string {
-  if (multiplier === 1 || !(/\d/.test(load))) return load;
+  if (multiplier === 1 || !/\d/.test(load)) return load;
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
   return load.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
@@ -871,59 +1025,92 @@ export function applyFeedbackMultiplier(load: string, multiplier: number): strin
 
 export function getSessionLabel(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Lower Body';
-    case 'bench': return 'Upper Body';
-    case 'deadlift': return 'Full Body';
-    case 'conditioning': return 'Conditioning';
-    case 'prehab': return 'Prehab';
-    case 'flexibility': return 'Flexibility';
-    case 'custom': return 'Custom Session';
+    case 'squat':
+      return 'Lower Body';
+    case 'bench':
+      return 'Upper Body';
+    case 'deadlift':
+      return 'Full Body';
+    case 'conditioning':
+      return 'Conditioning';
+    case 'prehab':
+      return 'Prehab';
+    case 'flexibility':
+      return 'Flexibility';
+    case 'custom':
+      return 'Custom Session';
   }
 }
 
 export function getSessionSubtitle(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'Squat pattern - quads, glutes, hamstrings';
-    case 'bench': return 'Push pattern - chest, shoulders, triceps';
-    case 'deadlift': return 'Hinge pattern - posterior chain, back, core';
-    case 'conditioning': return 'Fat burn - high calorie, cardio focus';
-    case 'prehab': return 'Joint health - full body injury prevention circuit';
-    case 'flexibility': return 'Stretch & mobility - full body long holds';
-    case 'custom': return 'Your hand-picked exercise selection';
+    case 'squat':
+      return 'Squat pattern - quads, glutes, hamstrings';
+    case 'bench':
+      return 'Push pattern - chest, shoulders, triceps';
+    case 'deadlift':
+      return 'Hinge pattern - posterior chain, back, core';
+    case 'conditioning':
+      return 'Fat burn - high calorie, cardio focus';
+    case 'prehab':
+      return 'Joint health - full body injury prevention circuit';
+    case 'flexibility':
+      return 'Stretch & mobility - full body long holds';
+    case 'custom':
+      return 'Your hand-picked exercise selection';
   }
 }
 
 export function getSessionIcon(type: SessionType): string {
   switch (type) {
-    case 'squat': return 'fitness';
-    case 'bench': return 'body';
-    case 'deadlift': return 'barbell';
-    case 'conditioning': return 'flame';
-    case 'prehab': return 'shield-checkmark';
-    case 'flexibility': return 'leaf';
-    case 'custom': return 'create';
+    case 'squat':
+      return 'fitness';
+    case 'bench':
+      return 'body';
+    case 'deadlift':
+      return 'barbell';
+    case 'conditioning':
+      return 'flame';
+    case 'prehab':
+      return 'shield-checkmark';
+    case 'flexibility':
+      return 'leaf';
+    case 'custom':
+      return 'create';
   }
 }
 
 export function getEquipmentLabel(tier: EquipmentTier): string {
   switch (tier) {
-    case 'bodyweight': return 'No Equipment';
-    case 'bands': return 'Resistance Bands';
-    case 'dumbbells': return 'Dumbbells';
-    case 'kettlebells': return 'Kettlebells';
-    case 'barbell': return 'Barbell / Squat Rack';
-    case 'fullgym': return 'Full Gym';
+    case 'bodyweight':
+      return 'No Equipment';
+    case 'bands':
+      return 'Resistance Bands';
+    case 'dumbbells':
+      return 'Dumbbells';
+    case 'kettlebells':
+      return 'Kettlebells';
+    case 'barbell':
+      return 'Barbell / Squat Rack';
+    case 'fullgym':
+      return 'Full Gym';
   }
 }
 
 export function getEquipmentIcon(tier: EquipmentTier): string {
   switch (tier) {
-    case 'bodyweight': return 'person-outline';
-    case 'bands': return 'git-compare-outline';
-    case 'dumbbells': return 'barbell-outline';
-    case 'kettlebells': return 'fitness-outline';
-    case 'barbell': return 'barbell-outline';
-    case 'fullgym': return 'business-outline';
+    case 'bodyweight':
+      return 'person-outline';
+    case 'bands':
+      return 'git-compare-outline';
+    case 'dumbbells':
+      return 'barbell-outline';
+    case 'kettlebells':
+      return 'fitness-outline';
+    case 'barbell':
+      return 'barbell-outline';
+    case 'fullgym':
+      return 'business-outline';
   }
 }
 
@@ -951,9 +1138,15 @@ export function getPainRegionLabel(region: PainRegion): string {
   return labels[region];
 }
 
-
 export function getEffectiveTier(tiers: EquipmentTier[]): EquipmentTier {
-  const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+  const TIER_ORDER: EquipmentTier[] = [
+    'bodyweight',
+    'bands',
+    'dumbbells',
+    'kettlebells',
+    'barbell',
+    'fullgym',
+  ];
   if (!tiers || tiers.length === 0) return 'bodyweight';
   let bestIdx = 0;
   for (const t of tiers) {

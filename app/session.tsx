@@ -19,12 +19,40 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, useAnimatedProps, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedProps,
+  withSpring,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated';
 import Svg, { Circle, G } from 'react-native-svg';
 import { useColors } from '@/constants/colors';
-import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import {
+  EquipmentTier,
+  EnergyLevel,
+  PainRegion,
+  SessionType,
+  TimeAvailable,
+  SetLog,
+  ExerciseLog,
+  ExerciseFeedback,
+  WeightUnit,
+  CustomExercise,
+  useAppStore,
+  STRENGTH_SESSION_TYPES,
+} from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
-import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, cancelStreakProtectionAlert, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
+import {
+  scheduleMissedWorkoutNudge,
+  cancelRestTimerNotification,
+  cancelStreakProtectionAlert,
+  REST_TIMER_NOTIF_ID,
+} from '@/lib/notifications';
 import { kgToDisplayUnit, displayUnitToKg, convertLoadString, daysSince } from '@/lib/utils';
 import {
   Exercise,
@@ -36,7 +64,6 @@ import {
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 
-
 interface ExerciseSetData {
   sets: SetLog[];
   swapCount: 0 | 1 | 2;
@@ -45,11 +72,7 @@ interface ExerciseSetData {
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
   const lower = suggestedLoad.toLowerCase();
-  return (
-    lower.startsWith('bodyweight') ||
-    lower.includes('band') ||
-    lower === 'low intensity'
-  );
+  return lower.startsWith('bodyweight') || lower.includes('band') || lower === 'low intensity';
 }
 
 function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
@@ -79,7 +102,15 @@ const RING_STROKE = 10;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['category']; trigger?: number; onTimerEnd?: () => void }) {
+function RestTimer({
+  category,
+  trigger = 0,
+  onTimerEnd,
+}: {
+  category: Exercise['category'];
+  trigger?: number;
+  onTimerEnd?: () => void;
+}) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const duration = REST_PERIOD_SECONDS[category] ?? 0;
@@ -109,20 +140,27 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     }
   }, []);
 
-  const scheduleNotif = useCallback(async (seconds: number) => {
-    if (Platform.OS === 'web') return;
-    await cancelNotif();
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') return;
-      await Notifications.scheduleNotificationAsync({
-        identifier: REST_TIMER_NOTIF_ID,
-        content: { title: 'Rest Complete', body: 'Time to hit your next set!', sound: true },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
-      });
-      notifIdRef.current = REST_TIMER_NOTIF_ID;
-    } catch {}
-  }, [cancelNotif]);
+  const scheduleNotif = useCallback(
+    async (seconds: number) => {
+      if (Platform.OS === 'web') return;
+      await cancelNotif();
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') return;
+        await Notifications.scheduleNotificationAsync({
+          identifier: REST_TIMER_NOTIF_ID,
+          content: { title: 'Rest Complete', body: 'Time to hit your next set!', sound: true },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds,
+            repeats: false,
+          },
+        });
+        notifIdRef.current = REST_TIMER_NOTIF_ID;
+      } catch {}
+    },
+    [cancelNotif]
+  );
 
   // Auto-start when trigger increments (i.e. a set was just completed).
   useEffect(() => {
@@ -170,16 +208,27 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     recompute();
     const timerId = setInterval(recompute, 1000);
     // Re-sync immediately when app returns from background.
-    const sub = Platform.OS !== 'web'
-      ? AppState.addEventListener('change', (s: AppStateStatus) => { if (s === 'active') recompute(); })
-      : null;
-    return () => { clearInterval(timerId); sub?.remove(); };
+    const sub =
+      Platform.OS !== 'web'
+        ? AppState.addEventListener('change', (s: AppStateStatus) => {
+            if (s === 'active') recompute();
+          })
+        : null;
+    return () => {
+      clearInterval(timerId);
+      sub?.remove();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, isRunning, endAt]);
 
   // Cancel notification on unmount (navigating away mid-rest)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => () => { cancelNotif(); }, []);
+  useEffect(
+    () => () => {
+      cancelNotif();
+    },
+    []
+  );
 
   if (!duration) return null;
 
@@ -256,13 +305,21 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
             <G rotation="-90" origin={`${RING_SIZE / 2},${RING_SIZE / 2}`}>
               {/* Track */}
               <Circle
-                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
-                stroke={C.primaryMuted} strokeWidth={RING_STROKE} fill="none"
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke={C.primaryMuted}
+                strokeWidth={RING_STROKE}
+                fill="none"
               />
               {/* Animated draining arc (fills back to full on completion) */}
               <AnimatedSvgCircle
-                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
-                stroke={C.primary} strokeWidth={RING_STROKE} fill="none"
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke={C.primary}
+                strokeWidth={RING_STROKE}
+                fill="none"
                 strokeDasharray={RING_CIRCUMFERENCE}
                 strokeLinecap="round"
                 animatedProps={animatedRingProps}
@@ -278,7 +335,9 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
             ) : (
               <>
                 <Text style={styles.restTimerRingLabel}>{isRunning ? 'Resting' : 'Paused'}</Text>
-                <Text style={styles.restTimerRingDigits}>{mm}:{ss}</Text>
+                <Text style={styles.restTimerRingDigits}>
+                  {mm}:{ss}
+                </Text>
               </>
             )}
           </View>
@@ -294,7 +353,11 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
               />
               <Text style={styles.restTimerRingPauseBtnText}>{isRunning ? 'Pause' : 'Resume'}</Text>
             </Pressable>
-            <Pressable onPress={addFifteen} style={styles.restTimerAddBtn} testID="rest-timer-add-15">
+            <Pressable
+              onPress={addFifteen}
+              style={styles.restTimerAddBtn}
+              testID="rest-timer-add-15"
+            >
               <Text style={styles.restTimerAddText}>+15s</Text>
             </Pressable>
             <Pressable onPress={skip} style={styles.restTimerSkipBtn}>
@@ -314,7 +377,9 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
     <View style={styles.restTimerRow}>
       <View style={[styles.restTimerBtn, { flex: 1 }]}>
         <Ionicons name="timer" size={18} color={C.primary} />
-        <Text style={styles.restTimerText}>Rest timer — {mm}:{ss}</Text>
+        <Text style={styles.restTimerText}>
+          Rest timer — {mm}:{ss}
+        </Text>
       </View>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
@@ -348,7 +413,11 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
     }
   }, [secondsLeft, isRunning]);
 
-  const reset = () => { setSecondsLeft(DURATION); setIsRunning(true); setIsDone(false); };
+  const reset = () => {
+    setSecondsLeft(DURATION);
+    setIsRunning(true);
+    setIsDone(false);
+  };
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
   const ss = String(secondsLeft % 60).padStart(2, '0');
 
@@ -389,40 +458,47 @@ export interface ActiveSetBlockHandle {
   focus: () => void;
 }
 
-const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
-  setNum: number;
-  totalSets: number;
-  data: SetLog;
-  onChange: (updated: SetLog) => void;
-  weightGuide?: string;
-  isBandExercise?: boolean;
-  isTimeExercise?: boolean;
-  previousBest?: number;
-  prevSetWeight?: number;
-  weightUnit?: WeightUnit;
-  onCompleted?: () => void;
-}>(function ActiveSetBlock({
-  setNum,
-  totalSets,
-  data,
-  onChange,
-  weightGuide,
-  isBandExercise,
-  isTimeExercise,
-  previousBest,
-  prevSetWeight,
-  weightUnit = 'kg',
-  onCompleted,
-}, forwardedRef) {
+const ActiveSetBlock = React.forwardRef<
+  ActiveSetBlockHandle,
+  {
+    setNum: number;
+    totalSets: number;
+    data: SetLog;
+    onChange: (updated: SetLog) => void;
+    weightGuide?: string;
+    isBandExercise?: boolean;
+    isTimeExercise?: boolean;
+    previousBest?: number;
+    prevSetWeight?: number;
+    weightUnit?: WeightUnit;
+    onCompleted?: () => void;
+  }
+>(function ActiveSetBlock(
+  {
+    setNum,
+    totalSets,
+    data,
+    onChange,
+    weightGuide,
+    isBandExercise,
+    isTimeExercise,
+    previousBest,
+    prevSetWeight,
+    weightUnit = 'kg',
+    onCompleted,
+  },
+  forwardedRef
+) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   // Pre-fill weight from previous set if current set has no weight yet
-  const initialWeight = data.weight > 0
-    ? String(kgToDisplayUnit(data.weight, weightUnit))
-    : prevSetWeight && prevSetWeight > 0
-      ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
-      : '';
+  const initialWeight =
+    data.weight > 0
+      ? String(kgToDisplayUnit(data.weight, weightUnit))
+      : prevSetWeight && prevSetWeight > 0
+        ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
+        : '';
 
   // Parent keys this component by setNum so it re-mounts on each new set,
   // which resets weightText state automatically.
@@ -451,7 +527,11 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
 
   const flashBg = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(flashBg.value, [0, 1], ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']),
+    backgroundColor: interpolateColor(
+      flashBg.value,
+      [0, 1],
+      ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']
+    ),
     borderRadius: 14,
   }));
 
@@ -460,12 +540,16 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
   // primary input for weighted exercises; reps for band/bodyweight.
   const weightInputRef = useRef<TextInput>(null);
   const repsInputRef = useRef<TextInput>(null);
-  React.useImperativeHandle(forwardedRef, () => ({
-    focus: () => {
-      const target = !isBandExercise ? weightInputRef.current : repsInputRef.current;
-      target?.focus();
-    },
-  }), [isBandExercise]);
+  React.useImperativeHandle(
+    forwardedRef,
+    () => ({
+      focus: () => {
+        const target = !isBandExercise ? weightInputRef.current : repsInputRef.current;
+        target?.focus();
+      },
+    }),
+    [isBandExercise]
+  );
 
   const handleWeightBlur = () => {
     const displayVal = parseFloat(weightText) || 0;
@@ -475,20 +559,23 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
 
   // Effective weight: prefer local weightText (may be pre-filled before blur) over data.weight
   const parsedWeightText = parseFloat(weightText) || 0;
-  const effectiveWeightKg = parsedWeightText > 0
-    ? displayUnitToKg(parsedWeightText, weightUnit)
-    : data.weight;
+  const effectiveWeightKg =
+    parsedWeightText > 0 ? displayUnitToKg(parsedWeightText, weightUnit) : data.weight;
 
   // Only show "New Record!" on sets that are already saved/completed, not while typing.
   // data.weight is already stored in kg - no unit conversion needed.
   const savedWeightKg = data.weight ?? 0;
-  const isNewRecord = !isBandExercise && data.completed && previousBest !== undefined
-    && previousBest > 0 && savedWeightKg > previousBest;
+  const isNewRecord =
+    !isBandExercise &&
+    data.completed &&
+    previousBest !== undefined &&
+    previousBest > 0 &&
+    savedWeightKg > previousBest;
 
   // For weighted: require both effective weight > 0 AND reps > 0. For band: reps > 0 only.
-  const isZeroBlocked = !isTimeExercise && (
-    isBandExercise ? data.reps === 0 : (effectiveWeightKg === 0 || data.reps === 0)
-  );
+  const isZeroBlocked =
+    !isTimeExercise &&
+    (isBandExercise ? data.reps === 0 : effectiveWeightKg === 0 || data.reps === 0);
 
   const handleComplete = () => {
     if (isZeroBlocked) return;
@@ -505,7 +592,9 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
   if (isTimeExercise) {
     return (
       <Animated.View style={[styles.activeSetBlock, flashStyle]}>
-        <Text style={styles.activeSetLabel}>Set {setNum} of {totalSets}</Text>
+        <Text style={styles.activeSetLabel}>
+          Set {setNum} of {totalSets}
+        </Text>
         {weightGuide && (
           <View style={styles.activeSetGuideRow}>
             <Ionicons name="information-circle-outline" size={12} color={C.primary} />
@@ -526,7 +615,9 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
 
   return (
     <Animated.View style={[styles.activeSetBlock, flashStyle]}>
-      <Text style={styles.activeSetLabel}>Set {setNum} of {totalSets}</Text>
+      <Text style={styles.activeSetLabel}>
+        Set {setNum} of {totalSets}
+      </Text>
 
       <View style={styles.activeSetInputRow}>
         {!isBandExercise && (
@@ -591,8 +682,14 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
         style={[styles.completeSetBtn, isZeroBlocked && styles.completeSetBtnDisabled]}
         testID={`set-${setNum}-check`}
       >
-        <Ionicons name="checkmark-circle" size={20} color={isZeroBlocked ? C.textTertiary : C.textInverse} />
-        <Text style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}>
+        <Ionicons
+          name="checkmark-circle"
+          size={20}
+          color={isZeroBlocked ? C.textTertiary : C.textInverse}
+        />
+        <Text
+          style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}
+        >
           Complete Set
         </Text>
       </Pressable>
@@ -650,8 +747,13 @@ export function ExerciseCard({
   const [expanded, setExpanded] = useState(true);
   const [timerTrigger, setTimerTrigger] = useState(0);
   const activeSetRef = useRef<ActiveSetBlockHandle>(null);
-  const allDone = setData.sets.every(s => s.completed);
-  const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit, exercise.suggestedLoad);
+  const allDone = setData.sets.every((s) => s.completed);
+  const weightGuides = getWeightGuide(
+    exercise.category,
+    exercise.sets,
+    weightUnit,
+    exercise.suggestedLoad
+  );
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
   const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
@@ -671,14 +773,14 @@ export function ExerciseCard({
   }));
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    prep:       { bg: C.primaryMuted,         text: C.primary,                    label: 'Warm-Up' },
-    mechanical: { bg: C.categoryMechanical,   text: C.categoryMechanicalText,     label: 'Activation' },
-    neuro:      { bg: C.categoryNeuro,        text: C.categoryNeuroText,          label: 'Power Primer' },
-    main:       { bg: C.primaryMuted,         text: C.primaryDark,                label: 'KPI Lift' },
-    accessory:  { bg: C.surfaceTertiary,      text: C.textSecondary,              label: 'Pump' },
-    prehab:     { bg: C.categoryPrehab,       text: C.categoryPrehabText,         label: 'Prehab' },
-    finisher:   { bg: C.categoryFinisher,     text: C.categoryFinisherText,       label: 'Finisher' },
-    cooldown:   { bg: C.categoryCooldown,     text: C.categoryCooldownText,       label: 'Cool Down' },
+    prep: { bg: C.primaryMuted, text: C.primary, label: 'Warm-Up' },
+    mechanical: { bg: C.categoryMechanical, text: C.categoryMechanicalText, label: 'Activation' },
+    neuro: { bg: C.categoryNeuro, text: C.categoryNeuroText, label: 'Power Primer' },
+    main: { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
+    accessory: { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Pump' },
+    prehab: { bg: C.categoryPrehab, text: C.categoryPrehabText, label: 'Prehab' },
+    finisher: { bg: C.categoryFinisher, text: C.categoryFinisherText, label: 'Finisher' },
+    cooldown: { bg: C.categoryCooldown, text: C.categoryCooldownText, label: 'Cool Down' },
   };
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
@@ -687,9 +789,8 @@ export function ExerciseCard({
   // Detection is fully case-insensitive and matches "DB" as a whole token so
   // unrelated words containing those letters aren't false positives.
   const nameImpliesDumbbell = /\bdb\b|dumbbell/i.test(exercise.name);
-  const showDumbbellNote = isDumbbellSession &&
-    !nameImpliesDumbbell &&
-    exercise.suggestedLoad.includes('kg');
+  const showDumbbellNote =
+    isDumbbellSession && !nameImpliesDumbbell && exercise.suggestedLoad.includes('kg');
 
   const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
   const repsLabel = exercise.reps;
@@ -703,14 +804,15 @@ export function ExerciseCard({
       entering={FadeInDown.delay(60 + index * 35).duration(350)}
       onLayout={onCardLayout ? (e) => onCardLayout(e.nativeEvent.layout.y) : undefined}
     >
-      <View style={[
-        styles.exerciseCard,
-        isActive && allDone && styles.exerciseCardDone,
-        isPast && styles.exerciseCardPast,
-        isFuture && styles.exerciseCardLocked,
-        !isFuture && { borderLeftWidth: 4, borderLeftColor: cat.text },
-      ]}>
-
+      <View
+        style={[
+          styles.exerciseCard,
+          isActive && allDone && styles.exerciseCardDone,
+          isPast && styles.exerciseCardPast,
+          isFuture && styles.exerciseCardLocked,
+          !isFuture && { borderLeftWidth: 4, borderLeftColor: cat.text },
+        ]}
+      >
         {/* ── Future state: locked with padlock ────────────────────────────── */}
         {isFuture && (
           <View style={styles.lockedHeader}>
@@ -718,13 +820,17 @@ export function ExerciseCard({
               <Ionicons name="lock-closed" size={14} color={C.textTertiary} />
             </View>
             <View style={styles.lockedInfo}>
-              <Text style={styles.lockedName} numberOfLines={1}>{exercise.name}</Text>
+              <Text style={styles.lockedName} numberOfLines={1}>
+                {exercise.name}
+              </Text>
               <View style={styles.lockedMeta}>
                 <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
                   <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
                   <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
                 </View>
-                <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
+                <Text style={styles.lockedMetaText}>
+                  {setsLabel} × {repDisplay}
+                </Text>
               </View>
             </View>
           </View>
@@ -737,13 +843,17 @@ export function ExerciseCard({
               <Ionicons name="checkmark" size={14} color={C.textInverse} />
             </View>
             <View style={styles.lockedInfo}>
-              <Text style={styles.pastName} numberOfLines={1}>{exercise.name}</Text>
+              <Text style={styles.pastName} numberOfLines={1}>
+                {exercise.name}
+              </Text>
               <View style={styles.lockedMeta}>
                 <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
                   <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
                   <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
                 </View>
-                <Text style={styles.lockedMetaText}>{setsLabel} × {repDisplay}</Text>
+                <Text style={styles.lockedMetaText}>
+                  {setsLabel} × {repDisplay}
+                </Text>
               </View>
             </View>
           </View>
@@ -752,222 +862,305 @@ export function ExerciseCard({
         {/* ── Active state: full interactive card with fade + scale-up ──────── */}
         {isActive && (
           <Animated.View entering={FadeIn.duration(320)}>
-          <Animated.View style={scaleStyle}>
-            <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
-              <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
-                {allDone && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
-              </View>
-              <View style={styles.exerciseInfo}>
-                <View style={styles.exerciseNameRow}>
-                  <Text style={[styles.exerciseName, allDone && styles.exerciseNameDone]} numberOfLines={2}>
-                    {exercise.name}
-                  </Text>
-                  {exercise.badge && (
-                    <View style={[styles.badge, exercise.badge === 'comfort' ? { backgroundColor: C.badgeComfort } : { backgroundColor: C.badgeVolume }]}>
-                      <Text style={[styles.badgeText, exercise.badge === 'comfort' ? { color: C.badgeComfortText } : { color: C.badgeVolumeText }]}>
-                        {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
-                      </Text>
-                    </View>
-                  )}
-                  {feedbackMultiplier !== undefined && Math.abs(feedbackMultiplier - 1.0) > 0.001 && (
-                    <View style={[styles.badge, { backgroundColor: feedbackMultiplier > 1.0 ? C.primaryMuted : C.categoryPrehab }]}>
-                      <Text style={[styles.badgeText, { color: feedbackMultiplier > 1.0 ? C.primaryDark : C.categoryPrehabText }]}>
-                        {feedbackMultiplier > 1.0 ? '↑ adjusted' : '↓ adjusted'}
-                      </Text>
-                    </View>
-                  )}
+            <Animated.View style={scaleStyle}>
+              <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
+                <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
+                  {allDone && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
                 </View>
-                <View style={styles.exerciseMeta}>
-                  <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
-                    <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
-                    <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
-                  </View>
-                  <Text style={styles.metaText}>{setsLabel} × {repDisplay}</Text>
-                </View>
-                {!isBandExercise && (
-                  <Text style={styles.targetWeightLabel}>Target weight: </Text>
-                )}
-                <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>{convertLoadString(exercise.suggestedLoad, weightUnit)}</Text>
-                {showDumbbellNote && (
-                  <Text style={styles.dumbbellNote}>Weight shown is per hand (each dumbbell)</Text>
-                )}
-                {lastSessionHint && (() => {
-                  const days = daysSince(lastSessionHint.date);
-                  const daysLabel = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
-                  const perfLabel = lastSessionHint.weight > 0
-                    ? `${kgToDisplayUnit(lastSessionHint.weight, weightUnit)} ${weightUnit} × ${lastSessionHint.reps}`
-                    : `${lastSessionHint.reps} reps`;
-                  return (
-                    <View style={styles.lastSessionRow}>
-                      <Ionicons name="time-outline" size={11} color={C.textTertiary} />
-                      <Text style={styles.lastSessionText}>Last session: {perfLabel} — {daysLabel}</Text>
-                    </View>
-                  );
-                })()}
-                {exercise.progressionNote && (
-                  <View style={styles.progressionNoteRow}>
-                    <Ionicons name="trending-up-outline" size={11} color={C.primary} />
-                    <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
-                  </View>
-                )}
-              </View>
-              <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.textTertiary} style={styles.chevron} />
-            </Pressable>
-
-            <View style={styles.actionRow}>
-              <Pressable onPress={onVideoPress} style={[styles.actionBtn, styles.actionBtnYoutube]} testID={`video-${index}`}>
-                <Ionicons name="logo-youtube" size={15} color="#FF0000" />
-                <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
-              </Pressable>
-              {exercise.hasSwap && (
-                <Pressable onPress={onSwapPress} style={[styles.actionBtn, setData.swapCount > 0 && styles.actionBtnSwapped]} testID={`swap-${index}`}>
-                  <Ionicons name="swap-horizontal-outline" size={15} color={setData.swapCount > 0 ? C.primary : C.textSecondary} />
-                  <Text style={[styles.actionBtnText, setData.swapCount > 0 && { color: C.primary }]}>
-                    {setData.swapCount === 0 ? 'Swap exercise' : 'Swap again'}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-
-            {exercise.badge === 'comfort' && comfortRegionLabel && (
-              <View style={styles.comfortNote}>
-                <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
-                <Text style={styles.comfortNoteText}>
-                  Adapted for {comfortRegionLabel} — tap Swap or skip if still uncomfortable
-                </Text>
-              </View>
-            )}
-
-            {expanded && (
-              <View style={styles.setsContainer}>
-                <View style={styles.cueContainer}>
-                  <Ionicons name="bulb-outline" size={14} color={C.primary} />
-                  <Text style={styles.cueText}>{exercise.cue}</Text>
-                </View>
-
-                {(exercise.id === 'cardio-warmup' || (exercise.category === 'prep' && index === 0)) && <CardioWarmupTimer repsStr={exercise.reps} />}
-
-                {exercise.id !== 'cardio-warmup' && !(exercise.category === 'prep' && index === 0) && (
-                  <RestTimer
-                    category={exercise.category}
-                    trigger={timerTrigger}
-                    onTimerEnd={() => activeSetRef.current?.focus()}
-                  />
-                )}
-
-                {!isBandExercise && (exercise.category === 'main' || exercise.category === 'neuro') && (
-                  <View style={styles.spotterAdvisory}>
-                    <Ionicons name="shield-checkmark-outline" size={12} color={C.textTertiary} />
-                    <Text style={styles.spotterAdvisoryText}>Consider a spotter for heavy lifts</Text>
-                  </View>
-                )}
-
-                {/* ── Set-by-set view ─────────────────────────────────────── */}
-                {(() => {
-                  const activeSetIndex = setData.activeSetIndex ?? (
-                    allDone ? setData.sets.length : setData.sets.findIndex(s => !s.completed)
-                  );
-                  // Use slice(0, activeSetIndex) but also verify each set is truly completed
-                  // - defensive for restored legacy data with irregular completion order
-                  const completedSets = setData.sets
-                    .slice(0, activeSetIndex)
-                    .filter(s => s.completed);
-                  const prevSetWeight = activeSetIndex > 0
-                    ? setData.sets[activeSetIndex - 1].weight
-                    : previousSessionWeight;
-
-                  return (
-                    <>
-                      {/* Completed sets chips */}
-                      {completedSets.length > 0 && (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          style={styles.doneChipsScroll}
-                          contentContainerStyle={styles.doneChipsContent}
+                <View style={styles.exerciseInfo}>
+                  <View style={styles.exerciseNameRow}>
+                    <Text
+                      style={[styles.exerciseName, allDone && styles.exerciseNameDone]}
+                      numberOfLines={2}
+                    >
+                      {exercise.name}
+                    </Text>
+                    {exercise.badge && (
+                      <View
+                        style={[
+                          styles.badge,
+                          exercise.badge === 'comfort'
+                            ? { backgroundColor: C.badgeComfort }
+                            : { backgroundColor: C.badgeVolume },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.badgeText,
+                            exercise.badge === 'comfort'
+                              ? { color: C.badgeComfortText }
+                              : { color: C.badgeVolumeText },
+                          ]}
                         >
-                          {completedSets.map((s, i) => {
-                            let chipLabel = '';
-                            if (isTimeExercise) {
-                              chipLabel = 'done';
-                            } else if (isBandExercise) {
-                              chipLabel = `${s.reps} reps`;
-                            } else {
-                              const w = kgToDisplayUnit(s.weight, weightUnit);
-                              chipLabel = `${w}${weightUnit} × ${s.reps}`;
-                            }
-                            return (
-                              <View key={i} style={styles.doneChip}>
-                                <Text style={styles.doneChipText}>S{i + 1} · {chipLabel}</Text>
-                                <Ionicons name="checkmark" size={10} color={C.primary} />
-                              </View>
-                            );
-                          })}
-                        </ScrollView>
-                      )}
-
-                      {/* Active set block - keyed by set index so it re-mounts fresh */}
-                      {!allDone && activeSetIndex >= 0 && activeSetIndex < setData.sets.length && (
-                        <ActiveSetBlock
-                          key={activeSetIndex}
-                          ref={activeSetRef}
-                          setNum={activeSetIndex + 1}
-                          totalSets={setData.sets.length}
-                          data={setData.sets[activeSetIndex]}
-                          onChange={(u) => onSetChange(activeSetIndex, u)}
-                          weightGuide={weightGuides[activeSetIndex]}
-                          isBandExercise={isBandExercise}
-                          isTimeExercise={isTimeExercise}
-                          previousBest={previousBest}
-                          prevSetWeight={prevSetWeight}
-                          weightUnit={weightUnit}
-                          onCompleted={() => {
-                            // Suppress the rest countdown on the very last set
-                            // of the very last exercise - the session is done,
-                            // there's nothing to rest for.
-                            const isFinalSet = activeSetIndex === setData.sets.length - 1;
-                            if (isLastExercise && isFinalSet) return;
-                            setTimerTrigger((n) => n + 1);
-                          }}
-                        />
-                      )}
-
-                      {/* All sets done indicator */}
-                      {allDone && (
-                        <View style={styles.allSetsDone}>
-                          <Ionicons name="checkmark-circle" size={18} color={C.primary} />
-                          <Text style={styles.allSetsDoneText}>All sets complete!</Text>
+                          {exercise.badge === 'comfort' ? 'Comfort' : 'Volume'}
+                        </Text>
+                      </View>
+                    )}
+                    {feedbackMultiplier !== undefined &&
+                      Math.abs(feedbackMultiplier - 1.0) > 0.001 && (
+                        <View
+                          style={[
+                            styles.badge,
+                            {
+                              backgroundColor:
+                                feedbackMultiplier > 1.0 ? C.primaryMuted : C.categoryPrehab,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              {
+                                color:
+                                  feedbackMultiplier > 1.0 ? C.primaryDark : C.categoryPrehabText,
+                              },
+                            ]}
+                          >
+                            {feedbackMultiplier > 1.0 ? '↑ adjusted' : '↓ adjusted'}
+                          </Text>
                         </View>
                       )}
-
-                      {!allDone && onSkipExercise && (
-                        <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
-                          <Text style={styles.skipExerciseLinkText}>{"Skip - couldn't do this exercise"}</Text>
-                        </Pressable>
-                      )}
-                    </>
-                  );
-                })()}
-
-                <View style={styles.noteInputRow}>
-                  <TextInput
-                    style={styles.noteInput}
-                    placeholder="Add a note…"
-                    placeholderTextColor={C.textTertiary}
-                    value={note}
-                    onChangeText={onNoteChange}
-                    returnKeyType="done"
-                    multiline={false}
-                    maxLength={160}
-                    testID={`note-${index}`}
-                  />
+                  </View>
+                  <View style={styles.exerciseMeta}>
+                    <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
+                      <View style={[styles.categoryDot, { backgroundColor: cat.text }]} />
+                      <Text style={[styles.categoryText, { color: cat.text }]}>{cat.label}</Text>
+                    </View>
+                    <Text style={styles.metaText}>
+                      {setsLabel} × {repDisplay}
+                    </Text>
+                  </View>
+                  {!isBandExercise && <Text style={styles.targetWeightLabel}>Target weight: </Text>}
+                  <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
+                    {convertLoadString(exercise.suggestedLoad, weightUnit)}
+                  </Text>
+                  {showDumbbellNote && (
+                    <Text style={styles.dumbbellNote}>
+                      Weight shown is per hand (each dumbbell)
+                    </Text>
+                  )}
+                  {lastSessionHint &&
+                    (() => {
+                      const days = daysSince(lastSessionHint.date);
+                      const daysLabel =
+                        days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+                      const perfLabel =
+                        lastSessionHint.weight > 0
+                          ? `${kgToDisplayUnit(lastSessionHint.weight, weightUnit)} ${weightUnit} × ${lastSessionHint.reps}`
+                          : `${lastSessionHint.reps} reps`;
+                      return (
+                        <View style={styles.lastSessionRow}>
+                          <Ionicons name="time-outline" size={11} color={C.textTertiary} />
+                          <Text style={styles.lastSessionText}>
+                            Last session: {perfLabel} — {daysLabel}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                  {exercise.progressionNote && (
+                    <View style={styles.progressionNoteRow}>
+                      <Ionicons name="trending-up-outline" size={11} color={C.primary} />
+                      <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
+                    </View>
+                  )}
                 </View>
+                <Ionicons
+                  name={expanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={C.textTertiary}
+                  style={styles.chevron}
+                />
+              </Pressable>
+
+              <View style={styles.actionRow}>
+                <Pressable
+                  onPress={onVideoPress}
+                  style={[styles.actionBtn, styles.actionBtnYoutube]}
+                  testID={`video-${index}`}
+                >
+                  <Ionicons name="logo-youtube" size={15} color="#FF0000" />
+                  <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
+                </Pressable>
+                {exercise.hasSwap && (
+                  <Pressable
+                    onPress={onSwapPress}
+                    style={[styles.actionBtn, setData.swapCount > 0 && styles.actionBtnSwapped]}
+                    testID={`swap-${index}`}
+                  >
+                    <Ionicons
+                      name="swap-horizontal-outline"
+                      size={15}
+                      color={setData.swapCount > 0 ? C.primary : C.textSecondary}
+                    />
+                    <Text
+                      style={[styles.actionBtnText, setData.swapCount > 0 && { color: C.primary }]}
+                    >
+                      {setData.swapCount === 0 ? 'Swap exercise' : 'Swap again'}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
-            )}
-          </Animated.View>
+
+              {exercise.badge === 'comfort' && comfortRegionLabel && (
+                <View style={styles.comfortNote}>
+                  <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
+                  <Text style={styles.comfortNoteText}>
+                    Adapted for {comfortRegionLabel} — tap Swap or skip if still uncomfortable
+                  </Text>
+                </View>
+              )}
+
+              {expanded && (
+                <View style={styles.setsContainer}>
+                  <View style={styles.cueContainer}>
+                    <Ionicons name="bulb-outline" size={14} color={C.primary} />
+                    <Text style={styles.cueText}>{exercise.cue}</Text>
+                  </View>
+
+                  {(exercise.id === 'cardio-warmup' ||
+                    (exercise.category === 'prep' && index === 0)) && (
+                    <CardioWarmupTimer repsStr={exercise.reps} />
+                  )}
+
+                  {exercise.id !== 'cardio-warmup' &&
+                    !(exercise.category === 'prep' && index === 0) && (
+                      <RestTimer
+                        category={exercise.category}
+                        trigger={timerTrigger}
+                        onTimerEnd={() => activeSetRef.current?.focus()}
+                      />
+                    )}
+
+                  {!isBandExercise &&
+                    (exercise.category === 'main' || exercise.category === 'neuro') && (
+                      <View style={styles.spotterAdvisory}>
+                        <Ionicons
+                          name="shield-checkmark-outline"
+                          size={12}
+                          color={C.textTertiary}
+                        />
+                        <Text style={styles.spotterAdvisoryText}>
+                          Consider a spotter for heavy lifts
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* ── Set-by-set view ─────────────────────────────────────── */}
+                  {(() => {
+                    const activeSetIndex =
+                      setData.activeSetIndex ??
+                      (allDone ? setData.sets.length : setData.sets.findIndex((s) => !s.completed));
+                    // Use slice(0, activeSetIndex) but also verify each set is truly completed
+                    // - defensive for restored legacy data with irregular completion order
+                    const completedSets = setData.sets
+                      .slice(0, activeSetIndex)
+                      .filter((s) => s.completed);
+                    const prevSetWeight =
+                      activeSetIndex > 0
+                        ? setData.sets[activeSetIndex - 1].weight
+                        : previousSessionWeight;
+
+                    return (
+                      <>
+                        {/* Completed sets chips */}
+                        {completedSets.length > 0 && (
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.doneChipsScroll}
+                            contentContainerStyle={styles.doneChipsContent}
+                          >
+                            {completedSets.map((s, i) => {
+                              let chipLabel = '';
+                              if (isTimeExercise) {
+                                chipLabel = 'done';
+                              } else if (isBandExercise) {
+                                chipLabel = `${s.reps} reps`;
+                              } else {
+                                const w = kgToDisplayUnit(s.weight, weightUnit);
+                                chipLabel = `${w}${weightUnit} × ${s.reps}`;
+                              }
+                              return (
+                                <View key={i} style={styles.doneChip}>
+                                  <Text style={styles.doneChipText}>
+                                    S{i + 1} · {chipLabel}
+                                  </Text>
+                                  <Ionicons name="checkmark" size={10} color={C.primary} />
+                                </View>
+                              );
+                            })}
+                          </ScrollView>
+                        )}
+
+                        {/* Active set block - keyed by set index so it re-mounts fresh */}
+                        {!allDone &&
+                          activeSetIndex >= 0 &&
+                          activeSetIndex < setData.sets.length && (
+                            <ActiveSetBlock
+                              key={activeSetIndex}
+                              ref={activeSetRef}
+                              setNum={activeSetIndex + 1}
+                              totalSets={setData.sets.length}
+                              data={setData.sets[activeSetIndex]}
+                              onChange={(u) => onSetChange(activeSetIndex, u)}
+                              weightGuide={weightGuides[activeSetIndex]}
+                              isBandExercise={isBandExercise}
+                              isTimeExercise={isTimeExercise}
+                              previousBest={previousBest}
+                              prevSetWeight={prevSetWeight}
+                              weightUnit={weightUnit}
+                              onCompleted={() => {
+                                // Suppress the rest countdown on the very last set
+                                // of the very last exercise - the session is done,
+                                // there's nothing to rest for.
+                                const isFinalSet = activeSetIndex === setData.sets.length - 1;
+                                if (isLastExercise && isFinalSet) return;
+                                setTimerTrigger((n) => n + 1);
+                              }}
+                            />
+                          )}
+
+                        {/* All sets done indicator */}
+                        {allDone && (
+                          <View style={styles.allSetsDone}>
+                            <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+                            <Text style={styles.allSetsDoneText}>All sets complete!</Text>
+                          </View>
+                        )}
+
+                        {!allDone && onSkipExercise && (
+                          <Pressable
+                            onPress={onSkipExercise}
+                            style={styles.skipExerciseLink}
+                            testID={`skip-exercise-${index}`}
+                          >
+                            <Text style={styles.skipExerciseLinkText}>
+                              {"Skip - couldn't do this exercise"}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  <View style={styles.noteInputRow}>
+                    <TextInput
+                      style={styles.noteInput}
+                      placeholder="Add a note…"
+                      placeholderTextColor={C.textTertiary}
+                      value={note}
+                      onChangeText={onNoteChange}
+                      returnKeyType="done"
+                      multiline={false}
+                      maxLength={160}
+                      testID={`note-${index}`}
+                    />
+                  </View>
+                </View>
+              )}
+            </Animated.View>
           </Animated.View>
         )}
-
       </View>
     </Animated.View>
   );
@@ -995,21 +1188,55 @@ export function PainAdaptBanner({
   const C = useColors();
   if (!hasAches || !painRegion || dismissed) return null;
   return (
-    <Animated.View entering={FadeInDown.duration(350)} style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: C.warningLight, borderRadius: 10, borderWidth: 1, borderColor: C.warning + '44', gap: 10 }}>
+    <Animated.View
+      entering={FadeInDown.duration(350)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 16,
+        marginBottom: 6,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: C.warningLight,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: C.warning + '44',
+        gap: 10,
+      }}
+    >
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
         <Ionicons name="shield-checkmark" size={16} color={C.warning} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.warning, marginBottom: 1 }}>
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'Inter_600SemiBold',
+              color: C.warning,
+              marginBottom: 1,
+            }}
+          >
             Adapted for {getPainRegionLabel(painRegion)}
           </Text>
-          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.warning, opacity: 0.85, lineHeight: 17 }}>
+          <Text
+            style={{
+              fontSize: 12,
+              fontFamily: 'Inter_400Regular',
+              color: C.warning,
+              opacity: 0.85,
+              lineHeight: 17,
+            }}
+          >
             {comfortCount > 0
               ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort — tap Swap or skip any that still hurt`
               : 'No exercises needed swapping — tap Swap or skip anything that hurts'}
           </Text>
         </View>
       </View>
-      <Pressable onPress={onDismiss} style={{ padding: 4, alignItems: 'center', justifyContent: 'center' }} testID="pain-banner-dismiss">
+      <Pressable
+        onPress={onDismiss}
+        style={{ padding: 4, alignItems: 'center', justifyContent: 'center' }}
+        testID="pain-banner-dismiss"
+      >
         <Ionicons name="close" size={16} color={C.warning} />
       </Pressable>
     </Animated.View>
@@ -1028,28 +1255,68 @@ export default function SessionScreen() {
     equipment: string;
   }>();
 
-  const VALID_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'conditioning', 'prehab', 'flexibility', 'custom'];
+  const VALID_SESSION_TYPES: SessionType[] = [
+    'squat',
+    'bench',
+    'deadlift',
+    'conditioning',
+    'prehab',
+    'flexibility',
+    'custom',
+  ];
   const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
   const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
 
   const sessionType = VALID_SESSION_TYPES.includes(params.sessionType as SessionType)
-    ? (params.sessionType as SessionType) : 'squat';
+    ? (params.sessionType as SessionType)
+    : 'squat';
   const hasAches = params.hasAches === 'true';
   const painRegion = params.painRegion ? (params.painRegion as PainRegion) : undefined;
   const energy = VALID_ENERGY.includes(params.energy as EnergyLevel)
-    ? (params.energy as EnergyLevel) : 'normal';
+    ? (params.energy as EnergyLevel)
+    : 'normal';
   const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
-    ? (params.timeAvailable as TimeAvailable) : '60';
+    ? (params.timeAvailable as TimeAvailable)
+    : '60';
   const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning', 'custom'];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, getBestORM, completedSessions, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
+  const {
+    getEffectiveTier,
+    completeSession,
+    addOneRepMax,
+    userProfile,
+    exerciseFeedback,
+    getBestORM,
+    completedSessions,
+    weightUnit,
+    activeSession,
+    setActiveSession,
+    clearActiveSession,
+    updateLastLoggedWeights,
+    lastLoggedWeights,
+    reviewPromptShown,
+    setReviewPromptShown,
+    exerciseNormalStreak,
+    lastSessionPerformance,
+    pendingCustomExercises,
+    clearPendingCustomExercises,
+  } = useAppStore();
   // Only count strength sessions for auto-progression - conditioning, prehab,
   // and flexibility sessions do not drive strength progressive overload.
-  const strengthCount = completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
-  const VALID_EQUIPMENT: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+  const strengthCount = completedSessions.filter((s) =>
+    STRENGTH_SESSION_TYPES.includes(s.sessionType)
+  ).length;
+  const VALID_EQUIPMENT: EquipmentTier[] = [
+    'bodyweight',
+    'bands',
+    'dumbbells',
+    'kettlebells',
+    'barbell',
+    'fullgym',
+  ];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
     : getEffectiveTier();
@@ -1062,7 +1329,9 @@ export default function SessionScreen() {
   // On resume, pendingCustomExercises is already cleared; fall back to what was persisted in activeSession.
   const customExercisesSnapshot = useRef<CustomExercise[]>(
     sessionType === 'custom'
-      ? (pendingCustomExercises.length > 0 ? pendingCustomExercises : (activeSession?.customExercises ?? []))
+      ? pendingCustomExercises.length > 0
+        ? pendingCustomExercises
+        : (activeSession?.customExercises ?? [])
       : []
   );
 
@@ -1073,7 +1342,7 @@ export default function SessionScreen() {
     const lookup: Record<string, number> = {};
     for (const session of completedSessions) {
       for (const exLog of session.exerciseLogs) {
-        const maxWeight = exLog.sets.reduce((m, s) => s.weight > m ? s.weight : m, 0);
+        const maxWeight = exLog.sets.reduce((m, s) => (s.weight > m ? s.weight : m), 0);
         if (maxWeight > 0) {
           if (lookup[exLog.exerciseId] === undefined || maxWeight > lookup[exLog.exerciseId]) {
             lookup[exLog.exerciseId] = maxWeight;
@@ -1102,7 +1371,9 @@ export default function SessionScreen() {
 
   // Per-exercise last-session hint: last completed set's weight + reps + date.
   // completedSessions is newest-first, so first match per exercise = most recent.
-  const previousSessionData = useMemo<Record<string, { weight: number; reps: number; date: string }>>(() => {
+  const previousSessionData = useMemo<
+    Record<string, { weight: number; reps: number; date: string }>
+  >(() => {
     const lookup: Record<string, { weight: number; reps: number; date: string }> = {};
     for (const session of completedSessions) {
       for (const exLog of session.exerciseLogs) {
@@ -1136,14 +1407,41 @@ export default function SessionScreen() {
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
-    return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
-  }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
+    return generateWorkout(
+      sessionType,
+      equipmentTier,
+      { hasAches, painRegion, energy, timeAvailable },
+      userProfile,
+      exerciseFeedbackAtStart.current,
+      bestOrmKg,
+      strengthCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    );
+  }, [
+    sessionType,
+    equipmentTier,
+    hasAches,
+    painRegion,
+    energy,
+    timeAvailable,
+    isTestWeek,
+    userProfile,
+    getBestORM,
+    strengthCount,
+    lastLoggedWeights,
+    exerciseNormalStreak,
+    lastSessionPerformance,
+  ]);
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
 
   const comfortCount = useMemo(
-    () => exercises.filter((ex, i) => ex.badge === 'comfort' && (exerciseData[i]?.swapCount ?? 0) === 0).length,
-    [exercises, exerciseData],
+    () =>
+      exercises.filter((ex, i) => ex.badge === 'comfort' && (exerciseData[i]?.swapCount ?? 0) === 0)
+        .length,
+    [exercises, exerciseData]
   );
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
@@ -1154,7 +1452,10 @@ export default function SessionScreen() {
   const elapsedSecondsRef = useRef(0);
   useEffect(() => {
     const timerId = setInterval(() => {
-      setElapsedSeconds((s) => { elapsedSecondsRef.current = s + 1; return s + 1; });
+      setElapsedSeconds((s) => {
+        elapsedSecondsRef.current = s + 1;
+        return s + 1;
+      });
     }, 1000);
     return () => clearInterval(timerId);
   }, []);
@@ -1169,19 +1470,31 @@ export default function SessionScreen() {
   const painBannerDismissedRef = useRef(false);
   // Ref to always-current activeSession (used in effects whose deps don't include activeSession)
   const activeSessionRef = useRef(activeSession);
-  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
   // Guard: prevent autosave/background writes after session is completed or discarded
   const sessionTerminatedRef = useRef(false);
   // Guard: ensure we only restore from activeSession once
   const hasRestoredRef = useRef(false);
-  useEffect(() => { exerciseDataRef.current = exerciseData; }, [exerciseData]);
-  useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
-  useEffect(() => { exerciseIdsRef.current = exercises.map(ex => ex.id); }, [exercises]);
-  useEffect(() => { painBannerDismissedRef.current = painBannerDismissed; }, [painBannerDismissed]);
+  useEffect(() => {
+    exerciseDataRef.current = exerciseData;
+  }, [exerciseData]);
+  useEffect(() => {
+    exerciseNotesRef.current = exerciseNotes;
+  }, [exerciseNotes]);
+  useEffect(() => {
+    exerciseIdsRef.current = exercises.map((ex) => ex.id);
+  }, [exercises]);
+  useEffect(() => {
+    painBannerDismissedRef.current = painBannerDismissed;
+  }, [painBannerDismissed]);
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
-  useEffect(() => { activeIndexRef.current = activeIndex; }, [activeIndex]);
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   // Background save: persist state whenever app is backgrounded or goes inactive
   useEffect(() => {
@@ -1196,13 +1509,15 @@ export default function SessionScreen() {
       // a resume card just from opening the session and backgrounding)
       const hasMinimalProgress =
         idx > 0 ||
-        data.some(ed =>
-          ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
-          ed.swapCount > 0
+        data.some(
+          (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
         ) ||
-        notes.some(n => n.length > 0);
+        notes.some((n) => n.length > 0);
       if (!hasMinimalProgress) return;
-      const completedSetsCount = data.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+      const completedSetsCount = data.reduce(
+        (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
+        0
+      );
       const totalSets = data.reduce((sum, ed) => sum + ed.sets.length, 0);
       setActiveSession({
         sessionType,
@@ -1228,8 +1543,11 @@ export default function SessionScreen() {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'background' || state === 'inactive') saveSnapshot();
     });
-    return () => { sub.remove(); saveSnapshot(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      sub.remove();
+      saveSnapshot();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1239,7 +1557,7 @@ export default function SessionScreen() {
   // Returns true if restored, false if not (caller decides fallback).
   const tryRestoreFromStored = (exs: typeof exercises, stored: typeof activeSession): boolean => {
     if (hasRestoredRef.current || !stored || exs.length === 0) return false;
-    const currentIds = exs.map(ex => ex.id);
+    const currentIds = exs.map((ex) => ex.id);
     const idsMatch =
       Array.isArray(stored.exerciseIds) &&
       stored.exerciseIds.length === currentIds.length &&
@@ -1267,16 +1585,19 @@ export default function SessionScreen() {
     elapsedSecondsRef.current = restoredElapsed;
     // Restore exerciseData, deriving activeSetIndex from sets if missing (old snapshots)
     const restoredData: ExerciseSetData[] = (stored.exerciseData as ExerciseSetData[]).map((ed) => {
-      const activeSetIndex = ed.activeSetIndex !== undefined
-        ? ed.activeSetIndex
-        : (() => {
-          const firstUncompleted = ed.sets.findIndex(s => !s.completed);
-          return firstUncompleted === -1 ? ed.sets.length : firstUncompleted;
-        })();
+      const activeSetIndex =
+        ed.activeSetIndex !== undefined
+          ? ed.activeSetIndex
+          : (() => {
+              const firstUncompleted = ed.sets.findIndex((s) => !s.completed);
+              return firstUncompleted === -1 ? ed.sets.length : firstUncompleted;
+            })();
       return { ...ed, activeSetIndex };
     });
     setExerciseData(restoredData);
-    setExerciseNotes(stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => ''));
+    setExerciseNotes(
+      stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => '')
+    );
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     if (stored.painBannerDismissed) setPainBannerDismissed(true);
     return true;
@@ -1288,16 +1609,18 @@ export default function SessionScreen() {
     if (exercises.length === 0) return;
     const restored = tryRestoreFromStored(exercises, activeSessionRef.current);
     if (!restored) {
-      setExerciseData(exercises.map((ex) => ({
-        sets: Array.from({ length: ex.sets }, (_, i) => ({
-          setNumber: i + 1,
-          weight: 0,
-          reps: 0,
-          completed: false,
-        })),
-        swapCount: 0,
-        activeSetIndex: 0,
-      })));
+      setExerciseData(
+        exercises.map((ex) => ({
+          sets: Array.from({ length: ex.sets }, (_, i) => ({
+            setNumber: i + 1,
+            weight: 0,
+            reps: 0,
+            completed: false,
+          })),
+          swapCount: 0,
+          activeSetIndex: 0,
+        }))
+      );
       setExerciseNotes(exercises.map(() => ''));
       setActiveIndex(0);
     }
@@ -1305,7 +1628,7 @@ export default function SessionScreen() {
     if (sessionType === 'custom') {
       clearPendingCustomExercises();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercises]);
 
   // Late-hydration restore: runs only when activeSession arrives after exercises.
@@ -1314,14 +1637,14 @@ export default function SessionScreen() {
     if (!hasRestoredRef.current && exercises.length > 0 && activeSession !== null) {
       tryRestoreFromStored(exercises, activeSession);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession]);
 
   // Auto-advance to next exercise when current is fully complete
   useEffect(() => {
     if (exerciseData.length === 0) return;
     if (activeIndex >= exerciseData.length) return;
-    const currentDone = exerciseData[activeIndex]?.sets.every(s => s.completed);
+    const currentDone = exerciseData[activeIndex]?.sets.every((s) => s.completed);
     if (currentDone) {
       const nextIndex = activeIndex + 1;
       setActiveIndex(nextIndex);
@@ -1340,13 +1663,15 @@ export default function SessionScreen() {
   useEffect(() => {
     if (sessionTerminatedRef.current) return;
     if (exerciseData.length === 0) return;
-    const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+    const completedSetsCount = exerciseData.reduce(
+      (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
+      0
+    );
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
     const hasAnyProgress =
-      exerciseData.some(ed =>
-        ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
-        ed.swapCount > 0
-      ) || exerciseNotes.some(n => n.length > 0);
+      exerciseData.some(
+        (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
+      ) || exerciseNotes.some((n) => n.length > 0);
     if (!hasAnyProgress) return;
     setActiveSession({
       sessionType,
@@ -1364,7 +1689,7 @@ export default function SessionScreen() {
       totalSets,
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds: elapsedSecondsRef.current,
-      exerciseIds: exercises.map(ex => ex.id),
+      exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
@@ -1378,21 +1703,24 @@ export default function SessionScreen() {
   const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
-  const handleSetChange = useCallback((exerciseIndex: number, setIndex: number, updated: SetLog) => {
-    setExerciseData(prev => {
-      const next = [...prev];
-      const ex = { ...next[exerciseIndex], sets: [...next[exerciseIndex].sets] };
-      ex.sets[setIndex] = updated;
-      // Recompute activeSetIndex: first uncompleted set, or sets.length if all done
-      const firstUncompleted = ex.sets.findIndex(s => !s.completed);
-      ex.activeSetIndex = firstUncompleted === -1 ? ex.sets.length : firstUncompleted;
-      next[exerciseIndex] = ex;
-      return next;
-    });
-  }, []);
+  const handleSetChange = useCallback(
+    (exerciseIndex: number, setIndex: number, updated: SetLog) => {
+      setExerciseData((prev) => {
+        const next = [...prev];
+        const ex = { ...next[exerciseIndex], sets: [...next[exerciseIndex].sets] };
+        ex.sets[setIndex] = updated;
+        // Recompute activeSetIndex: first uncompleted set, or sets.length if all done
+        const firstUncompleted = ex.sets.findIndex((s) => !s.completed);
+        ex.activeSetIndex = firstUncompleted === -1 ? ex.sets.length : firstUncompleted;
+        next[exerciseIndex] = ex;
+        return next;
+      });
+    },
+    []
+  );
 
   const handleNoteChange = useCallback((exerciseIndex: number, text: string) => {
-    setExerciseNotes(prev => {
+    setExerciseNotes((prev) => {
       const next = [...prev];
       next[exerciseIndex] = text;
       return next;
@@ -1400,7 +1728,7 @@ export default function SessionScreen() {
   }, []);
 
   const handleSwapConfirm = useCallback((index: number) => {
-    setExerciseData(prev => {
+    setExerciseData((prev) => {
       const cur = prev[index]?.swapCount ?? 0;
       if (cur >= 2) return prev;
       const next = [...prev];
@@ -1412,11 +1740,17 @@ export default function SessionScreen() {
   }, []);
 
   const handleSkipExercise = useCallback((index: number) => {
-    setExerciseData(prev => {
+    setExerciseData((prev) => {
       const next = [...prev];
       const ex = next[index];
       if (!ex) return prev;
-      const skippedSets = ex.sets.map(s => ({ ...s, weight: 0, reps: 0, completed: true, skipped: true }));
+      const skippedSets = ex.sets.map((s) => ({
+        ...s,
+        weight: 0,
+        reps: 0,
+        completed: true,
+        skipped: true,
+      }));
       next[index] = {
         ...ex,
         sets: skippedSets,
@@ -1454,26 +1788,36 @@ export default function SessionScreen() {
 
   if (exerciseData.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontFamily: 'Inter_500Medium', color: C.textSecondary }}>Loading session...</Text>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top + webTopInset, justifyContent: 'center', alignItems: 'center' },
+        ]}
+      >
+        <Text style={{ fontFamily: 'Inter_500Medium', color: C.textSecondary }}>
+          Loading session...
+        </Text>
       </View>
     );
   }
 
   const isPrehabOrFlex = sessionType === 'prehab' || sessionType === 'flexibility';
-  const allDone = isPrehabOrFlex || exerciseData.every(ed => ed.sets.every(s => s.completed));
-  const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+  const allDone = isPrehabOrFlex || exerciseData.every((ed) => ed.sets.every((s) => s.completed));
+  const completedSetsCount = exerciseData.reduce(
+    (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
+    0
+  );
   const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
-  const progress = isPrehabOrFlex ? 1 : (totalSets > 0 ? completedSetsCount / totalSets : 0);
+  const progress = isPrehabOrFlex ? 1 : totalSets > 0 ? completedSetsCount / totalSets : 0;
 
   const handleComplete = () => {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     if (isTestWeek) {
-      const mainExIndex = exercises.findIndex(e => e.category === 'main');
+      const mainExIndex = exercises.findIndex((e) => e.category === 'main');
       if (mainExIndex >= 0) {
         const mainSets = exerciseData[mainExIndex].sets;
-        const amrapSet = mainSets.find(s => s.completed && s.weight > 0 && s.reps > 0);
+        const amrapSet = mainSets.find((s) => s.completed && s.weight > 0 && s.reps > 0);
         if (amrapSet) {
           const estimatedMax = Math.round(amrapSet.weight * (1 + amrapSet.reps / 30));
           addOneRepMax({
@@ -1540,8 +1884,7 @@ export default function SessionScreen() {
             setReviewPromptShown(true);
             await StoreReview.requestReview();
           }
-        } catch {
-        }
+        } catch {}
       }, 3000);
     }
 
@@ -1558,10 +1901,9 @@ export default function SessionScreen() {
 
   const handleExit = () => {
     const hasProgress =
-      exerciseData.some(ed =>
-        ed.sets.some(s => s.completed || s.weight > 0 || s.reps > 0) ||
-        ed.swapCount > 0
-      ) || exerciseNotes.some(n => n.length > 0);
+      exerciseData.some(
+        (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
+      ) || exerciseNotes.some((n) => n.length > 0);
     if (hasProgress) {
       setShowAbandonModal(true);
     } else {
@@ -1575,7 +1917,10 @@ export default function SessionScreen() {
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
       void cancelStreakProtectionAlert();
     }
-    const completedSetsCount = exerciseData.reduce((sum, ed) => sum + ed.sets.filter(s => s.completed).length, 0);
+    const completedSetsCount = exerciseData.reduce(
+      (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
+      0
+    );
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
     setActiveSession({
       sessionType,
@@ -1593,7 +1938,7 @@ export default function SessionScreen() {
       totalSets,
       sessionName: getSessionLabel(sessionType),
       elapsedSeconds,
-      exerciseIds: exercises.map(ex => ex.id),
+      exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
@@ -1618,13 +1963,13 @@ export default function SessionScreen() {
           <Text style={styles.sessionLabel}>
             {isTestWeek ? 'Strength Test' : getSessionLabel(sessionType)}
           </Text>
-          {isTestWeek ? (
-            <Text style={styles.sessionSub}>AMRAP @ 90%</Text>
-          ) : null}
+          {isTestWeek ? <Text style={styles.sessionSub}>AMRAP @ 90%</Text> : null}
         </View>
         <View style={styles.elapsedTimer}>
           <Ionicons name="time-outline" size={12} color={C.textTertiary} />
-          <Text style={styles.elapsedTimerText}>{elapsedMM}:{elapsedSS}</Text>
+          <Text style={styles.elapsedTimerText}>
+            {elapsedMM}:{elapsedSS}
+          </Text>
         </View>
       </Animated.View>
 
@@ -1632,7 +1977,11 @@ export default function SessionScreen() {
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
         </View>
-        <Text style={styles.progressText}>{isPrehabOrFlex ? 'Complete when ready' : `${completedSetsCount}/${totalSets} sets completed`}</Text>
+        <Text style={styles.progressText}>
+          {isPrehabOrFlex
+            ? 'Complete when ready'
+            : `${completedSetsCount}/${totalSets} sets completed`}
+        </Text>
       </View>
 
       {(hasAches || energy !== 'normal' || isTestWeek) && (
@@ -1686,8 +2035,7 @@ export default function SessionScreen() {
           if (!data) return null;
           const displayExercise = getDisplayExercise(exercise, data);
           const exState: ExerciseState =
-            index < activeIndex ? 'past' :
-            index === activeIndex ? 'active' : 'future';
+            index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
           return (
             <ExerciseCard
               key={exercise.id + index}
@@ -1701,7 +2049,9 @@ export default function SessionScreen() {
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
-              onCardLayout={(y) => { cardYPositions.current[index] = y; }}
+              onCardLayout={(y) => {
+                cardYPositions.current[index] = y;
+              }}
               previousBest={previousBest[exercise.id]}
               previousSessionWeight={previousSessionWeights[exercise.id]}
               lastSessionHint={previousSessionData[exercise.id]}
@@ -1710,13 +2060,22 @@ export default function SessionScreen() {
               note={exerciseNotes[index] ?? ''}
               onNoteChange={(text) => handleNoteChange(index, text)}
               isLastExercise={index === exercises.length - 1}
-              comfortRegionLabel={exercise.badge === 'comfort' && hasAches && painRegion ? getPainRegionLabel(painRegion) : undefined}
+              comfortRegionLabel={
+                exercise.badge === 'comfort' && hasAches && painRegion
+                  ? getPainRegionLabel(painRegion)
+                  : undefined
+              }
             />
           );
         })}
       </ScrollView>
 
-      <View style={[styles.bottomAction, { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) }]}>
+      <View
+        style={[
+          styles.bottomAction,
+          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) },
+        ]}
+      >
         <Pressable
           onPress={handleComplete}
           disabled={!allDone}
@@ -1727,7 +2086,11 @@ export default function SessionScreen() {
           ]}
           testID="complete-session"
         >
-          <Ionicons name="checkmark-circle" size={22} color={allDone ? C.textInverse : C.textTertiary} />
+          <Ionicons
+            name="checkmark-circle"
+            size={22}
+            color={allDone ? C.textInverse : C.textTertiary}
+          />
           <Text style={[styles.completeText, !allDone && styles.completeTextDisabled]}>
             {isTestWeek ? 'Save Strength Results' : 'Complete Session'}
           </Text>
@@ -1735,14 +2098,21 @@ export default function SessionScreen() {
       </View>
 
       {/* Abandon Modal */}
-      <Modal visible={showAbandonModal} transparent animationType="fade" onRequestClose={() => setShowAbandonModal(false)}>
+      <Modal
+        visible={showAbandonModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAbandonModal(false)}
+      >
         <Pressable style={styles.modalOverlay} onPress={() => setShowAbandonModal(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={[styles.modalIcon, { backgroundColor: C.categoryFinisher }]}>
               <Ionicons name="exit-outline" size={32} color={C.categoryFinisherText} />
             </View>
             <Text style={styles.modalTitle}>Leave Session?</Text>
-            <Text style={styles.modalDesc}>{"You've logged some sets. What would you like to do?"}</Text>
+            <Text style={styles.modalDesc}>
+              {"You've logged some sets. What would you like to do?"}
+            </Text>
             <Pressable
               onPress={handleSaveAndExit}
               style={[styles.abandonBtn, styles.abandonBtnSave]}
@@ -1776,35 +2146,71 @@ export default function SessionScreen() {
       </Modal>
 
       {/* Swap Modal */}
-      <Modal visible={!!swapModal} transparent animationType="fade" onRequestClose={() => setSwapModal(null)}>
+      <Modal
+        visible={!!swapModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSwapModal(null)}
+      >
         <Pressable style={styles.modalOverlay} onPress={() => setSwapModal(null)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={[styles.modalIcon, { backgroundColor: C.categoryPrehab }]}>
               <Ionicons name="swap-horizontal-outline" size={32} color={C.categoryPrehabText} />
             </View>
             <Text style={styles.modalTitle}>Swap Exercise</Text>
-            {swapModal && (() => {
-              const swapCount = exerciseData[swapModal.index]?.swapCount ?? 0;
-              const origExercise = exercises[swapModal.index];
-              const swap2Name = origExercise?.swap2Name;
-              const swap2Cue = origExercise?.swap2Cue;
-              const swap2Load = origExercise?.swap2Load;
+            {swapModal &&
+              (() => {
+                const swapCount = exerciseData[swapModal.index]?.swapCount ?? 0;
+                const origExercise = exercises[swapModal.index];
+                const swap2Name = origExercise?.swap2Name;
+                const swap2Cue = origExercise?.swap2Cue;
+                const swap2Load = origExercise?.swap2Load;
 
-              if (swapCount === 2 || (swapCount === 1 && !swap2Name)) {
-                return (
-                  <>
-                    <View style={styles.swapFrom}>
-                      <Text style={styles.swapFromLabel}>Current exercise</Text>
-                      <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
-                    </View>
-                    <Text style={[styles.swapNote, { marginTop: 16, textAlign: 'center' }]}>
-                      No further alternatives are available for this exercise. Keep going!
-                    </Text>
-                  </>
-                );
-              }
+                if (swapCount === 2 || (swapCount === 1 && !swap2Name)) {
+                  return (
+                    <>
+                      <View style={styles.swapFrom}>
+                        <Text style={styles.swapFromLabel}>Current exercise</Text>
+                        <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                      </View>
+                      <Text style={[styles.swapNote, { marginTop: 16, textAlign: 'center' }]}>
+                        No further alternatives are available for this exercise. Keep going!
+                      </Text>
+                    </>
+                  );
+                }
 
-              if (swapCount === 1 && swap2Name) {
+                if (swapCount === 1 && swap2Name) {
+                  return (
+                    <>
+                      <View style={styles.swapFrom}>
+                        <Text style={styles.swapFromLabel}>Replace</Text>
+                        <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                      </View>
+                      <View style={styles.swapArrow}>
+                        <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
+                      </View>
+                      <View style={styles.swapTo}>
+                        <Text style={styles.swapToLabel}>With</Text>
+                        <Text style={styles.swapToName}>{swap2Name}</Text>
+                        <Text style={styles.swapToCue}>{swap2Cue}</Text>
+                        {swap2Load && (
+                          <Text style={styles.swapToLoad}>
+                            {convertLoadString(swap2Load, weightUnit)}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.swapNote}>A second alternative for this exercise.</Text>
+                      <Pressable
+                        onPress={() => handleSwapConfirm(swapModal.index)}
+                        style={styles.swapConfirmBtn}
+                      >
+                        <Text style={styles.swapConfirmText}>Swap again</Text>
+                      </Pressable>
+                    </>
+                  );
+                }
+
                 return (
                   <>
                     <View style={styles.swapFrom}>
@@ -1816,299 +2222,1010 @@ export default function SessionScreen() {
                     </View>
                     <View style={styles.swapTo}>
                       <Text style={styles.swapToLabel}>With</Text>
-                      <Text style={styles.swapToName}>{swap2Name}</Text>
-                      <Text style={styles.swapToCue}>{swap2Cue}</Text>
-                      {swap2Load && <Text style={styles.swapToLoad}>{convertLoadString(swap2Load, weightUnit)}</Text>}
+                      <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
+                      <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
+                      {swapModal.exercise.swapLoad && (
+                        <Text style={styles.swapToLoad}>
+                          {convertLoadString(swapModal.exercise.swapLoad, weightUnit)}
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.swapNote}>A second alternative for this exercise.</Text>
+                    <Text style={styles.swapNote}>
+                      This alternative targets the same muscles with less demand.
+                    </Text>
                     <Pressable
                       onPress={() => handleSwapConfirm(swapModal.index)}
                       style={styles.swapConfirmBtn}
                     >
-                      <Text style={styles.swapConfirmText}>Swap again</Text>
+                      <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
                     </Pressable>
                   </>
                 );
-              }
-
-              return (
-                <>
-                  <View style={styles.swapFrom}>
-                    <Text style={styles.swapFromLabel}>Replace</Text>
-                    <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
-                  </View>
-                  <View style={styles.swapArrow}>
-                    <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
-                  </View>
-                  <View style={styles.swapTo}>
-                    <Text style={styles.swapToLabel}>With</Text>
-                    <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
-                    <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
-                    {swapModal.exercise.swapLoad && (
-                      <Text style={styles.swapToLoad}>{convertLoadString(swapModal.exercise.swapLoad, weightUnit)}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.swapNote}>This alternative targets the same muscles with less demand.</Text>
-                  <Pressable
-                    onPress={() => handleSwapConfirm(swapModal.index)}
-                    style={styles.swapConfirmBtn}
-                  >
-                    <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
-                  </Pressable>
-                </>
-              );
-            })()}
+              })()}
             <Pressable onPress={() => setSwapModal(null)} style={styles.modalClose}>
               <Text style={styles.modalCloseText}>
-                {(exerciseData[swapModal?.index ?? -1]?.swapCount ?? 0) > 0 ? 'Close' : 'Keep original'}
+                {(exerciseData[swapModal?.index ?? -1]?.swapCount ?? 0) > 0
+                  ? 'Close'
+                  : 'Keep original'}
               </Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
-
     </KeyboardAvoidingView>
   );
 }
 
-function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  closeButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  sessionInfo: { flex: 1, alignItems: 'center' },
-  sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
-  sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-  progressBar: { paddingHorizontal: 24, marginBottom: 4 },
-  progressTrack: { height: 4, backgroundColor: C.surfaceTertiary, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
-  progressFill: { height: '100%', backgroundColor: C.primary, borderRadius: 2 },
-  progressText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
-  adaptationBar: { flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 8, gap: 8, justifyContent: 'center', flexWrap: 'wrap' },
-  adaptTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, gap: 4 },
-  adaptTagText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  exerciseList: { flex: 1 },
-  exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
-  exerciseCard: { backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.borderLight },
-  exerciseCardDone: { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
-  exerciseCardLocked: { backgroundColor: C.surfaceTertiary, borderColor: C.borderLight, opacity: 0.65 },
-  exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
-  checkCircleDone: { backgroundColor: C.primary, borderColor: C.primary },
-  exerciseInfo: { flex: 1 },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1 },
-  exerciseNameDone: { color: C.primaryDark },
-  badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
-  badgeText: { fontSize: 9, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  categoryPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4 },
-  categoryDot: { width: 5, height: 5, borderRadius: 3 },
-  categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-  loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
-  dumbbellNote: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, marginTop: 2, fontStyle: 'italic' as const },
-  progressionNoteRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 3 },
-  progressionNoteText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
-  lastSessionRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, marginTop: 3 },
-  lastSessionText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
-  volumeCompareRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, marginBottom: 14, paddingHorizontal: 4 },
-  volumeCompareText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary, flex: 1 },
-  chevron: { marginTop: 2 },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: C.surfaceTertiary },
-  actionBtnYoutube: { backgroundColor: C.youtubeSurface, borderWidth: 1, borderColor: C.youtubeBorder },
-  actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-  setsContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.borderLight },
-  cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
-  cueText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.primary, fontStyle: 'italic' as const, flex: 1 },
-  setHeaderRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 2 },
-  setHeaderItem: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, textAlign: 'center' },
-  setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 8 },
-  setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, width: 36 },
-  setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
-  inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  setInput: { width: 58, height: 38, borderRadius: 8, backgroundColor: C.surfaceTertiary, textAlign: 'center', fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, borderWidth: 1, borderColor: C.borderLight },
-  setInputDisabled: { opacity: 0.45 },
-  inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, width: 30 },
-  setCheck: { width: 44, height: 44, borderRadius: 22, borderWidth: 2.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  setCheckDone: { backgroundColor: C.primary, borderColor: C.primary },
-  setCheckDisabled: { opacity: 0.3 },
-  // Card state styles
-  exerciseCardPast: { backgroundColor: C.surfaceTertiary, borderColor: C.borderLight, opacity: 0.80 },
-  // Locked/future card styles
-  lockedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  lockIconWrap: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  lockedInfo: { flex: 1 },
-  lockedName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 4 },
-  lockedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
-  // Past (completed) card styles
-  pastHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pastName: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 4 },
-  bottomAction: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: C.background, borderTopWidth: 1, borderTopColor: C.borderLight },
-  completeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, gap: 8 },
-  completeButtonDisabled: { backgroundColor: C.surfaceTertiary },
-  completeText: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  completeTextDisabled: { color: C.textTertiary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: C.surface, borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', maxWidth: 340 },
-  modalIcon: { width: 64, height: 64, borderRadius: 16, backgroundColor: C.primaryMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text, textAlign: 'center', marginBottom: 8 },
-  modalDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 20 },
-  youtubeButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FF0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, gap: 8, marginBottom: 12, width: '100%', justifyContent: 'center' },
-  youtubeButtonText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  modalClose: { paddingVertical: 10, paddingHorizontal: 32 },
-  modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-  swapFrom: { width: '100%', padding: 12, backgroundColor: C.surfaceTertiary, borderRadius: 10, marginBottom: 4 },
-  swapFromLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, marginBottom: 2 },
-  swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
-  swapArrow: { paddingVertical: 4 },
-  swapTo: { width: '100%', padding: 12, backgroundColor: C.primarySurface, borderRadius: 10, borderWidth: 1, borderColor: C.primaryMuted, marginBottom: 12 },
-  swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primary, marginBottom: 2 },
-  swapToName: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark, marginBottom: 4 },
-  swapToCue: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, fontStyle: 'italic' as const, marginBottom: 4 },
-  swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
-  swapNote: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary, textAlign: 'center', marginBottom: 16 },
-  swapConfirmBtn: { width: '100%', backgroundColor: C.primary, paddingVertical: 13, borderRadius: 12, alignItems: 'center', marginBottom: 4 },
-  swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  congratsModal: { gap: 0 },
-  congratsIcon: { width: 80, height: 80, borderRadius: 20, backgroundColor: C.trophyBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  congratsTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text, textAlign: 'center', marginBottom: 12 },
-  congratsMessage: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20, paddingHorizontal: 4 },
-  congratsStats: { flexDirection: 'row', backgroundColor: C.surfaceTertiary, borderRadius: 14, padding: 16, marginBottom: 20, width: '100%', alignItems: 'center' },
-  congratsStat: { flex: 1, alignItems: 'center' },
-  congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
-  congratsStatLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginTop: 2 },
-  congratsStatDivider: { width: 1, height: 28, backgroundColor: C.border },
-  congratsButton: { width: '100%', flexDirection: 'row', backgroundColor: C.primary, paddingVertical: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  congratsButtonMuted: { backgroundColor: C.surfaceTertiary },
-  congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  congratsSecondaryButton: { width: '100%', paddingVertical: 14, borderRadius: 14, alignItems: 'center', marginBottom: 4 },
-  congratsSecondaryButtonText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
-  feedbackSavedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: C.primarySurface, borderRadius: 10, marginBottom: 14, width: '100%' },
-  feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
-  feedbackButtonRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10, flexWrap: 'wrap' },
-  feedbackSecondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
-  feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  feedbackSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, textAlign: 'center', marginBottom: 14 },
-  feedbackScroll: { width: '100%', maxHeight: 260, marginBottom: 16 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderLight, gap: 8 },
-  ratingName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
-  ratingButtons: { flexDirection: 'row', gap: 6 },
-  thumbBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surfaceTertiary },
-  thumbBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-  thumbBtnDown: { borderColor: C.border },
-  thumbBtnDownActive: { backgroundColor: C.destructive, borderColor: C.destructive },
-  checklistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: C.borderLight, gap: 10 },
-  checklistRowSelected: { backgroundColor: C.primarySurface },
-  checklistBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checklistBoxSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
-  checklistNameSelected: { color: C.primaryDark, fontFamily: 'Inter_600SemiBold' },
-  // New Record badge
-  newRecordBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: C.success, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8, marginBottom: 2 },
-  newRecordText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: C.textInverse, letterSpacing: 0.3 },
-  // Milestone congrats styles
-  milestoneHeader: { alignItems: 'center', marginBottom: 12 },
-  milestoneIconWrap: { width: 96, height: 96, borderRadius: 24, backgroundColor: C.trophyBg, borderWidth: 2, borderColor: C.trophyBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  milestoneBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary, letterSpacing: 1.5, backgroundColor: C.primaryMuted, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
-  congratsTitleMilestone: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark, textAlign: 'center', marginBottom: 12 },
-  congratsButtonMilestone: { backgroundColor: C.primaryDark },
-  // Streak badge
-  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.streakBg, borderWidth: 1, borderColor: C.streakBorder, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14, width: '100%', justifyContent: 'center' },
-  streakBadgeIcon: { fontSize: 18 },
-  streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.streakText },
-  // Elapsed timer in top bar
-  elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
-  elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-  // Rest timer
-  restTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  restTimerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primaryMuted },
-  restTimerBtnActive: { backgroundColor: C.primary, borderColor: C.primaryDark },
-  restTimerResetBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
-  restTimerSkipBtn: { paddingHorizontal: 12, height: 40, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  restTimerAddBtn: { paddingHorizontal: 10, height: 40, borderRadius: 10, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, alignItems: 'center', justifyContent: 'center' },
-  restTimerAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
-  restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  restTimerTextActive: { color: '#fff' },
-  restTimerDone: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primarySurface, borderWidth: 1.5, borderColor: C.primary, alignSelf: 'flex-start' },
-  restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  restTimerRingCard: { alignItems: 'center', paddingTop: 16, paddingBottom: 14, paddingHorizontal: 12, marginBottom: 10, backgroundColor: C.primarySurface, borderRadius: 16, borderWidth: 1, borderColor: C.primaryMuted },
-  restTimerRingContainer: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  restTimerRingCenter: { alignItems: 'center' },
-  restTimerRingLabel: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 1 },
-  restTimerRingDigits: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.text },
-  restTimerRingControls: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%' as any },
-  restTimerRingPauseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10, backgroundColor: C.surface, borderWidth: 1, borderColor: C.primaryMuted, flex: 1 },
-  restTimerRingPauseBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  // Spotter advisory
-  spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
-  spotterAdvisoryText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, fontStyle: 'italic' },
-  // Per-exercise note input
-  noteInputRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.borderLight },
-  noteInput: { height: 36, borderRadius: 8, backgroundColor: C.surfaceTertiary, borderWidth: 1, borderColor: C.borderLight, paddingHorizontal: 10, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.text },
-  // Abandon modal
-  abandonBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', paddingVertical: 14, borderRadius: 12, marginBottom: 8 },
-  abandonBtnSave: { backgroundColor: C.primary },
-  abandonBtnSaveText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  abandonBtnDiscard: { backgroundColor: C.categoryFinisher, borderWidth: 1, borderColor: C.categoryFinisherText + '55' },
-  abandonBtnDiscardText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.categoryFinisherText },
-  // Target weight label on KPI lift
-  targetWeightLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 1 },
-  loadTextMain: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDark },
-  // Swapped-again action button
-  actionBtnSwapped: { backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
-  // Test week ORM comparison card in congrats modal
-  ormCompareCard: { width: '100%', backgroundColor: C.primarySurface, borderRadius: 12, borderWidth: 1, borderColor: C.primaryMuted, padding: 14, marginBottom: 14 },
-  ormCompareTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary, textAlign: 'center', marginBottom: 12, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  ormCompareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  ormCompareItem: { alignItems: 'center', flex: 1 },
-  ormCompareLabel: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 4 },
-  ormCompareValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
-  ormCompareNew: { color: C.primary, fontSize: 22 },
-  ormPbBadge: { marginTop: 10, alignItems: 'center' },
-  ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
-  // Time-based exercise done button
-  timeDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: C.primaryMuted, backgroundColor: C.primarySurface, marginVertical: 8 },
-  timeDoneBtnDone: { backgroundColor: C.primary, borderColor: C.primary },
-  timeDoneBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  timeDoneBtnTextDone: { color: C.textInverse },
-  // Zero-block hint below set row
-  zeroBlockHint: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, fontStyle: 'italic', textAlign: 'center', marginTop: 2, paddingHorizontal: 8 },
-  // Skip exercise link
-  skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
-  skipExerciseLinkText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary, textDecorationLine: 'underline' },
-  // Pain adaptation banner
-  painAdaptBanner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 12, backgroundColor: C.warningLight, borderRadius: 10, borderWidth: 1, borderColor: C.warning + '44', gap: 10 },
-  painAdaptBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  painAdaptBannerTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.warning, marginBottom: 1 },
-  painAdaptBannerSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.warning, opacity: 0.85, lineHeight: 17 },
-  painAdaptDismiss: { padding: 4, alignItems: 'center', justifyContent: 'center' },
-  // Comfort adaptation note on exercise cards
-  comfortNote: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8, paddingHorizontal: 4, paddingVertical: 5, backgroundColor: C.warningLight, borderRadius: 7, borderWidth: 1, borderColor: C.warning + '33', marginLeft: 32 },
-  comfortNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.warning, flex: 1 },
-  // ── Set-by-set new UI ────────────────────────────────────────────────────
-  // Completed set chips strip
-  doneChipsScroll: { marginBottom: 12 },
-  doneChipsContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  doneChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: C.primarySurface, borderWidth: 1, borderColor: C.primaryMuted },
-  doneChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primaryDark },
-  // Active set block
-  activeSetBlock: { padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: C.primaryMuted, backgroundColor: C.primarySurface, gap: 10, marginBottom: 8 },
-  activeSetLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase' as const, letterSpacing: 0.8, textAlign: 'center' },
-  activeSetInputRow: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
-  activeInputGroup: { alignItems: 'center', gap: 4 },
-  activeSetInput: { width: 96, height: 64, borderRadius: 12, backgroundColor: C.surface, textAlign: 'center', fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, borderWidth: 2, borderColor: C.border },
-  activeInputUnit: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-  activeSetGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  activeSetGuideText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1, fontStyle: 'italic' as const },
-  // Complete Set button
-  completeSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.primary, borderRadius: 12, paddingVertical: 14, gap: 8 },
-  completeSetBtnDisabled: { backgroundColor: C.surfaceTertiary },
-  completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
-  completeSetBtnTextDisabled: { color: C.textTertiary },
-  // All sets done row
-  allSetsDone: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, backgroundColor: C.primarySurface, borderRadius: 10 },
-  allSetsDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryDark },
-}); }
+function makeStyles(C: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    closeButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    sessionInfo: { flex: 1, alignItems: 'center' },
+    sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
+    sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    progressBar: { paddingHorizontal: 24, marginBottom: 4 },
+    progressTrack: {
+      height: 4,
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 2,
+      overflow: 'hidden',
+      marginBottom: 6,
+    },
+    progressFill: { height: '100%', backgroundColor: C.primary, borderRadius: 2 },
+    progressText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      textAlign: 'center',
+    },
+    adaptationBar: {
+      flexDirection: 'row',
+      paddingHorizontal: 24,
+      paddingVertical: 8,
+      gap: 8,
+      justifyContent: 'center',
+      flexWrap: 'wrap',
+    },
+    adaptTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      gap: 4,
+    },
+    adaptTagText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+    exerciseList: { flex: 1 },
+    exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
+    exerciseCard: {
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    exerciseCardDone: { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
+    exerciseCardLocked: {
+      backgroundColor: C.surfaceTertiary,
+      borderColor: C.borderLight,
+      opacity: 0.65,
+    },
+    exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    checkCircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 2,
+      flexShrink: 0,
+    },
+    checkCircleDone: { backgroundColor: C.primary, borderColor: C.primary },
+    exerciseInfo: { flex: 1 },
+    exerciseNameRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginBottom: 4,
+    },
+    exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1 },
+    exerciseNameDone: { color: C.primaryDark },
+    badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
+    badgeText: {
+      fontSize: 9,
+      fontFamily: 'Inter_600SemiBold',
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+    },
+    exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+    categoryPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    categoryDot: { width: 5, height: 5, borderRadius: 3 },
+    categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+    metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    dumbbellNote: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      marginTop: 2,
+      fontStyle: 'italic' as const,
+    },
+    progressionNoteRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      marginTop: 3,
+    },
+    progressionNoteText: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      fontStyle: 'italic' as const,
+      flex: 1,
+    },
+    lastSessionRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      marginTop: 3,
+    },
+    lastSessionText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    volumeCompareRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      marginBottom: 14,
+      paddingHorizontal: 4,
+    },
+    volumeCompareText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      flex: 1,
+    },
+    chevron: { marginTop: 2 },
+    actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: C.surfaceTertiary,
+    },
+    actionBtnYoutube: {
+      backgroundColor: C.youtubeSurface,
+      borderWidth: 1,
+      borderColor: C.youtubeBorder,
+    },
+    actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    setsContainer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
+    },
+    cueContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
+    cueText: {
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      fontStyle: 'italic' as const,
+      flex: 1,
+    },
+    setHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      marginBottom: 2,
+    },
+    setHeaderItem: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      textAlign: 'center',
+    },
+    setHeaderInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 20 },
+    setRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    setLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, width: 36 },
+    setInputs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
+    inputGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    setInput: {
+      width: 58,
+      height: 38,
+      borderRadius: 8,
+      backgroundColor: C.surfaceTertiary,
+      textAlign: 'center',
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    setInputDisabled: { opacity: 0.45 },
+    inputUnit: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, width: 30 },
+    setCheck: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2.5,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+    },
+    setCheckDone: { backgroundColor: C.primary, borderColor: C.primary },
+    setCheckDisabled: { opacity: 0.3 },
+    // Card state styles
+    exerciseCardPast: {
+      backgroundColor: C.surfaceTertiary,
+      borderColor: C.borderLight,
+      opacity: 0.8,
+    },
+    // Locked/future card styles
+    lockedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    lockIconWrap: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    lockedInfo: { flex: 1 },
+    lockedName: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      marginBottom: 4,
+    },
+    lockedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    lockedMetaText: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    // Past (completed) card styles
+    pastHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    pastName: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      marginBottom: 4,
+    },
+    bottomAction: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      backgroundColor: C.background,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
+    },
+    completeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 16,
+      gap: 8,
+    },
+    completeButtonDisabled: { backgroundColor: C.surfaceTertiary },
+    completeText: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    completeTextDisabled: { color: C.textTertiary },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalContent: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 28,
+      alignItems: 'center',
+      width: '100%',
+      maxWidth: 340,
+    },
+    modalIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 16,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    modalDesc: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    youtubeButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FF0000',
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      gap: 8,
+      marginBottom: 12,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    youtubeButtonText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+    modalClose: { paddingVertical: 10, paddingHorizontal: 32 },
+    modalCloseText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    swapFrom: {
+      width: '100%',
+      padding: 12,
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 10,
+      marginBottom: 4,
+    },
+    swapFromLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      marginBottom: 2,
+    },
+    swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
+    swapArrow: { paddingVertical: 4 },
+    swapTo: {
+      width: '100%',
+      padding: 12,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      marginBottom: 12,
+    },
+    swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primary, marginBottom: 2 },
+    swapToName: {
+      fontSize: 14,
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryDark,
+      marginBottom: 4,
+    },
+    swapToCue: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      fontStyle: 'italic' as const,
+      marginBottom: 4,
+    },
+    swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+    swapNote: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    swapConfirmBtn: {
+      width: '100%',
+      backgroundColor: C.primary,
+      paddingVertical: 13,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    congratsModal: { gap: 0 },
+    congratsIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 20,
+      backgroundColor: C.trophyBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    congratsTitle: {
+      fontSize: 22,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    congratsMessage: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 20,
+      paddingHorizontal: 4,
+    },
+    congratsStats: {
+      flexDirection: 'row',
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 20,
+      width: '100%',
+      alignItems: 'center',
+    },
+    congratsStat: { flex: 1, alignItems: 'center' },
+    congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
+    congratsStatLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 2,
+    },
+    congratsStatDivider: { width: 1, height: 28, backgroundColor: C.border },
+    congratsButton: {
+      width: '100%',
+      flexDirection: 'row',
+      backgroundColor: C.primary,
+      paddingVertical: 16,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    congratsButtonMuted: { backgroundColor: C.surfaceTertiary },
+    congratsButtonText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    congratsSecondaryButton: {
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 14,
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    congratsSecondaryButtonText: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+    },
+    feedbackSavedBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      marginBottom: 14,
+      width: '100%',
+    },
+    feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
+    feedbackButtonRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+      marginTop: 10,
+      flexWrap: 'wrap',
+    },
+    feedbackSecondaryBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 11,
+      borderRadius: 12,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    feedbackSubtitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      marginBottom: 14,
+    },
+    feedbackScroll: { width: '100%', maxHeight: 260, marginBottom: 16 },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+      gap: 8,
+    },
+    ratingName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
+    ratingButtons: { flexDirection: 'row', gap: 6 },
+    thumbBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.surfaceTertiary,
+    },
+    thumbBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
+    thumbBtnDown: { borderColor: C.border },
+    thumbBtnDownActive: { backgroundColor: C.destructive, borderColor: C.destructive },
+    checklistRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 11,
+      paddingHorizontal: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+      gap: 10,
+    },
+    checklistRowSelected: { backgroundColor: C.primarySurface },
+    checklistBox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    checklistBoxSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    checklistName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text },
+    checklistNameSelected: { color: C.primaryDark, fontFamily: 'Inter_600SemiBold' },
+    // New Record badge
+    newRecordBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start',
+      backgroundColor: C.success,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      marginLeft: 8,
+      marginBottom: 2,
+    },
+    newRecordText: {
+      fontSize: 10,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
+      letterSpacing: 0.3,
+    },
+    // Milestone congrats styles
+    milestoneHeader: { alignItems: 'center', marginBottom: 12 },
+    milestoneIconWrap: {
+      width: 96,
+      height: 96,
+      borderRadius: 24,
+      backgroundColor: C.trophyBg,
+      borderWidth: 2,
+      borderColor: C.trophyBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    milestoneBadgeText: {
+      fontSize: 11,
+      fontFamily: 'Inter_700Bold',
+      color: C.primary,
+      letterSpacing: 1.5,
+      backgroundColor: C.primaryMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    congratsTitleMilestone: {
+      fontSize: 26,
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryDark,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    congratsButtonMilestone: { backgroundColor: C.primaryDark },
+    // Streak badge
+    streakBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.streakBg,
+      borderWidth: 1,
+      borderColor: C.streakBorder,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginBottom: 14,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    streakBadgeIcon: { fontSize: 18 },
+    streakBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.streakText },
+    // Elapsed timer in top bar
+    elapsedTimer: { flexDirection: 'row', alignItems: 'center', gap: 3, width: 52 },
+    elapsedTimerText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    // Rest timer
+    restTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    restTimerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1.5,
+      borderColor: C.primaryMuted,
+    },
+    restTimerBtnActive: { backgroundColor: C.primary, borderColor: C.primaryDark },
+    restTimerResetBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    restTimerSkipBtn: {
+      paddingHorizontal: 12,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerAddBtn: {
+      paddingHorizontal: 10,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    restTimerAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerTextActive: { color: '#fff' },
+    restTimerDone: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      alignSelf: 'flex-start',
+    },
+    restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerRingCard: {
+      alignItems: 'center',
+      paddingTop: 16,
+      paddingBottom: 14,
+      paddingHorizontal: 12,
+      marginBottom: 10,
+      backgroundColor: C.primarySurface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    restTimerRingContainer: {
+      width: RING_SIZE,
+      height: RING_SIZE,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    restTimerRingCenter: { alignItems: 'center' },
+    restTimerRingLabel: {
+      fontSize: 10,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 1,
+      marginBottom: 1,
+    },
+    restTimerRingDigits: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.text },
+    restTimerRingControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%' as any,
+    },
+    restTimerRingPauseBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 10,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      flex: 1,
+    },
+    restTimerRingPauseBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    // Spotter advisory
+    spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+    spotterAdvisoryText: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      fontStyle: 'italic',
+    },
+    // Per-exercise note input
+    noteInputRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.borderLight },
+    noteInput: {
+      height: 36,
+      borderRadius: 8,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      paddingHorizontal: 10,
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      color: C.text,
+    },
+    // Abandon modal
+    abandonBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    abandonBtnSave: { backgroundColor: C.primary },
+    abandonBtnSaveText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    abandonBtnDiscard: {
+      backgroundColor: C.categoryFinisher,
+      borderWidth: 1,
+      borderColor: C.categoryFinisherText + '55',
+    },
+    abandonBtnDiscardText: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.categoryFinisherText,
+    },
+    // Target weight label on KPI lift
+    targetWeightLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+      marginBottom: 1,
+    },
+    loadTextMain: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+    // Swapped-again action button
+    actionBtnSwapped: {
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    // Test week ORM comparison card in congrats modal
+    ormCompareCard: {
+      width: '100%',
+      backgroundColor: C.primarySurface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      padding: 14,
+      marginBottom: 14,
+    },
+    ormCompareTitle: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      textAlign: 'center',
+      marginBottom: 12,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+    },
+    ormCompareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+    ormCompareItem: { alignItems: 'center', flex: 1 },
+    ormCompareLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginBottom: 4,
+    },
+    ormCompareValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    ormCompareNew: { color: C.primary, fontSize: 22 },
+    ormPbBadge: { marginTop: 10, alignItems: 'center' },
+    ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+    // Time-based exercise done button
+    timeDoneBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.primaryMuted,
+      backgroundColor: C.primarySurface,
+      marginVertical: 8,
+    },
+    timeDoneBtnDone: { backgroundColor: C.primary, borderColor: C.primary },
+    timeDoneBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    timeDoneBtnTextDone: { color: C.textInverse },
+    // Zero-block hint below set row
+    zeroBlockHint: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      marginTop: 2,
+      paddingHorizontal: 8,
+    },
+    // Skip exercise link
+    skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
+    skipExerciseLinkText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      textDecorationLine: 'underline',
+    },
+    // Pain adaptation banner
+    painAdaptBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginBottom: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: C.warningLight,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.warning + '44',
+      gap: 10,
+    },
+    painAdaptBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+    painAdaptBannerTitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.warning,
+      marginBottom: 1,
+    },
+    painAdaptBannerSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.warning,
+      opacity: 0.85,
+      lineHeight: 17,
+    },
+    painAdaptDismiss: { padding: 4, alignItems: 'center', justifyContent: 'center' },
+    // Comfort adaptation note on exercise cards
+    comfortNote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 8,
+      paddingHorizontal: 4,
+      paddingVertical: 5,
+      backgroundColor: C.warningLight,
+      borderRadius: 7,
+      borderWidth: 1,
+      borderColor: C.warning + '33',
+      marginLeft: 32,
+    },
+    comfortNoteText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.warning, flex: 1 },
+    // ── Set-by-set new UI ────────────────────────────────────────────────────
+    // Completed set chips strip
+    doneChipsScroll: { marginBottom: 12 },
+    doneChipsContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+    doneChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 20,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    doneChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primaryDark },
+    // Active set block
+    activeSetBlock: {
+      padding: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: C.primaryMuted,
+      backgroundColor: C.primarySurface,
+      gap: 10,
+      marginBottom: 8,
+    },
+    activeSetLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.8,
+      textAlign: 'center',
+    },
+    activeSetInputRow: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
+    activeInputGroup: { alignItems: 'center', gap: 4 },
+    activeSetInput: {
+      width: 96,
+      height: 64,
+      borderRadius: 12,
+      backgroundColor: C.surface,
+      textAlign: 'center',
+      fontSize: 28,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      borderWidth: 2,
+      borderColor: C.border,
+    },
+    activeInputUnit: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    activeSetGuideRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    activeSetGuideText: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      flex: 1,
+      fontStyle: 'italic' as const,
+    },
+    // Complete Set button
+    completeSetBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      gap: 8,
+    },
+    completeSetBtnDisabled: { backgroundColor: C.surfaceTertiary },
+    completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    completeSetBtnTextDisabled: { color: C.textTertiary },
+    // All sets done row
+    allSetsDone: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+    },
+    allSetsDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryDark },
+  });
+}

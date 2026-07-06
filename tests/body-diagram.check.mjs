@@ -66,23 +66,23 @@ const typeStart = storeSrc.indexOf('export type PainRegion =');
 check(
   'PainRegion type declaration found in lib/store.ts',
   typeStart !== -1,
-  'declaration not found — check lib/store.ts',
+  'declaration not found — check lib/store.ts'
 );
 
 let ALL_REGIONS = [];
 
 if (typeStart !== -1) {
-  const eqPos     = storeSrc.indexOf('=', typeStart);
-  const semi      = storeSrc.indexOf(';', eqPos);
+  const eqPos = storeSrc.indexOf('=', typeStart);
+  const semi = storeSrc.indexOf(';', eqPos);
   const typeBlock = storeSrc.slice(eqPos, semi + 1);
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
-  ALL_REGIONS = regionMatches.map(m => m[1]);
+  ALL_REGIONS = regionMatches.map((m) => m[1]);
 
   check(
     `PainRegion type contains at least 1 value (found ${ALL_REGIONS.length})`,
     ALL_REGIONS.length >= 1,
-    'no quoted identifiers found in PainRegion type block',
+    'no quoted identifiers found in PainRegion type block'
   );
 
   for (const r of ALL_REGIONS) {
@@ -95,53 +95,49 @@ if (typeStart !== -1) {
 // BodyDiagram.tsx.  When a new PainRegion is added to lib/store.ts, add its
 // expected label here too — section [4b] below will fail until you do.
 const EXPECTED_LABELS = {
-  neck:           'Neck',
+  neck: 'Neck',
   front_shoulder: 'Front Shoulder',
-  rear_shoulder:  'Rear Shoulder',
-  elbow_wrist:    'Elbow / Wrist',
-  upper_back:     'Upper Back',
-  lower_back:     'Lower Back',
-  core_ribs:      'Core / Ribs',
-  hip_groin:      'Hip / Groin',
-  knee:           'Knee',
-  calf_shin:      'Calf / Shin',
+  rear_shoulder: 'Rear Shoulder',
+  elbow_wrist: 'Elbow / Wrist',
+  upper_back: 'Upper Back',
+  lower_back: 'Lower Back',
+  core_ribs: 'Core / Ribs',
+  hip_groin: 'Hip / Groin',
+  knee: 'Knee',
+  calf_shin: 'Calf / Shin',
   ankle_achilles: 'Ankle / Achilles',
-  chest:          'Chest',
-  bicep:          'Biceps',
-  tricep:         'Triceps',
-  quads:          'Quads',
-  hamstrings:     'Hamstrings',
-  glutes:         'Glutes',
-  lat_mid_back:   'Lats / Mid Back',
+  chest: 'Chest',
+  bicep: 'Biceps',
+  tricep: 'Triceps',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  lat_mid_back: 'Lats / Mid Back',
 };
 
 // ─── 1. Fill guard ─────────────────────────────────────────────────────────────
 console.log('\n[1] Fill guard — rgba(0,0,0,0.001) workaround');
 
-check(
-  'source contains rgba(0,0,0,0.001)',
-  src.includes('rgba(0,0,0,0.001)'),
-);
+check('source contains rgba(0,0,0,0.001)', src.includes('rgba(0,0,0,0.001)'));
 
 // Extract the h() helper block only — don't flag rgba usages elsewhere.
 // Accepts both concise-return form `=> ({...});` and block form `=> {...\n  };`
-const hBlock = src.match(
-  /const h = \(r: PainRegion\) => (?:\(\{[\s\S]*?\}\);|\{[\s\S]*?\n  \};)/,
-)?.[0] ?? '';
+const hBlock =
+  src.match(/const h = \(r: PainRegion\) => (?:\(\{[\s\S]*?\}\);|\{[\s\S]*?\n  \};)/)?.[0] ?? '';
 check(
   'h() block was found in source',
   hBlock.length > 0,
-  'regex did not match — check h() function signature',
+  'regex did not match — check h() function signature'
 );
 check(
   "h() block does NOT use fill:'transparent'",
   !hBlock.match(/fill:\s*['"]transparent['"]/),
-  "reverting to transparent silently disables iOS/Android touch events",
+  'reverting to transparent silently disables iOS/Android touch events'
 );
 check(
   "h() block does NOT use fill:'none'",
   !hBlock.match(/fill:\s*['"]none['"]/),
-  "fill:none also disables touch events on react-native-svg",
+  'fill:none also disables touch events on react-native-svg'
 );
 
 // ─── 2. testID wiring ──────────────────────────────────────────────────────────
@@ -150,17 +146,14 @@ console.log('\n[2] testID wiring — all regions via h() helper');
 check(
   'h() spreads testID: `body-diagram-region-${r}`',
   src.includes('testID: `body-diagram-region-${r}`'),
-  'testID must be inside the h() return object so every region gets it',
+  'testID must be inside the h() return object so every region gets it'
 );
 
 // ─── 3. Label completeness ────────────────────────────────────────────────────
 console.log(`\n[3] BODY_DIAGRAM_LABELS — all ${ALL_REGIONS.length} keys present`);
 
 for (const region of ALL_REGIONS) {
-  check(
-    `BODY_DIAGRAM_LABELS has key '${region}'`,
-    src.includes(`${region}:`),
-  );
+  check(`BODY_DIAGRAM_LABELS has key '${region}'`, src.includes(`${region}:`));
 }
 
 // ─── 4. Label correctness ─────────────────────────────────────────────────────
@@ -171,7 +164,7 @@ for (const [region, expected] of Object.entries(EXPECTED_LABELS)) {
   check(
     `label for '${region}' equals '${expected}'`,
     src.includes(expected),
-    `expected to find the string "${expected}" in source`,
+    `expected to find the string "${expected}" in source`
   );
 }
 
@@ -183,7 +176,7 @@ for (const region of ALL_REGIONS) {
     `EXPECTED_LABELS has a curated entry for '${region}'`,
     Object.prototype.hasOwnProperty.call(EXPECTED_LABELS, region),
     `'${region}' is in PainRegion but missing from EXPECTED_LABELS in this test file — ` +
-    `add  ${region}: '<Human Label>',  to EXPECTED_LABELS above`,
+      `add  ${region}: '<Human Label>',  to EXPECTED_LABELS above`
   );
 }
 
@@ -195,7 +188,7 @@ for (const region of ALL_REGIONS) {
   check(
     `h('${region}') call exists in SVG body`,
     pattern.test(src),
-    `region '${region}' must be placed via h() to get fill + onPress + testID`,
+    `region '${region}' must be placed via h() to get fill + onPress + testID`
   );
 }
 
@@ -204,11 +197,11 @@ console.log('\n[6] Front/Back toggle testIDs');
 
 check(
   'Front toggle has testID="body-diagram-front"',
-  src.includes('testID="body-diagram-front"') || src.includes("testID='body-diagram-front'"),
+  src.includes('testID="body-diagram-front"') || src.includes("testID='body-diagram-front'")
 );
 check(
   'Back toggle has testID="body-diagram-back"',
-  src.includes('testID="body-diagram-back"') || src.includes("testID='body-diagram-back'"),
+  src.includes('testID="body-diagram-back"') || src.includes("testID='body-diagram-back'")
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

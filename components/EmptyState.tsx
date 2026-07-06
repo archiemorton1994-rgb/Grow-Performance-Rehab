@@ -8,7 +8,12 @@ export interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle?: string;
-  cta?: { label: string; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap; testID?: string };
+  cta?: {
+    label: string;
+    onPress: () => void;
+    icon?: keyof typeof Ionicons.glyphMap;
+    testID?: string;
+  };
   testID?: string;
 }
 
@@ -50,21 +55,39 @@ export function EmptyState({ icon, title, subtitle, cta, testID }: EmptyStatePro
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: 'center', justifyContent: 'center',
-    borderRadius: 16, borderWidth: 1, paddingVertical: 28, paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
   },
   iconWrap: {
-    width: 56, height: 56, borderRadius: 28,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   title: { fontFamily: 'Inter_600SemiBold', fontSize: 15, textAlign: 'center' },
   subtitle: {
-    fontFamily: 'Inter_400Regular', fontSize: 13, textAlign: 'center',
-    marginTop: 4, lineHeight: 18, maxWidth: 280,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+    maxWidth: 280,
   },
   cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 16, paddingVertical: 11, paddingHorizontal: 18, borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 12,
   },
   ctaText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
 });

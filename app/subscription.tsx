@@ -21,9 +21,21 @@ import { getApiUrl } from '@/lib/query-client';
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
 const FEATURES = [
-  { icon: 'barbell-outline' as const, title: 'Personalised session programming', desc: 'Loads adapted to your strength and goals' },
-  { icon: 'body-outline' as const, title: '11-region pain adaptation', desc: 'Smart exercise swaps around your pain zones' },
-  { icon: 'trending-up-outline' as const, title: 'Progress tracking & strength tests', desc: 'Monitor your 1RM progress over time' },
+  {
+    icon: 'barbell-outline' as const,
+    title: 'Personalised session programming',
+    desc: 'Loads adapted to your strength and goals',
+  },
+  {
+    icon: 'body-outline' as const,
+    title: '11-region pain adaptation',
+    desc: 'Smart exercise swaps around your pain zones',
+  },
+  {
+    icon: 'trending-up-outline' as const,
+    title: 'Progress tracking & strength tests',
+    desc: 'Monitor your 1RM progress over time',
+  },
 ];
 
 const INCLUDED_ITEMS = [
@@ -64,7 +76,10 @@ function getLegalUrls() {
     const base = getApiUrl().replace(/\/$/, '');
     return { privacyUrl: `${base}/privacy`, termsUrl: `${base}/terms` };
   } catch {
-    return { privacyUrl: 'https://growperformance.app/privacy', termsUrl: 'https://growperformance.app/terms' };
+    return {
+      privacyUrl: 'https://growperformance.app/privacy',
+      termsUrl: 'https://growperformance.app/terms',
+    };
   }
 }
 
@@ -106,7 +121,9 @@ export default function SubscriptionScreen() {
     }
   }, []);
 
-  useEffect(() => { fetchOffering(); }, [fetchOffering]);
+  useEffect(() => {
+    fetchOffering();
+  }, [fetchOffering]);
 
   const handlePurchase = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -189,7 +206,12 @@ export default function SubscriptionScreen() {
           <Text style={styles.includedTitle}>{"What's included"}</Text>
           {INCLUDED_ITEMS.map((item) => (
             <View key={item} style={styles.includedRow}>
-              <Ionicons name="checkmark-circle" size={16} color={C.primary} style={{ marginTop: 1 }} />
+              <Ionicons
+                name="checkmark-circle"
+                size={16}
+                color={C.primary}
+                style={{ marginTop: 1 }}
+              />
               <Text style={styles.includedText}>{item}</Text>
             </View>
           ))}
@@ -199,25 +221,47 @@ export default function SubscriptionScreen() {
           <View style={styles.planCardTop}>
             <View style={{ flex: 1 }}>
               <Text style={styles.planName}>Grow Monthly</Text>
-              {loadingOffering
-                ? <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
-                : offeringError
-                  ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                      <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>Price unavailable</Text>
-                      <Pressable onPress={fetchOffering} testID="offerings-retry" style={{ backgroundColor: C.primaryMuted, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-                        <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}>Retry</Text>
-                      </Pressable>
-                    </View>
-                  )
-                  : <Text style={styles.planPrice}>{priceString}<Text style={styles.planPer}> / month</Text></Text>
-              }
+              {loadingOffering ? (
+                <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
+              ) : offeringError ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                  <Text
+                    style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}
+                  >
+                    Price unavailable
+                  </Text>
+                  <Pressable
+                    onPress={fetchOffering}
+                    testID="offerings-retry"
+                    style={{
+                      backgroundColor: C.primaryMuted,
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}
+                    >
+                      Retry
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={styles.planPrice}>
+                  {priceString}
+                  <Text style={styles.planPer}> / month</Text>
+                </Text>
+              )}
             </View>
             <View style={styles.trialBadge}>
               <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
             </View>
           </View>
-          <Text style={styles.planSub}>{trialText.sub} then {priceString ? `${priceString}/month` : 'the standard rate'}. Cancel anytime.</Text>
+          <Text style={styles.planSub}>
+            {trialText.sub} then {priceString ? `${priceString}/month` : 'the standard rate'}.
+            Cancel anytime.
+          </Text>
         </View>
 
         <Pressable
@@ -230,10 +274,11 @@ export default function SubscriptionScreen() {
           ]}
           testID="subscribe-cta"
         >
-          {purchasing
-            ? <ActivityIndicator color={C.textInverse} />
-            : <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
-          }
+          {purchasing ? (
+            <ActivityIndicator color={C.textInverse} />
+          ) : (
+            <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
+          )}
         </Pressable>
 
         {errorMsg ? (
@@ -249,105 +294,171 @@ export default function SubscriptionScreen() {
           style={styles.restoreBtn}
           testID="restore-purchases"
         >
-          <Text style={styles.restoreText}>
-            {restoring ? 'Restoring…' : 'Restore purchases'}
-          </Text>
+          <Text style={styles.restoreText}>{restoring ? 'Restoring…' : 'Restore purchases'}</Text>
         </Pressable>
 
         <Text style={styles.legal}>
           {'By continuing you agree to our '}
-          <Text style={styles.legalLink} testID="legal-terms" onPress={() => Linking.openURL(termsUrl)}>
+          <Text
+            style={styles.legalLink}
+            testID="legal-terms"
+            onPress={() => Linking.openURL(termsUrl)}
+          >
             Terms of Service
           </Text>
           {' and '}
-          <Text style={styles.legalLink} testID="legal-privacy" onPress={() => Linking.openURL(privacyUrl)}>
+          <Text
+            style={styles.legalLink}
+            testID="legal-privacy"
+            onPress={() => Linking.openURL(privacyUrl)}
+          >
             Privacy Policy
           </Text>
           {priceString
             ? `. Subscription renews at ${priceString}/month unless cancelled at least 24 hours before the end of the current period.`
-            : '. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period.'
-          }
+            : '. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period.'}
         </Text>
       </ScrollView>
-
     </View>
   );
 }
 
-function makeStyles(C: ReturnType<typeof useColors>) { return StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  content: { paddingHorizontal: 24, paddingTop: 24 },
+function makeStyles(C: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    content: { paddingHorizontal: 24, paddingTop: 24 },
 
-  logoImage: {
-    width: 96, height: 96, borderRadius: 48,
-    marginBottom: 28,
-  },
+    logoImage: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      marginBottom: 28,
+    },
 
-  headline: {
-    fontSize: 30, fontFamily: 'Inter_700Bold', color: C.text,
-    lineHeight: 38, marginBottom: 28,
-  },
+    headline: {
+      fontSize: 30,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      lineHeight: 38,
+      marginBottom: 28,
+    },
 
-  features: { gap: 16, marginBottom: 28 },
-  featureRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    backgroundColor: C.surface, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: C.borderLight,
-  },
-  featureIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: C.primaryMuted,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  featureTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
-  featureDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    features: { gap: 16, marginBottom: 28 },
+    featureRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 14,
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    featureIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
+    featureDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
-  includedCard: {
-    backgroundColor: C.surface, borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: C.borderLight, marginBottom: 20, gap: 10,
-  },
-  includedTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  includedText: { flex: 1, fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, lineHeight: 20 },
+    includedCard: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      marginBottom: 20,
+      gap: 10,
+    },
+    includedTitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    includedText: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+      lineHeight: 20,
+    },
 
-  planCard: {
-    backgroundColor: C.surface, borderRadius: 18, padding: 20,
-    borderWidth: 2, borderColor: C.primary, marginBottom: 20,
-  },
-  planCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  planName: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginBottom: 2 },
-  planPrice: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text },
-  planPer: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-  trialBadge: {
-    backgroundColor: C.primaryMuted, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  trialBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
-  planSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    planCard: {
+      backgroundColor: C.surface,
+      borderRadius: 18,
+      padding: 20,
+      borderWidth: 2,
+      borderColor: C.primary,
+      marginBottom: 20,
+    },
+    planCardTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    planName: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      marginBottom: 2,
+    },
+    planPrice: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text },
+    planPer: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    trialBadge: {
+      backgroundColor: C.primaryMuted,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    trialBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    planSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
 
-  ctaBtn: {
-    height: 58, borderRadius: 18, backgroundColor: C.primary,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-  },
-  ctaBtnLoading: { opacity: 0.7 },
-  ctaBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    ctaBtn: {
+      height: 58,
+      borderRadius: 18,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    ctaBtnLoading: { opacity: 0.7 },
+    ctaBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+    ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
-  errorRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 10, marginBottom: 2, paddingHorizontal: 4,
-  },
-  errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+      marginBottom: 2,
+      paddingHorizontal: 4,
+    },
+    errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
 
-  restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
-  restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
+    restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
 
-  legal: {
-    fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary,
-    textAlign: 'center', lineHeight: 16,
-  },
-  legalLink: {
-    fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary,
-    textDecorationLine: 'underline',
-  },
-}); }
+    legal: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
+    legalLink: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      textDecorationLine: 'underline',
+    },
+  });
+}

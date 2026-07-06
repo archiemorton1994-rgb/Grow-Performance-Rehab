@@ -4,12 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 
-export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
+export type EquipmentTier =
+  'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
-export type SessionType = 'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
+export type SessionType =
+  'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
 /** Session types that contribute to strength progressive overload. */
 export const STRENGTH_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
-export type ExerciseCategory = 'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
+export type ExerciseCategory =
+  'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -17,11 +20,24 @@ export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'reha
 export type WeightUnit = 'kg' | 'lbs';
 
 export type PainRegion =
-  | 'front_shoulder' | 'rear_shoulder' | 'elbow_wrist' | 'neck'
-  | 'lower_back' | 'upper_back' | 'core_ribs'
-  | 'knee' | 'hip_groin' | 'ankle_achilles' | 'calf_shin'
-  | 'chest' | 'bicep' | 'tricep'
-  | 'quads' | 'hamstrings' | 'glutes' | 'lat_mid_back';
+  | 'front_shoulder'
+  | 'rear_shoulder'
+  | 'elbow_wrist'
+  | 'neck'
+  | 'lower_back'
+  | 'upper_back'
+  | 'core_ribs'
+  | 'knee'
+  | 'hip_groin'
+  | 'ankle_achilles'
+  | 'calf_shin'
+  | 'chest'
+  | 'bicep'
+  | 'tricep'
+  | 'quads'
+  | 'hamstrings'
+  | 'glutes'
+  | 'lat_mid_back';
 
 export const PAIN_CATEGORIES = {
   upper: {
@@ -184,7 +200,14 @@ export interface UserProfile {
   bodyweightKg: number;
 }
 
-export const TIER_ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+export const TIER_ORDER: EquipmentTier[] = [
+  'bodyweight',
+  'bands',
+  'dumbbells',
+  'kettlebells',
+  'barbell',
+  'fullgym',
+];
 
 interface AppState {
   onboardingComplete: boolean;
@@ -267,7 +290,11 @@ interface AppState {
   resetProgress: () => void;
   setExerciseFeedback: (exerciseId: string, thumbs: 'up' | 'down' | null) => void;
   applyTooEasyAdjustment: (exerciseIds: string[]) => void;
-  setLastReadiness: (energy: EnergyLevel, time: TimeAvailable, painRegion?: PainRegion | null) => void;
+  setLastReadiness: (
+    energy: EnergyLevel,
+    time: TimeAvailable,
+    painRegion?: PainRegion | null
+  ) => void;
   setWeightUnit: (unit: WeightUnit) => void;
   setActiveSession: (session: ActiveSession) => void;
   clearActiveSession: () => void;
@@ -378,24 +405,33 @@ export const useAppStore = create<AppState>()(
         set({ onboardingComplete: complete });
         if (complete) get().awardNewBadges();
       },
-      setEquipmentTiers: (tiers) => set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
+      setEquipmentTiers: (tiers) =>
+        set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       setUserProfile: (profile) => {
         set((state) => ({
           userProfile: { ...state.userProfile, ...profile },
-          ...(profile.bodyweightKg !== undefined ? { bodyweightUpdatedAt: new Date().toISOString() } : {}),
+          ...(profile.bodyweightKg !== undefined
+            ? { bodyweightUpdatedAt: new Date().toISOString() }
+            : {}),
         }));
         get().awardNewBadges();
       },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
-      setLastReadiness: (energy, time, painRegion) => set({ lastReadinessEnergy: energy, lastReadinessTime: time, ...(painRegion !== undefined ? { lastPainRegion: painRegion } : {}) }),
+      setLastReadiness: (energy, time, painRegion) =>
+        set({
+          lastReadinessEnergy: energy,
+          lastReadinessTime: time,
+          ...(painRegion !== undefined ? { lastPainRegion: painRegion } : {}),
+        }),
       setWeightUnit: (unit) => set({ weightUnit: unit }),
       setActiveSession: (session) => set({ activeSession: session }),
       clearActiveSession: () => set({ activeSession: null }),
-      updateLastLoggedWeights: (weights) => set((state) => ({
-        lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
-      })),
+      updateLastLoggedWeights: (weights) =>
+        set((state) => ({
+          lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
+        })),
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
@@ -418,16 +454,19 @@ export const useAppStore = create<AppState>()(
       isWeightReminderVisible: () => {
         const { completedSessions, bodyweightUpdatedAt, weightReminderSnoozedAt } = get();
         if (completedSessions.length === 0) return false;
-        const isStale = !bodyweightUpdatedAt
-          || (Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000 > 14;
+        const isStale =
+          !bodyweightUpdatedAt ||
+          (Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000 > 14;
         if (!isStale) return false;
         if (weightReminderSnoozedAt) {
-          const snoozedDaysAgo = (Date.now() - new Date(weightReminderSnoozedAt).getTime()) / 86400000;
+          const snoozedDaysAgo =
+            (Date.now() - new Date(weightReminderSnoozedAt).getTime()) / 86400000;
           if (snoozedDaysAgo < 7) return false;
         }
         return true;
       },
-      setSessionEquipmentOverride: (tiers) => set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
+      setSessionEquipmentOverride: (tiers) =>
+        set({ sessionEquipmentOverride: tiers.length > 0 ? tiers : null }),
       clearSessionEquipmentOverride: () => set({ sessionEquipmentOverride: null }),
       setPendingCustomExercises: (exercises) => set({ pendingCustomExercises: exercises }),
       clearPendingCustomExercises: () => set({ pendingCustomExercises: [] }),
@@ -441,14 +480,14 @@ export const useAppStore = create<AppState>()(
           ],
         }));
       },
-      deleteTemplate: (id) => set((state) => ({
-        savedTemplates: state.savedTemplates.filter((t) => t.id !== id),
-      })),
-      updateTemplate: (id, patch) => set((state) => ({
-        savedTemplates: state.savedTemplates.map((t) =>
-          t.id === id ? { ...t, ...patch } : t
-        ),
-      })),
+      deleteTemplate: (id) =>
+        set((state) => ({
+          savedTemplates: state.savedTemplates.filter((t) => t.id !== id),
+        })),
+      updateTemplate: (id, patch) =>
+        set((state) => ({
+          savedTemplates: state.savedTemplates.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        })),
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -517,69 +556,77 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
 
-      resetProgress: () => set({
-        completedCount: 0,
-        completedSessions: [],
-        oneRepMaxes: [],
-      }),
+      resetProgress: () =>
+        set({
+          completedCount: 0,
+          completedSessions: [],
+          oneRepMaxes: [],
+        }),
 
-      setExerciseFeedback: (exerciseId, thumbs) => set((state) => {
-        const current = state.exerciseFeedback[exerciseId];
-        const currentMult = current?.multiplier ?? 1.0;
-        let newMult = currentMult;
-        if (thumbs === 'up') {
-          newMult = parseFloat(Math.min(1.5, currentMult + 0.03).toFixed(3));
-        } else if (thumbs === 'down') {
-          newMult = parseFloat(Math.max(0.70, currentMult - 0.05).toFixed(3));
-        }
-        // Thumbs feedback also updates lastSessionPerformance - this is the
-        // post-session override that adjusts what completeSession computed from
-        // raw set data (e.g. user completed all sets but found it easy = 'easy').
-        const performance = thumbs === 'up' ? 'easy' : thumbs === 'down' ? 'failed' : state.lastSessionPerformance[exerciseId];
-        return {
-          exerciseFeedback: {
-            ...state.exerciseFeedback,
-            [exerciseId]: {
-              tooEasy: current?.tooEasy ?? false,
-              thumbs,
-              multiplier: newMult,
+      setExerciseFeedback: (exerciseId, thumbs) =>
+        set((state) => {
+          const current = state.exerciseFeedback[exerciseId];
+          const currentMult = current?.multiplier ?? 1.0;
+          let newMult = currentMult;
+          if (thumbs === 'up') {
+            newMult = parseFloat(Math.min(1.5, currentMult + 0.03).toFixed(3));
+          } else if (thumbs === 'down') {
+            newMult = parseFloat(Math.max(0.7, currentMult - 0.05).toFixed(3));
+          }
+          // Thumbs feedback also updates lastSessionPerformance - this is the
+          // post-session override that adjusts what completeSession computed from
+          // raw set data (e.g. user completed all sets but found it easy = 'easy').
+          const performance =
+            thumbs === 'up'
+              ? 'easy'
+              : thumbs === 'down'
+                ? 'failed'
+                : state.lastSessionPerformance[exerciseId];
+          return {
+            exerciseFeedback: {
+              ...state.exerciseFeedback,
+              [exerciseId]: {
+                tooEasy: current?.tooEasy ?? false,
+                thumbs,
+                multiplier: newMult,
+              },
             },
-          },
-          lastSessionPerformance: {
-            ...state.lastSessionPerformance,
-            ...(performance ? { [exerciseId]: performance } : {}),
-          },
-          // Any explicit feedback resets the consecutive-normal streak for this
-          // exercise - the streak only counts sessions with zero intervention.
-          exerciseNormalStreak: {
-            ...state.exerciseNormalStreak,
-            [exerciseId]: 0,
-          },
-        };
-      }),
-
-      applyTooEasyAdjustment: (exerciseIds) => set((state) => {
-        const updated = { ...state.exerciseFeedback };
-        const updatedPerformance = { ...state.lastSessionPerformance };
-        const updatedStreak = { ...state.exerciseNormalStreak };
-        for (const id of exerciseIds) {
-          const current = updated[id]?.multiplier ?? 1.0;
-          updated[id] = {
-            tooEasy: true,
-            thumbs: updated[id]?.thumbs ?? null,
-            multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
+            lastSessionPerformance: {
+              ...state.lastSessionPerformance,
+              ...(performance ? { [exerciseId]: performance } : {}),
+            },
+            // Any explicit feedback resets the consecutive-normal streak for this
+            // exercise - the streak only counts sessions with zero intervention.
+            exerciseNormalStreak: {
+              ...state.exerciseNormalStreak,
+              [exerciseId]: 0,
+            },
           };
-          // Mark performance as 'easy' - user found this exercise manageable
-          updatedPerformance[id] = 'easy';
-          // Reset streak - explicit feedback interrupts the no-feedback run
-          updatedStreak[id] = 0;
-        }
-        return {
-          exerciseFeedback: updated,
-          lastSessionPerformance: updatedPerformance,
-          exerciseNormalStreak: updatedStreak,
-        };
-      }),
+        }),
+
+      applyTooEasyAdjustment: (exerciseIds) =>
+        set((state) => {
+          const updated = { ...state.exerciseFeedback };
+          const updatedPerformance = { ...state.lastSessionPerformance };
+          const updatedStreak = { ...state.exerciseNormalStreak };
+          for (const id of exerciseIds) {
+            const current = updated[id]?.multiplier ?? 1.0;
+            updated[id] = {
+              tooEasy: true,
+              thumbs: updated[id]?.thumbs ?? null,
+              multiplier: parseFloat(Math.min(1.5, current + 0.07).toFixed(3)),
+            };
+            // Mark performance as 'easy' - user found this exercise manageable
+            updatedPerformance[id] = 'easy';
+            // Reset streak - explicit feedback interrupts the no-feedback run
+            updatedStreak[id] = 0;
+          }
+          return {
+            exerciseFeedback: updated,
+            lastSessionPerformance: updatedPerformance,
+            exerciseNormalStreak: updatedStreak,
+          };
+        }),
 
       awardNewBadges: () => {
         const state = get();
@@ -593,7 +640,7 @@ export const useAppStore = create<AppState>()(
           onboardingComplete: state.onboardingComplete,
           weeklyStreakGoal: state.weeklyStreakGoal ?? 2,
         });
-        const newlyUnlocked = allEarned.filter(id => !state.earnedBadges.includes(id));
+        const newlyUnlocked = allEarned.filter((id) => !state.earnedBadges.includes(id));
         if (newlyUnlocked.length > 0) {
           set((s) => ({
             earnedBadges: [...new Set([...s.earnedBadges, ...newlyUnlocked])],
@@ -608,14 +655,18 @@ export const useAppStore = create<AppState>()(
         const { completedSessions, cycleStartOffset } = get();
         // Cycle rotation only advances on squat/bench/deadlift sessions.
         // Conditioning, prehab, flexibility, and custom sessions do not shift the rotation.
-        const strengthCount = completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length;
+        const strengthCount = completedSessions.filter((s) =>
+          SESSION_ORDER.includes(s.sessionType)
+        ).length;
         return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
       },
 
       isTestWeekDue: () => {
         const { completedSessions, testWeekFrequency } = get();
         // Test week is based on strength session count only.
-        const strengthCount = completedSessions.filter(s => SESSION_ORDER.includes(s.sessionType)).length;
+        const strengthCount = completedSessions.filter((s) =>
+          SESSION_ORDER.includes(s.sessionType)
+        ).length;
         if (strengthCount === 0) return false;
         return strengthCount % testWeekFrequency === 0;
       },
@@ -649,9 +700,7 @@ export const useAppStore = create<AppState>()(
         // not broken just because it is early in the week.
         const thisWeek = weekKey(new Date());
         const thisWeekCount = weekCounts.get(thisWeek) ?? 0;
-        let checkDate = thisWeekCount >= goal
-          ? new Date()
-          : new Date(Date.now() - 7 * 86400000);
+        let checkDate = thisWeekCount >= goal ? new Date() : new Date(Date.now() - 7 * 86400000);
 
         let streak = 0;
         for (let i = 0; i < 200; i++) {
@@ -683,7 +732,7 @@ export const useAppStore = create<AppState>()(
         const { oneRepMaxes } = get();
         const lifts = oneRepMaxes.filter((o) => o.lift === lift);
         if (lifts.length === 0) return null;
-        return lifts.reduce((best, curr) => curr.weight > best.weight ? curr : best);
+        return lifts.reduce((best, curr) => (curr.weight > best.weight ? curr : best));
       },
 
       getEffectiveTier: () => {
@@ -730,7 +779,9 @@ export const useAppStore = create<AppState>()(
             if (!log) return null;
             return { sessionId: session.id, date: session.date, sets: log.sets };
           })
-          .filter((entry): entry is { sessionId: string; date: string; sets: SetLog[] } => entry !== null);
+          .filter(
+            (entry): entry is { sessionId: string; date: string; sets: SetLog[] } => entry !== null
+          );
       },
 
       getAllExerciseProgress: () => {
@@ -781,7 +832,8 @@ export const useAppStore = create<AppState>()(
             testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
             cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
             lastLoggedWeights: data.lastLoggedWeights ?? s.lastLoggedWeights,
-            lastSessionPerformance: (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
+            lastSessionPerformance:
+              (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
             exerciseNormalStreak: data.exerciseNormalStreak ?? s.exerciseNormalStreak,
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
             completedCount: data.completedSessions?.length ?? s.completedCount,

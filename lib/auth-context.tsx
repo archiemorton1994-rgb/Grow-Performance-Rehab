@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -133,7 +126,8 @@ async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
     const expiryDate = entitlement?.expirationDate ?? null;
     return { isActive: active, isOnTrial: onTrial, expiryDate };
   } catch (e) {
-    if (__DEV__) console.warn('[Auth] getCustomerInfo failed - keeping existing subscription state', e);
+    if (__DEV__)
+      console.warn('[Auth] getCustomerInfo failed - keeping existing subscription state', e);
     return { isActive: false, isOnTrial: false, expiryDate: null, checkFailed: true };
   }
 }
@@ -179,7 +173,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           void uploadUserData(useAppStore.getState().getDataForSync());
         }
       } catch {
-        try { await clearToken(); } catch {}
+        try {
+          await clearToken();
+        } catch {}
       } finally {
         setIsLoading(false);
       }
@@ -209,26 +205,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { devCode: data.devCode };
   }, []);
 
-  const verifyCode = useCallback(async (email: string, code: string) => {
-    const res = await apiRequest('POST', '/api/auth/verify-code', { email, code });
-    if (!res.ok) {
+  const verifyCode = useCallback(
+    async (email: string, code: string) => {
+      const res = await apiRequest('POST', '/api/auth/verify-code', { email, code });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message ?? 'Verification failed.');
+      }
       const data = await res.json();
-      throw new Error(data.message ?? 'Verification failed.');
-    }
-    const data = await res.json();
-    await storeToken(data.token);
-    setUser(data.user);
-    setHasSignedOut(false);
-    await configureRevenueCat(data.user.id);
-    await refreshSubscription();
-    // On login: download server data and merge; if nothing on server, upload local
-    const serverData = await downloadUserData();
-    if (serverData) {
-      useAppStore.getState().mergeServerData(serverData);
-    } else {
-      void uploadUserData(useAppStore.getState().getDataForSync());
-    }
-  }, [refreshSubscription]);
+      await storeToken(data.token);
+      setUser(data.user);
+      setHasSignedOut(false);
+      await configureRevenueCat(data.user.id);
+      await refreshSubscription();
+      // On login: download server data and merge; if nothing on server, upload local
+      const serverData = await downloadUserData();
+      if (serverData) {
+        useAppStore.getState().mergeServerData(serverData);
+      } else {
+        void uploadUserData(useAppStore.getState().getDataForSync());
+      }
+    },
+    [refreshSubscription]
+  );
 
   const uploadData = useCallback(async () => {
     void uploadUserData(useAppStore.getState().getDataForSync());
@@ -242,7 +241,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsOnTrial(false);
     setExpiryDate(null);
     if (RC_API_KEY && rcConfigured) {
-      try { await Purchases.logOut(); } catch {}
+      try {
+        await Purchases.logOut();
+      } catch {}
     }
   }, []);
 
@@ -273,7 +274,8 @@ export function useAuth() {
 }
 
 export function useSubscription(): SubscriptionStatus & { refresh: () => Promise<void> } {
-  const { hasActiveSubscription, isOnTrial, expiryDate, refreshSubscription } = useContext(AuthContext);
+  const { hasActiveSubscription, isOnTrial, expiryDate, refreshSubscription } =
+    useContext(AuthContext);
   return {
     isActive: hasActiveSubscription,
     isOnTrial,

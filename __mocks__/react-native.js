@@ -17,7 +17,15 @@ const Pressable = ({ children, testID, onPress, style, disabled, ...rest }) =>
   React.createElement('Pressable', { testID, onPress, disabled, ...rest }, children);
 Pressable.displayName = 'Pressable';
 
-const Modal = ({ children, visible, transparent, animationType, onRequestClose, testID, ...rest }) =>
+const Modal = ({
+  children,
+  visible,
+  transparent,
+  animationType,
+  onRequestClose,
+  testID,
+  ...rest
+}) =>
   visible ? React.createElement('View', { testID: testID ?? 'modal', ...rest }, children) : null;
 Modal.displayName = 'Modal';
 

@@ -34,20 +34,14 @@ export class DbStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<AuthUser | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email.toLowerCase()));
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
     return user;
   }
 
   async upsertUser(email: string): Promise<AuthUser> {
     const norm = email.toLowerCase().trim();
     await db.insert(users).values({ email: norm }).onConflictDoNothing();
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, norm));
+    const [user] = await db.select().from(users).where(eq(users.email, norm));
     return user!;
   }
 
@@ -63,10 +57,7 @@ export class DbStorage implements IStorage {
   }
 
   async getOtp(email: string): Promise<OtpEntry | undefined> {
-    const [row] = await db
-      .select()
-      .from(otps)
-      .where(eq(otps.email, email.toLowerCase()));
+    const [row] = await db.select().from(otps).where(eq(otps.email, email.toLowerCase()));
     if (!row) return undefined;
     return { code: row.code, expiresAt: row.expiresAt.getTime() };
   }
@@ -78,7 +69,7 @@ export class DbStorage implements IStorage {
   async loadRateLimits(storeName: string): Promise<Map<string, number[]>> {
     const result = await pool.query<{ email: string; timestamps: string }>(
       'SELECT email, timestamps FROM rate_limits WHERE store_name = $1',
-      [storeName],
+      [storeName]
     );
     const windowStart = Date.now() - 10 * 60 * 1000;
     const map = new Map<string, number[]>();
@@ -96,14 +87,14 @@ export class DbStorage implements IStorage {
       `INSERT INTO rate_limits (store_name, email, timestamps)
        VALUES ($1, $2, $3)
        ON CONFLICT (store_name, email) DO UPDATE SET timestamps = EXCLUDED.timestamps`,
-      [storeName, email, JSON.stringify(timestamps)],
+      [storeName, email, JSON.stringify(timestamps)]
     );
   }
 
   async loadCounters(storeName: string): Promise<Map<string, number>> {
     const result = await pool.query<{ email: string; timestamps: string }>(
       'SELECT email, timestamps FROM rate_limits WHERE store_name = $1',
-      [storeName],
+      [storeName]
     );
     const map = new Map<string, number>();
     for (const row of result.rows) {
@@ -120,15 +111,15 @@ export class DbStorage implements IStorage {
       `INSERT INTO rate_limits (store_name, email, timestamps)
        VALUES ($1, $2, $3)
        ON CONFLICT (store_name, email) DO UPDATE SET timestamps = EXCLUDED.timestamps`,
-      [storeName, email, String(count)],
+      [storeName, email, String(count)]
     );
   }
 
   async deleteCounter(storeName: string, email: string): Promise<void> {
-    await pool.query(
-      'DELETE FROM rate_limits WHERE store_name = $1 AND email = $2',
-      [storeName, email],
-    );
+    await pool.query('DELETE FROM rate_limits WHERE store_name = $1 AND email = $2', [
+      storeName,
+      email,
+    ]);
   }
 }
 

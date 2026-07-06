@@ -27,23 +27,23 @@ import {
 type FilterTab = 'all' | 'earned' | 'locked';
 
 const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
-  session_count:       'Complete more sessions to unlock this.',
-  streak_weeks:        'Train consistently each week to build your streak.',
-  strength_improvement:'Log 1RMs across multiple test weeks to track progress.',
-  session_type_count:  'Complete more sessions of this type.',
-  consistency_habit:   'Train regularly each week to build this habit.',
-  goal_progress:       'Keep training toward your selected goals.',
-  profile_action:      'Update your profile to unlock this.',
-  equipment_usage:     'Use different equipment tiers in your sessions.',
-  test_week:           'Complete a 1RM test week to unlock this.',
-  time_based:          'Train at a consistent time of day.',
-  variety:             'Mix up your session types — try them all.',
-  recovery:            'Add prehab or flexibility sessions to your routine.',
-  duration_based:      'Complete a longer session (45 or 60 min) to unlock.',
-  comeback:            'Come back after a break and train again.',
-  pain_adaptation:     'Complete sessions while managing a pain region.',
-  low_energy:          'Log a session even on a low-energy day.',
-  exercise_specific:   'Log this specific exercise in one of your sessions.',
+  session_count: 'Complete more sessions to unlock this.',
+  streak_weeks: 'Train consistently each week to build your streak.',
+  strength_improvement: 'Log 1RMs across multiple test weeks to track progress.',
+  session_type_count: 'Complete more sessions of this type.',
+  consistency_habit: 'Train regularly each week to build this habit.',
+  goal_progress: 'Keep training toward your selected goals.',
+  profile_action: 'Update your profile to unlock this.',
+  equipment_usage: 'Use different equipment tiers in your sessions.',
+  test_week: 'Complete a 1RM test week to unlock this.',
+  time_based: 'Train at a consistent time of day.',
+  variety: 'Mix up your session types — try them all.',
+  recovery: 'Add prehab or flexibility sessions to your routine.',
+  duration_based: 'Complete a longer session (45 or 60 min) to unlock.',
+  comeback: 'Come back after a break and train again.',
+  pain_adaptation: 'Complete sessions while managing a pain region.',
+  low_energy: 'Log a session even on a low-energy day.',
+  exercise_specific: 'Log this specific exercise in one of your sessions.',
 };
 
 const COLS = 4;
@@ -74,17 +74,11 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
 
   return (
     <Animated.View
-      style={[
-        StyleSheet.absoluteFill,
-        { opacity: fadeAnim, zIndex: 100 },
-      ]}
+      style={[StyleSheet.absoluteFill, { opacity: fadeAnim, zIndex: 100 }]}
       pointerEvents="box-none"
     >
       {/* Semi-transparent backdrop */}
-      <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.52)' }}
-        onPress={handleDismiss}
-      />
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.52)' }} onPress={handleDismiss} />
 
       {/* Callout card anchored at the bottom */}
       <View
@@ -115,8 +109,8 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
 
         {/* Body */}
         <Text style={[tourStyles.calloutBody, { color: C.textSecondary }]}>
-          Earned badges glow with colour — locked ones show exactly what you
-          need to do to unlock them. Tap any badge to see its description.
+          Earned badges glow with colour — locked ones show exactly what you need to do to unlock
+          them. Tap any badge to see its description.
         </Text>
 
         {/* Tips */}
@@ -249,19 +243,19 @@ export default function AchievementsScreen() {
       list.push(b);
       byCategory.set(b.category, list);
     }
-    return BADGE_CATEGORY_ORDER
-      .filter(cat => byCategory.has(cat))
-      .map(cat => {
+    return BADGE_CATEGORY_ORDER.filter((cat) => byCategory.has(cat))
+      .map((cat) => {
         const all = byCategory.get(cat)!;
-        const filtered = activeFilter === 'all'
-          ? all
-          : activeFilter === 'earned'
-            ? all.filter(b => earnedSet.has(b.id))
-            : all.filter(b => !earnedSet.has(b.id));
-        const earnedCount = all.filter(b => earnedSet.has(b.id)).length;
+        const filtered =
+          activeFilter === 'all'
+            ? all
+            : activeFilter === 'earned'
+              ? all.filter((b) => earnedSet.has(b.id))
+              : all.filter((b) => !earnedSet.has(b.id));
+        const earnedCount = all.filter((b) => earnedSet.has(b.id)).length;
         return { title: cat, data: filtered, earnedCount, totalCount: all.length };
       })
-      .filter(s => s.data.length > 0);
+      .filter((s) => s.data.length > 0);
   }, [activeFilter, earnedSet]);
 
   const totalEarned = earnedBadges.length;
@@ -275,7 +269,7 @@ export default function AchievementsScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const filterTabs: { key: FilterTab; label: string }[] = [
-    { key: 'all',    label: 'All' },
+    { key: 'all', label: 'All' },
     { key: 'earned', label: 'Earned' },
     { key: 'locked', label: 'Locked' },
   ];
@@ -296,13 +290,15 @@ export default function AchievementsScreen() {
           <Text style={styles.headerTitle}>Achievements</Text>
         </View>
         <View style={styles.countPill}>
-          <Text style={styles.countPillText}>{totalEarned}/{totalBadges}</Text>
+          <Text style={styles.countPillText}>
+            {totalEarned}/{totalBadges}
+          </Text>
         </View>
       </View>
 
       {/* Filter tabs: All / Earned / Locked */}
       <View style={styles.filterBar}>
-        {filterTabs.map(tab => {
+        {filterTabs.map((tab) => {
           const active = activeFilter === tab.key;
           return (
             <Pressable
@@ -325,13 +321,10 @@ export default function AchievementsScreen() {
       {/* Badge sections */}
       <SectionList
         sections={sections}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
         renderSectionHeader={({ section }) => (
           <View style={[styles.sectionHeader, { backgroundColor: C.background }]}>
             <Text style={styles.sectionTitle}>
@@ -351,16 +344,13 @@ export default function AchievementsScreen() {
 
           return (
             <View style={styles.badgeRow}>
-              {rowItems.map(badge => {
+              {rowItems.map((badge) => {
                 const isEarned = earnedSet.has(badge.id);
                 return (
                   <Pressable
                     key={badge.id}
                     onPress={() => handleBadgePress(badge)}
-                    style={({ pressed }) => [
-                      styles.badgeCell,
-                      pressed && { opacity: 0.72 },
-                    ]}
+                    style={({ pressed }) => [styles.badgeCell, pressed && { opacity: 0.72 }]}
                     testID={`badge-${badge.id}`}
                   >
                     <View
@@ -389,7 +379,9 @@ export default function AchievementsScreen() {
                     >
                       {badge.name}
                     </Text>
-                    {isEarned && <View style={[styles.earnedDot, { backgroundColor: badge.color }]} />}
+                    {isEarned && (
+                      <View style={[styles.earnedDot, { backgroundColor: badge.color }]} />
+                    )}
                   </Pressable>
                 );
               })}
@@ -403,9 +395,7 @@ export default function AchievementsScreen() {
       />
 
       {/* Tour overlay — shown when navigated from the guided tour */}
-      {tourOverlayVisible && (
-        <TourCallout onDismiss={handleTourDismiss} />
-      )}
+      {tourOverlayVisible && <TourCallout onDismiss={handleTourDismiss} />}
 
       {/* Badge detail sheet */}
       {detailBadge && (
@@ -429,7 +419,10 @@ export default function AchievementsScreen() {
                 style={[
                   styles.detailIconWrap,
                   earnedSet.has(detailBadge.id)
-                    ? { backgroundColor: detailBadge.color + '22', borderColor: detailBadge.color + '55' }
+                    ? {
+                        backgroundColor: detailBadge.color + '22',
+                        borderColor: detailBadge.color + '55',
+                      }
                     : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                 ]}
               >
@@ -453,7 +446,10 @@ export default function AchievementsScreen() {
                 style={[
                   styles.detailStatusPill,
                   earnedSet.has(detailBadge.id)
-                    ? { backgroundColor: detailBadge.color + '22', borderColor: detailBadge.color + '55' }
+                    ? {
+                        backgroundColor: detailBadge.color + '22',
+                        borderColor: detailBadge.color + '55',
+                      }
                     : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                 ]}
               >
@@ -479,7 +475,12 @@ export default function AchievementsScreen() {
 
               {/* Locked hint */}
               {!earnedSet.has(detailBadge.id) && (
-                <View style={[styles.hintBox, { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight }]}>
+                <View
+                  style={[
+                    styles.hintBox,
+                    { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
+                  ]}
+                >
                   <Ionicons name="information-circle-outline" size={15} color={C.primary} />
                   <Text style={[styles.hintText, { color: C.textSecondary }]}>
                     {CRITERIA_HINTS[detailBadge.criteriaType]}
@@ -522,8 +523,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 12,
     },
     backBtn: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center',
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: C.surfaceSecondary,
     },
     headerTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text },
@@ -651,8 +655,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 24,
     },
     sheetHandle: {
-      width: 36, height: 4, borderRadius: 2,
-      alignSelf: 'center', marginBottom: 24,
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginBottom: 24,
     },
     detailContent: {
       alignItems: 'center',

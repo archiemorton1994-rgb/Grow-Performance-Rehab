@@ -62,7 +62,8 @@ async function cleanupExpiredOtps(): Promise<void> {
  */
 async function cleanupExpiredRateLimits(): Promise<void> {
   const windowMs = 10 * 60 * 1000;
-  await pool.query(`
+  await pool.query(
+    `
     DELETE FROM rate_limits
     WHERE timestamps LIKE '[%'
       AND (
@@ -72,7 +73,9 @@ async function cleanupExpiredRateLimits(): Promise<void> {
           FROM jsonb_array_elements_text(timestamps::jsonb) AS elem
         ) <= (EXTRACT(EPOCH FROM NOW()) * 1000)::bigint - $1
       )
-  `, [windowMs]);
+  `,
+    [windowMs]
+  );
 }
 
 export { pool };

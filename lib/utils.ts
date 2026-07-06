@@ -39,7 +39,7 @@ export function convertLoadString(load: string, unit: WeightUnit): string {
         return `${aLbs}–${bLbs} lbs`;
       }
       return `${aLbs} lbs`;
-    },
+    }
   );
 }
 

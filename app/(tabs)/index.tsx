@@ -17,9 +17,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  FadeInDown,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -29,8 +27,18 @@ import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/noti
 
 // ─── Weekly Progress Ring ─────────────────────────────────────────────────────
 function WeeklyRing({
-  count, goal, activeColor, trackColor, textColor,
-}: { count: number; goal: number; activeColor: string; trackColor: string; textColor: string }) {
+  count,
+  goal,
+  activeColor,
+  trackColor,
+  textColor,
+}: {
+  count: number;
+  goal: number;
+  activeColor: string;
+  trackColor: string;
+  textColor: string;
+}) {
   const SIZE = 70;
   const SW = 6;
   const radius = (SIZE - SW) / 2;
@@ -43,12 +51,24 @@ function WeeklyRing({
     <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={SIZE} height={SIZE} style={{ position: 'absolute' }}>
         <G rotation="-90" origin={`${SIZE / 2},${SIZE / 2}`}>
-          <Circle cx={SIZE / 2} cy={SIZE / 2} r={radius} stroke={trackColor} strokeWidth={SW} fill="none" />
+          <Circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={radius}
+            stroke={trackColor}
+            strokeWidth={SW}
+            fill="none"
+          />
           {progress > 0 && (
             <Circle
-              cx={SIZE / 2} cy={SIZE / 2} r={radius}
-              stroke={activeColor} strokeWidth={SW} fill="none"
-              strokeDasharray={circumference} strokeDashoffset={offset}
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={radius}
+              stroke={activeColor}
+              strokeWidth={SW}
+              fill="none"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
               strokeLinecap="round"
             />
           )}
@@ -57,7 +77,14 @@ function WeeklyRing({
       {done ? (
         <Ionicons name="checkmark" size={24} color={activeColor} />
       ) : (
-        <Text style={{ fontSize: 20, fontFamily: 'Inter_700Bold', color: textColor, textAlign: 'center' }}>
+        <Text
+          style={{
+            fontSize: 20,
+            fontFamily: 'Inter_700Bold',
+            color: textColor,
+            textAlign: 'center',
+          }}
+        >
           {count}
         </Text>
       )}
@@ -67,24 +94,22 @@ function WeeklyRing({
 
 // Muscle-group → session type mapping for the freshness strip
 const MUSCLE_GROUPS: { key: string; label: string; sessions: SessionType[] }[] = [
-  { key: 'legs',      label: 'Legs',      sessions: ['squat'] },
-  { key: 'push',      label: 'Push',      sessions: ['bench'] },
-  { key: 'pull',      label: 'Pull',      sessions: ['deadlift'] },
-  { key: 'core',      label: 'Core',      sessions: ['prehab', 'flexibility'] },
-  { key: 'fullbody',  label: 'Full Body', sessions: ['conditioning'] },
+  { key: 'legs', label: 'Legs', sessions: ['squat'] },
+  { key: 'push', label: 'Push', sessions: ['bench'] },
+  { key: 'pull', label: 'Pull', sessions: ['deadlift'] },
+  { key: 'core', label: 'Core', sessions: ['prehab', 'flexibility'] },
+  { key: 'fullbody', label: 'Full Body', sessions: ['conditioning'] },
 ];
 
 const SESSION_IMAGES: Record<string, any> = {
-  squat:        require('@/assets/images/sessions/lower-body.png'),
-  bench:        require('@/assets/images/sessions/upper-body.png'),
-  deadlift:     require('@/assets/images/sessions/full-body.png'),
+  squat: require('@/assets/images/sessions/lower-body.png'),
+  bench: require('@/assets/images/sessions/upper-body.png'),
+  deadlift: require('@/assets/images/sessions/full-body.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
-  prehab:       require('@/assets/images/sessions/targeted-prehab.png'),
-  flexibility:  require('@/assets/images/sessions/mobility.png'),
-  custom:       require('@/assets/images/sessions/custom.png'),
+  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
+  flexibility: require('@/assets/images/sessions/mobility.png'),
+  custom: require('@/assets/images/sessions/custom.png'),
 };
-
-
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -117,17 +142,23 @@ export default function HomeScreen() {
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
-  const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const;
-  const availableTiers = isBeginnerExperience
-    ? (['bodyweight', 'bands'] as const)
-    : ALL_TIERS;
+  const ALL_TIERS = [
+    'bodyweight',
+    'bands',
+    'dumbbells',
+    'kettlebells',
+    'barbell',
+    'fullgym',
+  ] as const;
+  const availableTiers = isBeginnerExperience ? (['bodyweight', 'bands'] as const) : ALL_TIERS;
 
-  const profileEquipment = (equipmentTiers && equipmentTiers.length > 0) ? equipmentTiers : ['bodyweight' as const];
+  const profileEquipment =
+    equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetDraft, setSheetDraft] = useState<typeof ALL_TIERS[number][]>([]);
+  const [sheetDraft, setSheetDraft] = useState<(typeof ALL_TIERS)[number][]>([]);
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -135,15 +166,15 @@ export default function HomeScreen() {
     setSheetOpen(true);
   };
 
-  const handleDraftToggle = (tier: typeof ALL_TIERS[number]) => {
+  const handleDraftToggle = (tier: (typeof ALL_TIERS)[number]) => {
     if (!(availableTiers as readonly string[]).includes(tier)) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
-        return prev.includes('fullgym') ? prev.filter(t => t !== 'fullgym') : [...ALL_TIERS];
+        return prev.includes('fullgym') ? prev.filter((t) => t !== 'fullgym') : [...ALL_TIERS];
       }
       if (prev.includes(tier)) {
-        const next = prev.filter(t => t !== tier && t !== 'fullgym');
+        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
         return next.length > 0 ? next : [tier];
       }
       return [...prev, tier];
@@ -173,42 +204,48 @@ export default function HomeScreen() {
 
   const daysSinceLast = useMemo(() => {
     if (!lastSession) return null;
-    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-    const startOfLast = new Date(lastSession.date); startOfLast.setHours(0, 0, 0, 0);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfLast = new Date(lastSession.date);
+    startOfLast.setHours(0, 0, 0, 0);
     return Math.floor((startOfToday.getTime() - startOfLast.getTime()) / 86400000);
   }, [lastSession]);
 
   const lastSessionRelativeLabel =
-    daysSinceLast === null ? null
-    : daysSinceLast <= 0 ? 'today'
-    : daysSinceLast === 1 ? 'yesterday'
-    : `${daysSinceLast} days ago`;
+    daysSinceLast === null
+      ? null
+      : daysSinceLast <= 0
+        ? 'today'
+        : daysSinceLast === 1
+          ? 'yesterday'
+          : `${daysSinceLast} days ago`;
 
   const MILESTONE_VALUES = [1, 5, 10, 25, 50, 100, 150, 200];
   const milestoneHit =
-    lastSession && daysSinceLast !== null && daysSinceLast <= 1
-    && MILESTONE_VALUES.includes(completedSessions.length)
+    lastSession &&
+    daysSinceLast !== null &&
+    daysSinceLast <= 1 &&
+    MILESTONE_VALUES.includes(completedSessions.length)
       ? completedSessions.length
       : null;
 
   const calibrationComplete =
-    completedSessions.length === 3
-    && daysSinceLast !== null && daysSinceLast <= 1;
+    completedSessions.length === 3 && daysSinceLast !== null && daysSinceLast <= 1;
 
   // Warn when the user has an established streak but this week's sessions
   // haven't hit the goal yet. Only show from Wednesday onwards to avoid
   // alarming people who simply haven't trained early in the week.
   const goal = weeklyStreakGoal ?? 2;
   const missedStreakWarning =
-    completedSessions.length >= 3
-    && streak > 0
-    && weekCount < goal
-    && new Date().getDay() >= 3;
+    completedSessions.length >= 3 && streak > 0 && weekCount < goal && new Date().getDay() >= 3;
 
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
-    const result = {} as Record<SessionType, SessionMeta & ReturnType<typeof getSessionColors>[SessionType]>;
-    (Object.keys(SESSION_META) as SessionType[]).forEach(type => {
+    const result = {} as Record<
+      SessionType,
+      SessionMeta & ReturnType<typeof getSessionColors>[SessionType]
+    >;
+    (Object.keys(SESSION_META) as SessionType[]).forEach((type) => {
       result[type] = { ...SESSION_META[type], ...colors[type] };
     });
     return result;
@@ -217,13 +254,12 @@ export default function HomeScreen() {
   const suggestedMeta = SESSION_TYPE_META[suggestedSession];
 
   const strengthCount = useMemo(
-    () => completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
-    [completedSessions],
+    () => completedSessions.filter((s) => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
+    [completedSessions]
   );
 
-  const sessionsInBlock = !testWeek && strengthCount > 0
-    ? (strengthCount % testWeekFrequency || testWeekFrequency)
-    : 0;
+  const sessionsInBlock =
+    !testWeek && strengthCount > 0 ? strengthCount % testWeekFrequency || testWeekFrequency : 0;
   const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
   const showBlockProgress = strengthCount >= 1 && !testWeek;
 
@@ -247,9 +283,10 @@ export default function HomeScreen() {
   }, [bodyweightUpdatedAt]);
 
   const handleOpenWeightModal = () => {
-    const displayVal = userProfile.bodyweightKg > 0
-      ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
-      : '';
+    const displayVal =
+      userProfile.bodyweightKg > 0
+        ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
+        : '';
     setDraftWeight(displayVal);
     setWeightModalOpen(true);
   };
@@ -270,11 +307,13 @@ export default function HomeScreen() {
 
   // Days since each muscle group was last trained (newest session wins per group)
   const muscleFreshness = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return MUSCLE_GROUPS.map((group) => {
       const last = completedSessions.find((s) => group.sessions.includes(s.sessionType));
       if (!last) return { ...group, days: null };
-      const d = new Date(last.date); d.setHours(0, 0, 0, 0);
+      const d = new Date(last.date);
+      d.setHours(0, 0, 0, 0);
       const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
       return { ...group, days };
     });
@@ -293,7 +332,10 @@ export default function HomeScreen() {
         {
           text: 'Discard & start new',
           style: 'destructive',
-          onPress: () => { clearActiveSession(); onContinue(); },
+          onPress: () => {
+            clearActiveSession();
+            onContinue();
+          },
         },
       ]
     );
@@ -302,13 +344,22 @@ export default function HomeScreen() {
   const handleStartSuggested = () => {
     const go = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const equipmentOverrideParam = sessionEquipmentOverride ? JSON.stringify(sessionEquipmentOverride) : undefined;
+      const equipmentOverrideParam = sessionEquipmentOverride
+        ? JSON.stringify(sessionEquipmentOverride)
+        : undefined;
       router.push({
         pathname: '/readiness',
-        params: { sessionType: suggestedSession, isTestWeek: testWeek ? 'true' : 'false', equipmentOverride: equipmentOverrideParam },
+        params: {
+          sessionType: suggestedSession,
+          isTestWeek: testWeek ? 'true' : 'false',
+          equipmentOverride: equipmentOverrideParam,
+        },
       });
     };
-    if (activeSession) { confirmReplaceActive(go); return; }
+    if (activeSession) {
+      confirmReplaceActive(go);
+      return;
+    }
     go();
   };
 
@@ -322,7 +373,10 @@ export default function HomeScreen() {
         params: { sessionType: type, isTestWeek: 'false' },
       });
     };
-    if (activeSession) { confirmReplaceActive(go); return; }
+    if (activeSession) {
+      confirmReplaceActive(go);
+      return;
+    }
     go();
   };
 
@@ -344,356 +398,458 @@ export default function HomeScreen() {
   };
 
   const handleDiscardActiveSession = () => {
-    Alert.alert(
-      'Discard session?',
-      'Your in-progress session will be lost.',
-      [
-        { text: 'Keep it', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => clearActiveSession() },
-      ]
-    );
+    Alert.alert('Discard session?', 'Your in-progress session will be lost.', [
+      { text: 'Keep it', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => clearActiveSession() },
+    ]);
   };
 
-  const lastSessionDurationLabel = lastSession?.durationSeconds && lastSession.durationSeconds > 0
-    ? (() => {
-        const mins = Math.round(lastSession.durationSeconds / 60);
-        if (mins < 60) return `${mins}m`;
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return m > 0 ? `${h}h ${m}m` : `${h}h`;
-      })()
-    : null;
+  const lastSessionDurationLabel =
+    lastSession?.durationSeconds && lastSession.durationSeconds > 0
+      ? (() => {
+          const mins = Math.round(lastSession.durationSeconds / 60);
+          if (mins < 60) return `${mins}m`;
+          const h = Math.floor(mins / 60);
+          const m = mins % 60;
+          return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        })()
+      : null;
 
   return (
     <>
-    <View
-      style={[
-        styles.container,
-        {
-          paddingTop: insets.top + webTopInset,
-          paddingBottom: Platform.OS === 'web' ? 84 : tabBarHeight,
-        },
-      ]}
-    >
-      <View style={styles.inner}>
-
-        {/* Header */}
-        <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greetingText} numberOfLines={1}>{greetingText}</Text>
-          </View>
-          {testWeek && (
-            <View style={styles.testWeekPill}>
-              <Ionicons name="trophy" size={13} color={C.categoryPrehabText} />
-              <Text style={styles.testWeekPillText}>Test Week</Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => router.push('/(tabs)/profile')}
-            style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
-            testID="home-profile-avatar"
-          >
-            {profilePhotoUri ? (
-              <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
-            ) : (
-              <Text style={styles.headerAvatarInitial}>
-                {firstName ? firstName[0].toUpperCase() : '?'}
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top + webTopInset,
+            paddingBottom: Platform.OS === 'web' ? 84 : tabBarHeight,
+          },
+        ]}
+      >
+        <View style={styles.inner}>
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greetingText} numberOfLines={1}>
+                {greetingText}
               </Text>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
-        {completedSessions.length === 0 ? (
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
-            <Text style={styles.todayLabel}>Choose Your First Session</Text>
-            <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
-              Pick where to start - your program rotates automatically from here.
-            </Text>
-            {([
-              { type: 'squat' as const, label: 'Lower Body', sub: 'Quads · Glutes · Hamstrings', color: C.primary, bg: C.primaryMuted },
-              { type: 'bench' as const, label: 'Upper Body', sub: 'Chest · Shoulders · Triceps', color: C.badgeVolumeText, bg: C.badgeVolume },
-              { type: 'deadlift' as const, label: 'Full Body', sub: 'Back · Hips · Legs', color: C.categoryNeuroText, bg: C.categoryNeuro },
-            ] as const).map(({ type, label, sub, color, bg }) => (
-              <Pressable
-                key={type}
-                onPress={() => handleFirstSessionChoice(type)}
-                style={({ pressed }) => [styles.firstChoiceRow, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                testID={`first-session-${type}`}
-              >
-                <View style={[styles.firstChoiceIcon, { backgroundColor: bg }]}>
-                  <Image source={SESSION_IMAGES[type]} style={styles.firstChoiceImage} resizeMode="contain" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
-                  <Text style={styles.firstChoiceSub}>{sub}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-              </Pressable>
-            ))}
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={[styles.todayCard, { borderLeftWidth: 4, borderLeftColor: suggestedMeta.color, borderColor: C.borderLight, borderWidth: 1 }]}>
-            <View style={styles.todayCardTop}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.todayLabel}>Today</Text>
-                <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
-                <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
-              </View>
-              <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
-                <Image source={SESSION_IMAGES[suggestedSession]} style={styles.todayIconImage} resizeMode="contain" />
-              </View>
             </View>
-            {lastSession && lastSessionRelativeLabel && (
-              <Text style={styles.lastInline}>
-                You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()} {lastSessionRelativeLabel}
-                {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
-              </Text>
+            {testWeek && (
+              <View style={styles.testWeekPill}>
+                <Ionicons name="trophy" size={13} color={C.categoryPrehabText} />
+                <Text style={styles.testWeekPillText}>Test Week</Text>
+              </View>
             )}
             <Pressable
-              onPress={openEquipmentSheet}
-              style={({ pressed }) => [
-                styles.equipmentChip,
-                sessionEquipmentOverride !== null && styles.equipmentChipOverride,
-                pressed && { opacity: 0.8 },
-              ]}
-              testID="home-equipment-chip"
+              onPress={() => router.push('/(tabs)/profile')}
+              style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
+              testID="home-profile-avatar"
             >
-              <Ionicons
-                name={getEquipmentIcon(todayEffectiveTier) as any}
-                size={13}
-                color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
-              />
-              <Text style={[styles.equipmentChipText, sessionEquipmentOverride !== null && styles.equipmentChipTextOverride]}>
-                {sessionEquipmentOverride !== null ? 'Today: ' : ''}{getEquipmentLabel(todayEffectiveTier)}
+              {profilePhotoUri ? (
+                <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
+              ) : (
+                <Text style={styles.headerAvatarInitial}>
+                  {firstName ? firstName[0].toUpperCase() : '?'}
+                </Text>
+              )}
+            </Pressable>
+          </Animated.View>
+
+          {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
+          {completedSessions.length === 0 ? (
+            <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+              <Text style={styles.todayLabel}>Choose Your First Session</Text>
+              <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
+                Pick where to start - your program rotates automatically from here.
               </Text>
-              {sessionEquipmentOverride !== null && <View style={styles.overrideDot} />}
-              <Ionicons name="chevron-down" size={12} color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary} />
-            </Pressable>
-            <Pressable
-              onPress={handleStartSuggested}
-              style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
-              testID="start-suggested-session"
-            >
-              <Ionicons name="flash" size={18} color={C.textInverse} />
-              <Text style={styles.startBtnText}>{testWeek ? 'Start Strength Test' : 'Start Session'}</Text>
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* Block progress — standalone slim row between hero card and freshness chips */}
-        {completedSessions.length > 0 && showBlockProgress && (
-          <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
-            <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
-            <View style={styles.blockBarTrack}>
-              <View style={[styles.blockBarFill, { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any }]} />
-            </View>
-            <Text style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}>
-              {sessionsUntilTest <= 2
-                ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
-            </Text>
-          </Animated.View>
-        )}
-
-        {/* Muscle freshness strip — only once there are sessions to compute from */}
-        {completedSessions.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(90).duration(380)}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.freshnessRow}
-            >
-              {muscleFreshness.map(({ key, label, days }) => {
-                const readySoon = days === 2;
-                const recovering = days !== null && days <= 1;
-                const chipBg = recovering ? C.errorLight : readySoon ? C.warningLight : C.primaryMuted;
-                const chipColor = recovering ? C.error : readySoon ? C.warning : C.primary;
-                const dayLabel = days === null ? 'Fresh'
-                  : days === 0 ? 'Today'
-                  : `${days}d`;
-                return (
-                  <View key={key} style={[styles.freshnessChip, { backgroundColor: chipBg }]}>
-                    <View style={[styles.freshnessDot, { backgroundColor: chipColor }]} />
-                    <Text style={[styles.freshnessLabel, { color: chipColor }]}>{label}</Text>
-                    <Text style={[styles.freshnessDays, { color: chipColor }]}>· {dayLabel}</Text>
+              {(
+                [
+                  {
+                    type: 'squat' as const,
+                    label: 'Lower Body',
+                    sub: 'Quads · Glutes · Hamstrings',
+                    color: C.primary,
+                    bg: C.primaryMuted,
+                  },
+                  {
+                    type: 'bench' as const,
+                    label: 'Upper Body',
+                    sub: 'Chest · Shoulders · Triceps',
+                    color: C.badgeVolumeText,
+                    bg: C.badgeVolume,
+                  },
+                  {
+                    type: 'deadlift' as const,
+                    label: 'Full Body',
+                    sub: 'Back · Hips · Legs',
+                    color: C.categoryNeuroText,
+                    bg: C.categoryNeuro,
+                  },
+                ] as const
+              ).map(({ type, label, sub, color, bg }) => (
+                <Pressable
+                  key={type}
+                  onPress={() => handleFirstSessionChoice(type)}
+                  style={({ pressed }) => [
+                    styles.firstChoiceRow,
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID={`first-session-${type}`}
+                >
+                  <View style={[styles.firstChoiceIcon, { backgroundColor: bg }]}>
+                    <Image
+                      source={SESSION_IMAGES[type]}
+                      style={styles.firstChoiceImage}
+                      resizeMode="contain"
+                    />
                   </View>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        )}
-
-        {/* Stats strip - always visible */}
-        <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{streak}</Text>
-            <Text style={styles.statLabel}>Week Streak</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <Pressable
-            style={styles.statItem}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/workouts');
-            }}
-            testID="weekly-ring-tap"
-          >
-            <WeeklyRing
-              count={weekCount}
-              goal={goal}
-              activeColor={weekCount >= goal ? C.success ?? C.primary : C.primary}
-              trackColor={C.borderLight}
-              textColor={C.text}
-            />
-            <Text style={[styles.statLabel, { marginTop: 4 }]}>
-              {weekCount >= goal ? 'Goal Hit ✓' : 'This Week'}
-            </Text>
-          </Pressable>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{completedSessions.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </Animated.View>
-
-        {/* Achievements — single tappable row navigating to /achievements */}
-        <Animated.View entering={FadeInDown.delay(130).duration(380)}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/achievements');
-            }}
-            style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
-            testID="home-achievements-row"
-          >
-            <Ionicons name="medal" size={18} color={C.primary} />
-            <Text style={styles.achievementsLabel}>Badges</Text>
-            {earnedBadges.length > 0 && (
-              <View style={styles.badgeCountChip}>
-                <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
+                    <Text style={styles.firstChoiceSub}>{sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+                </Pressable>
+              ))}
+            </Animated.View>
+          ) : (
+            <Animated.View
+              entering={FadeInDown.delay(60).duration(380)}
+              style={[
+                styles.todayCard,
+                {
+                  borderLeftWidth: 4,
+                  borderLeftColor: suggestedMeta.color,
+                  borderColor: C.borderLight,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <View style={styles.todayCardTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.todayLabel}>Today</Text>
+                  <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
+                  <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
+                </View>
+                <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
+                  <Image
+                    source={SESSION_IMAGES[suggestedSession]}
+                    style={styles.todayIconImage}
+                    resizeMode="contain"
+                  />
+                </View>
               </View>
+              {lastSession && lastSessionRelativeLabel && (
+                <Text style={styles.lastInline}>
+                  You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()}{' '}
+                  {lastSessionRelativeLabel}
+                  {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
+                </Text>
+              )}
+              <Pressable
+                onPress={openEquipmentSheet}
+                style={({ pressed }) => [
+                  styles.equipmentChip,
+                  sessionEquipmentOverride !== null && styles.equipmentChipOverride,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID="home-equipment-chip"
+              >
+                <Ionicons
+                  name={getEquipmentIcon(todayEffectiveTier) as any}
+                  size={13}
+                  color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.equipmentChipText,
+                    sessionEquipmentOverride !== null && styles.equipmentChipTextOverride,
+                  ]}
+                >
+                  {sessionEquipmentOverride !== null ? 'Today: ' : ''}
+                  {getEquipmentLabel(todayEffectiveTier)}
+                </Text>
+                {sessionEquipmentOverride !== null && <View style={styles.overrideDot} />}
+                <Ionicons
+                  name="chevron-down"
+                  size={12}
+                  color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary}
+                />
+              </Pressable>
+              <Pressable
+                onPress={handleStartSuggested}
+                style={({ pressed }) => [
+                  styles.startBtn,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                ]}
+                testID="start-suggested-session"
+              >
+                <Ionicons name="flash" size={18} color={C.textInverse} />
+                <Text style={styles.startBtnText}>
+                  {testWeek ? 'Start Strength Test' : 'Start Session'}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Block progress — standalone slim row between hero card and freshness chips */}
+          {completedSessions.length > 0 && showBlockProgress && (
+            <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
+              <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
+              <View style={styles.blockBarTrack}>
+                <View
+                  style={[
+                    styles.blockBarFill,
+                    { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any },
+                  ]}
+                />
+              </View>
+              <Text
+                style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}
+              >
+                {sessionsUntilTest <= 2
+                  ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
+                  : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Muscle freshness strip — only once there are sessions to compute from */}
+          {completedSessions.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(90).duration(380)}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.freshnessRow}
+              >
+                {muscleFreshness.map(({ key, label, days }) => {
+                  const readySoon = days === 2;
+                  const recovering = days !== null && days <= 1;
+                  const chipBg = recovering
+                    ? C.errorLight
+                    : readySoon
+                      ? C.warningLight
+                      : C.primaryMuted;
+                  const chipColor = recovering ? C.error : readySoon ? C.warning : C.primary;
+                  const dayLabel = days === null ? 'Fresh' : days === 0 ? 'Today' : `${days}d`;
+                  return (
+                    <View key={key} style={[styles.freshnessChip, { backgroundColor: chipBg }]}>
+                      <View style={[styles.freshnessDot, { backgroundColor: chipColor }]} />
+                      <Text style={[styles.freshnessLabel, { color: chipColor }]}>{label}</Text>
+                      <Text style={[styles.freshnessDays, { color: chipColor }]}>· {dayLabel}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </Animated.View>
+          )}
+
+          {/* Stats strip - always visible */}
+          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{streak}</Text>
+              <Text style={styles.statLabel}>Week Streak</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <Pressable
+              style={styles.statItem}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/workouts');
+              }}
+              testID="weekly-ring-tap"
+            >
+              <WeeklyRing
+                count={weekCount}
+                goal={goal}
+                activeColor={weekCount >= goal ? (C.success ?? C.primary) : C.primary}
+                trackColor={C.borderLight}
+                textColor={C.text}
+              />
+              <Text style={[styles.statLabel, { marginTop: 4 }]}>
+                {weekCount >= goal ? 'Goal Hit ✓' : 'This Week'}
+              </Text>
+            </Pressable>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{completedSessions.length}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+          </Animated.View>
+
+          {/* Achievements — single tappable row navigating to /achievements */}
+          <Animated.View entering={FadeInDown.delay(130).duration(380)}>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/achievements');
+              }}
+              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
+              testID="home-achievements-row"
+            >
+              <Ionicons name="medal" size={18} color={C.primary} />
+              <Text style={styles.achievementsLabel}>Badges</Text>
+              {earnedBadges.length > 0 && (
+                <View style={styles.badgeCountChip}>
+                  <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            </Pressable>
+          </Animated.View>
+
+          {/* Secondary actionable card - priority: resume > milestone > broken streak (mutually exclusive) */}
+          {activeSession ? (
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.resumeSecondary}
+            >
+              <View style={styles.resumeIcon}>
+                <Ionicons name="time-outline" size={20} color={C.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.resumeTitle}>Session in progress</Text>
+                <Text style={styles.resumeSub}>
+                  {SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName} ·{' '}
+                  {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleResume}
+                style={({ pressed }) => [
+                  styles.resumeBtnSm,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+                ]}
+                testID="resume-session"
+              >
+                <Ionicons name="play" size={14} color={C.textInverse} />
+                <Text style={styles.resumeBtnSmText}>Resume</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDiscardActiveSession}
+                hitSlop={10}
+                style={styles.resumeDiscardBtn}
+                testID="discard-active-session"
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          ) : milestoneHit !== null ? (
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.milestoneCard}
+            >
+              <View style={styles.milestoneIcon}>
+                <Ionicons name="trophy" size={20} color={C.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.milestoneTitle}>{milestoneHit} sessions completed</Text>
+                <Text style={styles.milestoneSub}>
+                  You just unlocked a new milestone - keep it going.
+                </Text>
+              </View>
+            </Animated.View>
+          ) : calibrationComplete ? (
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.calibrationCompleteCard}
+            >
+              <View style={styles.calibrationCompleteIcon}>
+                <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.calibrationCompleteTitle}>{"You're all set"}</Text>
+                <Text style={styles.calibrationCompleteSub}>
+                  Sessions are now fully personalised to you.
+                </Text>
+              </View>
+            </Animated.View>
+          ) : missedStreakWarning ? (
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.warningCard}
+            >
+              <View style={styles.warningIcon}>
+                <Ionicons name="alarm-outline" size={20} color={C.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.warningTitle}>Streak at risk this week</Text>
+                <Text style={styles.warningSub}>
+                  {weekCount === 0
+                    ? `No sessions yet this week — hit ${goal} to keep your streak going.`
+                    : `${weekCount}/${goal} sessions this week — ${goal - weekCount} more to keep your streak alive.`}
+                </Text>
+              </View>
+            </Animated.View>
+          ) : null}
+
+          {/* Calibration progress — visible after sessions 1 and 2 only (suppressed when a higher-priority banner shows) */}
+          {completedSessions.length >= 1 &&
+            completedSessions.length < 3 &&
+            !activeSession &&
+            milestoneHit === null && (
+              <Animated.View
+                entering={FadeInDown.delay(210).duration(380)}
+                style={styles.calibrationCard}
+              >
+                <View style={styles.calibrationTop}>
+                  <Ionicons name="analytics-outline" size={14} color={C.primary} />
+                  <Text style={styles.calibrationTitle}>Getting to know you</Text>
+                  <Text style={styles.calibrationCount}>{completedSessions.length} / 3</Text>
+                </View>
+                <View style={styles.calibrationTrack}>
+                  <View
+                    style={[
+                      styles.calibrationFill,
+                      { width: `${Math.round((completedSessions.length / 3) * 100)}%` as any },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.calibrationSub}>
+                  Complete your first 3 sessions to unlock fully personalised programming.
+                </Text>
+              </Animated.View>
             )}
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-          </Pressable>
-        </Animated.View>
 
-        {/* Secondary actionable card - priority: resume > milestone > broken streak (mutually exclusive) */}
-        {activeSession ? (
-          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.resumeSecondary}>
-            <View style={styles.resumeIcon}>
-              <Ionicons name="time-outline" size={20} color={C.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.resumeTitle}>Session in progress</Text>
-              <Text style={styles.resumeSub}>
-                {SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName} · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
-              </Text>
-            </View>
-            <Pressable
-              onPress={handleResume}
-              style={({ pressed }) => [styles.resumeBtnSm, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
-              testID="resume-session"
+          {/* Bodyweight reminder */}
+          {showWeightReminder && (
+            <Animated.View
+              entering={FadeInDown.delay(240).duration(380)}
+              style={styles.weightReminderCard}
             >
-              <Ionicons name="play" size={14} color={C.textInverse} />
-              <Text style={styles.resumeBtnSmText}>Resume</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleDiscardActiveSession}
-              hitSlop={10}
-              style={styles.resumeDiscardBtn}
-              testID="discard-active-session"
-            >
-              <Ionicons name="close" size={16} color={C.textTertiary} />
-            </Pressable>
-          </Animated.View>
-        ) : milestoneHit !== null ? (
-          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.milestoneCard}>
-            <View style={styles.milestoneIcon}>
-              <Ionicons name="trophy" size={20} color={C.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.milestoneTitle}>{milestoneHit} sessions completed</Text>
-              <Text style={styles.milestoneSub}>You just unlocked a new milestone - keep it going.</Text>
-            </View>
-          </Animated.View>
-        ) : calibrationComplete ? (
-          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.calibrationCompleteCard}>
-            <View style={styles.calibrationCompleteIcon}>
-              <Ionicons name="checkmark-circle" size={20} color={C.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.calibrationCompleteTitle}>{"You're all set"}</Text>
-              <Text style={styles.calibrationCompleteSub}>Sessions are now fully personalised to you.</Text>
-            </View>
-          </Animated.View>
-        ) : missedStreakWarning ? (
-          <Animated.View entering={FadeInDown.delay(180).duration(380)} style={styles.warningCard}>
-            <View style={styles.warningIcon}>
-              <Ionicons name="alarm-outline" size={20} color={C.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.warningTitle}>Streak at risk this week</Text>
-              <Text style={styles.warningSub}>
-                {weekCount === 0
-                  ? `No sessions yet this week — hit ${goal} to keep your streak going.`
-                  : `${weekCount}/${goal} sessions this week — ${goal - weekCount} more to keep your streak alive.`}
-              </Text>
-            </View>
-          </Animated.View>
-        ) : null}
-
-        {/* Calibration progress — visible after sessions 1 and 2 only (suppressed when a higher-priority banner shows) */}
-        {completedSessions.length >= 1 && completedSessions.length < 3 && !activeSession && milestoneHit === null && (
-          <Animated.View entering={FadeInDown.delay(210).duration(380)} style={styles.calibrationCard}>
-            <View style={styles.calibrationTop}>
-              <Ionicons name="analytics-outline" size={14} color={C.primary} />
-              <Text style={styles.calibrationTitle}>Getting to know you</Text>
-              <Text style={styles.calibrationCount}>{completedSessions.length} / 3</Text>
-            </View>
-            <View style={styles.calibrationTrack}>
-              <View style={[styles.calibrationFill, { width: `${Math.round((completedSessions.length / 3) * 100)}%` as any }]} />
-            </View>
-            <Text style={styles.calibrationSub}>
-              Complete your first 3 sessions to unlock fully personalised programming.
-            </Text>
-          </Animated.View>
-        )}
-
-        {/* Bodyweight reminder */}
-        {showWeightReminder && (
-          <Animated.View entering={FadeInDown.delay(240).duration(380)} style={styles.weightReminderCard}>
-            <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
-              <Ionicons name="body-outline" size={20} color={C.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.weightReminderTitle}>Update your bodyweight</Text>
-              <Text style={styles.weightReminderSub}>
-                {userProfile.bodyweightKg > 0
-                  ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}${daysSinceWeightUpdate !== null ? ` · updated ${daysSinceWeightUpdate}d ago` : ''}`
-                  : 'Keeping this current improves load suggestions'}
-              </Text>
-            </View>
-            <Pressable
-              onPress={handleOpenWeightModal}
-              style={({ pressed }) => [styles.weightUpdateBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.85 }]}
-              testID="weight-reminder-update"
-            >
-              <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Update</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleSnoozeReminder}
-              hitSlop={10}
-              style={styles.weightReminderDismiss}
-              testID="weight-reminder-dismiss"
-            >
-              <Ionicons name="close" size={16} color={C.textTertiary} />
-            </Pressable>
-          </Animated.View>
-        )}
-
+              <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
+                <Ionicons name="body-outline" size={20} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weightReminderTitle}>Update your bodyweight</Text>
+                <Text style={styles.weightReminderSub}>
+                  {userProfile.bodyweightKg > 0
+                    ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}${daysSinceWeightUpdate !== null ? ` · updated ${daysSinceWeightUpdate}d ago` : ''}`
+                    : 'Keeping this current improves load suggestions'}
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleOpenWeightModal}
+                style={({ pressed }) => [
+                  styles.weightUpdateBtn,
+                  { backgroundColor: C.primary },
+                  pressed && { opacity: 0.85 },
+                ]}
+                testID="weight-reminder-update"
+              >
+                <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Update</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSnoozeReminder}
+                hitSlop={10}
+                style={styles.weightReminderDismiss}
+                testID="weight-reminder-dismiss"
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          )}
+        </View>
       </View>
-    </View>
 
       {/* Bodyweight update modal */}
       <Modal
@@ -704,15 +860,28 @@ export default function HomeScreen() {
       >
         <Pressable style={modalStyles.backdrop} onPress={() => setWeightModalOpen(false)} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 20, backgroundColor: C.surface }]}>
+          <View
+            style={[
+              modalStyles.sheet,
+              { paddingBottom: insets.bottom + 20, backgroundColor: C.surface },
+            ]}
+          >
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.sheetTitle, { color: C.text }]}>Update Bodyweight</Text>
-            <Text style={[modalStyles.sheetSubtitle, { color: C.textSecondary, marginBottom: 20, marginTop: 4 }]}>
+            <Text
+              style={[
+                modalStyles.sheetSubtitle,
+                { color: C.textSecondary, marginBottom: 20, marginTop: 4 },
+              ]}
+            >
               Accurate bodyweight improves suggested loads for every session.
             </Text>
             <View style={styles.weightInputRow}>
               <TextInput
-                style={[styles.weightInput, { borderColor: C.border, color: C.text, backgroundColor: C.surfaceSecondary }]}
+                style={[
+                  styles.weightInput,
+                  { borderColor: C.border, color: C.text, backgroundColor: C.surfaceSecondary },
+                ]}
                 value={draftWeight}
                 onChangeText={setDraftWeight}
                 keyboardType="decimal-pad"
@@ -725,7 +894,11 @@ export default function HomeScreen() {
             </View>
             <Pressable
               onPress={handleSaveWeight}
-              style={({ pressed }) => [modalStyles.confirmBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.88 }]}
+              style={({ pressed }) => [
+                modalStyles.confirmBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.88 },
+              ]}
               testID="weight-save-btn"
             >
               <Text style={[modalStyles.confirmBtnText, { color: C.textInverse }]}>Save</Text>
@@ -742,21 +915,39 @@ export default function HomeScreen() {
         onRequestClose={() => setSheetOpen(false)}
       >
         <Pressable style={modalStyles.backdrop} onPress={() => setSheetOpen(false)} />
-        <View style={[modalStyles.sheet, { paddingBottom: insets.bottom + 16, backgroundColor: C.surface }]}>
+        <View
+          style={[
+            modalStyles.sheet,
+            { paddingBottom: insets.bottom + 16, backgroundColor: C.surface },
+          ]}
+        >
           <View style={modalStyles.handle} />
           <View style={modalStyles.sheetHeader}>
             <View>
               <Text style={[modalStyles.sheetTitle, { color: C.text }]}>Equipment today</Text>
-              <Text style={[modalStyles.sheetSubtitle, { color: C.textSecondary }]}>This only affects the current session</Text>
+              <Text style={[modalStyles.sheetSubtitle, { color: C.textSecondary }]}>
+                This only affects the current session
+              </Text>
             </View>
             {sessionEquipmentOverride !== null && (
-              <Pressable onPress={resetEquipmentToProfile} style={[modalStyles.resetBtn, { backgroundColor: C.primaryMuted, borderColor: C.primary + '40' }]}>
+              <Pressable
+                onPress={resetEquipmentToProfile}
+                style={[
+                  modalStyles.resetBtn,
+                  { backgroundColor: C.primaryMuted, borderColor: C.primary + '40' },
+                ]}
+              >
                 <Text style={[modalStyles.resetBtnText, { color: C.primary }]}>Reset</Text>
               </Pressable>
             )}
           </View>
           {sheetDraft.length > 0 && (
-            <View style={[modalStyles.bestMatchRow, { backgroundColor: C.primaryMuted, borderColor: C.primary + '22' }]}>
+            <View
+              style={[
+                modalStyles.bestMatchRow,
+                { backgroundColor: C.primaryMuted, borderColor: C.primary + '22' },
+              ]}
+            >
               <Text style={[modalStyles.bestMatchText, { color: C.textSecondary }]}>
                 Best match:{' '}
                 <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
@@ -766,7 +957,9 @@ export default function HomeScreen() {
             </View>
           )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-            {(['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const).map((tier) => {
+            {(
+              ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const
+            ).map((tier) => {
               const locked = !(availableTiers as readonly string[]).includes(tier);
               const selected = sheetDraft.includes(tier);
               return (
@@ -788,23 +981,30 @@ export default function HomeScreen() {
                     color={selected ? C.primary : C.textSecondary}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}>{getEquipmentLabel(tier)}</Text>
+                    <Text style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}>
+                      {getEquipmentLabel(tier)}
+                    </Text>
                   </View>
                   {selected && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
-                  {locked && <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />}
+                  {locked && (
+                    <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
+                  )}
                 </Pressable>
               );
             })}
           </ScrollView>
           <Pressable
             onPress={confirmEquipment}
-            style={({ pressed }) => [modalStyles.confirmBtn, { backgroundColor: C.primary }, pressed && { opacity: 0.88 }]}
+            style={({ pressed }) => [
+              modalStyles.confirmBtn,
+              { backgroundColor: C.primary },
+              pressed && { opacity: 0.88 },
+            ]}
           >
             <Text style={[modalStyles.confirmBtnText, { color: C.textInverse }]}>Confirm</Text>
           </Pressable>
         </View>
       </Modal>
-
     </>
   );
 }
@@ -812,20 +1012,43 @@ export default function HomeScreen() {
 const modalStyles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingTop: 12, paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: 20,
   },
-  handle: { width: 36, height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
+  handle: {
+    width: 36,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   sheetSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   resetBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
   resetBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  bestMatchRow: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, marginBottom: 12 },
+  bestMatchRow: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
   bestMatchText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   tierRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   tierLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
@@ -841,42 +1064,88 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
     headerAvatar: {
-      width: 38, height: 38, borderRadius: 19,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       backgroundColor: C.primaryMuted,
-      alignItems: 'center', justifyContent: 'center',
+      alignItems: 'center',
+      justifyContent: 'center',
       overflow: 'hidden',
     },
     headerAvatarImg: { width: 38, height: 38, borderRadius: 19 },
     headerAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary },
-    testWeekPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.warningLight, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.warning },
+    testWeekPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.warningLight,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderWidth: 1,
+      borderColor: C.warning,
+    },
     testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.warning },
 
     todayCard: {
-      backgroundColor: C.surface, borderRadius: 20,
-      padding: 20, borderWidth: 1.5, borderColor: C.primary,
-      shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12,
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 20,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
       elevation: Platform.OS !== 'web' ? 4 : 0,
     },
     todayCardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
-    todayLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
+    todayLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: 6,
+    },
     todaySessionName: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     todaySessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-    todayIcon: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: 12, flexShrink: 0 },
+    todayIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 12,
+      flexShrink: 0,
+    },
     startBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 14,
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     equipmentChip: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
       alignSelf: 'flex-start' as const,
-      backgroundColor: C.surfaceSecondary ?? C.borderLight, borderRadius: 20,
-      paddingHorizontal: 12, paddingVertical: 6, marginBottom: 10,
-      borderWidth: 1, borderColor: C.borderLight,
+      backgroundColor: C.surfaceSecondary ?? C.borderLight,
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: C.borderLight,
     },
     equipmentChipOverride: {
-      backgroundColor: C.primaryMuted, borderColor: C.primary + '40',
+      backgroundColor: C.primaryMuted,
+      borderColor: C.primary + '40',
     },
     equipmentChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     equipmentChipTextOverride: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
@@ -884,11 +1153,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     blockRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
     blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
-    blockBarTrack: { flex: 1, height: 4, backgroundColor: C.borderLight, borderRadius: 2, overflow: 'hidden' as const },
+    blockBarTrack: {
+      flex: 1,
+      height: 4,
+      backgroundColor: C.borderLight,
+      borderRadius: 2,
+      overflow: 'hidden' as const,
+    },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     statsStrip: {
-      flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4,
+      flexDirection: 'row',
+      paddingVertical: 4,
+      paddingHorizontal: 4,
     },
     statItem: { flex: 1, alignItems: 'center' },
     statValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
@@ -897,70 +1174,129 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     statDivider: { width: 1, backgroundColor: C.borderLight, marginVertical: 6 },
 
     lastInline: {
-      fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textTertiary,
-      marginTop: -8, marginBottom: 14,
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      marginTop: -8,
+      marginBottom: 14,
     },
 
     milestoneCard: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.warningLight, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.warning,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.warningLight,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.warning,
     },
     milestoneIcon: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
       backgroundColor: C.surface,
     },
     milestoneTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
-    milestoneSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    milestoneSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
 
     warningCard: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.surface, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.borderLight,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.borderLight,
     },
     warningIcon: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
       backgroundColor: C.warningLight,
     },
     warningTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
-    warningSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    warningSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
 
     resumeSecondary: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.surface, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.warning,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.warning,
     },
     resumeIcon: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
       backgroundColor: C.warningLight,
     },
     resumeTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
-    resumeSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    resumeSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
     resumeBtnSm: {
-      flexDirection: 'row', alignItems: 'center', gap: 5,
-      backgroundColor: C.warning, borderRadius: 10,
-      paddingHorizontal: 12, paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: C.warning,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
     resumeBtnSmText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse },
     resumeDiscardBtn: {
-      width: 28, height: 28, borderRadius: 8,
-      alignItems: 'center', justifyContent: 'center',
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-
 
     firstChoiceRow: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      paddingVertical: 11, borderTopWidth: 1, borderTopColor: C.borderLight,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 11,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
     },
     firstChoiceIcon: {
-      width: 48, height: 48, borderRadius: 13,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 48,
+      height: 48,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     firstChoiceImage: { width: 34, height: 34 },
     todayIconImage: { width: 46, height: 46 },
@@ -968,57 +1304,112 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     calibrationCompleteCard: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.primaryMuted, borderRadius: 14,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.primary + '44',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.primaryMuted,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.primary + '44',
     },
     calibrationCompleteIcon: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
       backgroundColor: C.surface,
     },
     calibrationCompleteTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primary },
-    calibrationCompleteSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    calibrationCompleteSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
 
     calibrationCard: {
-      backgroundColor: C.primaryMuted, borderRadius: 14,
-      padding: 14, borderWidth: 1, borderColor: C.primary + '22',
+      backgroundColor: C.primaryMuted,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: C.primary + '22',
     },
-    calibrationTop: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, marginBottom: 8 },
+    calibrationTop: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      marginBottom: 8,
+    },
     calibrationTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary, flex: 1 },
     calibrationCount: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    calibrationTrack: { height: 4, backgroundColor: C.primary + '22', borderRadius: 2, overflow: 'hidden' as const, marginBottom: 8 },
+    calibrationTrack: {
+      height: 4,
+      backgroundColor: C.primary + '22',
+      borderRadius: 2,
+      overflow: 'hidden' as const,
+      marginBottom: 8,
+    },
     calibrationFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     calibrationSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     weightReminderCard: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10,
-      backgroundColor: C.primarySurface, borderRadius: 14,
-      paddingHorizontal: 12, paddingVertical: 12,
-      borderWidth: 1, borderColor: C.primary + '30',
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      backgroundColor: C.primarySurface,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: C.primary + '30',
     },
     weightReminderIcon: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      flexShrink: 0,
     },
     weightReminderTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
-    weightReminderSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    weightReminderSub: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
     weightUpdateBtn: {
-      borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7, flexShrink: 0,
+      borderRadius: 10,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      flexShrink: 0,
     },
     weightUpdateBtnText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
     weightReminderDismiss: {
-      width: 26, height: 26, borderRadius: 8,
-      alignItems: 'center' as const, justifyContent: 'center' as const,
+      width: 26,
+      height: 26,
+      borderRadius: 8,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     weightInputRow: {
-      flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, marginBottom: 16,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      marginBottom: 16,
     },
     weightInput: {
-      flex: 1, borderWidth: 1.5, borderRadius: 12,
-      paddingHorizontal: 16, paddingVertical: 12,
-      fontSize: 22, fontFamily: 'Inter_600SemiBold',
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 22,
+      fontFamily: 'Inter_600SemiBold',
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },

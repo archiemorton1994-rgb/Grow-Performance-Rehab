@@ -60,22 +60,26 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
     setTimeout(onDismiss, 200);
   };
 
-  const topOffset = Platform.OS === 'web'
-    ? 67 + 12
-    : insets.top + 12;
+  const topOffset = Platform.OS === 'web' ? 67 + 12 : insets.top + 12;
 
   return (
     <Animated.View style={[styles.container, { top: topOffset }, animStyle]}>
       <Pressable
         onPress={handleNavigate}
-        style={({ pressed }) => [styles.toast, { backgroundColor: C.surface, borderColor: C.borderLight }, pressed && { opacity: 0.9 }]}
+        style={({ pressed }) => [
+          styles.toast,
+          { backgroundColor: C.surface, borderColor: C.borderLight },
+          pressed && { opacity: 0.9 },
+        ]}
       >
         <View style={[styles.iconWrap, { backgroundColor: color + '22' }]}>
           <Ionicons name={icon} size={22} color={color} />
         </View>
         <View style={styles.textWrap}>
           <Text style={[styles.headline, { color: C.text }]}>Badge Unlocked!</Text>
-          <Text style={[styles.badgeName, { color: C.textSecondary }]} numberOfLines={1}>{name}</Text>
+          <Text style={[styles.badgeName, { color: C.textSecondary }]} numberOfLines={1}>
+            {name}
+          </Text>
         </View>
         <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
           <Ionicons name="close" size={16} color={C.textTertiary} />
@@ -154,7 +158,9 @@ export function BadgeSummaryToast({ count, onDismiss }: BadgeSummaryToastProps) 
         </View>
         <View style={styles.textWrap}>
           <Text style={[styles.headline, { color: C.text }]}>{count} Badges Unlocked!</Text>
-          <Text style={[styles.badgeName, { color: C.textSecondary }]}>Tap to view your achievements</Text>
+          <Text style={[styles.badgeName, { color: C.textSecondary }]}>
+            Tap to view your achievements
+          </Text>
         </View>
         <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
           <Ionicons name="close" size={16} color={C.textTertiary} />

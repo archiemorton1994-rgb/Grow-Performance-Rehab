@@ -15,7 +15,7 @@ const makeEl = (name) => {
         fill: props.fill,
         style: props.style,
       },
-      props.children || null,
+      props.children || null
     );
   El.displayName = name;
   return El;
@@ -25,8 +25,7 @@ const Svg = ({ children, width, height, viewBox }) =>
   React.createElement('Svg', { width, height, viewBox }, children);
 Svg.displayName = 'Svg';
 
-const G = ({ children }) =>
-  React.createElement('G', null, children);
+const G = ({ children }) => React.createElement('G', null, children);
 G.displayName = 'G';
 
 module.exports = {

@@ -13,9 +13,13 @@ const router = {
 let _params = {};
 
 /** Set params returned by useLocalSearchParams for a single test. */
-const __setParams = (p) => { _params = p; };
+const __setParams = (p) => {
+  _params = p;
+};
 /** Restore empty params after a test that called __setParams. */
-const __clearParams = () => { _params = {}; };
+const __clearParams = () => {
+  _params = {};
+};
 
 module.exports = {
   router,

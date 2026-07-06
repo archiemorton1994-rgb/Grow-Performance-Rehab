@@ -26,6 +26,7 @@ the project to an SDK that the available Expo Go supports. A user-approved SDK
 for that task.
 
 **How to apply / do a clean SDK downgrade:**
+
 - Pull the exact known-good version matrix from the pre-upgrade commit
   (`git show <bump>^:package.json`), but preserve any later structural fixes
   (e.g. `sharp` as optionalDependency, added deps).

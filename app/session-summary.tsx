@@ -1,13 +1,5 @@
 import React, { useMemo, useState, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Platform,
-  Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Modal } from 'react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,7 +50,10 @@ const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   cooldown: 'Cooldown',
 };
 
-function categoryColors(category: ExerciseCategory, C: ReturnType<typeof useColors>): { bg: string; fg: string } {
+function categoryColors(
+  category: ExerciseCategory,
+  C: ReturnType<typeof useColors>
+): { bg: string; fg: string } {
   switch (category) {
     case 'main':
       return { bg: C.primaryMuted, fg: C.primary };
@@ -80,11 +75,14 @@ function categoryColors(category: ExerciseCategory, C: ReturnType<typeof useColo
 function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | null {
   const valid = sets.filter((s) => s.completed && !s.skipped && s.weight > 0);
   if (valid.length === 0) return null;
-  return valid.reduce((best, s) => {
-    if (s.weight > best.weight) return { weight: s.weight, reps: s.reps };
-    if (s.weight === best.weight && s.reps > best.reps) return { weight: s.weight, reps: s.reps };
-    return best;
-  }, { weight: 0, reps: 0 });
+  return valid.reduce(
+    (best, s) => {
+      if (s.weight > best.weight) return { weight: s.weight, reps: s.reps };
+      if (s.weight === best.weight && s.reps > best.reps) return { weight: s.weight, reps: s.reps };
+      return best;
+    },
+    { weight: 0, reps: 0 }
+  );
 }
 
 export default function SessionSummaryScreen() {
@@ -124,7 +122,13 @@ export default function SessionSummaryScreen() {
 
   const summary = useMemo(() => {
     if (!session) {
-      return { totalSets: 0, totalReps: 0, totalVolumeKg: 0, rows: [] as ExerciseRow[], hasWeighted: false };
+      return {
+        totalSets: 0,
+        totalReps: 0,
+        totalVolumeKg: 0,
+        rows: [] as ExerciseRow[],
+        hasWeighted: false,
+      };
     }
 
     let totalSets = 0;
@@ -155,12 +159,16 @@ export default function SessionSummaryScreen() {
       let deltaReps = 0;
 
       if (isWeighted && thisBest) {
-        const history = getExerciseHistory(log.exerciseId)
-          .filter((h) => h.sessionId !== session.id);
+        const history = getExerciseHistory(log.exerciseId).filter(
+          (h) => h.sessionId !== session.id
+        );
         let prevBest: { weight: number; reps: number } | null = null;
         for (const h of history) {
           const pb = bestCompletedSet(h.sets);
-          if (pb) { prevBest = pb; break; }
+          if (pb) {
+            prevBest = pb;
+            break;
+          }
         }
 
         if (!prevBest) {
@@ -268,13 +276,15 @@ export default function SessionSummaryScreen() {
     const targetMap = getExerciseTargetRegionsMap();
     const regionSet = new Set<string>();
     for (const log of session.exerciseLogs) {
-      for (const r of (targetMap[log.exerciseId] ?? [])) {
+      for (const r of targetMap[log.exerciseId] ?? []) {
         if (r && MUSCLE_SET.has(r as any)) regionSet.add(r);
       }
     }
     if (regionSet.size === 0) return null;
     const counts: Record<string, number> = {};
-    regionSet.forEach(r => { counts[r] = 1; });
+    regionSet.forEach((r) => {
+      counts[r] = 1;
+    });
     return counts as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
   }, [session]);
 
@@ -301,7 +311,11 @@ export default function SessionSummaryScreen() {
     setIsSharing(true);
     try {
       if (Platform.OS === 'web') {
-        const base64 = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'base64' });
+        const base64 = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'base64',
+        });
         const dataUrl = `data:image/png;base64,${base64}`;
         const dateStr = new Date().toISOString().split('T')[0];
         const a = document.createElement('a');
@@ -311,10 +325,17 @@ export default function SessionSummaryScreen() {
         a.click();
         document.body.removeChild(a);
       } else {
-        const uri = await captureRef(shareCardRef, { format: 'png', quality: 1, result: 'tmpfile' });
+        const uri = await captureRef(shareCardRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        });
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share Your Workout' });
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share Your Workout',
+          });
         }
       }
     } catch {
@@ -355,7 +376,10 @@ export default function SessionSummaryScreen() {
         <View style={styles.emptyWrap}>
           <Ionicons name="document-outline" size={40} color={C.textTertiary} />
           <Text style={[styles.emptyText, { color: C.textSecondary }]}>No session found.</Text>
-          <Pressable onPress={goHome} style={[styles.doneButton, { backgroundColor: C.primary, marginTop: 20 }]}>
+          <Pressable
+            onPress={goHome}
+            style={[styles.doneButton, { backgroundColor: C.primary, marginTop: 20 }]}
+          >
             <Text style={[styles.doneButtonText, { color: C.textInverse }]}>Back to Home</Text>
           </Pressable>
         </View>
@@ -364,22 +388,23 @@ export default function SessionSummaryScreen() {
   }
 
   const durationSeconds = session.durationSeconds ?? 0;
-  const durationLabel = durationSeconds >= 3600
-    ? `${Math.floor(durationSeconds / 3600)}h ${String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, '0')}m`
-    : `${Math.floor(durationSeconds / 60)} min`;
-  const volumeDisplay = Math.round(kgToDisplayUnit(summary.totalVolumeKg, weightUnit)).toLocaleString();
+  const durationLabel =
+    durationSeconds >= 3600
+      ? `${Math.floor(durationSeconds / 3600)}h ${String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, '0')}m`
+      : `${Math.floor(durationSeconds / 60)} min`;
+  const volumeDisplay = Math.round(
+    kgToDisplayUnit(summary.totalVolumeKg, weightUnit)
+  ).toLocaleString();
   const exerciseCount = session.exerciseLogs.length;
-  const topWeightKg = summary.rows.length > 0
-    ? Math.max(0, ...summary.rows.map(r => r.bestWeight))
-    : 0;
-  const topWeightDisplay = topWeightKg > 0
-    ? formatWeight(topWeightKg, weightUnit)
-    : '—';
+  const topWeightKg =
+    summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
+  const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '—';
 
   const greeting = userName ? `Great work, ${userName}!` : 'Great work!';
 
   const STRENGTH_TYPES = ['squat', 'bench', 'deadlift'];
-  const showVolumeCompare = STRENGTH_TYPES.includes(session.sessionType) && summary.totalVolumeKg > 0;
+  const showVolumeCompare =
+    STRENGTH_TYPES.includes(session.sessionType) && summary.totalVolumeKg > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -393,17 +418,37 @@ export default function SessionSummaryScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingTop: topPad + 16, paddingBottom: bottomPad + 100, paddingHorizontal: 20 }}
+        contentContainerStyle={{
+          paddingTop: topPad + 16,
+          paddingBottom: bottomPad + 100,
+          paddingHorizontal: 20,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <Animated.View entering={FadeIn.duration(450)} style={styles.header}>
-          <View style={[styles.trophyWrap, { backgroundColor: C.trophyBg, borderColor: C.trophyBorder }]}>
-            <Ionicons name={isMilestone ? 'trophy' : 'checkmark-circle'} size={40} color={C.trophy} />
+          <View
+            style={[
+              styles.trophyWrap,
+              { backgroundColor: C.trophyBg, borderColor: C.trophyBorder },
+            ]}
+          >
+            <Ionicons
+              name={isMilestone ? 'trophy' : 'checkmark-circle'}
+              size={40}
+              color={C.trophy}
+            />
           </View>
           {isMilestone && (
-            <View style={[styles.milestonePill, { backgroundColor: C.trophyBg, borderColor: C.trophyBorder }]}>
-              <Text style={[styles.milestonePillText, { color: C.trophy }]}>SESSION {sessionNumber} MILESTONE</Text>
+            <View
+              style={[
+                styles.milestonePill,
+                { backgroundColor: C.trophyBg, borderColor: C.trophyBorder },
+              ]}
+            >
+              <Text style={[styles.milestonePillText, { color: C.trophy }]}>
+                SESSION {sessionNumber} MILESTONE
+              </Text>
             </View>
           )}
           <Text style={[styles.headline, { color: C.text }]}>{greeting}</Text>
@@ -450,7 +495,9 @@ export default function SessionSummaryScreen() {
               <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
-                <Text style={[styles.statLabel, { color: C.textSecondary }]}>Vol ({weightUnit})</Text>
+                <Text style={[styles.statLabel, { color: C.textSecondary }]}>
+                  Vol ({weightUnit})
+                </Text>
               </View>
             </>
           )}
@@ -469,7 +516,14 @@ export default function SessionSummaryScreen() {
                   size={15}
                   color={summary.totalVolumeKg >= prevSameTypeVol ? C.primary : C.textTertiary}
                 />
-                <Text style={[styles.compareText, { color: summary.totalVolumeKg > prevSameTypeVol ? C.primary : C.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.compareText,
+                    {
+                      color: summary.totalVolumeKg > prevSameTypeVol ? C.primary : C.textSecondary,
+                    },
+                  ]}
+                >
                   {summary.totalVolumeKg > prevSameTypeVol
                     ? `↑ ${Math.round(kgToDisplayUnit(summary.totalVolumeKg - prevSameTypeVol, weightUnit)).toLocaleString()} ${weightUnit} more than last ${getSessionLabel(session.sessionType).toLowerCase()}`
                     : summary.totalVolumeKg === prevSameTypeVol
@@ -524,10 +578,15 @@ export default function SessionSummaryScreen() {
         {tooEasySaved && (
           <Animated.View
             entering={FadeIn.duration(300)}
-            style={[styles.savedBanner, { backgroundColor: C.primarySurface, borderColor: C.primaryMuted }]}
+            style={[
+              styles.savedBanner,
+              { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
+            ]}
           >
             <Ionicons name="checkmark-circle" size={16} color={C.primary} />
-            <Text style={[styles.savedText, { color: C.primary }]}>Weights adjusted for next session</Text>
+            <Text style={[styles.savedText, { color: C.primary }]}>
+              Weights adjusted for next session
+            </Text>
           </Animated.View>
         )}
 
@@ -559,11 +618,17 @@ export default function SessionSummaryScreen() {
             <Pressable
               onPress={handleShare}
               disabled={isSharing}
-              style={[styles.actionBtn, { backgroundColor: C.surface, borderColor: C.borderLight }, isSharing && { opacity: 0.5 }]}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: C.surface, borderColor: C.borderLight },
+                isSharing && { opacity: 0.5 },
+              ]}
               testID="share-workout"
             >
               <Ionicons name="share-outline" size={18} color={C.primary} />
-              <Text style={[styles.actionBtnText, { color: C.text }]}>{isSharing ? '…' : 'Share'}</Text>
+              <Text style={[styles.actionBtnText, { color: C.text }]}>
+                {isSharing ? '…' : 'Share'}
+              </Text>
             </Pressable>
           </Animated.View>
         )}
@@ -594,7 +659,10 @@ export default function SessionSummaryScreen() {
                 <Animated.View
                   key={row.exerciseId + i}
                   entering={FadeInDown.delay(200 + i * 60).duration(420)}
-                  style={[styles.exerciseCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+                  style={[
+                    styles.exerciseCard,
+                    { backgroundColor: C.surface, borderColor: C.borderLight },
+                  ]}
                 >
                   <View style={styles.exerciseLeft}>
                     <Text style={[styles.exerciseName, { color: C.text }]} numberOfLines={2}>
@@ -621,7 +689,10 @@ export default function SessionSummaryScreen() {
         ) : (
           <Animated.View
             entering={FadeInDown.delay(200).duration(420)}
-            style={[styles.exerciseCard, { backgroundColor: C.surface, borderColor: C.borderLight, justifyContent: 'center' }]}
+            style={[
+              styles.exerciseCard,
+              { backgroundColor: C.surface, borderColor: C.borderLight, justifyContent: 'center' },
+            ]}
           >
             <Ionicons name="leaf-outline" size={20} color={C.textTertiary} />
             <Text style={[styles.exerciseMeta, { color: C.textSecondary, marginLeft: 10 }]}>
@@ -632,7 +703,16 @@ export default function SessionSummaryScreen() {
       </ScrollView>
 
       {/* Done button pinned to bottom */}
-      <View style={[styles.footer, { paddingBottom: bottomPad + 14, backgroundColor: C.background, borderTopColor: C.borderLight }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: bottomPad + 14,
+            backgroundColor: C.background,
+            borderTopColor: C.borderLight,
+          },
+        ]}
+      >
         <Pressable
           onPress={goHome}
           style={[styles.doneButton, { backgroundColor: C.primary }]}
@@ -643,7 +723,12 @@ export default function SessionSummaryScreen() {
       </View>
 
       {/* Rate Exercises Modal */}
-      <Modal visible={showRatingModal} transparent animationType="slide" onRequestClose={() => setShowRatingModal(false)}>
+      <Modal
+        visible={showRatingModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRatingModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <View style={[styles.modalHeader, { borderBottomColor: C.borderLight }]}>
@@ -652,40 +737,84 @@ export default function SessionSummaryScreen() {
               </View>
               <View style={styles.modalHeaderText}>
                 <Text style={[styles.modalTitle, { color: C.text }]}>Rate Exercises</Text>
-                <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>How did each exercise feel?</Text>
+                <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
+                  How did each exercise feel?
+                </Text>
               </View>
             </View>
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               {session.exerciseLogs.map((log) => (
-                <View key={log.exerciseId} style={[styles.ratingRow, { borderBottomColor: C.borderLight }]}>
-                  <Text style={[styles.ratingName, { color: C.text }]} numberOfLines={2}>{log.exerciseName}</Text>
+                <View
+                  key={log.exerciseId}
+                  style={[styles.ratingRow, { borderBottomColor: C.borderLight }]}
+                >
+                  <Text style={[styles.ratingName, { color: C.text }]} numberOfLines={2}>
+                    {log.exerciseName}
+                  </Text>
                   <View style={styles.ratingButtons}>
                     <Pressable
-                      onPress={() => setThumbsRatings((prev) => ({ ...prev, [log.exerciseId]: 'up' }))}
-                      style={[styles.thumbBtn, { backgroundColor: C.surfaceTertiary, borderColor: C.border }, thumbsRatings[log.exerciseId] === 'up' && { backgroundColor: C.primary, borderColor: C.primary }]}
+                      onPress={() =>
+                        setThumbsRatings((prev) => ({ ...prev, [log.exerciseId]: 'up' }))
+                      }
+                      style={[
+                        styles.thumbBtn,
+                        { backgroundColor: C.surfaceTertiary, borderColor: C.border },
+                        thumbsRatings[log.exerciseId] === 'up' && {
+                          backgroundColor: C.primary,
+                          borderColor: C.primary,
+                        },
+                      ]}
                       testID={`thumb-up-${log.exerciseId}`}
                     >
-                      <Ionicons name="thumbs-up" size={18} color={thumbsRatings[log.exerciseId] === 'up' ? C.textInverse : C.textSecondary} />
+                      <Ionicons
+                        name="thumbs-up"
+                        size={18}
+                        color={
+                          thumbsRatings[log.exerciseId] === 'up' ? C.textInverse : C.textSecondary
+                        }
+                      />
                     </Pressable>
                     <Pressable
-                      onPress={() => setThumbsRatings((prev) => ({ ...prev, [log.exerciseId]: 'down' }))}
-                      style={[styles.thumbBtn, { backgroundColor: C.surfaceTertiary, borderColor: C.border }, thumbsRatings[log.exerciseId] === 'down' && { backgroundColor: C.categoryFinisherText, borderColor: C.categoryFinisherText }]}
+                      onPress={() =>
+                        setThumbsRatings((prev) => ({ ...prev, [log.exerciseId]: 'down' }))
+                      }
+                      style={[
+                        styles.thumbBtn,
+                        { backgroundColor: C.surfaceTertiary, borderColor: C.border },
+                        thumbsRatings[log.exerciseId] === 'down' && {
+                          backgroundColor: C.categoryFinisherText,
+                          borderColor: C.categoryFinisherText,
+                        },
+                      ]}
                       testID={`thumb-down-${log.exerciseId}`}
                     >
-                      <Ionicons name="thumbs-down" size={18} color={thumbsRatings[log.exerciseId] === 'down' ? C.textInverse : C.textSecondary} />
+                      <Ionicons
+                        name="thumbs-down"
+                        size={18}
+                        color={
+                          thumbsRatings[log.exerciseId] === 'down' ? C.textInverse : C.textSecondary
+                        }
+                      />
                     </Pressable>
                   </View>
                 </View>
               ))}
               <View style={{ height: 16 }} />
             </ScrollView>
-            <View style={[styles.modalFooter, { borderTopColor: C.borderLight, paddingBottom: bottomPad + 16 }]}>
+            <View
+              style={[
+                styles.modalFooter,
+                { borderTopColor: C.borderLight, paddingBottom: bottomPad + 16 },
+              ]}
+            >
               <Pressable
                 onPress={submitRatings}
                 style={[styles.modalPrimaryBtn, { backgroundColor: C.primary }]}
                 testID="submit-ratings"
               >
-                <Text style={[styles.modalPrimaryBtnText, { color: C.textInverse }]}>Submit Ratings</Text>
+                <Text style={[styles.modalPrimaryBtnText, { color: C.textInverse }]}>
+                  Submit Ratings
+                </Text>
               </Pressable>
               <Pressable onPress={() => setShowRatingModal(false)} style={styles.modalSkipBtn}>
                 <Text style={[styles.modalSkipText, { color: C.textSecondary }]}>Skip</Text>
@@ -696,7 +825,12 @@ export default function SessionSummaryScreen() {
       </Modal>
 
       {/* Too Easy Modal */}
-      <Modal visible={showTooEasyModal} transparent animationType="slide" onRequestClose={() => setShowTooEasyModal(false)}>
+      <Modal
+        visible={showTooEasyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTooEasyModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <View style={[styles.modalHeader, { borderBottomColor: C.borderLight }]}>
@@ -705,7 +839,9 @@ export default function SessionSummaryScreen() {
               </View>
               <View style={styles.modalHeaderText}>
                 <Text style={[styles.modalTitle, { color: C.text }]}>Too Easy?</Text>
-                <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>Select exercises to increase next session</Text>
+                <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
+                  Select exercises to increase next session
+                </Text>
               </View>
             </View>
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
@@ -722,13 +858,26 @@ export default function SessionSummaryScreen() {
                         return next;
                       });
                     }}
-                    style={[styles.checkRow, { borderBottomColor: C.borderLight }, selected && { backgroundColor: C.primarySurface }]}
+                    style={[
+                      styles.checkRow,
+                      { borderBottomColor: C.borderLight },
+                      selected && { backgroundColor: C.primarySurface },
+                    ]}
                     testID={`tooEasy-${log.exerciseId}`}
                   >
-                    <View style={[styles.checkbox, { borderColor: selected ? C.primary : C.border }, selected && { backgroundColor: C.primary }]}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        { borderColor: selected ? C.primary : C.border },
+                        selected && { backgroundColor: C.primary },
+                      ]}
+                    >
                       {selected && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
                     </View>
-                    <Text style={[styles.checkName, { color: selected ? C.primaryDark : C.text }]} numberOfLines={2}>
+                    <Text
+                      style={[styles.checkName, { color: selected ? C.primaryDark : C.text }]}
+                      numberOfLines={2}
+                    >
                       {log.exerciseName}
                     </Text>
                   </Pressable>
@@ -736,13 +885,26 @@ export default function SessionSummaryScreen() {
               })}
               <View style={{ height: 16 }} />
             </ScrollView>
-            <View style={[styles.modalFooter, { borderTopColor: C.borderLight, paddingBottom: bottomPad + 16 }]}>
+            <View
+              style={[
+                styles.modalFooter,
+                { borderTopColor: C.borderLight, paddingBottom: bottomPad + 16 },
+              ]}
+            >
               <Pressable
                 onPress={confirmTooEasy}
-                style={[styles.modalPrimaryBtn, { backgroundColor: tooEasySelected.size > 0 ? C.primary : C.surfaceTertiary }]}
+                style={[
+                  styles.modalPrimaryBtn,
+                  { backgroundColor: tooEasySelected.size > 0 ? C.primary : C.surfaceTertiary },
+                ]}
                 testID="confirm-too-easy"
               >
-                <Text style={[styles.modalPrimaryBtnText, { color: tooEasySelected.size > 0 ? C.textInverse : C.textTertiary }]}>
+                <Text
+                  style={[
+                    styles.modalPrimaryBtnText,
+                    { color: tooEasySelected.size > 0 ? C.textInverse : C.textTertiary },
+                  ]}
+                >
                   {tooEasySelected.size > 0
                     ? `Increase ${tooEasySelected.size} exercise${tooEasySelected.size > 1 ? 's' : ''}`
                     : 'Confirm'}
@@ -759,7 +921,15 @@ export default function SessionSummaryScreen() {
   );
 }
 
-function ExerciseBadge({ row, weightUnit, C }: { row: ExerciseRow; weightUnit: 'kg' | 'lbs'; C: ReturnType<typeof useColors> }) {
+function ExerciseBadge({
+  row,
+  weightUnit,
+  C,
+}: {
+  row: ExerciseRow;
+  weightUnit: 'kg' | 'lbs';
+  C: ReturnType<typeof useColors>;
+}) {
   if (row.badge === 'none') {
     return (
       <View style={[styles.badge, { backgroundColor: C.surfaceTertiary }]}>
@@ -783,7 +953,9 @@ function ExerciseBadge({ row, weightUnit, C }: { row: ExerciseRow; weightUnit: '
     return (
       <View style={[styles.badge, { backgroundColor: GAIN_GREEN + '1f' }]}>
         <Ionicons name="trending-up" size={13} color={GAIN_GREEN} />
-        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>+{delta} {weightUnit}</Text>
+        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>
+          +{delta} {weightUnit}
+        </Text>
       </View>
     );
   }
@@ -792,7 +964,9 @@ function ExerciseBadge({ row, weightUnit, C }: { row: ExerciseRow; weightUnit: '
     return (
       <View style={[styles.badge, { backgroundColor: GAIN_GREEN + '1f' }]}>
         <Ionicons name="trending-up" size={13} color={GAIN_GREEN} />
-        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>+{row.deltaReps} {row.deltaReps === 1 ? 'rep' : 'reps'}</Text>
+        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>
+          +{row.deltaReps} {row.deltaReps === 1 ? 'rep' : 'reps'}
+        </Text>
       </View>
     );
   }
@@ -802,7 +976,9 @@ function ExerciseBadge({ row, weightUnit, C }: { row: ExerciseRow; weightUnit: '
     return (
       <View style={[styles.badge, { backgroundColor: DROP_AMBER + '1f' }]}>
         <Ionicons name="refresh-outline" size={13} color={DROP_AMBER} />
-        <Text style={[styles.badgeText, { color: DROP_AMBER }]}>-{delta} {weightUnit}</Text>
+        <Text style={[styles.badgeText, { color: DROP_AMBER }]}>
+          -{delta} {weightUnit}
+        </Text>
       </View>
     );
   }

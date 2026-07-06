@@ -83,7 +83,15 @@ export default function CustomSessionScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, setPendingCustomExercises, savedTemplates, saveTemplate, deleteTemplate, updateTemplate, completedSessions } = useAppStore();
+  const {
+    getEffectiveTier,
+    setPendingCustomExercises,
+    savedTemplates,
+    saveTemplate,
+    deleteTemplate,
+    updateTemplate,
+    completedSessions,
+  } = useAppStore();
   const tier = getEffectiveTier();
 
   const allExercises = useMemo(() => getAllPickableExercises(tier), [tier]);
@@ -120,16 +128,24 @@ export default function CustomSessionScreen() {
     setUndoToast(null);
   }, []);
 
-  const showUndoToast = useCallback((templateId: string, templateName: string, previousExercises: SelectedExercise[]) => {
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoToast({ templateId, templateName, previousExercises });
-    undoTimerRef.current = setTimeout(() => {
-      setUndoToast(null);
-      undoTimerRef.current = null;
-    }, 4500);
-  }, []);
+  const showUndoToast = useCallback(
+    (templateId: string, templateName: string, previousExercises: SelectedExercise[]) => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      setUndoToast({ templateId, templateName, previousExercises });
+      undoTimerRef.current = setTimeout(() => {
+        setUndoToast(null);
+        undoTimerRef.current = null;
+      }, 4500);
+    },
+    []
+  );
 
-  useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    },
+    []
+  );
 
   const handleUndo = useCallback(() => {
     if (!undoToast) return;
@@ -226,12 +242,15 @@ export default function CustomSessionScreen() {
   const hasHistory = recentById.size > 0 || recentByName.size > 0;
 
   // Latest logged date for an exercise (max of id-match and name-match), or null if never done.
-  const getLastDone = useCallback((ex: ExerciseTemplate): string | null => {
-    const a = recentById.get(ex.id);
-    const b = recentByName.get(ex.name);
-    if (a && b) return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
-    return a ?? b ?? null;
-  }, [recentById, recentByName]);
+  const getLastDone = useCallback(
+    (ex: ExerciseTemplate): string | null => {
+      const a = recentById.get(ex.id);
+      const b = recentByName.get(ex.name);
+      if (a && b) return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+      return a ?? b ?? null;
+    },
+    [recentById, recentByName]
+  );
 
   // When "Fresh first" is on, bucket recently-done exercises to the bottom while
   // preserving the existing category/name ordering within each bucket.
@@ -256,7 +275,8 @@ export default function CustomSessionScreen() {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     setPatternFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -265,7 +285,8 @@ export default function CustomSessionScreen() {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     setDifficultyFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -331,7 +352,6 @@ export default function CustomSessionScreen() {
       if (emptiedToastTimerRef.current) clearTimeout(emptiedToastTimerRef.current);
     };
   }, []);
-
 
   const cancelDrag = useCallback(() => {
     draggingIdxRef.current = null;
@@ -404,7 +424,8 @@ export default function CustomSessionScreen() {
   const handleStart = useCallback(() => {
     if (selected.length === 0) {
       if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined') window.alert('Select at least one exercise to start your session.');
+        if (typeof window !== 'undefined')
+          window.alert('Select at least one exercise to start your session.');
       } else {
         Alert.alert(
           'No Exercises Selected',
@@ -468,31 +489,34 @@ export default function CustomSessionScreen() {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [templateName, selected, saveTemplate]);
 
-  const loadTemplate = useCallback((tmpl: CustomTemplate) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const exerciseById = new Map(allExercises.map((e) => [e.id, e]));
-    const newSelected: SelectedExercise[] = tmpl.exercises.map((ex) => {
-      const found = exerciseById.get(ex.id);
-      const template: ExerciseTemplate = found ?? {
-        id: ex.id,
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        cue: ex.cue,
-        suggestedLoad: ex.suggestedLoad,
-        category: ex.category as ExerciseCategory,
-        targetRegions: [],
-        videoId: '',
-      };
-      return { template, sets: ex.sets, reps: ex.reps };
-    });
-    setSelected(newSelected);
-    setLoadedTemplateId(tmpl.id);
-    setSearch('');
-    setCategoryFilter('all');
-    setPatternFilters(new Set());
-    setDifficultyFilters(new Set());
-  }, [allExercises]);
+  const loadTemplate = useCallback(
+    (tmpl: CustomTemplate) => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const exerciseById = new Map(allExercises.map((e) => [e.id, e]));
+      const newSelected: SelectedExercise[] = tmpl.exercises.map((ex) => {
+        const found = exerciseById.get(ex.id);
+        const template: ExerciseTemplate = found ?? {
+          id: ex.id,
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          cue: ex.cue,
+          suggestedLoad: ex.suggestedLoad,
+          category: ex.category as ExerciseCategory,
+          targetRegions: [],
+          videoId: '',
+        };
+        return { template, sets: ex.sets, reps: ex.reps };
+      });
+      setSelected(newSelected);
+      setLoadedTemplateId(tmpl.id);
+      setSearch('');
+      setCategoryFilter('all');
+      setPatternFilters(new Set());
+      setDifficultyFilters(new Set());
+    },
+    [allExercises]
+  );
 
   const openRenameModal = useCallback((tmpl: CustomTemplate) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -527,28 +551,30 @@ export default function CustomSessionScreen() {
       : 0;
 
     const doUpdate = () => {
-      const prevSelected: SelectedExercise[] | null = removedCount > 0 && originalTemplate
-        ? originalTemplate.exercises.map((ex) => {
-            const found = allExercises.find((e) => e.id === ex.id);
-            const tmpl: ExerciseTemplate = found ?? {
-              id: ex.id,
-              name: ex.name,
-              sets: ex.sets,
-              reps: ex.reps,
-              cue: ex.cue,
-              suggestedLoad: ex.suggestedLoad,
-              category: ex.category as ExerciseCategory,
-              targetRegions: [],
-              videoId: '',
-            };
-            return { template: tmpl, sets: ex.sets, reps: ex.reps };
-          })
-        : null;
+      const prevSelected: SelectedExercise[] | null =
+        removedCount > 0 && originalTemplate
+          ? originalTemplate.exercises.map((ex) => {
+              const found = allExercises.find((e) => e.id === ex.id);
+              const tmpl: ExerciseTemplate = found ?? {
+                id: ex.id,
+                name: ex.name,
+                sets: ex.sets,
+                reps: ex.reps,
+                cue: ex.cue,
+                suggestedLoad: ex.suggestedLoad,
+                category: ex.category as ExerciseCategory,
+                targetRegions: [],
+                videoId: '',
+              };
+              return { template: tmpl, sets: ex.sets, reps: ex.reps };
+            })
+          : null;
 
       updateTemplate(loadedTemplateId, { exercises });
       setLoadedTemplateId(null);
       setSaveModalVisible(false);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web')
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       if (prevSelected && originalTemplate) {
         showUndoToast(loadedTemplateId, originalTemplate.name, prevSelected);
@@ -563,31 +589,25 @@ export default function CustomSessionScreen() {
         }
         return;
       }
-      Alert.alert(
-        'Remove Exercises?',
-        message,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Update', style: 'destructive', onPress: doUpdate },
-        ]
-      );
+      Alert.alert('Remove Exercises?', message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Update', style: 'destructive', onPress: doUpdate },
+      ]);
       return;
     }
 
     doUpdate();
   }, [loadedTemplateId, selected, updateTemplate, savedTemplates, allExercises, showUndoToast]);
 
-  const confirmDeleteTemplate = useCallback((tmpl: CustomTemplate) => {
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(`Remove template "${tmpl.name}"?`)) {
-        deleteTemplate(tmpl.id);
+  const confirmDeleteTemplate = useCallback(
+    (tmpl: CustomTemplate) => {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.confirm(`Remove template "${tmpl.name}"?`)) {
+          deleteTemplate(tmpl.id);
+        }
+        return;
       }
-      return;
-    }
-    Alert.alert(
-      'Delete Template',
-      `Remove "${tmpl.name}"?`,
-      [
+      Alert.alert('Delete Template', `Remove "${tmpl.name}"?`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -597,25 +617,34 @@ export default function CustomSessionScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           },
         },
-      ]
-    );
-  }, [deleteTemplate]);
+      ]);
+    },
+    [deleteTemplate]
+  );
 
   const getCategoryColor = (cat: ExerciseCategory | string): string => {
     switch (cat) {
-      case 'main': return C.primary;
-      case 'accessory': return C.badgeVolumeText;
-      case 'prehab': return C.categoryPrehabText;
-      default: return C.textSecondary;
+      case 'main':
+        return C.primary;
+      case 'accessory':
+        return C.badgeVolumeText;
+      case 'prehab':
+        return C.categoryPrehabText;
+      default:
+        return C.textSecondary;
     }
   };
 
   const getCategoryBg = (cat: ExerciseCategory | string): string => {
     switch (cat) {
-      case 'main': return C.primaryMuted;
-      case 'accessory': return C.badgeVolume;
-      case 'prehab': return C.categoryPrehab;
-      default: return C.surfaceSecondary;
+      case 'main':
+        return C.primaryMuted;
+      case 'accessory':
+        return C.badgeVolume;
+      case 'prehab':
+        return C.categoryPrehab;
+      default:
+        return C.surfaceSecondary;
     }
   };
 
@@ -629,7 +658,7 @@ export default function CustomSessionScreen() {
       <Animated.View entering={FadeInDown.delay(index * 18).duration(280)}>
         <Pressable
           onPress={() => toggleExercise(item)}
-          onLongPress={() => isSelected && selEntry ? openEditModal(selEntry) : undefined}
+          onLongPress={() => (isSelected && selEntry ? openEditModal(selEntry) : undefined)}
           style={({ pressed }) => [
             styles.exerciseCard,
             isSelected && styles.exerciseCardSelected,
@@ -639,23 +668,49 @@ export default function CustomSessionScreen() {
         >
           <View style={styles.exerciseCardLeft}>
             <View style={styles.exerciseCardPills}>
-              <View style={[styles.categoryPill, { backgroundColor: getCategoryBg(item.category) }]}>
+              <View
+                style={[styles.categoryPill, { backgroundColor: getCategoryBg(item.category) }]}
+              >
                 <Text style={[styles.categoryPillText, { color: getCategoryColor(item.category) }]}>
                   {CATEGORY_LABELS[item.category] ?? item.category}
                 </Text>
               </View>
               {item.movementPattern && (
                 <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
-                  <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>{item.movementPattern}</Text>
+                  <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
+                    {item.movementPattern}
+                  </Text>
                 </View>
               )}
               {item.difficulty && (
-                <View style={[styles.categoryPill, {
-                  backgroundColor: item.difficulty === 'advanced' ? '#fde8e8' : item.difficulty === 'intermediate' ? '#fff8e1' : '#e8f5e9',
-                }]}>
-                  <Text style={[styles.categoryPillText, {
-                    color: item.difficulty === 'advanced' ? '#c0392b' : item.difficulty === 'intermediate' ? '#f39c12' : '#27ae60',
-                  }]}>{item.difficulty}</Text>
+                <View
+                  style={[
+                    styles.categoryPill,
+                    {
+                      backgroundColor:
+                        item.difficulty === 'advanced'
+                          ? '#fde8e8'
+                          : item.difficulty === 'intermediate'
+                            ? '#fff8e1'
+                            : '#e8f5e9',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.categoryPillText,
+                      {
+                        color:
+                          item.difficulty === 'advanced'
+                            ? '#c0392b'
+                            : item.difficulty === 'intermediate'
+                              ? '#f39c12'
+                              : '#27ae60',
+                      },
+                    ]}
+                  >
+                    {item.difficulty}
+                  </Text>
                 </View>
               )}
               {recent && (
@@ -667,11 +722,17 @@ export default function CustomSessionScreen() {
             </View>
             <Text style={styles.exerciseName}>{item.name}</Text>
             {item.primaryMuscle && (
-              <Text style={styles.exercisePrimary}>{item.primaryMuscle}{item.isUnilateral ? ' · unilateral' : ''}</Text>
+              <Text style={styles.exercisePrimary}>
+                {item.primaryMuscle}
+                {item.isUnilateral ? ' · unilateral' : ''}
+              </Text>
             )}
             <Text style={styles.exerciseMeta}>
-              {selEntry ? `${selEntry.sets} sets · ${selEntry.reps}` : `${item.sets} sets · ${item.reps}`}
-              {' · '}{item.suggestedLoad}
+              {selEntry
+                ? `${selEntry.sets} sets · ${selEntry.reps}`
+                : `${item.sets} sets · ${item.reps}`}
+              {' · '}
+              {item.suggestedLoad}
             </Text>
           </View>
           <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
@@ -701,7 +762,9 @@ export default function CustomSessionScreen() {
               >
                 <View style={styles.templateCardTop}>
                   <Ionicons name="bookmark" size={14} color={C.primary} />
-                  <Text style={styles.templateCardName} numberOfLines={1}>{tmpl.name}</Text>
+                  <Text style={styles.templateCardName} numberOfLines={1}>
+                    {tmpl.name}
+                  </Text>
                 </View>
                 <Text style={styles.templateCardMeta}>
                   {tmpl.exercises.length} exercise{tmpl.exercises.length !== 1 ? 's' : ''}
@@ -752,7 +815,12 @@ export default function CustomSessionScreen() {
       </View>
 
       <View style={styles.searchRow}>
-        <Ionicons name="search-outline" size={18} color={C.textTertiary} style={styles.searchIcon} />
+        <Ionicons
+          name="search-outline"
+          size={18}
+          color={C.textTertiary}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search exercises…"
@@ -782,7 +850,12 @@ export default function CustomSessionScreen() {
               pressed && { opacity: 0.8 },
             ]}
           >
-            <Text style={[styles.filterChipText, categoryFilter === f.key && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                categoryFilter === f.key && styles.filterChipTextActive,
+              ]}
+            >
               {f.label}
             </Text>
           </Pressable>
@@ -805,7 +878,9 @@ export default function CustomSessionScreen() {
             ]}
             testID="filter-attr-all"
           >
-            <Text style={[styles.filterChipText, !attrFiltersActive && styles.filterChipTextActive]}>
+            <Text
+              style={[styles.filterChipText, !attrFiltersActive && styles.filterChipTextActive]}
+            >
               All
             </Text>
           </Pressable>
@@ -938,10 +1013,15 @@ export default function CustomSessionScreen() {
       {selected.length > 0 && (
         <Animated.View
           entering={FadeInDown.duration(300)}
-          style={[styles.tray, { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 12 }]}
+          style={[
+            styles.tray,
+            { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 12 },
+          ]}
         >
           <View style={styles.trayTop}>
-            <Text style={styles.trayCount}>{selected.length} exercise{selected.length !== 1 ? 's' : ''} selected</Text>
+            <Text style={styles.trayCount}>
+              {selected.length} exercise{selected.length !== 1 ? 's' : ''} selected
+            </Text>
             <View style={styles.trayTopRight}>
               <Pressable
                 onPress={openSaveModal}
@@ -982,14 +1062,16 @@ export default function CustomSessionScreen() {
                     <Pressable
                       onPress={() => openEditModal(s)}
                       onLongPress={() => {
-                        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        if (Platform.OS !== 'web')
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         draggingIdxRef.current = idx;
                         insertAtIdxRef.current = idx;
                         setDraggingIdx(idx);
                         setInsertAtIdx(idx);
                       }}
                       onPressOut={() => {
-                        if (draggingIdxRef.current !== null && !containerOwnedRef.current) cancelDrag();
+                        if (draggingIdxRef.current !== null && !containerOwnedRef.current)
+                          cancelDrag();
                       }}
                       delayLongPress={300}
                       onLayout={(e) => {
@@ -1006,8 +1088,12 @@ export default function CustomSessionScreen() {
                         style={styles.trayChipDragHandle}
                       />
                       <View style={styles.trayChipBody}>
-                        <Text style={styles.trayChipName} numberOfLines={1}>{s.template.name}</Text>
-                        <Text style={styles.trayChipMeta}>{s.sets}×{s.reps}</Text>
+                        <Text style={styles.trayChipName} numberOfLines={1}>
+                          {s.template.name}
+                        </Text>
+                        <Text style={styles.trayChipMeta}>
+                          {s.sets}×{s.reps}
+                        </Text>
                       </View>
                       <Pressable
                         onPress={() => removeFromTray(s.template.id)}
@@ -1020,26 +1106,28 @@ export default function CustomSessionScreen() {
                   </React.Fragment>
                 );
               })}
-              {insertAtIdx === selected.length && (
-                <View style={styles.insertCursor} />
-              )}
+              {insertAtIdx === selected.length && <View style={styles.insertCursor} />}
             </ScrollView>
             {/* Right-edge overflow affordance: fade + chevron shown when chips extend beyond tray width */}
-            {trayContentWidth > trayContainerWidth + 4 && trayScrollX < trayContentWidth - trayContainerWidth - 4 && (
-              <LinearGradient
-                colors={[`${C.surface}00`, C.surface]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.trayOverflowFade}
-                pointerEvents="none"
-              >
-                <Ionicons name="chevron-forward" size={16} color={C.textSecondary} />
-              </LinearGradient>
-            )}
+            {trayContentWidth > trayContainerWidth + 4 &&
+              trayScrollX < trayContentWidth - trayContainerWidth - 4 && (
+                <LinearGradient
+                  colors={[`${C.surface}00`, C.surface]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.trayOverflowFade}
+                  pointerEvents="none"
+                >
+                  <Ionicons name="chevron-forward" size={16} color={C.textSecondary} />
+                </LinearGradient>
+              )}
           </View>
           <Pressable
             onPress={handleStart}
-            style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] }]}
+            style={({ pressed }) => [
+              styles.startBtn,
+              pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+            ]}
             testID="custom-session-start"
           >
             <Ionicons name="play" size={18} color={C.textInverse} />
@@ -1048,7 +1136,12 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      <Modal visible={!!editingExercise} transparent animationType="fade" onRequestClose={() => setEditingExercise(null)}>
+      <Modal
+        visible={!!editingExercise}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingExercise(null)}
+      >
         <Pressable style={styles.modalOverlay} onPress={() => setEditingExercise(null)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>{editingExercise?.template.name}</Text>
@@ -1104,7 +1197,12 @@ export default function CustomSessionScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={saveModalVisible} transparent animationType="fade" onRequestClose={closeSaveModal}>
+      <Modal
+        visible={saveModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeSaveModal}
+      >
         <Pressable style={styles.modalOverlay} onPress={closeSaveModal}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.saveModalHeader}>
@@ -1115,22 +1213,23 @@ export default function CustomSessionScreen() {
               {selected.length} exercise{selected.length !== 1 ? 's' : ''} will be saved
             </Text>
 
-            {loadedTemplateId && (() => {
-              const loadedTmpl = savedTemplates.find((t) => t.id === loadedTemplateId);
-              if (!loadedTmpl) return null;
-              return (
-                <Pressable
-                  onPress={confirmUpdateTemplate}
-                  style={({ pressed }) => [styles.updateExistingBtn, pressed && { opacity: 0.8 }]}
-                  testID="confirm-update-template"
-                >
-                  <Ionicons name="refresh-outline" size={16} color={C.primary} />
-                  <Text style={styles.updateExistingText} numberOfLines={1}>
-                    {`Update "${loadedTmpl.name}"`}
-                  </Text>
-                </Pressable>
-              );
-            })()}
+            {loadedTemplateId &&
+              (() => {
+                const loadedTmpl = savedTemplates.find((t) => t.id === loadedTemplateId);
+                if (!loadedTmpl) return null;
+                return (
+                  <Pressable
+                    onPress={confirmUpdateTemplate}
+                    style={({ pressed }) => [styles.updateExistingBtn, pressed && { opacity: 0.8 }]}
+                    testID="confirm-update-template"
+                  >
+                    <Ionicons name="refresh-outline" size={16} color={C.primary} />
+                    <Text style={styles.updateExistingText} numberOfLines={1}>
+                      {`Update "${loadedTmpl.name}"`}
+                    </Text>
+                  </Pressable>
+                );
+              })()}
 
             {loadedTemplateId && (
               <View style={styles.saveModalDivider}>
@@ -1172,7 +1271,9 @@ export default function CustomSessionScreen() {
                 disabled={!templateName.trim()}
                 testID="confirm-save-template"
               >
-                <Text style={styles.modalSaveText}>{loadedTemplateId ? 'Save New' : 'Save Template'}</Text>
+                <Text style={styles.modalSaveText}>
+                  {loadedTemplateId ? 'Save New' : 'Save Template'}
+                </Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1184,7 +1285,10 @@ export default function CustomSessionScreen() {
           entering={FadeInDown.duration(250)}
           style={[
             styles.undoToast,
-            { bottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + (selected.length > 0 ? 180 : 16) },
+            {
+              bottom:
+                insets.bottom + (Platform.OS === 'web' ? 34 : 0) + (selected.length > 0 ? 180 : 16),
+            },
           ]}
           testID="undo-toast"
         >
@@ -1204,7 +1308,12 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      <Modal visible={!!renamingTemplate} transparent animationType="fade" onRequestClose={() => setRenamingTemplate(null)}>
+      <Modal
+        visible={!!renamingTemplate}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenamingTemplate(null)}
+      >
         <Pressable style={styles.modalOverlay} onPress={() => setRenamingTemplate(null)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.saveModalHeader}>
@@ -1256,37 +1365,62 @@ function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
-      flexDirection: 'row', alignItems: 'center',
-      paddingHorizontal: 16, paddingBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
     },
     backBtn: { width: 40, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
     headerCenter: { flex: 1, alignItems: 'center' },
     headerTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
-    headerSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 1 },
+    headerSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
 
     searchRow: {
-      flexDirection: 'row', alignItems: 'center',
-      marginHorizontal: 16, marginBottom: 10,
-      backgroundColor: C.surface, borderRadius: 12,
-      borderWidth: 1, borderColor: C.borderLight,
-      paddingHorizontal: 12, height: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginBottom: 10,
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      paddingHorizontal: 12,
+      height: 42,
     },
     searchIcon: { marginRight: 8 },
     searchInput: {
-      flex: 1, fontSize: 14, fontFamily: 'Inter_400Regular',
-      color: C.text, height: 42,
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.text,
+      height: 42,
     },
 
     filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
-    attrFilterRow: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 10, gap: 8, alignItems: 'center' },
+    attrFilterRow: {
+      paddingHorizontal: 16,
+      paddingTop: 0,
+      paddingBottom: 10,
+      gap: 8,
+      alignItems: 'center',
+    },
     filterDivider: { width: 1, height: 22, backgroundColor: C.borderLight, marginHorizontal: 2 },
     filterChip: {
-      paddingHorizontal: 14, paddingVertical: 8,
-      borderRadius: 20, backgroundColor: C.surface,
-      borderWidth: 1, borderColor: C.borderLight,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.borderLight,
     },
     filterChipActive: {
-      backgroundColor: C.primaryMuted, borderColor: C.primary,
+      backgroundColor: C.primaryMuted,
+      borderColor: C.primary,
     },
     filterChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     filterChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
@@ -1295,130 +1429,222 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     templatesSection: { marginBottom: 16 },
     templatesSectionTitle: {
-      fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textSecondary,
-      textTransform: 'uppercase', letterSpacing: 0.5,
+      fontSize: 13,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
       marginBottom: 10,
     },
     templatesScroll: { gap: 10, paddingRight: 4 },
     templateCardWrapper: {
-      position: 'relative', minWidth: 130, maxWidth: 180,
+      position: 'relative',
+      minWidth: 130,
+      maxWidth: 180,
     },
     templateCard: {
-      backgroundColor: C.surface, borderRadius: 14,
-      borderWidth: 1, borderColor: C.borderLight,
-      padding: 12, paddingRight: 12,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      padding: 12,
+      paddingRight: 12,
     },
     templateCardTop: {
-      flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginBottom: 4,
     },
     templateCardName: {
-      fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
+      flex: 1,
     },
     templateCardMeta: {
-      fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary,
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
     },
     templateActions: {
-      flexDirection: 'row', justifyContent: 'flex-end',
-      gap: 4, marginTop: 6,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 4,
+      marginTop: 6,
     },
     templateActionBtn: { padding: 4 },
 
     exerciseCard: {
-      flexDirection: 'row', alignItems: 'center',
-      backgroundColor: C.surface, borderRadius: 14,
-      borderWidth: 1, borderColor: C.borderLight,
-      padding: 14, marginBottom: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      padding: 14,
+      marginBottom: 8,
     },
     exerciseCardSelected: {
-      borderColor: C.primary, backgroundColor: C.primaryMuted,
+      borderColor: C.primary,
+      backgroundColor: C.primaryMuted,
     },
     exerciseCardLeft: { flex: 1, marginRight: 10 },
     categoryPill: {
-      alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
       borderRadius: 8,
     },
-    categoryPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.4 },
-    recentPill: {
-      flexDirection: 'row', alignItems: 'center', gap: 3,
-      alignSelf: 'flex-start', paddingHorizontal: 7, paddingVertical: 3,
-      borderRadius: 8, backgroundColor: C.primaryMuted,
+    categoryPillText: {
+      fontSize: 10,
+      fontFamily: 'Inter_600SemiBold',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
     },
-    recentPillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.primary, letterSpacing: 0.2 },
+    recentPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 8,
+      backgroundColor: C.primaryMuted,
+    },
+    recentPillText: {
+      fontSize: 10,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      letterSpacing: 0.2,
+    },
     freshChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     exerciseCardPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
     exerciseName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
-    exercisePrimary: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary, marginBottom: 3 },
+    exercisePrimary: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginBottom: 3,
+    },
     exerciseMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     checkCircle: {
-      width: 26, height: 26, borderRadius: 13,
-      borderWidth: 2, borderColor: C.border,
-      alignItems: 'center', justifyContent: 'center',
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 2,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
       flexShrink: 0,
     },
     checkCircleSelected: {
-      backgroundColor: C.primary, borderColor: C.primary,
+      backgroundColor: C.primary,
+      borderColor: C.primary,
     },
 
-
     selectionHint: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
-      backgroundColor: C.primaryMuted, borderRadius: 10,
-      borderWidth: 1, borderColor: C.primary,
-      paddingHorizontal: 12, paddingVertical: 9,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.primaryMuted,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
       marginBottom: 12,
     },
     selectionHintText: { flex: 1, fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
 
     tray: {
-      position: 'absolute', left: 0, right: 0, bottom: 0,
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
       backgroundColor: C.surface,
-      borderTopWidth: 1, borderTopColor: C.borderLight,
-      paddingTop: 14, paddingHorizontal: 16,
-      shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
+      paddingTop: 14,
+      paddingHorizontal: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 8,
     },
     trayTop: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       marginBottom: 10,
     },
     trayTopRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     trayCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
     trayHint: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     saveTemplateBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 4,
-      paddingHorizontal: 10, paddingVertical: 5,
-      backgroundColor: C.primaryMuted, borderRadius: 10,
-      borderWidth: 1, borderColor: C.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      backgroundColor: C.primaryMuted,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.primary,
     },
     saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
     emptiedToast: {
-      position: 'absolute', left: 16, right: 16,
-      flexDirection: 'row', alignItems: 'center', gap: 10,
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
       backgroundColor: C.text,
-      paddingVertical: 12, paddingHorizontal: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
       borderRadius: 12,
-      shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     emptiedToastText: {
-      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textInverse,
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textInverse,
     },
     trayChipsWrapper: { position: 'relative', overflow: 'hidden' },
     trayOverflowFade: {
-      position: 'absolute', right: 0, top: 0, bottom: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
       width: 48,
-      alignItems: 'flex-end', justifyContent: 'center',
+      alignItems: 'flex-end',
+      justifyContent: 'center',
       paddingRight: 6,
     },
     trayChips: { gap: 8, paddingRight: 4, marginBottom: 12 },
     trayChip: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      backgroundColor: C.surfaceSecondary, borderRadius: 10,
-      paddingHorizontal: 10, paddingVertical: 6,
-      borderWidth: 1, borderColor: C.borderLight,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: C.borderLight,
     },
     trayChipDragging: {
-      opacity: 0.5, borderColor: C.primary, borderStyle: 'dashed',
+      opacity: 0.5,
+      borderColor: C.primary,
+      borderStyle: 'dashed',
     },
     trayChipDragHandle: { marginRight: 1 },
     trayChipBody: { alignItems: 'center' },
@@ -1426,98 +1652,173 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     trayChipMeta: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     trayChipRemove: { padding: 2, marginLeft: 2 },
     insertCursor: {
-      width: 3, borderRadius: 2,
-      backgroundColor: C.primary, alignSelf: 'stretch',
+      width: 3,
+      borderRadius: 2,
+      backgroundColor: C.primary,
+      alignSelf: 'stretch',
       marginHorizontal: 1,
     },
 
     startBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: C.primary, borderRadius: 14, paddingVertical: 14, gap: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 14,
+      gap: 8,
     },
     startBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     modalOverlay: {
-      flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-      alignItems: 'center', justifyContent: 'center', padding: 24,
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
     },
     modalCard: {
-      backgroundColor: C.surface, borderRadius: 20,
-      padding: 22, width: '100%', maxWidth: 380,
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 22,
+      width: '100%',
+      maxWidth: 380,
     },
     saveModalHeader: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 2,
     },
     modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
-    modalSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginBottom: 20, marginTop: 2 },
+    modalSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginBottom: 20,
+      marginTop: 2,
+    },
     modalSection: { marginBottom: 18 },
-    modalLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, marginBottom: 10 },
+    modalLabel: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      marginBottom: 10,
+    },
     stepper: { flexDirection: 'row', alignItems: 'center', gap: 0 },
     stepperBtn: {
-      width: 44, height: 44, borderRadius: 12,
-      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.borderLight,
-      alignItems: 'center', justifyContent: 'center',
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     stepperValue: {
-      flex: 1, textAlign: 'center',
-      fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text,
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 22,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
     },
     modalRepsInput: {
-      backgroundColor: C.surfaceSecondary, borderRadius: 12,
-      borderWidth: 1, borderColor: C.borderLight,
-      paddingHorizontal: 14, paddingVertical: 12,
-      fontSize: 15, fontFamily: 'Inter_500Medium', color: C.text,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
     },
     modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
     modalCancelBtn: {
-      flex: 1, paddingVertical: 13, borderRadius: 12,
-      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.borderLight,
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
       alignItems: 'center',
     },
     modalCancelText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     modalSaveBtn: {
-      flex: 2, paddingVertical: 13, borderRadius: 12,
-      backgroundColor: C.primary, alignItems: 'center',
+      flex: 2,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
     },
     modalSaveBtnDisabled: { opacity: 0.45 },
     modalSaveText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     updateExistingBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
-      backgroundColor: C.primaryMuted, borderRadius: 12,
-      borderWidth: 1, borderColor: C.primary,
-      paddingHorizontal: 14, paddingVertical: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.primaryMuted,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
       marginTop: 12,
     },
     updateExistingText: {
-      flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary,
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
     },
     saveModalDivider: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginVertical: 16,
     },
     saveModalDividerLine: { flex: 1, height: 1, backgroundColor: C.borderLight },
     saveModalDividerText: {
-      fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary,
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
     },
 
     undoToast: {
-      position: 'absolute', left: 16, right: 16,
-      flexDirection: 'row', alignItems: 'center',
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: C.text,
-      borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.22, shadowRadius: 10, elevation: 12,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.22,
+      shadowRadius: 10,
+      elevation: 12,
       gap: 10,
     },
     undoToastText: {
-      flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textInverse,
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textInverse,
     },
     undoBtn: {
-      paddingHorizontal: 12, paddingVertical: 6,
-      backgroundColor: C.primary, borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      backgroundColor: C.primary,
+      borderRadius: 8,
     },
     undoBtnText: {
-      fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse,
+      fontSize: 13,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
     },
     undoDismissBtn: {
       padding: 2,

@@ -1,5 +1,5 @@
-import React, { Component, ComponentType, PropsWithChildren } from "react";
-import { ErrorFallback, ErrorFallbackProps } from "@/components/ErrorFallback";
+import React, { Component, ComponentType, PropsWithChildren } from 'react';
+import { ErrorFallback, ErrorFallbackProps } from '@/components/ErrorFallback';
 
 export type ErrorBoundaryProps = PropsWithChildren<{
   FallbackComponent?: ComponentType<ErrorFallbackProps>;
@@ -13,10 +13,7 @@ type ErrorBoundaryState = { error: Error | null };
  * https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
  */
 
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
 
   static defaultProps: {
@@ -30,7 +27,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }): void {
-    if (typeof this.props.onError === "function") {
+    if (typeof this.props.onError === 'function') {
       this.props.onError(error, info.componentStack);
     }
   }
@@ -43,10 +40,7 @@ export class ErrorBoundary extends Component<
     const { FallbackComponent } = this.props;
 
     return this.state.error && FallbackComponent ? (
-      <FallbackComponent
-        error={this.state.error}
-        resetError={this.resetError}
-      />
+      <FallbackComponent error={this.state.error} resetError={this.resetError} />
     ) : (
       this.props.children
     );

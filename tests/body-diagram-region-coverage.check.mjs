@@ -59,11 +59,11 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const storeSrc   = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
+const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
 const diagramSrc = readFileSync(join(__dir, '../components/BodyDiagram.tsx'), 'utf8');
 
 let failures = 0;
-let total    = 0;
+let total = 0;
 
 function check(label, condition, detail) {
   total++;
@@ -83,23 +83,23 @@ const typeStart = storeSrc.indexOf('export type PainRegion =');
 check(
   'PainRegion type declaration found in lib/store.ts',
   typeStart !== -1,
-  'declaration not found — check lib/store.ts',
+  'declaration not found — check lib/store.ts'
 );
 
 let painRegions = [];
 
 if (typeStart !== -1) {
-  const eqPos     = storeSrc.indexOf('=', typeStart);
-  const semi      = storeSrc.indexOf(';', eqPos);
+  const eqPos = storeSrc.indexOf('=', typeStart);
+  const semi = storeSrc.indexOf(';', eqPos);
   const typeBlock = storeSrc.slice(eqPos, semi + 1);
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
-  painRegions = regionMatches.map(m => m[1]);
+  painRegions = regionMatches.map((m) => m[1]);
 
   check(
     `PainRegion type contains at least 1 value (found ${painRegions.length})`,
     painRegions.length >= 1,
-    'no quoted identifiers found in PainRegion type block',
+    'no quoted identifiers found in PainRegion type block'
   );
 
   for (const r of painRegions) {
@@ -130,20 +130,23 @@ const labelsDecl = diagramSrc.indexOf('BODY_DIAGRAM_LABELS');
 check(
   'BODY_DIAGRAM_LABELS declaration found in BodyDiagram.tsx',
   labelsDecl !== -1,
-  'BODY_DIAGRAM_LABELS not found — check components/BodyDiagram.tsx',
+  'BODY_DIAGRAM_LABELS not found — check components/BodyDiagram.tsx'
 );
 
 let labelsKeys = [];
 
 if (labelsDecl !== -1) {
   const labelsOpen = diagramSrc.indexOf('{', labelsDecl);
-  let depth   = 0;
+  let depth = 0;
   let labelsEnd = -1;
   for (let i = labelsOpen; i < diagramSrc.length; i++) {
     if (diagramSrc[i] === '{') depth++;
     else if (diagramSrc[i] === '}') {
       depth--;
-      if (depth === 0) { labelsEnd = i; break; }
+      if (depth === 0) {
+        labelsEnd = i;
+        break;
+      }
     }
   }
 
@@ -152,13 +155,13 @@ if (labelsDecl !== -1) {
     // Keys are bare identifiers followed by ':' on their own or at line start,
     // not inside string values.  Match word-start identifiers before ':'.
     const keyMatches = [...labelsBlock.matchAll(/\b([a-z_]+)\s*:/g)];
-    labelsKeys = keyMatches.map(m => m[1]);
+    labelsKeys = keyMatches.map((m) => m[1]);
   }
 
   check(
     `BODY_DIAGRAM_LABELS block parsed successfully (found ${labelsKeys.length} key(s))`,
     labelsKeys.length >= 1,
-    'could not extract keys from BODY_DIAGRAM_LABELS block',
+    'could not extract keys from BODY_DIAGRAM_LABELS block'
   );
 }
 
@@ -171,7 +174,7 @@ for (const region of painRegions) {
     `BODY_DIAGRAM_LABELS has key '${region}'`,
     labelsKeySet.has(region),
     `missing entry — label chip will show nothing when '${region}' is tapped; ` +
-    `add  ${region}:  '<Human Label>',  to BODY_DIAGRAM_LABELS in BodyDiagram.tsx`,
+      `add  ${region}:  '<Human Label>',  to BODY_DIAGRAM_LABELS in BodyDiagram.tsx`
   );
 }
 
@@ -181,7 +184,7 @@ for (const key of labelsKeys) {
   check(
     `BODY_DIAGRAM_LABELS key '${key}' is a declared PainRegion`,
     painRegionSet.has(key),
-    `stale or unknown key '${key}' in BODY_DIAGRAM_LABELS — remove it or add it to PainRegion in lib/store.ts`,
+    `stale or unknown key '${key}' in BODY_DIAGRAM_LABELS — remove it or add it to PainRegion in lib/store.ts`
   );
 }
 
@@ -193,7 +196,7 @@ const muscleSetDecl = diagramSrc.indexOf('const MUSCLE_SET');
 check(
   'MUSCLE_SET declaration found in BodyDiagram.tsx',
   muscleSetDecl !== -1,
-  'MUSCLE_SET not found — check components/BodyDiagram.tsx',
+  'MUSCLE_SET not found — check components/BodyDiagram.tsx'
 );
 
 let muscleSetValues = [];
@@ -206,13 +209,13 @@ if (muscleSetDecl !== -1) {
   if (arrOpen !== -1 && arrClose !== -1) {
     const arrBlock = diagramSrc.slice(arrOpen + 1, arrClose);
     const valMatches = [...arrBlock.matchAll(/'([a-z_]+)'/g)];
-    muscleSetValues = valMatches.map(m => m[1]);
+    muscleSetValues = valMatches.map((m) => m[1]);
   }
 
   check(
     `MUSCLE_SET array parsed successfully (found ${muscleSetValues.length} value(s))`,
     muscleSetValues.length >= 1,
-    'could not extract values from MUSCLE_SET — check BodyDiagram.tsx',
+    'could not extract values from MUSCLE_SET — check BodyDiagram.tsx'
   );
 }
 
@@ -221,13 +224,13 @@ const muscleSetValueSet = new Set(muscleSetValues);
 // Derive KNOWN_JOINTS at runtime — no manually maintained list required.
 // Any PainRegion not in MUSCLE_SET is automatically treated as a joint here,
 // mirroring exactly the runtime behaviour of BodyDiagram.tsx.
-const KNOWN_JOINTS = new Set(painRegions.filter(r => !muscleSetValueSet.has(r)));
+const KNOWN_JOINTS = new Set(painRegions.filter((r) => !muscleSetValueSet.has(r)));
 
 // Sanity: every PainRegion must be in exactly one of the two sets.
 check(
   `MUSCLE_SET (${muscleSetValues.length}) + KNOWN_JOINTS (${KNOWN_JOINTS.size}) = PainRegion total (${painRegions.length})`,
   muscleSetValues.length + KNOWN_JOINTS.size === painRegions.length,
-  'classification count mismatch — a PainRegion may appear in both MUSCLE_SET and KNOWN_JOINTS, or the parser failed',
+  'classification count mismatch — a PainRegion may appear in both MUSCLE_SET and KNOWN_JOINTS, or the parser failed'
 );
 
 if (KNOWN_JOINTS.size > 0) {
@@ -238,10 +241,7 @@ if (KNOWN_JOINTS.size > 0) {
 console.log('\n  Forward: every PainRegion → MUSCLE_SET (muscle) or derived KNOWN_JOINTS (joint)');
 for (const region of painRegions) {
   const isMuscle = muscleSetValueSet.has(region);
-  check(
-    `PainRegion '${region}' is classified as ${isMuscle ? 'muscle' : 'joint'}`,
-    true,
-  );
+  check(`PainRegion '${region}' is classified as ${isMuscle ? 'muscle' : 'joint'}`, true);
 }
 
 // Reverse: every MUSCLE_SET value is a valid PainRegion (catches stale entries after a rename)
@@ -251,7 +251,7 @@ for (const val of muscleSetValues) {
     `MUSCLE_SET value '${val}' is a declared PainRegion`,
     painRegionSet.has(val),
     `'${val}' in MUSCLE_SET is not in PainRegion type — was it renamed or removed? ` +
-    `Update MUSCLE_SET in BodyDiagram.tsx to match.`,
+      `Update MUSCLE_SET in BodyDiagram.tsx to match.`
   );
 }
 
@@ -271,7 +271,7 @@ for (const val of muscleSetValues) {
 //   • renderFrontHotspots  →  front body view
 //   • renderBackHotspots   →  back body view
 
-console.log("\n[4] h() hotspot coverage — per-view (front / back)");
+console.log('\n[4] h() hotspot coverage — per-view (front / back)');
 
 // ── Helper: extract the source text of a named arrow-function block ──────────
 // Finds  const <funcName> = () => ( … );  and returns the slice from the
@@ -289,34 +289,37 @@ function extractFunctionBlock(src, funcName) {
     if (src[i] === '(') depth++;
     else if (src[i] === ')') {
       depth--;
-      if (depth === 0) { end = i; break; }
+      if (depth === 0) {
+        end = i;
+        break;
+      }
     }
   }
   return end !== -1 ? src.slice(declStart, end + 1) : null;
 }
 
 const frontHotspotsBlock = extractFunctionBlock(diagramSrc, 'renderFrontHotspots');
-const backHotspotsBlock  = extractFunctionBlock(diagramSrc, 'renderBackHotspots');
+const backHotspotsBlock = extractFunctionBlock(diagramSrc, 'renderBackHotspots');
 
 check(
   'renderFrontHotspots function found in BodyDiagram.tsx',
   frontHotspotsBlock !== null,
-  'renderFrontHotspots not found — check components/BodyDiagram.tsx',
+  'renderFrontHotspots not found — check components/BodyDiagram.tsx'
 );
 check(
   'renderBackHotspots function found in BodyDiagram.tsx',
   backHotspotsBlock !== null,
-  'renderBackHotspots not found — check components/BodyDiagram.tsx',
+  'renderBackHotspots not found — check components/BodyDiagram.tsx'
 );
 
 // ── Parse h() calls from each view block ──────────────────────────────────────
 function parseHCalls(block) {
   if (block === null) return new Set();
-  return new Set([...block.matchAll(/h\('([a-z_]+)'\)/g)].map(m => m[1]));
+  return new Set([...block.matchAll(/h\('([a-z_]+)'\)/g)].map((m) => m[1]));
 }
 
 const frontRegions = parseHCalls(frontHotspotsBlock);
-const backRegions  = parseHCalls(backHotspotsBlock);
+const backRegions = parseHCalls(backHotspotsBlock);
 
 // Build the derived region-views map from the parsed h() calls.
 // Each region maps to the list of views it appears in.
@@ -332,9 +335,11 @@ for (const r of backRegions) {
   }
 }
 
-console.log(`  · Derived region→view mapping (${derivedRegionViews.size} unique region(s) with hotspots):`);
+console.log(
+  `  · Derived region→view mapping (${derivedRegionViews.size} unique region(s) with hotspots):`
+);
 for (const [region, views] of [...derivedRegionViews.entries()].sort()) {
-  console.log(`    '${region}' → [${views.map(v => `'${v}'`).join(', ')}]`);
+  console.log(`    '${region}' → [${views.map((v) => `'${v}'`).join(', ')}]`);
 }
 
 // ── Forward: every PainRegion has at least one h() call in either view ────────
@@ -342,10 +347,10 @@ console.log(`\n  Forward: every PainRegion has an h() hotspot in at least one vi
 for (const region of painRegions) {
   const views = derivedRegionViews.get(region);
   check(
-    `'${region}' hotspot found in [${views ? views.map(v => `'${v}'`).join(', ') : '—'}]`,
+    `'${region}' hotspot found in [${views ? views.map((v) => `'${v}'`).join(', ') : '—'}]`,
     views !== undefined,
     `no h('${region}') found in renderFrontHotspots or renderBackHotspots — ` +
-    `add a hotspot shape via h('${region}') in the appropriate render function in BodyDiagram.tsx`,
+      `add a hotspot shape via h('${region}') in the appropriate render function in BodyDiagram.tsx`
   );
 }
 
@@ -357,8 +362,8 @@ for (const region of [...allCoveredRegions].sort()) {
     `h()-covered region '${region}' is a declared PainRegion`,
     painRegionSet.has(region),
     `stale h('${region}') call in a render function — ` +
-    `'${region}' is not in PainRegion type (renamed or removed?); ` +
-    `update the hotspot in renderFrontHotspots / renderBackHotspots in BodyDiagram.tsx`,
+      `'${region}' is not in PainRegion type (renamed or removed?); ` +
+      `update the hotspot in renderFrontHotspots / renderBackHotspots in BodyDiagram.tsx`
   );
 }
 

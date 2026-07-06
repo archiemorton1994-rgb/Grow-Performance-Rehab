@@ -45,13 +45,13 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
 
     const durationMin = Math.round(durationSeconds / 60);
 
-    const displayVolume = weightUnit === 'lbs'
-      ? Math.round(totalVolumeKg * 2.2046)
-      : Math.round(totalVolumeKg);
+    const displayVolume =
+      weightUnit === 'lbs' ? Math.round(totalVolumeKg * 2.2046) : Math.round(totalVolumeKg);
 
-    const volumeStr = displayVolume >= 1000
-      ? `${(displayVolume / 1000).toFixed(1)}t`
-      : `${displayVolume.toLocaleString()}${weightUnit}`;
+    const volumeStr =
+      displayVolume >= 1000
+        ? `${(displayVolume / 1000).toFixed(1)}t`
+        : `${displayVolume.toLocaleString()}${weightUnit}`;
 
     const pbWeightDisplay = newPb
       ? weightUnit === 'lbs'
@@ -139,7 +139,9 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
                   <View style={[styles.unlockedBadgeIcon, { backgroundColor: badge.color + '28' }]}>
                     <Ionicons name={badge.icon as any} size={14} color={badge.color} />
                   </View>
-                  <Text style={styles.unlockedBadgeName} numberOfLines={1}>{badge.name}</Text>
+                  <Text style={styles.unlockedBadgeName} numberOfLines={1}>
+                    {badge.name}
+                  </Text>
                 </View>
               ))}
             </View>

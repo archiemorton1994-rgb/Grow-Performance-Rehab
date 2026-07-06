@@ -43,13 +43,13 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const dbSrc      = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
-const engineSrc  = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
-const flexSrc    = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
+const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
+const flexSrc = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
 const sessionSrc = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
 
 let failures = 0;
-let total    = 0;
+let total = 0;
 
 function check(label, condition, detail) {
   total++;
@@ -76,13 +76,16 @@ function findConstObjectBoundary(src, constName) {
 
   const objOpen = assignIdx + 2; // points to the '{'
   let braceDepth = 0;
-  let objEnd     = -1;
+  let objEnd = -1;
 
   for (let i = objOpen; i < src.length; i++) {
     if (src[i] === '{') braceDepth++;
     else if (src[i] === '}') {
       braceDepth--;
-      if (braceDepth === 0) { objEnd = i; break; }
+      if (braceDepth === 0) {
+        objEnd = i;
+        break;
+      }
     }
   }
 
@@ -93,21 +96,24 @@ function findConstObjectBoundary(src, constName) {
 console.log('\n[1] Pool structure — CONDITIONING_WORKOUTS present in exercise-db.ts');
 
 const INTERNAL_TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
-const ENERGY_KEYS    = ['easy', 'normal', 'hard'];
+const ENERGY_KEYS = ['easy', 'normal', 'hard'];
 
-const { constIdx: poolIdx, objOpen: poolOpen, objEnd: poolEnd } =
-  findConstObjectBoundary(dbSrc, 'CONDITIONING_WORKOUTS');
+const {
+  constIdx: poolIdx,
+  objOpen: poolOpen,
+  objEnd: poolEnd,
+} = findConstObjectBoundary(dbSrc, 'CONDITIONING_WORKOUTS');
 
 check(
   'CONDITIONING_WORKOUTS constant found in exercise-db.ts',
   poolIdx !== -1,
-  'constant not found — check lib/exercise-db.ts',
+  'constant not found — check lib/exercise-db.ts'
 );
 
 check(
   'CONDITIONING_WORKOUTS object boundary found (balanced braces)',
   poolEnd !== -1,
-  'brace counting failed — unbalanced braces in CONDITIONING_WORKOUTS?',
+  'brace counting failed — unbalanced braces in CONDITIONING_WORKOUTS?'
 );
 
 // tier -> energy -> exercise count
@@ -118,7 +124,7 @@ if (poolOpen !== -1 && poolEnd !== -1) {
 
   // Walk depth-1 to find tier keys: bodyweight, dumbbells, fullgym
   let depth = 0;
-  let i     = 0;
+  let i = 0;
 
   while (i < block.length) {
     const ch = block[i];
@@ -133,14 +139,17 @@ if (poolOpen !== -1 && poolEnd !== -1) {
           poolMatrix[tierKey] = {};
 
           const tierObjOpen = block.indexOf('{', i + tierMatch[0].indexOf('{'));
-          let   tierDepth   = 0;
-          let   tierEnd     = -1;
+          let tierDepth = 0;
+          let tierEnd = -1;
 
           for (let j = tierObjOpen; j < block.length; j++) {
             if (block[j] === '{') tierDepth++;
             else if (block[j] === '}') {
               tierDepth--;
-              if (tierDepth === 0) { tierEnd = j; break; }
+              if (tierDepth === 0) {
+                tierEnd = j;
+                break;
+              }
             }
           }
 
@@ -159,20 +168,23 @@ if (poolOpen !== -1 && poolEnd !== -1) {
                 const energyMatch = tierBlock.slice(ei).match(/^([a-z]+):\s*\[/);
                 if (energyMatch) {
                   const energyKey = energyMatch[1];
-                  const arrOpen   = tierBlock.indexOf('[', ei + energyMatch[0].indexOf('['));
-                  let   arrD      = 0;
-                  let   arrEnd    = -1;
+                  const arrOpen = tierBlock.indexOf('[', ei + energyMatch[0].indexOf('['));
+                  let arrD = 0;
+                  let arrEnd = -1;
 
                   for (let j = arrOpen; j < tierBlock.length; j++) {
                     if (tierBlock[j] === '[') arrD++;
                     else if (tierBlock[j] === ']') {
                       arrD--;
-                      if (arrD === 0) { arrEnd = j; break; }
+                      if (arrD === 0) {
+                        arrEnd = j;
+                        break;
+                      }
                     }
                   }
 
                   const arrSlice = arrEnd !== -1 ? tierBlock.slice(arrOpen, arrEnd + 1) : '';
-                  const count    = (arrSlice.match(/id:\s*'/g) || []).length;
+                  const count = (arrSlice.match(/id:\s*'/g) || []).length;
                   poolMatrix[tierKey][energyKey] = count;
 
                   if (arrEnd !== -1) ei = arrEnd;
@@ -191,8 +203,8 @@ if (poolOpen !== -1 && poolEnd !== -1) {
   const foundTiers = Object.keys(poolMatrix);
   check(
     `CONDITIONING_WORKOUTS has all ${INTERNAL_TIERS.length} internal tiers (found ${foundTiers.length}: ${foundTiers.join(', ')})`,
-    INTERNAL_TIERS.every(t => foundTiers.includes(t)),
-    `missing tiers: ${INTERNAL_TIERS.filter(t => !foundTiers.includes(t)).join(', ')}`,
+    INTERNAL_TIERS.every((t) => foundTiers.includes(t)),
+    `missing tiers: ${INTERNAL_TIERS.filter((t) => !foundTiers.includes(t)).join(', ')}`
   );
 
   for (const tier of foundTiers) {
@@ -211,7 +223,7 @@ for (const tier of INTERNAL_TIERS) {
     check(
       `CONDITIONING_WORKOUTS['${tier}']['${energy}'] key exists`,
       count !== undefined,
-      `tier '${tier}' is missing energy key '${energy}' — getConditioningWorkout() returns undefined`,
+      `tier '${tier}' is missing energy key '${energy}' — getConditioningWorkout() returns undefined`
     );
   }
 }
@@ -225,7 +237,7 @@ for (const tier of INTERNAL_TIERS) {
     check(
       `CONDITIONING_WORKOUTS['${tier}']['${energy}'] has ≥ 1 exercise (found ${count})`,
       count >= 1,
-      `empty array — conditioning session for ${tier}/${energy} launches with 0 exercises`,
+      `empty array — conditioning session for ${tier}/${energy} launches with 0 exercises`
     );
   }
 }
@@ -236,19 +248,19 @@ console.log('\n[4] DB wiring — getConditioningWorkout exported and delegates t
 check(
   'getConditioningWorkout is exported from exercise-db.ts',
   dbSrc.includes('export function getConditioningWorkout'),
-  'function not found — workout-engine.ts call fails at import time',
+  'function not found — workout-engine.ts call fails at import time'
 );
 
 check(
   'getConditioningWorkout references CONDITIONING_WORKOUTS',
   dbSrc.includes('CONDITIONING_WORKOUTS['),
-  'function does not index into CONDITIONING_WORKOUTS — pool is disconnected',
+  'function does not index into CONDITIONING_WORKOUTS — pool is disconnected'
 );
 
 check(
   'getConditioningWorkout calls toInternalTier() for tier mapping',
   dbSrc.includes('toInternalTier('),
-  'toInternalTier call missing — user-facing tier names will not map to internal keys',
+  'toInternalTier call missing — user-facing tier names will not map to internal keys'
 );
 
 // ─── 5. Engine wiring — workout-engine.ts imports and calls getConditioningWorkout
@@ -257,71 +269,77 @@ console.log('\n[5] Engine wiring — workout-engine.ts imports and calls getCond
 check(
   'workout-engine.ts imports getConditioningWorkout from exercise-db',
   engineSrc.includes('getConditioningWorkout'),
-  'import not found — generateConditioningWorkout() cannot call into the pool',
+  'import not found — generateConditioningWorkout() cannot call into the pool'
 );
 
 check(
   'generateConditioningWorkout calls getConditioningWorkout(equipmentTier, energyKey)',
   engineSrc.includes('getConditioningWorkout(equipmentTier, energyKey)'),
-  'call site missing — pool is imported but never invoked; conditioning sessions return []',
+  'call site missing — pool is imported but never invoked; conditioning sessions return []'
 );
 
 check(
   'generateConditioningWorkout maps energy level to easy/normal/hard key',
   engineSrc.includes("'low' ? 'easy'") || engineSrc.includes("=== 'low' ? 'easy'"),
-  "energy-to-key mapping missing — all conditioning sessions always use the same energy pool",
+  'energy-to-key mapping missing — all conditioning sessions always use the same energy pool'
 );
 
 // ─── 6. Engine routing — generateWorkout routes 'conditioning' to its generator
-console.log("\n[6] Engine routing — generateWorkout routes 'conditioning' to generateConditioningWorkout");
+console.log(
+  "\n[6] Engine routing — generateWorkout routes 'conditioning' to generateConditioningWorkout"
+);
 
 check(
   "workout-engine.ts routes sessionType 'conditioning' to generateConditioningWorkout",
-  engineSrc.includes("sessionType === 'conditioning'") && engineSrc.includes('generateConditioningWorkout('),
-  "routing missing — 'conditioning' sessions fall through to strength generator and crash or produce wrong exercises",
+  engineSrc.includes("sessionType === 'conditioning'") &&
+    engineSrc.includes('generateConditioningWorkout('),
+  "routing missing — 'conditioning' sessions fall through to strength generator and crash or produce wrong exercises"
 );
 
 // Verify the routing happens before the strength generator runs (conditioning check appears
 // before the main strength session logic which references 'mainType')
-const conditioningCheckIdx   = engineSrc.indexOf("sessionType === 'conditioning'");
-const generateCondCallIdx    = engineSrc.indexOf('generateConditioningWorkout(');
-const strengthGeneratorIdx   = engineSrc.indexOf("const mainType = sessionType as MainSessionType");
+const conditioningCheckIdx = engineSrc.indexOf("sessionType === 'conditioning'");
+const generateCondCallIdx = engineSrc.indexOf('generateConditioningWorkout(');
+const strengthGeneratorIdx = engineSrc.indexOf('const mainType = sessionType as MainSessionType');
 
 check(
-  "conditioning routing happens before the strength generator block",
-  conditioningCheckIdx !== -1 && strengthGeneratorIdx !== -1 &&
-  conditioningCheckIdx < strengthGeneratorIdx,
-  "'conditioning' check comes after the strength generator — conditioning sessions may run strength logic",
+  'conditioning routing happens before the strength generator block',
+  conditioningCheckIdx !== -1 &&
+    strengthGeneratorIdx !== -1 &&
+    conditioningCheckIdx < strengthGeneratorIdx,
+  "'conditioning' check comes after the strength generator — conditioning sessions may run strength logic"
 );
 
 // ─── 7. UI wiring — flex.tsx passes conditioning type; session.tsx calls generateWorkout
-console.log('\n[7] UI wiring — flex.tsx navigates with conditioning type; session.tsx calls generateWorkout');
+console.log(
+  '\n[7] UI wiring — flex.tsx navigates with conditioning type; session.tsx calls generateWorkout'
+);
 
 check(
   "flex.tsx navigates to /readiness with sessionType: 'conditioning'",
   flexSrc.includes("sessionType: 'conditioning'"),
-  "navigation call not found — tapping a conditioning level never launches a conditioning session",
+  'navigation call not found — tapping a conditioning level never launches a conditioning session'
 );
 
 check(
-  "flex.tsx passes energy param to /readiness for conditioning level",
+  'flex.tsx passes energy param to /readiness for conditioning level',
   flexSrc.includes('energy: level.energy') || flexSrc.includes('energy:'),
-  "energy param not passed — conditioning session always uses the default energy level",
+  'energy param not passed — conditioning session always uses the default energy level'
 );
 
 check(
   'session.tsx imports generateWorkout from workout-engine',
   sessionSrc.includes('generateWorkout'),
-  'import not found — session screen cannot generate any session type including conditioning',
+  'import not found — session screen cannot generate any session type including conditioning'
 );
 
 // ─── 8. ID uniqueness — no duplicate IDs across all conditioning arrays ────────
 console.log('\n[8] ID uniqueness — no duplicate exercise IDs in CONDITIONING_WORKOUTS');
 
 const condIdMatches = dbSrc.match(/id:\s*'cond-[^']+'/g) ?? [];
-const condIds       = condIdMatches.map(m => m.replace(/id:\s*'/, '').replace(/'$/, ''));
-const seen          = new Set();
-const dupes         = [];
+const condIds = condIdMatches.map((m) => m.replace(/id:\s*'/, '').replace(/'$/, ''));
+const seen = new Set();
+const dupes = [];
 
 for (const id of condIds) {
   if (seen.has(id)) dupes.push(id);
@@ -331,7 +349,7 @@ for (const id of condIds) {
 check(
   `all ${condIds.length} conditioning exercise IDs are unique (no duplicates)`,
   dupes.length === 0,
-  dupes.length > 0 ? `duplicate IDs: ${dupes.join(', ')}` : '',
+  dupes.length > 0 ? `duplicate IDs: ${dupes.join(', ')}` : ''
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
