@@ -344,3 +344,150 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
     expect(hasText(root, 'Goblet Squat')).toBe(true);
   });
 });
+
+// ─── [3] PainAdaptBanner — session restore path ───────────────────────────────
+//
+// Task #312 persists `painBannerDismissed` in ActiveSession so the banner
+// state survives app background → resume. These tests confirm that the
+// correct initial `dismissed` value (restored from stored state) drives
+// banner visibility correctly.
+//
+// The `RestoreFixture` starts with the `initialDismissed` value that would
+// come from `stored.painBannerDismissed` on session resume.
+
+function RestoreFixture({
+  initialDismissed,
+  hasAches,
+  painRegion,
+  comfortCount = 2,
+}: {
+  initialDismissed: boolean;
+  hasAches: boolean;
+  painRegion: string | undefined;
+  comfortCount?: number;
+}) {
+  const [dismissed, setDismissed] = useState(initialDismissed);
+  return (
+    <PainAdaptBanner
+      hasAches={hasAches}
+      painRegion={painRegion as Parameters<typeof PainAdaptBanner>[0]['painRegion']}
+      comfortCount={comfortCount}
+      dismissed={dismissed}
+      onDismiss={() => setDismissed(true)}
+    />
+  );
+}
+
+describe('[3] PainAdaptBanner — session restore path', () => {
+  test('banner shows after restore when not previously dismissed (dismissed=false)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
+  });
+
+  test('banner stays hidden after restore when previously dismissed (dismissed=true)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={true} hasAches={true} painRegion="knee" />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+  });
+
+  test('banner stays hidden even with a comfort count when previously dismissed', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={true} hasAches={true} painRegion="knee" comfortCount={3} />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+    expect(hasText(root, 'exercises swapped')).toBe(false);
+  });
+
+  test('banner is absent after restore when hasAches=false (no pain session)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={false} hasAches={false} painRegion="knee" />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+  });
+
+  test('banner is absent after restore when painRegion is undefined', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion={undefined} />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+  });
+
+  test('banner can still be dismissed during a resumed session (initialDismissed=false)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />,
+      );
+    });
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
+    press(root, 'pain-banner-dismiss');
+    expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
+  });
+
+  test('comfort note shows on restored comfort-badged exercise (badge="comfort")', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <ExerciseCard
+          {...defaultCardProps}
+          exercise={makeExercise({ badge: 'comfort' })}
+          setData={makeSetData()}
+          comfortRegionLabel="Lower Back"
+        />,
+      );
+    });
+    expect(hasText(root, 'Adapted for Lower Back')).toBe(true);
+    expect(hasText(root, 'tap Swap or skip')).toBe(true);
+  });
+
+  test('comfort note absent on restored exercise that was not adapted (badge="volume")', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <ExerciseCard
+          {...defaultCardProps}
+          exercise={makeExercise({ badge: 'volume' })}
+          setData={makeSetData()}
+          comfortRegionLabel="Lower Back"
+        />,
+      );
+    });
+    expect(hasText(root, 'Adapted for Lower Back')).toBe(false);
+  });
+
+  test('adapted region label renders correctly for all pain regions on restore', () => {
+    const regions: Array<[string, string]> = [
+      ['knee', 'Knee'],
+      ['lower_back', 'Lower Back'],
+      ['front_shoulder', 'Front Shoulder'],
+      ['hip_groin', 'Hip / Groin'],
+    ];
+    for (const [region, label] of regions) {
+      let root!: renderer.ReactTestRenderer;
+      act(() => {
+        root = renderer.create(
+          <RestoreFixture initialDismissed={false} hasAches={true} painRegion={region} />,
+        );
+      });
+      expect(hasText(root, `Adapted for ${label}`)).toBe(true);
+    }
+  });
+});
