@@ -26,6 +26,7 @@ module.exports = {
   }),
   getRestPeriod: jest.fn(() => 'Rest 90 sec between sets'),
   getWeightGuide: jest.fn(() => []),
+  getWeightGuideKg: jest.fn(() => []),
   getEquipmentLabel: jest.fn((tier) => {
     const labels = {
       bodyweight: 'Bodyweight',

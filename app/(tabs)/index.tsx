@@ -489,10 +489,7 @@ export default function HomeScreen() {
               ))}
             </Animated.View>
           ) : (
-            <Animated.View
-              entering={FadeInDown.delay(60).duration(380)}
-              style={styles.todayCard}
-            >
+            <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
               <View style={styles.todayCardTop}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.todayLabel}>Today</Text>

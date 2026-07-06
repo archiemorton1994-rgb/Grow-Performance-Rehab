@@ -289,17 +289,11 @@ function RestTimer({
               <Text style={styles.restTimerPillDigits}>
                 {mm}:{ss}
               </Text>
-              <Text style={styles.restTimerPillState}>
-                {isRunning ? 'resting' : 'paused'}
-              </Text>
+              <Text style={styles.restTimerPillState}>{isRunning ? 'resting' : 'paused'}</Text>
             </View>
             <View style={styles.restTimerPillActions}>
               <Pressable onPress={togglePause} style={styles.restTimerIconBtn}>
-                <Ionicons
-                  name={isRunning ? 'pause' : 'play'}
-                  size={15}
-                  color={C.primary}
-                />
+                <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={C.primary} />
               </Pressable>
               <Pressable
                 onPress={addFifteen}
@@ -326,7 +320,9 @@ function RestTimer({
     <View style={styles.restTimerRow}>
       <View style={[styles.restTimerBtn, { flex: 1 }]}>
         <Ionicons name="timer" size={18} color={C.primary} />
-        <Text style={styles.restTimerText}>Rest timer · {mm}:{ss}</Text>
+        <Text style={styles.restTimerText}>
+          Rest timer · {mm}:{ss}
+        </Text>
       </View>
       <Pressable onPress={reset} style={styles.restTimerResetBtn}>
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
@@ -439,14 +435,17 @@ const ActiveSetBlock = React.forwardRef<
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  // Pre-fill weight: prefer stored > previous set > recommended guide > empty
+  // Pre-fill weight: prefer stored > guide recommendation > previous set > empty.
+  // The guide recommendation takes precedence over previous-set carry-forward so
+  // each set shows its specific ramped target (e.g. 50% on set 1, 100% on final set)
+  // rather than repeating whatever was typed for the last set.
   const initialWeight =
     data.weight > 0
       ? String(kgToDisplayUnit(data.weight, weightUnit))
-      : prevSetWeight && prevSetWeight > 0
-        ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
-        : recommendedWeightKg && recommendedWeightKg > 0
-          ? String(kgToDisplayUnit(recommendedWeightKg, weightUnit))
+      : recommendedWeightKg && recommendedWeightKg > 0
+        ? String(kgToDisplayUnit(recommendedWeightKg, weightUnit))
+        : prevSetWeight && prevSetWeight > 0
+          ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
           : '';
 
   // Parent keys this component by setNum so it re-mounts on each new set,
@@ -684,11 +683,7 @@ export function ExerciseCard({
   const [timerTrigger, setTimerTrigger] = useState(0);
   const activeSetRef = useRef<ActiveSetBlockHandle>(null);
   const allDone = setData.sets.every((s) => s.completed);
-  const weightGuidesKg = getWeightGuideKg(
-    exercise.category,
-    exercise.sets,
-    exercise.suggestedLoad
-  );
+  const weightGuidesKg = getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
   const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
@@ -922,7 +917,7 @@ export function ExerciseCard({
                 <View style={styles.comfortNote}>
                   <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
                   <Text style={styles.comfortNoteText}>
-                    Adapted for {comfortRegionLabel}. Tap Swap or skip if still uncomfortable
+                    Adapted for {comfortRegionLabel}, tap Swap or skip if still uncomfortable
                   </Text>
                 </View>
               )}
