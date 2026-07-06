@@ -15,8 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
-import { useAuth } from '@/lib/auth-context';
-import { configureRevenueCat } from '@/lib/auth-context';
+import { useAuth, configureRevenueCat } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
@@ -187,7 +186,7 @@ export default function SubscriptionScreen() {
         </View>
 
         <View style={styles.includedCard}>
-          <Text style={styles.includedTitle}>What's included</Text>
+          <Text style={styles.includedTitle}>{"What's included"}</Text>
           {INCLUDED_ITEMS.map((item) => (
             <View key={item} style={styles.includedRow}>
               <Ionicons name="checkmark-circle" size={16} color={C.primary} style={{ marginTop: 1 }} />

@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import Svg, { G, Path, Circle } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 import Body, { ExtendedBodyPart, Slug } from 'react-native-body-highlighter';
 import Animated, {
   useSharedValue,
@@ -17,7 +17,6 @@ import Animated, {
   withRepeat,
   Easing,
   cancelAnimation,
-  runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { PainRegion, useAppStore } from '@/lib/store';
@@ -467,7 +466,7 @@ export function BodyDiagram({
       }
     }
     return result;
-  }, [view, selected, category, accent, heatmapCounts]);
+  }, [view, selected, category, heatmapCounts]);
 
   // ─── Library press handler ─────────────────────────────────────────────────────
   const handleBodyPartPress = (bodyPart: ExtendedBodyPart) => {

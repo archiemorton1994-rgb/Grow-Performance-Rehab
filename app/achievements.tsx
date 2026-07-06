@@ -61,6 +61,7 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
       duration: 280,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDismiss = () => {

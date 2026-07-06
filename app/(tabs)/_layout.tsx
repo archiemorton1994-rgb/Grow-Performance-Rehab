@@ -147,6 +147,7 @@ function GlowIcon({
     } else {
       pulse.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   return (
@@ -216,6 +217,7 @@ function TrainTabIcon({
     } else {
       pulse.setValue(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [glowing]);
 
   return (
@@ -532,7 +534,7 @@ function TourPromptBar({
           Explore the app ✦
         </Text>
         <Text style={[styles.promptSub, { color: C.textSecondary }]}>
-          Tap each tab to discover what's inside
+          {"Tap each tab to discover what's inside"}
         </Text>
         {/* Progress track */}
         <View
@@ -565,8 +567,6 @@ function TourPromptBar({
 
 export default function TabLayout() {
   const C = useColors();
-  const isDark = true;
-  const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const insets = useSafeAreaInsets();
 

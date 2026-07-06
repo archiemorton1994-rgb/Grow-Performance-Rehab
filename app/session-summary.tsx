@@ -30,7 +30,6 @@ const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
 const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
-const MILESTONE_STREAKS = [3, 7, 14, 30];
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 
@@ -293,6 +292,7 @@ export default function SessionSummaryScreen() {
       weightUnit,
       newlyUnlockedBadgeIds: newlyUnlockedBadges,
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, summary, newPb, weightUnit, newlyUnlockedBadges]);
 
   const handleShare = useCallback(async () => {

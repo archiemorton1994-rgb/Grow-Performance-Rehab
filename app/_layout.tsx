@@ -124,6 +124,7 @@ function WeeklyWeightPrompt() {
       setWeightText(display);
       setShowPrompt(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadyToPrompt, lastWeightPromptedAt]);
 
   const trimmed = weightText.trim();
@@ -312,6 +313,7 @@ function RootLayoutNav() {
     if (reminderEnabled) {
       scheduleWorkoutReminder(reminderTime).catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated]);
 
   const { nudgeEnabled, streakProtectionEnabled, streakProtectionTime, completedSessions, getStreakDays, weeklyStreakGoal, getThisWeekCount } = useAppStore();
@@ -350,6 +352,7 @@ function RootLayoutNav() {
       }
     });
     return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, isAuthenticated, hasActiveSubscription, streakProtectionEnabled, streakProtectionTime, weeklyStreakGoal, completedSessions]);
 
   return (

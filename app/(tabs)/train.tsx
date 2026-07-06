@@ -93,7 +93,6 @@ export default function TrainScreen() {
   const C = useColors();
   const {
     completedSessions,
-    getEffectiveTier: storeGetEffectiveTier,
     isTestWeekDue,
     testWeekFrequency,
     activeSession,
@@ -111,6 +110,7 @@ export default function TrainScreen() {
       clearSessionEquipmentOverride();
     }
     prevSessionCount.current = completedSessions.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedSessions.length]);
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';

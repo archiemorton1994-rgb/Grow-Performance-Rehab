@@ -72,7 +72,7 @@ export default function ReadinessScreen() {
   );
   const [hasAches, setHasAches] = useState(false);
 
-  const [painRegion, setPainRegion] = useState<PainRegion | undefined>();
+  const [, setPainRegion] = useState<PainRegion | undefined>();
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
   const [diagramPainRegion, setDiagramPainRegion] = useState<PainRegion | undefined>(undefined);
@@ -104,6 +104,7 @@ export default function ReadinessScreen() {
         },
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hapticTap = () => {
@@ -459,7 +460,7 @@ export default function ReadinessScreen() {
           <Ionicons name="locate-outline" size={24} color={C.warning} />
         </View>
         <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>Which area is affected?</Text>
-        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>Tap the region — we'll adjust exercises</Text>
+        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>{"Tap the region — we'll adjust exercises"}</Text>
         <BodyDiagram
           selected={diagramPainRegion}
           onSelect={setDiagramPainRegion}

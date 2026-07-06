@@ -39,6 +39,7 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
     }, SHOW_DURATION_MS);
 
     return () => clearTimeout(dismissTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const slideOut = (duration: number = 200) => {
@@ -115,6 +116,7 @@ export function BadgeSummaryToast({ count, onDismiss }: BadgeSummaryToastProps) 
     }, SHOW_DURATION_MS);
 
     return () => clearTimeout(dismissTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const slideOut = (duration: number = 200) => {

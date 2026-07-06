@@ -91,7 +91,6 @@ export default function HomeScreen() {
   const C = useColors();
   const tabBarHeight = insets.bottom + 50;
   const {
-    getEffectiveTier: storeGetEffectiveTier,
     completedSessions,
     getCurrentSessionType,
     getStreakDays,
@@ -163,7 +162,6 @@ export default function HomeScreen() {
     setSheetOpen(false);
   };
 
-  const effectiveTier = storeGetEffectiveTier();
   const suggestedSession = getCurrentSessionType();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
@@ -625,7 +623,7 @@ export default function HomeScreen() {
               <Ionicons name="checkmark-circle" size={20} color={C.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.calibrationCompleteTitle}>You're all set</Text>
+              <Text style={styles.calibrationCompleteTitle}>{"You're all set"}</Text>
               <Text style={styles.calibrationCompleteSub}>Sessions are now fully personalised to you.</Text>
             </View>
           </Animated.View>

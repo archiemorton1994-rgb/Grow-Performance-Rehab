@@ -154,7 +154,7 @@ export default function CustomSessionScreen() {
   const [insertAtIdx, setInsertAtIdx] = useState<number | null>(null);
   const draggingIdxRef = useRef<number | null>(null);
   const insertAtIdxRef = useRef<number | null>(null);
-  const chipLayoutsRef = useRef<Array<{ x: number; width: number }>>([]);
+  const chipLayoutsRef = useRef<{ x: number; width: number }[]>([]);
   const trayScrollRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
   const [trayContentWidth, setTrayContentWidth] = useState(0);
@@ -1126,7 +1126,7 @@ export default function CustomSessionScreen() {
                 >
                   <Ionicons name="refresh-outline" size={16} color={C.primary} />
                   <Text style={styles.updateExistingText} numberOfLines={1}>
-                    Update "{loadedTmpl.name}"
+                    {`Update "${loadedTmpl.name}"`}
                   </Text>
                 </Pressable>
               );
@@ -1189,7 +1189,7 @@ export default function CustomSessionScreen() {
           testID="undo-toast"
         >
           <Text style={styles.undoToastText} numberOfLines={1}>
-            "{undoToast.templateName}" updated
+            {`"${undoToast.templateName}" updated`}
           </Text>
           <Pressable
             onPress={handleUndo}

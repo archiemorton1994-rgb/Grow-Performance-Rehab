@@ -358,7 +358,7 @@ export default function FlexScreen() {
     });
   };
 
-  const ROWS: Array<{
+  const ROWS: {
     key: NonNullable<ModalType>;
     title: string;
     subtitle: string;
@@ -366,7 +366,7 @@ export default function FlexScreen() {
     iconBg: string;
     iconColor: string;
     recency: string;
-  }> = [
+  }[] = [
     {
       key: 'recovery',
       title: 'Recovery',

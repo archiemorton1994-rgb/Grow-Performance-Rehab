@@ -322,9 +322,6 @@ export default function ProfileScreen() {
   const expLabel = EXPERIENCE_OPTIONS.find(e => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
   const firstGoalLabel = GOAL_OPTIONS.find(o => o.value === activeGoals[0])?.label ?? 'Fitness';
-  const goalLabel = activeGoals
-    .map(g => GOAL_OPTIONS.find(o => o.value === g)?.label ?? 'Fitness')
-    .join(' + ');
 
   const equipmentSubtitle = getEquipmentLabel(effectiveTier);
   const editDetailsSubtitle = `${expLabel} · ${firstGoalLabel}`;
@@ -815,7 +812,7 @@ export default function ProfileScreen() {
                 )}
 
                 <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Missed Workout Nudge</Text>
-                <Text style={styles.settingItemSub}>Reminds you to train if you haven't opened the app in 20 hours</Text>
+                <Text style={styles.settingItemSub}>{"Reminds you to train if you haven't opened the app in 20 hours"}</Text>
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
                     {nudgeEnabled ? 'On' : 'Off'}
@@ -843,7 +840,7 @@ export default function ProfileScreen() {
                 </View>
 
                 <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>Streak Protection Alert</Text>
-                <Text style={styles.settingItemSub}>Reminds you if you haven't trained yet and your streak is at risk</Text>
+                <Text style={styles.settingItemSub}>{"Reminds you if you haven't trained yet and your streak is at risk"}</Text>
                 <View style={styles.reminderToggleRow}>
                   <Text style={styles.reminderToggleLabel}>
                     {streakProtectionEnabled && streak >= 2

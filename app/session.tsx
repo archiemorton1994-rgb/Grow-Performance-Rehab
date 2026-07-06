@@ -21,19 +21,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeInUp, FadeIn, useSharedValue, useAnimatedStyle, useAnimatedProps, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import Svg, { Circle, G } from 'react-native-svg';
-import Colors, { useColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { EquipmentTier, EnergyLevel, PainRegion, SessionType, TimeAvailable, SetLog, ExerciseLog, ExerciseFeedback, WeightUnit, CustomExercise, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
 import { scheduleMissedWorkoutNudge, cancelRestTimerNotification, cancelStreakProtectionAlert, REST_TIMER_NOTIF_ID } from '@/lib/notifications';
-import { formatWeight, kgToDisplayUnit, displayUnitToKg, convertLoadString, daysSince } from '@/lib/utils';
+import { kgToDisplayUnit, displayUnitToKg, convertLoadString, daysSince } from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
   generate1RMWorkout,
   getSessionLabel,
-  getSessionSubtitle,
   getPainRegionLabel,
-  getRestPeriod,
   getWeightGuide,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
@@ -123,7 +121,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
         trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
       });
       notifIdRef.current = REST_TIMER_NOTIF_ID;
-    } catch (_) {}
+    } catch {}
   }, [cancelNotif]);
 
   // Auto-start when trigger increments (i.e. a set was just completed).
@@ -138,6 +136,7 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
       scheduleNotif(duration);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
 
   // Wall-clock tick: every second derive remaining from absolute endAt.
@@ -175,9 +174,11 @@ function RestTimer({ category, trigger = 0, onTimerEnd }: { category: Exercise['
       ? AppState.addEventListener('change', (s: AppStateStatus) => { if (s === 'active') recompute(); })
       : null;
     return () => { clearInterval(timerId); sub?.remove(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, isRunning, endAt]);
 
   // Cancel notification on unmount (navigating away mid-rest)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => { cancelNotif(); }, []);
 
   if (!duration) return null;
@@ -445,6 +446,7 @@ const ActiveSetBlock = React.forwardRef<ActiveSetBlockHandle, {
       setWeightText(sourceKg > 0 ? String(kgToDisplayUnit(sourceKg, weightUnit)) : '');
     }
     prevUnitRef.current = weightUnit;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weightUnit]);
 
   const flashBg = useSharedValue(0);
@@ -650,7 +652,6 @@ export function ExerciseCard({
   const activeSetRef = useRef<ActiveSetBlockHandle>(null);
   const allDone = setData.sets.every(s => s.completed);
   const weightGuides = getWeightGuide(exercise.category, exercise.sets, weightUnit, exercise.suggestedLoad);
-  const restPeriod = getRestPeriod(exercise.category);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
   const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
@@ -663,6 +664,7 @@ export function ExerciseCard({
       unlockScale.value = 0.96;
       unlockScale.value = withSpring(1, { mass: 0.4, damping: 14, stiffness: 220 });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
   const scaleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: unlockScale.value }],
@@ -940,7 +942,7 @@ export function ExerciseCard({
 
                       {!allDone && onSkipExercise && (
                         <Pressable onPress={onSkipExercise} style={styles.skipExerciseLink} testID={`skip-exercise-${index}`}>
-                          <Text style={styles.skipExerciseLinkText}>Skip - couldn't do this exercise</Text>
+                          <Text style={styles.skipExerciseLinkText}>{"Skip - couldn't do this exercise"}</Text>
                         </Pressable>
                       )}
                     </>
@@ -1043,7 +1045,7 @@ export default function SessionScreen() {
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, setExerciseFeedback, applyTooEasyAdjustment, getBestORM, completedSessions, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
+  const { getEffectiveTier, completeSession, addOneRepMax, userProfile, exerciseFeedback, getBestORM, completedSessions, weightUnit, activeSession, setActiveSession, clearActiveSession, updateLastLoggedWeights, lastLoggedWeights, reviewPromptShown, setReviewPromptShown, exerciseNormalStreak, lastSessionPerformance, pendingCustomExercises, clearPendingCustomExercises } = useAppStore();
   // Only count strength sessions for auto-progression - conditioning, prehab,
   // and flexibility sessions do not drive strength progressive overload.
   const strengthCount = completedSessions.filter(s => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length;
@@ -1366,6 +1368,7 @@ export default function SessionScreen() {
       painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseData, exerciseNotes, activeIndex, painBannerDismissed]);
 
   const openYouTube = (exerciseName: string) => {
@@ -1739,7 +1742,7 @@ export default function SessionScreen() {
               <Ionicons name="exit-outline" size={32} color={C.categoryFinisherText} />
             </View>
             <Text style={styles.modalTitle}>Leave Session?</Text>
-            <Text style={styles.modalDesc}>You've logged some sets. What would you like to do?</Text>
+            <Text style={styles.modalDesc}>{"You've logged some sets. What would you like to do?"}</Text>
             <Pressable
               onPress={handleSaveAndExit}
               style={[styles.abandonBtn, styles.abandonBtnSave]}

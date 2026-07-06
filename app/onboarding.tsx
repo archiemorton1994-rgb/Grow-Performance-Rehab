@@ -205,6 +205,7 @@ export default function OnboardingScreen() {
         }
       })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex]);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
@@ -635,7 +636,7 @@ export default function OnboardingScreen() {
                 <Ionicons name="podium-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
-              <Text style={styles.hint}>Optional — leave blank if you're new or returning after a break</Text>
+              <Text style={styles.hint}>{"Optional — leave blank if you're new or returning after a break"}</Text>
               <View style={styles.liftRows}>
                 <LiftInput
                   label="Back Squat"
@@ -657,7 +658,7 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
-                <Text style={styles.skipText}>I don't know my best lifts</Text>
+                <Text style={styles.skipText}>{"I don't know my best lifts"}</Text>
               </Pressable>
             </ScrollView>
           </View>
@@ -691,7 +692,7 @@ export default function OnboardingScreen() {
                 />
               </Animated.View>
               <Animated.Text style={[styles.firstSessionsNote, celebSummaryStyle]}>
-                Your first few sessions are where we build a picture of your strength. Complete them and share your feedback — that's when sessions get truly personalised.
+                {"Your first few sessions are where we build a picture of your strength. Complete them and share your feedback — that's when sessions get truly personalised."}
               </Animated.Text>
               <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
                 <Text style={styles.profileReadySub}>Your first session is ready</Text>

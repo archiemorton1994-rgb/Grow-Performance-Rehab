@@ -1490,6 +1490,8 @@ function ExerciseProgressList({
   const getAllExerciseProgress = useAppStore(s => s.getAllExerciseProgress);
   const completedSessions = useAppStore(s => s.completedSessions);
 
+  // completedSessions triggers recompute when session data changes; getAllExerciseProgress is stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const progress = useMemo(() => getAllExerciseProgress(), [getAllExerciseProgress, completedSessions]);
 
   const totalVolumeKg = useMemo(() => {
