@@ -2565,6 +2565,218 @@ function ExerciseProgressList({
   );
 }
 
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+const EG_H = 190;
+const EG_LEFT = 44;
+const EG_RIGHT = 8;
+const EG_TOP = 14;
+const EG_BOTTOM = 28;
+
+function ExerciseGraph({
+  appearances,
+  weightUnit,
+  C,
+}: {
+  appearances: { date: string; bestSetWeight: number }[];
+  weightUnit: 'kg' | 'lbs';
+  C: ReturnType<typeof useColors>;
+}) {
+  const [chartWidth, setChartWidth] = useState(300);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+  if (appearances.length < 2) {
+    return (
+      <View
+        style={{
+          height: EG_H,
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        <Ionicons name="trending-up-outline" size={28} color={C.textTertiary} />
+        <Text
+          style={{
+            fontSize: 14,
+            fontFamily: 'Inter_500Medium',
+            color: C.textSecondary,
+            textAlign: 'center',
+          }}
+        >
+          Keep training to see your progression
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_400Regular',
+            color: C.textTertiary,
+            textAlign: 'center',
+          }}
+        >
+          Graph needs at least 2 sessions
+        </Text>
+      </View>
+    );
+  }
+
+  const innerW = chartWidth - EG_LEFT - EG_RIGHT;
+  const innerH = EG_H - EG_TOP - EG_BOTTOM;
+
+  const weights = appearances.map((a) => a.bestSetWeight);
+  const pbWeight = Math.max(...weights);
+  const minWeight = Math.min(...weights);
+  const range = pbWeight - minWeight || 1;
+
+  const toX = (i: number) =>
+    EG_LEFT + (appearances.length > 1 ? (i / (appearances.length - 1)) * innerW : innerW / 2);
+  const toY = (w: number) => EG_TOP + innerH - ((w - minWeight) / range) * innerH;
+
+  const points = appearances.map((a, i) => ({ x: toX(i), y: toY(a.bestSetWeight), ...a }));
+  const pathD = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+    .join(' ');
+
+  const yTicks = 4;
+  const yTickWeights = Array.from(
+    { length: yTicks },
+    (_, i) => minWeight + (range / (yTicks - 1)) * i
+  );
+
+  const maxXLabels = Math.min(5, appearances.length);
+  const xLabelIndices =
+    appearances.length <= 5
+      ? appearances.map((_, i) => i)
+      : Array.from({ length: maxXLabels }, (_, i) =>
+          Math.round((i / (maxXLabels - 1)) * (appearances.length - 1))
+        );
+
+  const pbIdx = weights.indexOf(pbWeight);
+  const selectedPoint = selectedIdx !== null ? points[selectedIdx] : null;
+
+  return (
+    <View
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) setChartWidth(w);
+      }}
+      style={{ width: '100%' }}
+    >
+      <Pressable onPress={() => setSelectedIdx(null)}>
+        <Svg width={chartWidth} height={EG_H}>
+          {yTickWeights.map((w, i) => {
+            const y = toY(w);
+            return (
+              <G key={i}>
+                <Line
+                  x1={EG_LEFT}
+                  y1={y}
+                  x2={chartWidth - EG_RIGHT}
+                  y2={y}
+                  stroke={C.borderLight}
+                  strokeWidth={1}
+                  strokeDasharray={i === 0 ? undefined : '3 3'}
+                />
+                <SvgText
+                  x={EG_LEFT - 4}
+                  y={y + 3.5}
+                  fontSize={9}
+                  fill={C.textTertiary}
+                  textAnchor="end"
+                >
+                  {Math.round(kgToDisplayUnit(w, weightUnit))}
+                </SvgText>
+              </G>
+            );
+          })}
+
+          <Path
+            d={pathD}
+            stroke={C.primary}
+            strokeWidth={2.5}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {points.map((p, i) => {
+            const isPB = i === pbIdx;
+            const isSelected = i === selectedIdx;
+            return (
+              <G key={i}>
+                <Circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={16}
+                  fill="transparent"
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSelectedIdx(selectedIdx === i ? null : i);
+                  }}
+                />
+                {isPB && <Circle cx={p.x} cy={p.y} r={8} fill="#f59e0b" opacity={0.18} />}
+                <Circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={isSelected ? 6 : isPB ? 5.5 : 4}
+                  fill={isPB ? '#f59e0b' : C.primary}
+                  stroke={isSelected ? C.surface : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
+                />
+              </G>
+            );
+          })}
+
+          {xLabelIndices.map((idx) => (
+            <SvgText
+              key={idx}
+              x={points[idx].x}
+              y={EG_H - 2}
+              fontSize={9}
+              fill={C.textTertiary}
+              textAnchor={idx === 0 ? 'start' : idx === appearances.length - 1 ? 'end' : 'middle'}
+            >
+              {formatShortDate(appearances[idx].date)}
+            </SvgText>
+          ))}
+        </Svg>
+      </Pressable>
+
+      {selectedPoint !== null && selectedIdx !== null && (
+        <View
+          style={{
+            position: 'absolute',
+            left: Math.max(EG_LEFT, Math.min(selectedPoint.x - 38, chartWidth - 84)),
+            top: Math.max(0, selectedPoint.y - 48),
+            backgroundColor: C.text,
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+          }}
+          pointerEvents="none"
+        >
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_700Bold', color: C.background }}>
+            {formatWeight(selectedPoint.bestSetWeight, weightUnit)}
+          </Text>
+          <Text
+            style={{
+              fontSize: 9,
+              fontFamily: 'Inter_400Regular',
+              color: C.background,
+              opacity: 0.7,
+            }}
+          >
+            {formatShortDate(selectedPoint.date)}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ExerciseDetailSheet({
   progress,
   weightUnit,
@@ -2586,10 +2798,8 @@ function ExerciseDetailSheet({
         : 0,
     [progress]
   );
-  // Newest first for the table.
-  const rows = useMemo(() => (progress ? [...progress.appearances].reverse() : []), [progress]);
-  // Highlight only the first (most recent) all-time-best row to avoid multiple highlights.
-  const pbRowIndex = useMemo(() => rows.findIndex((r) => r.bestSetWeight === pb), [rows, pb]);
+  const count = progress?.appearances.length ?? 0;
+  const firstDate = progress?.appearances[0]?.date ?? null;
 
   return (
     <Modal
@@ -2612,8 +2822,8 @@ function ExerciseDetailSheet({
                 marginTop: 2,
               }}
             >
-              All-time best {formatWeight(pb, weightUnit)} · {rows.length} session
-              {rows.length !== 1 ? 's' : ''}
+              All-time best {formatWeight(pb, weightUnit)} · {count} session
+              {count !== 1 ? 's' : ''}
             </Text>
           </View>
           <Pressable
@@ -2628,86 +2838,96 @@ function ExerciseDetailSheet({
           contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* Summary stats */}
+          <View
+            style={{
+              flexDirection: 'row',
+              backgroundColor: C.surface,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: C.borderLight,
+              padding: 16,
+              marginBottom: 16,
+              alignItems: 'center',
+            }}
+          >
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="trophy" size={13} color={C.primary} />
+                <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primary }}>
+                  {formatWeight(pb, weightUnit)}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Inter_500Medium',
+                  color: C.textSecondary,
+                  marginTop: 3,
+                }}
+              >
+                Personal Best
+              </Text>
+            </View>
+            <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text }}>
+                {count}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Inter_500Medium',
+                  color: C.textSecondary,
+                  marginTop: 3,
+                }}
+              >
+                Sessions
+              </Text>
+            </View>
+            <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text }}>
+                {firstDate ? formatShortDate(firstDate) : '—'}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Inter_500Medium',
+                  color: C.textSecondary,
+                  marginTop: 3,
+                }}
+              >
+                First logged
+              </Text>
+            </View>
+          </View>
+
+          {/* Progression graph */}
           <View
             style={{
               backgroundColor: C.surface,
-              borderRadius: 16,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: C.borderLight,
-              overflow: 'hidden',
+              padding: 16,
             }}
           >
-            <View
+            <Text
               style={{
-                flexDirection: 'row',
-                paddingHorizontal: 16,
-                paddingVertical: 10,
-                backgroundColor: C.surfaceTertiary,
+                fontSize: 12,
+                fontFamily: 'Inter_700Bold',
+                color: C.textSecondary,
+                textTransform: 'uppercase',
+                letterSpacing: 0.6,
+                marginBottom: 12,
               }}
             >
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 11,
-                  fontFamily: 'Inter_700Bold',
-                  color: C.textSecondary,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}
-              >
-                Date
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontFamily: 'Inter_700Bold',
-                  color: C.textSecondary,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}
-              >
-                Best set
-              </Text>
-            </View>
-            {rows.map((r, i) => {
-              const isPB = i === pbRowIndex;
-              return (
-                <View
-                  key={i}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: C.borderLight,
-                    backgroundColor: isPB ? C.primarySurface : 'transparent',
-                  }}
-                >
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    {isPB && <Ionicons name="trophy" size={13} color={C.primary} />}
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontFamily: 'Inter_400Regular',
-                        color: isPB ? C.primary : C.textSecondary,
-                      }}
-                    >
-                      {formatDate(r.date)}
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'Inter_700Bold',
-                      color: isPB ? C.primary : C.text,
-                    }}
-                  >
-                    {formatWeight(r.bestSetWeight, weightUnit)}
-                  </Text>
-                </View>
-              );
-            })}
+              Best set per session · {weightUnit}
+            </Text>
+            {progress && (
+              <ExerciseGraph appearances={progress.appearances} weightUnit={weightUnit} C={C} />
+            )}
           </View>
         </ScrollView>
       </View>
