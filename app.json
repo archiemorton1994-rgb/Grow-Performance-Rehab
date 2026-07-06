@@ -23,7 +23,8 @@
       "bundleIdentifier": "com.growperformance",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This app does not track you. This permission is required by some third-party frameworks."
+        "NSUserTrackingUsageDescription": "This app does not track you. This permission is required by some third-party frameworks.",
+        "NSPhotoLibraryAddUsageDescription": "Grow saves your workout certificate to your photo library so you can share it."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -57,7 +58,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Grow to save your workout certificate to your photo library.",
+          "savePhotosPermission": "Allow Grow to save your workout certificate to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

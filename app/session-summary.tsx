@@ -7,6 +7,7 @@ import {
   Pressable,
   Platform,
   Modal,
+  Alert,
   Image,
   useWindowDimensions,
 } from 'react-native';
@@ -15,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -104,6 +106,8 @@ export default function SessionSummaryScreen() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
   const [isSharing, setIsSharing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveConfirmed, setSaveConfirmed] = useState(false);
 
   const session = useMemo(() => {
     if (sessionId) {
@@ -277,6 +281,57 @@ export default function SessionSummaryScreen() {
       setIsSharing(false);
     }
   }, [isSharing]);
+
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsSaving(true);
+    try {
+      if (Platform.OS === 'web') {
+        // Web: trigger a direct PNG download (same as Share on web)
+        const base64 = await captureRef(certRef, {
+          format: 'png',
+          quality: 1,
+          result: 'base64',
+        });
+        const dataUrl = `data:image/png;base64,${base64}`;
+        const dateStr = new Date().toISOString().split('T')[0];
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `grow-workout-${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setSaveConfirmed(true);
+        setTimeout(() => setSaveConfirmed(false), 2000);
+      } else {
+        // Native: request permission then save to camera roll
+        const { status } = await MediaLibrary.requestPermissionsAsync(/* writeOnly */ true);
+        if (status !== 'granted') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert(
+            'Photo access needed',
+            'To save your certificate, allow Grow to add photos in your device Settings.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        const uri = await captureRef(certRef, {
+          format: 'png',
+          quality: 1,
+          result: 'tmpfile',
+        });
+        await MediaLibrary.saveToLibraryAsync(uri);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSaveConfirmed(true);
+        setTimeout(() => setSaveConfirmed(false), 2000);
+      }
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving]);
 
   const submitRatings = useCallback(() => {
     Object.entries(thumbsRatings).forEach(([id, thumbs]) => {
@@ -478,6 +533,25 @@ export default function SessionSummaryScreen() {
           >
             <Ionicons name="thumbs-up-outline" size={18} color={C.primary} />
             <Text style={[styles.actionBtnText, { color: C.text }]}>Rate</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleSave}
+            disabled={isSaving}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: C.surface, borderColor: C.borderLight },
+              isSaving && { opacity: 0.5 },
+            ]}
+            testID="save-workout"
+          >
+            <Ionicons
+              name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
+              size={18}
+              color={saveConfirmed ? C.primary : C.primary}
+            />
+            <Text style={[styles.actionBtnText, { color: C.text }]}>
+              {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
+            </Text>
           </Pressable>
           <Pressable
             onPress={handleShare}
