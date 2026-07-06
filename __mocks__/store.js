@@ -1,7 +1,8 @@
 /**
  * Minimal mock for lib/store.ts used in jest component tests.
  * Provides useAppStore (and legacy useStore alias) stubs that return a default
- * state covering all fields destructured by SessionScreen and other tested components.
+ * state covering all fields destructured by SessionScreen, ReadinessScreen, and
+ * other tested components.
  *
  * Tests that need a different state can call __setStoreOverride({ ...fields }) before
  * rendering and __clearStoreOverride() in afterEach to restore defaults.
@@ -38,6 +39,11 @@ const defaultState = {
   lastSessionPerformance: {},
   pendingCustomExercises: [],
   clearPendingCustomExercises: jest.fn(),
+  // Fields used by ReadinessScreen
+  lastReadinessEnergy: 'normal',
+  lastReadinessTime: '60',
+  lastPainRegion: undefined,
+  setLastReadiness: jest.fn(),
 };
 
 let _storeOverride = null;

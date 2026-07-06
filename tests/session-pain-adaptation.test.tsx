@@ -15,16 +15,37 @@
  *        (integration tests for the restore path)
  *   [5]  Swap-exercise flow — comfort badge cleared after swap
  *        (getDisplayExercise must strip badge; comfortCount must reflect swaps)
+ *   [6]  Bicep/tricep tap → session generator → comfortVariant exercises
+ *        (end-to-end: BodyDiagram tap selects region; real generateWorkout
+ *        produces badge='comfort' exercises for bicep and tricep pain regions)
  */
 
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import renderer from 'react-test-renderer';
 import { act } from 'react';
 
 // Both components and SessionScreen (default export) are exported from session.tsx
 // for testability. All session.tsx dependencies are mapped in jest-component.config.js.
 import SessionScreen, { PainAdaptBanner, ExerciseCard } from '../app/session';
+
+// Real ReadinessScreen — used in section [6] to mount the actual pain-picker flow.
+// Its deps (expo-router, store, workout-engine) are all already mocked by
+// jest-component.config.js, so it renders safely in Node.js.
+import ReadinessScreen from '../app/readiness';
+
+// MUSCLE_SET — used in section [6] to assert bicep/tricep are in muscles mode.
+import { MUSCLE_SET } from '../components/BodyDiagram';
+import type { PainRegion } from '../lib/store';
+
+// Real generateWorkout — imported via relative path to bypass the
+// `^@/lib/workout-engine$` mock mapping in jest-component.config.js.
+// All types it imports from store.ts are stripped by Babel at runtime, so
+// no mock dependency is introduced.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { generateWorkout } = require('../lib/workout-engine') as {
+  generateWorkout: typeof import('../lib/workout-engine').generateWorkout;
+};
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
@@ -1002,5 +1023,229 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
     expect(hasText(rootBefore, '2 exercises swapped for comfort')).toBe(true);
     expect(hasText(rootAfter, '1 exercise swapped for comfort')).toBe(true);
     expect(hasText(rootAfter, '2 exercises swapped for comfort')).toBe(false);
+  });
+});
+
+// ─── [6] Bicep/tricep pain-region flow — readiness screen drives comfortVariant session ──
+//
+// This section tests the complete pain-adaptation chain for the bicep and
+// tricep regions, which were the focus of an enlarged tap-target overhaul:
+//
+//   ReadinessScreen (hasAches=true) → tap bicep/tricep on BodyDiagram
+//   → pain-region-confirm → router.push receives painRegion
+//   → real generateWorkout produces badge='comfort' exercises
+//
+// Three layers are tested:
+//   a) ReadinessScreen: pressing "aches-yes" then "readiness-start" reaches
+//      the pain-region step (BodyDiagram visible, pain-region-confirm absent
+//      until a region is tapped).
+//   b) ReadinessScreen → router.push: tapping body-diagram-region-bicep (front,
+//      muscles mode) then pain-region-confirm passes painRegion='bicep' into the
+//      router.push call — verifying the readiness screen's wiring is intact.
+//   c) ReadinessScreen → router.push: same for body-diagram-region-tricep (back,
+//      muscles mode).
+//   d) End-to-end (bicep): captured router.push params feed directly into the
+//      real generateWorkout; output session contains ≥1 badge='comfort' exercise.
+//   e) End-to-end (tricep): same for tricep.
+//   f) Negative control: ReadinessScreen with hasAches=false → router.push
+//      passes hasAches='false' → generateWorkout produces 0 comfort exercises.
+//
+// The real generateWorkout is imported via relative path (not @/ alias) so the
+// jest-component mock is bypassed and the actual exercise-db logic executes.
+// ReadinessScreen's own import of @/lib/workout-engine hits the mock (stub fns
+// for UI only — getSessionLabel, getEquipmentLabel, getEffectiveTier); the
+// real engine is used only for the session-generation assertions below.
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const routerMockForSection6 = require('../__mocks__/expo-router') as {
+  __mockPush: jest.Mock;
+  __setParams: (p: Record<string, string>) => void;
+  __clearParams: () => void;
+};
+
+describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted session', () => {
+
+  beforeEach(() => {
+    // sessionType=bench: best session to exercise bicep/tricep comfort variants.
+    // isTestWeek=false: avoids the test-week path that skips energy/time selectors.
+    routerMockForSection6.__setParams({ sessionType: 'bench', isTestWeek: 'false' });
+    routerMockForSection6.__mockPush.mockClear();
+  });
+
+  afterEach(() => {
+    routerMockForSection6.__clearParams();
+    routerMockForSection6.__mockPush.mockClear();
+  });
+
+  // ── a) Readiness: aches-yes + start → pain region step rendered ───────────
+
+  test('aches-yes then readiness-start transitions to pain-region step (BodyDiagram visible)', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    // Pain-region-confirm must not exist before the pain-region step
+    expect(hasTestId(root, 'pain-region-confirm')).toBe(false);
+    // Select "has aches"
+    press(root, 'aches-yes');
+    // Tap Start (→ "Next - select area" in aches mode)
+    press(root, 'readiness-start');
+    // Now on pain-region step — body diagram rendered, confirm absent until tap
+    expect(hasTestId(root, 'body-diagram-front')).toBe(true);
+    expect(hasTestId(root, 'pain-region-confirm')).toBe(false);
+    root.unmount();
+  });
+
+  // ── b) ReadinessScreen → router.push: bicep tap passes painRegion='bicep' ──
+
+  test('bicep tap + confirm → router.push called with painRegion="bicep" and hasAches="true"', () => {
+    // bicep is in MUSCLE_SET → tappable in default muscles mode, front view
+    expect(MUSCLE_SET.has('bicep')).toBe(true);
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    // Navigate to pain-region step
+    press(root, 'aches-yes');
+    press(root, 'readiness-start');
+    // Tap the bicep region on the diagram
+    press(root, 'body-diagram-region-bicep');
+    // Confirm button now visible; press it
+    expect(hasTestId(root, 'pain-region-confirm')).toBe(true);
+    press(root, 'pain-region-confirm');
+
+    // router.push must have been called once with the correct pain params
+    expect(routerMockForSection6.__mockPush).toHaveBeenCalledTimes(1);
+    const pushArgs = routerMockForSection6.__mockPush.mock.calls[0][0] as {
+      pathname: string;
+      params: Record<string, string>;
+    };
+    expect(pushArgs.params.painRegion).toBe('bicep');
+    expect(pushArgs.params.hasAches).toBe('true');
+    root.unmount();
+  });
+
+  // ── c) ReadinessScreen → router.push: tricep tap passes painRegion='tricep' ─
+
+  test('tricep tap (back view) + confirm → router.push called with painRegion="tricep" and hasAches="true"', () => {
+    // tricep is in MUSCLE_SET → tappable in muscles mode; lives on the back view
+    expect(MUSCLE_SET.has('tricep')).toBe(true);
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    // Navigate to pain-region step
+    press(root, 'aches-yes');
+    press(root, 'readiness-start');
+    // Switch to back view, then tap tricep
+    press(root, 'body-diagram-back');
+    press(root, 'body-diagram-region-tricep');
+    expect(hasTestId(root, 'pain-region-confirm')).toBe(true);
+    press(root, 'pain-region-confirm');
+
+    expect(routerMockForSection6.__mockPush).toHaveBeenCalledTimes(1);
+    const pushArgs = routerMockForSection6.__mockPush.mock.calls[0][0] as {
+      pathname: string;
+      params: Record<string, string>;
+    };
+    expect(pushArgs.params.painRegion).toBe('tricep');
+    expect(pushArgs.params.hasAches).toBe('true');
+    root.unmount();
+  });
+
+  // ── d) End-to-end (bicep): ReadinessScreen params → generateWorkout → comfort exercises
+
+  test('full flow (bicep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    press(root, 'aches-yes');
+    press(root, 'readiness-start');
+    press(root, 'body-diagram-region-bicep');
+    press(root, 'pain-region-confirm');
+    root.unmount();
+
+    // Extract params exactly as session.tsx would receive them from router.push
+    const pushArgs = routerMockForSection6.__mockPush.mock.calls[0][0] as {
+      params: Record<string, string>;
+    };
+    const { hasAches: hasAchesStr, painRegion, equipment, energy, timeAvailable } = pushArgs.params;
+
+    // Feed the router params into the real generateWorkout
+    const exercises = generateWorkout(
+      'bench',
+      equipment as Parameters<typeof generateWorkout>[1],
+      {
+        hasAches: hasAchesStr === 'true',
+        painRegion: painRegion as PainRegion,
+        energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
+        timeAvailable: (timeAvailable ?? '60') as Parameters<typeof generateWorkout>[2]['timeAvailable'],
+      },
+    );
+
+    const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
+    expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── e) End-to-end (tricep): ReadinessScreen params → generateWorkout → comfort exercises
+
+  test('full flow (tricep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    press(root, 'aches-yes');
+    press(root, 'readiness-start');
+    press(root, 'body-diagram-back');
+    press(root, 'body-diagram-region-tricep');
+    press(root, 'pain-region-confirm');
+    root.unmount();
+
+    const pushArgs = routerMockForSection6.__mockPush.mock.calls[0][0] as {
+      params: Record<string, string>;
+    };
+    const { hasAches: hasAchesStr, painRegion, equipment, energy, timeAvailable } = pushArgs.params;
+
+    const exercises = generateWorkout(
+      'bench',
+      equipment as Parameters<typeof generateWorkout>[1],
+      {
+        hasAches: hasAchesStr === 'true',
+        painRegion: painRegion as PainRegion,
+        energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
+        timeAvailable: (timeAvailable ?? '60') as Parameters<typeof generateWorkout>[2]['timeAvailable'],
+      },
+    );
+
+    const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
+    expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── f) Negative control: no aches → router.push has hasAches='false' → no comfort
+
+  test('negative: no aches selected → router.push passes hasAches="false" → generateWorkout produces 0 comfort exercises', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+
+    // Do NOT press aches-yes — hasAches stays false
+    press(root, 'readiness-start');
+    root.unmount();
+
+    expect(routerMockForSection6.__mockPush).toHaveBeenCalledTimes(1);
+    const pushArgs = routerMockForSection6.__mockPush.mock.calls[0][0] as {
+      params: Record<string, string>;
+    };
+    expect(pushArgs.params.hasAches).toBe('false');
+
+    const exercises = generateWorkout(
+      'bench',
+      'dumbbells',
+      {
+        hasAches: false,
+        painRegion: undefined,
+        energy: 'normal',
+        timeAvailable: '60',
+      },
+    );
+    const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
+    expect(comfortExercises.length).toBe(0);
   });
 });
