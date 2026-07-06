@@ -15559,6 +15559,7 @@ export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[]
 let _categoryMapCache: Record<string, ExerciseCategory> | null = null;
 let _targetRegionsMapCache: Record<string, PainRegion[]> | null = null;
 let _nameMapCache: Record<string, string> | null = null;
+let _regionsByNameCache: Record<string, PainRegion[]> | null = null;
 
 /**
  * Build a flat { exerciseId -> category } lookup by deep-walking every exercise
@@ -15653,6 +15654,76 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
   ]);
 
   _targetRegionsMapCache = map;
+  return map;
+}
+
+/**
+ * Build a flat { exerciseName -> targetRegions[] } lookup by deep-walking every
+ * exercise collection in this module. Indexes:
+ *   - Named exercises (id + name + targetRegions) by their `name`
+ *   - Comfort variants (comfortVariant.name) by their name, mapped to the
+ *     parent exercise's targetRegions (since comfort variants have no id or
+ *     their own targetRegions field).
+ *
+ * Use this as a fallback when an exerciseId is not found in
+ * getExerciseTargetRegionsMap() — e.g. for comfort-variant swaps that were
+ * logged with an auto-generated id.
+ */
+export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
+  if (_regionsByNameCache) return _regionsByNameCache;
+
+  const map: Record<string, PainRegion[]> = {};
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (
+      typeof obj.name === 'string' &&
+      Array.isArray(obj.targetRegions) &&
+      obj.targetRegions.length > 0
+    ) {
+      map[obj.name] = obj.targetRegions as PainRegion[];
+    }
+    if (
+      typeof obj.comfortVariant === 'object' &&
+      obj.comfortVariant !== null &&
+      Array.isArray(obj.targetRegions) &&
+      obj.targetRegions.length > 0
+    ) {
+      const cv = obj.comfortVariant as Record<string, unknown>;
+      if (typeof cv.name === 'string') {
+        map[cv.name] = obj.targetRegions as PainRegion[];
+      }
+    }
+    for (const key of Object.keys(obj)) walk(obj[key]);
+  };
+
+  walk([
+    CARDIO_WARMUPS,
+    PREP,
+    MECHANICAL,
+    NEURO,
+    POWER_MECHANICAL,
+    POWER_NEURO,
+    MAIN_LIFTS,
+    ACCESSORIES,
+    PREHAB,
+    FINISHERS,
+    COOLDOWN,
+    CONDITIONING_WORKOUTS,
+    ORM_TEST,
+    GOAL_CONDITIONING_BLOCKS,
+    STANDALONE_PREHAB,
+    PREHAB_BY_REGION,
+    PREHAB_WARMUP,
+    PREHAB_COOLDOWN,
+    STANDALONE_FLEXIBILITY,
+  ]);
+
+  _regionsByNameCache = map;
   return map;
 }
 

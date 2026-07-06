@@ -1,5 +1,14 @@
 import React, { useMemo, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Platform,
+  Modal,
+  useWindowDimensions,
+} from 'react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,15 +17,16 @@ import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { useAppStore, SetLog, ExerciseCategory } from '@/lib/store';
+import { useAppStore, SetLog, ExerciseCategory, PainRegion } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
-import { getExerciseCategoryMap, getExerciseTargetRegionsMap } from '@/lib/exercise-db';
-import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
+import {
+  getExerciseCategoryMap,
+  getExerciseTargetRegionsMap,
+  getRegionsByExerciseNameMap,
+} from '@/lib/exercise-db';
+import { BodyDiagram, MUSCLE_SET, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 import WorkoutShareCard, { WorkoutShareCardData } from '@/components/WorkoutShareCard';
-
-const GAIN_GREEN = '#22c55e';
-const DROP_AMBER = '#f59e0b';
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
@@ -39,38 +49,15 @@ interface ExerciseRow {
   deltaReps: number;
 }
 
-const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
-  prep: 'Warm-up',
-  mechanical: 'Priming',
-  neuro: 'Power',
-  main: 'Main Lift',
-  accessory: 'Accessory',
-  prehab: 'Prehab',
-  finisher: 'Finisher',
-  cooldown: 'Cooldown',
+const SESSION_TYPE_FALLBACK_REGIONS: Partial<Record<string, PainRegion[]>> = {
+  squat: ['quads', 'glutes', 'hamstrings', 'knee', 'hip_groin'],
+  bench: ['chest', 'tricep', 'front_shoulder'],
+  deadlift: ['lower_back', 'hamstrings', 'glutes', 'lat_mid_back'],
+  conditioning: ['core_ribs', 'quads', 'hamstrings'],
+  prehab: ['hip_groin', 'lower_back', 'core_ribs'],
+  flexibility: [],
+  custom: [],
 };
-
-function categoryColors(
-  category: ExerciseCategory,
-  C: ReturnType<typeof useColors>
-): { bg: string; fg: string } {
-  switch (category) {
-    case 'main':
-      return { bg: C.primaryMuted, fg: C.primary };
-    case 'mechanical':
-      return { bg: C.categoryMechanical, fg: C.categoryMechanicalText };
-    case 'neuro':
-      return { bg: C.categoryNeuro, fg: C.categoryNeuroText };
-    case 'prehab':
-      return { bg: C.categoryPrehab, fg: C.categoryPrehabText };
-    case 'finisher':
-      return { bg: C.categoryFinisher, fg: C.categoryFinisherText };
-    case 'cooldown':
-      return { bg: C.categoryCooldown, fg: C.categoryCooldownText };
-    default:
-      return { bg: C.surfaceTertiary, fg: C.textSecondary };
-  }
-}
 
 function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | null {
   const valid = sets.filter((s) => s.completed && !s.skipped && s.weight > 0);
@@ -88,6 +75,7 @@ function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | nu
 export default function SessionSummaryScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
 
   const completedSessions = useAppStore((s) => s.completedSessions);
@@ -98,7 +86,6 @@ export default function SessionSummaryScreen() {
   const setExerciseFeedback = useAppStore((s) => s.setExerciseFeedback);
   const applyTooEasyAdjustment = useAppStore((s) => s.applyTooEasyAdjustment);
   const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
-
   const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
 
   const shareCardRef = useRef<View>(null);
@@ -274,18 +261,31 @@ export default function SessionSummaryScreen() {
   const workedRegions = useMemo(() => {
     if (!session || session.exerciseLogs.length === 0) return null;
     const targetMap = getExerciseTargetRegionsMap();
-    const regionSet = new Set<string>();
+    const nameMap = getRegionsByExerciseNameMap();
+    const counts: Record<string, number> = {};
+
     for (const log of session.exerciseLogs) {
-      for (const r of targetMap[log.exerciseId] ?? []) {
-        if (r && MUSCLE_SET.has(r as any)) regionSet.add(r);
+      let regions: PainRegion[] | undefined = targetMap[log.exerciseId];
+      if (!regions || regions.length === 0) {
+        regions = nameMap[log.exerciseName];
+      }
+      for (const r of regions ?? []) {
+        if (MUSCLE_SET.has(r)) {
+          counts[r] = (counts[r] ?? 0) + 1;
+        }
       }
     }
-    if (regionSet.size === 0) return null;
-    const counts: Record<string, number> = {};
-    regionSet.forEach((r) => {
-      counts[r] = 1;
-    });
-    return counts as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
+
+    if (Object.keys(counts).length === 0) {
+      const fallback = SESSION_TYPE_FALLBACK_REGIONS[session.sessionType] ?? [];
+      fallback.forEach((r) => {
+        if (MUSCLE_SET.has(r)) counts[r] = 1;
+      });
+    }
+
+    return Object.keys(counts).length > 0
+      ? (counts as Parameters<typeof BodyDiagram>[0]['heatmapCounts'])
+      : null;
   }, [session]);
 
   const shareCardData: WorkoutShareCardData | null = useMemo(() => {
@@ -391,26 +391,32 @@ export default function SessionSummaryScreen() {
   const durationLabel =
     durationSeconds >= 3600
       ? `${Math.floor(durationSeconds / 3600)}h ${String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, '0')}m`
-      : `${Math.floor(durationSeconds / 60)} min`;
+      : `${Math.floor(durationSeconds / 60)}m`;
   const volumeDisplay = Math.round(
     kgToDisplayUnit(summary.totalVolumeKg, weightUnit)
   ).toLocaleString();
-  const exerciseCount = session.exerciseLogs.length;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
   const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '—';
 
   const greeting = userName ? `Great work, ${userName}!` : 'Great work!';
-
   const STRENGTH_TYPES = ['squat', 'bench', 'deadlift'];
   const showVolumeCompare =
     STRENGTH_TYPES.includes(session.sessionType) && summary.totalVolumeKg > 0;
+
+  const workedMuscleLabels: string[] = workedRegions
+    ? (Object.keys(workedRegions) as PainRegion[])
+        .filter((r) => MUSCLE_SET.has(r))
+        .map((r) => BODY_DIAGRAM_LABELS[r])
+        .filter(Boolean)
+    : [];
+
+  const diagramMaxWidth = Math.floor((screenWidth - 40) / 2 - 8);
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Off-screen share card */}
       {shareCardData && (
         <View style={{ position: 'absolute', left: -9999, top: 0, pointerEvents: 'none' }}>
           <WorkoutShareCard ref={shareCardRef} {...shareCardData} />
@@ -419,26 +425,27 @@ export default function SessionSummaryScreen() {
 
       <ScrollView
         contentContainerStyle={{
-          paddingTop: topPad + 16,
+          paddingTop: topPad + 20,
           paddingBottom: bottomPad + 100,
           paddingHorizontal: 20,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <Animated.View entering={FadeIn.duration(450)} style={styles.header}>
+        {/* ── Hero ── */}
+        <Animated.View entering={FadeIn.duration(450)} style={styles.hero}>
           <View
             style={[
-              styles.trophyWrap,
-              { backgroundColor: C.trophyBg, borderColor: C.trophyBorder },
+              styles.checkCircle,
+              { backgroundColor: isMilestone ? C.trophyBg : C.primaryMuted },
             ]}
           >
             <Ionicons
-              name={isMilestone ? 'trophy' : 'checkmark-circle'}
-              size={40}
-              color={C.trophy}
+              name={isMilestone ? 'trophy' : 'checkmark'}
+              size={28}
+              color={isMilestone ? C.trophy : C.primary}
             />
           </View>
+
           {isMilestone && (
             <View
               style={[
@@ -447,66 +454,96 @@ export default function SessionSummaryScreen() {
               ]}
             >
               <Text style={[styles.milestonePillText, { color: C.trophy }]}>
-                SESSION {sessionNumber} MILESTONE
+                SESSION {sessionNumber} MILESTONE 🏆
               </Text>
             </View>
           )}
-          <Text style={[styles.headline, { color: C.text }]}>{greeting}</Text>
-          <Text style={[styles.subhead, { color: C.textSecondary }]}>
-            {getSessionLabel(session.sessionType)} · {formatDate(session.date)}
+
+          <Text style={[styles.greetingText, { color: C.textSecondary }]}>{greeting}</Text>
+          <Text style={[styles.sessionName, { color: C.text }]}>
+            {getSessionLabel(session.sessionType)}
+          </Text>
+          <Text style={[styles.sessionMeta, { color: C.textTertiary }]}>
+            {getSessionSubtitle(session.sessionType)} · {formatDate(session.date)}
           </Text>
         </Animated.View>
 
-        {/* Stats row */}
-        <Animated.View
-          entering={FadeInDown.delay(80).duration(450)}
-          style={[styles.statsCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-        >
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: C.text }]}>{exerciseCount}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Exercises</Text>
-          </View>
-          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-          <View style={styles.statItem}>
+        {/* ── Stats tiles ── */}
+        <Animated.View entering={FadeInDown.delay(80).duration(450)} style={styles.statsRow}>
+          <View
+            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
             <Text style={[styles.statValue, { color: C.text }]}>{durationLabel}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>Duration</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-          <View style={styles.statItem}>
+          <View
+            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
             <Text style={[styles.statValue, { color: C.text }]}>{summary.totalSets}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>Sets</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: C.text }]}>{summary.totalReps}</Text>
-            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Reps</Text>
+          <View
+            style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
+            <Text style={[styles.statValue, { color: C.text }]}>{session.exerciseLogs.length}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>Exercises</Text>
           </View>
           {topWeightKg > 0 && (
-            <>
-              <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: C.primary }]}>{topWeightDisplay}</Text>
-                <Text style={[styles.statLabel, { color: C.textSecondary }]}>Top Weight</Text>
-              </View>
-            </>
-          )}
-          {summary.totalVolumeKg > 0 && (
-            <>
-              <View style={[styles.statDivider, { backgroundColor: C.borderLight }]} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: C.text }]}>{volumeDisplay}</Text>
-                <Text style={[styles.statLabel, { color: C.textSecondary }]}>
-                  Vol ({weightUnit})
-                </Text>
-              </View>
-            </>
+            <View
+              style={[styles.statTile, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+            >
+              <Text style={[styles.statValue, { color: C.primary }]}>{topWeightDisplay}</Text>
+              <Text style={[styles.statLabel, { color: C.textSecondary }]}>Top Weight</Text>
+            </View>
           )}
         </Animated.View>
 
-        {/* Volume comparison */}
+        {summary.totalVolumeKg > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(420)}
+            style={[styles.volumeRow, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
+            <Ionicons name="barbell-outline" size={15} color={C.primary} />
+            <Text style={[styles.volumeLabel, { color: C.textSecondary }]}>Total volume</Text>
+            <Text style={[styles.volumeValue, { color: C.text }]}>
+              {volumeDisplay} {weightUnit}
+            </Text>
+          </Animated.View>
+        )}
+
+        {/* ── Muscles worked ── */}
+        {workedRegions && (
+          <Animated.View
+            entering={FadeInDown.delay(120).duration(450)}
+            style={[styles.muscleCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+          >
+            <Text style={[styles.sectionTitle, { color: C.text }]}>Muscles Worked</Text>
+            <BodyDiagram
+              selected={undefined}
+              onSelect={() => {}}
+              heatmapCounts={workedRegions}
+              maxWidth={diagramMaxWidth}
+            />
+            {workedMuscleLabels.length > 0 && (
+              <View style={styles.muscleChips}>
+                {workedMuscleLabels.map((label) => (
+                  <View
+                    key={label}
+                    style={[styles.muscleChip, { backgroundColor: C.primaryMuted }]}
+                  >
+                    <View style={[styles.chipDot, { backgroundColor: C.primary }]} />
+                    <Text style={[styles.chipLabel, { color: C.primary }]}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+        )}
+
+        {/* ── Volume compare ── */}
         {showVolumeCompare && (
           <Animated.View
-            entering={FadeInDown.delay(120).duration(400)}
+            entering={FadeInDown.delay(140).duration(400)}
             style={[styles.compareRow, { backgroundColor: C.surface, borderColor: C.borderLight }]}
           >
             {prevSameTypeVol > 0 ? (
@@ -542,10 +579,10 @@ export default function SessionSummaryScreen() {
           </Animated.View>
         )}
 
-        {/* Test week ORM comparison */}
+        {/* ── Test week ORM card ── */}
         {testWeekOrmData && (
           <Animated.View
-            entering={FadeInDown.delay(140).duration(420)}
+            entering={FadeInDown.delay(160).duration(420)}
             style={[styles.ormCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
           >
             <Text style={[styles.ormTitle, { color: C.text }]}>
@@ -574,7 +611,7 @@ export default function SessionSummaryScreen() {
           </Animated.View>
         )}
 
-        {/* Too easy saved confirmation */}
+        {/* ── Too easy saved confirmation ── */}
         {tooEasySaved && (
           <Animated.View
             entering={FadeIn.duration(300)}
@@ -590,9 +627,9 @@ export default function SessionSummaryScreen() {
           </Animated.View>
         )}
 
-        {/* Action buttons row */}
+        {/* ── Action row ── */}
         {session.exerciseLogs.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(160).duration(420)} style={styles.actionRow}>
+          <Animated.View entering={FadeInDown.delay(180).duration(420)} style={styles.actionRow}>
             <Pressable
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -630,74 +667,6 @@ export default function SessionSummaryScreen() {
                 {isSharing ? '…' : 'Share'}
               </Text>
             </Pressable>
-          </Animated.View>
-        )}
-
-        {/* Muscles worked heatmap */}
-        {workedRegions && (
-          <Animated.View
-            entering={FadeInDown.delay(180).duration(420)}
-            style={[styles.bodyCard, { backgroundColor: C.surface, borderColor: C.borderLight }]}
-          >
-            <Text style={[styles.sectionTitle, { color: C.text }]}>Muscles Worked</Text>
-            <BodyDiagram
-              selected={undefined}
-              onSelect={() => {}}
-              heatmapCounts={workedRegions}
-              maxWidth={130}
-            />
-          </Animated.View>
-        )}
-
-        {/* Exercise breakdown */}
-        {summary.hasWeighted ? (
-          <>
-            <Text style={[styles.sectionTitle, { color: C.text }]}>Your lifts vs last time</Text>
-            {summary.rows.map((row, i) => {
-              const pill = row.category ? categoryColors(row.category, C) : null;
-              return (
-                <Animated.View
-                  key={row.exerciseId + i}
-                  entering={FadeInDown.delay(200 + i * 60).duration(420)}
-                  style={[
-                    styles.exerciseCard,
-                    { backgroundColor: C.surface, borderColor: C.borderLight },
-                  ]}
-                >
-                  <View style={styles.exerciseLeft}>
-                    <Text style={[styles.exerciseName, { color: C.text }]} numberOfLines={2}>
-                      {row.exerciseName}
-                    </Text>
-                    {pill && row.category && (
-                      <View style={[styles.categoryPill, { backgroundColor: pill.bg }]}>
-                        <Text style={[styles.categoryPillText, { color: pill.fg }]}>
-                          {CATEGORY_LABELS[row.category]}
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={[styles.exerciseMeta, { color: C.textSecondary }]}>
-                      {row.isWeighted
-                        ? `${formatWeight(row.bestWeight, weightUnit)} × ${row.bestReps} · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`
-                        : `${row.totalReps} reps · ${row.setCount} ${row.setCount === 1 ? 'set' : 'sets'}`}
-                    </Text>
-                  </View>
-                  <ExerciseBadge row={row} weightUnit={weightUnit} C={C} />
-                </Animated.View>
-              );
-            })}
-          </>
-        ) : (
-          <Animated.View
-            entering={FadeInDown.delay(200).duration(420)}
-            style={[
-              styles.exerciseCard,
-              { backgroundColor: C.surface, borderColor: C.borderLight, justifyContent: 'center' },
-            ]}
-          >
-            <Ionicons name="leaf-outline" size={20} color={C.textTertiary} />
-            <Text style={[styles.exerciseMeta, { color: C.textSecondary, marginLeft: 10 }]}>
-              No weighted exercises this session.
-            </Text>
           </Animated.View>
         )}
       </ScrollView>
@@ -921,142 +890,139 @@ export default function SessionSummaryScreen() {
   );
 }
 
-function ExerciseBadge({
-  row,
-  weightUnit,
-  C,
-}: {
-  row: ExerciseRow;
-  weightUnit: 'kg' | 'lbs';
-  C: ReturnType<typeof useColors>;
-}) {
-  if (row.badge === 'none') {
-    return (
-      <View style={[styles.badge, { backgroundColor: C.surfaceTertiary }]}>
-        <Ionicons name="body-outline" size={13} color={C.textSecondary} />
-        <Text style={[styles.badgeText, { color: C.textSecondary }]}>Bodyweight</Text>
-      </View>
-    );
-  }
-
-  if (row.badge === 'first') {
-    return (
-      <View style={[styles.badge, { backgroundColor: C.surfaceTertiary }]}>
-        <Ionicons name="sparkles-outline" size={13} color={C.textSecondary} />
-        <Text style={[styles.badgeText, { color: C.textSecondary }]}>First time</Text>
-      </View>
-    );
-  }
-
-  if (row.badge === 'gain-weight') {
-    const delta = Math.round(kgToDisplayUnit(row.deltaWeight, weightUnit) * 10) / 10;
-    return (
-      <View style={[styles.badge, { backgroundColor: GAIN_GREEN + '1f' }]}>
-        <Ionicons name="trending-up" size={13} color={GAIN_GREEN} />
-        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>
-          +{delta} {weightUnit}
-        </Text>
-      </View>
-    );
-  }
-
-  if (row.badge === 'gain-reps') {
-    return (
-      <View style={[styles.badge, { backgroundColor: GAIN_GREEN + '1f' }]}>
-        <Ionicons name="trending-up" size={13} color={GAIN_GREEN} />
-        <Text style={[styles.badgeText, { color: GAIN_GREEN }]}>
-          +{row.deltaReps} {row.deltaReps === 1 ? 'rep' : 'reps'}
-        </Text>
-      </View>
-    );
-  }
-
-  if (row.badge === 'drop') {
-    const delta = Math.round(kgToDisplayUnit(row.deltaWeight, weightUnit) * 10) / 10;
-    return (
-      <View style={[styles.badge, { backgroundColor: DROP_AMBER + '1f' }]}>
-        <Ionicons name="refresh-outline" size={13} color={DROP_AMBER} />
-        <Text style={[styles.badgeText, { color: DROP_AMBER }]}>
-          -{delta} {weightUnit}
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.badge, { backgroundColor: C.surfaceTertiary }]}>
-      <Ionicons name="remove-outline" size={13} color={C.textSecondary} />
-      <Text style={[styles.badgeText, { color: C.textSecondary }]}>Matched</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  hero: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  trophyWrap: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+  checkCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   milestonePill: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   milestonePillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
-  headline: {
-    fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    textAlign: 'center',
-  },
-  subhead: {
+  greetingText: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-    marginTop: 4,
+    marginBottom: 4,
+  },
+  sessionName: {
+    fontSize: 32,
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  sessionMeta: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    marginTop: 6,
     textAlign: 'center',
   },
-  statsCard: {
+
+  // ── Stats tiles ───────────────────────────────────────────────────────────
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 8,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 8,
   },
-  statItem: {
+  statTile: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   statValue: {
-    fontSize: 19,
+    fontSize: 24,
     fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.5,
   },
   statLabel: {
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     marginTop: 3,
   },
-  statDivider: {
-    width: 1,
-    height: 32,
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
+  volumeLabel: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    flex: 1,
+  },
+  volumeValue: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+  },
+
+  // ── Muscles worked ────────────────────────────────────────────────────────
+  muscleCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  muscleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 12,
+    justifyContent: 'center',
+  },
+  muscleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  chipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  chipLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+  },
+
+  // ── Volume compare ────────────────────────────────────────────────────────
   compareRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1072,6 +1038,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     flex: 1,
   },
+
+  // ── ORM card ──────────────────────────────────────────────────────────────
   ormCard: {
     borderRadius: 14,
     borderWidth: 1,
@@ -1111,6 +1079,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
   },
+
+  // ── Too easy banner ───────────────────────────────────────────────────────
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1125,6 +1095,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
+
+  // ── Action row ────────────────────────────────────────────────────────────
   actionRow: {
     flexDirection: 'row',
     gap: 10,
@@ -1144,66 +1116,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    marginBottom: 12,
-  },
-  bodyCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingTop: 16,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    marginBottom: 16,
-    alignItems: 'center' as const,
-  },
-  exerciseCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    minHeight: 64,
-  },
-  exerciseLeft: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  exerciseName: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  categoryPill: {
-    alignSelf: 'flex-start',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginTop: 5,
-  },
-  categoryPillText: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  exerciseMeta: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 5,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-  },
+
+  // ── Footer / Done ─────────────────────────────────────────────────────────
   footer: {
     position: 'absolute',
     left: 0,
@@ -1222,6 +1136,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
   },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
@@ -1232,7 +1148,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
   },
-  // Modal styles
+
+  // ── Modals ────────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
