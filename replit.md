@@ -151,6 +151,20 @@ constants/
 3. `!hasActiveSubscription` → `/subscription` (paywall)
 4. else → `/(tabs)` (main app)
 
+## Code Style
+
+All TypeScript/TSX/JS files are formatted with **Prettier** (config in `.prettierrc`):
+- Single quotes, semicolons, 2-space indent, 100-character print width, trailing commas (ES5)
+
+The `check` workflow runs `npm run check` (typecheck + lint + format check) on every push.
+
+To auto-format everything locally:
+```
+npx prettier --write .
+```
+
+Editor integration: install the **Prettier** extension and enable *Format on Save*. The `.editorconfig` in the repo root sets matching indent/newline defaults so even editors without Prettier still stay consistent.
+
 ## Workflows
 - `Start Backend` — Express on port 8081 (API + landing page)
 - `Start Frontend` — Expo Metro on port 8082 (web preview served on port 3000)
