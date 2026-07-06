@@ -102,7 +102,6 @@ const FRONT_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
   ankle_achilles: ['ankles'],
   chest: ['chest'],
   bicep: ['biceps'],
-  tricep: ['triceps'],
   quads: ['quadriceps'],
 };
 
@@ -118,7 +117,6 @@ const BACK_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
   knee: ['knees'],
   calf_shin: ['calves'],
   ankle_achilles: ['ankles'],
-  bicep: ['biceps'],
   tricep: ['triceps'],
   hamstrings: ['hamstring'],
   glutes: ['gluteal'],
@@ -139,7 +137,6 @@ const FRONT_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
   ankles: 'ankle_achilles',
   chest: 'chest',
   biceps: 'bicep',
-  triceps: 'tricep',
   quadriceps: 'quads',
 };
 
@@ -154,7 +151,6 @@ const BACK_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
   knees: 'knee',
   calves: 'calf_shin',
   ankles: 'ankle_achilles',
-  biceps: 'bicep',
   triceps: 'tricep',
   hamstring: 'hamstrings',
   gluteal: 'glutes',
@@ -386,15 +382,6 @@ export function BodyDiagram({
         d="M 200,88 C 200,104 198,120 194,134 C 190,146 182,154 170,152 C 158,150 150,140 150,126 C 150,110 156,96 164,90 C 174,84 190,82 200,88 Z"
         {...h('bicep')}
       />
-      {/* Triceps — also accessible from front view (back of upper arm, lateral reach) */}
-      <Path
-        d="M 0,90 C 0,108 2,124 6,138 C 10,150 20,158 32,156 C 44,154 52,142 52,128 C 52,112 46,98 38,92 C 28,86 10,84 0,90 Z"
-        {...h('tricep')}
-      />
-      <Path
-        d="M 200,90 C 200,108 198,124 194,138 C 190,150 180,158 168,156 C 156,154 148,142 148,128 C 148,112 154,98 162,92 C 172,86 190,84 200,90 Z"
-        {...h('tricep')}
-      />
       {/* Forearm / Elbow+Wrist */}
       <Path
         d="M 8,154 C 4,168 2,184 2,200 C 2,212 4,222 10,228 C 16,234 24,234 30,228 C 36,222 38,210 38,196 C 38,182 36,168 32,156 C 24,150 12,150 8,154 Z"
@@ -476,15 +463,6 @@ export function BodyDiagram({
       <Path
         d="M 200,90 C 200,108 198,124 194,138 C 190,150 180,158 168,156 C 156,154 148,142 148,128 C 148,112 154,98 162,92 C 172,86 190,84 200,90 Z"
         {...h('tricep')}
-      />
-      {/* Biceps — also accessible from back view (inner arm, medial reach) */}
-      <Path
-        d="M 0,88 C 0,104 2,120 6,134 C 10,146 18,154 30,152 C 42,150 50,140 50,126 C 50,110 44,96 36,90 C 26,84 10,82 0,88 Z"
-        {...h('bicep')}
-      />
-      <Path
-        d="M 200,88 C 200,104 198,120 194,134 C 190,146 182,154 170,152 C 158,150 150,140 150,126 C 150,110 156,96 164,90 C 174,84 190,82 200,88 Z"
-        {...h('bicep')}
       />
       {/* Forearm / Elbow+Wrist */}
       <Path
