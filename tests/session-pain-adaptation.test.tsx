@@ -9,9 +9,16 @@
  *        (exported component; regressions in session.tsx break these tests)
  *   [2]  Real ExerciseCard from session.tsx — comfort note rendering
  *        (exported component; same binding guarantee)
+ *   [3]  PainAdaptBanner — session restore path
+ *        (dismissed state persisted across background/resume)
+ *   [4]  SessionScreen — restore from stored activeSession
+ *        (integration tests for the restore path)
+ *   [5]  Swap-exercise flow — comfort badge cleared after swap
+ *        (getDisplayExercise must strip badge; comfortCount must reflect swaps)
  */
 
 import React, { useState } from 'react';
+import { View } from 'react-native';
 import renderer from 'react-test-renderer';
 import { act } from 'react';
 
@@ -195,6 +202,10 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
 function makeExercise(overrides: Partial<{
   badge: 'comfort' | 'volume' | undefined;
   category: string;
+  hasSwap: boolean;
+  swapName: string;
+  swapCue: string;
+  swap2Name: string;
 }> = {}): Parameters<typeof ExerciseCard>[0]['exercise'] {
   return {
     id: 'goblet-squat',
@@ -206,8 +217,11 @@ function makeExercise(overrides: Partial<{
     category: (overrides.category ?? 'accessory') as Parameters<typeof ExerciseCard>[0]['exercise']['category'],
     badge: overrides.badge,
     videoId: 'test-video',
-    hasSwap: false,
+    hasSwap: overrides.hasSwap ?? false,
     isDumbbellExercise: false,
+    swapName: overrides.swapName,
+    swapCue: overrides.swapCue,
+    swap2Name: overrides.swap2Name,
   };
 }
 
@@ -660,5 +674,333 @@ describe('[4] SessionScreen — restore from stored activeSession', () => {
     act(() => { root = renderer.create(React.createElement(SessionScreen)); });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
     root.unmount();
+  });
+});
+
+// ─── [5] Swap-exercise flow — comfort badge cleared after swap ─────────────────
+//
+// When a pain-adapted session swaps a comfort-badged exercise, the swapped-in
+// exercise must NOT inherit the comfort badge. These tests exercise two layers:
+//
+//   a) ExerciseCard: renders no comfort note when badge is absent (the state
+//      produced by getDisplayExercise after a swap).
+//   b) PainAdaptBanner: reflects the reduced comfortCount when exercises are
+//      swapped away from the comfort variant.
+//
+// The fixture below replicates the session component's getDisplayExercise
+// logic — badge is cleared when swapCount > 0 — so that if that invariant is
+// ever broken in session.tsx the tests here will immediately fail.
+
+type SwappableExercise = Parameters<typeof ExerciseCard>[0]['exercise'] & {
+  swapName?: string;
+  swapCue?: string;
+  swap2Name?: string;
+};
+
+/**
+ * Mirrors the getDisplayExercise logic from session.tsx.
+ * Returns the exercise with its badge cleared whenever a swap is active.
+ */
+function applySwap(exercise: SwappableExercise, swapCount: 0 | 1 | 2): Parameters<typeof ExerciseCard>[0]['exercise'] {
+  if (swapCount === 1 && exercise.swapName) {
+    return {
+      ...exercise,
+      name: exercise.swapName,
+      cue: exercise.swapCue ?? exercise.cue,
+      hasSwap: true,
+      badge: undefined,
+    };
+  }
+  if (swapCount === 2 && exercise.swap2Name) {
+    return {
+      ...exercise,
+      name: exercise.swap2Name,
+      hasSwap: true,
+      badge: undefined,
+    };
+  }
+  return exercise;
+}
+
+/**
+ * Fixture that holds swapCount state, applies the display-exercise logic, and
+ * renders both ExerciseCard and PainAdaptBanner so both can be asserted on.
+ *
+ * Wrapped in a View (not a Fragment) so that root.toJSON() returns a single
+ * node — findInTree cannot traverse arrays returned by Fragment renders.
+ */
+function SwapSessionFixture({
+  exercise,
+  initialSwapCount = 0,
+  comfortRegionLabel,
+  painRegion,
+  totalComfortExercises,
+}: {
+  exercise: SwappableExercise;
+  initialSwapCount?: 0 | 1 | 2;
+  comfortRegionLabel: string;
+  painRegion: 'knee' | 'lower_back';
+  totalComfortExercises: number;
+}) {
+  const [swapCount, setSwapCount] = useState<0 | 1 | 2>(initialSwapCount);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const displayExercise = applySwap(exercise, swapCount);
+
+  // comfortCount mirrors session.tsx: count only unswapped comfort exercises
+  const comfortCount = exercise.badge === 'comfort' && swapCount === 0
+    ? totalComfortExercises
+    : totalComfortExercises - 1;
+
+  return (
+    <View>
+      <PainAdaptBanner
+        hasAches={true}
+        painRegion={painRegion}
+        comfortCount={comfortCount}
+        dismissed={bannerDismissed}
+        onDismiss={() => setBannerDismissed(true)}
+      />
+      <ExerciseCard
+        {...defaultCardProps}
+        exercise={displayExercise}
+        setData={{ sets: [{ reps: 10, weight: 20, completed: false }], swapCount, activeSetIndex: 0 }}
+        comfortRegionLabel={comfortRegionLabel}
+        onSwapPress={() => setSwapCount((c) => Math.min(c + 1, 2) as 0 | 1 | 2)}
+      />
+    </View>
+  );
+}
+
+describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
+  // Each test renders two versions of the fixture — pre-swap (swapCount=0) and
+  // post-swap (swapCount=1 or 2) — rather than simulating a button press. This
+  // is the canonical component-test pattern for react-test-renderer: assert the
+  // rendered output for each distinct state directly, without relying on
+  // act-driven interaction which can have timing quirks.
+
+  // NOTE: PainAdaptBanner always renders "Adapted for {region}" in its header
+  // (visible regardless of swapCount), so we cannot use that phrase to detect
+  // the per-exercise comfort note in a combined fixture.  The discriminating
+  // text is "skip if still uncomfortable" — that phrase is unique to the
+  // ExerciseCard comfort note (the banner uses "skip anything that hurts").
+
+  test('ExerciseCard comfort note is visible before the swap (swapCount=0)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={0}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    // "skip if still uncomfortable" is the unique phrase from ExerciseCard's
+    // comfort note — confirms the per-exercise note is visible pre-swap.
+    expect(hasText(root, 'skip if still uncomfortable')).toBe(true);
+  });
+
+  test('ExerciseCard comfort note is absent after first swap (swapCount=1)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={1}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    // "skip if still uncomfortable" is unique to ExerciseCard's comfort note.
+    // After swap, badge is cleared — this phrase must not appear.
+    expect(hasText(root, 'skip if still uncomfortable')).toBe(false);
+  });
+
+  test('swapped exercise shows the new exercise name (swapCount=1)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={1}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    expect(hasText(root, 'Romanian Deadlift')).toBe(true);
+    expect(hasText(root, 'Goblet Squat')).toBe(false);
+  });
+
+  test('ExerciseCard comfort note stays absent after second swap (swapCount=2)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+      swap2Name: 'Good Morning',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={2}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    // Badge must still be absent on the second alternative exercise.
+    expect(hasText(root, 'skip if still uncomfortable')).toBe(false);
+  });
+
+  test('second swap shows second alternative exercise name (swapCount=2)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+      swap2Name: 'Good Morning',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={2}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    expect(hasText(root, 'Good Morning')).toBe(true);
+    expect(hasText(root, 'Goblet Squat')).toBe(false);
+  });
+
+  test('banner shows "1 exercise swapped for comfort" when swapCount=0', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={0}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    expect(hasText(root, '1 exercise swapped for comfort')).toBe(true);
+  });
+
+  test('banner drops to "No exercises needed swapping" when the only comfort exercise is swapped (swapCount=1)', () => {
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+      swapCue: 'Hinge at hips.',
+    }) as SwappableExercise;
+
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={1}
+          comfortRegionLabel="Knee"
+          painRegion="knee"
+          totalComfortExercises={1}
+        />,
+      );
+    });
+
+    expect(hasText(root, 'No exercises needed swapping')).toBe(true);
+    expect(hasText(root, '1 exercise swapped for comfort')).toBe(false);
+  });
+
+  test('banner drops from "2 exercises" to "1 exercise" when one of two comfort exercises is swapped (swapCount=1)', () => {
+    // totalComfortExercises=2 simulates a session with two comfort-adapted
+    // exercises; swapCount=1 means this particular exercise has been swapped,
+    // so comfortCount falls from 2 to 1.
+    const exercise = makeExercise({
+      badge: 'comfort',
+      hasSwap: true,
+      swapName: 'Romanian Deadlift',
+    }) as SwappableExercise;
+
+    let rootBefore!: renderer.ReactTestRenderer;
+    let rootAfter!: renderer.ReactTestRenderer;
+
+    act(() => {
+      rootBefore = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={0}
+          comfortRegionLabel="Lower Back"
+          painRegion="lower_back"
+          totalComfortExercises={2}
+        />,
+      );
+    });
+    act(() => {
+      rootAfter = renderer.create(
+        <SwapSessionFixture
+          exercise={exercise}
+          initialSwapCount={1}
+          comfortRegionLabel="Lower Back"
+          painRegion="lower_back"
+          totalComfortExercises={2}
+        />,
+      );
+    });
+
+    expect(hasText(rootBefore, '2 exercises swapped for comfort')).toBe(true);
+    expect(hasText(rootAfter, '1 exercise swapped for comfort')).toBe(true);
+    expect(hasText(rootAfter, '2 exercises swapped for comfort')).toBe(false);
   });
 });

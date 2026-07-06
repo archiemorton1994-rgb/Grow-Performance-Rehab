@@ -1134,9 +1134,12 @@ export default function SessionScreen() {
     return generateWorkout(sessionType, equipmentTier, { hasAches, painRegion, energy, timeAvailable }, userProfile, exerciseFeedbackAtStart.current, bestOrmKg, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance);
   }, [sessionType, equipmentTier, hasAches, painRegion, energy, timeAvailable, isTestWeek, userProfile, getBestORM, strengthCount, lastLoggedWeights, exerciseNormalStreak, lastSessionPerformance]);
 
-  const comfortCount = useMemo(() => exercises.filter(ex => ex.badge === 'comfort').length, [exercises]);
-
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
+
+  const comfortCount = useMemo(
+    () => exercises.filter((ex, i) => ex.badge === 'comfort' && (exerciseData[i]?.swapCount ?? 0) === 0).length,
+    [exercises, exerciseData],
+  );
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
@@ -1427,6 +1430,7 @@ export default function SessionScreen() {
         cue: exercise.swapCue ?? exercise.cue,
         suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
         hasSwap: true,
+        badge: undefined,
       };
     }
     if (swapCount === 2 && exercise.swap2Name) {
@@ -1436,6 +1440,7 @@ export default function SessionScreen() {
         cue: exercise.swap2Cue ?? exercise.cue,
         suggestedLoad: exercise.swap2Load ?? exercise.suggestedLoad,
         hasSwap: true,
+        badge: undefined,
       };
     }
     return exercise;
