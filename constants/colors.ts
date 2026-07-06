@@ -1,5 +1,3 @@
-import { useColorScheme } from 'react-native';
-
 const LightColors = {
   primary: '#2f6b46',
   primaryLight: '#3d8a5c',
@@ -31,11 +29,9 @@ const LightColors = {
   badgeVolume: '#d5e8f5',
   badgeVolumeText: '#2a5f8f',
 
-  // Tab bar
   tabActive: '#2f6b46',
   tabInactive: '#9ca5a0',
 
-  // Celebration / achievement (trophy, streak)
   destructive: '#ef4444',
   trophy: '#f59e0b',
   trophyBg: '#fef9c3',
@@ -44,7 +40,6 @@ const LightColors = {
   streakBorder: '#fed7aa',
   streakText: '#c2410c',
 
-  // YouTube button surface (brand red kept on icon/text itself)
   youtubeSurface: '#FFF0F0',
   youtubeBorder: '#FFCCCC',
 
@@ -59,14 +54,9 @@ const LightColors = {
   categoryCooldown: '#e8f5e9',
   categoryCooldownText: '#2e7d32',
 
-  // Modal / bottom-sheet overlays
   overlayBg: 'rgba(0,0,0,0.5)',
   overlayBgLight: 'rgba(0,0,0,0.45)',
-
-  // Text on solid primary-colour backgrounds (e.g. subscription CTA buttons)
   primarySubtext: 'rgba(255,255,255,0.8)',
-
-  // Drop-shadow reference colour
   shadow: '#000',
 
   light: {
@@ -82,85 +72,76 @@ const DarkColors = {
   primary: '#2f6b46',
   primaryLight: '#3d8a5c',
   primaryDark: '#1e4a30',
-  primaryMuted: '#1a2e22',
-  primarySurface: '#162219',
+  primaryMuted: '#0d1f15',
+  primarySurface: '#091510',
 
-  background: '#0f1412',
-  surface: '#1a2420',
-  surfaceSecondary: '#1f2b26',
-  surfaceTertiary: '#243029',
+  background: '#000000',
+  surface: '#111111',
+  surfaceSecondary: '#1a1a1a',
+  surfaceTertiary: '#252525',
 
-  text: '#e8edea',
-  textSecondary: '#8fa89f',
-  textTertiary: '#607068',
+  text: '#ffffff',
+  textSecondary: '#9a9a9a',
+  textTertiary: '#555555',
   textInverse: '#ffffff',
 
-  border: '#2e3d37',
-  borderLight: '#243029',
+  border: 'rgba(255,255,255,0.08)',
+  borderLight: 'rgba(255,255,255,0.05)',
 
   success: '#3d8a5c',
   warning: '#d4920e',
-  warningLight: '#2a1f06',
+  warningLight: '#1a1200',
   error: '#d45040',
-  errorLight: '#2a0e0b',
+  errorLight: '#1a0800',
 
-  badgeComfort: '#2d1f40',
-  badgeComfortText: '#c9a0f5',
-  badgeVolume: '#1a2d40',
-  badgeVolumeText: '#7ab5e8',
+  badgeComfort: '#1a0e25',
+  badgeComfortText: '#c084fc',
+  badgeVolume: '#0d1a28',
+  badgeVolumeText: '#60a5fa',
 
-  // Tab bar
-  tabActive: '#5da87a',
-  tabInactive: '#607068',
+  tabActive: '#3d8a5c',
+  tabInactive: '#444444',
 
-  // Celebration / achievement (trophy, streak)
   destructive: '#f87171',
   trophy: '#fbbf24',
-  trophyBg: '#2d2006',
-  trophyBorder: '#4a3308',
-  streakBg: '#2d1507',
-  streakBorder: '#5c2d0a',
+  trophyBg: '#1f1700',
+  trophyBorder: '#352700',
+  streakBg: '#1f1000',
+  streakBorder: '#3a1a00',
   streakText: '#fb923c',
 
-  // YouTube button surface (brand red kept on icon/text itself)
-  youtubeSurface: '#2a0a0a',
-  youtubeBorder: '#4a1515',
+  youtubeSurface: '#1a0808',
+  youtubeBorder: '#2a1010',
 
-  categoryMechanical: '#0e2420',
+  categoryMechanical: '#1a1a1a',
   categoryMechanicalText: '#4db6ac',
-  categoryNeuro: '#220e2e',
-  categoryNeuroText: '#ce93d8',
-  categoryPrehab: '#251a07',
-  categoryPrehabText: '#ff9a4d',
-  categoryFinisher: '#2a0e0b',
-  categoryFinisherText: '#ef9a9a',
-  categoryCooldown: '#0e2415',
-  categoryCooldownText: '#81c784',
+  categoryNeuro: '#1a1a1a',
+  categoryNeuroText: '#c084fc',
+  categoryPrehab: '#1a1a1a',
+  categoryPrehabText: '#fb923c',
+  categoryFinisher: '#1a1a1a',
+  categoryFinisherText: '#f87171',
+  categoryCooldown: '#1a1a1a',
+  categoryCooldownText: '#6ee7b7',
 
-  // Modal / bottom-sheet overlays
-  overlayBg: 'rgba(0,0,0,0.6)',
-  overlayBgLight: 'rgba(0,0,0,0.55)',
-
-  // Text on solid primary-colour backgrounds (e.g. subscription CTA buttons)
-  primarySubtext: 'rgba(255,255,255,0.75)',
-
-  // Drop-shadow reference colour
+  overlayBg: 'rgba(0,0,0,0.75)',
+  overlayBgLight: 'rgba(0,0,0,0.65)',
+  primarySubtext: 'rgba(255,255,255,0.8)',
   shadow: '#000',
 
   light: {
-    text: '#e8edea',
-    background: '#0f1412',
-    tint: '#2f6b46',
-    tabIconDefault: '#607068',
-    tabIconSelected: '#2f6b46',
+    text: '#ffffff',
+    background: '#000000',
+    tint: '#3d8a5c',
+    tabIconDefault: '#444444',
+    tabIconSelected: '#3d8a5c',
   },
 };
 
 export type AppColors = typeof LightColors;
 
 export function useColors(): AppColors {
-  const scheme = useColorScheme();
-  return scheme === 'dark' ? DarkColors : LightColors;
+  return DarkColors;
 }
 
 const Colors = LightColors;

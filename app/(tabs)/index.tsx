@@ -824,7 +824,7 @@ const modalStyles = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingTop: 12, paddingHorizontal: 20,
   },
-  handle: { width: 36, height: 4, backgroundColor: '#D1D5DB', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  handle: { width: 36, height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   sheetSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular' },

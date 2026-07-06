@@ -3,7 +3,6 @@ import { BlurView } from "expo-blur";
 import {
   Platform,
   StyleSheet,
-  useColorScheme,
   View,
   Text,
   Pressable,
@@ -191,9 +190,7 @@ function TrainTabIcon({
   glowing: boolean;
 }) {
   const C = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const btnColor = isDark ? C.primaryLight : C.primary;
+  const btnColor = C.primaryLight;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -569,8 +566,7 @@ function TourPromptBar({
 
 export default function TabLayout() {
   const C = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = true;
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const insets = useSafeAreaInsets();
