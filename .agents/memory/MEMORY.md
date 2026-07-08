@@ -7,3 +7,6 @@
 - [Expo SDK vs Expo Go support](expo-sdk-vs-expo-go.md) — SDK newer than user's Expo Go = "incompatible" / iOS-sim hang; web preview still works and masks it. Manifest exposdk:NN is the tell.
 - [Metro stale file-map cache](metro-stale-filemap-cache.md) — "Unable to resolve module" for files that DO exist right after a reinstall; clear /tmp/metro-cache + restart Metro.
 - [Playwright Chromium in NixOS](playwright-nixos.md) — Playwright's pre-built Chromium shell can't find libglib in Nix store paths; use Node.js contract tests instead for CI.
+- [react-native-svg iOS 26 SDK patch](rnsvg-ios26-patch.md) — shared_ptr patch breaks Xcode 26 build; delete patch, use original value-type from npm source.
+- [EAS build: New Architecture required](eas-new-arch.md) — react-native-reanimated 4.x requires newArchEnabled:true in app.json; false → RCT_NEW_ARCH_ENABLED=0 → pod install fails.
+- [EAS build: package-lock proxy URLs](eas-build-lockfile-sharp.md) — every npm install via Replit bakes package-firewall.replit.local URLs into package-lock.json; replace all with registry.npmjs.org before publishing.
