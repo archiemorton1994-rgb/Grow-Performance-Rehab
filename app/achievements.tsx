@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useColors } from '@/constants/colors';
+import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import {
   BADGE_CATALOG,
@@ -52,7 +52,7 @@ const COLS = 4;
 // Earned badges render in full colour with a soft glow; locked badges are shown
 // as a desaturated silhouette (see makeStyles.badgeIconLocked).
 const CATEGORY_COLORS: Record<BadgeCategory, string> = {
-  milestone: '#f59e0b', // amber / gold
+  milestone: ACHIEVEMENT_GOLD, // amber / gold
   streak: '#3b82f6', // blue
   strength_progress: '#dc2626', // crimson
   session_lower: '#8b5cf6', // violet
