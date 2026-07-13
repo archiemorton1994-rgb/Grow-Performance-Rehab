@@ -40,6 +40,11 @@ const LightColors = {
   streakBorder: '#fed7aa',
   streakText: '#c2410c',
 
+  achievementGold: '#d97706',
+  achievementGoldBg: '#fffbeb',
+  achievementGoldMuted: '#fef3c7',
+  achievementGoldBorder: '#f59e0b55',
+
   youtubeSurface: '#FFF0F0',
   youtubeBorder: '#FFCCCC',
 
@@ -109,6 +114,11 @@ const DarkColors = {
   streakBg: '#1f1000',
   streakBorder: '#3a1a00',
   streakText: '#fb923c',
+
+  achievementGold: '#f59e0b',
+  achievementGoldBg: '#1a1100',
+  achievementGoldMuted: '#f59e0b22',
+  achievementGoldBorder: '#f59e0b33',
 
   youtubeSurface: '#1a0808',
   youtubeBorder: '#2a1010',

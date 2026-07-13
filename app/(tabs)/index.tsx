@@ -811,7 +811,7 @@ export default function HomeScreen() {
               testID="home-achievements-row"
             >
               <View style={styles.achievementsIconWrap}>
-                <Ionicons name="trophy" size={15} color="#f59e0b" />
+                <Ionicons name="trophy" size={15} color={C.achievementGold} />
               </View>
               <Text style={styles.achievementsLabel}>Achievements</Text>
               {earnedBadges.length > 0 && (
@@ -819,7 +819,7 @@ export default function HomeScreen() {
                   <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
                 </View>
               )}
-              <Ionicons name="chevron-forward" size={14} color="#f59e0b88" />
+              <Ionicons name="chevron-forward" size={14} color={C.achievementGold + '88'} />
             </Pressable>
           </Animated.View>
         </View>
@@ -1407,18 +1407,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 10,
-      backgroundColor: '#1a1100',
+      backgroundColor: C.achievementGoldBg,
       borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 13,
       borderWidth: 1,
-      borderColor: '#f59e0b33',
+      borderColor: C.achievementGoldBorder,
     },
     achievementsIconWrap: {
       width: 30,
       height: 30,
       borderRadius: 8,
-      backgroundColor: '#f59e0b1a',
+      backgroundColor: C.achievementGoldMuted,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
@@ -1426,16 +1426,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 1,
       fontSize: 14,
       fontFamily: 'Inter_600SemiBold',
-      color: '#f59e0b',
+      color: C.achievementGold,
     },
     badgeCountChip: {
-      backgroundColor: '#f59e0b22',
+      backgroundColor: C.achievementGoldMuted,
       borderRadius: 10,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderWidth: 1,
-      borderColor: '#f59e0b44',
+      borderColor: C.achievementGoldBorder,
     },
-    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#f59e0b' },
+    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.achievementGold },
   });
 }
