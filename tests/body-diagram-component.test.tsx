@@ -546,19 +546,19 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   //   hip_groin → 'adductors' (JOINT_CLR: #4a7e9b)
   //
   // 4-colour vocabulary (heatmapColor):
-  //   count=0          → VOCAB_REST      opacity 0.55
-  //   count=1          → VOCAB_WORKED    opacity 0.82
-  //   count=2-3        → VOCAB_ATTENTION opacity 0.82
-  //   count≥4          → VOCAB_OVERLOADED opacity 0.88
+  //   count=0          → VOCAB_REST      rgba opacity 0.55
+  //   count=1          → VOCAB_WORKED    solid #4ade80 (bright green)
+  //   count=2-3        → VOCAB_ATTENTION solid #fbbf24 (amber-400)
+  //   count≥4          → VOCAB_OVERLOADED solid #f87171 (red-400)
 
-  /** Parses the alpha component from an rgba(r,g,b,a) string. */
+  /** Parses the alpha component from an rgba(r,g,b,a) string (REST tier only). */
   function parseOpacity(fill: string): number {
     const m = fill.match(/rgba\(\d+,\d+,\d+,([\d.]+)\)/);
     if (!m) throw new Error(`Unexpected fill format: ${fill}`);
     return parseFloat(m[1]);
   }
 
-  test('runtime opacity: overloaded region (count≥4) gets fill opacity 0.88', () => {
+  test('runtime colour: overloaded region (count≥4) gets solid fill (no alpha)', () => {
     act(() => {
       renderer.create(
         <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
@@ -568,8 +568,8 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     expect(data).not.toBeNull();
     const kneeEntry = data!.find(e => e.slug === 'knees');
     expect(kneeEntry).toBeDefined();
-    // knee=10 → OVERLOADED → opacity 0.88
-    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.88, 2);
+    // knee=10 → OVERLOADED → solid VOCAB_OVERLOADED
+    expect(kneeEntry!.styles.fill).toBe('#f87171');
   });
 
   test('runtime opacity: zero-count region gets REST fill opacity 0.55 (faint, not invisible)', () => {
@@ -587,7 +587,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2);
   });
 
-  test('runtime opacity: three vocabulary tiers produce three distinct opacity values in the correct order', () => {
+  test('runtime colour: three vocabulary tiers produce three distinct fills', () => {
     // knee=5 (OVERLOADED ≥4), neck=1 (WORKED =1), hip_groin=0 (REST =0)
     act(() => {
       renderer.create(
@@ -596,21 +596,20 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     });
     const data = bodyHighlighterMock.getCapturedBodyData();
     expect(data).not.toBeNull();
-    const kneeEntry  = data!.find(e => e.slug === 'knees');
-    const neckEntry  = data!.find(e => e.slug === 'neck');
-    const hipEntry   = data!.find(e => e.slug === 'adductors');
+    const kneeEntry = data!.find(e => e.slug === 'knees');
+    const neckEntry = data!.find(e => e.slug === 'neck');
+    const hipEntry = data!.find(e => e.slug === 'adductors');
     expect(kneeEntry).toBeDefined();
     expect(neckEntry).toBeDefined();
     expect(hipEntry).toBeDefined();
-    // Exact values per vocabulary
-    expect(parseOpacity(kneeEntry!.styles.fill)).toBeCloseTo(0.88, 2); // OVERLOADED
-    expect(parseOpacity(neckEntry!.styles.fill)).toBeCloseTo(0.82, 2); // WORKED
-    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2);  // REST
-    // Ordering: overloaded > worked > rest
-    expect(parseOpacity(kneeEntry!.styles.fill))
-      .toBeGreaterThan(parseOpacity(neckEntry!.styles.fill));
-    expect(parseOpacity(neckEntry!.styles.fill))
-      .toBeGreaterThan(parseOpacity(hipEntry!.styles.fill));
+    // Active tiers use solid colours; REST uses rgba
+    expect(kneeEntry!.styles.fill).toBe('#f87171'); // OVERLOADED
+    expect(neckEntry!.styles.fill).toBe('#4ade80'); // WORKED
+    expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2); // REST
+    // All three fills are distinct
+    expect(kneeEntry!.styles.fill).not.toBe(neckEntry!.styles.fill);
+    expect(neckEntry!.styles.fill).not.toBe(hipEntry!.styles.fill);
+    expect(kneeEntry!.styles.fill).not.toBe(hipEntry!.styles.fill);
   });
 });
 
