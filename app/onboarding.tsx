@@ -131,6 +131,15 @@ const EQUIPMENT_OPTIONS: {
   },
 ];
 
+const WELCOME_FEATURES = [
+  'Personalised loads every session',
+  'Pain & energy adaptive',
+  'Tracks your strength progress',
+  '7 session types — strength, conditioning & more',
+  'Built-in prehab & mobility',
+  'No guesswork — always know what to do',
+];
+
 function experienceLabel(e: ExperienceLevel | null): string {
   switch (e) {
     case 'beginner':
@@ -435,11 +444,11 @@ export default function OnboardingScreen() {
               <Text style={styles.welcomeSubtitle}>
                 Build your training profile.{'\n'}Takes less than 2 minutes.
               </Text>
-              <View style={styles.welcomePillRow}>
-                {['Personalised loads', 'Pain adaptive', 'Tracks progress'].map((p) => (
-                  <View key={p} style={styles.welcomePill}>
-                    <Ionicons name="checkmark" size={11} color={C.primary} />
-                    <Text style={styles.welcomePillText}>{p}</Text>
+              <View style={styles.welcomeFeatureList}>
+                {WELCOME_FEATURES.map((f) => (
+                  <View key={f} style={styles.welcomeFeatureItem}>
+                    <Ionicons name="checkmark-circle" size={20} color={C.primaryDark} />
+                    <Text style={styles.welcomeFeatureText}>{f}</Text>
                   </View>
                 ))}
               </View>
@@ -1156,25 +1165,22 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       lineHeight: 26,
       marginBottom: 28,
     },
-    welcomePillRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      justifyContent: 'center',
+    welcomeFeatureList: {
+      alignSelf: 'stretch',
+      paddingHorizontal: 36,
+      gap: 14,
+      marginTop: 4,
     },
-    welcomePill: {
+    welcomeFeatureItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      backgroundColor: C.primaryMuted,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 50,
+      gap: 12,
     },
-    welcomePillText: {
-      fontSize: 12,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.primaryDark,
+    welcomeFeatureText: {
+      fontSize: 15,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+      flex: 1,
     },
   });
 }
