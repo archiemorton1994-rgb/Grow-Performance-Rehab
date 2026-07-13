@@ -6,7 +6,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
@@ -303,10 +303,20 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
   });
 }
 
+// Screens that manage their own navigation after a user action (e.g. completing
+// a session). The gate must never redirect away from these screens — doing so
+// causes a race condition where router.replace('/(tabs)') fires after
+// router.replace('/session-summary') and lands on the +not-found screen.
+const TRANSIENT_SCREENS = new Set(['session', 'session-summary', 'readiness', 'custom-session']);
+
 function RootLayoutNav() {
   const { onboardingComplete } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
   const hasNavigated = useRef(false);
+  const segments = useSegments();
+  // True while the user is on any screen that drives its own post-action
+  // navigation (session → session-summary, readiness → session, etc.).
+  const isOnTransientScreen = segments.some((s) => TRANSIENT_SCREENS.has(s));
 
   // ─── Badge toast queue (root-level so it floats above all screens) ────────
   const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
@@ -352,6 +362,11 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
     if (hasNavigated.current) return;
+    // Never redirect away from screens that manage their own post-action
+    // navigation (e.g. session → session-summary). A store update inside
+    // completeSession() can re-trigger this effect before session-summary
+    // has mounted, causing the router to land on the +not-found screen.
+    if (isOnTransientScreen) return;
 
     if (!onboardingComplete) {
       hasNavigated.current = true;
@@ -366,7 +381,7 @@ function RootLayoutNav() {
       hasNavigated.current = true;
       setTimeout(() => router.replace('/(tabs)'), 0);
     }
-  }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription]);
+  }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription, isOnTransientScreen]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
