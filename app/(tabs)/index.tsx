@@ -597,7 +597,10 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsRow}>
             {/* Streak tile */}
             <View style={styles.statTile}>
-              <Text style={styles.statTileValue}>{streak}</Text>
+              <Ionicons name="flame" size={16} color={streak > 0 ? C.streakText : C.textTertiary} />
+              <Text style={[styles.statTileValue, streak > 0 && { color: C.streakText }]}>
+                {streak}
+              </Text>
               <Text style={styles.statTileLabel}>Week Streak</Text>
             </View>
             {/* Weekly ring tile */}
@@ -628,6 +631,7 @@ export default function HomeScreen() {
               }}
               testID="total-sessions-tap"
             >
+              <Ionicons name="barbell-outline" size={16} color={C.textTertiary} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <Text style={styles.statTileValue}>{completedSessions.length}</Text>
                 <Ionicons name="chevron-forward" size={13} color={C.textTertiary} />
