@@ -24,9 +24,9 @@ type BodyCategory = 'muscles' | 'joints';
 //   attention  — secondary / moderate volume / adjacent pain (orange)
 //   overloaded — high pain frequency / excessive volume      (red)
 //   rest       — not trained, no signal                      (dark grey)
-const VOCAB_WORKED = '#2f6b46'; // brand emerald
-const VOCAB_ATTENTION = '#d97706'; // amber-orange
-const VOCAB_OVERLOADED = '#dc2626'; // red
+const VOCAB_WORKED = '#4ade80'; // bright emerald-green — pops on dark backgrounds
+const VOCAB_ATTENTION = '#fbbf24'; // amber-400
+const VOCAB_OVERLOADED = '#f87171'; // red-400
 const VOCAB_REST = '#2a2a2a'; // dark grey (visible on dark panel)
 
 // Legacy joint colour kept for non-heatmap joint category display
@@ -166,9 +166,9 @@ function colorWithAlpha(hex: string, alpha: number): string {
 /** Map a heatmap count to the 4-state colour vocabulary */
 export function heatmapColor(count: number): string {
   if (count <= 0) return colorWithAlpha(VOCAB_REST, 0.55);
-  if (count === 1) return colorWithAlpha(VOCAB_WORKED, 0.82);
-  if (count <= 3) return colorWithAlpha(VOCAB_ATTENTION, 0.82);
-  return colorWithAlpha(VOCAB_OVERLOADED, 0.88);
+  if (count === 1) return VOCAB_WORKED;
+  if (count <= 3) return VOCAB_ATTENTION;
+  return VOCAB_OVERLOADED;
 }
 
 /** Solid (full-opacity) bucket colour for a given heatmap count */
@@ -578,7 +578,7 @@ export function BodyDiagram({
       const inCategory = category === 'muscles' ? isMuscle : !isMuscle;
       for (const slug of slugs) {
         if (isSelected) {
-          result.push({ slug, styles: { fill: colorWithAlpha(VOCAB_WORKED, 0.88) } });
+          result.push({ slug, styles: { fill: VOCAB_WORKED } });
         } else {
           const clr = isMuscle ? VOCAB_WORKED : JOINT_CLR;
           const op = inCategory ? 0.55 : 0.08;

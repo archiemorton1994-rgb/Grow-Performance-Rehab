@@ -71,8 +71,8 @@ const LightColors = {
 const DarkColors = {
   primary: '#2f6b46',
   primaryLight: '#3d8a5c',
-  primaryDark: '#1e4a30',
-  primaryMuted: '#0d1f15',
+  primaryDark: '#4ade80',
+  primaryMuted: '#1a3d28',
   primarySurface: '#091510',
 
   background: '#000000',
