@@ -7,6 +7,7 @@
  * The badge engine (`lib/badge-engine.ts`) evaluates which badges a store snapshot
  * has earned.
  */
+import { ACHIEVEMENT_GOLD } from '@/constants/colors';
 
 export type BadgeCategory =
   | 'milestone' // total session count
@@ -762,7 +763,7 @@ const onboardingBadge: Badge = {
   category: 'milestone',
   criteriaType: 'profile_action',
   icon: 'rocket-outline',
-  color: '#f59e0b',
+  color: ACHIEVEMENT_GOLD,
 };
 
 // ─── 17. Equipment Badges ─────────────────────────────────────────────────────

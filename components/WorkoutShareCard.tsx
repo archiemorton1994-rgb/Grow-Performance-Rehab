@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WeightUnit } from '@/lib/store';
 import { BADGE_CATALOG } from '@/lib/badges';
+import { useColors } from '@/constants/colors';
 
 const BRAND_GREEN = '#2f6b46';
 const CARD_WIDTH = 480;
@@ -37,6 +38,7 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
     },
     ref
   ) => {
+    const C = useColors();
     const date = new Date().toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'long',
@@ -117,7 +119,7 @@ const WorkoutShareCard = forwardRef<View, WorkoutShareCardData>(
         <View style={styles.badgeRow}>
           {newPb && (
             <View style={styles.pbBadge}>
-              <Ionicons name="trophy" size={13} color="#f59e0b" />
+              <Ionicons name="trophy" size={13} color={C.achievementGold} />
               <Text style={styles.pbText} numberOfLines={1}>
                 New PB · {newPb.exerciseName} {pbWeightDisplay}
               </Text>

@@ -2717,12 +2717,12 @@ function ExerciseGraph({
                     setSelectedIdx(selectedIdx === i ? null : i);
                   }}
                 />
-                {isPB && <Circle cx={p.x} cy={p.y} r={8} fill="#f59e0b" opacity={0.18} />}
+                {isPB && <Circle cx={p.x} cy={p.y} r={8} fill={C.achievementGold} opacity={0.18} />}
                 <Circle
                   cx={p.x}
                   cy={p.y}
                   r={isSelected ? 6 : isPB ? 5.5 : 4}
-                  fill={isPB ? '#f59e0b' : C.primary}
+                  fill={isPB ? C.achievementGold : C.primary}
                   stroke={isSelected ? C.surface : 'none'}
                   strokeWidth={isSelected ? 2 : 0}
                 />
