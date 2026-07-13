@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,15 +33,17 @@ function WeeklyRing({
   activeColor,
   trackColor,
   textColor,
+  size = 56,
 }: {
   count: number;
   goal: number;
   activeColor: string;
   trackColor: string;
   textColor: string;
+  size?: number;
 }) {
-  const SIZE = 70;
-  const SW = 6;
+  const SIZE = size;
+  const SW = 5;
   const radius = (SIZE - SW) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = goal > 0 ? Math.min(count / goal, 1) : 0;
@@ -130,6 +133,8 @@ export default function HomeScreen() {
     setWeightReminderSnoozedAt,
     bodyweightReminderEnabled,
     earnedBadges,
+    calibrationBannerDismissed,
+    setCalibrationBannerDismissed,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -221,7 +226,10 @@ export default function HomeScreen() {
       : null;
 
   const calibrationComplete =
-    completedSessions.length === 3 && daysSinceLast !== null && daysSinceLast <= 1;
+    completedSessions.length === 3 &&
+    daysSinceLast !== null &&
+    daysSinceLast <= 1 &&
+    !calibrationBannerDismissed;
 
   // Warn when the user has an established streak but this week's sessions
   // haven't hit the goal yet. Only show from Wednesday onwards to avoid
@@ -490,6 +498,12 @@ export default function HomeScreen() {
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+              <LinearGradient
+                colors={[suggestedMeta.color + '18', 'transparent']}
+                style={[StyleSheet.absoluteFill, { borderRadius: 20, pointerEvents: 'none' }]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 0.65 }}
+              />
               <View style={styles.todayCardTop}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.todayLabel}>Today</Text>
@@ -579,15 +593,16 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Stats strip - always visible */}
-          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsStrip}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Week Streak</Text>
+          {/* Stats tiles — always visible */}
+          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsRow}>
+            {/* Streak tile */}
+            <View style={styles.statTile}>
+              <Text style={styles.statTileValue}>{streak}</Text>
+              <Text style={styles.statTileLabel}>Week Streak</Text>
             </View>
-            <View style={styles.statDivider} />
+            {/* Weekly ring tile */}
             <Pressable
-              style={styles.statItem}
+              style={styles.statTile}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/(tabs)/workouts');
@@ -600,46 +615,24 @@ export default function HomeScreen() {
                 activeColor={weekCount >= goal ? (C.success ?? C.primary) : C.primary}
                 trackColor={C.borderLight}
                 textColor={C.text}
+                size={52}
               />
-              <Text style={[styles.statLabel, { marginTop: 4 }]}>
-                {weekCount >= goal ? 'Goal Hit ✓' : 'This Week'}
-              </Text>
+              <Text style={styles.statTileLabel}>{weekCount >= goal ? 'Goal ✓' : 'This Week'}</Text>
             </Pressable>
-            <View style={styles.statDivider} />
+            {/* Total tile */}
             <Pressable
-              style={styles.statItem}
+              style={styles.statTile}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/past-sessions');
               }}
               testID="total-sessions-tap"
             >
-              <Text style={styles.statValue}>{completedSessions.length}</Text>
-              <View style={styles.statLabelRow}>
-                <Text style={styles.statLabel}>Total</Text>
-                <Ionicons name="chevron-forward" size={11} color={C.textTertiary} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Text style={styles.statTileValue}>{completedSessions.length}</Text>
+                <Ionicons name="chevron-forward" size={13} color={C.textTertiary} />
               </View>
-            </Pressable>
-          </Animated.View>
-
-          {/* Achievements — single tappable row navigating to /achievements */}
-          <Animated.View entering={FadeInDown.delay(130).duration(380)}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/achievements');
-              }}
-              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
-              testID="home-achievements-row"
-            >
-              <Ionicons name="medal" size={18} color={C.primary} />
-              <Text style={styles.achievementsLabel}>Badges</Text>
-              {earnedBadges.length > 0 && (
-                <View style={styles.badgeCountChip}>
-                  <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+              <Text style={styles.statTileLabel}>Total</Text>
             </Pressable>
           </Animated.View>
 
@@ -708,6 +701,14 @@ export default function HomeScreen() {
                   Sessions are now fully personalised to you.
                 </Text>
               </View>
+              <Pressable
+                onPress={() => setCalibrationBannerDismissed(true)}
+                hitSlop={10}
+                style={styles.resumeDiscardBtn}
+                testID="calibration-banner-dismiss"
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
             </Animated.View>
           ) : missedStreakWarning ? (
             <Animated.View
@@ -794,6 +795,29 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
           )}
+
+          {/* Achievements — gold row, always at the bottom of the feed */}
+          <Animated.View entering={FadeInDown.delay(260).duration(380)}>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/achievements');
+              }}
+              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
+              testID="home-achievements-row"
+            >
+              <View style={styles.achievementsIconWrap}>
+                <Ionicons name="trophy" size={15} color="#f59e0b" />
+              </View>
+              <Text style={styles.achievementsLabel}>Achievements</Text>
+              {earnedBadges.length > 0 && (
+                <View style={styles.badgeCountChip}>
+                  <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={14} color="#f59e0b88" />
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
 
@@ -1108,21 +1132,31 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    statsStrip: {
-      flexDirection: 'row',
-      paddingVertical: 4,
-      paddingHorizontal: 4,
-    },
-    statItem: { flex: 1, alignItems: 'center' },
-    statValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
-    statGoal: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    statLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary, marginTop: 2 },
-    statLabelRow: {
+    statsRow: {
       flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 2,
+      gap: 8,
     },
-    statDivider: { width: 1, backgroundColor: C.borderLight, marginVertical: 6 },
+    statTile: {
+      flex: 1,
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      gap: 4,
+      minHeight: 90,
+    },
+    statTileValue: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, lineHeight: 30 },
+    statTileLabel: {
+      fontSize: 10,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      textAlign: 'center' as const,
+      letterSpacing: 0.2,
+    },
 
     lastInline: {
       fontSize: 12,
@@ -1369,27 +1403,35 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 10,
-      backgroundColor: C.surface,
+      backgroundColor: '#1a1100',
       borderRadius: 14,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 13,
       borderWidth: 1,
-      borderColor: C.borderLight,
+      borderColor: '#f59e0b33',
+    },
+    achievementsIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: '#f59e0b1a',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
     achievementsLabel: {
       flex: 1,
       fontSize: 14,
       fontFamily: 'Inter_600SemiBold',
-      color: C.text,
+      color: '#f59e0b',
     },
     badgeCountChip: {
-      backgroundColor: C.primaryMuted,
+      backgroundColor: '#f59e0b22',
       borderRadius: 10,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderWidth: 1,
-      borderColor: C.primary + '44',
+      borderColor: '#f59e0b44',
     },
-    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: '#f59e0b' },
   });
 }

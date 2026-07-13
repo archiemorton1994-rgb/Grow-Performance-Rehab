@@ -332,10 +332,14 @@ interface AppState {
   earnedBadges: string[];
   /** IDs of badges earned since the last time the user viewed their badge toasts. Cleared by `clearNewlyUnlockedBadges`. Persisted so toasts survive app restarts. */
   newlyUnlockedBadges: string[];
+  /** Whether the "You're all set" calibration-complete banner has been dismissed. Once true, the banner never shows again. */
+  calibrationBannerDismissed: boolean;
   /** Evaluate all badge criteria against current state and append newly earned badges to `earnedBadges` and `newlyUnlockedBadges`. */
   awardNewBadges: () => void;
   /** Clear the `newlyUnlockedBadges` queue after the user has seen the pop-ups. */
   clearNewlyUnlockedBadges: () => void;
+  /** Permanently dismiss the calibration-complete banner. */
+  setCalibrationBannerDismissed: (dismissed: boolean) => void;
 
   getCurrentSessionType: () => SessionType;
   isTestWeekDue: () => boolean;
@@ -400,6 +404,7 @@ export const useAppStore = create<AppState>()(
       sessionEquipmentOverride: null,
       earnedBadges: [],
       newlyUnlockedBadges: [],
+      calibrationBannerDismissed: false,
 
       setOnboardingComplete: (complete) => {
         set({ onboardingComplete: complete });
@@ -650,6 +655,7 @@ export const useAppStore = create<AppState>()(
       },
 
       clearNewlyUnlockedBadges: () => set({ newlyUnlockedBadges: [] }),
+      setCalibrationBannerDismissed: (dismissed) => set({ calibrationBannerDismissed: dismissed }),
 
       getCurrentSessionType: () => {
         const { completedSessions, cycleStartOffset } = get();
@@ -971,6 +977,9 @@ export const useAppStore = create<AppState>()(
           persistedState.newlyUnlockedBadges = persistedState.newlyUnlockedBadges.filter(
             (id: string) => !RETIRED_BADGE_IDS.includes(id)
           );
+        }
+        if (!('calibrationBannerDismissed' in persistedState)) {
+          persistedState.calibrationBannerDismissed = false;
         }
         return persistedState;
       },
