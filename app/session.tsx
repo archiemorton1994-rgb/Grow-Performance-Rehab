@@ -1808,7 +1808,7 @@ export default function SessionScreen() {
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();
       void cancelStreakProtectionAlert();
     }
-    router.replace('/session-summary');
+    router.push('/session-summary');
   };
 
   const handleExit = () => {

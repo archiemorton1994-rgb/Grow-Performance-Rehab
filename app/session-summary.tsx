@@ -15,9 +15,10 @@ import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
-import { captureRef } from 'react-native-view-shot';
+// expo-sharing, expo-media-library, and react-native-view-shot are loaded
+// lazily inside the functions that use them. Static top-level imports of these
+// native modules crash module evaluation in Expo Go (SDK 54), which causes
+// Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore, SetLog, ExerciseCategory, PainRegion } from '@/lib/store';
@@ -247,6 +248,10 @@ export default function SessionSummaryScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSharing(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { captureRef } = require('react-native-view-shot') as {
+        captureRef: (ref: unknown, opts: unknown) => Promise<string>;
+      };
       if (Platform.OS === 'web') {
         const base64 = await captureRef(certRef, {
           format: 'png',
@@ -262,6 +267,8 @@ export default function SessionSummaryScreen() {
         a.click();
         document.body.removeChild(a);
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const Sharing = require('expo-sharing') as typeof import('expo-sharing');
         const uri = await captureRef(certRef, {
           format: 'png',
           quality: 1,
@@ -286,6 +293,10 @@ export default function SessionSummaryScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSaving(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { captureRef } = require('react-native-view-shot') as {
+        captureRef: (ref: unknown, opts: unknown) => Promise<string>;
+      };
       if (Platform.OS === 'web') {
         // Web: trigger a direct PNG download (same as Share on web)
         const base64 = await captureRef(certRef, {
@@ -304,6 +315,8 @@ export default function SessionSummaryScreen() {
         setSaveConfirmed(true);
         setTimeout(() => setSaveConfirmed(false), 2000);
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const MediaLibrary = require('expo-media-library') as typeof import('expo-media-library');
         // Native: request permission then save to camera roll
         const { status } = await MediaLibrary.requestPermissionsAsync(/* writeOnly */ true);
         if (status !== 'granted') {
