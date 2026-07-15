@@ -332,8 +332,13 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
     flexibility: 'flex',
     custom: 'custom',
   };
+  // Aggregate each store-type into its badge bucket so KPI and weekly sessions share one pool.
+  // e.g. squat=2 + lower_body=2 → lower bucket=4, which unlocks lower_session_3.
+  const bucketCounts: Record<string, number> = {};
   for (const [storeType, prefix] of Object.entries(typeMap)) {
-    const count = s.byType[storeType] ?? 0;
+    bucketCounts[prefix] = (bucketCounts[prefix] ?? 0) + (s.byType[storeType] ?? 0);
+  }
+  for (const [prefix, count] of Object.entries(bucketCounts)) {
     for (const n of [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 150, 200]) {
       awardIf(count >= n, `${prefix}_session_${n}`);
     }
@@ -399,7 +404,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
 
   // ── 15. Goals ─────────────────────────────────────────────────────────────
   const strengthSessions =
-    (s.byType['squat'] ?? 0) + (s.byType['bench'] ?? 0) + (s.byType['deadlift'] ?? 0);
+    (bucketCounts['lower'] ?? 0) + (bucketCounts['upper'] ?? 0) + (bucketCounts['full'] ?? 0);
   // Strength
   awardIf(s.total >= 1 && s.ormLiftsSet.size >= 1, 'goal_strength_1rm');
   awardIf(strengthSessions >= 10, 'goal_strength_10');
@@ -542,18 +547,18 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   const top5Sum = typesSorted.slice(0, 5).reduce((a, c) => a + c, 0);
   awardIf(top5Sum >= 50 && typesSorted.length >= 5, 'variety_50_per_type');
   awardIf(
-    (s.byType['squat'] ?? 0) >= 10 &&
-      (s.byType['bench'] ?? 0) >= 10 &&
-      (s.byType['deadlift'] ?? 0) >= 10,
+    (bucketCounts['lower'] ?? 0) >= 10 &&
+      (bucketCounts['upper'] ?? 0) >= 10 &&
+      (bucketCounts['full'] ?? 0) >= 10,
     'variety_strength_trio'
   );
 
   // ── Exercise-Milestone Badges ─────────────────────────────────────────────
-  // Triple Threat: done at least one of each strength lift
+  // Triple Threat: done at least one of each strength category (KPI or weekly)
   awardIf(
-    (s.byType['squat'] ?? 0) >= 1 &&
-      (s.byType['bench'] ?? 0) >= 1 &&
-      (s.byType['deadlift'] ?? 0) >= 1,
+    (bucketCounts['lower'] ?? 0) >= 1 &&
+      (bucketCounts['upper'] ?? 0) >= 1 &&
+      (bucketCounts['full'] ?? 0) >= 1,
     'exercise_all_three_lifts'
   );
   // Pattern Master: complete lower + upper + full body in the same Mon–Sun week
@@ -582,9 +587,9 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.distinctTypesUsed.size >= 7, 'exercise_full_spectrum');
   // Strength sampler: 5 of each strength type
   awardIf(
-    (s.byType['squat'] ?? 0) >= 5 &&
-      (s.byType['bench'] ?? 0) >= 5 &&
-      (s.byType['deadlift'] ?? 0) >= 5,
+    (bucketCounts['lower'] ?? 0) >= 5 &&
+      (bucketCounts['upper'] ?? 0) >= 5 &&
+      (bucketCounts['full'] ?? 0) >= 5,
     'exercise_strength_variety'
   );
 
