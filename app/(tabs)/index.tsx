@@ -378,6 +378,7 @@ export default function HomeScreen() {
         timeAvailable: activeSession.timeAvailable,
         isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
         equipment: activeSession.equipmentTier,
+        ...(activeSession.displayLabel ? { displayLabel: activeSession.displayLabel } : {}),
       },
     });
   };
@@ -652,8 +653,10 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.resumeTitle}>Session in progress</Text>
                 <Text style={styles.resumeSub}>
-                  {SESSION_META[activeSession.sessionType]?.label ?? activeSession.sessionName} ·{' '}
-                  {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                  {activeSession.displayLabel ??
+                    SESSION_META[activeSession.sessionType]?.label ??
+                    activeSession.sessionName}{' '}
+                  · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
                 </Text>
               </View>
               <Pressable

@@ -1165,6 +1165,7 @@ export default function SessionScreen() {
     timeAvailable: string;
     isTestWeek: string;
     equipment: string;
+    displayLabel?: string;
   }>();
 
   const VALID_SESSION_TYPES: SessionType[] = [
@@ -1203,6 +1204,10 @@ export default function SessionScreen() {
     'full_body',
   ];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
+  const paramDisplayLabel =
+    typeof params.displayLabel === 'string' && params.displayLabel.length > 0
+      ? params.displayLabel
+      : undefined;
 
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1227,6 +1232,13 @@ export default function SessionScreen() {
     pendingCustomExercises,
     clearPendingCustomExercises,
   } = useAppStore();
+  // Fall back to the saved active-session label when the resume path did not
+  // forward the displayLabel param (e.g. older resume entry points).
+  const displayLabel =
+    paramDisplayLabel ??
+    (activeSession && activeSession.sessionType === sessionType
+      ? activeSession.displayLabel
+      : undefined);
   // Only count strength sessions for auto-progression - conditioning, prehab,
   // and flexibility sessions do not drive strength progressive overload.
   const strengthCount = completedSessions.filter((s) =>
@@ -1457,6 +1469,7 @@ export default function SessionScreen() {
         completedSetsCount,
         totalSets,
         sessionName: getSessionLabel(sessionType),
+        displayLabel,
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
         painBannerDismissed: painBannerDismissedRef.current,
@@ -1611,6 +1624,7 @@ export default function SessionScreen() {
       completedSetsCount,
       totalSets,
       sessionName: getSessionLabel(sessionType),
+      displayLabel,
       elapsedSeconds: elapsedSecondsRef.current,
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
@@ -1797,6 +1811,7 @@ export default function SessionScreen() {
       exerciseLogs,
       isTestWeek,
       durationSeconds: capturedDuration,
+      displayLabel,
     });
 
     if (newCount === 5 && !reviewPromptShown) {
@@ -1860,6 +1875,7 @@ export default function SessionScreen() {
       completedSetsCount,
       totalSets,
       sessionName: getSessionLabel(sessionType),
+      displayLabel,
       elapsedSeconds,
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
@@ -1884,7 +1900,7 @@ export default function SessionScreen() {
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
-            {isTestWeek ? 'Strength Test' : getSessionLabel(sessionType)}
+            {isTestWeek ? 'Strength Test' : (displayLabel ?? getSessionLabel(sessionType))}
           </Text>
           {isTestWeek ? <Text style={styles.sessionSub}>AMRAP @ 90%</Text> : null}
         </View>

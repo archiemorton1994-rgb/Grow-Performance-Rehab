@@ -464,7 +464,7 @@ export default function SessionSummaryScreen() {
                     )}
                   </View>
                   <Text style={styles.headline} numberOfLines={1} adjustsFontSizeToFit>
-                    {getSessionLabel(session.sessionType)}
+                    {session.displayLabel ?? getSessionLabel(session.sessionType)}
                   </Text>
                   <Text style={styles.subtitle} numberOfLines={1}>
                     {getSessionSubtitle(session.sessionType)}

@@ -53,6 +53,7 @@ export default function ReadinessScreen() {
     energy?: string;
     timeAvailable?: string;
     equipmentOverride?: string;
+    displayLabel?: string;
   }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const isTestWeek = params.isTestWeek === 'true';
@@ -243,6 +244,7 @@ export default function ReadinessScreen() {
         timeAvailable: '60',
         isTestWeek: 'false',
         equipment: tier,
+        ...(params.displayLabel ? { displayLabel: params.displayLabel } : {}),
       },
     });
   };

@@ -282,6 +282,7 @@ export default function TrainScreen() {
         timeAvailable: activeSession.timeAvailable,
         isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
         equipment: activeSession.equipmentTier,
+        ...(activeSession.displayLabel ? { displayLabel: activeSession.displayLabel } : {}),
       },
     });
   };
@@ -466,8 +467,9 @@ export default function TrainScreen() {
               <View>
                 <Text style={styles.resumeBannerTitle}>Session in progress</Text>
                 <Text style={styles.resumeBannerSub}>
-                  {SESSION_META_LABELS[activeSession.sessionType]?.label} ·{' '}
-                  {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                  {activeSession.displayLabel ??
+                    SESSION_META_LABELS[activeSession.sessionType]?.label}{' '}
+                  · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
                 </Text>
               </View>
             </View>

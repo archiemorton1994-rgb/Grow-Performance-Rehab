@@ -1034,7 +1034,7 @@ function MonthCalendar({
                 />
               </View>
               <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text }}>
-                {getSessionLabel(s.sessionType)}
+                {s.displayLabel ?? getSessionLabel(s.sessionType)}
               </Text>
               {s.durationSeconds != null && s.durationSeconds > 0 && (
                 <Text
@@ -1388,7 +1388,7 @@ function SessionHistoryList({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
-                  {getSessionLabel(session.sessionType)}
+                  {session.displayLabel ?? getSessionLabel(session.sessionType)}
                 </Text>
                 <Text
                   style={{
@@ -3966,6 +3966,7 @@ export default function StatsScreen() {
               timeAvailable: '60',
               isTestWeek: 'false',
               equipment: effectiveTier,
+              displayLabel: 'Targeted Prehab',
             },
           });
         }}

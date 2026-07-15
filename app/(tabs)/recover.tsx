@@ -343,7 +343,7 @@ export default function RecoverScreen() {
     });
   };
 
-  const handlePrehabRegion = (region: PainRegion | 'fullbody') => {
+  const handlePrehabRegion = (region: PainRegion | 'fullbody', displayLabel: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
     router.push({
@@ -356,6 +356,7 @@ export default function RecoverScreen() {
         timeAvailable: '60',
         isTestWeek: 'false',
         equipment: todayEffectiveTier,
+        displayLabel,
       },
     });
   };
@@ -531,8 +532,8 @@ export default function RecoverScreen() {
             <RegionBodyPicker
               pending={recoveryPending}
               onPendingChange={setRecoveryPending}
-              onConfirm={handlePrehabRegion}
-              onFullBody={() => handlePrehabRegion('fullbody')}
+              onConfirm={(region) => handlePrehabRegion(region, 'Blood Flow')}
+              onFullBody={() => handlePrehabRegion('fullbody', 'Blood Flow')}
               bottomInset={insets.bottom}
               testPrefix="recovery"
             />
@@ -627,8 +628,8 @@ export default function RecoverScreen() {
             <RegionBodyPicker
               pending={prehabPending}
               onPendingChange={setPrehabPending}
-              onConfirm={handlePrehabRegion}
-              onFullBody={() => handlePrehabRegion('fullbody')}
+              onConfirm={(region) => handlePrehabRegion(region, 'Targeted Prehab')}
+              onFullBody={() => handlePrehabRegion('fullbody', 'Targeted Prehab')}
               bottomInset={insets.bottom}
               testPrefix="prehab"
             />

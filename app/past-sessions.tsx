@@ -66,7 +66,7 @@ export default function PastSessionsScreen() {
         </View>
         <View style={styles.rowMid}>
           <Text style={styles.rowTitle} numberOfLines={1}>
-            {getSessionLabel(item.sessionType)}
+            {item.displayLabel ?? getSessionLabel(item.sessionType)}
             {item.isTestWeek ? '  · Test Week' : ''}
           </Text>
           <Text style={styles.rowMeta} numberOfLines={1}>
