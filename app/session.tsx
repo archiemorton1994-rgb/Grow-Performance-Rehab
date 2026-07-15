@@ -561,6 +561,7 @@ export function SessionActiveBar({
           <Pressable
             onPress={() => setShowFeedback(false)}
             style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
+            testID="feedback-good"
           >
             <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ Good</Text>
           </Pressable>

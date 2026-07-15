@@ -11,3 +11,4 @@
 - [react-native-svg iOS 26 SDK patch](rnsvg-ios26-patch.md) — shared_ptr patch breaks Xcode 26 build; delete patch, use original value-type from npm source.
 - [EAS build: New Architecture required](eas-new-arch.md) — react-native-reanimated 4.x requires newArchEnabled:true in app.json; false → RCT_NEW_ARCH_ENABLED=0 → pod install fails.
 - [EAS build: package-lock proxy URLs](eas-build-lockfile-sharp.md) — every npm install via Replit bakes package-firewall.replit.local URLs into package-lock.json; replace all with registry.npmjs.org before publishing.
+- [Playwright RNW Pressable disabled click](playwright-rnw-disabled-pressable.md) — RNW disabled Pressable: Playwright click() dispatches DOM events but onPress never fires; isZeroBlocked band exercises block until reps>0, so fill reps first.
