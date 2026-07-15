@@ -404,7 +404,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
 
   // ── 15. Goals ─────────────────────────────────────────────────────────────
   const strengthSessions =
-    (bucketCounts['lower'] ?? 0) + (bucketCounts['upper'] ?? 0) + (bucketCounts['full'] ?? 0);
+    (s.byType['squat'] ?? 0) + (s.byType['bench'] ?? 0) + (s.byType['deadlift'] ?? 0);
   // Strength
   awardIf(s.total >= 1 && s.ormLiftsSet.size >= 1, 'goal_strength_1rm');
   awardIf(strengthSessions >= 10, 'goal_strength_10');

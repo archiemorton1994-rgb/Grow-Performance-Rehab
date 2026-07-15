@@ -876,22 +876,19 @@ function generateWeeklyWorkout(
   // Per-type required-pattern counts (deterministic coverage guarantee):
   //   lower_body: squat + hinge + single-leg = 3 patterns (positions 1-3 in pool)
   //   upper_body: H.Push + H.Pull + V.Push + V.Pull = 4 patterns (positions 1-4 in pool)
-  //   full_body:  squat + hinge + H.Push + H.Pull = 4 core patterns (positions 1-4)
-  //               V.Push (pos 5) added at 45/60 min; V.Pull (pos 6) added at 60 min
+  //   full_body:  always all 6 patterns — sets are scaled to fit time, movements are never dropped
+  //               30/45 min → 2 sets per exercise; 60 min → full template sets
   //
   // Pool order is deterministic: required patterns are always taken first.
   // "Optional" extras (beyond minRequired) are seeded-shuffled for session variety.
-  const minRequired = sessionType === 'upper_body' ? 4 : sessionType === 'full_body' ? 4 : 3;
+  const minRequired = sessionType === 'upper_body' ? 4 : sessionType === 'full_body' ? 6 : 3;
 
   // Time-based total exercise count
-  //   30 min → 3–4 main   45 min → 4–5 main   60 min → 5–6 main
+  //   lower/upper: 30 min → 3–4 main   45 min → 4–5 main   60 min → 5 main
+  //   full_body: always all 6 (sets scaled below to fit time)
   const baseCount =
     sessionType === 'full_body'
-      ? timeAvailable === '30'
-        ? 4 // squat + hinge + H.Push + H.Pull
-        : timeAvailable === '45'
-          ? 5 // + V.Push
-          : 6 // + V.Pull (all 6 patterns)
+      ? 6 // all 6 patterns every session — volume adapted, not coverage
       : sessionType === 'upper_body'
         ? timeAvailable === '30'
           ? 4 // 4 required patterns only
@@ -903,8 +900,13 @@ function generateWeeklyWorkout(
             ? 4
             : 5;
 
-  // Low energy: remove 1 optional extra, never below minRequired (core patterns always covered)
-  const mainCount = energy === 'low' ? Math.max(baseCount - 1, minRequired) : baseCount;
+  // Low energy: remove 1 optional extra for lower/upper; full_body never drops a movement
+  const mainCount =
+    sessionType === 'full_body'
+      ? 6
+      : energy === 'low'
+        ? Math.max(baseCount - 1, minRequired)
+        : baseCount;
 
   // Always include required-pattern exercises first; shuffle only the bonus extras
   const requiredExercises = allMainExercises.slice(0, minRequired);
@@ -913,12 +915,18 @@ function generateWeeklyWorkout(
   const shuffledOptional = seededShuffleDiverse(optionalExercises, sessionSeed);
   const selectedMain = [...requiredExercises, ...shuffledOptional.slice(0, optionalCount)];
 
+  // Scale full_body sets to fit the time budget (never drop movements):
+  //   30/45 min → 2 sets each; 60 min → keep template defaults; low energy also caps at 2
+  const fullBodySets =
+    sessionType === 'full_body' && (timeAvailable !== '60' || energy === 'low') ? 2 : 0;
+
   for (const t of selectedMain) {
-    exercises.push(applyComfortOrBadge(t, hasAches, painRegion, equipmentTier));
+    const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);
+    exercises.push(fullBodySets > 0 ? { ...ex, sets: fullBodySets } : ex);
   }
 
-  // ── 3. Prehab (45 and 60 min only) ────────────────────────────────────────
-  if (timeAvailable !== '30') {
+  // ── 3. Prehab (45 min only — 60 min uses finisher instead) ────────────────
+  if (timeAvailable === '45') {
     const prehabTemplate = painRegion
       ? getRegionPrehabExercise(painRegion)
       : getPrehab(sessionType === 'upper_body' ? 'bench' : 'squat', equipmentTier)[0];
