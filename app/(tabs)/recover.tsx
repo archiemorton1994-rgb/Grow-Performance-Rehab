@@ -78,10 +78,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
 
-function getFlexRecency(
-  completedSessions: any[],
-  sessionType: 'prehab' | 'flexibility'
-): string {
+function getFlexRecency(completedSessions: any[], sessionType: 'prehab' | 'flexibility'): string {
   const matches = completedSessions.filter((s) => s.sessionType === sessionType);
   if (matches.length === 0) return 'Not tried yet';
   const days = daysSince(matches[0].date);
