@@ -397,6 +397,289 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
   );
 }
 
+// ─── Session Active Bar ───────────────────────────────────────────────────────
+// Floating bar at the bottom of the screen. Contains weight/reps inputs for
+// the active set, the "Complete Set" button, a brief per-set feedback strip,
+// and a "Complete Session" button when all sets are done.
+
+interface SessionActiveBarProps {
+  exercise: Exercise | null;
+  exerciseIndex: number;
+  setData: ExerciseSetData | null;
+  activeSetIndex: number;
+  weightGuidesKg: number[];
+  isBandExercise: boolean;
+  isTimeExercise: boolean;
+  previousBest: number | undefined;
+  previousSessionWeight: number | undefined;
+  weightUnit: WeightUnit;
+  isLastExercise: boolean;
+  sessionAllDone: boolean;
+  isPrehabOrFlex: boolean;
+  onSetChange: (exerciseIndex: number, setIndex: number, updated: SetLog) => void;
+  onSetCompleted: () => void;
+  onFeedback: (exerciseId: string, f: 'easy' | 'hard') => void;
+  onCompleteSession: () => void;
+  bottomInset: number;
+}
+
+function SessionActiveBar({
+  exercise,
+  exerciseIndex,
+  setData,
+  activeSetIndex,
+  weightGuidesKg,
+  isBandExercise,
+  isTimeExercise,
+  previousBest,
+  previousSessionWeight,
+  weightUnit = 'kg',
+  isLastExercise,
+  sessionAllDone,
+  isPrehabOrFlex,
+  onSetChange,
+  onSetCompleted,
+  onFeedback,
+  onCompleteSession,
+  bottomInset,
+}: SessionActiveBarProps) {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+
+  const recommendedKg = weightGuidesKg[activeSetIndex] ?? 0;
+  const prevSetWeight =
+    activeSetIndex > 0
+      ? (setData?.sets[activeSetIndex - 1]?.weight ?? 0)
+      : (previousSessionWeight ?? 0);
+
+  const computeInitialWeight = useCallback((): string => {
+    const stored = setData?.sets[activeSetIndex]?.weight ?? 0;
+    if (stored > 0) return String(kgToDisplayUnit(stored, weightUnit));
+    if (recommendedKg > 0) return String(kgToDisplayUnit(recommendedKg, weightUnit));
+    if (prevSetWeight > 0) return String(kgToDisplayUnit(prevSetWeight, weightUnit));
+    return '';
+  }, [activeSetIndex, exerciseIndex, setData, recommendedKg, prevSetWeight, weightUnit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [weightText, setWeightText] = useState<string>(computeInitialWeight);
+  const [repsText, setRepsText] = useState<string>(() => {
+    const r = setData?.sets[activeSetIndex]?.reps ?? 0;
+    return r > 0 ? String(r) : '';
+  });
+  const [showFeedback, setShowFeedback] = useState(false);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
+  useEffect(() => {
+    const key = `${exerciseIndex}-${activeSetIndex}`;
+    if (prevKeyRef.current !== key) {
+      prevKeyRef.current = key;
+      setWeightText(computeInitialWeight());
+      const r = setData?.sets[activeSetIndex]?.reps ?? 0;
+      setRepsText(r > 0 ? String(r) : '');
+    }
+  }, [exerciseIndex, activeSetIndex, computeInitialWeight, setData]);
+
+  const currentSet = setData?.sets[activeSetIndex];
+  const totalSets = setData?.sets.length ?? 1;
+
+  const parsedWeight = parseFloat(weightText) || 0;
+  const parsedReps = parseInt(repsText) || 0;
+  const effectiveWeightKg = displayUnitToKg(parsedWeight, weightUnit);
+
+  const isZeroBlocked =
+    !isTimeExercise &&
+    (isBandExercise ? parsedReps === 0 : effectiveWeightKg === 0 || parsedReps === 0);
+
+  const isNewRecord =
+    !isBandExercise &&
+    !isTimeExercise &&
+    previousBest !== undefined &&
+    previousBest > 0 &&
+    parsedWeight > 0 &&
+    effectiveWeightKg > previousBest;
+
+  const setLabel =
+    exercise?.category === 'main'
+      ? activeSetIndex < totalSets - 1
+        ? 'Warm-up'
+        : 'Working set'
+      : null;
+
+  const handleComplete = () => {
+    if (isZeroBlocked || !currentSet || !exercise) return;
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+    onSetChange(exerciseIndex, activeSetIndex, {
+      ...currentSet,
+      weight: effectiveWeightKg,
+      reps: parsedReps,
+      completed: true,
+    });
+    onSetCompleted();
+    setShowFeedback(true);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setShowFeedback(false), 3500);
+  };
+
+  const handleFeedback = (f: 'easy' | 'hard') => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    if (exercise) onFeedback(exercise.id, f);
+    setShowFeedback(false);
+  };
+
+  if (sessionAllDone || isPrehabOrFlex) {
+    return (
+      <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
+        <Pressable
+          onPress={onCompleteSession}
+          style={({ pressed }) => [
+            styles.barCompleteSessionBtn,
+            pressed && { opacity: 0.9, transform: [{ scale: 0.98 as number }] },
+          ]}
+          testID="complete-session"
+        >
+          <Ionicons name="checkmark-circle" size={22} color={C.textInverse} />
+          <Text style={styles.barCompleteSessionText}>Complete Session</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!exercise || !currentSet || activeSetIndex >= totalSets) return null;
+
+  if (showFeedback) {
+    return (
+      <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
+        <Text style={styles.barFeedbackPrompt}>
+          Set {activeSetIndex + 1} logged · How did it feel?
+        </Text>
+        <View style={styles.barFeedbackRow}>
+          <Pressable onPress={() => handleFeedback('easy')} style={styles.barFeedbackBtn}>
+            <Text style={styles.barFeedbackBtnText}>👍 Too easy</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowFeedback(false)}
+            style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
+          >
+            <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ Good</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleFeedback('hard')}
+            style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
+          >
+            <Text style={[styles.barFeedbackBtnText, { color: C.categoryFinisherText }]}>
+              💪 Hard
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.barContainer, { paddingBottom: bottomInset + 8 }]}>
+      <View style={styles.barHeader}>
+        <Text style={styles.barExerciseName} numberOfLines={1}>
+          {exercise.name}
+        </Text>
+        <View style={styles.barSetCountRow}>
+          {setLabel && <Text style={styles.barSetLabel}>{setLabel}</Text>}
+          <Text style={styles.barSetCount}>
+            Set {activeSetIndex + 1}/{totalSets}
+          </Text>
+        </View>
+      </View>
+
+      {isNewRecord && (
+        <View style={[styles.newRecordBadge, { alignSelf: 'flex-start', marginBottom: 6 }]}>
+          <Ionicons name="star" size={10} color="#fff" />
+          <Text style={styles.newRecordText}>New Record!</Text>
+        </View>
+      )}
+
+      {isTimeExercise ? (
+        <Pressable
+          onPress={handleComplete}
+          style={styles.barMarkDoneBtn}
+          testID={`set-${activeSetIndex + 1}-check`}
+        >
+          <Ionicons name="checkmark-circle" size={20} color={C.textInverse} />
+          <Text style={styles.barMarkDoneText}>Mark Set Done</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.barInputArea}>
+          {!isBandExercise && (
+            <View style={styles.barInputBlock}>
+              {recommendedKg > 0 && (
+                <Text style={styles.barInputHint}>
+                  {kgToDisplayUnit(recommendedKg, weightUnit)} {weightUnit} guide
+                </Text>
+              )}
+              <TextInput
+                style={styles.barInput}
+                placeholder="0"
+                placeholderTextColor={C.textTertiary}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+                value={weightText}
+                onChangeText={setWeightText}
+                onBlur={() => {
+                  const v = parseFloat(weightText) || 0;
+                  setWeightText(v > 0 ? String(v) : '');
+                }}
+                testID={`set-${activeSetIndex + 1}-weight`}
+              />
+              <Text style={styles.barInputUnit}>{weightUnit}</Text>
+            </View>
+          )}
+
+          {isBandExercise && (
+            <View style={styles.barInputBlock}>
+              <Text style={styles.barInputHint}>Bodyweight</Text>
+            </View>
+          )}
+
+          <Text style={styles.barTimesSign}>×</Text>
+
+          <View style={styles.barInputBlock}>
+            <Text style={styles.barInputHint}>reps</Text>
+            <TextInput
+              style={styles.barInput}
+              placeholder="0"
+              placeholderTextColor={C.textTertiary}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              value={repsText}
+              onChangeText={setRepsText}
+              testID={`set-${activeSetIndex + 1}-reps`}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleComplete}
+            disabled={isZeroBlocked}
+            style={[styles.barCompleteBtn, isZeroBlocked && styles.barCompleteBtnDisabled]}
+            testID={`set-${activeSetIndex + 1}-check`}
+          >
+            <Ionicons
+              name="checkmark-circle"
+              size={26}
+              color={isZeroBlocked ? C.textTertiary : C.textInverse}
+            />
+          </Pressable>
+        </View>
+      )}
+
+      {isZeroBlocked && !isTimeExercise && (
+        <Text style={styles.barZeroHint}>
+          {isBandExercise ? 'Enter reps to complete' : 'Enter weight and reps to complete'}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 export interface ActiveSetBlockHandle {
   focus: () => void;
 }
@@ -655,6 +938,9 @@ export function ExerciseCard({
   onNoteChange,
   isLastExercise = false,
   comfortRegionLabel,
+  restTimerTrigger,
+  noteVisible = false,
+  onToggleNote,
 }: {
   exercise: Exercise;
   index: number;
@@ -676,12 +962,15 @@ export function ExerciseCard({
   onNoteChange?: (text: string) => void;
   isLastExercise?: boolean;
   comfortRegionLabel?: string;
+  restTimerTrigger?: number;
+  noteVisible?: boolean;
+  onToggleNote?: () => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
-  const [timerTrigger, setTimerTrigger] = useState(0);
-  const activeSetRef = useRef<ActiveSetBlockHandle>(null);
+  const [actionsExpanded, setActionsExpanded] = useState(false);
+  const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
   const weightGuidesKg = getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
 
@@ -887,31 +1176,59 @@ export function ExerciseCard({
               <View style={styles.actionRow}>
                 <Pressable
                   onPress={onVideoPress}
-                  style={[styles.actionBtn, styles.actionBtnYoutube]}
+                  style={styles.iconActionBtn}
                   testID={`video-${index}`}
                 >
-                  <Ionicons name="logo-youtube" size={15} color="#FF0000" />
-                  <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>Watch on YouTube</Text>
+                  <Ionicons name="logo-youtube" size={20} color="#CC0000" />
                 </Pressable>
                 {exercise.hasSwap && (
                   <Pressable
                     onPress={onSwapPress}
-                    style={[styles.actionBtn, setData.swapCount > 0 && styles.actionBtnSwapped]}
+                    style={[
+                      styles.iconActionBtn,
+                      setData.swapCount > 0 && styles.iconActionBtnActive,
+                    ]}
                     testID={`swap-${index}`}
                   >
                     <Ionicons
                       name="swap-horizontal-outline"
-                      size={15}
+                      size={18}
                       color={setData.swapCount > 0 ? C.primary : C.textSecondary}
                     />
-                    <Text
-                      style={[styles.actionBtnText, setData.swapCount > 0 && { color: C.primary }]}
-                    >
-                      {setData.swapCount === 0 ? 'Swap exercise' : 'Swap again'}
-                    </Text>
                   </Pressable>
                 )}
+                <Pressable
+                  onPress={onToggleNote}
+                  style={[styles.iconActionBtn, noteVisible && styles.iconActionBtnActive]}
+                  testID={`note-toggle-${index}`}
+                >
+                  <Ionicons
+                    name={noteVisible ? 'pencil' : 'pencil-outline'}
+                    size={17}
+                    color={noteVisible ? C.primary : C.textSecondary}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => setActionsExpanded((v) => !v)}
+                  style={styles.iconActionBtn}
+                >
+                  <Ionicons
+                    name={actionsExpanded ? 'chevron-up' : 'ellipsis-horizontal'}
+                    size={17}
+                    color={C.textSecondary}
+                  />
+                </Pressable>
               </View>
+              {actionsExpanded && (
+                <View style={styles.expandedActionsRow}>
+                  <Pressable onPress={onVideoPress} style={styles.actionBtn}>
+                    <Ionicons name="logo-youtube" size={14} color="#CC0000" />
+                    <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>
+                      Watch on YouTube
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {exercise.badge === 'comfort' && comfortRegionLabel && (
                 <View style={styles.comfortNote}>
@@ -936,11 +1253,7 @@ export function ExerciseCard({
 
                   {exercise.id !== 'cardio-warmup' &&
                     !(exercise.category === 'prep' && index === 0) && (
-                      <RestTimer
-                        category={exercise.category}
-                        trigger={timerTrigger}
-                        onTimerEnd={() => activeSetRef.current?.focus()}
-                      />
+                      <RestTimer category={exercise.category} trigger={effectiveTimerTrigger} />
                     )}
 
                   {!isBandExercise &&
@@ -1004,32 +1317,16 @@ export function ExerciseCard({
                           </ScrollView>
                         )}
 
-                        {/* Active set block - keyed by set index so it re-mounts fresh */}
+                        {/* Active set indicator – inputs live in SessionActiveBar */}
                         {!allDone &&
                           activeSetIndex >= 0 &&
                           activeSetIndex < setData.sets.length && (
-                            <ActiveSetBlock
-                              key={activeSetIndex}
-                              ref={activeSetRef}
-                              setNum={activeSetIndex + 1}
-                              totalSets={setData.sets.length}
-                              data={setData.sets[activeSetIndex]}
-                              onChange={(u) => onSetChange(activeSetIndex, u)}
-                              recommendedWeightKg={weightGuidesKg[activeSetIndex]}
-                              isBandExercise={isBandExercise}
-                              isTimeExercise={isTimeExercise}
-                              previousBest={previousBest}
-                              prevSetWeight={prevSetWeight}
-                              weightUnit={weightUnit}
-                              onCompleted={() => {
-                                // Suppress the rest countdown on the very last set
-                                // of the very last exercise - the session is done,
-                                // there's nothing to rest for.
-                                const isFinalSet = activeSetIndex === setData.sets.length - 1;
-                                if (isLastExercise && isFinalSet) return;
-                                setTimerTrigger((n) => n + 1);
-                              }}
-                            />
+                            <View style={styles.activeSetInCard}>
+                              <Ionicons name="barbell-outline" size={14} color={C.primary} />
+                              <Text style={styles.activeSetInCardText}>
+                                Set {activeSetIndex + 1} of {setData.sets.length} · log below ↓
+                              </Text>
+                            </View>
                           )}
 
                         {/* All sets done indicator */}
@@ -1055,19 +1352,21 @@ export function ExerciseCard({
                     );
                   })()}
 
-                  <View style={styles.noteInputRow}>
-                    <TextInput
-                      style={styles.noteInput}
-                      placeholder="Add a note…"
-                      placeholderTextColor={C.textTertiary}
-                      value={note}
-                      onChangeText={onNoteChange}
-                      returnKeyType="done"
-                      multiline={false}
-                      maxLength={160}
-                      testID={`note-${index}`}
-                    />
-                  </View>
+                  {noteVisible && (
+                    <View style={styles.noteInputRow}>
+                      <TextInput
+                        style={styles.noteInput}
+                        placeholder="Add a note…"
+                        placeholderTextColor={C.textTertiary}
+                        value={note}
+                        onChangeText={onNoteChange}
+                        returnKeyType="done"
+                        multiline={false}
+                        maxLength={160}
+                        testID={`note-${index}`}
+                      />
+                    </View>
+                  )}
                 </View>
               )}
             </Animated.View>
@@ -1381,6 +1680,28 @@ export default function SessionScreen() {
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
+  const [barTimerTrigger, setBarTimerTrigger] = useState(0);
+  const [notesVisible, setNotesVisible] = useState<boolean[]>([]);
+  const [inSessionFeedback, setInSessionFeedback] = useState<
+    Record<string, 'easy' | 'hard' | null>
+  >({});
+
+  const handleBarSetCompleted = useCallback(() => {
+    setBarTimerTrigger((n) => n + 1);
+  }, []);
+
+  const toggleNoteVisible = useCallback((idx: number) => {
+    setNotesVisible((prev) => {
+      const next = [...prev];
+      next[idx] = !next[idx];
+      return next;
+    });
+  }, []);
+
+  const handleBarFeedback = useCallback((exerciseId: string, f: 'easy' | 'hard') => {
+    setInSessionFeedback((prev) => ({ ...prev, [exerciseId]: f }));
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+  }, []);
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -1745,6 +2066,20 @@ export default function SessionScreen() {
     0
   );
   const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
+
+  const phaseLabelMap: Record<string, string> = {
+    prep: 'Warm-Up',
+    mechanical: 'Activation',
+    neuro: 'Power',
+    main: 'KPI Lift',
+    accessory: 'Pump',
+    prehab: 'Recovery',
+    finisher: 'Finisher',
+    cooldown: 'Cool Down',
+    conditioning: 'Conditioning',
+  };
+  const activePhaseCategory = exercises[activeIndex]?.category ?? 'prep';
+  const currentPhaseLabel = phaseLabelMap[activePhaseCategory] ?? activePhaseCategory;
   const progress = isPrehabOrFlex ? 1 : totalSets > 0 ? completedSetsCount / totalSets : 0;
 
   const handleComplete = () => {
@@ -1919,7 +2254,7 @@ export default function SessionScreen() {
         <Text style={styles.progressText}>
           {isPrehabOrFlex
             ? 'Complete when ready'
-            : `${completedSetsCount}/${totalSets} sets completed`}
+            : `${currentPhaseLabel} · ${completedSetsCount}/${totalSets}`}
         </Text>
       </View>
 
@@ -1963,7 +2298,7 @@ export default function SessionScreen() {
         style={styles.exerciseList}
         contentContainerStyle={[
           styles.exerciseListContent,
-          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 110 },
+          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 16 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -2004,37 +2339,51 @@ export default function SessionScreen() {
                   ? getPainRegionLabel(painRegion)
                   : undefined
               }
+              restTimerTrigger={activeIndex === index ? barTimerTrigger : 0}
+              noteVisible={notesVisible[index] ?? false}
+              onToggleNote={() => toggleNoteVisible(index)}
             />
           );
         })}
       </ScrollView>
 
-      <View
-        style={[
-          styles.bottomAction,
-          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) },
-        ]}
-      >
-        <Pressable
-          onPress={handleComplete}
-          disabled={!allDone}
-          style={({ pressed }) => [
-            styles.completeButton,
-            !allDone && styles.completeButtonDisabled,
-            pressed && allDone && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-          ]}
-          testID="complete-session"
-        >
-          <Ionicons
-            name="checkmark-circle"
-            size={22}
-            color={allDone ? C.textInverse : C.textTertiary}
+      {(() => {
+        const activeEx = exercises[activeIndex];
+        const activeData = exerciseData[activeIndex];
+        const activeSetIdx =
+          activeData?.activeSetIndex ?? activeData?.sets.findIndex((s) => !s.completed) ?? 0;
+        const clampedSetIdx = Math.min(
+          Math.max(activeSetIdx, 0),
+          (activeData?.sets.length ?? 1) - 1
+        );
+        const weightGuidesForBar = activeEx
+          ? getWeightGuideKg(activeEx.category, activeEx.sets, activeEx.suggestedLoad)
+          : [];
+        const isBandEx = activeEx ? isLoadBandOrBodyweight(activeEx.suggestedLoad) : false;
+        const isTimeEx = activeEx ? isRepsTimeBased(activeEx.reps, sessionType) : false;
+        return (
+          <SessionActiveBar
+            exercise={activeEx ?? null}
+            exerciseIndex={activeIndex}
+            setData={activeData ?? null}
+            activeSetIndex={clampedSetIdx}
+            weightGuidesKg={weightGuidesForBar}
+            isBandExercise={isBandEx}
+            isTimeExercise={isTimeEx}
+            previousBest={previousBest[activeEx?.id ?? '']}
+            previousSessionWeight={previousSessionWeights[activeEx?.id ?? '']}
+            weightUnit={weightUnit}
+            isLastExercise={activeIndex === exercises.length - 1}
+            sessionAllDone={allDone}
+            isPrehabOrFlex={isPrehabOrFlex}
+            onSetChange={handleSetChange}
+            onSetCompleted={handleBarSetCompleted}
+            onFeedback={handleBarFeedback}
+            onCompleteSession={handleComplete}
+            bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
           />
-          <Text style={[styles.completeText, !allDone && styles.completeTextDisabled]}>
-            {isTestWeek ? 'Save Strength Results' : 'Complete Session'}
-          </Text>
-        </Pressable>
-      </View>
+        );
+      })()}
 
       {/* Abandon Modal */}
       <Modal
@@ -3181,5 +3530,197 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 10,
     },
     allSetsDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryDark },
+    // ── Active-in-card indicator (replaces ActiveSetBlock inside card) ─────────
+    activeSetInCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: C.primarySurface,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      marginBottom: 8,
+    },
+    activeSetInCardText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.primary,
+    },
+    // ── Icon-only action buttons ────────────────────────────────────────────────
+    iconActionBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.surfaceTertiary,
+    },
+    iconActionBtnActive: {
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    expandedActionsRow: {
+      flexDirection: 'row',
+      paddingTop: 6,
+      paddingHorizontal: 4,
+      gap: 8,
+    },
+    // ── Session Active Bar ───────────────────────────────────────────────────────
+    barContainer: {
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+      backgroundColor: C.surface,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      gap: 10,
+    },
+    barHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    barExerciseName: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
+      flex: 1,
+      marginRight: 8,
+    },
+    barSetCountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    barSetLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.primary,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.5,
+    },
+    barSetCount: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+    },
+    barInputArea: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 8,
+    },
+    barInputBlock: {
+      alignItems: 'center',
+      gap: 3,
+    },
+    barInputHint: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+    },
+    barInput: {
+      width: 88,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 2,
+      borderColor: C.primary,
+      textAlign: 'center',
+      fontSize: 26,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+    },
+    barInputUnit: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+    },
+    barTimesSign: {
+      fontSize: 20,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginBottom: 14,
+    },
+    barCompleteBtn: {
+      width: 56,
+      height: 56,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    barCompleteBtnDisabled: {
+      backgroundColor: C.surfaceTertiary,
+    },
+    barMarkDoneBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+    },
+    barMarkDoneText: {
+      fontSize: 16,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textInverse,
+    },
+    barCompleteSessionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingVertical: 16,
+      borderRadius: 14,
+      backgroundColor: C.primary,
+    },
+    barCompleteSessionText: {
+      fontSize: 17,
+      fontFamily: 'Inter_700Bold',
+      color: C.textInverse,
+    },
+    barFeedbackPrompt: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    barFeedbackRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    barFeedbackBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: C.primarySurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    barFeedbackBtnNeutral: {
+      backgroundColor: C.surfaceTertiary,
+      borderColor: C.border,
+    },
+    barFeedbackBtnHard: {
+      backgroundColor: C.surfaceTertiary,
+      borderColor: C.categoryFinisher,
+    },
+    barFeedbackBtnText: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryDark,
+    },
+    barZeroHint: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      fontStyle: 'italic' as const,
+    },
   });
 }
