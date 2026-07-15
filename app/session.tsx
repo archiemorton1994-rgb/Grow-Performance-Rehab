@@ -1810,6 +1810,8 @@ export default function SessionScreen() {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const cardYPositions = useRef<Record<number, number>>({});
+  // Set to true after a restore so the first onCardLayout for the active card triggers a scroll
+  const pendingScrollToActiveRef = useRef(false);
 
   // Helper: attempt to restore stored session state onto loaded exercises.
   // Returns true if restored, false if not (caller decides fallback).
@@ -1858,6 +1860,8 @@ export default function SessionScreen() {
     );
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     if (stored.painBannerDismissed) setPainBannerDismissed(true);
+    // Signal that we need to scroll to the restored active card once it reports its layout
+    pendingScrollToActiveRef.current = true;
     return true;
   };
 
@@ -2326,6 +2330,19 @@ export default function SessionScreen() {
               sessionType={sessionType}
               onCardLayout={(y) => {
                 cardYPositions.current[index] = y;
+                // On session restore, scroll to the active card once it reports its position.
+                // Use >= 0 (not > 0) so card 0 also clears the flag and avoids stale state.
+                if (pendingScrollToActiveRef.current && index === activeIndexRef.current && y >= 0) {
+                  pendingScrollToActiveRef.current = false;
+                  if (y > 0) {
+                    setTimeout(() => {
+                      const yPos = cardYPositions.current[activeIndexRef.current];
+                      if (yPos !== undefined && scrollViewRef.current) {
+                        scrollViewRef.current.scrollTo({ y: Math.max(0, yPos - 80), animated: true });
+                      }
+                    }, 150);
+                  }
+                }
               }}
               previousBest={previousBest[exercise.id]}
               previousSessionWeight={previousSessionWeights[exercise.id]}
