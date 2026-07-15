@@ -451,21 +451,21 @@ export default function HomeScreen() {
                 [
                   {
                     type: 'squat' as const,
-                    label: 'Lower Body',
+                    label: SESSION_META.squat.label,
                     sub: 'Quads · Glutes · Hamstrings',
                     color: C.primary,
                     bg: C.primaryMuted,
                   },
                   {
                     type: 'bench' as const,
-                    label: 'Upper Body',
+                    label: SESSION_META.bench.label,
                     sub: 'Chest · Shoulders · Triceps',
                     color: C.badgeVolumeText,
                     bg: C.badgeVolume,
                   },
                   {
                     type: 'deadlift' as const,
-                    label: 'Full Body',
+                    label: SESSION_META.deadlift.label,
                     sub: 'Back · Hips · Legs',
                     color: C.categoryNeuroText,
                     bg: C.categoryNeuro,
