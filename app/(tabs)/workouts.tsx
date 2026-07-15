@@ -1431,20 +1431,10 @@ function SessionHistoryList({
               </View>
             </Pressable>
             {isExpanded &&
-              (heaviestSets.length > 0 || session.exerciseLogs.some((el) => el.note)) && (
+              (heaviestSets.length > 0 ||
+                session.exerciseLogs.some((el) => el.note) ||
+                session.exerciseLogs.some((el) => el.feedbackRating)) && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
-                  {heaviestSets.length === 0 && (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontFamily: 'Inter_400Regular',
-                        color: C.textTertiary,
-                        paddingVertical: 4,
-                      }}
-                    >
-                      No weight data recorded
-                    </Text>
-                  )}
                   {heaviestSets.map((ex, idx) => {
                     const logEntry = session.exerciseLogs.find((el) => el.exerciseName === ex.name);
                     return (
@@ -1452,19 +1442,73 @@ function SessionHistoryList({
                         <View
                           style={{
                             flexDirection: 'row',
+                            alignItems: 'center',
                             justifyContent: 'space-between',
                             paddingVertical: 4,
+                            gap: 6,
                           }}
                         >
-                          <Text
+                          <View
                             style={{
-                              fontSize: 13,
-                              fontFamily: 'Inter_400Regular',
-                              color: C.textSecondary,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              flex: 1,
+                              flexShrink: 1,
                             }}
                           >
-                            {ex.name}
-                          </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontFamily: 'Inter_400Regular',
+                                color: C.textSecondary,
+                                flexShrink: 1,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {ex.name}
+                            </Text>
+                            {logEntry?.feedbackRating === 'easy' && (
+                              <View
+                                style={{
+                                  backgroundColor: C.primaryMuted,
+                                  borderRadius: 5,
+                                  paddingHorizontal: 5,
+                                  paddingVertical: 2,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontFamily: 'Inter_600SemiBold',
+                                    color: C.success,
+                                  }}
+                                >
+                                  Easy
+                                </Text>
+                              </View>
+                            )}
+                            {logEntry?.feedbackRating === 'hard' && (
+                              <View
+                                style={{
+                                  backgroundColor: C.warningLight,
+                                  borderRadius: 5,
+                                  paddingHorizontal: 5,
+                                  paddingVertical: 2,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontFamily: 'Inter_600SemiBold',
+                                    color: C.warning,
+                                  }}
+                                >
+                                  Hard
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                           <Text
                             style={{
                               fontSize: 13,
@@ -1516,24 +1560,145 @@ function SessionHistoryList({
                         }}
                       >
                         <Ionicons name="create-outline" size={12} color={C.textTertiary} />
-                        <Text
+                        <View
                           style={{
-                            fontSize: 12,
-                            fontFamily: 'Inter_400Regular',
-                            color: C.textTertiary,
                             flex: 1,
-                            fontStyle: 'italic',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            flexWrap: 'wrap',
                           }}
                         >
-                          {el.exerciseName}: {el.note}
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontFamily: 'Inter_400Regular',
+                              color: C.textTertiary,
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            {el.exerciseName}: {el.note}
+                          </Text>
+                          {el.feedbackRating === 'easy' && (
+                            <View
+                              style={{
+                                backgroundColor: C.primaryMuted,
+                                borderRadius: 5,
+                                paddingHorizontal: 5,
+                                paddingVertical: 2,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 10,
+                                  fontFamily: 'Inter_600SemiBold',
+                                  color: C.success,
+                                }}
+                              >
+                                Easy
+                              </Text>
+                            </View>
+                          )}
+                          {el.feedbackRating === 'hard' && (
+                            <View
+                              style={{
+                                backgroundColor: C.warningLight,
+                                borderRadius: 5,
+                                paddingHorizontal: 5,
+                                paddingVertical: 2,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 10,
+                                  fontFamily: 'Inter_600SemiBold',
+                                  color: C.warning,
+                                }}
+                              >
+                                Hard
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  {session.exerciseLogs
+                    .filter(
+                      (el) =>
+                        el.feedbackRating &&
+                        !heaviestSets.find((h) => h.name === el.exerciseName) &&
+                        !el.note
+                    )
+                    .map((el, idx) => (
+                      <View
+                        key={'feedback-only-' + idx}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: 'Inter_400Regular',
+                            color: C.textSecondary,
+                            flex: 1,
+                            flexShrink: 1,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {el.exerciseName}
                         </Text>
+                        {el.feedbackRating === 'easy' && (
+                          <View
+                            style={{
+                              backgroundColor: C.primaryMuted,
+                              borderRadius: 5,
+                              paddingHorizontal: 5,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontFamily: 'Inter_600SemiBold',
+                                color: C.success,
+                              }}
+                            >
+                              Easy
+                            </Text>
+                          </View>
+                        )}
+                        {el.feedbackRating === 'hard' && (
+                          <View
+                            style={{
+                              backgroundColor: C.warningLight,
+                              borderRadius: 5,
+                              paddingHorizontal: 5,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontFamily: 'Inter_600SemiBold',
+                                color: C.warning,
+                              }}
+                            >
+                              Hard
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     ))}
                 </View>
               )}
             {isExpanded &&
               heaviestSets.length === 0 &&
-              !session.exerciseLogs.some((el) => el.note) && (
+              !session.exerciseLogs.some((el) => el.note) &&
+              !session.exerciseLogs.some((el) => el.feedbackRating) && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                   <Text
                     style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
