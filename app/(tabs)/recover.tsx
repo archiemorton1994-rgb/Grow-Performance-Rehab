@@ -103,14 +103,14 @@ function getSessionInfo(
 ): Record<Exclude<ModalType, null>, FlexSessionInfo> {
   return {
     recovery: {
-      title: 'Blood Flow',
-      icon: 'shield-checkmark',
+      title: 'Recovery',
+      icon: 'pulse',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       duration: 'Full-body joint circuit · 20-30 min',
       description:
         'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
-      cta: 'Start Blood Flow',
+      cta: 'Start Recovery',
       sessionType: 'prehab',
     },
     mobility: {
@@ -372,9 +372,9 @@ export default function RecoverScreen() {
   }[] = [
     {
       key: 'recovery',
-      title: 'Blood Flow',
+      title: 'Recovery',
       subtitle: 'Full-body joint circuit · 20-30 min',
-      icon: 'shield-checkmark',
+      icon: 'pulse',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: prehabRecency,
@@ -414,8 +414,8 @@ export default function RecoverScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingBottom: 8 }]}>
-        <Text style={styles.title}>Rest & Restore</Text>
-        <Text style={styles.subtitle}>Recovery and mobility</Text>
+        <Text style={styles.title}>Restore</Text>
+        <Text style={styles.subtitle}>Choose a session to start</Text>
       </View>
 
       {/* Equipment chip */}
@@ -501,7 +501,7 @@ export default function RecoverScreen() {
         </View>
       </View>
 
-      {/* Blood Flow — body diagram region picker */}
+      {/* Recovery — body diagram region picker */}
       <Modal
         visible={activeModal === 'recovery'}
         transparent
@@ -514,10 +514,10 @@ export default function RecoverScreen() {
 
             <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
               <View style={[styles.sheetIconWrap, { backgroundColor: C.categoryCooldown }]}>
-                <Ionicons name="shield-checkmark" size={26} color={C.categoryCooldownText} />
+                <Ionicons name="pulse" size={26} color={C.categoryCooldownText} />
               </View>
               <View style={styles.sheetHeaderText}>
-                <Text style={styles.sheetTitle}>Blood Flow</Text>
+                <Text style={styles.sheetTitle}>Recovery</Text>
                 <Text style={styles.sheetDuration}>Full-body joint circuit · 20-30 min</Text>
               </View>
               <Pressable
@@ -532,8 +532,8 @@ export default function RecoverScreen() {
             <RegionBodyPicker
               pending={recoveryPending}
               onPendingChange={setRecoveryPending}
-              onConfirm={(region) => handlePrehabRegion(region, 'Blood Flow')}
-              onFullBody={() => handlePrehabRegion('fullbody', 'Blood Flow')}
+              onConfirm={(region) => handlePrehabRegion(region, 'Recovery')}
+              onFullBody={() => handlePrehabRegion('fullbody', 'Recovery')}
               bottomInset={insets.bottom}
               testPrefix="recovery"
             />

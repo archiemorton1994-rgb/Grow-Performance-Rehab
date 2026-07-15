@@ -141,7 +141,7 @@ export interface ActiveSession {
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
   isTestWeek: boolean;
-  /** Optional launch-context label (e.g. "Blood Flow" vs "Targeted Prehab") shown in history. */
+  /** Optional launch-context label (e.g. "Recovery" vs "Targeted Prehab") shown in history. */
   displayLabel?: string;
   exerciseData: InProgressSetData[];
   exerciseNotes: string[];
@@ -185,7 +185,7 @@ export interface CompletedSession {
   exerciseLogs: ExerciseLog[];
   isTestWeek?: boolean;
   durationSeconds?: number;
-  /** Optional launch-context label (e.g. "Blood Flow" vs "Targeted Prehab") shown in history. */
+  /** Optional launch-context label (e.g. "Recovery" vs "Targeted Prehab") shown in history. */
   displayLabel?: string;
 }
 

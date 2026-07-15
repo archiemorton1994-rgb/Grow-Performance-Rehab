@@ -31,7 +31,7 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - **Flexibility** (`flexibility`) — Standalone long-hold stretching session, 10 exercises, bypasses readiness screen
 - **Custom** (`custom`) — User picks their own exercises, no auto-generation
 - Shared metadata for all session types (label, subtitle, icon, color tokens) lives in `lib/session-meta.ts` — single source of truth used by Home, Train, Stats, and Recover screens.
-- Conditioning is launched from the Train tab (weekly sessions section); Blood Flow, Mobility, and Targeted Prehab are launched from the Recover tab.
+- Conditioning is launched from the Train tab (additional sessions section); Recovery, Mobility, and Targeted Prehab are launched from the Recover tab.
 
 ### 8-Phase Session Structure
 1. **Cardio Warm-Up** (prep) — 1-2 min, mandatory on ALL session lengths including 30-min (safety)
@@ -110,7 +110,7 @@ app/
     index.tsx           - Home tab — suggested session card + quick actions
     profile.tsx         - Profile tab — stats, settings, subscription, equipment
     train.tsx           - Train tab — strength session picker (Lower/Upper/Full/Conditioning + Custom) + resume banner
-    recover.tsx         - Recover tab — Blood Flow / Mobility / Targeted Prehab entry sheets
+    recover.tsx         - Recover tab — Recovery / Mobility / Targeted Prehab entry sheets
     workouts.tsx        - Stats tab — history, charts, session detail
 lib/
   store.ts              - Zustand store (state, all actions)

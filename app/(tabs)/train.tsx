@@ -516,8 +516,8 @@ export default function TrainScreen() {
           })}
         </Animated.View>
 
-        {/* Weekly Sessions */}
-        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Weekly Sessions</Text>
+        {/* Additional Sessions */}
+        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Additional Sessions</Text>
         <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
           {WEEKLY_SESSION_TYPES_UI.map((type) => {
             const meta = SESSION_META[type];

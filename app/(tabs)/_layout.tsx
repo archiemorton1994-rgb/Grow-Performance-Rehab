@@ -82,9 +82,9 @@ const TOUR_TABS: TourTabDef[] = [
     label: 'Recover',
     icon: 'medkit',
     headline: 'Recovery and mobility',
-    body: 'Your active recovery toolkit. Blood flow circuits, mobility flows, and targeted prehab - all designed to keep you moving on rest days.',
+    body: 'Your active recovery toolkit. Recovery circuits, mobility flows, and targeted prehab - all designed to keep you moving on rest days.',
     tips: [
-      'Blood Flow is a gentle full-body joint circuit',
+      'Recovery is a gentle full-body joint circuit',
       'Targeted prehab focuses on a specific joint or region',
       'Flexibility sessions use long holds for deep mobility work',
     ],
