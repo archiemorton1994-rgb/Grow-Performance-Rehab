@@ -920,9 +920,12 @@ function generateWeeklyWorkout(
   const fullBodySets =
     sessionType === 'full_body' && (timeAvailable !== '60' || energy === 'low') ? 2 : 0;
 
-  for (const t of selectedMain) {
+  for (let i = 0; i < selectedMain.length; i++) {
+    const t = selectedMain[i];
     const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);
-    exercises.push(fullBodySets > 0 ? { ...ex, sets: fullBodySets } : ex);
+    // Only the first movement is the session's KPI lift; the rest are accessories
+    const withCategory = i === 0 ? ex : { ...ex, category: 'accessory' as const };
+    exercises.push(fullBodySets > 0 ? { ...withCategory, sets: fullBodySets } : withCategory);
   }
 
   // ── 3. Prehab (45 min only — 60 min uses finisher instead) ────────────────
