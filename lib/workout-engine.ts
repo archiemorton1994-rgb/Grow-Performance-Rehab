@@ -856,15 +856,14 @@ function generateWeeklyWorkout(
   const cardioWarmup = seededShuffleDiverse(CARDIO_WARMUPS, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
 
-  // ── 2. Prep Stretch (1 for 30 min, 2 for 45/60 min) ───────────────────────
-  const prepSource: MainSessionType = sessionType === 'upper_body' ? 'bench' : 'squat';
-  const prepPool = seededShuffleDiverse(getPrep(prepSource, equipmentTier), sessionSeed);
-  const prepCount = timeAvailable === '30' ? 1 : 2;
-  for (const p of prepPool.slice(0, prepCount)) {
-    exercises.push(templateToExercise(p));
-  }
-
-  // ── 3. Main exercises (movement-pattern-based) ────────────────────────────
+  // ── 2. Main exercises — pattern-first, never drop required movements ───────
+  // Pool is ordered by pattern priority so first N exercises always cover all
+  // required movement patterns. Optional "bonus" exercises (beyond minRequired)
+  // are seeded-shuffled for variety across sessions.
+  //
+  //   30 min → 3-4 main     45 min → 4-5 main     60 min → 5-6 main
+  //   (full_body adds 1 extra to cover the additional pattern)
+  //
   const getterFn =
     sessionType === 'lower_body'
       ? getWeeklyLowerBodyExercises
@@ -874,7 +873,8 @@ function generateWeeklyWorkout(
 
   const allMainExercises = getterFn(equipmentTier);
 
-  // Time-based count: 30 → 3-4, 45 → 4-5, 60 → 5-6
+  // minRequired: minimum number of exercises that guarantees full pattern coverage
+  const minRequired = sessionType === 'full_body' ? 4 : 3;
   const baseCount =
     sessionType === 'full_body'
       ? timeAvailable === '30'
@@ -887,14 +887,21 @@ function generateWeeklyWorkout(
         : timeAvailable === '45'
           ? 4
           : 5;
-  const mainCount = energy === 'low' ? Math.max(baseCount - 1, 2) : baseCount;
+  // Low energy reduces by 1 set, never below minRequired (pattern coverage must be preserved)
+  const mainCount = energy === 'low' ? Math.max(baseCount - 1, minRequired) : baseCount;
 
-  const shuffledMain = seededShuffleDiverse(allMainExercises, sessionSeed);
-  for (const t of shuffledMain.slice(0, mainCount)) {
+  // Always include the required-pattern exercises first; shuffle only the bonus extras
+  const requiredExercises = allMainExercises.slice(0, minRequired);
+  const optionalExercises = allMainExercises.slice(minRequired);
+  const optionalCount = Math.max(0, mainCount - minRequired);
+  const shuffledOptional = seededShuffleDiverse(optionalExercises, sessionSeed);
+  const selectedMain = [...requiredExercises, ...shuffledOptional.slice(0, optionalCount)];
+
+  for (const t of selectedMain) {
     exercises.push(applyComfortOrBadge(t, hasAches, painRegion, equipmentTier));
   }
 
-  // ── 4. Prehab (45 and 60 min only) ────────────────────────────────────────
+  // ── 3. Prehab (45 and 60 min only) ────────────────────────────────────────
   if (timeAvailable !== '30') {
     const prehabTemplate = painRegion
       ? getRegionPrehabExercise(painRegion)
@@ -904,9 +911,20 @@ function generateWeeklyWorkout(
     exercises.push(phEx);
   }
 
-  // ── 5. Cooldown (60 min only) ──────────────────────────────────────────────
+  // ── 4. Finisher (60 min only) ─────────────────────────────────────────────
   if (timeAvailable === '60') {
-    const cooldownPool = getCooldown();
+    const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
+    const finisherSource: MainSessionType =
+      sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
+    const finisherPool = getFinisher(finisherSource, equipmentTier, finisherKey);
+    if (finisherPool.length > 0) {
+      exercises.push(templateToExercise(finisherPool[0]));
+    }
+  }
+
+  // ── 5. Cooldown (ALL sessions — always closes with recovery) ──────────────
+  const cooldownPool = getCooldown();
+  if (cooldownPool.length > 0) {
     exercises.push(templateToExercise(cooldownPool[0]));
   }
 
