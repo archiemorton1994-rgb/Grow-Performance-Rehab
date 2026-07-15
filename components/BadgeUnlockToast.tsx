@@ -76,7 +76,7 @@ export default function BadgeUnlockToast({ name, icon, color, onDismiss }: Badge
           <Ionicons name={icon} size={22} color={color} />
         </View>
         <View style={styles.textWrap}>
-          <Text style={[styles.headline, { color: C.text }]}>Badge Unlocked!</Text>
+          <Text style={[styles.headline, { color: C.text }]}>Achievement Unlocked!</Text>
           <Text style={[styles.badgeName, { color: C.textSecondary }]} numberOfLines={1}>
             {name}
           </Text>
@@ -157,7 +157,7 @@ export function BadgeSummaryToast({ count, onDismiss }: BadgeSummaryToastProps) 
           <Ionicons name="trophy" size={22} color={C.primary} />
         </View>
         <View style={styles.textWrap}>
-          <Text style={[styles.headline, { color: C.text }]}>{count} Badges Unlocked!</Text>
+          <Text style={[styles.headline, { color: C.text }]}>{count} Achievements Unlocked!</Text>
           <Text style={[styles.badgeName, { color: C.textSecondary }]}>
             Tap to view your achievements
           </Text>

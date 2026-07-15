@@ -135,8 +135,9 @@ const WELCOME_FEATURES = [
   'Personalised loads every session',
   'Pain & energy adaptive',
   'Tracks your strength progress',
-  '7 session types - strength, conditioning & more',
-  'Built-in prehab & mobility',
+  'Strength, recovery, conditioning & custom sessions',
+  'Recovery, mobility & flexibility sessions',
+  'Achievements & detailed progress stats',
   'No guesswork - always know what to do',
 ];
 

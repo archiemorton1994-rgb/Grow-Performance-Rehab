@@ -39,7 +39,7 @@ const FEATURES = [
 ];
 
 const INCLUDED_ITEMS = [
-  'Unlimited sessions across all 6 session types',
+  'Unlimited access — strength, recovery, conditioning & more',
   '5 equipment tiers - bodyweight to full gym',
   'Per-set weight logging with auto-progression',
   'Per-exercise load tracking across sessions',
