@@ -30,7 +30,8 @@ A React Native mobile fitness app that removes decision fatigue by telling users
 - **Prehab** (`prehab`) — Standalone joint-health circuit, bypasses readiness screen, 9 exercises (core stability, hip/shoulder health, ankle work)
 - **Flexibility** (`flexibility`) — Standalone long-hold stretching session, 10 exercises, bypasses readiness screen
 - **Custom** (`custom`) — User picks their own exercises, no auto-generation
-- Shared metadata for all session types (label, subtitle, icon, color tokens) lives in `lib/session-meta.ts` — single source of truth used by Home, Train, Stats, and Flex screens.
+- Shared metadata for all session types (label, subtitle, icon, color tokens) lives in `lib/session-meta.ts` — single source of truth used by Home, Train, Stats, and Recover screens.
+- Conditioning is launched from the Train tab (weekly sessions section); Blood Flow, Mobility, and Targeted Prehab are launched from the Recover tab.
 
 ### 8-Phase Session Structure
 1. **Cardio Warm-Up** (prep) — 1-2 min, mandatory on ALL session lengths including 30-min (safety)
@@ -105,11 +106,11 @@ app/
   session.tsx           - Session screen (8-phase workout display, set logging)
   readiness.tsx         - Pre-workout readiness check
   (tabs)/
-    _layout.tsx         - 5-tab layout: Home, Profile, Train, Flex, Stats (NativeTabs with liquid glass)
+    _layout.tsx         - 5-tab layout: Home, Profile, Train, Recover, Stats (NativeTabs with liquid glass)
     index.tsx           - Home tab — suggested session card + quick actions
     profile.tsx         - Profile tab — stats, settings, subscription, equipment
-    train.tsx           - Train tab — strength session picker (Lower/Upper/Full + Custom) + resume banner
-    flex.tsx            - Flex tab — Recovery / Mobility / Targeted Prehab / Conditioning entry sheets
+    train.tsx           - Train tab — strength session picker (Lower/Upper/Full/Conditioning + Custom) + resume banner
+    recover.tsx         - Recover tab — Blood Flow / Mobility / Targeted Prehab entry sheets
     workouts.tsx        - Stats tab — history, charts, session detail
 lib/
   store.ts              - Zustand store (state, all actions)

@@ -78,14 +78,14 @@ const TOUR_TABS: TourTabDef[] = [
     ],
   },
   {
-    key: 'flex',
-    label: 'Flex',
-    icon: 'leaf',
-    headline: 'Recovery and conditioning',
-    body: 'Your active recovery toolkit. Mobility flows, prehab circuits, flexibility sessions and conditioning workouts — all designed to keep you moving on rest days.',
+    key: 'recover',
+    label: 'Recover',
+    icon: 'medkit',
+    headline: 'Recovery and mobility',
+    body: 'Your active recovery toolkit. Blood flow circuits, mobility flows, and targeted prehab — all designed to keep you moving on rest days.',
     tips: [
+      'Blood Flow is a gentle full-body joint circuit',
       'Targeted prehab focuses on a specific joint or region',
-      'Conditioning ranges from light aerobic to full HIIT',
       'Flexibility sessions use long holds for deep mobility work',
     ],
   },
@@ -647,14 +647,14 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="flex"
-          listeners={{ tabPress: () => handleTabPress('flex') }}
+          name="recover"
+          listeners={{ tabPress: () => handleTabPress('recover') }}
           options={{
-            title: 'Flex',
+            title: 'Recover',
             tabBarIcon: ({ color, size, focused }) => (
-              <GlowIcon active={tourActive && !tabsSeen.has('flex')} primaryColor={C.primary}>
+              <GlowIcon active={tourActive && !tabsSeen.has('recover')} primaryColor={C.primary}>
                 <Ionicons
-                  name={focused ? 'leaf' : 'leaf-outline'}
+                  name={focused ? 'medkit' : 'medkit-outline'}
                   size={size || 24}
                   color={color}
                 />

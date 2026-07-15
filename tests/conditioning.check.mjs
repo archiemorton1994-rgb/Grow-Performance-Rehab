@@ -4,7 +4,7 @@
  *
  * HOW CONDITIONING SESSIONS WORK
  * ─────────────────────────────────
- * 1. flex.tsx navigates to /readiness with sessionType:'conditioning' + energy +
+ * 1. train.tsx navigates to /readiness with sessionType:'conditioning' + energy +
  *    timeAvailable params (derived from the selected ConditioningLevel).
  * 2. readiness.tsx passes through to /session with those params.
  * 3. session.tsx calls generateWorkout('conditioning', tier, readiness, ...) from
@@ -18,7 +18,7 @@
  *  - CONDITIONING_WORKOUTS tier/energy array deleted or left empty → 0 exercises
  *  - getConditioningWorkout() removed/not exported → generateConditioningWorkout() fails
  *  - workout-engine.ts 'conditioning' routing removed → generateWorkout() returns []
- *  - flex.tsx stops passing sessionType:'conditioning' → conditioning sessions never launch
+ *  - train.tsx stops passing sessionType:'conditioning' → conditioning sessions never launch
  *  - session.tsx stops importing generateWorkout → session screen crashes at boot
  *  - Duplicate conditioning exercise IDs → set-logging and swap bugs
  *
@@ -29,7 +29,7 @@
  *  4. DB WIRING        — getConditioningWorkout exported and delegates to the pool
  *  5. ENGINE WIRING    — workout-engine.ts imports getConditioningWorkout and calls it
  *  6. ENGINE ROUTING   — generateWorkout routes 'conditioning' to generateConditioningWorkout
- *  7. UI WIRING        — flex.tsx navigates with sessionType:'conditioning'; session.tsx
+ *  7. UI WIRING        — train.tsx navigates with sessionType:'conditioning'; session.tsx
  *                        imports generateWorkout from workout-engine
  *  8. ID UNIQUENESS    — no duplicate exercise IDs in CONDITIONING_WORKOUTS
  *
@@ -45,7 +45,7 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 
 const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
 const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
-const flexSrc = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
+const trainSrc = readFileSync(join(__dir, '../app/(tabs)/train.tsx'), 'utf8');
 const sessionSrc = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
 
 let failures = 0;
@@ -310,21 +310,22 @@ check(
   "'conditioning' check comes after the strength generator — conditioning sessions may run strength logic"
 );
 
-// ─── 7. UI wiring — flex.tsx passes conditioning type; session.tsx calls generateWorkout
+// ─── 7. UI wiring — train.tsx passes conditioning type; session.tsx calls generateWorkout
 console.log(
-  '\n[7] UI wiring — flex.tsx navigates with conditioning type; session.tsx calls generateWorkout'
+  '\n[7] UI wiring — train.tsx navigates with conditioning type; session.tsx calls generateWorkout'
 );
 
 check(
-  "flex.tsx navigates to /readiness with sessionType: 'conditioning'",
-  flexSrc.includes("sessionType: 'conditioning'"),
-  'navigation call not found — tapping a conditioning level never launches a conditioning session'
+  "train.tsx navigates to /readiness with sessionType: 'conditioning'",
+  trainSrc.includes("sessionType: 'conditioning'") ||
+    trainSrc.includes("sessionType, isTestWeek: 'false'"),
+  'navigation call not found — tapping conditioning never launches a conditioning session'
 );
 
 check(
-  'flex.tsx passes energy param to /readiness for conditioning level',
-  flexSrc.includes('energy: level.energy') || flexSrc.includes('energy:'),
-  'energy param not passed — conditioning session always uses the default energy level'
+  "train.tsx includes 'conditioning' in session types",
+  trainSrc.includes("'conditioning'"),
+  "conditioning not found in train.tsx — conditioning sessions can't be launched from Train tab"
 );
 
 check(

@@ -26,7 +26,7 @@ import { fileURLToPath } from 'url';
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 const bdSrc = readFileSync(join(__dir, '../components/BodyDiagram.tsx'), 'utf8');
-const flexSrc = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
+const flexSrc = readFileSync(join(__dir, '../app/(tabs)/recover.tsx'), 'utf8');
 const readySrc = readFileSync(join(__dir, '../app/readiness.tsx'), 'utf8');
 
 let failures = 0;

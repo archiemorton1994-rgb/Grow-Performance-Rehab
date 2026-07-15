@@ -37,7 +37,7 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const flexSrc = readFileSync(join(__dir, '../app/(tabs)/flex.tsx'), 'utf8');
+const flexSrc = readFileSync(join(__dir, '../app/(tabs)/recover.tsx'), 'utf8');
 const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
 const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 

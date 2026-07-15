@@ -35,7 +35,12 @@ const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 const KPI_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
 
-const WEEKLY_SESSION_TYPES_UI: SessionType[] = ['lower_body', 'upper_body', 'full_body'];
+const WEEKLY_SESSION_TYPES_UI: SessionType[] = [
+  'lower_body',
+  'upper_body',
+  'full_body',
+  'conditioning',
+];
 
 const SESSION_IMAGES: Record<SessionType, any> = {
   squat: require('@/assets/images/sessions/lower-body.png'),
