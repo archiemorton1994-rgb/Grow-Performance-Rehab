@@ -1860,6 +1860,7 @@ export default function SessionScreen() {
     );
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     if (stored.painBannerDismissed) setPainBannerDismissed(true);
+    if (stored.inSessionFeedback) setInSessionFeedback(stored.inSessionFeedback);
     // Signal that we need to scroll to the restored active card once it reports its layout
     pendingScrollToActiveRef.current = true;
     return true;
@@ -2110,12 +2111,16 @@ export default function SessionScreen() {
 
     const exerciseLogs: ExerciseLog[] = isPrehabOrFlex
       ? []
-      : exercises.map((ex, i) => ({
-          exerciseId: ex.id,
-          exerciseName: ex.name,
-          sets: exerciseData[i].sets,
-          note: exerciseNotes[i] || undefined,
-        }));
+      : exercises.map((ex, i) => {
+          const rating = inSessionFeedback[ex.id];
+          return {
+            exerciseId: ex.id,
+            exerciseName: ex.name,
+            sets: exerciseData[i].sets,
+            note: exerciseNotes[i] || undefined,
+            ...(rating != null ? { feedbackRating: rating } : {}),
+          };
+        });
 
     // Extract per-exercise max weight from this session and persist to store.
     // These are used by the workout engine on the NEXT session to apply a
@@ -2220,6 +2225,13 @@ export default function SessionScreen() {
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
       ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
+      ...(Object.keys(inSessionFeedback).length > 0
+        ? {
+            inSessionFeedback: Object.fromEntries(
+              Object.entries(inSessionFeedback).filter(([, v]) => v != null)
+            ) as Record<string, 'easy' | 'hard'>,
+          }
+        : {}),
     });
     setShowAbandonModal(false);
     router.dismissAll();
@@ -2332,13 +2344,20 @@ export default function SessionScreen() {
                 cardYPositions.current[index] = y;
                 // On session restore, scroll to the active card once it reports its position.
                 // Use >= 0 (not > 0) so card 0 also clears the flag and avoids stale state.
-                if (pendingScrollToActiveRef.current && index === activeIndexRef.current && y >= 0) {
+                if (
+                  pendingScrollToActiveRef.current &&
+                  index === activeIndexRef.current &&
+                  y >= 0
+                ) {
                   pendingScrollToActiveRef.current = false;
                   if (y > 0) {
                     setTimeout(() => {
                       const yPos = cardYPositions.current[activeIndexRef.current];
                       if (yPos !== undefined && scrollViewRef.current) {
-                        scrollViewRef.current.scrollTo({ y: Math.max(0, yPos - 80), animated: true });
+                        scrollViewRef.current.scrollTo({
+                          y: Math.max(0, yPos - 80),
+                          animated: true,
+                        });
                       }
                     }, 150);
                   }

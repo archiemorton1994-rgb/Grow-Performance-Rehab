@@ -155,6 +155,8 @@ export interface ActiveSession {
   customExercises?: CustomExercise[];
   /** Whether the user has already dismissed the pain-adaptation banner. Persisted so it stays gone on session resume. */
   painBannerDismissed?: boolean;
+  /** Per-exercise in-session feedback captured so far; restored on resume. */
+  inSessionFeedback?: Record<string, 'easy' | 'hard'>;
 }
 
 export interface ExerciseLog {
@@ -162,6 +164,8 @@ export interface ExerciseLog {
   exerciseName: string;
   sets: SetLog[];
   note?: string;
+  /** How the user felt about this exercise during the session. Drives next-session load adjustments. */
+  feedbackRating?: 'easy' | 'hard';
 }
 
 export interface OneRepMax {
@@ -535,24 +539,27 @@ export const useAppStore = create<AppState>()(
             if (allSkipped) continue;
             const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
             const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
-            newPerformance[log.exerciseId] = thisPerf;
-            // Streak counts consecutive 'normal' sessions for this exercise.
-            // Three-way update ensures the streak is always accurate (no
-            // inflate-then-correct lag):
+            // Apply in-session feedback override: 'easy' upgrades to easy (more load next
+            // session), 'hard' downgrades to failed (hold load next session).
+            // This is equivalent to what setExerciseFeedback does post-session, but applied
+            // inline so the data is available immediately without a separate action call.
+            let perfWithFeedback: 'easy' | 'normal' | 'failed' = thisPerf;
+            if (log.feedbackRating === 'easy') perfWithFeedback = 'easy';
+            else if (log.feedbackRating === 'hard') perfWithFeedback = 'failed';
+            newPerformance[log.exerciseId] = perfWithFeedback;
+            // Streak counts consecutive 'normal' sessions for this exercise (no feedback,
+            // all sets completed). Any explicit feedback or raw failure resets to 0.
             //
-            //   both prev AND this session normal  → increment (run continues)
-            //   this session normal, prev was not  → 1 (new run begins)
-            //   this session failed                → 0 (run broken; reset)
-            //
-            // Explicit feedback (thumbs/tooEasy) resets to 0 immediately, so
-            // the next completeSession starts a fresh run from 1.
+            //   perfWithFeedback 'normal' && prev 'normal' → increment (run continues)
+            //   perfWithFeedback 'normal' && prev was not  → 1  (new run begins)
+            //   perfWithFeedback 'failed' or 'easy'        → 0  (run broken; reset)
             const prevPerf = state.lastSessionPerformance[log.exerciseId];
-            if (thisPerf === 'failed') {
+            if (perfWithFeedback !== 'normal') {
               newStreak[log.exerciseId] = 0;
             } else if (prevPerf === 'normal') {
               newStreak[log.exerciseId] = (state.exerciseNormalStreak[log.exerciseId] ?? 1) + 1;
             } else {
-              // thisPerf === 'normal' but prev was 'easy', 'failed', or first appearance.
+              // perfWithFeedback === 'normal' but prev was 'easy', 'failed', or first appearance.
               newStreak[log.exerciseId] = 1;
             }
           }
