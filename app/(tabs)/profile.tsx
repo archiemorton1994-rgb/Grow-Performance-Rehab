@@ -398,16 +398,14 @@ export default function ProfileScreen() {
               {activeGoals.map((g) => {
                 const opt = GOAL_OPTIONS.find((o) => o.value === g);
                 return (
-                  <View key={g} style={[styles.tag, { backgroundColor: C.primaryMuted }]}>
-                    <Text style={[styles.tagText, { color: C.primaryDark }]}>
-                      {opt?.label ?? g}
-                    </Text>
+                  <View key={g} style={styles.tag}>
+                    <Text style={styles.tagText}>{opt?.label ?? g}</Text>
                   </View>
                 );
               })}
               {userProfile.bodyweightKg > 0 && (
-                <View style={[styles.tag, { backgroundColor: C.primaryMuted }]}>
-                  <Text style={[styles.tagText, { color: C.primary }]}>
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>
                     {kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}
                   </Text>
                 </View>
@@ -1456,11 +1454,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     subActiveCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: C.primarySurface,
+      backgroundColor: C.surface,
       borderRadius: 12,
       padding: 14,
       borderWidth: 1,
-      borderColor: C.primaryMuted,
+      borderColor: C.border,
       marginBottom: 12,
     },
     subActiveInfo: { flex: 1 },
@@ -1583,7 +1581,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 8,
-      backgroundColor: C.primaryMuted,
+      backgroundColor: C.surfaceSecondary,
       borderRadius: 8,
       padding: 10,
       marginBottom: 12,
@@ -1630,21 +1628,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     ratioRow: {
       flexDirection: 'column' as const,
-      backgroundColor: C.primaryMuted,
+      backgroundColor: C.surface,
       borderRadius: 12,
       paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 14,
       marginBottom: 12,
       borderWidth: 1,
-      borderColor: C.primary + '22',
+      borderColor: C.borderLight,
       gap: 10,
     },
     ratioHeader: { gap: 2 },
     ratioHeaderTitle: {
       fontSize: 13,
       fontFamily: 'Inter_700Bold',
-      color: C.primary,
+      color: C.textSecondary,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
     },

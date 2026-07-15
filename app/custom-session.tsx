@@ -1548,15 +1548,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      backgroundColor: C.primaryMuted,
+      backgroundColor: C.surfaceSecondary,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: C.primary,
+      borderColor: C.border,
       paddingHorizontal: 12,
       paddingVertical: 9,
       marginBottom: 12,
     },
-    selectionHintText: { flex: 1, fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+    selectionHintText: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
 
     tray: {
       position: 'absolute',

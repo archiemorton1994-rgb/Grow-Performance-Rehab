@@ -2143,11 +2143,11 @@ function OneRMCalculator({
       {result !== null && (
         <View
           style={{
-            backgroundColor: C.primarySurface,
+            backgroundColor: C.surfaceSecondary,
             borderRadius: 12,
             padding: 14,
-            borderWidth: 1.5,
-            borderColor: C.primaryMuted,
+            borderWidth: 1,
+            borderColor: C.border,
             marginBottom: 12,
           }}
         >
