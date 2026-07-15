@@ -932,7 +932,14 @@ function generateWeeklyWorkout(
   if (timeAvailable === '45') {
     const prehabTemplate = painRegion
       ? getRegionPrehabExercise(painRegion)
-      : getPrehab(sessionType === 'upper_body' ? 'bench' : 'squat', equipmentTier)[0];
+      : getPrehab(
+          sessionType === 'upper_body'
+            ? 'bench'
+            : sessionType === 'full_body'
+              ? 'deadlift'
+              : 'squat',
+          equipmentTier
+        )[0];
     const phEx = templateToExercise(prehabTemplate);
     phEx.sets = 1;
     exercises.push(phEx);
