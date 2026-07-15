@@ -93,13 +93,15 @@ const kavTag = sessionSrc.slice(kavOpenIdx, kavTagEnd + 100); // a bit beyond fo
 const hasBehaviorProp = /behavior=\{/.test(kavTag) || /behavior=\{/.test(sessionSrc);
 check(hasBehaviorProp, 'behavior prop uses a JSX expression (not a hardcoded string)');
 
-const hasPlatformConditional = /Platform\.OS.*['"]ios['"].*padding.*height|['"]padding['"].*['"]height['"]/s.test(sessionSrc);
+const hasPlatformConditional =
+  /Platform\.OS.*['"]ios['"].*padding.*height|['"]padding['"].*['"]height['"]/s.test(sessionSrc);
 check(
   hasPlatformConditional,
   'behavior uses a Platform.OS conditional (padding for iOS, height for Android)'
 );
 
-const keyboardBehaviorDecl = /const keyboardBehavior\s*=\s*Platform\.OS\s*===\s*['"]ios['"]\s*\?\s*['"]padding['"]\s*:\s*['"]height['"]/;
+const keyboardBehaviorDecl =
+  /const keyboardBehavior\s*=\s*Platform\.OS\s*===\s*['"]ios['"]\s*\?\s*['"]padding['"]\s*:\s*['"]height['"]/;
 check(
   keyboardBehaviorDecl.test(sessionSrc),
   "keyboardBehavior constant declared as Platform.OS === 'ios' ? 'padding' : 'height'"
@@ -125,10 +127,7 @@ console.log('[4] bottomInset — SessionActiveBar receives safe-area-aware value
 // Search the full source — the prop list for SessionActiveBar is long and
 // spread across many lines, so a fixed-length slice from the opening tag is
 // too short to reach bottomInset which appears near the end of the prop list.
-check(
-  /bottomInset=\{/.test(sessionSrc),
-  'SessionActiveBar receives a bottomInset prop'
-);
+check(/bottomInset=\{/.test(sessionSrc), 'SessionActiveBar receives a bottomInset prop');
 
 check(
   /bottomInset=\{[^}]*insets\.bottom[^}]*\}/.test(sessionSrc),

@@ -57,7 +57,7 @@ type TreeNode = {
 
 function findInTree(
   node: TreeNode | string | null,
-  predicate: (n: TreeNode) => boolean,
+  predicate: (n: TreeNode) => boolean
 ): TreeNode | null {
   if (!node || typeof node === 'string') return null;
   if (predicate(node)) return node;
@@ -69,10 +69,7 @@ function findInTree(
 }
 
 function hasTestId(root: renderer.ReactTestRenderer, testId: string): boolean {
-  return !!findInTree(
-    root.toJSON() as TreeNode | null,
-    (n) => n.props.testID === testId,
-  );
+  return !!findInTree(root.toJSON() as TreeNode | null, (n) => n.props.testID === testId);
 }
 
 /**
@@ -132,9 +129,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner renders and testID="pain-banner-dismiss" is present when hasAches=true and painRegion is set', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" />);
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
   });
@@ -142,9 +137,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner is absent when hasAches=false', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={false} painRegion="knee" />,
-      );
+      root = renderer.create(<BannerFixture hasAches={false} painRegion="knee" />);
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
   });
@@ -152,9 +145,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner is absent when painRegion is undefined even if hasAches=true', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion={undefined} />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion={undefined} />);
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
   });
@@ -162,9 +153,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner shows the adapted region label from getPainRegionLabel', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" />);
     });
     expect(hasText(root, 'Adapted for')).toBe(true);
     expect(hasText(root, 'Knee')).toBe(true);
@@ -173,9 +162,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('tapping the dismiss button removes the banner from the render tree', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" />);
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
     press(root, 'pain-banner-dismiss');
@@ -185,9 +172,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner shows zero-swap fallback message when comfortCount is 0', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" comfortCount={0} />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={0} />);
     });
     expect(hasText(root, 'No exercises needed swapping')).toBe(true);
   });
@@ -195,9 +180,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner shows singular swap message when comfortCount is 1', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" comfortCount={1} />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={1} />);
     });
     expect(hasText(root, '1 exercise swapped for comfort')).toBe(true);
   });
@@ -205,9 +188,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
   test('banner shows plural swap message when comfortCount is 3', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BannerFixture hasAches={true} painRegion="knee" comfortCount={3} />,
-      );
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={3} />);
     });
     expect(hasText(root, '3 exercises swapped for comfort')).toBe(true);
   });
@@ -220,14 +201,16 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
 // and a comfortRegionLabel is provided.
 
 /** Minimal Exercise object satisfying the Exercise interface. */
-function makeExercise(overrides: Partial<{
-  badge: 'comfort' | 'volume' | undefined;
-  category: string;
-  hasSwap: boolean;
-  swapName: string;
-  swapCue: string;
-  swap2Name: string;
-}> = {}): Parameters<typeof ExerciseCard>[0]['exercise'] {
+function makeExercise(
+  overrides: Partial<{
+    badge: 'comfort' | 'volume' | undefined;
+    category: string;
+    hasSwap: boolean;
+    swapName: string;
+    swapCue: string;
+    swap2Name: string;
+  }> = {}
+): Parameters<typeof ExerciseCard>[0]['exercise'] {
   return {
     id: 'goblet-squat',
     name: 'Goblet Squat',
@@ -235,7 +218,9 @@ function makeExercise(overrides: Partial<{
     reps: '8-12',
     cue: 'Keep chest tall.',
     suggestedLoad: '20 kg',
-    category: (overrides.category ?? 'accessory') as Parameters<typeof ExerciseCard>[0]['exercise']['category'],
+    category: (overrides.category ?? 'accessory') as Parameters<
+      typeof ExerciseCard
+    >[0]['exercise']['category'],
     badge: overrides.badge,
     videoId: 'test-video',
     hasSwap: overrides.hasSwap ?? false,
@@ -276,7 +261,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
           exercise={makeExercise({ badge: 'comfort' })}
           setData={makeSetData()}
           comfortRegionLabel="Knee"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for Knee')).toBe(true);
@@ -292,7 +277,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
           exercise={makeExercise({ badge: 'comfort' })}
           setData={makeSetData()}
           comfortRegionLabel="Lower Back"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for Lower Back')).toBe(true);
@@ -308,7 +293,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
           exercise={makeExercise({ badge: 'volume' })}
           setData={makeSetData()}
           comfortRegionLabel="Knee"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for Knee')).toBe(false);
@@ -324,7 +309,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
           exercise={makeExercise({ badge: 'comfort' })}
           setData={makeSetData()}
           comfortRegionLabel={undefined}
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for')).toBe(false);
@@ -335,11 +320,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <ExerciseCard
-          {...defaultCardProps}
-          exercise={makeExercise()}
-          setData={makeSetData()}
-        />,
+        <ExerciseCard {...defaultCardProps} exercise={makeExercise()} setData={makeSetData()} />
       );
     });
     expect(hasText(root, 'Adapted for')).toBe(false);
@@ -357,7 +338,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
             exercise={makeExercise({ badge: 'comfort' })}
             setData={makeSetData()}
             comfortRegionLabel={label}
-          />,
+          />
         );
       });
       expect(hasText(root, `Adapted for ${label}`)).toBe(true);
@@ -373,7 +354,7 @@ describe('[2] Real ExerciseCard — comfort note rendering', () => {
           exercise={makeExercise({ badge: 'comfort' })}
           setData={makeSetData()}
           comfortRegionLabel="Knee"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Goblet Squat')).toBe(true);
@@ -418,7 +399,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />,
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
@@ -428,7 +409,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={true} hasAches={true} painRegion="knee" />,
+        <RestoreFixture initialDismissed={true} hasAches={true} painRegion="knee" />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
@@ -438,7 +419,12 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={true} hasAches={true} painRegion="knee" comfortCount={3} />,
+        <RestoreFixture
+          initialDismissed={true}
+          hasAches={true}
+          painRegion="knee"
+          comfortCount={3}
+        />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
@@ -449,7 +435,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={false} hasAches={false} painRegion="knee" />,
+        <RestoreFixture initialDismissed={false} hasAches={false} painRegion="knee" />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
@@ -459,7 +445,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={false} hasAches={true} painRegion={undefined} />,
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion={undefined} />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
@@ -469,7 +455,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />,
+        <RestoreFixture initialDismissed={false} hasAches={true} painRegion="knee" />
       );
     });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
@@ -486,7 +472,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
           exercise={makeExercise({ badge: 'comfort' })}
           setData={makeSetData()}
           comfortRegionLabel="Lower Back"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for Lower Back')).toBe(true);
@@ -502,7 +488,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
           exercise={makeExercise({ badge: 'volume' })}
           setData={makeSetData()}
           comfortRegionLabel="Lower Back"
-        />,
+        />
       );
     });
     expect(hasText(root, 'Adapted for Lower Back')).toBe(false);
@@ -519,7 +505,7 @@ describe('[3] PainAdaptBanner — session restore path', () => {
       let root!: renderer.ReactTestRenderer;
       act(() => {
         root = renderer.create(
-          <RestoreFixture initialDismissed={false} hasAches={true} painRegion={region} />,
+          <RestoreFixture initialDismissed={false} hasAches={true} painRegion={region} />
         );
       });
       expect(hasText(root, `Adapted for ${label}`)).toBe(true);
@@ -607,7 +593,13 @@ function buildStoredSession(overrides: Record<string, unknown> = {}) {
 
 /** Minimal store state providing every field that SessionScreen destructures. */
 const STORE_BASE = {
-  userProfile: { sex: 'male', name: 'Test', experienceLevel: 'intermediate', goals: [], bodyweightKg: 80 },
+  userProfile: {
+    sex: 'male',
+    name: 'Test',
+    experienceLevel: 'intermediate',
+    goals: [],
+    bodyweightKg: 80,
+  },
   weightUnit: 'kg',
   equipmentTiers: ['dumbbells'],
   exerciseFeedback: {},
@@ -657,7 +649,9 @@ describe('[4] SessionScreen — restore from stored activeSession', () => {
       activeSession: buildStoredSession({ painBannerDismissed: false }),
     });
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(SessionScreen));
+    });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(true);
     root.unmount();
   });
@@ -668,7 +662,9 @@ describe('[4] SessionScreen — restore from stored activeSession', () => {
       activeSession: buildStoredSession({ painBannerDismissed: true }),
     });
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(SessionScreen));
+    });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
     root.unmount();
   });
@@ -679,7 +675,9 @@ describe('[4] SessionScreen — restore from stored activeSession', () => {
       activeSession: buildStoredSession({ painBannerDismissed: false }),
     });
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(SessionScreen));
+    });
     expect(hasText(root, 'Adapted for Knee')).toBe(true);
     root.unmount();
   });
@@ -692,7 +690,9 @@ describe('[4] SessionScreen — restore from stored activeSession', () => {
     // Also update params so SessionScreen sees hasAches=false (no pain nav)
     routerMock.__setParams({ ...SESSION_PARAMS, hasAches: 'false' });
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(SessionScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(SessionScreen));
+    });
     expect(hasTestId(root, 'pain-banner-dismiss')).toBe(false);
     root.unmount();
   });
@@ -722,7 +722,10 @@ type SwappableExercise = Parameters<typeof ExerciseCard>[0]['exercise'] & {
  * Mirrors the getDisplayExercise logic from session.tsx.
  * Returns the exercise with its badge cleared whenever a swap is active.
  */
-function applySwap(exercise: SwappableExercise, swapCount: 0 | 1 | 2): Parameters<typeof ExerciseCard>[0]['exercise'] {
+function applySwap(
+  exercise: SwappableExercise,
+  swapCount: 0 | 1 | 2
+): Parameters<typeof ExerciseCard>[0]['exercise'] {
   if (swapCount === 1 && exercise.swapName) {
     return {
       ...exercise,
@@ -769,9 +772,10 @@ function SwapSessionFixture({
   const displayExercise = applySwap(exercise, swapCount);
 
   // comfortCount mirrors session.tsx: count only unswapped comfort exercises
-  const comfortCount = exercise.badge === 'comfort' && swapCount === 0
-    ? totalComfortExercises
-    : totalComfortExercises - 1;
+  const comfortCount =
+    exercise.badge === 'comfort' && swapCount === 0
+      ? totalComfortExercises
+      : totalComfortExercises - 1;
 
   return (
     <View>
@@ -785,7 +789,11 @@ function SwapSessionFixture({
       <ExerciseCard
         {...defaultCardProps}
         exercise={displayExercise}
-        setData={{ sets: [{ setNumber: 1, reps: 10, weight: 20, completed: false }], swapCount, activeSetIndex: 0 }}
+        setData={{
+          sets: [{ setNumber: 1, reps: 10, weight: 20, completed: false }],
+          swapCount,
+          activeSetIndex: 0,
+        }}
         comfortRegionLabel={comfortRegionLabel}
         onSwapPress={() => setSwapCount((c) => Math.min(c + 1, 2) as 0 | 1 | 2)}
       />
@@ -823,7 +831,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -849,7 +857,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -875,7 +883,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -901,7 +909,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -927,7 +935,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -952,7 +960,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -976,7 +984,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Knee"
           painRegion="knee"
           totalComfortExercises={1}
-        />,
+        />
       );
     });
 
@@ -1005,7 +1013,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Lower Back"
           painRegion="lower_back"
           totalComfortExercises={2}
-        />,
+        />
       );
     });
     act(() => {
@@ -1016,7 +1024,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
           comfortRegionLabel="Lower Back"
           painRegion="lower_back"
           totalComfortExercises={2}
-        />,
+        />
       );
     });
 
@@ -1064,7 +1072,6 @@ const routerMockForSection6 = require('../__mocks__/expo-router') as {
 };
 
 describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted session', () => {
-
   beforeEach(() => {
     // sessionType=bench: best session to exercise bicep/tricep comfort variants.
     // isTestWeek=false: avoids the test-week path that skips energy/time selectors.
@@ -1081,7 +1088,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
 
   test('aches-yes then readiness-start transitions to pain-region step (BodyDiagram visible)', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     // Pain-region-confirm must not exist before the pain-region step
     expect(hasTestId(root, 'pain-region-confirm')).toBe(false);
@@ -1102,7 +1111,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     expect(MUSCLE_SET.has('bicep')).toBe(true);
 
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     // Navigate to pain-region step
     press(root, 'aches-yes');
@@ -1131,7 +1142,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     expect(MUSCLE_SET.has('tricep')).toBe(true);
 
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     // Navigate to pain-region step
     press(root, 'aches-yes');
@@ -1156,7 +1169,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
 
   test('full flow (bicep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     press(root, 'aches-yes');
     press(root, 'readiness-start');
@@ -1171,16 +1186,14 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     const { hasAches: hasAchesStr, painRegion, equipment, energy, timeAvailable } = pushArgs.params;
 
     // Feed the router params into the real generateWorkout
-    const exercises = generateWorkout(
-      'bench',
-      equipment as Parameters<typeof generateWorkout>[1],
-      {
-        hasAches: hasAchesStr === 'true',
-        painRegion: painRegion as PainRegion,
-        energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
-        timeAvailable: (timeAvailable ?? '60') as Parameters<typeof generateWorkout>[2]['timeAvailable'],
-      },
-    );
+    const exercises = generateWorkout('bench', equipment as Parameters<typeof generateWorkout>[1], {
+      hasAches: hasAchesStr === 'true',
+      painRegion: painRegion as PainRegion,
+      energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
+      timeAvailable: (timeAvailable ?? '60') as Parameters<
+        typeof generateWorkout
+      >[2]['timeAvailable'],
+    });
 
     const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
     expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
@@ -1190,7 +1203,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
 
   test('full flow (tricep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     press(root, 'aches-yes');
     press(root, 'readiness-start');
@@ -1204,16 +1219,14 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     };
     const { hasAches: hasAchesStr, painRegion, equipment, energy, timeAvailable } = pushArgs.params;
 
-    const exercises = generateWorkout(
-      'bench',
-      equipment as Parameters<typeof generateWorkout>[1],
-      {
-        hasAches: hasAchesStr === 'true',
-        painRegion: painRegion as PainRegion,
-        energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
-        timeAvailable: (timeAvailable ?? '60') as Parameters<typeof generateWorkout>[2]['timeAvailable'],
-      },
-    );
+    const exercises = generateWorkout('bench', equipment as Parameters<typeof generateWorkout>[1], {
+      hasAches: hasAchesStr === 'true',
+      painRegion: painRegion as PainRegion,
+      energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
+      timeAvailable: (timeAvailable ?? '60') as Parameters<
+        typeof generateWorkout
+      >[2]['timeAvailable'],
+    });
 
     const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
     expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
@@ -1223,7 +1236,9 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
 
   test('negative: no aches selected → router.push passes hasAches="false" → generateWorkout produces 0 comfort exercises', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(React.createElement(ReadinessScreen)); });
+    act(() => {
+      root = renderer.create(React.createElement(ReadinessScreen));
+    });
 
     // Do NOT press aches-yes — hasAches stays false
     press(root, 'readiness-start');
@@ -1235,16 +1250,12 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     };
     expect(pushArgs.params.hasAches).toBe('false');
 
-    const exercises = generateWorkout(
-      'bench',
-      'dumbbells',
-      {
-        hasAches: false,
-        painRegion: undefined,
-        energy: 'normal',
-        timeAvailable: '60',
-      },
-    );
+    const exercises = generateWorkout('bench', 'dumbbells', {
+      hasAches: false,
+      painRegion: undefined,
+      energy: 'normal',
+      timeAvailable: '60',
+    });
     const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
     expect(comfortExercises.length).toBe(0);
   });

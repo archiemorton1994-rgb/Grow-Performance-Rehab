@@ -48,7 +48,7 @@ type TreeNode = {
 
 function findInTree(
   node: TreeNode | string | null,
-  predicate: (n: TreeNode) => boolean,
+  predicate: (n: TreeNode) => boolean
 ): TreeNode | null {
   if (!node || typeof node === 'string') return null;
   if (predicate(node)) return node;
@@ -74,10 +74,7 @@ function hasText(root: renderer.ReactTestRenderer, text: string): boolean {
  * Returns true if any node in the rendered JSON tree has props.testID === testId.
  */
 function hasTestId(root: renderer.ReactTestRenderer, testId: string): boolean {
-  return !!findInTree(
-    root.toJSON() as TreeNode | null,
-    (n) => n.props.testID === testId,
-  );
+  return !!findInTree(root.toJSON() as TreeNode | null, (n) => n.props.testID === testId);
 }
 
 /**
@@ -151,10 +148,24 @@ describe('[1] Source-code static guards', () => {
 
   test('h() coverage: all 18 PainRegion values appear as h() calls', () => {
     const regions: PainRegion[] = [
-      'neck', 'front_shoulder', 'rear_shoulder', 'elbow_wrist',
-      'upper_back', 'lower_back', 'core_ribs', 'hip_groin',
-      'knee', 'calf_shin', 'ankle_achilles', 'chest', 'bicep',
-      'tricep', 'quads', 'hamstrings', 'glutes', 'lat_mid_back',
+      'neck',
+      'front_shoulder',
+      'rear_shoulder',
+      'elbow_wrist',
+      'upper_back',
+      'lower_back',
+      'core_ribs',
+      'hip_groin',
+      'knee',
+      'calf_shin',
+      'ankle_achilles',
+      'chest',
+      'bicep',
+      'tricep',
+      'quads',
+      'hamstrings',
+      'glutes',
+      'lat_mid_back',
     ];
     for (const r of regions) {
       expect(src).toContain(`h('${r}')`);
@@ -176,32 +187,38 @@ describe('[1] Source-code static guards', () => {
 describe('[2] Flex tab — Targeted Prehab modal', () => {
   test('body diagram renders with Front and Back toggle buttons', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     expect(hasTestId(root, 'body-diagram-front')).toBe(true);
     expect(hasTestId(root, 'body-diagram-back')).toBe(true);
   });
 
   // ── Front-view region taps ──
   const frontRegions: [PainRegion, string][] = [
-    ['neck',           'Neck'],
+    ['neck', 'Neck'],
     ['front_shoulder', 'Front Shoulder'],
-    ['elbow_wrist',    'Elbow / Wrist'],
-    ['core_ribs',      'Core / Ribs'],
-    ['hip_groin',      'Hip / Groin'],
-    ['knee',           'Knee'],
-    ['calf_shin',      'Calf / Shin'],
+    ['elbow_wrist', 'Elbow / Wrist'],
+    ['core_ribs', 'Core / Ribs'],
+    ['hip_groin', 'Hip / Groin'],
+    ['knee', 'Knee'],
+    ['calf_shin', 'Calf / Shin'],
     ['ankle_achilles', 'Ankle / Achilles'],
-    ['chest',          'Chest'],
-    ['bicep',          'Biceps'],
-    ['quads',          'Quads'],
+    ['chest', 'Chest'],
+    ['bicep', 'Biceps'],
+    ['quads', 'Quads'],
   ];
 
   for (const [region, label] of frontRegions) {
     test(`Front: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
-      act(() => { root = renderer.create(<FlexWrapper />); });
+      act(() => {
+        root = renderer.create(<FlexWrapper />);
+      });
       // Joint regions are only tappable in Joints mode; muscle regions use default Muscles mode
-      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
+      if (!MUSCLE_SET.has(region)) {
+        press(root, 'body-diagram-joints');
+      }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -209,7 +226,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   test('Back: switching to Back clears selection and shows hint', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     // Select a front region first — neck is a joint so switch to Joints mode
     press(root, 'body-diagram-joints');
     press(root, 'body-diagram-region-neck');
@@ -222,21 +241,25 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   // ── Back-view region taps ──
   const backRegions: [PainRegion, string][] = [
     ['rear_shoulder', 'Rear Shoulder'],
-    ['upper_back',    'Upper Back'],
-    ['lower_back',    'Lower Back'],
-    ['tricep',        'Triceps'],
-    ['lat_mid_back',  'Lats / Mid Back'],
-    ['glutes',        'Glutes'],
-    ['hamstrings',    'Hamstrings'],
+    ['upper_back', 'Upper Back'],
+    ['lower_back', 'Lower Back'],
+    ['tricep', 'Triceps'],
+    ['lat_mid_back', 'Lats / Mid Back'],
+    ['glutes', 'Glutes'],
+    ['hamstrings', 'Hamstrings'],
   ];
 
   for (const [region, label] of backRegions) {
     test(`Back: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
-      act(() => { root = renderer.create(<FlexWrapper />); });
+      act(() => {
+        root = renderer.create(<FlexWrapper />);
+      });
       press(root, 'body-diagram-back');
       // Joint regions are only tappable in Joints mode
-      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
+      if (!MUSCLE_SET.has(region)) {
+        press(root, 'body-diagram-joints');
+      }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -244,7 +267,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   test('Front→Back→Front toggle: each switch clears selection', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     press(root, 'body-diagram-joints'); // neck is a joint region
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, 'Neck')).toBe(true);
@@ -256,7 +281,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   test('selecting a region reveals the Start Session button', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     expect(hasTestId(root, 'start-session-btn')).toBe(false);
     press(root, 'body-diagram-joints'); // knee is a joint region
     press(root, 'body-diagram-region-knee');
@@ -266,7 +293,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   // ── Category-gating verification ──────────────────────────────────────────
   test('Muscles mode: pressing a joint region (knee) is a no-op', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     // category defaults to 'muscles'; knee is a joint region
     press(root, 'body-diagram-region-knee');
     expect(hasText(root, BODY_DIAGRAM_LABELS['knee'])).toBe(false);
@@ -275,7 +304,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   test('Joints mode: pressing a muscle region (chest) is a no-op', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     press(root, 'body-diagram-joints');
     // chest is in MUSCLE_SET — not selectable in joints mode
     press(root, 'body-diagram-region-chest');
@@ -285,7 +316,9 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   test('switching to Joints mode makes joint regions selectable', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<FlexWrapper />); });
+    act(() => {
+      root = renderer.create(<FlexWrapper />);
+    });
     // In Muscles mode, neck does nothing
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, BODY_DIAGRAM_LABELS['neck'])).toBe(false);
@@ -301,29 +334,35 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 describe('[3] Readiness screen — pain-region step', () => {
   test('body diagram renders with Front and Back toggle on pain-region step', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ReadinessWrapper />); });
+    act(() => {
+      root = renderer.create(<ReadinessWrapper />);
+    });
     expect(hasTestId(root, 'body-diagram-front')).toBe(true);
     expect(hasTestId(root, 'body-diagram-back')).toBe(true);
   });
 
   // ── Front-view region taps ──
   const frontRegions: [PainRegion, string][] = [
-    ['neck',           'Neck'],
+    ['neck', 'Neck'],
     ['front_shoulder', 'Front Shoulder'],
-    ['elbow_wrist',    'Elbow / Wrist'],
-    ['core_ribs',      'Core / Ribs'],
-    ['hip_groin',      'Hip / Groin'],
-    ['knee',           'Knee'],
-    ['calf_shin',      'Calf / Shin'],
+    ['elbow_wrist', 'Elbow / Wrist'],
+    ['core_ribs', 'Core / Ribs'],
+    ['hip_groin', 'Hip / Groin'],
+    ['knee', 'Knee'],
+    ['calf_shin', 'Calf / Shin'],
     ['ankle_achilles', 'Ankle / Achilles'],
   ];
 
   for (const [region, label] of frontRegions) {
     test(`Front: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
-      act(() => { root = renderer.create(<ReadinessWrapper />); });
+      act(() => {
+        root = renderer.create(<ReadinessWrapper />);
+      });
       // Joint regions are only tappable in Joints mode
-      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
+      if (!MUSCLE_SET.has(region)) {
+        press(root, 'body-diagram-joints');
+      }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -331,7 +370,9 @@ describe('[3] Readiness screen — pain-region step', () => {
 
   test('Back: switching to Back clears selection', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ReadinessWrapper />); });
+    act(() => {
+      root = renderer.create(<ReadinessWrapper />);
+    });
     press(root, 'body-diagram-joints'); // neck is a joint region
     press(root, 'body-diagram-region-neck');
     expect(hasText(root, 'Neck')).toBe(true);
@@ -342,17 +383,21 @@ describe('[3] Readiness screen — pain-region step', () => {
   // ── Back-view region taps ──
   const backRegions: [PainRegion, string][] = [
     ['rear_shoulder', 'Rear Shoulder'],
-    ['upper_back',    'Upper Back'],
-    ['lower_back',    'Lower Back'],
+    ['upper_back', 'Upper Back'],
+    ['lower_back', 'Lower Back'],
   ];
 
   for (const [region, label] of backRegions) {
     test(`Back: tapping ${region} shows "${label}" label chip`, () => {
       let root!: renderer.ReactTestRenderer;
-      act(() => { root = renderer.create(<ReadinessWrapper />); });
+      act(() => {
+        root = renderer.create(<ReadinessWrapper />);
+      });
       press(root, 'body-diagram-back');
       // Joint regions are only tappable in Joints mode
-      if (!MUSCLE_SET.has(region)) { press(root, 'body-diagram-joints'); }
+      if (!MUSCLE_SET.has(region)) {
+        press(root, 'body-diagram-joints');
+      }
       press(root, `body-diagram-region-${region}`);
       expect(hasText(root, label)).toBe(true);
     });
@@ -360,7 +405,9 @@ describe('[3] Readiness screen — pain-region step', () => {
 
   test('selecting a region reveals the Confirm Region button', () => {
     let root!: renderer.ReactTestRenderer;
-    act(() => { root = renderer.create(<ReadinessWrapper />); });
+    act(() => {
+      root = renderer.create(<ReadinessWrapper />);
+    });
     expect(hasTestId(root, 'pain-region-confirm')).toBe(false);
     press(root, 'body-diagram-joints'); // knee is a joint region
     press(root, 'body-diagram-region-knee');
@@ -372,7 +419,11 @@ describe('[3] Readiness screen — pain-region step', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(
-        <ReadinessWrapper onConfirm={(r) => { confirmedRegion = r; }} />,
+        <ReadinessWrapper
+          onConfirm={(r) => {
+            confirmedRegion = r;
+          }}
+        />
       );
     });
     press(root, 'body-diagram-region-core_ribs');
@@ -391,7 +442,9 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
 
   // Typical heatmap data: some regions hot, others absent (count treated as 0)
   const SAMPLE_COUNTS: Partial<Record<PainRegion, number>> = {
-    knee: 10, neck: 5, lower_back: 3,
+    knee: 10,
+    neck: 5,
+    lower_back: 3,
   };
 
   // ── Opacity formula static guards ────────────────────────────────────────────
@@ -416,9 +469,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     let root!: renderer.ReactTestRenderer;
     expect(() => {
       act(() => {
-        root = renderer.create(
-          <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
-        );
+        root = renderer.create(<BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />);
       });
     }).not.toThrow();
     expect(root).toBeDefined();
@@ -428,9 +479,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     let root!: renderer.ReactTestRenderer;
     expect(() => {
       act(() => {
-        root = renderer.create(
-          <BodyDiagram heatmapCounts={{}} onSelect={() => {}} />,
-        );
+        root = renderer.create(<BodyDiagram heatmapCounts={{}} onSelect={() => {}} />);
       });
     }).not.toThrow();
     expect(root).toBeDefined();
@@ -438,14 +487,14 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
 
   test('renders without throwing when all counts are zero', () => {
     const zeroCounts: Partial<Record<PainRegion, number>> = {
-      knee: 0, neck: 0, lower_back: 0,
+      knee: 0,
+      neck: 0,
+      lower_back: 0,
     };
     let root!: renderer.ReactTestRenderer;
     expect(() => {
       act(() => {
-        root = renderer.create(
-          <BodyDiagram heatmapCounts={zeroCounts} onSelect={() => {}} />,
-        );
+        root = renderer.create(<BodyDiagram heatmapCounts={zeroCounts} onSelect={() => {}} />);
       });
     }).not.toThrow();
     expect(root).toBeDefined();
@@ -457,14 +506,21 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   test('all front-view region hotspot testIDs are present in heatmap mode', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
-      );
+      root = renderer.create(<BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />);
     });
     const frontRegions: PainRegion[] = [
-      'neck', 'front_shoulder', 'elbow_wrist', 'core_ribs',
-      'hip_groin', 'knee', 'calf_shin', 'ankle_achilles',
-      'chest', 'bicep', 'quads', 'upper_back',
+      'neck',
+      'front_shoulder',
+      'elbow_wrist',
+      'core_ribs',
+      'hip_groin',
+      'knee',
+      'calf_shin',
+      'ankle_achilles',
+      'chest',
+      'bicep',
+      'quads',
+      'upper_back',
     ];
     for (const r of frontRegions) {
       expect(hasTestId(root, `body-diagram-region-${r}`)).toBe(true);
@@ -474,15 +530,22 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   test('all back-view region hotspot testIDs are present after switching to Back in heatmap mode', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
-      );
+      root = renderer.create(<BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />);
     });
     press(root, 'body-diagram-back');
     const backRegions: PainRegion[] = [
-      'neck', 'rear_shoulder', 'upper_back', 'lower_back',
-      'elbow_wrist', 'lat_mid_back', 'glutes', 'hamstrings',
-      'knee', 'calf_shin', 'ankle_achilles', 'tricep',
+      'neck',
+      'rear_shoulder',
+      'upper_back',
+      'lower_back',
+      'elbow_wrist',
+      'lat_mid_back',
+      'glutes',
+      'hamstrings',
+      'knee',
+      'calf_shin',
+      'ankle_achilles',
+      'tricep',
     ];
     for (const r of backRegions) {
       expect(hasTestId(root, `body-diagram-region-${r}`)).toBe(true);
@@ -498,8 +561,10 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
       root = renderer.create(
         <BodyDiagram
           heatmapCounts={SAMPLE_COUNTS}
-          onSelect={(r) => { selected = r; }}
-        />,
+          onSelect={(r) => {
+            selected = r;
+          }}
+        />
       );
     });
     press(root, 'body-diagram-region-knee');
@@ -513,8 +578,10 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
       root = renderer.create(
         <BodyDiagram
           heatmapCounts={{ knee: 5 }}
-          onSelect={(r) => { selected = r; }}
-        />,
+          onSelect={(r) => {
+            selected = r;
+          }}
+        />
       );
     });
     // core_ribs has no count entry (treated as 0) — should still be tappable
@@ -527,9 +594,7 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   test('hint text "Tap a region on the diagram" shows in heatmap mode (no label chip)', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
-      root = renderer.create(
-        <BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />,
-      );
+      root = renderer.create(<BodyDiagram heatmapCounts={SAMPLE_COUNTS} onSelect={() => {}} />);
     });
     // selected is undefined in heatmap mode → label is null → hint text shown
     expect(hasText(root, 'Tap a region on the diagram')).toBe(true);
@@ -560,13 +625,11 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
 
   test('runtime colour: overloaded region (count≥4) gets solid fill (no alpha)', () => {
     act(() => {
-      renderer.create(
-        <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
-      );
+      renderer.create(<BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />);
     });
     const data = bodyHighlighterMock.getCapturedBodyData();
     expect(data).not.toBeNull();
-    const kneeEntry = data!.find(e => e.slug === 'knees');
+    const kneeEntry = data!.find((e) => e.slug === 'knees');
     expect(kneeEntry).toBeDefined();
     // knee=10 → OVERLOADED → solid VOCAB_OVERLOADED
     expect(kneeEntry!.styles.fill).toBe('#f87171');
@@ -575,13 +638,11 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   test('runtime opacity: zero-count region gets REST fill opacity 0.55 (faint, not invisible)', () => {
     // knee=10 is the only hot region; hip_groin is absent → count=0 → REST
     act(() => {
-      renderer.create(
-        <BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />,
-      );
+      renderer.create(<BodyDiagram heatmapCounts={{ knee: 10 }} onSelect={() => {}} />);
     });
     const data = bodyHighlighterMock.getCapturedBodyData();
     expect(data).not.toBeNull();
-    const hipEntry = data!.find(e => e.slug === 'adductors');
+    const hipEntry = data!.find((e) => e.slug === 'adductors');
     expect(hipEntry).toBeDefined();
     // hip_groin count=0 → REST → opacity 0.55
     expect(parseOpacity(hipEntry!.styles.fill)).toBeCloseTo(0.55, 2);
@@ -590,15 +651,13 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
   test('runtime colour: three vocabulary tiers produce three distinct fills', () => {
     // knee=5 (OVERLOADED ≥4), neck=1 (WORKED =1), hip_groin=0 (REST =0)
     act(() => {
-      renderer.create(
-        <BodyDiagram heatmapCounts={{ knee: 5, neck: 1 }} onSelect={() => {}} />,
-      );
+      renderer.create(<BodyDiagram heatmapCounts={{ knee: 5, neck: 1 }} onSelect={() => {}} />);
     });
     const data = bodyHighlighterMock.getCapturedBodyData();
     expect(data).not.toBeNull();
-    const kneeEntry = data!.find(e => e.slug === 'knees');
-    const neckEntry = data!.find(e => e.slug === 'neck');
-    const hipEntry = data!.find(e => e.slug === 'adductors');
+    const kneeEntry = data!.find((e) => e.slug === 'knees');
+    const neckEntry = data!.find((e) => e.slug === 'neck');
+    const hipEntry = data!.find((e) => e.slug === 'adductors');
     expect(kneeEntry).toBeDefined();
     expect(neckEntry).toBeDefined();
     expect(hipEntry).toBeDefined();
@@ -657,7 +716,9 @@ function StatsHeatmapHarness({
     <View testID="stats-heatmap-harness">
       <BodyDiagram
         selected={undefined}
-        onSelect={(r) => { if (r) setPainInsightRegion(r); }}
+        onSelect={(r) => {
+          if (r) setPainInsightRegion(r);
+        }}
         heatmapCounts={painRegionCounts}
       />
       <PainInsightSheet
@@ -696,7 +757,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     // Modal mock returns null when visible=false, so toJSON() is null
@@ -713,7 +774,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     expect(hasTestId(root, 'pain-insight-sheet')).toBe(true);
@@ -732,7 +793,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     expect(hasText(root, 'Flagged in 5 sessions')).toBe(true);
@@ -748,7 +809,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     expect(hasText(root, 'Flagged in 1 session')).toBe(true);
@@ -764,7 +825,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     expect(hasText(root, 'Flagged in 1 session')).toBe(true);
@@ -781,7 +842,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={onStartPrehab}
           onViewHistory={jest.fn()}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     press(root, 'pain-insight-start-prehab');
@@ -800,7 +861,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={onViewHistory}
           onDismiss={jest.fn()}
-        />,
+        />
       );
     });
     press(root, 'pain-insight-view-history');
@@ -819,7 +880,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}
           onDismiss={onDismiss}
-        />,
+        />
       );
     });
     press(root, 'pain-insight-close');
@@ -836,7 +897,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
             onStartPrehab={jest.fn()}
             onViewHistory={jest.fn()}
             onDismiss={jest.fn()}
-          />,
+          />
         );
       });
     }).not.toThrow();
@@ -893,15 +954,13 @@ describe('[5] Stats — Pain Insight Sheet', () => {
           sessionType: 'prehab',
           painRegion: 'knee',
         }),
-      }),
+      })
     );
   });
 
   test('integration: region absent from history (count=0) opens sheet without crash and navigates correctly', () => {
     // hip_groin has no sessions → count=0 → fallback label "Flagged in 1 session"
-    const sessions = [
-      { painRegion: 'knee', date: '2026-07-01' },
-    ];
+    const sessions = [{ painRegion: 'knee', date: '2026-07-01' }];
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(<StatsHeatmapHarness sessions={sessions} />);
@@ -917,8 +976,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
     expect(router.push).toHaveBeenCalledWith(
       expect.objectContaining({
         params: expect.objectContaining({ painRegion: 'hip_groin' }),
-      }),
+      })
     );
   });
 });
-

@@ -423,7 +423,7 @@ interface SessionActiveBarProps {
   bottomInset: number;
 }
 
-function SessionActiveBar({
+export function SessionActiveBar({
   exercise,
   exerciseIndex,
   setData,

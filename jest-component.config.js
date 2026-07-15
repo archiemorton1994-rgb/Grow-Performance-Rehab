@@ -27,6 +27,7 @@ module.exports = {
     '<rootDir>/tests/body-diagram-component.test.tsx',
     '<rootDir>/tests/badge-animation.test.tsx',
     '<rootDir>/tests/session-pain-adaptation.test.tsx',
+    '<rootDir>/tests/session-bar-kav.test.tsx',
   ],
   modulePathIgnorePatterns: ['<rootDir>/.cache/'],
   testTimeout: 15000,
