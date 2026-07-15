@@ -52,7 +52,7 @@ const EXPERIENCE_OPTIONS: {
   },
   {
     value: 'intermediate',
-    label: '1–3 years training',
+    label: '1-3 years training',
     description: 'Comfortable with the basics',
     icon: 'barbell-outline',
   },
@@ -135,9 +135,9 @@ const WELCOME_FEATURES = [
   'Personalised loads every session',
   'Pain & energy adaptive',
   'Tracks your strength progress',
-  '7 session types — strength, conditioning & more',
+  '7 session types - strength, conditioning & more',
   'Built-in prehab & mobility',
-  'No guesswork — always know what to do',
+  'No guesswork - always know what to do',
 ];
 
 function experienceLabel(e: ExperienceLevel | null): string {
@@ -267,11 +267,25 @@ export default function OnboardingScreen() {
 
   const goTo = useCallback(
     (index: number) => {
-      scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * index, animated: true });
+      // Web: jump instantly. Animated (smooth) scrolling on web can be
+      // interrupted by a mid-animation reflow, and the pager's CSS scroll-snap
+      // then re-snaps back to the previous page, leaving the flow stuck.
+      scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * index, animated: Platform.OS !== 'web' });
       setCurrentIndex(index);
     },
     [SCREEN_WIDTH]
   );
+
+  // Web safety net: re-assert the pager offset after each index change so a
+  // browser re-snap or late reflow can never leave the scroll position
+  // desynced from currentIndex.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * currentIndex, animated: false });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [currentIndex, SCREEN_WIDTH]);
 
   const canContinue = useCallback((): boolean => {
     switch (currentIndex) {
@@ -647,19 +661,19 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 6: Equipment */}
+          {/* Screen 6: Equipment — compact, no-scroll layout so every tile + Continue fit on screen */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 16 }]}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.iconCircle}>
-                <Ionicons name="fitness-outline" size={56} color={C.primary} />
+            <View style={[styles.screenContent, styles.equipScreenContent]}>
+              <View style={[styles.iconCircle, styles.iconCircleCompact]}>
+                <Ionicons name="fitness-outline" size={24} color={C.primary} />
               </View>
-              <Text style={styles.question}>What do you have access to?</Text>
-              <Text style={styles.hint}>Select everything available to you</Text>
-              <View style={styles.optionList}>
+              <Text style={[styles.question, styles.questionCompact]}>
+                What do you have access to?
+              </Text>
+              <Text style={[styles.hint, styles.hintCompact]}>
+                Select everything available to you
+              </Text>
+              <View style={[styles.optionList, styles.optionListCompact]}>
                 {EQUIPMENT_OPTIONS.filter((opt) => (available as string[]).includes(opt.value)).map(
                   (opt) => {
                     const selected = equipment.includes(opt.value);
@@ -669,25 +683,38 @@ export default function OnboardingScreen() {
                         onPress={() => toggleEquipment(opt.value)}
                         style={({ pressed }) => [
                           styles.optionCard,
+                          styles.optionCardCompact,
                           selected && styles.optionCardSelected,
                           pressed && styles.optionCardPressed,
                         ]}
                         testID={`equipment-${opt.value}`}
                       >
-                        <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
+                        <View
+                          style={[
+                            styles.optionIcon,
+                            styles.optionIconCompact,
+                            selected && styles.optionIconSelected,
+                          ]}
+                        >
                           <Ionicons
                             name={opt.icon}
-                            size={22}
+                            size={18}
                             color={selected ? C.textInverse : C.primary}
                           />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={[styles.optionLabel, selected && styles.optionLabelSelected]}
+                            style={[
+                              styles.optionLabel,
+                              styles.optionLabelCompact,
+                              selected && styles.optionLabelSelected,
+                            ]}
                           >
                             {opt.label}
                           </Text>
-                          <Text style={styles.optionDesc}>{opt.description}</Text>
+                          <Text style={[styles.optionDesc, styles.optionDescCompact]}>
+                            {opt.description}
+                          </Text>
                         </View>
                         <View style={[styles.checkBox, selected && styles.checkBoxSelected]}>
                           {selected && (
@@ -701,16 +728,16 @@ export default function OnboardingScreen() {
               </View>
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 11,
                   fontFamily: 'Inter_400Regular',
                   color: C.textSecondary,
                   textAlign: 'center',
-                  marginTop: 16,
+                  marginTop: 6,
                 }}
               >
                 You can change this anytime from your profile.
               </Text>
-            </ScrollView>
+            </View>
           </View>
 
           {/* Screen 7: Key Lifts (optional) */}
@@ -726,7 +753,7 @@ export default function OnboardingScreen() {
               </View>
               <Text style={styles.question}>Your best lifts</Text>
               <Text style={styles.hint}>
-                {"Optional — leave blank if you're new or returning after a break"}
+                {"Optional - leave blank if you're new or returning after a break"}
               </Text>
               <View style={styles.liftRows}>
                 <LiftInput
@@ -761,25 +788,19 @@ export default function OnboardingScreen() {
                 <Ionicons name="checkmark-circle" size={96} color={C.primary} />
               </Animated.View>
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
-                Profile Built!
+                Profile Ready!
               </Animated.Text>
               <Animated.Text style={[styles.celebName, celebTitleStyle]}>
                 {name.trim()
-                  ? `Your profile is ready, ${name.trim().split(' ')[0]}`
-                  : 'Your profile is ready'}
+                  ? `The first 14 days are on us, ${name.trim().split(' ')[0]}`
+                  : 'The first 14 days are on us'}
               </Animated.Text>
               <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
                 <CelebSummaryPill icon="barbell-outline" label={experienceLabel(experience)} />
                 <CelebSummaryPill icon="flag-outline" label={goalLabel(goals[0] ?? null)} />
                 <CelebSummaryPill icon="fitness-outline" label={equipmentLabel(equipment)} />
               </Animated.View>
-              <Animated.Text style={[styles.firstSessionsNote, celebSummaryStyle]}>
-                {
-                  "Your first few sessions are where we build a picture of your strength. Complete them and share your feedback — that's when sessions get truly personalised."
-                }
-              </Animated.Text>
               <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
-                <Text style={styles.profileReadySub}>Your first session is ready</Text>
                 <Pressable
                   onPress={handleComplete}
                   style={({ pressed }) => [
@@ -953,6 +974,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 28,
     },
     optionList: { width: '100%', gap: 10 },
+    equipScreenContent: { paddingTop: 4 },
+    iconCircleCompact: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      marginBottom: 8,
+    },
+    questionCompact: { fontSize: 22, lineHeight: 28, marginBottom: 4 },
+    hintCompact: { fontSize: 13, marginBottom: 10 },
+    optionListCompact: { gap: 6 },
+    optionCardCompact: { paddingVertical: 7, paddingHorizontal: 12, gap: 10 },
+    optionIconCompact: { width: 32, height: 32, borderRadius: 9 },
+    optionLabelCompact: { fontSize: 15, lineHeight: 19 },
+    optionDescCompact: { fontSize: 11, lineHeight: 14, marginTop: 0 },
     optionCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1098,22 +1133,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textInverse,
     },
     continueBtnTextDisabled: { color: C.textTertiary },
-    profileReadySub: {
-      fontSize: 14,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    firstSessionsNote: {
-      fontSize: 13,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginTop: 20,
-      paddingHorizontal: 8,
-    },
     celebContent: { justifyContent: 'center', paddingTop: 0 },
     celebIconWrap: { marginBottom: 20 },
     celebTitle: {

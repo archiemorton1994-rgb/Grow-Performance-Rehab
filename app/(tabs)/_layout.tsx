@@ -38,7 +38,7 @@ const TOUR_TABS: TourTabDef[] = [
       'Suggested session updates automatically each day',
       'Equipment chip overrides your gear for today without changing your profile',
       'Resume banner appears if you have an unfinished session',
-      'Achievements row shows your latest badges — tap it to see your full collection',
+      'Achievements row shows your latest badges - tap it to see your full collection',
     ],
   },
   {
@@ -46,7 +46,7 @@ const TOUR_TABS: TourTabDef[] = [
     label: 'Achievements',
     icon: 'trophy',
     headline: 'Earn badges as you train',
-    body: 'Every session, streak, and milestone you hit unlocks a badge. Tap the Achievements row on Home to see your full collection — earned badges glow with colour, locked ones show exactly what you need to do to unlock them.',
+    body: 'Every session, streak, and milestone you hit unlocks a badge. Tap the Achievements row on Home to see your full collection - earned badges glow with colour, locked ones show exactly what you need to do to unlock them.',
     tips: [
       'Over 400 badges across milestones, streaks, strength, volume, and more',
       'Tap any badge to see its description and how to earn it',
@@ -58,7 +58,7 @@ const TOUR_TABS: TourTabDef[] = [
     label: 'Profile',
     icon: 'person',
     headline: 'Your stats and settings',
-    body: 'All your personal data in one place. Tap your avatar to set a photo. Update your bodyweight regularly — it drives suggested loads for every single session.',
+    body: 'All your personal data in one place. Tap your avatar to set a photo. Update your bodyweight regularly - it drives suggested loads for every single session.',
     tips: [
       '1RM records are tracked automatically from your sessions',
       'Milestone badges unlock at 1, 5, 10, 25, 50+ sessions',
@@ -74,7 +74,7 @@ const TOUR_TABS: TourTabDef[] = [
     tips: [
       'Custom sessions let you design your own workout',
       'Pain settings automatically swap exercises to protect problem areas',
-      'Test weeks every 12–18 sessions measure your strength gains',
+      'Test weeks every 12-18 sessions measure your strength gains',
     ],
   },
   {
@@ -82,7 +82,7 @@ const TOUR_TABS: TourTabDef[] = [
     label: 'Recover',
     icon: 'medkit',
     headline: 'Recovery and mobility',
-    body: 'Your active recovery toolkit. Blood flow circuits, mobility flows, and targeted prehab — all designed to keep you moving on rest days.',
+    body: 'Your active recovery toolkit. Blood flow circuits, mobility flows, and targeted prehab - all designed to keep you moving on rest days.',
     tips: [
       'Blood Flow is a gentle full-body joint circuit',
       'Targeted prehab focuses on a specific joint or region',
@@ -94,7 +94,7 @@ const TOUR_TABS: TourTabDef[] = [
     label: 'Stats',
     icon: 'bar-chart',
     headline: 'Your progress over time',
-    body: 'Every session, set and weight is logged here. Your charts and KPIs fill in as you train — the more you do, the more insight you get.',
+    body: 'Every session, set and weight is logged here. Your charts and KPIs fill in as you train - the more you do, the more insight you get.',
     tips: [
       'Session breakdown shows volume by session type',
       'Strength KPIs track your best squat, bench and deadlift',

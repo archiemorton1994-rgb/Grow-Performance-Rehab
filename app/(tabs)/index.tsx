@@ -729,8 +729,8 @@ export default function HomeScreen() {
                 <Text style={styles.warningTitle}>Streak at risk this week</Text>
                 <Text style={styles.warningSub}>
                   {weekCount === 0
-                    ? `No sessions yet this week — hit ${goal} to keep your streak going.`
-                    : `${weekCount}/${goal} sessions this week — ${goal - weekCount} more to keep your streak alive.`}
+                    ? `No sessions yet this week - hit ${goal} to keep your streak going.`
+                    : `${weekCount}/${goal} sessions this week - ${goal - weekCount} more to keep your streak alive.`}
                 </Text>
               </View>
             </Animated.View>

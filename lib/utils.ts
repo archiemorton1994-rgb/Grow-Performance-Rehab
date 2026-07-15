@@ -36,7 +36,7 @@ export function convertLoadString(load: string, unit: WeightUnit): string {
       const aLbs = Math.round(parseFloat(a) * 2.20462);
       if (b) {
         const bLbs = Math.round(parseFloat(b) * 2.20462);
-        return `${aLbs}–${bLbs} lbs`;
+        return `${aLbs}-${bLbs} lbs`;
       }
       return `${aLbs} lbs`;
     }

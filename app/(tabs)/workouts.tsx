@@ -165,11 +165,11 @@ const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; mess
     color: '#6b7280',
     message: 'No sessions targeting this muscle in the last 2 weeks.',
   },
-  1: { label: 'Progressing', color: '#2f6b46', message: 'Good training frequency — keep it up!' },
+  1: { label: 'Progressing', color: '#2f6b46', message: 'Good training frequency - keep it up!' },
   2: {
     label: 'Attention',
     color: '#d97706',
-    message: 'Last trained 8–14 days ago — consider adding a session this week.',
+    message: 'Last trained 8-14 days ago - consider adding a session this week.',
   },
   4: {
     label: 'High Load',
@@ -2002,7 +2002,7 @@ function OneRMCalculator({
     const w = parseFloat(weightInput);
     const r = parseInt(repsInput, 10);
     if (!w || !r || w <= 0 || r <= 0 || r > 30) {
-      Alert.alert('Invalid input', 'Enter a valid weight and rep count (1–30).');
+      Alert.alert('Invalid input', 'Enter a valid weight and rep count (1-30).');
       return;
     }
     const weightInKg = displayUnitToKg(w, weightUnit);
@@ -2905,7 +2905,7 @@ function ExerciseDetailSheet({
             <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
             <View style={{ flex: 1, alignItems: 'center' }}>
               <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text }}>
-                {firstDate ? formatShortDate(firstDate) : '—'}
+                {firstDate ? formatShortDate(firstDate) : '-'}
               </Text>
               <Text
                 style={{
@@ -3810,7 +3810,7 @@ export default function StatsScreen() {
                         }}
                       >
                         {painRegionFilter
-                          ? `Filtering by ${BODY_DIAGRAM_LABELS[painRegionFilter]} — tap again to clear`
+                          ? `Filtering by ${BODY_DIAGRAM_LABELS[painRegionFilter]} - tap again to clear`
                           : 'Tap a zone to filter sessions by pain area'}
                       </Text>
                     </View>

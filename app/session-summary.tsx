@@ -340,7 +340,7 @@ export default function SessionSummaryScreen() {
       }
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Save failed', "Couldn't save photo — please try again");
+      Alert.alert('Save failed', "Couldn't save photo - please try again");
     } finally {
       setIsSaving(false);
     }
@@ -386,7 +386,7 @@ export default function SessionSummaryScreen() {
       : `${Math.floor(durationSeconds / 60)}m`;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
-  const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '—';
+  const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '-';
   const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
 

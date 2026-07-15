@@ -100,6 +100,7 @@ export default function ReadinessScreen() {
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
   const [diagramPainRegion, setDiagramPainRegion] = useState<PainRegion | undefined>(undefined);
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
+  const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
 
   useEffect(() => {
     if (sessionType === 'prehab') {
@@ -290,7 +291,7 @@ export default function ReadinessScreen() {
             <View style={styles.beginnerNote}>
               <Ionicons name="swap-horizontal-outline" size={13} color={C.primary} />
               <Text style={styles.beginnerNoteText}>
-                Pre-selected from your session choice — adjust below if needed
+                Pre-selected from your session choice - adjust below if needed
               </Text>
             </View>
           )}
@@ -551,7 +552,7 @@ export default function ReadinessScreen() {
           What area to target today?
         </Text>
         <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>
-          Tap a region — or run a full body circuit
+          Tap a region - or run a full body circuit
         </Text>
         <BodyDiagram
           selected={diagramPrehabRegion}
@@ -590,14 +591,23 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
+  // No-scroll layout: the diagram area is measured and the BodyDiagram width is
+  // derived from the available height so the whole step (diagram + Continue)
+  // always fits on screen. Vertical overhead inside BodyDiagram (panel padding,
+  // toggles, label row) is ~175pt; the SVG itself is width * 2.4 tall.
+  const painDiagramMaxWidth =
+    painDiagramAreaH > 0
+      ? Math.max(100, Math.min(200, Math.floor((painDiagramAreaH - 175) / 2.4)))
+      : 200;
+
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
+      <View
+        style={{
+          flex: 1,
           paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: 32,
+          paddingTop: 4,
+          paddingBottom: 16,
           alignItems: 'center',
         }}
       >
@@ -606,49 +616,54 @@ export default function ReadinessScreen() {
             styles.questionIcon,
             {
               alignSelf: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              marginBottom: 10,
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              marginBottom: 8,
               backgroundColor: C.warningLight,
             },
           ]}
         >
-          <Ionicons name="locate-outline" size={24} color={C.warning} />
+          <Ionicons name="locate-outline" size={22} color={C.warning} />
         </View>
         <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>
           Which area is affected?
         </Text>
-        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>
-          {"Tap the region — we'll adjust exercises"}
+        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 2 }]}>
+          {"Tap the region - we'll adjust exercises"}
         </Text>
-        <BodyDiagram
-          selected={diagramPainRegion}
-          onSelect={setDiagramPainRegion}
-          accentColor={C.warning}
-          accentColorLight={C.warningLight}
-        />
-        {diagramPainRegion ? (
-          <Pressable
-            onPress={() => handlePainRegion(diagramPainRegion)}
-            style={({ pressed }) => [
-              styles.startButton,
-              { marginTop: 12, width: '100%' },
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-            ]}
-            testID="pain-region-confirm"
-          >
-            <Ionicons name="flash" size={18} color={C.textInverse} />
-            <Text style={styles.startButtonText}>Continue</Text>
-          </Pressable>
-        ) : (
-          lastPainRegion && (
+        <View
+          style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+          onLayout={(e) => setPainDiagramAreaH(e.nativeEvent.layout.height)}
+        >
+          <BodyDiagram
+            selected={diagramPainRegion}
+            onSelect={setDiagramPainRegion}
+            accentColor={C.warning}
+            accentColorLight={C.warningLight}
+            maxWidth={painDiagramMaxWidth}
+          />
+        </View>
+        <View style={{ width: '100%', minHeight: 52, justifyContent: 'flex-end' }}>
+          {diagramPainRegion ? (
+            <Pressable
+              onPress={() => handlePainRegion(diagramPainRegion)}
+              style={({ pressed }) => [
+                styles.startButton,
+                { width: '100%' },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              ]}
+              testID="pain-region-confirm"
+            >
+              <Ionicons name="flash" size={18} color={C.textInverse} />
+              <Text style={styles.startButtonText}>Continue</Text>
+            </Pressable>
+          ) : lastPainRegion ? (
             <Pressable
               onPress={() => handlePainRegion(lastPainRegion)}
               style={({ pressed }) => [
                 styles.startButton,
                 {
-                  marginTop: 12,
                   width: '100%',
                   backgroundColor: C.surfaceTertiary,
                   borderWidth: 1,
@@ -661,9 +676,9 @@ export default function ReadinessScreen() {
               <Ionicons name="time-outline" size={16} color={C.warning} />
               <Text style={[styles.startButtonText, { color: C.warning }]}>Same as last time</Text>
             </Pressable>
-          )
-        )}
-      </ScrollView>
+          ) : null}
+        </View>
+      </View>
     </Animated.View>
   );
 

@@ -70,7 +70,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   barbell: 'Barbell and squat rack',
-  fullgym: 'Everything — cables, machines, full setup',
+  fullgym: 'Everything - cables, machines, full setup',
 };
 
 function getContextMessage(
@@ -762,7 +762,7 @@ export default function TrainScreen() {
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
               <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands — unlock more in profile
+                Bodyweight & Bands - unlock more in profile
               </Text>
             </View>
           )}

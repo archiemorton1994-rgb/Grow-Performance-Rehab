@@ -73,7 +73,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   barbell: 'Barbell and squat rack',
-  fullgym: 'Everything — cables, machines, full setup',
+  fullgym: 'Everything - cables, machines, full setup',
 };
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
@@ -107,7 +107,7 @@ function getSessionInfo(
       icon: 'shield-checkmark',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
-      duration: 'Full-body joint circuit · 20–30 min',
+      duration: 'Full-body joint circuit · 20-30 min',
       description:
         'A gentle circuit targeting common trouble spots. Perfect after a hard training block or on a rest day. Select a focus area or choose Full Body for a complete joint reset.',
       cta: 'Start Blood Flow',
@@ -118,7 +118,7 @@ function getSessionInfo(
       icon: 'accessibility-outline',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
-      duration: 'Full-body stretch session · 30–40 min',
+      duration: 'Full-body stretch session · 30-40 min',
       description:
         'Long-hold stretches for the full body. Improves range of motion and helps you move and feel better between training days. Best done when your muscles are slightly warm.',
       cta: 'Start Mobility',
@@ -129,7 +129,7 @@ function getSessionInfo(
       icon: 'locate-outline',
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
-      duration: 'Area-focused circuit · 20–30 min',
+      duration: 'Area-focused circuit · 20-30 min',
       description:
         'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
       cta: 'Choose Area & Start',
@@ -373,7 +373,7 @@ export default function RecoverScreen() {
     {
       key: 'recovery',
       title: 'Blood Flow',
-      subtitle: 'Full-body joint circuit · 20–30 min',
+      subtitle: 'Full-body joint circuit · 20-30 min',
       icon: 'shield-checkmark',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
@@ -382,7 +382,7 @@ export default function RecoverScreen() {
     {
       key: 'mobility',
       title: 'Mobility',
-      subtitle: 'Full-body stretch session · 30–40 min',
+      subtitle: 'Full-body stretch session · 30-40 min',
       icon: 'accessibility-outline',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
@@ -391,7 +391,7 @@ export default function RecoverScreen() {
     {
       key: 'prehab',
       title: 'Targeted Prehab',
-      subtitle: 'Area-focused circuit · 20–30 min',
+      subtitle: 'Area-focused circuit · 20-30 min',
       icon: 'locate-outline',
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
@@ -518,7 +518,7 @@ export default function RecoverScreen() {
               </View>
               <View style={styles.sheetHeaderText}>
                 <Text style={styles.sheetTitle}>Blood Flow</Text>
-                <Text style={styles.sheetDuration}>Full-body joint circuit · 20–30 min</Text>
+                <Text style={styles.sheetDuration}>Full-body joint circuit · 20-30 min</Text>
               </View>
               <Pressable
                 onPress={closeModal}
@@ -614,7 +614,7 @@ export default function RecoverScreen() {
               </View>
               <View style={styles.sheetHeaderText}>
                 <Text style={styles.sheetTitle}>Targeted Prehab</Text>
-                <Text style={styles.sheetDuration}>Area-focused circuit · 20–30 min</Text>
+                <Text style={styles.sheetDuration}>Area-focused circuit · 20-30 min</Text>
               </View>
               <Pressable
                 onPress={closeModal}
@@ -684,7 +684,7 @@ export default function RecoverScreen() {
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
               <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands — unlock more in profile
+                Bodyweight & Bands - unlock more in profile
               </Text>
             </View>
           )}

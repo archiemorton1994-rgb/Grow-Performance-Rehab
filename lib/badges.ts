@@ -172,14 +172,14 @@ const PROGRESS_TIERS: [number, string, string][] = [
   [10, 'Getting Stronger', '10% stronger than when you started'],
   [20, 'Rising Fast', '20% stronger than your first test'],
   [30, 'Breakthrough', '30% stronger than when you started'],
-  [50, 'Transformed', '50% stronger — a completely different athlete'],
+  [50, 'Transformed', '50% stronger - a completely different athlete'],
 ];
 
 const strengthProgressBadges: Badge[] = (['squat', 'bench', 'deadlift'] as const).flatMap((lift) =>
   PROGRESS_TIERS.map(([pct, name, descSuffix]) => ({
     id: `progress_${lift}_${pct}pct`,
     name: `${LIFT_META[lift].label} ${name}`,
-    description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% — ${descSuffix}`,
+    description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% - ${descSuffix}`,
     category: 'strength_progress' as BadgeCategory,
     criteriaType: 'strength_improvement' as BadgeCriteriaType,
     icon: LIFT_META[lift].icon,
@@ -923,7 +923,7 @@ const timeOfDayBadges: Badge[] = [
   {
     id: 'time_noon_10',
     name: 'Lunch Lifter',
-    description: 'Complete 10 sessions between 12–2pm',
+    description: 'Complete 10 sessions between 12-2pm',
     category: 'time_of_day',
     criteriaType: 'time_based',
     icon: 'restaurant-outline',
@@ -932,7 +932,7 @@ const timeOfDayBadges: Badge[] = [
   {
     id: 'time_evening_5',
     name: 'After Work Hero',
-    description: 'Complete 5 sessions between 5–7pm',
+    description: 'Complete 5 sessions between 5-7pm',
     category: 'time_of_day',
     criteriaType: 'time_based',
     icon: 'briefcase-outline',

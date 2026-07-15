@@ -37,7 +37,7 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   equipment_usage: 'Use different equipment tiers in your sessions.',
   test_week: 'Complete a 1RM test week to unlock this.',
   time_based: 'Train at a consistent time of day.',
-  variety: 'Mix up your session types — try them all.',
+  variety: 'Mix up your session types - try them all.',
   recovery: 'Add prehab or flexibility sessions to your routine.',
   duration_based: 'Complete a longer session (45 or 60 min) to unlock.',
   comeback: 'Come back after a break and train again.',
@@ -137,7 +137,7 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
 
         {/* Body */}
         <Text style={[tourStyles.calloutBody, { color: C.textSecondary }]}>
-          Earned badges glow with colour — locked ones show exactly what you need to do to unlock
+          Earned badges glow with colour - locked ones show exactly what you need to do to unlock
           them. Tap any badge to see its description.
         </Text>
 

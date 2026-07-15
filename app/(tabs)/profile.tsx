@@ -73,7 +73,7 @@ const { privacyUrl, termsUrl } = getLegalUrls();
 
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string }[] = [
   { value: 'beginner', label: 'Beginner', desc: 'New to gym or returning after a long break' },
-  { value: 'intermediate', label: 'Intermediate', desc: '1–3 years consistent training' },
+  { value: 'intermediate', label: 'Intermediate', desc: '1-3 years consistent training' },
   { value: 'advanced', label: 'Advanced', desc: '3+ years, familiar with main lifts' },
 ];
 

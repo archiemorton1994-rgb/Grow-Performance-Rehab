@@ -1100,15 +1100,15 @@ export function getRestPeriod(category: ExerciseCategory): string {
     case 'prep':
       return 'Move between exercises without rest - breathe into each stretch';
     case 'mechanical':
-      return 'Rest 30–45 sec between sets';
+      return 'Rest 30-45 sec between sets';
     case 'neuro':
-      return 'Rest 45–60 sec between sets - full recovery before each';
+      return 'Rest 45-60 sec between sets - full recovery before each';
     case 'main':
-      return 'Rest 2–3 min between sets - full recovery is key';
+      return 'Rest 2-3 min between sets - full recovery is key';
     case 'accessory':
-      return 'Rest 60–90 sec between sets';
+      return 'Rest 60-90 sec between sets';
     case 'prehab':
-      return 'Rest 30–45 sec between sets';
+      return 'Rest 30-45 sec between sets';
     case 'finisher':
       return 'Rest only if you need to - keep moving';
     case 'cooldown':
