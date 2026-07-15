@@ -1171,6 +1171,9 @@ export default function SessionScreen() {
     'squat',
     'bench',
     'deadlift',
+    'upper_body',
+    'lower_body',
+    'full_body',
     'conditioning',
     'prehab',
     'flexibility',
@@ -1190,7 +1193,15 @@ export default function SessionScreen() {
   const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
     ? (params.timeAvailable as TimeAvailable)
     : '60';
-  const NON_TEST_TYPES: SessionType[] = ['prehab', 'flexibility', 'conditioning', 'custom'];
+  const NON_TEST_TYPES: SessionType[] = [
+    'prehab',
+    'flexibility',
+    'conditioning',
+    'custom',
+    'upper_body',
+    'lower_body',
+    'full_body',
+  ];
   const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
 
   const C = useColors();

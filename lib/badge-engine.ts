@@ -317,10 +317,16 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   }
 
   // ── 4. Session type counts ─────────────────────────────────────────────────
+  // Weekly balanced sessions (upper_body / lower_body / full_body) count
+  // towards the same badge pools as their corresponding KPI sessions so users
+  // earn badges regardless of which session format they prefer.
   const typeMap: Record<string, string> = {
     squat: 'lower',
     bench: 'upper',
     deadlift: 'full',
+    lower_body: 'lower',
+    upper_body: 'upper',
+    full_body: 'full',
     conditioning: 'conditioning',
     prehab: 'prehab',
     flexibility: 'flex',
@@ -550,10 +556,14 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
       (s.byType['deadlift'] ?? 0) >= 1,
     'exercise_all_three_lifts'
   );
-  // Pattern Master: complete squat + bench + deadlift within the same Mon–Sun week
+  // Pattern Master: complete lower + upper + full body in the same Mon–Sun week
+  // Either the KPI sessions or the weekly balanced sessions count.
   awardIf(
     Array.from(s.weeklyGrouped.values()).some(
-      (t) => t.has('squat') && t.has('bench') && t.has('deadlift')
+      (t) =>
+        (t.has('squat') || t.has('lower_body')) &&
+        (t.has('bench') || t.has('upper_body')) &&
+        (t.has('deadlift') || t.has('full_body'))
     ),
     'exercise_push_pull_hinge'
   );

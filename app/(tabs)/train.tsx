@@ -33,7 +33,9 @@ import {
 
 const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
-const ALL_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
+const KPI_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
+
+const WEEKLY_SESSION_TYPES_UI: SessionType[] = ['lower_body', 'upper_body', 'full_body'];
 
 const SESSION_IMAGES: Record<SessionType, any> = {
   squat: require('@/assets/images/sessions/lower-body.png'),
@@ -43,6 +45,9 @@ const SESSION_IMAGES: Record<SessionType, any> = {
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
   flexibility: require('@/assets/images/sessions/mobility.png'),
   custom: require('@/assets/images/sessions/custom.png'),
+  lower_body: require('@/assets/images/sessions/lower-body.png'),
+  upper_body: require('@/assets/images/sessions/upper-body.png'),
+  full_body: require('@/assets/images/sessions/full-body.png'),
 };
 
 const ALL_TIERS: EquipmentTier[] = [
@@ -353,6 +358,15 @@ export default function TrainScreen() {
           pathname: '/readiness',
           params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam },
         });
+      } else if (
+        sessionType === 'upper_body' ||
+        sessionType === 'lower_body' ||
+        sessionType === 'full_body'
+      ) {
+        router.push({
+          pathname: '/readiness',
+          params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam },
+        });
       } else {
         router.push({
           pathname: '/readiness',
@@ -462,9 +476,43 @@ export default function TrainScreen() {
           </Animated.View>
         )}
 
-        {/* Session selection cards */}
+        {/* KPI Sessions */}
+        <Text style={styles.sectionHeading}>KPI Sessions</Text>
         <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
-          {ALL_SESSION_TYPES.map((type) => {
+          {KPI_SESSION_TYPES.map((type) => {
+            const meta = SESSION_META[type];
+            return (
+              <Pressable
+                key={type}
+                onPress={() => handleSelect(type)}
+                style={({ pressed }) => [
+                  styles.sessionCard,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                ]}
+                testID={`train-session-${type}`}
+              >
+                <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
+                  <Image
+                    source={SESSION_IMAGES[type]}
+                    style={styles.sessionCardImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.sessionCardLabel} numberOfLines={1}>
+                  {meta.label}
+                </Text>
+                <Text style={styles.sessionCardSub} numberOfLines={1}>
+                  {meta.subtitle}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Animated.View>
+
+        {/* Weekly Sessions */}
+        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Weekly Sessions</Text>
+        <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
+          {WEEKLY_SESSION_TYPES_UI.map((type) => {
             const meta = SESSION_META[type];
             return (
               <Pressable
@@ -869,6 +917,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     resumeBannerBtnText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
+    sectionHeading: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: 10,
+      marginTop: 4,
+    },
     sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     sessionCard: {
       width: '47%',

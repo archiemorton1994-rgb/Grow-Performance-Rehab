@@ -82,6 +82,17 @@ function getSessionTypeColors(
       icon: SHARED_SESSION_META.custom.icon,
       color: C.categoryFinisherText,
     },
+    lower_body: { bg: C.primaryMuted, icon: SHARED_SESSION_META.lower_body.icon, color: C.primary },
+    upper_body: {
+      bg: C.badgeVolume,
+      icon: SHARED_SESSION_META.upper_body.icon,
+      color: C.badgeVolumeText,
+    },
+    full_body: {
+      bg: C.categoryNeuro,
+      icon: SHARED_SESSION_META.full_body.icon,
+      color: C.categoryNeuroText,
+    },
   };
 }
 
@@ -1614,6 +1625,9 @@ function SessionTypeBreakdown({
       prehab: 0,
       flexibility: 0,
       custom: 0,
+      lower_body: 0,
+      upper_body: 0,
+      full_body: 0,
     };
     for (const s of sessions) {
       if (map[s.sessionType] !== undefined) map[s.sessionType]++;

@@ -8,9 +8,20 @@ export type EquipmentTier =
   'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 export type SessionType =
-  'squat' | 'bench' | 'deadlift' | 'conditioning' | 'prehab' | 'flexibility' | 'custom';
-/** Session types that contribute to strength progressive overload. */
+  | 'squat'
+  | 'bench'
+  | 'deadlift'
+  | 'upper_body'
+  | 'lower_body'
+  | 'full_body'
+  | 'conditioning'
+  | 'prehab'
+  | 'flexibility'
+  | 'custom';
+/** Session types that contribute to strength progressive overload (KPI lifts only). */
 export const STRENGTH_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
+/** Weekly balanced programming sessions (not KPI-focused). */
+export const WEEKLY_SESSION_TYPES: SessionType[] = ['upper_body', 'lower_body', 'full_body'];
 export type ExerciseCategory =
   'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
 export type TimeAvailable = '30' | '45' | '60';
@@ -983,7 +994,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 21,
+      version: 22,
     }
   )
 );

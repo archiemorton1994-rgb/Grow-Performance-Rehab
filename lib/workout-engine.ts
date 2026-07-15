@@ -30,6 +30,9 @@ import {
   getRegionPrehabWorkout,
   getRegionPrehabExercise,
   getGoalConditioningBlock,
+  getWeeklyLowerBodyExercises,
+  getWeeklyUpperBodyExercises,
+  getWeeklyFullBodyExercises,
 } from './exercise-db';
 
 export interface Exercise {
@@ -61,7 +64,11 @@ interface ReadinessCheck {
   timeAvailable: TimeAvailable;
 }
 
-type MainSessionType = Exclude<SessionType, 'conditioning' | 'prehab' | 'flexibility' | 'custom'>;
+type MainSessionType = Exclude<
+  SessionType,
+  'conditioning' | 'prehab' | 'flexibility' | 'custom' | 'upper_body' | 'lower_body' | 'full_body'
+>;
+type WeeklySessionType = 'upper_body' | 'lower_body' | 'full_body';
 
 /**
  * Deterministic Fisher-Yates shuffle seeded by an integer.
@@ -621,6 +628,19 @@ export function generateWorkout(
   if (sessionType === 'custom') {
     return [];
   }
+  if (sessionType === 'upper_body' || sessionType === 'lower_body' || sessionType === 'full_body') {
+    return generateWeeklyWorkout(
+      sessionType,
+      equipmentTier,
+      readiness,
+      profile,
+      exerciseFeedback,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    );
+  }
 
   const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
@@ -815,6 +835,112 @@ export function generateWorkout(
   // relative order exactly as assembled above.
   const catOrder = (cat: string) => (cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0);
   return setsEnforced.sort((a, b) => catOrder(a.category) - catOrder(b.category));
+}
+
+function generateWeeklyWorkout(
+  sessionType: WeeklySessionType,
+  equipmentTier: EquipmentTier,
+  readiness: ReadinessCheck,
+  profile?: UserProfile,
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  strengthSessionCount: number = 0,
+  lastLoggedWeights?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
+  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+): Exercise[] {
+  const { hasAches, painRegion, energy, timeAvailable } = readiness;
+  const sessionSeed = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
+  const exercises: Exercise[] = [];
+
+  // ── 1. Cardio Warm-Up (always) ─────────────────────────────────────────────
+  const cardioWarmup = seededShuffleDiverse(CARDIO_WARMUPS, sessionSeed)[0] ?? CARDIO_WARMUP;
+  exercises.push(templateToExercise(cardioWarmup));
+
+  // ── 2. Prep Stretch (1 for 30 min, 2 for 45/60 min) ───────────────────────
+  const prepSource: MainSessionType = sessionType === 'upper_body' ? 'bench' : 'squat';
+  const prepPool = seededShuffleDiverse(getPrep(prepSource, equipmentTier), sessionSeed);
+  const prepCount = timeAvailable === '30' ? 1 : 2;
+  for (const p of prepPool.slice(0, prepCount)) {
+    exercises.push(templateToExercise(p));
+  }
+
+  // ── 3. Main exercises (movement-pattern-based) ────────────────────────────
+  const getterFn =
+    sessionType === 'lower_body'
+      ? getWeeklyLowerBodyExercises
+      : sessionType === 'upper_body'
+        ? getWeeklyUpperBodyExercises
+        : getWeeklyFullBodyExercises;
+
+  const allMainExercises = getterFn(equipmentTier);
+
+  // Time-based count: 30 → 3-4, 45 → 4-5, 60 → 5-6
+  const baseCount =
+    sessionType === 'full_body'
+      ? timeAvailable === '30'
+        ? 4
+        : timeAvailable === '45'
+          ? 5
+          : 6
+      : timeAvailable === '30'
+        ? 3
+        : timeAvailable === '45'
+          ? 4
+          : 5;
+  const mainCount = energy === 'low' ? Math.max(baseCount - 1, 2) : baseCount;
+
+  const shuffledMain = seededShuffleDiverse(allMainExercises, sessionSeed);
+  for (const t of shuffledMain.slice(0, mainCount)) {
+    exercises.push(applyComfortOrBadge(t, hasAches, painRegion, equipmentTier));
+  }
+
+  // ── 4. Prehab (45 and 60 min only) ────────────────────────────────────────
+  if (timeAvailable !== '30') {
+    const prehabTemplate = painRegion
+      ? getRegionPrehabExercise(painRegion)
+      : getPrehab(sessionType === 'upper_body' ? 'bench' : 'squat', equipmentTier)[0];
+    const phEx = templateToExercise(prehabTemplate);
+    phEx.sets = 1;
+    exercises.push(phEx);
+  }
+
+  // ── 5. Cooldown (60 min only) ──────────────────────────────────────────────
+  if (timeAvailable === '60') {
+    const cooldownPool = getCooldown();
+    exercises.push(templateToExercise(cooldownPool[0]));
+  }
+
+  // Personalize loads
+  const isUpperBodySession = sessionType === 'upper_body' || sessionType === 'full_body';
+  const personalized = exercises.map((ex) =>
+    applyPersonalization(
+      ex,
+      profile,
+      isUpperBodySession,
+      exerciseFeedback,
+      undefined,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    )
+  );
+
+  const kettlebelled =
+    equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+
+  // Deduplicate
+  const seenNames = new Set<string>();
+  const deduped = kettlebelled.filter((ex) => {
+    const key = ex.name.toLowerCase().trim();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+
+  // Guarantee ordering: cooldown always last
+  const catOrder = (cat: string) => (cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0);
+  return deduped.sort((a, b) => catOrder(a.category) - catOrder(b.category));
 }
 
 function generateConditioningWorkout(
@@ -1067,10 +1193,16 @@ export function applyFeedbackMultiplier(load: string, multiplier: number): strin
 export function getSessionLabel(type: SessionType): string {
   switch (type) {
     case 'squat':
-      return 'Lower Body';
+      return 'Squat Session';
     case 'bench':
-      return 'Upper Body';
+      return 'Bench Session';
     case 'deadlift':
+      return 'Deadlift Session';
+    case 'upper_body':
+      return 'Upper Body';
+    case 'lower_body':
+      return 'Lower Body';
+    case 'full_body':
       return 'Full Body';
     case 'conditioning':
       return 'Conditioning';
@@ -1086,11 +1218,17 @@ export function getSessionLabel(type: SessionType): string {
 export function getSessionSubtitle(type: SessionType): string {
   switch (type) {
     case 'squat':
-      return 'Squat pattern - quads, glutes, hamstrings';
+      return 'KPI lift - quads, glutes, hamstrings';
     case 'bench':
-      return 'Push pattern - chest, shoulders, triceps';
+      return 'KPI lift - chest, shoulders, triceps';
     case 'deadlift':
-      return 'Hinge pattern - posterior chain, back, core';
+      return 'KPI lift - hinge, posterior chain, back';
+    case 'upper_body':
+      return 'Push & pull - full upper coverage';
+    case 'lower_body':
+      return 'Squat, hinge & lunge - full leg coverage';
+    case 'full_body':
+      return '6 movement patterns - complete session';
     case 'conditioning':
       return 'Fat burn - high calorie, cardio focus';
     case 'prehab':
@@ -1110,6 +1248,12 @@ export function getSessionIcon(type: SessionType): string {
       return 'body';
     case 'deadlift':
       return 'barbell';
+    case 'upper_body':
+      return 'barbell';
+    case 'lower_body':
+      return 'walk';
+    case 'full_body':
+      return 'fitness';
     case 'conditioning':
       return 'flame';
     case 'prehab':
