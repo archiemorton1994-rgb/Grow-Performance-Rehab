@@ -30,6 +30,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import CoachMark from '@/components/CoachMark';
 import {
   EquipmentTier,
   EnergyLevel,
@@ -1061,8 +1062,13 @@ export function ExerciseCard({
           isActive && allDone && styles.exerciseCardDone,
           isPast && styles.exerciseCardPast,
           isFuture && styles.exerciseCardLocked,
-          !isFuture && !isPast && !(isActive && allDone) && { borderLeftWidth: 4, borderLeftColor: cat.text },
-          (isPast || (isActive && allDone)) && { borderLeftWidth: 3, borderLeftColor: C.primaryDark },
+          !isFuture &&
+            !isPast &&
+            !(isActive && allDone) && { borderLeftWidth: 4, borderLeftColor: cat.text },
+          (isPast || (isActive && allDone)) && {
+            borderLeftWidth: 3,
+            borderLeftColor: C.primaryDark,
+          },
         ]}
       >
         {/* ── Future state: locked with padlock ────────────────────────────── */}
@@ -1487,6 +1493,41 @@ export function PainAdaptBanner({
   );
 }
 
+// ─── In-session tutorial content ──────────────────────────────────────────
+
+const SESSION_TUTORIAL = [
+  {
+    iconName: 'barbell-outline',
+    iconLabel: 'Exercise',
+    title: 'Your first exercise',
+    body: "Tap 'Watch form' for a demo video before starting. Work through each exercise in order.",
+  },
+  {
+    iconName: 'create-outline',
+    iconLabel: 'Log sets',
+    title: 'Log every set',
+    body: 'Enter the weight lifted and reps completed, then tap the green button to log the set.',
+  },
+  {
+    iconName: 'happy-outline',
+    iconLabel: 'Feedback',
+    title: 'Rate how it felt',
+    body: "After each set, tell us if it felt easy or hard — we'll adjust next session's weight automatically.",
+  },
+  {
+    iconName: 'shuffle-outline',
+    iconLabel: 'Swap',
+    title: 'Swap any exercise',
+    body: 'Not feeling an exercise? Tap the swap icon on the card to get a different option for the same muscle.',
+  },
+  {
+    iconName: 'stats-chart-outline',
+    iconLabel: 'Progress',
+    title: 'Your session progress',
+    body: 'The bar at the top shows how far through the session you are. Keep going!',
+  },
+] as const;
+
 export default function SessionScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
@@ -1563,6 +1604,8 @@ export default function SessionScreen() {
     lastSessionPerformance,
     pendingCustomExercises,
     clearPendingCustomExercises,
+    sessionTutorialShown,
+    setSessionTutorialShown,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -1718,6 +1761,35 @@ export default function SessionScreen() {
   const [inSessionFeedback, setInSessionFeedback] = useState<
     Record<string, 'easy' | 'hard' | null>
   >({});
+
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const tutStartedRef = useRef(false);
+
+  const advanceTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= SESSION_TUTORIAL.length) {
+        setSessionTutorialShown(true);
+        return null;
+      }
+      return next;
+    });
+  }, [setSessionTutorialShown]);
+
+  const skipTut = useCallback(() => {
+    setTutStep(null);
+    setSessionTutorialShown(true);
+  }, [setSessionTutorialShown]);
+
+  useEffect(() => {
+    if (exercises.length > 0 && !sessionTutorialShown && !tutStartedRef.current) {
+      tutStartedRef.current = true;
+      const timer = setTimeout(() => setTutStep(0), 900);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercises.length]);
 
   const handleBarSetCompleted = useCallback(() => {
     setBarTimerTrigger((n) => n + 1);
@@ -2609,6 +2681,21 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {tutStep !== null && (
+        <CoachMark
+          visible
+          title={SESSION_TUTORIAL[tutStep].title}
+          body={SESSION_TUTORIAL[tutStep].body}
+          step={tutStep + 1}
+          total={SESSION_TUTORIAL.length}
+          onNext={advanceTut}
+          onSkip={skipTut}
+          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 190}
+          iconName={SESSION_TUTORIAL[tutStep].iconName}
+          iconLabel={SESSION_TUTORIAL[tutStep].iconLabel}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import CoachMark from '@/components/CoachMark';
 import {
   EquipmentTier,
   EnergyLevel,
@@ -44,6 +45,29 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   fullgym: 'Everything',
 };
 
+// ─── Readiness tutorial content ───────────────────────────────────────────
+
+const READINESS_TUTORIAL = [
+  {
+    iconName: 'battery-half-outline',
+    iconLabel: 'Energy',
+    title: 'Pick your energy level',
+    body: 'Low energy → lighter session. High → push harder. We scale the weight accordingly.',
+  },
+  {
+    iconName: 'time-outline',
+    iconLabel: 'Time',
+    title: 'Choose your session length',
+    body: '30 min focuses on the core lift. 45 min adds extras. 60 min gives you the full session.',
+  },
+  {
+    iconName: 'medical-outline',
+    iconLabel: 'Pain',
+    title: 'Any pain today?',
+    body: "Tell us if anything hurts — we'll automatically swap exercises away from that area to protect you.",
+  },
+] as const;
+
 export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -65,6 +89,8 @@ export default function ReadinessScreen() {
     lastReadinessTime,
     lastPainRegion,
     setLastReadiness,
+    readinessTutorialShown,
+    setReadinessTutorialShown,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
@@ -101,6 +127,32 @@ export default function ReadinessScreen() {
   const [diagramPainRegion, setDiagramPainRegion] = useState<PainRegion | undefined>(undefined);
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
+  const [coachStep, setCoachStep] = useState<number | null>(null);
+
+  const advanceCoach = useCallback(() => {
+    setCoachStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= READINESS_TUTORIAL.length) {
+        setReadinessTutorialShown(true);
+        return null;
+      }
+      return next;
+    });
+  }, [setReadinessTutorialShown]);
+
+  const skipCoach = useCallback(() => {
+    setCoachStep(null);
+    setReadinessTutorialShown(true);
+  }, [setReadinessTutorialShown]);
+
+  useEffect(() => {
+    if (!readinessTutorialShown) {
+      const timer = setTimeout(() => setCoachStep(0), 600);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (sessionType === 'prehab') {
@@ -713,6 +765,20 @@ export default function ReadinessScreen() {
       {step === 'main' && renderMain()}
       {step === 'prehabFocus' && renderPrehabFocus()}
       {step === 'painRegion' && renderPainRegion()}
+      {coachStep !== null && step === 'main' && (
+        <CoachMark
+          visible
+          title={READINESS_TUTORIAL[coachStep].title}
+          body={READINESS_TUTORIAL[coachStep].body}
+          step={coachStep + 1}
+          total={READINESS_TUTORIAL.length}
+          onNext={advanceCoach}
+          onSkip={skipCoach}
+          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
+          iconName={READINESS_TUTORIAL[coachStep].iconName}
+          iconLabel={READINESS_TUTORIAL[coachStep].iconLabel}
+        />
+      )}
     </View>
   );
 }

@@ -242,6 +242,10 @@ interface AppState {
   lastPainRegion: PainRegion | null;
   /** Whether the first-launch guided tour has been completed or skipped. Persisted. */
   tourComplete: boolean;
+  /** Whether the readiness-screen 3-step tutorial has been shown. Persisted. */
+  readinessTutorialShown: boolean;
+  /** Whether the in-session 5-step tutorial has been shown. Persisted. */
+  sessionTutorialShown: boolean;
   weightUnit: WeightUnit;
   /** ISO timestamp of the last time bodyweightKg was explicitly updated. Null if never updated via app. */
   bodyweightUpdatedAt: string | null;
@@ -334,6 +338,8 @@ interface AppState {
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
+  setReadinessTutorialShown: (shown: boolean) => void;
+  setSessionTutorialShown: (shown: boolean) => void;
   setWeightReminderSnoozedAt: (ts: string | null) => void;
   /** Returns true when the bodyweight reminder card should be shown on the Home tab.
    *  Encapsulates staleness (>14 days or null) + snooze (<7 days) logic in one place. */
@@ -418,6 +424,8 @@ export const useAppStore = create<AppState>()(
       savedTemplates: [],
       historyTypeFilter: null,
       tourComplete: false,
+      readinessTutorialShown: false,
+      sessionTutorialShown: false,
       bodyweightUpdatedAt: null,
       weightReminderSnoozedAt: null,
       sessionEquipmentOverride: null,
@@ -474,6 +482,8 @@ export const useAppStore = create<AppState>()(
       },
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setTourComplete: (complete) => set({ tourComplete: complete }),
+      setReadinessTutorialShown: (shown) => set({ readinessTutorialShown: shown }),
+      setSessionTutorialShown: (shown) => set({ sessionTutorialShown: shown }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
       isWeightReminderVisible: () => {
         const { completedSessions, bodyweightUpdatedAt, weightReminderSnoozedAt } = get();
@@ -1003,9 +1013,16 @@ export const useAppStore = create<AppState>()(
         if (!('calibrationBannerDismissed' in persistedState)) {
           persistedState.calibrationBannerDismissed = false;
         }
+        if (!('readinessTutorialShown' in persistedState)) {
+          persistedState.readinessTutorialShown =
+            (persistedState.completedSessions?.length ?? 0) > 0;
+        }
+        if (!('sessionTutorialShown' in persistedState)) {
+          persistedState.sessionTutorialShown = (persistedState.completedSessions?.length ?? 0) > 0;
+        }
         return persistedState;
       },
-      version: 22,
+      version: 23,
     }
   )
 );
