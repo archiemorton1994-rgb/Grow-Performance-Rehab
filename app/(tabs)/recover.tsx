@@ -150,83 +150,96 @@ function RegionBodyPicker({
 }) {
   const C = useColors();
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomInset + 24, gap: 10 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <BodyDiagram selected={pending} onSelect={onPendingChange} />
-      {pending && (
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <BodyDiagram selected={pending} onSelect={onPendingChange} />
+      </ScrollView>
+
+      {/* Pinned footer — always visible regardless of diagram height */}
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: bottomInset + 16,
+          gap: 10,
+        }}
+      >
+        {pending && (
+          <Pressable
+            onPress={() => onConfirm(pending)}
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row' as const,
+                alignItems: 'center' as const,
+                justifyContent: 'center' as const,
+                gap: 8,
+                backgroundColor: C.primary,
+                borderRadius: 14,
+                paddingVertical: 15,
+                shadowColor: C.primary,
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.35,
+                shadowRadius: 8,
+                elevation: 5,
+              },
+              pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
+            ]}
+            testID={`${testPrefix}-start-region`}
+          >
+            <Ionicons name="play" size={16} color={C.textInverse} />
+            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+              Start {BODY_DIAGRAM_LABELS[pending]}
+            </Text>
+          </Pressable>
+        )}
         <Pressable
-          onPress={() => onConfirm(pending)}
+          onPress={onFullBody}
           style={({ pressed }) => [
             {
               flexDirection: 'row' as const,
               alignItems: 'center' as const,
               justifyContent: 'center' as const,
               gap: 8,
-              backgroundColor: C.primary,
+              backgroundColor: pending ? C.surfaceTertiary : C.primary,
               borderRadius: 14,
               paddingVertical: 15,
-              shadowColor: C.primary,
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.35,
-              shadowRadius: 8,
-              elevation: 5,
+              borderWidth: pending ? 1 : 0,
+              borderColor: C.borderLight,
+              ...(pending
+                ? {}
+                : {
+                    shadowColor: C.primary,
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }),
             },
             pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
           ]}
-          testID={`${testPrefix}-start-region`}
+          testID={`${testPrefix}-fullbody`}
         >
-          <Ionicons name="play" size={16} color={C.textInverse} />
-          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
-            Start {BODY_DIAGRAM_LABELS[pending]}
+          <Ionicons
+            name="flash-outline"
+            size={16}
+            color={pending ? C.textSecondary : C.textInverse}
+          />
+          <Text
+            style={{
+              fontSize: 16,
+              fontFamily: 'Inter_700Bold',
+              color: pending ? C.textSecondary : C.textInverse,
+            }}
+          >
+            Full body circuit
           </Text>
         </Pressable>
-      )}
-      <Pressable
-        onPress={onFullBody}
-        style={({ pressed }) => [
-          {
-            flexDirection: 'row' as const,
-            alignItems: 'center' as const,
-            justifyContent: 'center' as const,
-            gap: 8,
-            backgroundColor: pending ? C.surfaceTertiary : C.primary,
-            borderRadius: 14,
-            paddingVertical: 15,
-            borderWidth: pending ? 1 : 0,
-            borderColor: C.borderLight,
-            ...(pending
-              ? {}
-              : {
-                  shadowColor: C.primary,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 8,
-                  elevation: 5,
-                }),
-          },
-          pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
-        ]}
-        testID={`${testPrefix}-fullbody`}
-      >
-        <Ionicons
-          name="flash-outline"
-          size={16}
-          color={pending ? C.textSecondary : C.textInverse}
-        />
-        <Text
-          style={{
-            fontSize: 16,
-            fontFamily: 'Inter_700Bold',
-            color: pending ? C.textSecondary : C.textInverse,
-          }}
-        >
-          Full body circuit
-        </Text>
-      </Pressable>
-    </ScrollView>
+      </View>
+    </View>
   );
 }
 

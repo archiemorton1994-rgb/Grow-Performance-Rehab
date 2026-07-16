@@ -1495,7 +1495,17 @@ export function PainAdaptBanner({
 
 // ─── In-session tutorial content ──────────────────────────────────────────
 
-const SESSION_TUTORIAL = [
+interface TutorialStep {
+  iconName: string;
+  iconLabel: string;
+  upArrowFraction: number;
+  title: string;
+  body: string;
+  /** Override the default 190px card-to-bottom offset for steps that spotlight elements near the bottom bar. */
+  bottomOffset?: number;
+}
+
+const SESSION_TUTORIAL: readonly TutorialStep[] = [
   {
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
@@ -1509,6 +1519,7 @@ const SESSION_TUTORIAL = [
     upArrowFraction: 0.3,
     title: 'Log every set',
     body: 'Type the weight and reps, then tap the green button to save the set. The app remembers your weights and auto-suggests next time.',
+    bottomOffset: 320,
   },
   {
     iconName: 'happy-outline',
@@ -1516,6 +1527,7 @@ const SESSION_TUTORIAL = [
     upArrowFraction: 0.7,
     title: 'Tell us how it felt',
     body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — your next session adjusts itself.',
+    bottomOffset: 320,
   },
   {
     iconName: 'shuffle-outline',
@@ -1531,7 +1543,7 @@ const SESSION_TUTORIAL = [
     title: "You're on your way",
     body: 'The bar at the top tracks your sets. Every session you complete builds your streak and moves you closer to the next milestone badge.',
   },
-] as const;
+];
 
 export default function SessionScreen() {
   const insets = useSafeAreaInsets();
@@ -2743,7 +2755,11 @@ export default function SessionScreen() {
           total={SESSION_TUTORIAL.length}
           onNext={advanceTut}
           onSkip={skipTut}
-          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 190}
+          bottomOffset={
+            insets.bottom +
+            (Platform.OS === 'web' ? 34 : 0) +
+            (SESSION_TUTORIAL[tutStep].bottomOffset ?? 190)
+          }
           upArrowFraction={SESSION_TUTORIAL[tutStep].upArrowFraction}
           iconName={SESSION_TUTORIAL[tutStep].iconName}
           iconLabel={SESSION_TUTORIAL[tutStep].iconLabel}
