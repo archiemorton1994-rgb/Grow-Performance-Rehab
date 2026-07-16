@@ -56,7 +56,9 @@ export const REGION_BACK = new Set<PainRegion>([
 ]);
 
 const RECOVER_IMAGES: Record<string, any> = {
+  recovery: require('@/assets/images/sessions/recovery.png'),
   mobility: require('@/assets/images/sessions/mobility.png'),
+  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
 };
 
 const ALL_TIERS: EquipmentTier[] = [

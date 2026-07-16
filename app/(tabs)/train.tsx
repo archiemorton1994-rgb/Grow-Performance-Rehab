@@ -33,9 +33,9 @@ const WEEKLY_SESSION_TYPES_UI: SessionType[] = [
 ];
 
 const SESSION_IMAGES: Record<SessionType, any> = {
-  squat: require('@/assets/images/sessions/lower-body.png'),
-  bench: require('@/assets/images/sessions/upper-body.png'),
-  deadlift: require('@/assets/images/sessions/full-body.png'),
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
   flexibility: require('@/assets/images/sessions/mobility.png'),

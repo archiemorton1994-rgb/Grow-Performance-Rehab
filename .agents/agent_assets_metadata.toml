@@ -6,6 +6,72 @@ uri = "file://screenshots/subscription-promo-1024.png"
 type = "image"
 title = "grow-subscription-promo"
 
+[[generated]]
+id = "JBss8eb4tJEloa9XFXM-t"
+uri = "file://assets/images/sessions/squat.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "G_I9DfWit8rJYMXPgghfJ"
+uri = "file://assets/images/sessions/bench.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "_6Atnb1V0N8NFE6pTozrO"
+uri = "file://assets/images/sessions/deadlift.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "X2ejUOBpZ4LSaabdRW1cU"
+uri = "file://assets/images/sessions/custom.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "MK0C4HW8CcTD9YzZqc898"
+uri = "file://assets/images/sessions/lower-body.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "qXQ7Me4stBNogve3D9Trq"
+uri = "file://assets/images/sessions/upper-body.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "jmvz5K1NNq3PMzD1VcTL3"
+uri = "file://assets/images/sessions/full-body.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "1kbz5v0pj2J8rDYce08Eq"
+uri = "file://assets/images/sessions/conditioning.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Obb5G2kV7eVFZPf-6M2B4"
+uri = "file://assets/images/sessions/recovery.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ii_C5jw7PYyB04lPAPl5D"
+uri = "file://assets/images/sessions/mobility.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ERDqDskz4aW8n155Bry08"
+uri = "file://assets/images/sessions/targeted-prehab.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "Y0cuoC_vzhSZp4BoB9Wmj"
 uri = "file://screenshots/subscription-preview.jpg"
