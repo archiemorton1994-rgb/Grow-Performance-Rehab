@@ -1,15 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Platform,
-  Alert,
-  Image,
-  Modal,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, Alert, Image, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,13 +35,7 @@ const SESSION_IMAGES: Record<SessionType, any> = {
   full_body: require('@/assets/images/sessions/full-body.png'),
 };
 
-const ALL_TIERS: EquipmentTier[] = [
-  'bodyweight',
-  'bands',
-  'dumbbells',
-  'kettlebells',
-  'fullgym',
-];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -261,16 +245,15 @@ export default function TrainScreen() {
 
   return (
     <>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
+      <View
+        style={[
+          styles.container,
           styles.content,
           {
             paddingTop: insets.top + webTopInset + 16,
-            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 100,
+            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50),
           },
         ]}
-        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Train</Text>
         <Text style={styles.subtitle}>Choose a session to start</Text>
@@ -380,7 +363,7 @@ export default function TrainScreen() {
         </Animated.View>
 
         {/* Additional Sessions */}
-        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Additional Sessions</Text>
+        <Text style={[styles.sectionHeading, { marginTop: 8 }]}>Additional Sessions</Text>
         <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
           {WEEKLY_SESSION_TYPES_UI.map((type) => {
             const meta = SESSION_META[type];
@@ -411,18 +394,7 @@ export default function TrainScreen() {
             );
           })}
         </Animated.View>
-
-        {/* Opens the dedicated program screen */}
-        <Pressable
-          onPress={() => router.push('/program')}
-          style={({ pressed }) => [styles.viewProgramLink, pressed && { opacity: 0.7 }]}
-          testID="train-view-program-link"
-        >
-          <Ionicons name="podium-outline" size={14} color={C.textSecondary} />
-          <Text style={styles.viewProgramLinkText}>View your program</Text>
-          <Ionicons name="arrow-forward" size={14} color={C.textTertiary} />
-        </Pressable>
-      </ScrollView>
+      </View>
 
       {/* Equipment picker sheet */}
       <Modal
@@ -629,45 +601,31 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
-      marginBottom: 10,
-      marginTop: 4,
+      marginBottom: 6,
+      marginTop: 2,
     },
-    sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+    sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
     sessionCard: {
       width: '47%',
       backgroundColor: C.surface,
       borderRadius: 14,
-      padding: 10,
+      padding: 8,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     sessionCardIcon: {
       width: '100%',
-      aspectRatio: 1,
+      height: 80,
       borderRadius: 10,
       backgroundColor: '#111111',
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 10,
+      marginBottom: 6,
     },
     sessionCardImage: { width: '100%', height: '100%' },
-    sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
+    sessionCardLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-
-    viewProgramLink: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 8,
-      paddingVertical: 14,
-      paddingHorizontal: 4,
-    },
-    viewProgramLinkText: {
-      flex: 1,
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-    },
 
     // Equipment sheet
     sheetBackdrop: {
