@@ -1,6 +1,13 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions, PanResponder } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
 
@@ -38,7 +45,7 @@ interface CoachMarkProps {
   upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
-  /** When provided, dims the entire screen except the described rect. */
+  /** When provided, renders a pulsing ring around the described rect. */
   spotlightRect?: SpotlightRect;
 }
 
@@ -61,6 +68,38 @@ export default function CoachMark({
   spotlightRect,
 }: CoachMarkProps) {
   const C = useColors();
+
+  // ── Pulsing ring animation ────────────────────────────────────────────────
+  // Hooks must be called unconditionally (before any early return).
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible && spotlightRect) {
+      // Fade in, then loop breathe: opacity 0.85 ↔ 0.25, scale 1.0 ↔ 1.07
+      pulseScale.value = withRepeat(
+        withSequence(withTiming(1.07, { duration: 750 }), withTiming(1.0, { duration: 750 })),
+        -1,
+        false
+      );
+      pulseOpacity.value = withSequence(
+        withTiming(0.85, { duration: 300 }),
+        withRepeat(
+          withSequence(withTiming(0.25, { duration: 750 }), withTiming(0.85, { duration: 750 })),
+          -1,
+          false
+        )
+      );
+    } else {
+      pulseScale.value = withTiming(1, { duration: 150 });
+      pulseOpacity.value = withTiming(0, { duration: 150 });
+    }
+  }, [visible, spotlightRect?.left, spotlightRect?.top]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pulseRingStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
+  }));
 
   // Keep a live ref so the PanResponder (created once via useRef) always calls
   // the latest onSwipeLeft prop rather than the stale initial closure value.
@@ -105,56 +144,23 @@ export default function CoachMark({
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
     // pass through the transparent area; only the card itself captures input.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-      {/* ── Spotlight: 4 dark bands forming a rectangular cutout ─────────── */}
+      {/* ── Spotlight: pulsing ring around the target element ─────────── */}
       {sr && (
-        <>
-          {/* Top band */}
-          <View
-            style={[styles.dimBand, { top: 0, left: 0, right: 0, height: Math.max(0, sr.top) }]}
-          />
-          {/* Bottom band */}
-          <View
-            style={[styles.dimBand, { top: sr.top + sr.height, left: 0, right: 0, bottom: 0 }]}
-          />
-          {/* Left strip */}
-          <View
-            style={[
-              styles.dimBand,
-              {
-                top: sr.top,
-                left: 0,
-                width: Math.max(0, sr.left),
-                height: sr.height,
-              },
-            ]}
-          />
-          {/* Right strip */}
-          <View
-            style={[
-              styles.dimBand,
-              {
-                top: sr.top,
-                left: sr.left + sr.width,
-                right: 0,
-                height: sr.height,
-              },
-            ]}
-          />
-          {/* Green border ring around the spotlight cutout */}
-          <View
-            style={[
-              styles.spotlightRing,
-              {
-                top: sr.top - 3,
-                left: sr.left - 3,
-                width: sr.width + 6,
-                height: sr.height + 6,
-                borderRadius: (sr.borderRadius ?? 12) + 3,
-                borderColor: C.primary,
-              },
-            ]}
-          />
-        </>
+        <Animated.View
+          style={[
+            styles.pulseRing,
+            {
+              top: sr.top - 6,
+              left: sr.left - 6,
+              width: sr.width + 12,
+              height: sr.height + 12,
+              borderRadius: (sr.borderRadius ?? 12) + 6,
+              borderColor: C.primary,
+            },
+            pulseRingStyle,
+          ]}
+          pointerEvents="none"
+        />
       )}
 
       {/* Down-pointing arrow — between card bottom and tab bar */}
@@ -265,18 +271,11 @@ const styles = StyleSheet.create({
     zIndex: 200,
     pointerEvents: 'box-none',
   },
-  // Dark semi-transparent band — one of four forming the spotlight cutout.
-  // pointerEvents: 'none' keeps these purely decorative (touches pass through).
-  dimBand: {
+  // Pulsing ring that traces the spotlighted element — purely decorative.
+  pulseRing: {
     position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    pointerEvents: 'none',
-  },
-  // Green border ring that traces the spotlighted element.
-  spotlightRing: {
-    position: 'absolute',
-    borderWidth: 2,
-    pointerEvents: 'none',
+    borderWidth: 2.5,
+    backgroundColor: 'transparent',
   },
   positioner: {
     position: 'absolute',

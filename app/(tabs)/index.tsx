@@ -18,7 +18,14 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
@@ -136,6 +143,8 @@ export default function HomeScreen() {
     earnedBadges,
     calibrationBannerDismissed,
     setCalibrationBannerDismissed,
+    tourJustCompleted,
+    setTourJustCompleted,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -300,6 +309,37 @@ export default function HomeScreen() {
   };
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── Post-tour session card pulse ─────────────────────────────────────────
+  const pulseBorder = useSharedValue(0);
+
+  useEffect(() => {
+    if (tourJustCompleted) {
+      pulseBorder.value = withSequence(
+        withTiming(1, { duration: 300 }),
+        withRepeat(
+          withSequence(withTiming(0.2, { duration: 520 }), withTiming(1.0, { duration: 520 })),
+          3,
+          false
+        ),
+        withTiming(0, { duration: 450 })
+      );
+      const timer = setTimeout(() => {
+        setTourJustCompleted(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [tourJustCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cardGlowStyle = useAnimatedStyle(() => ({
+    borderRadius: 20,
+    shadowColor: '#2f6b46',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: pulseBorder.value * 0.75,
+    shadowRadius: pulseBorder.value * 20,
+    elevation: pulseBorder.value * 10,
+  }));
+  // ─────────────────────────────────────────────────────────────────────────
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -438,142 +478,145 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
-          {completedSessions.length === 0 ? (
-            <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
-              <Text style={styles.todayLabel}>Choose Your First Session</Text>
-              <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
-                Pick where to start - your program rotates automatically from here.
-              </Text>
-              {(
-                [
-                  {
-                    type: 'squat' as const,
-                    label: SESSION_META.squat.label,
-                    sub: 'Quads · Glutes · Hamstrings',
-                    color: C.primary,
-                    bg: C.primaryMuted,
-                  },
-                  {
-                    type: 'bench' as const,
-                    label: SESSION_META.bench.label,
-                    sub: 'Chest · Shoulders · Triceps',
-                    color: C.badgeVolumeText,
-                    bg: C.badgeVolume,
-                  },
-                  {
-                    type: 'deadlift' as const,
-                    label: SESSION_META.deadlift.label,
-                    sub: 'Back · Hips · Legs',
-                    color: C.categoryNeuroText,
-                    bg: C.categoryNeuro,
-                  },
-                ] as const
-              ).map(({ type, label, sub, color, bg }) => (
-                <Pressable
-                  key={type}
-                  onPress={() => handleFirstSessionChoice(type)}
-                  style={({ pressed }) => [
-                    styles.firstChoiceRow,
-                    pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-                  ]}
-                  testID={`first-session-${type}`}
-                >
-                  <View
-                    style={[
-                      styles.firstChoiceIcon,
-                      { backgroundColor: '#111111', overflow: 'hidden' },
+          {/* Glow wrapper: pulses green after the tab tour completes */}
+          <Animated.View style={cardGlowStyle}>
+            {completedSessions.length === 0 ? (
+              <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+                <Text style={styles.todayLabel}>Choose Your First Session</Text>
+                <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
+                  Pick where to start - your program rotates automatically from here.
+                </Text>
+                {(
+                  [
+                    {
+                      type: 'squat' as const,
+                      label: SESSION_META.squat.label,
+                      sub: 'Quads · Glutes · Hamstrings',
+                      color: C.primary,
+                      bg: C.primaryMuted,
+                    },
+                    {
+                      type: 'bench' as const,
+                      label: SESSION_META.bench.label,
+                      sub: 'Chest · Shoulders · Triceps',
+                      color: C.badgeVolumeText,
+                      bg: C.badgeVolume,
+                    },
+                    {
+                      type: 'deadlift' as const,
+                      label: SESSION_META.deadlift.label,
+                      sub: 'Back · Hips · Legs',
+                      color: C.categoryNeuroText,
+                      bg: C.categoryNeuro,
+                    },
+                  ] as const
+                ).map(({ type, label, sub, color, bg }) => (
+                  <Pressable
+                    key={type}
+                    onPress={() => handleFirstSessionChoice(type)}
+                    style={({ pressed }) => [
+                      styles.firstChoiceRow,
+                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
                     ]}
+                    testID={`first-session-${type}`}
+                  >
+                    <View
+                      style={[
+                        styles.firstChoiceIcon,
+                        { backgroundColor: '#111111', overflow: 'hidden' },
+                      ]}
+                    >
+                      <Image
+                        source={SESSION_IMAGES[type]}
+                        style={styles.firstChoiceImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
+                      <Text style={styles.firstChoiceSub}>{sub}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+                  </Pressable>
+                ))}
+              </Animated.View>
+            ) : (
+              <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+                <LinearGradient
+                  colors={[suggestedMeta.color + '18', 'transparent']}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 20, pointerEvents: 'none' }]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 0.65 }}
+                />
+                <View style={styles.todayCardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.todayLabel}>Today</Text>
+                    <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
+                    <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
+                  </View>
+                  <View
+                    style={[styles.todayIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}
                   >
                     <Image
-                      source={SESSION_IMAGES[type]}
-                      style={styles.firstChoiceImage}
+                      source={SESSION_IMAGES[suggestedSession]}
+                      style={styles.todayIconImage}
                       resizeMode="cover"
                     />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
-                    <Text style={styles.firstChoiceSub}>{sub}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-                </Pressable>
-              ))}
-            </Animated.View>
-          ) : (
-            <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
-              <LinearGradient
-                colors={[suggestedMeta.color + '18', 'transparent']}
-                style={[StyleSheet.absoluteFill, { borderRadius: 20, pointerEvents: 'none' }]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 0.65 }}
-              />
-              <View style={styles.todayCardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.todayLabel}>Today</Text>
-                  <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
-                  <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
                 </View>
-                <View
-                  style={[styles.todayIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}
-                >
-                  <Image
-                    source={SESSION_IMAGES[suggestedSession]}
-                    style={styles.todayIconImage}
-                    resizeMode="cover"
-                  />
-                </View>
-              </View>
-              {lastSession && lastSessionRelativeLabel && (
-                <Text style={styles.lastInline}>
-                  You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()}{' '}
-                  {lastSessionRelativeLabel}
-                  {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
-                </Text>
-              )}
-              <Pressable
-                onPress={openEquipmentSheet}
-                style={({ pressed }) => [
-                  styles.equipmentChip,
-                  sessionEquipmentOverride !== null && styles.equipmentChipOverride,
-                  pressed && { opacity: 0.8 },
-                ]}
-                testID="home-equipment-chip"
-              >
-                <EquipmentIcon
-                  tier={todayEffectiveTier}
-                  size={13}
-                  color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.equipmentChipText,
-                    sessionEquipmentOverride !== null && styles.equipmentChipTextOverride,
+                {lastSession && lastSessionRelativeLabel && (
+                  <Text style={styles.lastInline}>
+                    You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()}{' '}
+                    {lastSessionRelativeLabel}
+                    {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
+                  </Text>
+                )}
+                <Pressable
+                  onPress={openEquipmentSheet}
+                  style={({ pressed }) => [
+                    styles.equipmentChip,
+                    sessionEquipmentOverride !== null && styles.equipmentChipOverride,
+                    pressed && { opacity: 0.8 },
                   ]}
+                  testID="home-equipment-chip"
                 >
-                  {sessionEquipmentOverride !== null ? 'Today: ' : ''}
-                  {getEquipmentLabel(todayEffectiveTier)}
-                </Text>
-                {sessionEquipmentOverride !== null && <View style={styles.overrideDot} />}
-                <Ionicons
-                  name="chevron-down"
-                  size={12}
-                  color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary}
-                />
-              </Pressable>
-              <Pressable
-                onPress={handleStartSuggested}
-                style={({ pressed }) => [
-                  styles.startBtn,
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-                ]}
-                testID="start-suggested-session"
-              >
-                <Ionicons name="flash" size={18} color="#000000" />
-                <Text style={styles.startBtnText}>
-                  {testWeek ? 'Start Strength Test' : 'Start Session'}
-                </Text>
-              </Pressable>
-            </Animated.View>
-          )}
+                  <EquipmentIcon
+                    tier={todayEffectiveTier}
+                    size={13}
+                    color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.equipmentChipText,
+                      sessionEquipmentOverride !== null && styles.equipmentChipTextOverride,
+                    ]}
+                  >
+                    {sessionEquipmentOverride !== null ? 'Today: ' : ''}
+                    {getEquipmentLabel(todayEffectiveTier)}
+                  </Text>
+                  {sessionEquipmentOverride !== null && <View style={styles.overrideDot} />}
+                  <Ionicons
+                    name="chevron-down"
+                    size={12}
+                    color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={handleStartSuggested}
+                  style={({ pressed }) => [
+                    styles.startBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID="start-suggested-session"
+                >
+                  <Ionicons name="flash" size={18} color="#000000" />
+                  <Text style={styles.startBtnText}>
+                    {testWeek ? 'Start Strength Test' : 'Start Session'}
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
+          </Animated.View>
 
           {/* Block progress — standalone slim row between hero card and stats strip */}
           {completedSessions.length > 0 && showBlockProgress && (

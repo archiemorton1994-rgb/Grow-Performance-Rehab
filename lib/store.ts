@@ -4,8 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 
-export type EquipmentTier =
-  'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
+export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 export type SessionType =
   | 'squat'
@@ -241,6 +240,9 @@ interface AppState {
   lastPainRegion: PainRegion | null;
   /** Whether the first-launch guided tour has been completed or skipped. Persisted. */
   tourComplete: boolean;
+  /** Transient flag set for ~2.5 s after the tour completion CTA is tapped.
+   *  Home screen reads this to briefly pulse the suggested session card. */
+  tourJustCompleted: boolean;
   /** Whether the readiness-screen 3-step tutorial has been shown. Persisted. */
   readinessTutorialShown: boolean;
   /** Whether the in-session 5-step tutorial has been shown. Persisted. */
@@ -337,6 +339,7 @@ interface AppState {
   historyTypeFilter: SessionType | null;
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
+  setTourJustCompleted: (v: boolean) => void;
   setReadinessTutorialShown: (shown: boolean) => void;
   setSessionTutorialShown: (shown: boolean) => void;
   setWeightReminderSnoozedAt: (ts: string | null) => void;
@@ -423,6 +426,7 @@ export const useAppStore = create<AppState>()(
       savedTemplates: [],
       historyTypeFilter: null,
       tourComplete: false,
+      tourJustCompleted: false,
       readinessTutorialShown: false,
       sessionTutorialShown: false,
       bodyweightUpdatedAt: null,
@@ -481,6 +485,7 @@ export const useAppStore = create<AppState>()(
       },
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
       setTourComplete: (complete) => set({ tourComplete: complete }),
+      setTourJustCompleted: (v) => set({ tourJustCompleted: v }),
       setReadinessTutorialShown: (shown) => set({ readinessTutorialShown: shown }),
       setSessionTutorialShown: (shown) => set({ sessionTutorialShown: shown }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
@@ -897,7 +902,7 @@ export const useAppStore = create<AppState>()(
         }
         if (Array.isArray(persistedState.equipmentTiers)) {
           persistedState.equipmentTiers = persistedState.equipmentTiers.map((t: string) =>
-            t === 'barbell' ? 'fullgym' : t,
+            t === 'barbell' ? 'fullgym' : t
           );
         }
         if (!persistedState.exerciseFeedback) {
