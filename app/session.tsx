@@ -1503,10 +1503,15 @@ interface TutorialStep {
   body: string;
   /** Override the default 190px card-to-bottom offset for steps that spotlight elements near the bottom bar. */
   bottomOffset?: number;
+  /** Which UI ref to spotlight for this step. */
+  spotlightRef: 'firstCard' | 'sessionBar' | 'progressBar';
+  /** If true, this step is skipped for session types that don't use weight logging (prehab, flexibility). */
+  requiresWeightLogging?: true;
 }
 
 const SESSION_TUTORIAL: readonly TutorialStep[] = [
   {
+    spotlightRef: 'firstCard',
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
     upArrowFraction: 0.35,
@@ -1514,6 +1519,8 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     body: "Tap 'Watch form' for a video demo before you start. Work through exercises in order — the app builds them to flow.",
   },
   {
+    spotlightRef: 'sessionBar',
+    requiresWeightLogging: true,
     iconName: 'create-outline',
     iconLabel: 'Log sets',
     upArrowFraction: 0.3,
@@ -1522,6 +1529,8 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     bottomOffset: 320,
   },
   {
+    spotlightRef: 'sessionBar',
+    requiresWeightLogging: true,
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     upArrowFraction: 0.7,
@@ -1530,6 +1539,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     bottomOffset: 320,
   },
   {
+    spotlightRef: 'firstCard',
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
     upArrowFraction: 0.75,
@@ -1537,6 +1547,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     body: 'Tap the swap icon on any card to get an alternative for the same muscle group. Useful if equipment is taken or something hurts.',
   },
   {
+    spotlightRef: 'progressBar',
     iconName: 'stats-chart-outline',
     iconLabel: 'Progress',
     upArrowFraction: 0.5,
@@ -1781,6 +1792,14 @@ export default function SessionScreen() {
   const [tutStep, setTutStep] = useState<number | null>(null);
   const tutStartedRef = useRef(false);
 
+  const effectiveTutorial = useMemo(
+    () =>
+      sessionType === 'prehab' || sessionType === 'flexibility'
+        ? SESSION_TUTORIAL.filter((s) => !s.requiresWeightLogging)
+        : SESSION_TUTORIAL,
+    [sessionType]
+  );
+
   // ── Spotlight refs for session tutorial ─────────────────────────────────
   const progressBarRef = useRef<View>(null);
   const sessionBarRef = useRef<View>(null);
@@ -1788,14 +1807,18 @@ export default function SessionScreen() {
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
   // Measure the spotlighted element whenever the tutorial step changes.
-  // Steps: 0=first card, 1=input bar, 2=input bar (feedback), 3=first card (swap), 4=progress bar
   useEffect(() => {
     if (tutStep === null) {
       setTutSpotlight(null);
       return;
     }
-    const refMap = [firstCardRef, sessionBarRef, sessionBarRef, firstCardRef, progressBarRef];
-    const target = refMap[tutStep];
+    const refLookup = {
+      firstCard: firstCardRef,
+      sessionBar: sessionBarRef,
+      progressBar: progressBarRef,
+    };
+    const step = effectiveTutorial[tutStep];
+    const target = step ? refLookup[step.spotlightRef] : null;
     const timer = setTimeout(() => {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
@@ -1816,13 +1839,13 @@ export default function SessionScreen() {
     setTutStep((prev) => {
       if (prev === null) return null;
       const next = prev + 1;
-      if (next >= SESSION_TUTORIAL.length) {
+      if (next >= effectiveTutorial.length) {
         setSessionTutorialShown(true);
         return null;
       }
       return next;
     });
-  }, [setSessionTutorialShown]);
+  }, [effectiveTutorial, setSessionTutorialShown]);
 
   const skipTut = useCallback(() => {
     setTutStep(null);
@@ -2746,23 +2769,23 @@ export default function SessionScreen() {
         </Pressable>
       </Modal>
 
-      {tutStep !== null && (
+      {tutStep !== null && effectiveTutorial[tutStep] != null && (
         <CoachMark
           visible
-          title={SESSION_TUTORIAL[tutStep].title}
-          body={SESSION_TUTORIAL[tutStep].body}
+          title={effectiveTutorial[tutStep].title}
+          body={effectiveTutorial[tutStep].body}
           step={tutStep + 1}
-          total={SESSION_TUTORIAL.length}
+          total={effectiveTutorial.length}
           onNext={advanceTut}
           onSkip={skipTut}
           bottomOffset={
             insets.bottom +
             (Platform.OS === 'web' ? 34 : 0) +
-            (SESSION_TUTORIAL[tutStep].bottomOffset ?? 190)
+            (effectiveTutorial[tutStep].bottomOffset ?? 190)
           }
-          upArrowFraction={SESSION_TUTORIAL[tutStep].upArrowFraction}
-          iconName={SESSION_TUTORIAL[tutStep].iconName}
-          iconLabel={SESSION_TUTORIAL[tutStep].iconLabel}
+          upArrowFraction={effectiveTutorial[tutStep].upArrowFraction}
+          iconName={effectiveTutorial[tutStep].iconName}
+          iconLabel={effectiveTutorial[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}
         />
       )}
