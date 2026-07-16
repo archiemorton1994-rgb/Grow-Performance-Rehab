@@ -369,7 +369,8 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroCard}>
+        <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroSection}>
+          <Text style={styles.heroName}>{displayName}</Text>
           <Pressable style={styles.avatarWrap} onPress={handlePickPhoto} testID="profile-avatar">
             <View style={styles.avatar}>
               {profilePhotoUri ? (
@@ -381,47 +382,66 @@ export default function ProfileScreen() {
               )}
             </View>
             <View style={styles.avatarEditBadge}>
-              <Ionicons name="camera" size={11} color="#fff" />
+              <Ionicons name="camera" size={13} color="#fff" />
             </View>
           </Pressable>
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroName}>{displayName}</Text>
-            <View style={styles.heroTags}>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{expLabel}</Text>
-              </View>
-              {activeGoals.map((g) => {
-                const opt = GOAL_OPTIONS.find((o) => o.value === g);
-                return (
-                  <View key={g} style={styles.tag}>
-                    <Text style={styles.tagText}>{opt?.label ?? g}</Text>
-                  </View>
-                );
-              })}
-              {userProfile.bodyweightKg > 0 && (
-                <View style={styles.tag}>
-                  <Text style={styles.tagText}>
-                    {kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}
-                  </Text>
-                </View>
-              )}
+          <View style={styles.heroTags}>
+            <View style={styles.tagGreen}>
+              <Text style={styles.tagGreenText}>{expLabel}</Text>
             </View>
+            {activeGoals.map((g) => {
+              const opt = GOAL_OPTIONS.find((o) => o.value === g);
+              return (
+                <View key={g} style={styles.tagGreen}>
+                  <Text style={styles.tagGreenText}>{opt?.label ?? g}</Text>
+                </View>
+              );
+            })}
           </View>
+          {userProfile.bodyweightKg > 0 && (
+            <View style={styles.bwPill}>
+              <Text style={styles.bwPillText}>
+                {kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} {weightUnit}
+              </Text>
+            </View>
+          )}
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsRow}>
+        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsCard}>
           <View style={styles.stat}>
-            <Text style={styles.statVal}>{completedSessions.length}</Text>
+            <View style={styles.statNumRow}>
+              <Text style={styles.statVal}>{completedSessions.length}</Text>
+              <Ionicons
+                name="barbell-outline"
+                size={15}
+                color={C.primaryDark}
+                style={styles.statIcon}
+              />
+            </View>
             <Text style={styles.statLbl}>Sessions</Text>
           </View>
-          <View style={styles.statDiv} />
           <View style={styles.stat}>
-            <Text style={styles.statVal}>{streak}</Text>
+            <View style={styles.statNumRow}>
+              <Text style={styles.statVal}>{streak}</Text>
+              <Ionicons
+                name="calendar-outline"
+                size={15}
+                color={C.primaryDark}
+                style={styles.statIcon}
+              />
+            </View>
             <Text style={styles.statLbl}>Week Streak</Text>
           </View>
-          <View style={styles.statDiv} />
           <View style={styles.stat}>
-            <Text style={styles.statVal}>{weekCount}</Text>
+            <View style={styles.statNumRow}>
+              <Text style={styles.statVal}>{weekCount}</Text>
+              <Ionicons
+                name="calendar-outline"
+                size={15}
+                color={C.primaryDark}
+                style={styles.statIcon}
+              />
+            </View>
             <Text style={styles.statLbl}>This Week</Text>
           </View>
         </Animated.View>
@@ -436,13 +456,9 @@ export default function ProfileScreen() {
             if (lifts.length === 0) return null;
             const bwDisplay = kgToDisplayUnit(userProfile.bodyweightKg, weightUnit);
             return (
-              <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioRow}>
-                <View style={styles.ratioHeader}>
-                  <Text style={styles.ratioHeaderTitle}>Strength-to-Bodyweight</Text>
-                  <Text style={styles.ratioHeaderSub}>
-                    Your best lifts as a multiple of your bodyweight
-                  </Text>
-                </View>
+              <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioCard}>
+                <Text style={styles.ratioCardTitle}>YOUR STRENGTH PROGRESS</Text>
+                <Text style={styles.ratioCardSub}>Bodyweight Multipliers</Text>
                 <View style={styles.ratioItemsRow}>
                   {lifts.map(({ lift, orm }) => {
                     const liftDisplay = kgToDisplayUnit(orm!.weight, weightUnit);
@@ -456,16 +472,12 @@ export default function ProfileScreen() {
                       </View>
                     ) : null;
                   })}
-                  <View style={styles.ratioMeta}>
-                    <Text style={styles.ratioMetaText}>× bodyweight</Text>
-                  </View>
                 </View>
               </Animated.View>
             );
           })()}
 
-        {/* Subscription compact strip - kept on the main view per spec
-            ("status visible at a glance, even with settings collapsed"). */}
+        {/* Subscription card */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
           {hasActiveSubscription ? (
             <Pressable
@@ -476,17 +488,17 @@ export default function ProfileScreen() {
                     : 'https://play.google.com/store/account/subscriptions';
                 Linking.openURL(url).catch(() => {});
               }}
-              style={({ pressed }) => [styles.subStripActive, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.infoCard, pressed && { opacity: 0.85 }]}
               testID="manage-subscription-btn"
             >
-              <View style={styles.subStripIcon}>
-                <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+              <View style={styles.infoCardIconWrap}>
+                <Ionicons name="checkmark-circle" size={24} color={C.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.subStripTitle}>
-                  {isOnTrial ? 'Free trial active' : 'Grow Monthly'}
+                <Text style={styles.infoCardTitle}>
+                  {isOnTrial ? 'FREE TRIAL ACTIVE' : 'GROW MONTHLY'}
                 </Text>
-                <Text style={styles.subStripSub}>
+                <Text style={styles.infoCardSub}>
                   {isOnTrial && expiryDate
                     ? (() => {
                         const daysLeft = Math.max(
@@ -495,28 +507,29 @@ export default function ProfileScreen() {
                             (new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
                           )
                         );
-                        return daysLeft > 0
-                          ? `${daysLeft} days remaining · tap to manage`
-                          : 'Tap to manage';
+                        return daysLeft > 0 ? `Expires in ${daysLeft} days` : 'Tap to manage';
                       })()
                     : expiryDate
-                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · tap to manage`
-                      : 'Active · tap to manage'}
+                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                      : 'Active'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
             </Pressable>
           ) : (
             <Pressable
               onPress={() => router.push('/subscription')}
-              style={({ pressed }) => [styles.subStripCta, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [styles.infoCard, pressed && { opacity: 0.9 }]}
               testID="subscribe-cta"
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.subStripCtaTitle}>Subscribe to Grow</Text>
-                <Text style={styles.subStripCtaSub}>£4.99/month · cancel anytime</Text>
+              <View style={styles.infoCardIconWrap}>
+                <Ionicons name="lock-closed-outline" size={22} color={C.textSecondary} />
               </View>
-              <Ionicons name="arrow-forward-circle" size={26} color={C.textInverse} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoCardTitle}>SUBSCRIBE TO GROW</Text>
+                <Text style={styles.infoCardSub}>£4.99/month · cancel anytime</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
             </Pressable>
           )}
         </Animated.View>
@@ -529,19 +542,21 @@ export default function ProfileScreen() {
               setActiveModal('settings');
             }}
             style={({ pressed }) => [
-              styles.navBtn,
+              styles.infoCard,
               pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
             ]}
             testID="open-settings"
           >
-            <View style={[styles.navIcon, { backgroundColor: C.surfaceTertiary }]}>
+            <View style={styles.infoCardIconWrap}>
               <Ionicons name="settings-outline" size={22} color={C.textSecondary} />
             </View>
             <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>Settings</Text>
-              <Text style={styles.navSub}>Profile · equipment · reminders · units · account</Text>
+              <Text style={styles.infoCardTitle}>SETTINGS</Text>
+              <Text style={styles.infoCardSub}>
+                Profile • Equipment • Reminders • Units • Account
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+            <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -1331,73 +1346,96 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     root: { flex: 1, backgroundColor: C.background },
     scroll: { flex: 1 },
     container: { paddingHorizontal: 20 },
-    heroCard: {
-      flexDirection: 'row',
+    heroSection: {
       alignItems: 'center',
+      paddingTop: 28,
+      paddingBottom: 28,
       gap: 14,
-      backgroundColor: C.surface,
-      borderRadius: 18,
-      padding: 18,
-      marginTop: 12,
-      marginBottom: 14,
-      borderWidth: 1,
-      borderColor: C.borderLight,
     },
     avatarWrap: { position: 'relative' },
     avatar: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: 100,
+      height: 100,
+      borderRadius: 50,
       backgroundColor: C.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
+      borderWidth: 2,
+      borderColor: C.border,
     },
-    avatarPhoto: { width: 64, height: 64, borderRadius: 32 },
-    avatarInitial: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
+    avatarPhoto: { width: 100, height: 100, borderRadius: 50 },
+    avatarInitial: { fontSize: 40, fontFamily: 'Inter_700Bold', color: C.primary },
     avatarEditBadge: {
       position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      bottom: 2,
+      right: 2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: C.surface,
+      borderColor: C.background,
     },
-    heroInfo: { flex: 1 },
-    heroName: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 6 },
-    heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    tag: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+    heroName: {
+      fontSize: 28,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center',
+    },
+    heroTags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      justifyContent: 'center',
+    },
+    tagGreen: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.primary,
+      backgroundColor: 'transparent',
+    },
+    tagGreenText: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryDark,
+    },
+    bwPill: {
+      paddingHorizontal: 18,
+      paddingVertical: 7,
+      borderRadius: 20,
       backgroundColor: C.surfaceTertiary,
-      borderRadius: 6,
     },
-    tagText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    statsRow: {
+    bwPillText: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+    },
+    statsCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: C.surface,
       borderRadius: 16,
-      padding: 18,
-      marginBottom: 16,
+      padding: 20,
+      marginBottom: 12,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     stat: { flex: 1, alignItems: 'center' },
-    statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
+    statNumRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+    statIcon: { marginTop: 3 },
     statLbl: {
       fontSize: 11,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
-      marginTop: 2,
+      marginTop: 4,
       textAlign: 'center',
     },
-    statDiv: { width: 1, height: 36, backgroundColor: C.border },
     navGrid: { gap: 8, marginBottom: 16 },
     navBtn: {
       flexDirection: 'row',
@@ -1622,40 +1660,70 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     equipCheckboxActive: { backgroundColor: C.primary, borderColor: C.primary },
 
-    ratioRow: {
-      flexDirection: 'column' as const,
+    ratioCard: {
       backgroundColor: C.surface,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 14,
+      borderRadius: 16,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      paddingBottom: 20,
       marginBottom: 12,
       borderWidth: 1,
       borderColor: C.borderLight,
-      gap: 10,
+      gap: 4,
     },
-    ratioHeader: { gap: 2 },
-    ratioHeaderTitle: {
-      fontSize: 13,
+    ratioCardTitle: {
+      fontSize: 14,
       fontFamily: 'Inter_700Bold',
-      color: C.textSecondary,
+      color: C.text,
       textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
+      letterSpacing: 0.8,
     },
-    ratioHeaderSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    ratioCardSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginBottom: 12,
+    },
     ratioItemsRow: { flexDirection: 'row' as const, alignItems: 'center' as const },
     ratioItem: { flex: 1, alignItems: 'center' as const },
-    ratioVal: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primary },
+    ratioVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     ratioLbl: {
-      fontSize: 10,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
-      color: C.textTertiary,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
-      marginTop: 1,
+      color: C.textSecondary,
+      marginTop: 4,
     },
-    ratioMeta: { alignItems: 'center' as const },
-    ratioMetaText: { fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    infoCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 14,
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    infoCardIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: C.surfaceTertiary,
+    },
+    infoCardTitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.6,
+      marginBottom: 3,
+    },
+    infoCardSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
     settingSectionLabel: {
       fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
