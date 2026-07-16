@@ -462,46 +462,37 @@ export default function RecoverScreen() {
         )}
       </View>
 
-      {/* Nav card list - intrinsic height, no overflow:hidden anywhere.
-          The outer navGrid ring supplies the border. Corner rounding is applied
-          directly to the first/last row Pressables (navBtnFirst/navBtnLast),
-          which is the only approach that survives RN Web resize/reflow. */}
-      <View style={styles.navGrid}>
-        <View style={styles.navGridInner}>
-          {ROWS.map((row, i) => (
-            <React.Fragment key={row.key}>
-              {i > 0 && <View style={styles.navDivider} />}
-              <Pressable
-                onPress={() => openModal(row.key)}
-                style={({ pressed }) => [
-                  styles.navBtn,
-                  i === 0 && styles.navBtnFirst,
-                  i === ROWS.length - 1 && styles.navBtnLast,
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                ]}
-                testID={`recover-row-${row.key}`}
-              >
-                <View style={[styles.navIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}>
-                  {RECOVER_IMAGES[row.key] ? (
-                    <Image
-                      source={RECOVER_IMAGES[row.key]}
-                      style={styles.navIconImage}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Ionicons name={row.icon} size={26} color={row.iconColor} />
-                  )}
-                </View>
-                <View style={styles.navBtnText}>
-                  <Text style={styles.navLabel}>{row.title}</Text>
-                  <Text style={styles.navSub}>{row.subtitle}</Text>
-                  <Text style={styles.navRecency}>{row.recency}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
-              </Pressable>
-            </React.Fragment>
-          ))}
-        </View>
+      {/* Nav card list - fills available height with evenly-spaced independent cards */}
+      <View style={styles.navList}>
+        {ROWS.map((row) => (
+          <Pressable
+            key={row.key}
+            onPress={() => openModal(row.key)}
+            style={({ pressed }) => [
+              styles.navBtn,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+            ]}
+            testID={`recover-row-${row.key}`}
+          >
+            <View style={[styles.navIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}>
+              {RECOVER_IMAGES[row.key] ? (
+                <Image
+                  source={RECOVER_IMAGES[row.key]}
+                  style={styles.navIconImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name={row.icon} size={30} color={row.iconColor} />
+              )}
+            </View>
+            <View style={styles.navBtnText}>
+              <Text style={styles.navLabel}>{row.title}</Text>
+              <Text style={styles.navSub}>{row.subtitle}</Text>
+              <Text style={styles.navRecency}>{row.recency}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+          </Pressable>
+        ))}
       </View>
 
       {/* Recovery — body diagram region picker */}
@@ -781,33 +772,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
     subtitle: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
 
-    navGrid: {
-      marginHorizontal: 16,
-      marginTop: 20,
-      borderRadius: 18,
+    navList: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+      gap: 12,
+    },
+    navBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+      gap: 16,
+      backgroundColor: C.surface,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    navGridInner: {
-      borderRadius: 17,
-      backgroundColor: C.surface,
-    },
-    navDivider: { height: 1, backgroundColor: C.borderLight, marginHorizontal: 16 },
-    navBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-      minHeight: 82,
-      gap: 14,
-      backgroundColor: C.surface,
-    },
-    navBtnFirst: { borderTopLeftRadius: 17, borderTopRightRadius: 17 },
-    navBtnLast: { borderBottomLeftRadius: 17, borderBottomRightRadius: 17 },
     navIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 14,
+      width: 72,
+      height: 72,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,

@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { Image, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useColors } from '@/constants/colors';
@@ -55,39 +55,24 @@ const COACH_STEPS = [
   },
 ] as const;
 
-// ─── Train tab icon (dark rounded square with 3D figure) ──────────────────
+// ─── Train tab icon (green circle with barbell) ───────────────────────────
 
 function TrainTabIcon({ focused }: { focused: boolean }) {
   const C = useColors();
   return (
     <View
       style={{
-        width: 54,
-        height: 54,
-        borderRadius: 16,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
         transform: [{ translateY: -8 }],
-        backgroundColor: '#111111',
-        overflow: 'hidden',
-        borderWidth: focused ? 2 : 1,
-        borderColor: focused ? C.primary : 'rgba(255,255,255,0.12)',
-        ...(focused
-          ? {
-              shadowColor: C.primary,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.65,
-              shadowRadius: 10,
-              elevation: 10,
-            }
-          : {}),
+        backgroundColor: C.primaryLight,
+        opacity: focused ? 1 : 0.7,
       }}
     >
-      <Image
-        source={require('@/assets/images/sessions/train.png')}
-        style={{ width: '100%', height: '100%' }}
-        resizeMode="cover"
-      />
+      <Ionicons name="barbell" size={24} color="#fff" />
     </View>
   );
 }
@@ -205,7 +190,11 @@ export default function TabLayout() {
           options={{
             title: 'Restore',
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? 'leaf' : 'leaf-outline'} size={size || 24} color={color} />
+              <Ionicons
+                name={focused ? 'medkit' : 'medkit-outline'}
+                size={size || 24}
+                color={color}
+              />
             ),
           }}
         />

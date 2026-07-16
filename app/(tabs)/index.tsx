@@ -692,7 +692,7 @@ export default function HomeScreen() {
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/profile');
+                router.push('/achievements');
               }}
               testID="summary-achievements"
             >
@@ -1184,7 +1184,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       shadowRadius: 14,
       elevation: Platform.OS !== 'web' ? 5 : 0,
     },
-    todayCardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
+    todayCardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
     todayLabel: {
       fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
@@ -1196,12 +1196,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todaySessionName: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     todaySessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     todayIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 18,
+      width: 112,
+      height: 112,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginLeft: 12,
+      marginLeft: 14,
       flexShrink: 0,
     },
     startBtn: {
