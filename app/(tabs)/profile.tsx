@@ -50,13 +50,7 @@ import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { router } from 'expo-router';
 
-const ALL_TIERS: EquipmentTier[] = [
-  'bodyweight',
-  'bands',
-  'dumbbells',
-  'kettlebells',
-  'fullgym',
-];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 function getLegalUrls() {
   try {

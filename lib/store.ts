@@ -887,7 +887,11 @@ export const useAppStore = create<AppState>()(
       name: 'grow-app-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => {
-        const { sessionEquipmentOverride: _transient, ...persisted } = state;
+        const {
+          sessionEquipmentOverride: _transient,
+          tourJustCompleted: _tourJustCompleted,
+          ...persisted
+        } = state;
         return persisted as typeof state;
       },
       onRehydrateStorage: () => (state) => {

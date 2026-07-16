@@ -319,7 +319,10 @@ export default function TrainScreen() {
 
         {/* Resume banner */}
         {activeSession && (
-          <Animated.View entering={FadeInDown.duration(350)} style={[styles.resumeBanner, { marginBottom: 10 }]}>
+          <Animated.View
+            entering={FadeInDown.duration(350)}
+            style={[styles.resumeBanner, { marginBottom: 10 }]}
+          >
             <View style={styles.resumeBannerLeft}>
               <Ionicons name="time-outline" size={20} color={C.warning} />
               <View>
@@ -375,7 +378,9 @@ export default function TrainScreen() {
         </Animated.View>
 
         {/* Additional Sessions */}
-        <Text style={[styles.sectionHeading, { marginTop: activeSession ? 4 : 8 }]}>Additional Sessions</Text>
+        <Text style={[styles.sectionHeading, { marginTop: activeSession ? 4 : 8 }]}>
+          Additional Sessions
+        </Text>
         <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
           {WEEKLY_SESSION_TYPES_UI.map((type) => {
             const meta = SESSION_META[type];

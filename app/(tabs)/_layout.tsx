@@ -162,12 +162,13 @@ export default function TabLayout() {
     router.navigate('/');
   }, [setTourComplete, setTourJustCompleted]);
 
-  /** User tapped the backdrop — complete tour silently. */
+  /** User tapped the backdrop — complete tour and still trigger the home-card pulse. */
   const handleCompletionDismiss = useCallback(() => {
     setTourComplete(true);
+    setTourJustCompleted(true);
     setShowCompletion(false);
     router.navigate('/');
-  }, [setTourComplete]);
+  }, [setTourComplete, setTourJustCompleted]);
 
   // Position the card above the tab bar, with 16 px to spare for the arrow.
   const tabBarHeight = isWeb ? 84 : insets.bottom + 50;
