@@ -16599,3 +16599,5 @@ export function getExerciseNameMap(): Record<string, string> {
   _nameMapCache = map;
   return map;
 }
+
+export const EXERCISE_COUNT = Object.keys(getExerciseNameMap()).length;

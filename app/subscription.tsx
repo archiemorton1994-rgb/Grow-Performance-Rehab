@@ -15,12 +15,13 @@ import * as Haptics from 'expo-haptics';
 import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
+import { EXERCISE_COUNT } from '@/lib/exercise-db';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
 const STATS = [
-  { value: '657+', label: 'exercises' },
+  { value: `${EXERCISE_COUNT}+`, label: 'exercises' },
   { value: '7', label: 'session types' },
   { value: '11', label: 'pain zones' },
 ];
