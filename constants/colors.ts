@@ -86,8 +86,8 @@ const DarkColors = {
   surfaceTertiary: '#252525',
 
   text: '#ffffff',
-  textSecondary: '#9a9a9a',
-  textTertiary: '#555555',
+  textSecondary: '#b8b8b8',
+  textTertiary: '#6e6e6e',
   textInverse: '#ffffff',
 
   border: 'rgba(255,255,255,0.08)',
@@ -123,15 +123,15 @@ const DarkColors = {
   youtubeSurface: '#1a0808',
   youtubeBorder: '#2a1010',
 
-  categoryMechanical: '#1a1a1a',
+  categoryMechanical: '#0d2421',
   categoryMechanicalText: '#4db6ac',
-  categoryNeuro: '#1a1a1a',
+  categoryNeuro: '#1a0d24',
   categoryNeuroText: '#c084fc',
-  categoryPrehab: '#1a1a1a',
+  categoryPrehab: '#1f1200',
   categoryPrehabText: '#fb923c',
-  categoryFinisher: '#1a1a1a',
+  categoryFinisher: '#1f0a0a',
   categoryFinisherText: '#f87171',
-  categoryCooldown: '#1a1a1a',
+  categoryCooldown: '#0a1f12',
   categoryCooldownText: '#6ee7b7',
 
   overlayBg: 'rgba(0,0,0,0.75)',

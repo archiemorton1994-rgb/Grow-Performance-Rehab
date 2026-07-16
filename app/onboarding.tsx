@@ -780,7 +780,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
-                <Ionicons name="checkmark-circle" size={96} color={C.primary} />
+                <Ionicons name="checkmark-circle" size={120} color={C.primaryDark} />
               </Animated.View>
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
                 Profile Ready!
@@ -800,12 +800,13 @@ export default function OnboardingScreen() {
                   onPress={handleComplete}
                   style={({ pressed }) => [
                     styles.continueBtn,
+                    { backgroundColor: C.primaryDark },
                     pressed && styles.continueBtnPressed,
                   ]}
                   testID="profile-built-cta"
                 >
-                  <Text style={styles.continueBtnText}>Start Training</Text>
-                  <Ionicons name="arrow-forward" size={20} color={C.textInverse} />
+                  <Text style={[styles.continueBtnText, { color: '#000000' }]}>Start Training</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#000000" />
                 </Pressable>
               </Animated.View>
             </View>
@@ -1131,7 +1132,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     celebContent: { justifyContent: 'center', paddingTop: 0 },
     celebIconWrap: { marginBottom: 20 },
     celebTitle: {
-      fontSize: 34,
+      fontSize: 38,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       textAlign: 'center',
@@ -1251,6 +1252,8 @@ function makeCelebStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 50,
+      borderWidth: 1,
+      borderColor: 'rgba(74,222,128,0.3)',
     },
     pillText: {
       fontSize: 13,

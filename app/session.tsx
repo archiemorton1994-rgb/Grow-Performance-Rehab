@@ -832,7 +832,7 @@ const ActiveSetBlock = React.forwardRef<
           style={styles.completeSetBtn}
           testID={`set-${setNum}-check`}
         >
-          <Ionicons name="checkmark-circle" size={20} color={C.textInverse} />
+          <Ionicons name="checkmark-circle" size={20} color="#000000" />
           <Text style={styles.completeSetBtnText}>Mark Set Done</Text>
         </Pressable>
       </Animated.View>
@@ -904,7 +904,7 @@ const ActiveSetBlock = React.forwardRef<
         <Ionicons
           name="checkmark-circle"
           size={20}
-          color={isZeroBlocked ? C.textTertiary : C.textInverse}
+          color={isZeroBlocked ? C.textTertiary : '#000000'}
         />
         <Text
           style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}
@@ -1030,7 +1030,8 @@ export function ExerciseCard({
           isActive && allDone && styles.exerciseCardDone,
           isPast && styles.exerciseCardPast,
           isFuture && styles.exerciseCardLocked,
-          !isFuture && { borderLeftWidth: 4, borderLeftColor: cat.text },
+          !isFuture && !isPast && !(isActive && allDone) && { borderLeftWidth: 4, borderLeftColor: cat.text },
+          (isPast || (isActive && allDone)) && { borderLeftWidth: 3, borderLeftColor: C.primaryDark },
         ]}
       >
         {/* ── Future state: locked with padlock ────────────────────────────── */}
@@ -2602,7 +2603,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       overflow: 'hidden',
       marginBottom: 6,
     },
-    progressFill: { height: '100%', backgroundColor: C.primary, borderRadius: 2 },
+    progressFill: { height: '100%', backgroundColor: C.primaryDark, borderRadius: 2 },
     progressText: {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
@@ -2635,7 +2636,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    exerciseCardDone: { backgroundColor: C.primarySurface, borderColor: C.primaryMuted },
+    exerciseCardDone: {
+      backgroundColor: C.primarySurface,
+      borderColor: C.primaryMuted,
+      borderLeftWidth: 3,
+      borderLeftColor: C.primaryDark,
+    },
     exerciseCardLocked: {
       backgroundColor: C.surfaceTertiary,
       borderColor: C.borderLight,
@@ -3548,13 +3554,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: C.primary,
+      backgroundColor: C.primaryDark,
       borderRadius: 12,
       paddingVertical: 14,
       gap: 8,
     },
     completeSetBtnDisabled: { backgroundColor: C.surfaceTertiary },
-    completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
+    completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#000000' },
     completeSetBtnTextDisabled: { color: C.textTertiary },
     // All sets done row
     allSetsDone: {

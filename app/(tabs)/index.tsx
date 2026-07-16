@@ -564,7 +564,7 @@ export default function HomeScreen() {
                 ]}
                 testID="start-suggested-session"
               >
-                <Ionicons name="flash" size={18} color={C.textInverse} />
+                <Ionicons name="flash" size={18} color="#000000" />
                 <Text style={styles.startBtnText}>
                   {testWeek ? 'Start Strength Test' : 'Start Session'}
                 </Text>
@@ -1085,7 +1085,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       letterSpacing: 0.8,
       marginBottom: 6,
     },
-    todaySessionName: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
+    todaySessionName: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     todaySessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     todayIcon: {
       width: 64,
@@ -1101,11 +1101,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      backgroundColor: C.primary,
+      backgroundColor: C.primaryDark,
       borderRadius: 14,
-      paddingVertical: 14,
+      paddingVertical: 15,
     },
-    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#000000' },
 
     equipmentChip: {
       flexDirection: 'row' as const,
