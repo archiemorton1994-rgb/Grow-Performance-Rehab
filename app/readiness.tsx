@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-n
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -19,7 +20,6 @@ import {
   getSessionLabel,
   getSessionSubtitle,
   getEquipmentLabel,
-  getEquipmentIcon,
   getEffectiveTier,
 } from '@/lib/workout-engine';
 import { BodyDiagram } from '@/components/BodyDiagram';
@@ -333,8 +333,8 @@ export default function ReadinessScreen() {
                       },
                     ]}
                   >
-                    <Ionicons
-                      name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                    <EquipmentIcon
+                      tier={tier}
                       size={16}
                       color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
                     />

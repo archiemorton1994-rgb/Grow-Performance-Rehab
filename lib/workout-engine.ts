@@ -1347,7 +1347,7 @@ export function getEquipmentIcon(tier: EquipmentTier): string {
     case 'barbell':
       return 'barbell-outline';
     case 'fullgym':
-      return 'business-outline';
+      return 'barbell-outline';
   }
 }
 

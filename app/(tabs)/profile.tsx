@@ -16,6 +16,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -43,7 +44,7 @@ import {
   scheduleBodyweightReminder,
   cancelBodyweightReminder,
 } from '@/lib/notifications';
-import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
+import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -733,8 +734,8 @@ export default function ProfileScreen() {
                   ]}
                   testID={`tier-${tier}`}
                 >
-                  <Ionicons
-                    name={getEquipmentIcon(tier) as any}
+                  <EquipmentIcon
+                    tier={tier}
                     size={22}
                     color={isActive ? C.primary : isLocked ? C.textTertiary : C.textSecondary}
                   />
@@ -880,8 +881,8 @@ export default function ProfileScreen() {
                 style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
               >
                 <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
-                  <Ionicons
-                    name={getEquipmentIcon(effectiveTier) as keyof typeof Ionicons.glyphMap}
+                  <EquipmentIcon
+                    tier={effectiveTier}
                     size={20}
                     color={C.categoryMechanicalText}
                   />

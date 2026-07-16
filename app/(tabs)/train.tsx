@@ -13,6 +13,7 @@ import {
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -21,7 +22,6 @@ import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store
 import {
   getSessionSubtitle,
   getEquipmentLabel,
-  getEquipmentIcon,
   getEffectiveTier,
 } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
@@ -423,8 +423,8 @@ export default function TrainScreen() {
             ]}
             testID="train-equipment-chip"
           >
-            <Ionicons
-              name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
+            <EquipmentIcon
+              tier={todayEffectiveTier}
               size={13}
               color={isOverrideActive ? C.primary : C.textSecondary}
             />
@@ -794,8 +794,8 @@ export default function TrainScreen() {
                     },
                   ]}
                 >
-                  <Ionicons
-                    name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                  <EquipmentIcon
+                    tier={tier}
                     size={16}
                     color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
                   />

@@ -519,7 +519,7 @@ export function SessionActiveBar({
     onSetCompleted();
     setShowFeedback(true);
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-    feedbackTimerRef.current = setTimeout(() => setShowFeedback(false), 3500);
+    feedbackTimerRef.current = setTimeout(() => setShowFeedback(false), 3000);
   };
 
   const handleFeedback = (f: 'easy' | 'hard') => {
@@ -563,7 +563,7 @@ export function SessionActiveBar({
             style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
             testID="feedback-good"
           >
-            <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ Good</Text>
+            <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ OK</Text>
           </Pressable>
           <Pressable
             onPress={() => handleFeedback('hard')}

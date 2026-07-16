@@ -17,6 +17,7 @@ import {
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -115,7 +116,7 @@ const EQUIPMENT_OPTIONS: {
     value: 'kettlebells',
     label: 'Kettlebells',
     description: 'Kettlebells available',
-    icon: 'fitness-outline',
+    icon: 'kettlebell',
   },
   {
     value: 'barbell',
@@ -127,7 +128,7 @@ const EQUIPMENT_OPTIONS: {
     value: 'fullgym',
     label: 'Full Gym',
     description: 'Everything - cables, machines, full setup',
-    icon: 'business-outline',
+    icon: 'barbell-outline',
   },
 ];
 
@@ -666,7 +667,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.equipScreenContent]}>
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
-                <Ionicons name="fitness-outline" size={24} color={C.primary} />
+                <Ionicons name="barbell-outline" size={24} color={C.primary} />
               </View>
               <Text style={[styles.question, styles.questionCompact]}>
                 What do you have access to?
@@ -697,8 +698,8 @@ export default function OnboardingScreen() {
                             selected && styles.optionIconSelected,
                           ]}
                         >
-                          <Ionicons
-                            name={opt.icon}
+                          <EquipmentIcon
+                            tier={opt.value as EquipmentTier}
                             size={18}
                             color={selected ? C.textInverse : C.primary}
                           />
@@ -799,7 +800,7 @@ export default function OnboardingScreen() {
               <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
                 <CelebSummaryPill icon="barbell-outline" label={experienceLabel(experience)} />
                 <CelebSummaryPill icon="flag-outline" label={goalLabel(goals[0] ?? null)} />
-                <CelebSummaryPill icon="fitness-outline" label={equipmentLabel(equipment)} />
+                <CelebSummaryPill icon="barbell-outline" label={equipmentLabel(equipment)} />
               </Animated.View>
               <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
                 <Pressable

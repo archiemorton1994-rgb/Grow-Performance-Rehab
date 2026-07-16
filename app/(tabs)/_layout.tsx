@@ -79,7 +79,7 @@ const TOUR_TABS: TourTabDef[] = [
   },
   {
     key: 'recover',
-    label: 'Recover',
+    label: 'Restore',
     icon: 'medkit',
     headline: 'Recovery and mobility',
     body: 'Your active recovery toolkit. Recovery circuits, mobility flows, and targeted prehab - all designed to keep you moving on rest days.',
@@ -650,7 +650,7 @@ export default function TabLayout() {
           name="recover"
           listeners={{ tabPress: () => handleTabPress('recover') }}
           options={{
-            title: 'Recover',
+            title: 'Restore',
             tabBarIcon: ({ color, size, focused }) => (
               <GlowIcon active={tourActive && !tabsSeen.has('recover')} primaryColor={C.primary}>
                 <Ionicons

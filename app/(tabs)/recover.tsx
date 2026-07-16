@@ -12,10 +12,11 @@ import {
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
-import { getEffectiveTier, getEquipmentLabel, getEquipmentIcon } from '@/lib/workout-engine';
+import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 
@@ -430,8 +431,8 @@ export default function RecoverScreen() {
           testID="recover-equipment-chip"
         >
           {isOverrideActive && <View style={styles.overrideDot} />}
-          <Ionicons
-            name={getEquipmentIcon(todayEffectiveTier) as keyof typeof Ionicons.glyphMap}
+          <EquipmentIcon
+            tier={todayEffectiveTier}
             size={13}
             color={isOverrideActive ? C.primary : C.textSecondary}
           />
@@ -716,8 +717,8 @@ export default function RecoverScreen() {
                     },
                   ]}
                 >
-                  <Ionicons
-                    name={getEquipmentIcon(tier) as keyof typeof Ionicons.glyphMap}
+                  <EquipmentIcon
+                    tier={tier}
                     size={16}
                     color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
                   />
