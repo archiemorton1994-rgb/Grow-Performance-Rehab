@@ -179,28 +179,32 @@ export function heatmapBucketColor(count: number): string {
   return VOCAB_OVERLOADED;
 }
 
-// Approximate SVG-viewBox centre point for each region (viewBox: 0 0 200 480).
+// Approximate SVG-viewBox centre point for each region.
+// The body-highlighter library renders at height=400*scale while the container
+// is svgWidth*2.4 = 480*scale, so the figure occupies 400/480 = 5/6 of the
+// overlay coordinate space.  All Y values are therefore multiplied by 5/6 so
+// ripple animations fire at the correct visual centre of each muscle group.
 // Both bilateral regions (arms, shoulders) use the body vertical midline x=100
 // so the ripple appears near the torso rather than at the SVG edge.
 const REGION_ANCHOR: Record<PainRegion, { x: number; y: number }> = {
-  neck: { x: 100, y: 57 },
-  front_shoulder: { x: 100, y: 107 },
-  rear_shoulder: { x: 100, y: 107 },
-  chest: { x: 100, y: 97 },
-  bicep: { x: 100, y: 122 },
-  tricep: { x: 100, y: 122 },
-  elbow_wrist: { x: 100, y: 190 },
-  upper_back: { x: 100, y: 68 },
-  core_ribs: { x: 100, y: 148 },
-  lower_back: { x: 100, y: 162 },
-  lat_mid_back: { x: 100, y: 130 },
-  hip_groin: { x: 100, y: 195 },
-  glutes: { x: 100, y: 235 },
-  quads: { x: 100, y: 255 },
-  hamstrings: { x: 100, y: 310 },
-  knee: { x: 100, y: 334 },
-  calf_shin: { x: 100, y: 390 },
-  ankle_achilles: { x: 100, y: 441 },
+  neck: { x: 100, y: 48 },
+  front_shoulder: { x: 100, y: 89 },
+  rear_shoulder: { x: 100, y: 89 },
+  chest: { x: 100, y: 81 },
+  bicep: { x: 100, y: 102 },
+  tricep: { x: 100, y: 102 },
+  elbow_wrist: { x: 100, y: 158 },
+  upper_back: { x: 100, y: 57 },
+  core_ribs: { x: 100, y: 123 },
+  lower_back: { x: 100, y: 135 },
+  lat_mid_back: { x: 100, y: 108 },
+  hip_groin: { x: 100, y: 163 },
+  glutes: { x: 100, y: 196 },
+  quads: { x: 100, y: 213 },
+  hamstrings: { x: 100, y: 258 },
+  knee: { x: 100, y: 278 },
+  calf_shin: { x: 100, y: 325 },
+  ankle_achilles: { x: 100, y: 368 },
 };
 
 interface BodyDiagramProps {
@@ -802,7 +806,11 @@ export function BodyDiagram({
             viewBox="0 0 200 480"
             style={StyleSheet.absoluteFillObject}
           >
-            {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
+            {/* scaleY 5/6: library renders at 400*scale px, container is 480*scale px.
+                Compressing hotspot paths by 400/480 aligns them with the visual body. */}
+            <G transform="scale(1, 0.8333)">
+              {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
+            </G>
           </Svg>
         </View>
         {/* Ripple overlay — anchored to the tapped region centre */}
