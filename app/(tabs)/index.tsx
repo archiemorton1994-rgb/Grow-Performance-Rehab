@@ -116,9 +116,9 @@ function getContextMessageHome(
 }
 
 const SESSION_IMAGES: Record<string, any> = {
-  squat: require('@/assets/images/sessions/lower-body.png'),
-  bench: require('@/assets/images/sessions/upper-body.png'),
-  deadlift: require('@/assets/images/sessions/full-body.png'),
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
   conditioning: require('@/assets/images/sessions/conditioning.png'),
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
   flexibility: require('@/assets/images/sessions/mobility.png'),
@@ -506,11 +506,16 @@ export default function HomeScreen() {
                   ]}
                   testID={`first-session-${type}`}
                 >
-                  <View style={[styles.firstChoiceIcon, { backgroundColor: bg }]}>
+                  <View
+                    style={[
+                      styles.firstChoiceIcon,
+                      { backgroundColor: '#111111', overflow: 'hidden' },
+                    ]}
+                  >
                     <Image
                       source={SESSION_IMAGES[type]}
                       style={styles.firstChoiceImage}
-                      resizeMode="contain"
+                      resizeMode="cover"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -535,11 +540,13 @@ export default function HomeScreen() {
                   <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
                   <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
                 </View>
-                <View style={[styles.todayIcon, { backgroundColor: suggestedMeta.bg }]}>
+                <View
+                  style={[styles.todayIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}
+                >
                   <Image
                     source={SESSION_IMAGES[suggestedSession]}
                     style={styles.todayIconImage}
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 </View>
               </View>
@@ -618,50 +625,83 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Stats tiles — always visible */}
-          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.statsRow}>
-            {/* Streak tile */}
-            <View style={styles.statTile}>
-              <Ionicons name="flame" size={16} color={streak > 0 ? C.streakText : C.textTertiary} />
-              <Text style={[styles.statTileValue, streak > 0 && { color: C.streakText }]}>
-                {streak}
+          {/* Summary cards — 2×2 grid */}
+          <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.summaryGrid}>
+            {/* Week Streak */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIconBox}>
+                <WeeklyRing
+                  count={streak}
+                  goal={4}
+                  activeColor={streak > 0 ? C.primary : 'transparent'}
+                  trackColor="rgba(255,255,255,0.08)"
+                  textColor={C.text}
+                  size={72}
+                />
+              </View>
+              <Text style={styles.summaryCardTitle}>WEEK STREAK</Text>
+              <Text style={styles.summaryCardSub}>
+                {streak > 0 ? 'Keep it going' : 'Get started'}
               </Text>
-              <Text style={styles.statTileLabel}>Week Streak</Text>
             </View>
-            {/* Weekly ring tile */}
+
+            {/* This Week */}
             <Pressable
-              style={styles.statTile}
+              style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/(tabs)/workouts');
               }}
               testID="weekly-ring-tap"
             >
-              <WeeklyRing
-                count={weekCount}
-                goal={goal}
-                activeColor={weekCount >= goal ? (C.success ?? C.primary) : C.primary}
-                trackColor={C.borderLight}
-                textColor={C.text}
-                size={52}
-              />
-              <Text style={styles.statTileLabel}>{weekCount >= goal ? 'Goal ✓' : 'This Week'}</Text>
+              <View style={styles.summaryIconBox}>
+                <WeeklyRing
+                  count={weekCount}
+                  goal={goal}
+                  activeColor={weekCount >= goal ? (C.success ?? C.primary) : C.primary}
+                  trackColor="rgba(255,255,255,0.08)"
+                  textColor={C.text}
+                  size={72}
+                />
+              </View>
+              <Text style={styles.summaryCardTitle}>THIS WEEK</Text>
+              <Text style={styles.summaryCardSub}>
+                {weekCount} Workout{weekCount !== 1 ? 's' : ''}
+              </Text>
             </Pressable>
-            {/* Total tile */}
+
+            {/* Total */}
             <Pressable
-              style={styles.statTile}
+              style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/past-sessions');
               }}
               testID="total-sessions-tap"
             >
-              <Ionicons name="barbell-outline" size={16} color={C.textTertiary} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                <Text style={styles.statTileValue}>{completedSessions.length}</Text>
-                <Ionicons name="chevron-forward" size={13} color={C.textTertiary} />
+              <View style={styles.summaryIconBox}>
+                <Ionicons name="barbell" size={36} color={C.textSecondary} />
+                <Text style={styles.summaryBigNum}>{completedSessions.length}</Text>
               </View>
-              <Text style={styles.statTileLabel}>Total</Text>
+              <Text style={styles.summaryCardTitle}>TOTAL</Text>
+              <Text style={styles.summaryCardSub}>Workouts</Text>
+            </Pressable>
+
+            {/* Achievements */}
+            <Pressable
+              style={styles.summaryCard}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/profile');
+              }}
+              testID="summary-achievements"
+            >
+              <View style={styles.summaryIconBox}>
+                <Ionicons name="trophy" size={36} color={C.warning} />
+                <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
+              </View>
+              <Text style={styles.summaryCardTitle}>ACHIEVEMENTS</Text>
+              <Text style={styles.summaryCardSub}>Unlocked</Text>
             </Pressable>
           </Animated.View>
 
@@ -1207,30 +1247,49 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    statsRow: {
+    summaryGrid: {
       flexDirection: 'row' as const,
-      gap: 8,
+      flexWrap: 'wrap' as const,
+      gap: 12,
     },
-    statTile: {
-      flex: 1,
+    summaryCard: {
+      width: '47%' as any,
       backgroundColor: C.surface,
-      borderRadius: 16,
-      paddingVertical: 14,
-      paddingHorizontal: 8,
+      borderRadius: 18,
+      padding: 16,
       alignItems: 'center' as const,
-      justifyContent: 'center' as const,
       borderWidth: 1,
       borderColor: C.borderLight,
-      gap: 4,
-      minHeight: 90,
+      gap: 6,
     },
-    statTileValue: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, lineHeight: 30 },
-    statTileLabel: {
-      fontSize: 10,
-      fontFamily: 'Inter_500Medium',
-      color: C.textTertiary,
+    summaryIconBox: {
+      width: 88,
+      height: 88,
+      borderRadius: 22,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: 2,
+      gap: 2,
+    },
+    summaryCardTitle: {
+      fontSize: 11,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      letterSpacing: 0.8,
       textAlign: 'center' as const,
-      letterSpacing: 0.2,
+    },
+    summaryCardSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      textAlign: 'center' as const,
+    },
+    summaryBigNum: {
+      fontSize: 22,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      lineHeight: 26,
     },
 
     lastInline: {
@@ -1351,15 +1410,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopColor: C.borderLight,
     },
     firstChoiceIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 13,
+      width: 56,
+      height: 56,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
+      overflow: 'hidden',
     },
-    firstChoiceImage: { width: 34, height: 34 },
-    todayIconImage: { width: 46, height: 46 },
+    firstChoiceImage: { width: '100%' as any, height: '100%' as any },
+    todayIconImage: { width: '100%' as any, height: '100%' as any },
     firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 

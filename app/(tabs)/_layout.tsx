@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useColors } from '@/constants/colors';
@@ -55,34 +55,39 @@ const COACH_STEPS = [
   },
 ] as const;
 
-// ─── Train tab icon (elevated circle) ─────────────────────────────────────
+// ─── Train tab icon (dark rounded square with 3D figure) ──────────────────
 
 function TrainTabIcon({ focused }: { focused: boolean }) {
   const C = useColors();
-  const btnColor = C.primaryLight;
   return (
     <View
       style={{
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 54,
+        height: 54,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        transform: [{ translateY: -6 }],
-        backgroundColor: btnColor,
-        opacity: focused ? 1 : 0.7,
+        transform: [{ translateY: -8 }],
+        backgroundColor: '#111111',
+        overflow: 'hidden',
+        borderWidth: focused ? 2 : 1,
+        borderColor: focused ? C.primary : 'rgba(255,255,255,0.12)',
         ...(focused
           ? {
-              shadowColor: btnColor,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.45,
-              shadowRadius: 8,
-              elevation: 8,
+              shadowColor: C.primary,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.65,
+              shadowRadius: 10,
+              elevation: 10,
             }
           : {}),
       }}
     >
-      <Ionicons name="barbell" size={22} color={C.textInverse} />
+      <Image
+        source={require('@/assets/images/sessions/train.png')}
+        style={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+      />
     </View>
   );
 }
@@ -200,11 +205,7 @@ export default function TabLayout() {
           options={{
             title: 'Restore',
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'medkit' : 'medkit-outline'}
-                size={size || 24}
-                color={color}
-              />
+              <Ionicons name={focused ? 'leaf' : 'leaf-outline'} size={size || 24} color={color} />
             ),
           }}
         />

@@ -481,7 +481,7 @@ export default function RecoverScreen() {
                 ]}
                 testID={`recover-row-${row.key}`}
               >
-                <View style={[styles.navIcon, { backgroundColor: row.iconBg }]}>
+                <View style={[styles.navIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}>
                   {RECOVER_IMAGES[row.key] ? (
                     <Image
                       source={RECOVER_IMAGES[row.key]}
@@ -812,7 +812,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       flexShrink: 0,
     },
-    navIconImage: { width: 38, height: 38 },
+    navIconImage: { width: '100%' as any, height: '100%' as any },
     navBtnText: { flex: 1 },
     navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
     navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
