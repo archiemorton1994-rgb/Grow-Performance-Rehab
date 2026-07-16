@@ -1327,8 +1327,6 @@ export function getEquipmentLabel(tier: EquipmentTier): string {
       return 'Dumbbells';
     case 'kettlebells':
       return 'Kettlebells';
-    case 'barbell':
-      return 'Barbell / Squat Rack';
     case 'fullgym':
       return 'Full Gym';
   }
@@ -1343,8 +1341,6 @@ export function getEquipmentIcon(tier: EquipmentTier): string {
     case 'dumbbells':
       return 'barbell-outline';
     case 'kettlebells':
-      return 'barbell-outline';
-    case 'barbell':
       return 'barbell-outline';
     case 'fullgym':
       return 'barbell-outline';
@@ -1381,7 +1377,6 @@ export function getEffectiveTier(tiers: EquipmentTier[]): EquipmentTier {
     'bands',
     'dumbbells',
     'kettlebells',
-    'barbell',
     'fullgym',
   ];
   if (!tiers || tiers.length === 0) return 'bodyweight';

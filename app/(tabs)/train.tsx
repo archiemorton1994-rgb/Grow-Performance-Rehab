@@ -50,7 +50,6 @@ const ALL_TIERS: EquipmentTier[] = [
   'bands',
   'dumbbells',
   'kettlebells',
-  'barbell',
   'fullgym',
 ];
 
@@ -59,7 +58,6 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bands: 'Resistance bands only',
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
-  barbell: 'Barbell and squat rack',
   fullgym: 'Everything - cables, machines, full setup',
 };
 

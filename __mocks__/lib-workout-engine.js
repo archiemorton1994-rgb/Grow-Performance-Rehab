@@ -1,4 +1,4 @@
-const TIER_ORDER = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'];
+const TIER_ORDER = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 module.exports = {
   __esModule: true,
@@ -33,7 +33,6 @@ module.exports = {
       bands: 'Resistance Bands',
       dumbbells: 'Dumbbells',
       kettlebells: 'Kettlebells',
-      barbell: 'Barbell',
       fullgym: 'Full Gym',
     };
     return labels[tier] ?? tier;

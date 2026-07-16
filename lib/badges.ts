@@ -805,15 +805,6 @@ const equipmentBadges: Badge[] = [
     color: C.grey,
   },
   {
-    id: 'equip_barbell',
-    name: 'Bar Life',
-    description: 'Complete a session with a barbell',
-    category: 'equipment',
-    criteriaType: 'equipment_usage',
-    icon: 'barbell-outline',
-    color: C.grey,
-  },
-  {
     id: 'equip_fullgym',
     name: 'Gym Rat',
     description: 'Complete a session with full gym access',

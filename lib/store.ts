@@ -5,7 +5,7 @@ import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 
 export type EquipmentTier =
-  'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'barbell' | 'fullgym';
+  'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 export type SessionType =
   | 'squat'
@@ -224,7 +224,6 @@ export const TIER_ORDER: EquipmentTier[] = [
   'bands',
   'dumbbells',
   'kettlebells',
-  'barbell',
   'fullgym',
 ];
 
@@ -895,6 +894,11 @@ export const useAppStore = create<AppState>()(
         }
         if (!persistedState.equipmentTiers || persistedState.equipmentTiers.length === 0) {
           persistedState.equipmentTiers = ['bodyweight'];
+        }
+        if (Array.isArray(persistedState.equipmentTiers)) {
+          persistedState.equipmentTiers = persistedState.equipmentTiers.map((t: string) =>
+            t === 'barbell' ? 'fullgym' : t,
+          );
         }
         if (!persistedState.exerciseFeedback) {
           persistedState.exerciseFeedback = {};

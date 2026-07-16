@@ -1629,7 +1629,6 @@ export default function SessionScreen() {
     'bands',
     'dumbbells',
     'kettlebells',
-    'barbell',
     'fullgym',
   ];
   const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)

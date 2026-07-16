@@ -488,7 +488,6 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.uniqueEquipmentUsed.has('bands'), 'equip_bands');
   awardIf(s.uniqueEquipmentUsed.has('dumbbells'), 'equip_dumbbells');
   awardIf(s.uniqueEquipmentUsed.has('kettlebells'), 'equip_kettlebells');
-  awardIf(s.uniqueEquipmentUsed.has('barbell'), 'equip_barbell');
   awardIf(s.uniqueEquipmentUsed.has('fullgym'), 'equip_fullgym');
   awardIf(s.uniqueEquipmentUsed.size >= 4, 'equip_all');
   // "Levelled up" = trained with any equipment beyond bodyweight-only

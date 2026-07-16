@@ -164,7 +164,6 @@ export default function HomeScreen() {
     'bands',
     'dumbbells',
     'kettlebells',
-    'barbell',
     'fullgym',
   ] as const;
   const availableTiers = isBeginnerExperience ? (['bodyweight', 'bands'] as const) : ALL_TIERS;
@@ -1043,7 +1042,7 @@ export default function HomeScreen() {
           )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
             {(
-              ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'barbell', 'fullgym'] as const
+              ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const
             ).map((tier) => {
               const locked = !(availableTiers as readonly string[]).includes(tier);
               const selected = sheetDraft.includes(tier);

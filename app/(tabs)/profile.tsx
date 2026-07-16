@@ -55,7 +55,6 @@ const ALL_TIERS: EquipmentTier[] = [
   'bands',
   'dumbbells',
   'kettlebells',
-  'barbell',
   'fullgym',
 ];
 

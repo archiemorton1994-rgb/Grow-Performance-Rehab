@@ -114,11 +114,6 @@ const EQUIPMENT_OPTIONS: {
     description: 'Kettlebells available',
   },
   {
-    value: 'barbell',
-    label: 'Barbell / Squat Rack',
-    description: 'Barbell and squat rack',
-  },
-  {
     value: 'fullgym',
     label: 'Full Gym',
     description: 'Everything - cables, machines, full setup',
@@ -155,7 +150,6 @@ function goalLabel(g: FitnessGoal | null): string {
 
 function equipmentLabel(tiers: EquipmentTier[]): string {
   if (tiers.includes('fullgym')) return 'Full Gym';
-  if (tiers.includes('barbell')) return 'Barbell';
   if (tiers.includes('kettlebells')) return 'Kettlebells';
   if (tiers.includes('dumbbells')) return 'Dumbbells';
   if (tiers.includes('bands')) return 'Bands';

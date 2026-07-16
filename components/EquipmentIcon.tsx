@@ -8,7 +8,6 @@ const PNG_ICONS: Partial<Record<EquipmentTier, any>> = {
   dumbbells: require('@/assets/images/sessions/dumbbells.png'),
   kettlebells: require('@/assets/images/sessions/kettlebells.png'),
   fullgym: require('@/assets/images/sessions/fullgym.png'),
-  barbell: require('@/assets/images/sessions/fullgym.png'),
 };
 
 interface EquipmentIconProps {
