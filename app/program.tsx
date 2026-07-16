@@ -1,5 +1,14 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, Platform, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Alert,
+  Image,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +23,13 @@ import {
 } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
+
+// ─── Session PNG images ───────────────────────────────────────────────────────
+const SESSION_IMAGES: Partial<Record<string, any>> = {
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
+};
 
 // ─── Helpers (duplicated from Home so program.tsx is self-contained) ────────
 
@@ -314,12 +330,18 @@ export default function ProgramScreen() {
                   pressed && isCurrent && { opacity: 0.9 },
                 ]}
               >
-                <View style={[styles.cardIcon, { backgroundColor: itemMeta.bg }]}>
-                  <Ionicons
-                    name={isCurrent && testWeek ? 'trophy' : (itemMeta.icon as any)}
-                    size={18}
-                    color={isCurrent && testWeek ? C.categoryPrehabText : itemMeta.color}
-                  />
+                <View style={[styles.cardIcon, { backgroundColor: '#111111' }]}>
+                  {isCurrent && testWeek ? (
+                    <Ionicons name="trophy" size={18} color={C.categoryPrehabText} />
+                  ) : SESSION_IMAGES[item.sessionType] ? (
+                    <Image
+                      source={SESSION_IMAGES[item.sessionType]}
+                      style={{ width: 28, height: 28 }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Ionicons name={itemMeta.icon as any} size={18} color={itemMeta.color} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>

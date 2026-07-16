@@ -411,7 +411,7 @@ export default function RecoverScreen() {
         styles.rootContent,
         {
           paddingTop: insets.top + webTopInset,
-          paddingBottom: insets.bottom + webBottomInset + 24,
+          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 24,
         },
       ]}
       showsVerticalScrollIndicator={false}

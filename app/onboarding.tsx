@@ -693,7 +693,7 @@ export default function OnboardingScreen() {
                         >
                           <EquipmentIcon
                             tier={opt.value as EquipmentTier}
-                            size={18}
+                            size={44}
                             color={selected ? C.textInverse : C.primary}
                           />
                         </View>
@@ -756,18 +756,21 @@ export default function OnboardingScreen() {
                   value={ormSquat}
                   onChangeText={setOrmSquat}
                   testID="orm-squat"
+                  sessionType="squat"
                 />
                 <LiftInput
                   label="Bench Press"
                   value={ormBench}
                   onChangeText={setOrmBench}
                   testID="orm-bench"
+                  sessionType="bench"
                 />
                 <LiftInput
                   label="Deadlift"
                   value={ormDeadlift}
                   onChangeText={setOrmDeadlift}
                   testID="orm-deadlift"
+                  sessionType="deadlift"
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
@@ -847,23 +850,39 @@ export default function OnboardingScreen() {
   );
 }
 
+const SESSION_LIFT_IMAGES: Record<string, any> = {
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
+};
+
 function LiftInput({
   label,
   value,
   onChangeText,
   testID,
+  sessionType,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   testID?: string;
+  sessionType?: 'squat' | 'bench' | 'deadlift';
 }) {
   const C = useColors();
   const liftStyles = useMemo(() => makeLiftStyles(C), [C]);
   return (
     <View style={liftStyles.row}>
       <View style={liftStyles.iconWrap}>
-        <Ionicons name="barbell-outline" size={20} color={C.primary} />
+        {sessionType ? (
+          <Image
+            source={SESSION_LIFT_IMAGES[sessionType]}
+            style={{ width: 40, height: 40, borderRadius: 8 }}
+            resizeMode="contain"
+          />
+        ) : (
+          <Ionicons name="barbell-outline" size={20} color={C.primary} />
+        )}
       </View>
       <Text style={liftStyles.label}>{label}</Text>
       <View style={liftStyles.inputSide}>
@@ -980,8 +999,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     questionCompact: { fontSize: 22, lineHeight: 28, marginBottom: 4 },
     hintCompact: { fontSize: 13, marginBottom: 10 },
     optionListCompact: { gap: 6 },
-    optionCardCompact: { paddingVertical: 7, paddingHorizontal: 12, gap: 10 },
-    optionIconCompact: { width: 32, height: 32, borderRadius: 9 },
+    optionCardCompact: { paddingVertical: 10, paddingHorizontal: 14, gap: 12 },
+    optionIconCompact: { width: 52, height: 52, borderRadius: 14 },
     optionLabelCompact: { fontSize: 15, lineHeight: 19 },
     optionDescCompact: { fontSize: 11, lineHeight: 14, marginTop: 0 },
     optionCard: {
@@ -1001,14 +1020,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     optionCardPressed: { opacity: 0.88 },
     optionIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: 12,
-      backgroundColor: C.primaryMuted,
+      width: 52,
+      height: 52,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
-    optionIconSelected: { backgroundColor: C.primary },
+    optionIconSelected: {},
     optionLabel: {
       fontSize: 16,
       fontFamily: 'Inter_600SemiBold',
@@ -1211,12 +1230,12 @@ function makeLiftStyles(C: ReturnType<typeof useColors>) {
       gap: 12,
     },
     iconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: C.primaryMuted,
+      width: 44,
+      height: 44,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     label: {
       flex: 1,

@@ -437,7 +437,12 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <View style={styles.inner}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.inner}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -646,28 +651,22 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            {/* This Week */}
+            {/* Your Program */}
             <Pressable
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/workouts');
+                router.push('/program');
               }}
-              testID="weekly-ring-tap"
+              testID="your-program-card"
             >
               <View style={styles.summaryIconBox}>
-                <WeeklyRing
-                  count={weekCount}
-                  goal={goal}
-                  activeColor={weekCount >= goal ? (C.success ?? C.primary) : C.primary}
-                  trackColor="rgba(255,255,255,0.08)"
-                  textColor={C.text}
-                  size={72}
-                />
+                <Ionicons name="albums-outline" size={32} color={C.primary} />
+                <Text style={styles.summaryBigNum}>Cycle {progCycleNumber}</Text>
               </View>
-              <Text style={styles.summaryCardTitle}>THIS WEEK</Text>
+              <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
               <Text style={styles.summaryCardSub}>
-                {weekCount} Workout{weekCount !== 1 ? 's' : ''}
+                {strengthCount === 0 ? 'Get started' : `Session ${(strengthCount % 3) + 1} of 3`}
               </Text>
             </Pressable>
 
@@ -934,7 +933,7 @@ export default function HomeScreen() {
               <Ionicons name="chevron-forward" size={14} color={C.achievementGold + '88'} />
             </Pressable>
           </Animated.View>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Bodyweight update modal */}
@@ -1145,7 +1144,7 @@ const modalStyles = StyleSheet.create({
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    inner: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, gap: 16 },
+    inner: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, gap: 16 },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
