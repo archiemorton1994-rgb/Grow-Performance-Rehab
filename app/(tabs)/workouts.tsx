@@ -3338,10 +3338,11 @@ export default function StatsScreen() {
               contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
               showsVerticalScrollIndicator={false}
             >
+              {/* 3 key stat pills */}
               <View style={styles.statRow}>
                 <View style={styles.statCell}>
-                  <Text style={styles.statValue}>{completedSessions.length}</Text>
-                  <Text style={styles.statLabel}>Total</Text>
+                  <Text style={styles.statValue}>{weekCount}</Text>
+                  <Text style={styles.statLabel}>This Week</Text>
                 </View>
                 <View style={styles.statDiv} />
                 <View style={styles.statCell}>
@@ -3350,12 +3351,71 @@ export default function StatsScreen() {
                 </View>
                 <View style={styles.statDiv} />
                 <View style={styles.statCell}>
-                  <Text style={styles.statValue}>{weekCount}</Text>
-                  <Text style={styles.statLabel}>This Week</Text>
+                  <Text style={styles.statValue}>{completedSessions.length}</Text>
+                  <Text style={styles.statLabel}>Total</Text>
                 </View>
               </View>
 
-              {/* Training Calendar — compact row, opens modal */}
+              {/* Primary chart — training frequency */}
+              <WeeklyBarChart sessions={completedSessions} C={C} />
+
+              {/* Supporting insight — session type breakdown donut */}
+              <SessionTypeBreakdown
+                sessions={completedSessions}
+                activeFilter={historyFilter}
+                onFilterChange={(type) => {
+                  setHistoryFilter(type);
+                  if (type !== null) setActiveTab('history');
+                }}
+                C={C}
+              />
+              {/* Drill-down: Muscle Progress → Strength tab */}
+              <Pressable
+                onPress={() => setActiveTab('strength')}
+                style={({ pressed }) => ({
+                  backgroundColor: C.surface,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: C.borderLight,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  opacity: pressed ? 0.82 : 1,
+                })}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: C.primaryMuted,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="body-outline" size={18} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                    Muscle Progress
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Inter_400Regular',
+                      color: C.textSecondary,
+                      marginTop: 1,
+                    }}
+                  >
+                    Front & back muscle heatmap
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+              </Pressable>
+
+              {/* Drill-down: Training Calendar */}
               <Pressable
                 onPress={() => setShowCalendar(true)}
                 style={({ pressed }) => ({
@@ -3401,21 +3461,58 @@ export default function StatsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
               </Pressable>
+            </ScrollView>
+          )}
 
-              {/* Muscle Progress — front + back body view */}
+          {/* STRENGTH TAB */}
+          {activeTab === 'strength' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              <Pressable
+                onPress={() => setShowCalculator(true)}
+                style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="calculator-outline" size={18} color={C.primary} />
+                <Text style={styles.calcBtnText}>1RM Calculator</Text>
+                <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+              </Pressable>
+
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Strength Progression</Text>
+                <Text style={styles.sectionSub}>Estimated 1RM - tap a dot for details</Text>
+                {(['squat', 'bench', 'deadlift'] as SessionType[]).map((lift) => (
+                  <StrengthLineChart
+                    key={lift}
+                    lift={lift}
+                    orms={oneRepMaxes}
+                    weightUnit={weightUnit}
+                    C={C}
+                  />
+                ))}
+              </View>
+
+              {/* Muscle Progress — body heatmap, moved here from Overview */}
               <MuscleProgressPanel completedSessions={completedSessions} C={C} />
 
-              <WeeklyBarChart sessions={completedSessions} C={C} />
-              <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
-              <SessionTypeBreakdown
-                sessions={completedSessions}
-                activeFilter={historyFilter}
-                onFilterChange={(type) => {
-                  setHistoryFilter(type);
-                  if (type !== null) setActiveTab('history');
-                }}
-                C={C}
-              />
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Personal Bests</Text>
+                <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+                <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
+              </View>
+            </ScrollView>
+          )}
+
+          {/* HISTORY TAB */}
+          {activeTab === 'history' && (
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Pain Patterns — moved here from Overview; only shown when there is pain data */}
               {hasAnyPainHistory && (
                 <Animated.View entering={FadeInDown.delay(120).duration(380)}>
                   <View
@@ -3703,7 +3800,6 @@ export default function StatsScreen() {
                             <Pressable
                               onPress={() => {
                                 setPainRegionFilter(painOverviewSelected);
-                                setActiveTab('history');
                               }}
                               hitSlop={8}
                               style={({ pressed }) => ({
@@ -3723,7 +3819,7 @@ export default function StatsScreen() {
                                   color: C.primary,
                                 }}
                               >
-                                History
+                                Filter
                               </Text>
                             </Pressable>
                           </View>
@@ -3803,54 +3899,7 @@ export default function StatsScreen() {
                   </View>
                 </Animated.View>
               )}
-            </ScrollView>
-          )}
 
-          {/* STRENGTH TAB */}
-          {activeTab === 'strength' && (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
-              showsVerticalScrollIndicator={false}
-            >
-              <Pressable
-                onPress={() => setShowCalculator(true)}
-                style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }]}
-              >
-                <Ionicons name="calculator-outline" size={18} color={C.primary} />
-                <Text style={styles.calcBtnText}>1RM Calculator</Text>
-                <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-              </Pressable>
-
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Strength Progression</Text>
-                <Text style={styles.sectionSub}>Estimated 1RM - tap a dot for details</Text>
-                {(['squat', 'bench', 'deadlift'] as SessionType[]).map((lift) => (
-                  <StrengthLineChart
-                    key={lift}
-                    lift={lift}
-                    orms={oneRepMaxes}
-                    weightUnit={weightUnit}
-                    C={C}
-                  />
-                ))}
-              </View>
-
-              <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Personal Bests</Text>
-                <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
-                <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
-              </View>
-            </ScrollView>
-          )}
-
-          {/* HISTORY TAB */}
-          {activeTab === 'history' && (
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
-              showsVerticalScrollIndicator={false}
-            >
               <View
                 style={{
                   flexDirection: 'row',
@@ -4038,6 +4087,9 @@ export default function StatsScreen() {
               contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
               showsVerticalScrollIndicator={false}
             >
+              {/* Weekly volume chart — moved here from Overview */}
+              <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
+
               <Text style={styles.sectionTitle}>Exercise Progress</Text>
               <Text style={styles.sectionSub}>
                 Every weighted lift you&apos;ve logged · tap one for full history
