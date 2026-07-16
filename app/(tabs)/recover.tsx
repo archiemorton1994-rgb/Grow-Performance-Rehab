@@ -61,13 +61,7 @@ const RECOVER_IMAGES: Record<string, any> = {
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
 };
 
-const ALL_TIERS: EquipmentTier[] = [
-  'bodyweight',
-  'bands',
-  'dumbbells',
-  'kettlebells',
-  'fullgym',
-];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -370,6 +364,7 @@ export default function RecoverScreen() {
     iconBg: string;
     iconColor: string;
     recency: string;
+    cardAccent: string;
   }[] = [
     {
       key: 'recovery',
@@ -379,6 +374,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: prehabRecency,
+      cardAccent: '#0d9488',
     },
     {
       key: 'mobility',
@@ -388,6 +384,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: flexRecency,
+      cardAccent: '#6366f1',
     },
     {
       key: 'prehab',
@@ -397,6 +394,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
       recency: prehabRecency,
+      cardAccent: '#f59e0b',
     },
   ];
 
@@ -468,11 +466,17 @@ export default function RecoverScreen() {
             onPress={() => openModal(row.key)}
             style={({ pressed }) => [
               styles.navBtn,
+              { borderColor: row.cardAccent + '55', backgroundColor: row.cardAccent + '0d' },
               pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
             ]}
             testID={`recover-row-${row.key}`}
           >
-            <View style={[styles.navIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}>
+            <View
+              style={[
+                styles.navIcon,
+                { backgroundColor: row.cardAccent + '22', overflow: 'hidden' },
+              ]}
+            >
               {RECOVER_IMAGES[row.key] ? (
                 <Image
                   source={RECOVER_IMAGES[row.key]}
@@ -484,11 +488,11 @@ export default function RecoverScreen() {
               )}
             </View>
             <View style={styles.navBtnText}>
-              <Text style={styles.navLabel}>{row.title}</Text>
+              <Text style={[styles.navLabel, { color: row.cardAccent }]}>{row.title}</Text>
               <Text style={styles.navSub}>{row.subtitle}</Text>
               <Text style={styles.navRecency}>{row.recency}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+            <Ionicons name="chevron-forward" size={16} color={row.cardAccent + '88'} />
           </Pressable>
         ))}
       </View>

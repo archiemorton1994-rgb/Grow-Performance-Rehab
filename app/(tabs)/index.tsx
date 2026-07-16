@@ -832,30 +832,7 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
           )}
-
-          {/* Achievements — gold row, always at the bottom of the feed */}
-          <Animated.View entering={FadeInDown.delay(270).duration(380)}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/achievements');
-              }}
-              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
-              testID="home-achievements-row"
-            >
-              <View style={styles.achievementsIconWrap}>
-                <Ionicons name="trophy" size={15} color={C.achievementGold} />
-              </View>
-              <Text style={styles.achievementsLabel}>Achievements</Text>
-              {earnedBadges.length > 0 && (
-                <View style={styles.badgeCountChip}>
-                  <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={14} color={C.achievementGold + '88'} />
-            </Pressable>
-          </Animated.View>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Bodyweight update modal */}
@@ -1180,16 +1157,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: '47%' as any,
       backgroundColor: C.surface,
       borderRadius: 18,
-      padding: 16,
+      padding: 12,
       alignItems: 'center' as const,
       borderWidth: 1,
       borderColor: C.borderLight,
       gap: 6,
     },
     summaryIconBox: {
-      width: 88,
-      height: 88,
-      borderRadius: 22,
+      width: 72,
+      height: 72,
+      borderRadius: 18,
       backgroundColor: C.surfaceSecondary,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
@@ -1462,42 +1439,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
-
-    achievementsRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 10,
-      backgroundColor: C.achievementGoldBg,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-      borderWidth: 1,
-      borderColor: C.achievementGoldBorder,
-    },
-    achievementsIconWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      backgroundColor: C.achievementGoldMuted,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    achievementsLabel: {
-      flex: 1,
-      fontSize: 14,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.achievementGold,
-    },
-    badgeCountChip: {
-      backgroundColor: C.achievementGoldMuted,
-      borderRadius: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderWidth: 1,
-      borderColor: C.achievementGoldBorder,
-    },
-    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.achievementGold },
-
-
   });
 }
