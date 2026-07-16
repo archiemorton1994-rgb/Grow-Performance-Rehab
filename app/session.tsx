@@ -80,6 +80,19 @@ function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
   return /\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
 }
 
+/**
+ * Parse the lower bound of a reps string for pre-filling the reps input.
+ * Returns the first numeric token as a string, or '' for time-based reps
+ * (min/s) or when nothing is parseable.
+ * e.g. "10" → "10", "8-12" → "8", "30s" → '', "2 min" → ''.
+ */
+function parseTargetRepsForPrefill(repsStr: string): string {
+  if (!repsStr) return '';
+  if (/\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr)) return '';
+  const match = repsStr.match(/\d+/);
+  return match ? match[0] : '';
+}
+
 function parseRepsToSeconds(repsStr: string): number {
   // "X min" or "Xmin" - explicit minutes token
   const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
@@ -463,7 +476,7 @@ export function SessionActiveBar({
   const [weightText, setWeightText] = useState<string>(computeInitialWeight);
   const [repsText, setRepsText] = useState<string>(() => {
     const r = setData?.sets[activeSetIndex]?.reps ?? 0;
-    return r > 0 ? String(r) : '';
+    return r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? '');
   });
   const [showFeedback, setShowFeedback] = useState(false);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -475,9 +488,9 @@ export function SessionActiveBar({
       prevKeyRef.current = key;
       setWeightText(computeInitialWeight());
       const r = setData?.sets[activeSetIndex]?.reps ?? 0;
-      setRepsText(r > 0 ? String(r) : '');
+      setRepsText(r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? ''));
     }
-  }, [exerciseIndex, activeSetIndex, computeInitialWeight, setData]);
+  }, [exerciseIndex, activeSetIndex, computeInitialWeight, setData, exercise]);
 
   const currentSet = setData?.sets[activeSetIndex];
   const totalSets = setData?.sets.length ?? 1;
@@ -676,6 +689,24 @@ export function SessionActiveBar({
         <Text style={styles.barZeroHint}>
           {isBandExercise ? 'Enter reps to complete' : 'Enter weight and reps to complete'}
         </Text>
+      )}
+
+      {!isTimeExercise && (
+        <Pressable
+          onPress={handleComplete}
+          disabled={isZeroBlocked}
+          style={[styles.didItBtn, isZeroBlocked && styles.didItBtnDisabled]}
+          testID={`did-it-${activeSetIndex + 1}`}
+        >
+          <Ionicons
+            name="checkmark-circle"
+            size={20}
+            color={isZeroBlocked ? C.textTertiary : '#000000'}
+          />
+          <Text style={[styles.didItBtnText, isZeroBlocked && styles.didItBtnTextDisabled]}>
+            Did It
+          </Text>
+        </Pressable>
       )}
     </View>
   );
@@ -3690,12 +3721,33 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: 56,
       height: 56,
       borderRadius: 12,
-      backgroundColor: C.primary,
+      backgroundColor: C.primaryDark,
       alignItems: 'center',
       justifyContent: 'center',
     },
     barCompleteBtnDisabled: {
       backgroundColor: C.surfaceTertiary,
+    },
+    didItBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primaryDark,
+      marginTop: 8,
+    },
+    didItBtnDisabled: {
+      backgroundColor: C.surfaceTertiary,
+    },
+    didItBtnText: {
+      fontSize: 16,
+      fontFamily: 'Inter_600SemiBold',
+      color: '#000000',
+    },
+    didItBtnTextDisabled: {
+      color: C.textTertiary,
     },
     barMarkDoneBtn: {
       flexDirection: 'row',
