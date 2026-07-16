@@ -96,26 +96,6 @@ function WeeklyRing({
   );
 }
 
-function getContextMessageHome(
-  completedCount: number,
-  testWeekFrequency: number,
-  testWeek: boolean
-): string {
-  if (completedCount === 0) return "Welcome to your program. Let's build something lasting.";
-  if (testWeek) return "Test week is here - show yourself how far you've come.";
-  const sessionsToTest = testWeekFrequency - (completedCount % testWeekFrequency);
-  if (sessionsToTest <= 2) {
-    const s = sessionsToTest === 1 ? 'session' : 'sessions';
-    return `${sessionsToTest} ${s} until your next strength test - finish strong.`;
-  }
-  if (completedCount === 1) return 'First session in the books. The habit has begun.';
-  const cycleSession = completedCount % 9;
-  if (cycleSession === 0) return 'New cycle started. Each one builds on the last.';
-  if (cycleSession >= 7) return 'Final stretch of this cycle - finish it strong.';
-  if (completedCount < 6) return 'Early days - this is where the foundations are laid.';
-  return 'Momentum is building. Every session moves the needle.';
-}
-
 const SESSION_IMAGES: Record<string, any> = {
   squat: require('@/assets/images/sessions/squat.png'),
   bench: require('@/assets/images/sessions/bench.png'),
@@ -159,13 +139,7 @@ export default function HomeScreen() {
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
-  const ALL_TIERS = [
-    'bodyweight',
-    'bands',
-    'dumbbells',
-    'kettlebells',
-    'fullgym',
-  ] as const;
+  const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
   const availableTiers = isBeginnerExperience ? (['bodyweight', 'bands'] as const) : ALL_TIERS;
 
   const profileEquipment =
@@ -284,7 +258,6 @@ export default function HomeScreen() {
 
   // ─── Your Program card computed values ─────────────────────────────────
   const progCycleNumber = Math.floor(strengthCount / 3) + 1;
-  const programContextMsg = getContextMessageHome(strengthCount, testWeekFrequency, testWeek);
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -436,12 +409,7 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.inner}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={[{ flex: 1 }, styles.inner]}>
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -865,74 +833,7 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
           )}
-
-          {/* Your Program — slim nav row; play pill starts today's session in one tap */}
-          {strengthCount > 0 && (
-            <Animated.View
-              entering={FadeInDown.delay(250).duration(380)}
-              style={styles.programCard}
-            >
-              <Pressable
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/program');
-                }}
-                testID="home-program-card"
-              >
-                <View style={styles.programCardHeaderRow}>
-                  <View style={styles.programCardLeft}>
-                    <Ionicons name="podium-outline" size={15} color={C.primary} />
-                    <Text style={styles.programCardTitle}>Your Program</Text>
-                    <View style={styles.programCycleBadge}>
-                      <Text style={styles.programCycleBadgeText}>Cycle {progCycleNumber}</Text>
-                    </View>
-                  </View>
-                  {!activeSession ? (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (Platform.OS !== 'web')
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        handleStartSuggested();
-                      }}
-                      style={styles.programPlayPill}
-                      hitSlop={8}
-                      testID="home-program-play"
-                    >
-                      <Ionicons name="play" size={13} color={C.textInverse} />
-                    </Pressable>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
-                  )}
-                </View>
-                <Text style={styles.programCardSummary}>{programContextMsg}</Text>
-              </Pressable>
-            </Animated.View>
-          )}
-
-          {/* Achievements — gold row, always at the bottom of the feed */}
-          <Animated.View entering={FadeInDown.delay(270).duration(380)}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/achievements');
-              }}
-              style={({ pressed }) => [styles.achievementsRow, pressed && { opacity: 0.8 }]}
-              testID="home-achievements-row"
-            >
-              <View style={styles.achievementsIconWrap}>
-                <Ionicons name="trophy" size={15} color={C.achievementGold} />
-              </View>
-              <Text style={styles.achievementsLabel}>Achievements</Text>
-              {earnedBadges.length > 0 && (
-                <View style={styles.badgeCountChip}>
-                  <Text style={styles.badgeCountChipText}>{earnedBadges.length}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={14} color={C.achievementGold + '88'} />
-            </Pressable>
-          </Animated.View>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Bodyweight update modal */}
@@ -1041,41 +942,43 @@ export default function HomeScreen() {
             </View>
           )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-            {(
-              ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const
-            ).map((tier) => {
-              const locked = !(availableTiers as readonly string[]).includes(tier);
-              const selected = sheetDraft.includes(tier);
-              return (
-                <Pressable
-                  key={tier}
-                  onPress={() => handleDraftToggle(tier)}
-                  disabled={locked}
-                  style={({ pressed }) => [
-                    modalStyles.tierRow,
-                    { borderBottomColor: C.borderLight },
-                    selected && { backgroundColor: C.primaryMuted },
-                    locked && { opacity: 0.4 },
-                    pressed && !locked && { opacity: 0.7 },
-                  ]}
-                >
-                  <EquipmentIcon
-                    tier={tier}
-                    size={20}
-                    color={selected ? C.primary : C.textSecondary}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}>
-                      {getEquipmentLabel(tier)}
-                    </Text>
-                  </View>
-                  {selected && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
-                  {locked && (
-                    <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
-                  )}
-                </Pressable>
-              );
-            })}
+            {(['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const).map(
+              (tier) => {
+                const locked = !(availableTiers as readonly string[]).includes(tier);
+                const selected = sheetDraft.includes(tier);
+                return (
+                  <Pressable
+                    key={tier}
+                    onPress={() => handleDraftToggle(tier)}
+                    disabled={locked}
+                    style={({ pressed }) => [
+                      modalStyles.tierRow,
+                      { borderBottomColor: C.borderLight },
+                      selected && { backgroundColor: C.primaryMuted },
+                      locked && { opacity: 0.4 },
+                      pressed && !locked && { opacity: 0.7 },
+                    ]}
+                  >
+                    <EquipmentIcon
+                      tier={tier}
+                      size={20}
+                      color={selected ? C.primary : C.textSecondary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}
+                      >
+                        {getEquipmentLabel(tier)}
+                      </Text>
+                    </View>
+                    {selected && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
+                    {locked && (
+                      <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
+                    )}
+                  </Pressable>
+                );
+              }
+            )}
           </ScrollView>
           <Pressable
             onPress={confirmEquipment}
@@ -1537,81 +1440,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
-
-    achievementsRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 10,
-      backgroundColor: C.achievementGoldBg,
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-      borderWidth: 1,
-      borderColor: C.achievementGoldBorder,
-    },
-    achievementsIconWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      backgroundColor: C.achievementGoldMuted,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    achievementsLabel: {
-      flex: 1,
-      fontSize: 14,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.achievementGold,
-    },
-    badgeCountChip: {
-      backgroundColor: C.achievementGoldMuted,
-      borderRadius: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderWidth: 1,
-      borderColor: C.achievementGoldBorder,
-    },
-    badgeCountChipText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.achievementGold },
-
-    // ─── Your Program card ─────────────────────────────────────────────────
-    programCard: {
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-    },
-    programCardHeaderRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-    },
-    programCardLeft: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 8,
-    },
-    programCardTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
-    programCycleBadge: {
-      backgroundColor: C.primaryMuted,
-      borderRadius: 10,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-    },
-    programCycleBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    programCardSummary: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      marginTop: 6,
-    },
-    programPlayPill: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      backgroundColor: C.primary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
   });
 }
