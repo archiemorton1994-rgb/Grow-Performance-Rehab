@@ -315,17 +315,17 @@ export default function HomeScreen() {
   useEffect(() => {
     if (tourJustCompleted) {
       pulseBorder.value = withSequence(
-        withTiming(1, { duration: 300 }),
+        withTiming(1, { duration: 200 }),
         withRepeat(
-          withSequence(withTiming(0.2, { duration: 520 }), withTiming(1.0, { duration: 520 })),
-          3,
+          withSequence(withTiming(0.2, { duration: 350 }), withTiming(1.0, { duration: 350 })),
+          2,
           false
         ),
-        withTiming(0, { duration: 450 })
+        withTiming(0, { duration: 300 })
       );
       const timer = setTimeout(() => {
         setTourJustCompleted(false);
-      }, 4000);
+      }, 2200);
       return () => clearTimeout(timer);
     }
   }, [tourJustCompleted]); // eslint-disable-line react-hooks/exhaustive-deps

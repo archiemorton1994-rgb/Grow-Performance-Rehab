@@ -2,7 +2,15 @@ import { Tabs, router } from 'expo-router';
 import { Platform, StyleSheet, View, Text, Pressable, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,6 +100,23 @@ export default function TabLayout() {
   const [tourStep, setTourStep] = useState<number | null>(() => (!tourComplete ? 0 : null));
   const [showCompletion, setShowCompletion] = useState(false);
 
+  // Pulse the Home tab icon while the completion overlay is visible.
+  const tabPulse = useSharedValue(1);
+  useEffect(() => {
+    if (showCompletion) {
+      tabPulse.value = withRepeat(
+        withSequence(withTiming(1.28, { duration: 370 }), withTiming(1, { duration: 370 })),
+        -1,
+        false
+      );
+    } else {
+      tabPulse.value = withTiming(1, { duration: 180 });
+    }
+  }, [showCompletion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tabPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: tabPulse.value }],
+  }));
+
   // Replay: when tourComplete flips from true → false (e.g. "Replay tour" in Settings),
   // restart from step 0.
   const prevTourComplete = useRef(tourComplete);
@@ -174,7 +199,13 @@ export default function TabLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? 'home' : 'home-outline'} size={size || 24} color={color} />
+              <Animated.View style={tabPulseStyle}>
+                <Ionicons
+                  name={focused ? 'home' : 'home-outline'}
+                  size={size || 24}
+                  color={color}
+                />
+              </Animated.View>
             ),
           }}
         />
@@ -287,7 +318,7 @@ export default function TabLayout() {
             <View style={[styles.completionIconWrap, { backgroundColor: C.primarySurface }]}>
               <Ionicons name="checkmark-circle" size={52} color={C.primary} />
             </View>
-            <Text style={[styles.completionTitle, { color: C.text }]}>You're all set!</Text>
+            <Text style={[styles.completionTitle, { color: C.text }]}>You&apos;re all set!</Text>
             <Text style={[styles.completionBody, { color: C.textSecondary }]}>
               Your programme is ready. Sessions rotate automatically — just show up and the app
               handles the planning.
