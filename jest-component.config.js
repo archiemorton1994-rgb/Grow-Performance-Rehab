@@ -21,6 +21,7 @@ module.exports = {
     '^@/lib/notifications$': '<rootDir>/__mocks__/lib-notifications.js',
     '^@/lib/workout-engine$': '<rootDir>/__mocks__/lib-workout-engine.js',
     '^@/lib/utils$': '<rootDir>/__mocks__/lib-utils.js',
+    '\\.(png|jpg|jpeg|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.js',
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: [

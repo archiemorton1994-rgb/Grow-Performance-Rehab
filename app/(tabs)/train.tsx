@@ -1,5 +1,15 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, Alert, Image, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Platform,
+  Alert,
+  Image,
+  Modal,
+  useWindowDimensions,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +57,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
 
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const C = useColors();
   const {
     completedSessions,
@@ -239,6 +250,7 @@ export default function TrainScreen() {
   };
 
   const styles = useMemo(() => makeStyles(C), [C]);
+  const compactCards = !!activeSession && screenHeight < 670;
 
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
   const isOverrideActive = sessionEquipmentOverride !== null;
@@ -344,7 +356,7 @@ export default function TrainScreen() {
                 ]}
                 testID={`train-session-${type}`}
               >
-                <View style={styles.sessionCardIcon}>
+                <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}
@@ -377,7 +389,7 @@ export default function TrainScreen() {
                 ]}
                 testID={`train-session-${type}`}
               >
-                <View style={styles.sessionCardIcon}>
+                <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}

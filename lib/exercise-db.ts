@@ -4398,7 +4398,7 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
         name: 'Floor Dumbbell Press',
         cue: 'Floor limits depth - protects shoulder end-range',
         suggestedLoad: '12-20 kg per hand',
-        triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist', 'chest', 'tricep'],
+        triggerRegions: ['front_shoulder', 'rear_shoulder', 'elbow_wrist', 'chest', 'tricep', 'bicep'],
       },
     },
     fullgym: {

@@ -41,6 +41,41 @@ const KeyboardAvoidingView = ({ children, testID, style, behavior, ...rest }) =>
   React.createElement('View', { testID, ...rest }, children);
 KeyboardAvoidingView.displayName = 'KeyboardAvoidingView';
 
+const Image = ({ testID, style, source, resizeMode, ...rest }) =>
+  React.createElement('Image', { testID, ...rest });
+Image.displayName = 'Image';
+
+const FlatList = ({ testID, data, renderItem, keyExtractor, style, ...rest }) =>
+  React.createElement('View', { testID, ...rest });
+FlatList.displayName = 'FlatList';
+
+const TouchableOpacity = ({ children, testID, onPress, style, disabled, ...rest }) =>
+  React.createElement('View', { testID, onPress, disabled, ...rest }, children);
+TouchableOpacity.displayName = 'TouchableOpacity';
+
+const ActivityIndicator = ({ testID, ...rest }) =>
+  React.createElement('View', { testID, ...rest });
+ActivityIndicator.displayName = 'ActivityIndicator';
+
+const PanResponder = {
+  create: () => ({ panHandlers: {} }),
+};
+
+const Alert = { alert: jest.fn() };
+const Animated = {
+  View: ({ children, testID, style, ...rest }) =>
+    React.createElement('View', { testID, ...rest }, children),
+  Value: function (v) { this._value = v; this.setValue = (n) => { this._value = n; }; },
+  timing: () => ({ start: jest.fn() }),
+  spring: () => ({ start: jest.fn() }),
+  sequence: () => ({ start: jest.fn() }),
+  parallel: () => ({ start: jest.fn() }),
+  loop: () => ({ start: jest.fn() }),
+};
+
+const Switch = ({ testID, value, onValueChange, ...rest }) =>
+  React.createElement('View', { testID, ...rest });
+
 const Linking = {
   openURL: jest.fn(() => Promise.resolve()),
   canOpenURL: jest.fn(() => Promise.resolve(true)),
@@ -60,6 +95,10 @@ const StyleSheet = {
 const useWindowDimensions = () => ({ width: 400, height: 720, scale: 1, fontScale: 1 });
 const Platform = { OS: 'ios', select: (o) => ('ios' in o ? o.ios : o.default) };
 const useColorScheme = () => 'light';
+const Dimensions = {
+  get: (dim) => (dim === 'window' ? { width: 400, height: 720, scale: 1, fontScale: 1 } : { width: 400, height: 720, scale: 1, fontScale: 1 }),
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+};
 
 module.exports = {
   View,
@@ -73,6 +112,15 @@ module.exports = {
   AppState,
   StyleSheet,
   useWindowDimensions,
+  Dimensions,
   Platform,
   useColorScheme,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  PanResponder,
+  Alert,
+  Animated,
+  Switch,
 };
