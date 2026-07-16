@@ -16,20 +16,22 @@ import Purchases, { PurchasesPackage } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
 import { EXERCISE_COUNT } from '@/lib/exercise-db';
+import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
+import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
 const STATS = [
   { value: `${EXERCISE_COUNT}+`, label: 'exercises' },
-  { value: '7', label: 'session types' },
-  { value: '11', label: 'pain zones' },
+  { value: `${SESSION_TYPE_COUNT}`, label: 'session types' },
+  { value: `${PAIN_ADAPTATION_REGION_COUNT}`, label: 'pain zones' },
 ];
 
 const BULLETS: { icon: 'checkmark-circle' | 'checkmark-circle-outline'; text: string }[] = [
   { icon: 'checkmark-circle', text: 'Smart session programming' },
   { icon: 'checkmark-circle', text: 'Automatic weight progression' },
-  { icon: 'checkmark-circle', text: '11-region pain adaptation' },
+  { icon: 'checkmark-circle', text: `${PAIN_ADAPTATION_REGION_COUNT}-region pain adaptation` },
   { icon: 'checkmark-circle', text: 'Milestone achievements' },
   { icon: 'checkmark-circle', text: 'Strength 1RM tracking' },
   { icon: 'checkmark-circle', text: 'Session resume' },

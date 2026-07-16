@@ -49,6 +49,8 @@ export const SESSION_META: Record<SessionType, SessionMeta> = {
   custom: { label: 'Custom', subtitle: 'Pick your own exercises', icon: 'create-outline' },
 };
 
+export const SESSION_TYPE_COUNT = Object.keys(SESSION_META).length;
+
 export const SESSION_DISPLAY_NAMES: Record<SessionType, string> = {
   squat: 'Squat Session',
   bench: 'Bench Session',

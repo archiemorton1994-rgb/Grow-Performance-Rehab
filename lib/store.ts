@@ -95,6 +95,11 @@ export const PAIN_CATEGORIES = {
   },
 };
 
+export const PAIN_ADAPTATION_REGION_COUNT =
+  PAIN_CATEGORIES.upper.regions.length +
+  PAIN_CATEGORIES.torso.regions.length +
+  PAIN_CATEGORIES.lower.regions.length;
+
 export interface ExerciseFeedback {
   tooEasy: boolean;
   thumbs: 'up' | 'down' | null;
