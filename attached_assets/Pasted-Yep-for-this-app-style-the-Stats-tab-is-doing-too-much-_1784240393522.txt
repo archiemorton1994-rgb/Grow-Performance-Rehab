@@ -1,0 +1,75 @@
+Yep — for this app style, the Stats tab is doing too much at once. It feels more like a full report than a quick progress dashboard.
+What I’d change
+1) Make the top of the page super simple
+Keep just 3 key numbers visible first:
+This week
+Current streak
+Weekly volume or sessions
+That gives the user an instant read without forcing them to decode multiple modules.
+2) Use one primary chart per screen
+Right now you’ve got:
+training frequency
+weekly volume
+session breakdown
+calendar
+muscle map
+That’s a lot of competing information.
+I’d make the page work like this:
+One main chart at the top
+One supporting insight card
+Everything else goes into tap-to-expand detail
+So for example:
+Overview tab = summary only
+Strength tab = lifts + muscle map
+Progress tab = weight / body changes
+History tab = calendar / session logs
+3) Turn some of the cards into drill-downs
+Instead of showing everything at once, make cards like:
+Training Calendar → opens full calendar view
+Muscle Progress → opens detailed muscle heatmap
+Session Breakdown → opens filtered history
+That keeps the page cleaner and makes it feel more premium.
+4) Reduce visual repetition
+You currently have a few repeated patterns:
+multiple dark cards
+multiple green bars
+multiple stat blocks
+That’s fine, but to fit the “clean, sharp, purposeful” style we explored, I’d make the hierarchy much clearer:
+largest card = most important insight
+smaller cards = supporting info
+secondary content = hidden behind interactions
+5) Use the muscle map carefully
+The muscle map is useful, but it’s visually heavy. I’d either:
+move it lower on the page, or
+show a compact summary first, then expand to the full body view
+That way it doesn’t overwhelm the simpler stats.
+My recommendation for the layout
+A stronger structure would be:
+Overview tab
+3 stat pills
+1 main chart
+1 progress insight card
+1 quick action card
+Strength tab
+top lifts
+muscle map
+lift trend chart
+Progress tab
+weekly volume
+bodyweight trend
+streak / consistency
+History tab
+calendar
+session list
+filters
+If you want it to feel less crowded
+Use these rules:
+show less, drill more
+one insight per card
+one visual hierarchy
+more spacing between sections
+fewer high-contrast elements competing at the same level
+Short version
+The page is strong, but it needs progressive disclosure.
+Keep the overview fast and clean, then let users tap into the detailed stats when they want them.
+If you want, I can help you restructure this into a cleaner Stats tab wireframe using your current dark fitness style.
