@@ -51,13 +51,17 @@ export default function CoachMark({
 }: CoachMarkProps) {
   const C = useColors();
 
-  // Swipe-left to advance (tab tour and any caller that passes onSwipeLeft).
+  // Keep a live ref so the PanResponder (created once via useRef) always calls
+  // the latest onSwipeLeft prop rather than the stale initial closure value.
+  const onSwipeLeftRef = useRef(onSwipeLeft);
+  onSwipeLeftRef.current = onSwipeLeft;
+
   const panRef = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10,
       onPanResponderRelease: (_, { dx }) => {
-        if (dx < -40) onSwipeLeft?.();
+        if (dx < -40) onSwipeLeftRef.current?.();
       },
     })
   );
@@ -85,8 +89,8 @@ export default function CoachMark({
     : 0;
 
   return (
-    // Outer overlay: absoluteFill, pointerEvents box-none so touches pass
-    // through the transparent area; only the card itself captures input.
+    // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
+    // pass through the transparent area; only the card itself captures input.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
       {/* Down-pointing arrow — between card bottom and tab bar */}
       {hasDownArrow && (
@@ -98,7 +102,6 @@ export default function CoachMark({
                 bottom: bottomOffset - ARROW_H,
                 left: downArrowLeft,
                 borderTopColor: C.border,
-                pointerEvents: 'none',
               },
             ]}
           />
@@ -109,20 +112,21 @@ export default function CoachMark({
                 bottom: bottomOffset - ARROW_H + 1,
                 left: downArrowLeft + 1,
                 borderTopColor: C.surface,
-                pointerEvents: 'none',
               },
             ]}
           />
         </>
       )}
 
-      {/* Card positioner — pointerEvents box-none so the transparent gap above
-          the card is still interactive for the session / readiness screens. */}
+      {/* Card positioner — pointerEvents 'box-none' so the gap above the card
+          passes touches through to the screen content beneath. */}
       <View style={[styles.positioner, { bottom: bottomOffset, pointerEvents: 'box-none' }]}>
-        {/* Up-pointing arrow at the top of the positioner, anchors card to
-            a specific UI element above (readiness / session steps). */}
+        {/* Up-pointing arrow at the top of the positioner — visually anchors the
+            card to the specific UI element being explained (readiness / session).
+            pointerEvents: 'none' is in the style (not the deprecated prop) so it
+            works correctly on iOS with RN 0.71+. */}
         {hasUpArrow && (
-          <View style={styles.upArrowRow} pointerEvents="none">
+          <View style={styles.upArrowRow}>
             <View style={{ width: upArrowLeft }} />
             <View style={[styles.arrowUp, { borderBottomColor: C.border }]} />
             <View
@@ -134,14 +138,14 @@ export default function CoachMark({
           </View>
         )}
 
-        {/* Card — captures all touches */}
+        {/* Card — captures all touches for Next / Skip buttons and swipe gesture */}
         <Animated.View
           key={`coach-${step}`}
           entering={FadeInDown.duration(260)}
           style={[styles.card, { backgroundColor: C.surface, borderColor: C.border }]}
           {...panRef.current.panHandlers}
         >
-          {/* Header row: icon badge + step dots */}
+          {/* Header row: icon badge + step dots + label */}
           <View style={styles.headerRow}>
             {iconName ? (
               <View style={[styles.iconBadge, { backgroundColor: C.primarySurface }]}>
@@ -273,6 +277,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
   },
   // Down-pointing arrow (tab tour) — sits between card and tab bar.
+  // pointerEvents: 'none' keeps this decorative element invisible to touch.
   arrowDown: {
     position: 'absolute',
     width: 0,
@@ -282,6 +287,7 @@ const styles = StyleSheet.create({
     borderTopWidth: ARROW_H,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
+    pointerEvents: 'none',
   },
   arrowDownInner: {
     position: 'absolute',
@@ -292,12 +298,15 @@ const styles = StyleSheet.create({
     borderTopWidth: ARROW_H - 1,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
+    pointerEvents: 'none',
   },
   // Up-pointing arrow (readiness / session) — sits at top of card positioner.
+  // pointerEvents: 'none' is in style (not the deprecated prop API) for iOS compat.
   upArrowRow: {
     flexDirection: 'row',
     height: ARROW_H,
     overflow: 'visible',
+    pointerEvents: 'none',
   },
   arrowUp: {
     width: 0,
