@@ -249,8 +249,8 @@ export default function TrainScreen() {
     navigate();
   };
 
-  const styles = useMemo(() => makeStyles(C), [C]);
   const compactCards = screenHeight < 670;
+  const styles = useMemo(() => makeStyles(C, compactCards), [C, compactCards]);
 
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
   const isOverrideActive = sessionEquipmentOverride !== null;
@@ -378,7 +378,7 @@ export default function TrainScreen() {
         </Animated.View>
 
         {/* Additional Sessions */}
-        <Text style={[styles.sectionHeading, { marginTop: activeSession ? 4 : 8 }]}>
+        <Text style={[styles.sectionHeading, { marginTop: activeSession ? (compactCards ? 2 : 4) : (compactCards ? 4 : 8) }]}>
           Additional Sessions
         </Text>
         <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
@@ -532,7 +532,7 @@ export default function TrainScreen() {
   );
 }
 
-function makeStyles(C: ReturnType<typeof useColors>) {
+function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     content: { paddingHorizontal: 20 },
@@ -542,7 +542,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginTop: 2,
-      marginBottom: 10,
+      marginBottom: compact ? 6 : 10,
     },
 
     equipmentChipRow: {
@@ -550,7 +550,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center' as const,
       alignSelf: 'flex-start' as const,
       gap: 6,
-      marginBottom: 16,
+      marginBottom: compact ? 10 : 16,
     },
     equipmentChip: {
       flexDirection: 'row',
@@ -618,8 +618,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
-      marginBottom: 6,
-      marginTop: 2,
+      marginBottom: compact ? 4 : 6,
+      marginTop: compact ? 0 : 2,
     },
     sessionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
     sessionCard: {
