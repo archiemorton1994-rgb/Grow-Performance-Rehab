@@ -414,9 +414,9 @@ export default function TrainScreen() {
           })}
         </Animated.View>
 
-        {/* Your program lives on the Home tab */}
+        {/* Opens the dedicated program screen */}
         <Pressable
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/program')}
           style={({ pressed }) => [styles.viewProgramLink, pressed && { opacity: 0.7 }]}
           testID="train-view-program-link"
         >
