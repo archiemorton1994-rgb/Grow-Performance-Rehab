@@ -328,6 +328,233 @@ for (const region of ALL_REGIONS) {
   );
 }
 
+// ─── 8. Hotspot coordinate Y-range check ──────────────────────────────────────
+//
+// Catches the "400 vs 480 height mismatch" regression (and similar drift):
+//
+//   The body-highlighter library renders at 400 overlay units tall, but the SVG
+//   container is svgWidth * 2.4 = 480 overlay units tall.  The overlay SVG uses
+//   viewBox="0 0 200 480" and a <G transform="scale(1, 0.8333)"> (= 5/6) to
+//   compress hotspot paths so they line up with the 400-unit visual figure.
+//
+//   Raw path Y values  → written in 480-unit coordinate space (0–480)
+//   Visual Y values    → raw * (5/6) → must be within 0–400 (library figure)
+//
+//   Each region also has an expected visual Y band; paths falling outside the
+//   band indicate a placement bug (e.g. ankle paths appearing at the chest).
+//
+// Sub-checks:
+//   8a — viewBox declaration is "0 0 200 480" (not "0 0 200 400")
+//   8b — G scaleY transform (5/6 ≈ 0.8333) is present in source
+//   8c — All raw path Y values are within [0, 480] (the viewBox height)
+//   8d — All visual path Y values (raw × 5/6) are within [0, 400] (figure height)
+//   8e — Per-region visual Y falls within the expected anatomical band
+//
+console.log('\n[8] Hotspot coordinate Y-range — 400/480-unit coordinate system');
+
+// ── 8a: viewBox declaration ───────────────────────────────────────────────────
+check(
+  'SVG overlay uses viewBox="0 0 200 480" (not 400)',
+  src.includes('viewBox="0 0 200 480"'),
+  'viewBox height must be 480 so hotspot paths span the full container height; ' +
+    'the 5/6 scaleY then compresses them to the 400-unit library figure'
+);
+
+// ── 8b: G scaleY transform ────────────────────────────────────────────────────
+// Accept either form that appears in BodyDiagram.tsx: scale(1, 0.8333) or scale(1,0.8333)
+const hasScaleTransform =
+  src.includes('scale(1, 0.8333)') ||
+  src.includes('scale(1,0.8333)') ||
+  src.includes('scaleY(0.8333)');
+
+check(
+  'G element applies a 5/6 (≈ 0.8333) scaleY transform to the hotspot overlay',
+  hasScaleTransform,
+  'the 5/6 scaleY (scale(1, 0.8333)) must be present so 480-unit paths align ' +
+    'with the 400-unit library figure; removing it re-introduces the height-mismatch bug'
+);
+
+// ── Helper: extract all Y values from an SVG path "d" string ─────────────────
+// Strips command letters, then treats numbers at odd indices in each coordinate
+// pair as Y values.  Works for absolute M / L / C / Q commands (all that appear
+// in BodyDiagram hotspot paths).
+function getPathYValues(d) {
+  const nums = (d.replace(/[A-Za-z]/g, ' ').match(/[-+]?[0-9]*\.?[0-9]+(?:\.[0-9]+)?/g) ?? []).map(
+    Number
+  );
+  const ys = [];
+  for (let i = 1; i < nums.length; i += 2) {
+    ys.push(nums[i]);
+  }
+  return ys;
+}
+
+// ── Helper: extract (d_value, region) pairs from a renderer source block ──────
+function extractPathRegionPairs(block) {
+  const pairs = [];
+  // Match: d="..." followed (allowing whitespace/newlines) by {...h('region')}
+  const re = /d="([^"]+)"[\s\S]*?\{\.\.\.h\('([^']+)'\)\}/g;
+  let m;
+  while ((m = re.exec(block)) !== null) {
+    pairs.push({ d: m[1], region: m[2] });
+  }
+  return pairs;
+}
+
+// ── 8c & 8d: raw Y ≤ 480 and visual Y ≤ 400 for every path ──────────────────
+// We reuse the frontSrc / backSrc slices from section [7] when available,
+// otherwise fall back to the full source.
+const VIEWBOX_HEIGHT = 480; // raw coordinate space
+const FIGURE_HEIGHT = 400; // visual coordinate space (after 5/6 scale)
+const SCALE_Y = 5 / 6; // = 0.8333…
+
+if (frontFnIdx !== -1 && backFnIdx !== -1 && afterBackIdx !== -1) {
+  const frontSrc8 = src.slice(frontFnIdx, backFnIdx);
+  const backSrc8 = src.slice(backFnIdx, afterBackIdx);
+
+  const allPairs = [
+    ...extractPathRegionPairs(frontSrc8),
+    ...extractPathRegionPairs(backSrc8),
+  ];
+
+  check(
+    `at least 1 (d, region) pair extracted from hotspot renderers (found ${allPairs.length})`,
+    allPairs.length >= 1,
+    'path+region extraction failed — check d="..." {...h(\'region\')} pattern in renderers'
+  );
+
+  let rawOutOfBoundsCount = 0;
+  let visualOutOfBoundsCount = 0;
+
+  for (const { d, region } of allPairs) {
+    const ys = getPathYValues(d);
+    if (ys.length === 0) continue;
+    const rawMin = Math.min(...ys);
+    const rawMax = Math.max(...ys);
+    const visualMin = rawMin * SCALE_Y;
+    const visualMax = rawMax * SCALE_Y;
+
+    if (rawMin < 0 || rawMax > VIEWBOX_HEIGHT) {
+      rawOutOfBoundsCount++;
+      console.error(
+        `  ✗ FAIL: raw Y range for '${region}' path is [${rawMin.toFixed(1)}, ${rawMax.toFixed(1)}] — ` +
+          `must be within [0, ${VIEWBOX_HEIGHT}]. ` +
+          `Path d="${d.slice(0, 60)}…"`
+      );
+    }
+    if (visualMin < 0 || visualMax > FIGURE_HEIGHT) {
+      visualOutOfBoundsCount++;
+      console.error(
+        `  ✗ FAIL: visual Y range for '${region}' path is [${visualMin.toFixed(1)}, ${visualMax.toFixed(1)}] (raw × 5/6) — ` +
+          `must be within [0, ${FIGURE_HEIGHT}]. ` +
+          `Path d="${d.slice(0, 60)}…"`
+      );
+    }
+  }
+
+  check(
+    `all hotspot path raw Y values are within [0, ${VIEWBOX_HEIGHT}] (viewBox height)`,
+    rawOutOfBoundsCount === 0,
+    `${rawOutOfBoundsCount} path(s) have raw Y outside [0, ${VIEWBOX_HEIGHT}] — ` +
+      'hotspot paths must be written in the 480-unit viewBox coordinate space'
+  );
+
+  check(
+    `all hotspot path visual Y values (raw × 5/6) are within [0, ${FIGURE_HEIGHT}] (figure height)`,
+    visualOutOfBoundsCount === 0,
+    `${visualOutOfBoundsCount} path(s) have visual Y outside [0, ${FIGURE_HEIGHT}] — ` +
+      'paths extend outside the rendered body figure; update paths or scaleY transform'
+  );
+
+  // ── 8e: per-region expected anatomical Y bands (visual coordinate space) ────
+  //
+  // These ranges were derived from the current correct path geometry.
+  // They are wide enough to accommodate minor shape edits while still catching
+  // large-scale misplacements (e.g. quads paths drifting into the shoulder area).
+  //
+  // When a new PainRegion is added to lib/store.ts, add its expected Y band here
+  // too — section [8f] below will fail until you do, ensuring the new region is
+  // always included in the coordinate-drift check.
+  //
+  // All values are in VISUAL coordinates (i.e. raw × 5/6 ≈ 0-400 scale).
+  //
+  const EXPECTED_VISUAL_Y = {
+    neck: [30, 70],
+    front_shoulder: [50, 135],
+    rear_shoulder: [50, 135],
+    chest: [45, 120],
+    bicep: [55, 145],
+    tricep: [55, 150],
+    elbow_wrist: [110, 215],
+    upper_back: [35, 135],
+    core_ribs: [85, 175],
+    lower_back: [95, 180],
+    lat_mid_back: [50, 175],
+    hip_groin: [130, 200],
+    glutes: [140, 255],
+    quads: [150, 295],
+    hamstrings: [200, 315],
+    knee: [245, 315],
+    calf_shin: [260, 395],
+    ankle_achilles: [340, 400],
+  };
+
+  console.log('\n[8e] Per-region anatomical Y band (visual coordinate space, 0–400)');
+
+  // Accumulate min/max visual Y per region across all paths in both renderers
+  const regionVisualBounds = {};
+  for (const { d, region } of allPairs) {
+    const ys = getPathYValues(d);
+    if (ys.length === 0) continue;
+    const visualYs = ys.map((y) => y * SCALE_Y);
+    const vMin = Math.min(...visualYs);
+    const vMax = Math.max(...visualYs);
+    if (!regionVisualBounds[region]) {
+      regionVisualBounds[region] = { min: vMin, max: vMax };
+    } else {
+      regionVisualBounds[region].min = Math.min(regionVisualBounds[region].min, vMin);
+      regionVisualBounds[region].max = Math.max(regionVisualBounds[region].max, vMax);
+    }
+  }
+
+  for (const [region, [expectedMin, expectedMax]] of Object.entries(EXPECTED_VISUAL_Y)) {
+    if (!regionVisualBounds[region]) {
+      // Region has no paths extracted — already caught by section [5] / [7]
+      continue;
+    }
+    const { min: actualMin, max: actualMax } = regionVisualBounds[region];
+    const withinBand = actualMin >= expectedMin - 5 && actualMax <= expectedMax + 5;
+    check(
+      `'${region}' visual Y in expected band [${expectedMin}, ${expectedMax}] ` +
+        `(actual [${actualMin.toFixed(0)}, ${actualMax.toFixed(0)}])`,
+      withinBand,
+      `'${region}' paths have drifted outside their expected anatomical band — ` +
+        `update the path geometry or the EXPECTED_VISUAL_Y entry in this test`
+    );
+  }
+
+  // ── 8f: EXPECTED_VISUAL_Y coverage — every PainRegion must have a Y band entry ─
+  // Mirrors [4b] and [7b]: adding a new region to PainRegion forces a Y-band entry
+  // to be declared here before the check can pass, so no new region can silently
+  // bypass coordinate-drift detection.
+  console.log('\n[8f] EXPECTED_VISUAL_Y coverage — every PainRegion has a curated Y band');
+  for (const region of ALL_REGIONS) {
+    check(
+      `EXPECTED_VISUAL_Y has a curated Y band for '${region}'`,
+      Object.prototype.hasOwnProperty.call(EXPECTED_VISUAL_Y, region),
+      `'${region}' is in PainRegion but missing from EXPECTED_VISUAL_Y in this test file — ` +
+        `add  ${region}: [minVisualY, maxVisualY],  to EXPECTED_VISUAL_Y above`
+    );
+  }
+} else {
+  check(
+    'hotspot coordinate Y-range check skipped — renderer markers not found',
+    false,
+    'section [7] renderer markers are required for the Y-range check; ' +
+      'fix the missing markers first (check [7] failures above)'
+  );
+}
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
