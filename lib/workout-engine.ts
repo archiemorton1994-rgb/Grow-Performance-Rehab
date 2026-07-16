@@ -1343,7 +1343,7 @@ export function getEquipmentIcon(tier: EquipmentTier): string {
     case 'dumbbells':
       return 'barbell-outline';
     case 'kettlebells':
-      return 'fitness-outline';
+      return 'barbell-outline';
     case 'barbell':
       return 'barbell-outline';
     case 'fullgym':

@@ -92,43 +92,36 @@ const EQUIPMENT_OPTIONS: {
   value: EquipmentTier;
   label: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
 }[] = [
   {
     value: 'bodyweight',
     label: 'No Equipment',
     description: 'No equipment needed',
-    icon: 'body-outline',
   },
   {
     value: 'bands',
     label: 'Resistance Bands',
     description: 'Bands and tubes',
-    icon: 'git-compare-outline',
   },
   {
     value: 'dumbbells',
     label: 'Dumbbells',
     description: 'Adjustable dumbbells',
-    icon: 'barbell-outline',
   },
   {
     value: 'kettlebells',
     label: 'Kettlebells',
     description: 'Kettlebells available',
-    icon: 'kettlebell',
   },
   {
     value: 'barbell',
     label: 'Barbell / Squat Rack',
     description: 'Barbell and squat rack',
-    icon: 'barbell-outline',
   },
   {
     value: 'fullgym',
     label: 'Full Gym',
     description: 'Everything - cables, machines, full setup',
-    icon: 'barbell-outline',
   },
 ];
 
