@@ -5,7 +5,6 @@ import {
   Pressable,
   StyleSheet,
   Platform,
-  ScrollView,
   ActivityIndicator,
   Image,
   Linking,
@@ -20,33 +19,19 @@ import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
-const FEATURES = [
-  {
-    icon: 'barbell-outline' as const,
-    title: 'Personalised session programming',
-    desc: 'Loads adapted to your strength and goals',
-  },
-  {
-    icon: 'body-outline' as const,
-    title: '11-region pain adaptation',
-    desc: 'Smart exercise swaps around your pain zones',
-  },
-  {
-    icon: 'trending-up-outline' as const,
-    title: 'Progress tracking & strength tests',
-    desc: 'Monitor your 1RM progress over time',
-  },
+const STATS = [
+  { value: '657+', label: 'exercises' },
+  { value: '7', label: 'session types' },
+  { value: '11', label: 'pain zones' },
 ];
 
-const INCLUDED_ITEMS = [
-  'Unlimited access — strength, recovery, conditioning & more',
-  '5 equipment tiers - bodyweight to full gym',
-  'Per-set weight logging with auto-progression',
-  'Per-exercise load tracking across sessions',
-  'Strength test weeks with 1RM tracking',
-  'Pain-aware exercise swaps (11 body regions)',
-  'Readiness-adjusted volume every session',
-  'Session resume - pick up where you left off',
+const BULLETS: { icon: 'checkmark-circle' | 'checkmark-circle-outline'; text: string }[] = [
+  { icon: 'checkmark-circle', text: 'Smart session programming' },
+  { icon: 'checkmark-circle', text: 'Automatic weight progression' },
+  { icon: 'checkmark-circle', text: '11-region pain adaptation' },
+  { icon: 'checkmark-circle', text: 'Milestone achievements' },
+  { icon: 'checkmark-circle', text: 'Strength 1RM tracking' },
+  { icon: 'checkmark-circle', text: 'Session resume' },
 ];
 
 function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: string; sub: string } {
@@ -61,13 +46,13 @@ function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: strin
     return {
       badge: `${period} free trial`,
       cta: `Start ${period.charAt(0).toUpperCase() + period.slice(1)} Free Trial`,
-      sub: `Try free for ${period.replace('-', ' ')},`,
+      sub: `Try free for ${period.replace('-', ' ')}, then`,
     };
   }
   return {
     badge: '14-day free trial',
     cta: 'Start 14-Day Free Trial',
-    sub: 'Try free for 14 days,',
+    sub: 'Try free for 14 days, then',
   };
 }
 
@@ -175,256 +160,301 @@ export default function SubscriptionScreen() {
   const trialText = getTrialText(offering);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTop }]}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
-        showsVerticalScrollIndicator={false}
-      >
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top + webTop + 16,
+          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16),
+        },
+      ]}
+    >
+      {/* Header — logo + wordmark + tagline */}
+      <View style={styles.header}>
         <Image
-          source={require('@/assets/images/logo.jpeg')}
-          style={styles.logoImage}
+          source={require('@/assets/images/logo.png')}
+          style={styles.logo}
           resizeMode="cover"
         />
-
-        <Text style={styles.headline}>Everything you need{'\n'}to train smarter</Text>
-
-        <View style={styles.features}>
-          {FEATURES.map((f) => (
-            <View key={f.title} style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Ionicons name={f.icon} size={22} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.featureTitle}>{f.title}</Text>
-                <Text style={styles.featureDesc}>{f.desc}</Text>
-              </View>
-            </View>
-          ))}
+        <View style={styles.headerText}>
+          <Text style={styles.wordmark}>GROW</Text>
+          <Text style={styles.tagline}>Performance & Rehab</Text>
         </View>
+      </View>
 
-        <View style={styles.includedCard}>
-          <Text style={styles.includedTitle}>{"What's included"}</Text>
-          {INCLUDED_ITEMS.map((item) => (
-            <View key={item} style={styles.includedRow}>
-              <Ionicons
-                name="checkmark-circle"
-                size={16}
-                color={C.primary}
-                style={{ marginTop: 1 }}
-              />
-              <Text style={styles.includedText}>{item}</Text>
-            </View>
-          ))}
-        </View>
+      {/* Headline */}
+      <Text style={styles.headline}>Everything you need{'\n'}to train smarter</Text>
 
-        <View style={styles.planCard}>
-          <View style={styles.planCardTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.planName}>Grow Monthly</Text>
-              {loadingOffering ? (
-                <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
-              ) : offeringError ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                  <Text
-                    style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}
-                  >
-                    Price unavailable
-                  </Text>
-                  <Pressable
-                    onPress={fetchOffering}
-                    testID="offerings-retry"
-                    style={{
-                      backgroundColor: C.primaryMuted,
-                      borderRadius: 8,
-                      paddingHorizontal: 10,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
-                      style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}
-                    >
-                      Retry
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Text style={styles.planPrice}>
-                  {priceString}
-                  <Text style={styles.planPer}> / month</Text>
-                </Text>
-              )}
-            </View>
-            <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
-            </View>
+      {/* Stat chips */}
+      <View style={styles.statsRow}>
+        {STATS.map((s) => (
+          <View key={s.label} style={styles.statChip}>
+            <Text style={styles.statValue}>{s.value}</Text>
+            <Text style={styles.statLabel}>{s.label}</Text>
           </View>
-          <Text style={styles.planSub}>
-            {trialText.sub} then {priceString ? `${priceString}/month` : 'the standard rate'}.
-            Cancel anytime.
-          </Text>
-        </View>
+        ))}
+      </View>
 
-        <Pressable
-          onPress={handlePurchase}
-          disabled={purchasing}
-          style={({ pressed }) => [
-            styles.ctaBtn,
-            purchasing && styles.ctaBtnLoading,
-            pressed && styles.ctaBtnPressed,
-          ]}
-          testID="subscribe-cta"
-        >
-          {purchasing ? (
-            <ActivityIndicator color={C.textInverse} />
-          ) : (
-            <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
-          )}
-        </Pressable>
-
-        {errorMsg ? (
-          <View style={styles.errorRow}>
-            <Ionicons name="alert-circle" size={14} color={C.error} />
-            <Text style={styles.errorText}>{errorMsg}</Text>
+      {/* Feature bullets — 2-column grid */}
+      <View style={styles.bulletsGrid}>
+        {BULLETS.map((b) => (
+          <View key={b.text} style={styles.bulletRow}>
+            <Ionicons name={b.icon} size={15} color={C.primary} style={styles.bulletIcon} />
+            <Text style={styles.bulletText}>{b.text}</Text>
           </View>
-        ) : null}
+        ))}
+      </View>
 
+      {/* Pricing card */}
+      <View style={styles.planCard}>
+        <View style={styles.planCardTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.planName}>Grow Monthly</Text>
+            {loadingOffering ? (
+              <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
+            ) : offeringError ? (
+              <View style={styles.retryRow}>
+                <Text style={styles.priceUnavail}>Price unavailable</Text>
+                <Pressable onPress={fetchOffering} testID="offerings-retry" style={styles.retryBtn}>
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.planPrice}>
+                {priceString}
+                <Text style={styles.planPer}> / month</Text>
+              </Text>
+            )}
+          </View>
+          <View style={styles.trialBadge}>
+            <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
+          </View>
+        </View>
+        <Text style={styles.planSub}>
+          {trialText.sub} {priceString ? `${priceString}/month` : 'the standard rate'}. Cancel
+          anytime.
+        </Text>
+      </View>
+
+      {/* Error message */}
+      {errorMsg ? (
+        <View style={styles.errorRow}>
+          <Ionicons name="alert-circle" size={13} color={C.error} />
+          <Text style={styles.errorText}>{errorMsg}</Text>
+        </View>
+      ) : null}
+
+      {/* CTA */}
+      <Pressable
+        onPress={handlePurchase}
+        disabled={purchasing}
+        style={({ pressed }) => [
+          styles.ctaBtn,
+          purchasing && styles.ctaBtnLoading,
+          pressed && styles.ctaBtnPressed,
+        ]}
+        testID="subscribe-cta"
+      >
+        {purchasing ? (
+          <ActivityIndicator color={C.textInverse} />
+        ) : (
+          <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
+        )}
+      </Pressable>
+
+      {/* Footer: restore + legal in one row */}
+      <View style={styles.footer}>
         <Pressable
           onPress={handleRestore}
           disabled={restoring}
-          style={styles.restoreBtn}
+          hitSlop={8}
           testID="restore-purchases"
         >
-          <Text style={styles.restoreText}>{restoring ? 'Restoring…' : 'Restore purchases'}</Text>
+          <Text style={styles.footerLink}>{restoring ? 'Restoring…' : 'Restore'}</Text>
         </Pressable>
-
-        <Text style={styles.legal}>
-          {'By continuing you agree to our '}
-          <Text
-            style={styles.legalLink}
-            testID="legal-terms"
-            onPress={() => Linking.openURL(termsUrl)}
-          >
-            Terms of Service
-          </Text>
-          {' and '}
-          <Text
-            style={styles.legalLink}
-            testID="legal-privacy"
-            onPress={() => Linking.openURL(privacyUrl)}
-          >
-            Privacy Policy
-          </Text>
-          {priceString
-            ? `. Subscription renews at ${priceString}/month unless cancelled at least 24 hours before the end of the current period.`
-            : '. Subscription auto-renews monthly unless cancelled at least 24 hours before the end of the current period.'}
+        <Text style={styles.footerDot}>·</Text>
+        <Text
+          style={styles.footerLink}
+          testID="legal-terms"
+          onPress={() => Linking.openURL(termsUrl)}
+        >
+          Terms
         </Text>
-      </ScrollView>
+        <Text style={styles.footerDot}>·</Text>
+        <Text
+          style={styles.footerLink}
+          testID="legal-privacy"
+          onPress={() => Linking.openURL(privacyUrl)}
+        >
+          Privacy
+        </Text>
+      </View>
+
+      {/* Sub-legal auto-renew notice */}
+      <Text style={styles.legalSmall}>
+        {priceString
+          ? `Renews at ${priceString}/month unless cancelled 24 hrs before period end.`
+          : 'Auto-renews monthly unless cancelled at least 24 hours before period end.'}
+      </Text>
     </View>
   );
 }
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.background },
-    content: { paddingHorizontal: 24, paddingTop: 24 },
-
-    logoImage: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      marginBottom: 28,
+    container: {
+      flex: 1,
+      backgroundColor: C.background,
+      paddingHorizontal: 24,
     },
 
-    headline: {
-      fontSize: 30,
-      fontFamily: 'Inter_700Bold',
-      color: C.text,
-      lineHeight: 38,
-      marginBottom: 28,
-    },
-
-    features: { gap: 16, marginBottom: 28 },
-    featureRow: {
+    // Header
+    header: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 14,
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: C.borderLight,
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
     },
-    featureIcon: {
+    logo: {
       width: 44,
       height: 44,
       borderRadius: 12,
-      backgroundColor: C.primaryMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
-    featureTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
-    featureDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    headerText: { flex: 1 },
+    wordmark: {
+      fontSize: 18,
+      fontFamily: 'Inter_700Bold',
+      color: C.primary,
+      letterSpacing: 2,
+    },
+    tagline: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
+    },
 
-    includedCard: {
+    headline: {
+      fontSize: 26,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      lineHeight: 33,
+      marginBottom: 16,
+    },
+
+    // Stat chips
+    statsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 16,
+    },
+    statChip: {
+      flex: 1,
+      backgroundColor: C.primarySurface,
+      borderRadius: 12,
+      paddingVertical: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    statValue: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.primary,
+    },
+    statLabel: {
+      fontSize: 10,
+      fontFamily: 'Inter_500Medium',
+      color: C.primary,
+      marginTop: 1,
+      opacity: 0.8,
+    },
+
+    // Bullets
+    bulletsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 0,
+      marginBottom: 16,
       backgroundColor: C.surface,
       borderRadius: 16,
-      padding: 18,
       borderWidth: 1,
       borderColor: C.borderLight,
-      marginBottom: 20,
-      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      rowGap: 10,
+      columnGap: 4,
     },
-    includedTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 4,
+    bulletRow: {
+      width: '50%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingRight: 8,
     },
-    includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    includedText: {
-      flex: 1,
-      fontSize: 14,
+    bulletIcon: { flexShrink: 0 },
+    bulletText: {
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.text,
-      lineHeight: 20,
+      flex: 1,
     },
 
+    // Pricing card
     planCard: {
       backgroundColor: C.surface,
-      borderRadius: 18,
-      padding: 20,
+      borderRadius: 16,
+      padding: 14,
       borderWidth: 2,
       borderColor: C.primary,
-      marginBottom: 20,
+      marginBottom: 12,
     },
     planCardTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     planName: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginBottom: 2,
     },
-    planPrice: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text },
-    planPer: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    planPrice: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text },
+    planPer: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     trialBadge: {
       backgroundColor: C.primaryMuted,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
     },
-    trialBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    planSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    trialBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    planSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
 
+    retryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+    priceUnavail: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    retryBtn: {
+      backgroundColor: C.primaryMuted,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    retryBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+
+    // Error
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginBottom: 8,
+    },
+    errorText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
+
+    // CTA
     ctaBtn: {
-      height: 58,
-      borderRadius: 18,
+      height: 52,
+      borderRadius: 16,
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -434,31 +464,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ctaBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
     ctaBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
-    errorRow: {
+    // Footer
+    footer: {
       flexDirection: 'row',
+      justifyContent: 'center',
       alignItems: 'center',
-      gap: 6,
-      marginTop: 10,
-      marginBottom: 2,
-      paddingHorizontal: 4,
+      gap: 8,
+      marginBottom: 8,
     },
-    errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
-
-    restoreBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 20 },
-    restoreText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-
-    legal: {
-      fontSize: 11,
+    footerLink: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    footerDot: {
+      fontSize: 13,
+      color: C.textTertiary,
+    },
+    legalSmall: {
+      fontSize: 10,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       textAlign: 'center',
-      lineHeight: 16,
-    },
-    legalLink: {
-      fontSize: 11,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
-      textDecorationLine: 'underline',
+      lineHeight: 14,
     },
   });
 }
