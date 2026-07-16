@@ -827,7 +827,7 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Your Program — slim nav row, navigates to /program */}
+          {/* Your Program — slim nav row; play pill starts today's session in one tap */}
           {strengthCount > 0 && (
             <Animated.View
               entering={FadeInDown.delay(250).duration(380)}
@@ -838,19 +838,36 @@ export default function HomeScreen() {
                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/program');
                 }}
-                style={styles.programCardHeaderRow}
                 testID="home-program-card"
               >
-                <View style={styles.programCardLeft}>
-                  <Ionicons name="podium-outline" size={15} color={C.primary} />
-                  <Text style={styles.programCardTitle}>Your Program</Text>
-                  <View style={styles.programCycleBadge}>
-                    <Text style={styles.programCycleBadgeText}>Cycle {progCycleNumber}</Text>
+                <View style={styles.programCardHeaderRow}>
+                  <View style={styles.programCardLeft}>
+                    <Ionicons name="podium-outline" size={15} color={C.primary} />
+                    <Text style={styles.programCardTitle}>Your Program</Text>
+                    <View style={styles.programCycleBadge}>
+                      <Text style={styles.programCycleBadgeText}>Cycle {progCycleNumber}</Text>
+                    </View>
                   </View>
+                  {!activeSession ? (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (Platform.OS !== 'web')
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        handleStartSuggested();
+                      }}
+                      style={styles.programPlayPill}
+                      hitSlop={8}
+                      testID="home-program-play"
+                    >
+                      <Ionicons name="play" size={13} color={C.textInverse} />
+                    </Pressable>
+                  ) : (
+                    <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
+                  )}
                 </View>
-                <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
+                <Text style={styles.programCardSummary}>{programContextMsg}</Text>
               </Pressable>
-              <Text style={styles.programCardSummary}>{programContextMsg}</Text>
             </Animated.View>
           )}
 
@@ -1528,6 +1545,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 6,
+    },
+    programPlayPill: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: C.primary,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     },
   });
 }
