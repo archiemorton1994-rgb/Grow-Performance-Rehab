@@ -250,7 +250,7 @@ export default function TrainScreen() {
   };
 
   const styles = useMemo(() => makeStyles(C), [C]);
-  const compactCards = !!activeSession && screenHeight < 670;
+  const compactCards = screenHeight < 670;
 
   const draftEffectiveTier = getEffectiveTier(sheetDraft.length > 0 ? sheetDraft : ['bodyweight']);
   const isOverrideActive = sessionEquipmentOverride !== null;
