@@ -10,6 +10,14 @@ const ARROW_W = 9;
 const CARD_MARGIN = 16;
 const CARD_W = SCREEN_WIDTH - CARD_MARGIN * 2;
 
+export type SpotlightRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  borderRadius?: number;
+};
+
 interface CoachMarkProps {
   visible: boolean;
   title: string;
@@ -30,6 +38,8 @@ interface CoachMarkProps {
   upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
+  /** When provided, dims the entire screen except the described rect. */
+  spotlightRect?: SpotlightRect;
 }
 
 export default function CoachMark({
@@ -48,6 +58,7 @@ export default function CoachMark({
   upArrowFraction,
   iconName,
   iconLabel,
+  spotlightRect,
 }: CoachMarkProps) {
   const C = useColors();
 
@@ -88,10 +99,64 @@ export default function CoachMark({
     ? Math.max(0, Math.min(CARD_W - ARROW_W * 2, upArrowFraction * CARD_W - ARROW_W))
     : 0;
 
+  const sr = spotlightRect;
+
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
     // pass through the transparent area; only the card itself captures input.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+      {/* ── Spotlight: 4 dark bands forming a rectangular cutout ─────────── */}
+      {sr && (
+        <>
+          {/* Top band */}
+          <View
+            style={[styles.dimBand, { top: 0, left: 0, right: 0, height: Math.max(0, sr.top) }]}
+          />
+          {/* Bottom band */}
+          <View
+            style={[styles.dimBand, { top: sr.top + sr.height, left: 0, right: 0, bottom: 0 }]}
+          />
+          {/* Left strip */}
+          <View
+            style={[
+              styles.dimBand,
+              {
+                top: sr.top,
+                left: 0,
+                width: Math.max(0, sr.left),
+                height: sr.height,
+              },
+            ]}
+          />
+          {/* Right strip */}
+          <View
+            style={[
+              styles.dimBand,
+              {
+                top: sr.top,
+                left: sr.left + sr.width,
+                right: 0,
+                height: sr.height,
+              },
+            ]}
+          />
+          {/* Green border ring around the spotlight cutout */}
+          <View
+            style={[
+              styles.spotlightRing,
+              {
+                top: sr.top - 3,
+                left: sr.left - 3,
+                width: sr.width + 6,
+                height: sr.height + 6,
+                borderRadius: (sr.borderRadius ?? 12) + 3,
+                borderColor: C.primary,
+              },
+            ]}
+          />
+        </>
+      )}
+
       {/* Down-pointing arrow — between card bottom and tab bar */}
       {hasDownArrow && (
         <>
@@ -199,6 +264,19 @@ const styles = StyleSheet.create({
   overlay: {
     zIndex: 200,
     pointerEvents: 'box-none',
+  },
+  // Dark semi-transparent band — one of four forming the spotlight cutout.
+  // pointerEvents: 'none' keeps these purely decorative (touches pass through).
+  dimBand: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    pointerEvents: 'none',
+  },
+  // Green border ring that traces the spotlighted element.
+  spotlightRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    pointerEvents: 'none',
   },
   positioner: {
     position: 'absolute',

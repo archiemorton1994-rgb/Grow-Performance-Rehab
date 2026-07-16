@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useColors } from '@/constants/colors';
@@ -19,39 +19,39 @@ const COACH_STEPS = [
     iconName: 'home',
     iconLabel: 'Home',
     title: 'Your daily starting point',
-    body: 'Shows your next suggested session based on your training rotation. Tap the session card to begin.',
-  },
-  {
-    route: '/train',
-    tabArrowFraction: 0.5,
-    iconName: 'barbell',
-    iconLabel: 'Train',
-    title: 'Your strength program',
-    body: 'Structured Lower/Upper/Full Body rotation — every session adapts to your equipment and energy level.',
-  },
-  {
-    route: '/recover',
-    tabArrowFraction: 0.7,
-    iconName: 'medkit',
-    iconLabel: 'Restore',
-    title: 'Restore between sessions',
-    body: 'Recovery circuits, mobility flows, and targeted prehab — designed to keep you moving on rest days.',
-  },
-  {
-    route: '/workouts',
-    tabArrowFraction: 0.9,
-    iconName: 'bar-chart',
-    iconLabel: 'Stats',
-    title: 'Track your progress',
-    body: 'Every session, set and weight is logged here. Charts and KPIs fill in as you train.',
+    body: 'Shows your recommended session for today. Tap the card to begin — the app plans your whole week automatically.',
   },
   {
     route: '/profile',
     tabArrowFraction: 0.3,
     iconName: 'person',
     iconLabel: 'Profile',
-    title: 'Your stats and settings',
-    body: 'Strength records, milestone badges, and all your app settings in one place.',
+    title: 'Your records and settings',
+    body: 'Strength records, milestone achievement badges, equipment settings and your full training history.',
+  },
+  {
+    route: '/train',
+    tabArrowFraction: 0.5,
+    iconName: 'barbell',
+    iconLabel: 'Train',
+    title: '7 ways to train',
+    body: 'Strength sessions (Lower / Upper / Full Body), Conditioning, Flexibility, and Custom — every session adapts to your equipment and energy.',
+  },
+  {
+    route: '/recover',
+    tabArrowFraction: 0.7,
+    iconName: 'medkit',
+    iconLabel: 'Restore',
+    title: 'Recover smarter',
+    body: 'Recovery circuits, mobility flows and targeted prehab. Use these on rest days to stay loose and injury-free.',
+  },
+  {
+    route: '/workouts',
+    tabArrowFraction: 0.9,
+    iconName: 'bar-chart',
+    iconLabel: 'Stats',
+    title: 'Watch yourself improve',
+    body: 'Every set and weight is logged here. Strength KPIs, volume trends, and milestones fill in as you train.',
   },
 ] as const;
 
@@ -83,6 +83,7 @@ export default function TabLayout() {
   const C = useColors();
   const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
+  const { width: W, height: H } = useWindowDimensions();
 
   const { tourComplete, setTourComplete } = useAppStore();
 
@@ -213,22 +214,38 @@ export default function TabLayout() {
         />
       </Tabs>
 
-      {tourStep !== null && (
-        <CoachMark
-          visible
-          title={COACH_STEPS[tourStep].title}
-          body={COACH_STEPS[tourStep].body}
-          step={tourStep + 1}
-          total={COACH_STEPS.length}
-          onNext={handleNext}
-          onSkip={handleSkip}
-          onSwipeLeft={handleNext}
-          bottomOffset={coachMarkBottom}
-          tabArrowFraction={COACH_STEPS[tourStep].tabArrowFraction}
-          iconName={COACH_STEPS[tourStep].iconName}
-          iconLabel={COACH_STEPS[tourStep].iconLabel}
-        />
-      )}
+      {tourStep !== null &&
+        (() => {
+          const step = COACH_STEPS[tourStep];
+          const tabW = W / 5;
+          // tabArrowFraction: 0.1=Home, 0.3=Profile, 0.5=Train, 0.7=Restore, 0.9=Stats
+          // Maps to tab indices 0–4 via (fraction - 0.1) / 0.2
+          const tabIdx = Math.round((step.tabArrowFraction - 0.1) / 0.2);
+          const spotlightRect = {
+            top: H - tabBarHeight,
+            left: tabIdx * tabW,
+            width: tabW,
+            height: tabBarHeight,
+            borderRadius: 0,
+          };
+          return (
+            <CoachMark
+              visible
+              title={step.title}
+              body={step.body}
+              step={tourStep + 1}
+              total={COACH_STEPS.length}
+              onNext={handleNext}
+              onSkip={handleSkip}
+              onSwipeLeft={handleNext}
+              bottomOffset={coachMarkBottom}
+              tabArrowFraction={step.tabArrowFraction}
+              iconName={step.iconName}
+              iconLabel={step.iconLabel}
+              spotlightRect={spotlightRect}
+            />
+          );
+        })()}
     </View>
   );
 }

@@ -30,7 +30,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import CoachMark from '@/components/CoachMark';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
   EquipmentTier,
   EnergyLevel,
@@ -1501,35 +1501,35 @@ const SESSION_TUTORIAL = [
     iconLabel: 'Exercise',
     upArrowFraction: 0.35,
     title: 'Your first exercise',
-    body: "Tap 'Watch form' for a demo video before starting. Work through each exercise in order.",
+    body: "Tap 'Watch form' for a video demo before you start. Work through exercises in order — the app builds them to flow.",
   },
   {
     iconName: 'create-outline',
     iconLabel: 'Log sets',
     upArrowFraction: 0.3,
     title: 'Log every set',
-    body: 'Enter the weight lifted and reps completed, then tap the green button to log the set.',
+    body: 'Type the weight and reps, then tap the green button to save the set. The app remembers your weights and auto-suggests next time.',
   },
   {
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     upArrowFraction: 0.7,
-    title: 'Rate how it felt',
-    body: "After each set, tell us if it felt easy or hard — we'll adjust next session's weight automatically.",
+    title: 'Tell us how it felt',
+    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — your next session adjusts itself.',
   },
   {
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
     upArrowFraction: 0.75,
     title: 'Swap any exercise',
-    body: 'Not feeling an exercise? Tap the swap icon on the card to get a different option for the same muscle.',
+    body: 'Tap the swap icon on any card to get an alternative for the same muscle group. Useful if equipment is taken or something hurts.',
   },
   {
     iconName: 'stats-chart-outline',
     iconLabel: 'Progress',
     upArrowFraction: 0.5,
-    title: 'Your session progress',
-    body: 'The bar at the top shows how far through the session you are. Keep going!',
+    title: "You're on your way",
+    body: 'The bar at the top tracks your sets. Every session you complete builds your streak and moves you closer to the next milestone badge.',
   },
 ] as const;
 
@@ -1768,6 +1768,37 @@ export default function SessionScreen() {
 
   const [tutStep, setTutStep] = useState<number | null>(null);
   const tutStartedRef = useRef(false);
+
+  // ── Spotlight refs for session tutorial ─────────────────────────────────
+  const progressBarRef = useRef<View>(null);
+  const sessionBarRef = useRef<View>(null);
+  const firstCardRef = useRef<View>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+
+  // Measure the spotlighted element whenever the tutorial step changes.
+  // Steps: 0=first card, 1=input bar, 2=input bar (feedback), 3=first card (swap), 4=progress bar
+  useEffect(() => {
+    if (tutStep === null) {
+      setTutSpotlight(null);
+      return;
+    }
+    const refMap = [firstCardRef, sessionBarRef, sessionBarRef, firstCardRef, progressBarRef];
+    const target = refMap[tutStep];
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({
+            top: y - 4,
+            left: x - 4,
+            width: w + 8,
+            height: h + 8,
+            borderRadius: 14,
+          });
+        }
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [tutStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const advanceTut = useCallback(() => {
     setTutStep((prev) => {
@@ -2377,7 +2408,7 @@ export default function SessionScreen() {
         </View>
       </Animated.View>
 
-      <View style={styles.progressBar}>
+      <View ref={progressBarRef} style={styles.progressBar}>
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
         </View>
@@ -2440,7 +2471,7 @@ export default function SessionScreen() {
           const displayExercise = getDisplayExercise(exercise, data);
           const exState: ExerciseState =
             index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
-          return (
+          const card = (
             <ExerciseCard
               key={exercise.id + index}
               exercise={displayExercise}
@@ -2494,46 +2525,58 @@ export default function SessionScreen() {
               onToggleNote={() => toggleNoteVisible(index)}
             />
           );
+          // Wrap the first card with a ref so the tutorial can spotlight it.
+          if (index === 0) {
+            return (
+              <View key={exercise.id + index} ref={firstCardRef}>
+                {card}
+              </View>
+            );
+          }
+          return card;
         })}
       </ScrollView>
 
-      {(() => {
-        const activeEx = exercises[activeIndex];
-        const activeData = exerciseData[activeIndex];
-        const activeSetIdx =
-          activeData?.activeSetIndex ?? activeData?.sets.findIndex((s) => !s.completed) ?? 0;
-        const clampedSetIdx = Math.min(
-          Math.max(activeSetIdx, 0),
-          (activeData?.sets.length ?? 1) - 1
-        );
-        const weightGuidesForBar = activeEx
-          ? getWeightGuideKg(activeEx.category, activeEx.sets, activeEx.suggestedLoad)
-          : [];
-        const isBandEx = activeEx ? isLoadBandOrBodyweight(activeEx.suggestedLoad) : false;
-        const isTimeEx = activeEx ? isRepsTimeBased(activeEx.reps, sessionType) : false;
-        return (
-          <SessionActiveBar
-            exercise={activeEx ?? null}
-            exerciseIndex={activeIndex}
-            setData={activeData ?? null}
-            activeSetIndex={clampedSetIdx}
-            weightGuidesKg={weightGuidesForBar}
-            isBandExercise={isBandEx}
-            isTimeExercise={isTimeEx}
-            previousBest={previousBest[activeEx?.id ?? '']}
-            previousSessionWeight={previousSessionWeights[activeEx?.id ?? '']}
-            weightUnit={weightUnit}
-            isLastExercise={activeIndex === exercises.length - 1}
-            sessionAllDone={allDone}
-            isPrehabOrFlex={isPrehabOrFlex}
-            onSetChange={handleSetChange}
-            onSetCompleted={handleBarSetCompleted}
-            onFeedback={handleBarFeedback}
-            onCompleteSession={handleComplete}
-            bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
-          />
-        );
-      })()}
+      {/* Wrap the active bar so the tutorial can spotlight it (steps 1 & 2). */}
+      <View ref={sessionBarRef}>
+        {(() => {
+          const activeEx = exercises[activeIndex];
+          const activeData = exerciseData[activeIndex];
+          const activeSetIdx =
+            activeData?.activeSetIndex ?? activeData?.sets.findIndex((s) => !s.completed) ?? 0;
+          const clampedSetIdx = Math.min(
+            Math.max(activeSetIdx, 0),
+            (activeData?.sets.length ?? 1) - 1
+          );
+          const weightGuidesForBar = activeEx
+            ? getWeightGuideKg(activeEx.category, activeEx.sets, activeEx.suggestedLoad)
+            : [];
+          const isBandEx = activeEx ? isLoadBandOrBodyweight(activeEx.suggestedLoad) : false;
+          const isTimeEx = activeEx ? isRepsTimeBased(activeEx.reps, sessionType) : false;
+          return (
+            <SessionActiveBar
+              exercise={activeEx ?? null}
+              exerciseIndex={activeIndex}
+              setData={activeData ?? null}
+              activeSetIndex={clampedSetIdx}
+              weightGuidesKg={weightGuidesForBar}
+              isBandExercise={isBandEx}
+              isTimeExercise={isTimeEx}
+              previousBest={previousBest[activeEx?.id ?? '']}
+              previousSessionWeight={previousSessionWeights[activeEx?.id ?? '']}
+              weightUnit={weightUnit}
+              isLastExercise={activeIndex === exercises.length - 1}
+              sessionAllDone={allDone}
+              isPrehabOrFlex={isPrehabOrFlex}
+              onSetChange={handleSetChange}
+              onSetCompleted={handleBarSetCompleted}
+              onFeedback={handleBarFeedback}
+              onCompleteSession={handleComplete}
+              bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
+            />
+          );
+        })()}
+      </View>
 
       {/* Abandon Modal */}
       <Modal
@@ -2704,6 +2747,7 @@ export default function SessionScreen() {
           upArrowFraction={SESSION_TUTORIAL[tutStep].upArrowFraction}
           iconName={SESSION_TUTORIAL[tutStep].iconName}
           iconLabel={SESSION_TUTORIAL[tutStep].iconLabel}
+          spotlightRect={tutSpotlight ?? undefined}
         />
       )}
     </KeyboardAvoidingView>

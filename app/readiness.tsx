@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import CoachMark from '@/components/CoachMark';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
   EquipmentTier,
   EnergyLevel,
@@ -27,13 +27,7 @@ import { BodyDiagram } from '@/components/BodyDiagram';
 
 type Step = 'main' | 'painRegion' | 'prehabFocus';
 
-const ALL_TIERS: EquipmentTier[] = [
-  'bodyweight',
-  'bands',
-  'dumbbells',
-  'kettlebells',
-  'fullgym',
-];
+const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment',
@@ -50,22 +44,22 @@ const READINESS_TUTORIAL = [
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
     upArrowFraction: 0.25,
-    title: 'Pick your energy level',
-    body: 'Low energy → lighter session. High → push harder. We scale the weight accordingly.',
+    title: 'How are you feeling?',
+    body: 'Pick your energy honestly — low energy gets a lighter session, high energy pushes harder. We adjust the weight automatically.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
     upArrowFraction: 0.5,
-    title: 'Choose your session length',
-    body: '30 min focuses on the core lift. 45 min adds extras. 60 min gives you the full session.',
+    title: 'How long have you got?',
+    body: '30 min = core lift only. 45 min adds accessories and prehab. 60 min is the full session with a finisher.',
   },
   {
     iconName: 'medical-outline',
     iconLabel: 'Pain',
     upArrowFraction: 0.75,
     title: 'Any pain today?',
-    body: "Tell us if anything hurts — we'll automatically swap exercises away from that area to protect you.",
+    body: "Tap a region if anything is sore — we'll automatically swap exercises away from that area so you can train safely.",
   },
 ] as const;
 
@@ -129,6 +123,36 @@ export default function ReadinessScreen() {
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
   const [coachStep, setCoachStep] = useState<number | null>(null);
+
+  // ── Spotlight refs for each readiness tutorial section ──────────────────
+  const energyRef = useRef<View>(null);
+  const timeRef = useRef<View>(null);
+  const painRef = useRef<View>(null);
+  const [readinessSpotlight, setReadinessSpotlight] = useState<SpotlightRect | null>(null);
+
+  // Measure the spotlighted section whenever the tutorial step changes.
+  useEffect(() => {
+    if (coachStep === null) {
+      setReadinessSpotlight(null);
+      return;
+    }
+    const refs = [energyRef, timeRef, painRef];
+    const target = refs[coachStep];
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setReadinessSpotlight({
+            top: y - 8,
+            left: x - 8,
+            width: w + 16,
+            height: h + 16,
+            borderRadius: 14,
+          });
+        }
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [coachStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const advanceCoach = useCallback(() => {
     setCoachStep((prev) => {
@@ -422,8 +446,8 @@ export default function ReadinessScreen() {
 
         <View style={styles.divider} />
 
-        {/* Aches */}
-        <View style={styles.section}>
+        {/* Aches — tutorial step 2 spotlight target */}
+        <View style={styles.section} ref={painRef}>
           <Text style={styles.sectionTitle}>Any pain or soreness?</Text>
           <View style={styles.pillRow}>
             <Pressable
@@ -468,8 +492,8 @@ export default function ReadinessScreen() {
           <>
             <View style={styles.divider} />
 
-            {/* Energy */}
-            <View style={styles.section}>
+            {/* Energy — tutorial step 0 spotlight target */}
+            <View style={styles.section} ref={energyRef}>
               <Text style={styles.sectionTitle}>Energy level</Text>
               <View style={styles.pillRow}>
                 {[
@@ -517,8 +541,8 @@ export default function ReadinessScreen() {
 
             <View style={styles.divider} />
 
-            {/* Time */}
-            <View style={styles.section}>
+            {/* Time — tutorial step 1 spotlight target */}
+            <View style={styles.section} ref={timeRef}>
               <Text style={styles.sectionTitle}>Time available</Text>
               <View style={styles.pillRow}>
                 {[
@@ -779,6 +803,7 @@ export default function ReadinessScreen() {
           upArrowFraction={READINESS_TUTORIAL[coachStep].upArrowFraction}
           iconName={READINESS_TUTORIAL[coachStep].iconName}
           iconLabel={READINESS_TUTORIAL[coachStep].iconLabel}
+          spotlightRect={readinessSpotlight ?? undefined}
         />
       )}
     </View>
