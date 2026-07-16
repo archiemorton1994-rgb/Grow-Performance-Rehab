@@ -1788,7 +1788,12 @@ export default function SessionScreen() {
   }, [setSessionTutorialShown]);
 
   useEffect(() => {
-    if (exercises.length > 0 && !sessionTutorialShown && !tutStartedRef.current && sessionType !== 'custom') {
+    if (
+      exercises.length > 0 &&
+      !sessionTutorialShown &&
+      !tutStartedRef.current &&
+      sessionType !== 'custom'
+    ) {
       tutStartedRef.current = true;
       const timer = setTimeout(() => setTutStep(0), 900);
       return () => clearTimeout(timer);
