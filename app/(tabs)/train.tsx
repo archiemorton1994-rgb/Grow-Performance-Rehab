@@ -363,11 +363,11 @@ export default function TrainScreen() {
                 ]}
                 testID={`train-session-${type}`}
               >
-                <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
+                <View style={styles.sessionCardIcon}>
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 </View>
                 <Text style={styles.sessionCardLabel} numberOfLines={1}>
@@ -396,11 +396,11 @@ export default function TrainScreen() {
                 ]}
                 testID={`train-session-${type}`}
               >
-                <View style={[styles.sessionCardIcon, { backgroundColor: meta.bg }]}>
+                <View style={styles.sessionCardIcon}>
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 </View>
                 <Text style={styles.sessionCardLabel} numberOfLines={1}>
@@ -639,20 +639,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: '47%',
       backgroundColor: C.surface,
       borderRadius: 14,
-      padding: 14,
-      minHeight: 106,
+      padding: 10,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     sessionCardIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 14,
+      width: '100%',
+      aspectRatio: 1,
+      borderRadius: 10,
+      backgroundColor: '#111111',
+      overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 10,
     },
-    sessionCardImage: { width: 38, height: 38 },
+    sessionCardImage: { width: '100%', height: '100%' },
     sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
