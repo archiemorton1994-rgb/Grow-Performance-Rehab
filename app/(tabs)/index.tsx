@@ -23,7 +23,8 @@ import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
-import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
+import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 
 // ─── Weekly Progress Ring ─────────────────────────────────────────────────────
@@ -566,8 +567,8 @@ export default function HomeScreen() {
                 ]}
                 testID="home-equipment-chip"
               >
-                <Ionicons
-                  name={getEquipmentIcon(todayEffectiveTier) as any}
+                <EquipmentIcon
+                  tier={todayEffectiveTier}
                   size={13}
                   color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
                 />
@@ -1060,8 +1061,8 @@ export default function HomeScreen() {
                     pressed && !locked && { opacity: 0.7 },
                   ]}
                 >
-                  <Ionicons
-                    name={getEquipmentIcon(tier) as any}
+                  <EquipmentIcon
+                    tier={tier}
                     size={20}
                     color={selected ? C.primary : C.textSecondary}
                   />
