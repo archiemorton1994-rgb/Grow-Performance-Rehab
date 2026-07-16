@@ -378,7 +378,12 @@ export default function TrainScreen() {
         </Animated.View>
 
         {/* Additional Sessions */}
-        <Text style={[styles.sectionHeading, { marginTop: activeSession ? (compactCards ? 2 : 4) : (compactCards ? 4 : 8) }]}>
+        <Text
+          style={[
+            styles.sectionHeading,
+            { marginTop: activeSession ? (compactCards ? 2 : 4) : compactCards ? 4 : 8 },
+          ]}
+        >
           Additional Sessions
         </Text>
         <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>

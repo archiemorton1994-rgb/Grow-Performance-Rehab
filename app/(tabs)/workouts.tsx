@@ -3311,8 +3311,46 @@ export default function StatsScreen() {
         </View>
       </View>
 
-      {/* Empty state */}
-      {completedSessions.length === 0 && (
+      {/* Empty state — Overview shows stat pills above the empty state; other tabs show full-screen */}
+      {completedSessions.length === 0 && activeTab === 'overview' && (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.statRow}>
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{weekCount}</Text>
+              <Text style={styles.statLabel}>This Week</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{streak}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{completedSessions.length}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+          </View>
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              icon="stats-chart-outline"
+              title="No sessions yet"
+              subtitle="Your charts and personal bests show up here once you log your first session."
+              cta={{
+                label: 'Start your first session',
+                icon: 'flash',
+                onPress: () => router.push('/(tabs)/train'),
+                testID: 'stats-empty-cta',
+              }}
+              testID="stats-empty"
+            />
+          </View>
+        </ScrollView>
+      )}
+      {completedSessions.length === 0 && activeTab !== 'overview' && (
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <EmptyState
             icon="stats-chart-outline"
