@@ -412,10 +412,7 @@ if (frontFnIdx !== -1 && backFnIdx !== -1 && afterBackIdx !== -1) {
   const frontSrc8 = src.slice(frontFnIdx, backFnIdx);
   const backSrc8 = src.slice(backFnIdx, afterBackIdx);
 
-  const allPairs = [
-    ...extractPathRegionPairs(frontSrc8),
-    ...extractPathRegionPairs(backSrc8),
-  ];
+  const allPairs = [...extractPathRegionPairs(frontSrc8), ...extractPathRegionPairs(backSrc8)];
 
   check(
     `at least 1 (d, region) pair extracted from hotspot renderers (found ${allPairs.length})`,
