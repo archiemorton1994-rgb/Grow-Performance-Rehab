@@ -19,11 +19,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
-import {
-  getSessionSubtitle,
-  getEquipmentLabel,
-  getEffectiveTier,
-} from '@/lib/workout-engine';
+import { getSessionSubtitle, getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import {
   SESSION_META as SESSION_META_LABELS,

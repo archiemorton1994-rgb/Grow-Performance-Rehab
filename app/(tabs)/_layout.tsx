@@ -232,6 +232,7 @@ export default function TabLayout() {
           total={COACH_STEPS.length}
           onNext={handleNext}
           onSkip={handleSkip}
+          onSwipeLeft={handleNext}
           bottomOffset={coachMarkBottom}
           tabArrowFraction={COACH_STEPS[tourStep].tabArrowFraction}
           iconName={COACH_STEPS[tourStep].iconName}

@@ -51,18 +51,21 @@ const READINESS_TUTORIAL = [
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
+    upArrowFraction: 0.25,
     title: 'Pick your energy level',
     body: 'Low energy → lighter session. High → push harder. We scale the weight accordingly.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
+    upArrowFraction: 0.5,
     title: 'Choose your session length',
     body: '30 min focuses on the core lift. 45 min adds extras. 60 min gives you the full session.',
   },
   {
     iconName: 'medical-outline',
     iconLabel: 'Pain',
+    upArrowFraction: 0.75,
     title: 'Any pain today?',
     body: "Tell us if anything hurts — we'll automatically swap exercises away from that area to protect you.",
   },
@@ -775,6 +778,7 @@ export default function ReadinessScreen() {
           onNext={advanceCoach}
           onSkip={skipCoach}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
+          upArrowFraction={READINESS_TUTORIAL[coachStep].upArrowFraction}
           iconName={READINESS_TUTORIAL[coachStep].iconName}
           iconLabel={READINESS_TUTORIAL[coachStep].iconLabel}
         />

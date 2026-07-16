@@ -1499,30 +1499,35 @@ const SESSION_TUTORIAL = [
   {
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
+    upArrowFraction: 0.35,
     title: 'Your first exercise',
     body: "Tap 'Watch form' for a demo video before starting. Work through each exercise in order.",
   },
   {
     iconName: 'create-outline',
     iconLabel: 'Log sets',
+    upArrowFraction: 0.3,
     title: 'Log every set',
     body: 'Enter the weight lifted and reps completed, then tap the green button to log the set.',
   },
   {
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
+    upArrowFraction: 0.7,
     title: 'Rate how it felt',
     body: "After each set, tell us if it felt easy or hard — we'll adjust next session's weight automatically.",
   },
   {
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
+    upArrowFraction: 0.75,
     title: 'Swap any exercise',
     body: 'Not feeling an exercise? Tap the swap icon on the card to get a different option for the same muscle.',
   },
   {
     iconName: 'stats-chart-outline',
     iconLabel: 'Progress',
+    upArrowFraction: 0.5,
     title: 'Your session progress',
     body: 'The bar at the top shows how far through the session you are. Keep going!',
   },
@@ -2692,6 +2697,7 @@ export default function SessionScreen() {
           onNext={advanceTut}
           onSkip={skipTut}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 190}
+          upArrowFraction={SESSION_TUTORIAL[tutStep].upArrowFraction}
           iconName={SESSION_TUTORIAL[tutStep].iconName}
           iconLabel={SESSION_TUTORIAL[tutStep].iconLabel}
         />

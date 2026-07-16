@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, Dimensions, PanResponder } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
@@ -7,6 +7,8 @@ import { useColors } from '@/constants/colors';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const ARROW_H = 10;
 const ARROW_W = 9;
+const CARD_MARGIN = 16;
+const CARD_W = SCREEN_WIDTH - CARD_MARGIN * 2;
 
 interface CoachMarkProps {
   visible: boolean;
@@ -18,8 +20,14 @@ interface CoachMarkProps {
   skipLabel?: string;
   onNext: () => void;
   onSkip: () => void;
+  /** Called when user swipes left on the card (tab tour advancement). */
+  onSwipeLeft?: () => void;
+  /** Pixels from screen bottom to card bottom edge. */
   bottomOffset?: number;
+  /** Horizontal position (0–1) for down-pointing tab-bar arrow. */
   tabArrowFraction?: number;
+  /** Horizontal position (0–1) for up-pointing element anchor arrow. */
+  upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
 }
@@ -34,30 +42,61 @@ export default function CoachMark({
   skipLabel = 'Skip all',
   onNext,
   onSkip,
+  onSwipeLeft,
   bottomOffset = 0,
   tabArrowFraction,
+  upArrowFraction,
   iconName,
   iconLabel,
 }: CoachMarkProps) {
   const C = useColors();
+
+  // Swipe-left to advance (tab tour and any caller that passes onSwipeLeft).
+  const panRef = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10,
+      onPanResponderRelease: (_, { dx }) => {
+        if (dx < -40) onSwipeLeft?.();
+      },
+    })
+  );
+
   if (!visible) return null;
 
   const ctaLabel = nextLabel ?? (step >= total ? "Let's go!" : 'Next →');
-  const hasArrow = tabArrowFraction !== undefined;
-  const tabCenterX = hasArrow ? tabArrowFraction * SCREEN_WIDTH : SCREEN_WIDTH / 2;
-  const arrowLeft = Math.max(16, Math.min(SCREEN_WIDTH - 16 - ARROW_W * 2, tabCenterX - ARROW_W));
+
+  // Down arrow (tab tour) — positioned in the overlay between card and tab bar.
+  const hasDownArrow = tabArrowFraction !== undefined;
+  const downArrowLeft = hasDownArrow
+    ? Math.max(
+        CARD_MARGIN,
+        Math.min(
+          SCREEN_WIDTH - CARD_MARGIN - ARROW_W * 2,
+          tabArrowFraction * SCREEN_WIDTH - ARROW_W
+        )
+      )
+    : 0;
+
+  // Up arrow (readiness/session) — appears at the top edge of the card positioner.
+  const hasUpArrow = upArrowFraction !== undefined;
+  const upArrowLeft = hasUpArrow
+    ? Math.max(0, Math.min(CARD_W - ARROW_W * 2, upArrowFraction * CARD_W - ARROW_W))
+    : 0;
 
   return (
+    // Outer overlay: absoluteFill, pointerEvents box-none so touches pass
+    // through the transparent area; only the card itself captures input.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-      {/* Down-pointing arrow between card and tab bar */}
-      {hasArrow && (
+      {/* Down-pointing arrow — between card bottom and tab bar */}
+      {hasDownArrow && (
         <>
           <View
             style={[
-              styles.arrowOuter,
+              styles.arrowDown,
               {
                 bottom: bottomOffset - ARROW_H,
-                left: arrowLeft,
+                left: downArrowLeft,
                 borderTopColor: C.border,
                 pointerEvents: 'none',
               },
@@ -65,10 +104,10 @@ export default function CoachMark({
           />
           <View
             style={[
-              styles.arrowInner,
+              styles.arrowDownInner,
               {
                 bottom: bottomOffset - ARROW_H + 1,
-                left: arrowLeft + 1,
+                left: downArrowLeft + 1,
                 borderTopColor: C.surface,
                 pointerEvents: 'none',
               },
@@ -77,12 +116,30 @@ export default function CoachMark({
         </>
       )}
 
-      {/* Card */}
+      {/* Card positioner — pointerEvents box-none so the transparent gap above
+          the card is still interactive for the session / readiness screens. */}
       <View style={[styles.positioner, { bottom: bottomOffset, pointerEvents: 'box-none' }]}>
+        {/* Up-pointing arrow at the top of the positioner, anchors card to
+            a specific UI element above (readiness / session steps). */}
+        {hasUpArrow && (
+          <View style={styles.upArrowRow} pointerEvents="none">
+            <View style={{ width: upArrowLeft }} />
+            <View style={[styles.arrowUp, { borderBottomColor: C.border }]} />
+            <View
+              style={[
+                styles.arrowUpInner,
+                { position: 'absolute', left: upArrowLeft + 1, borderBottomColor: C.surface },
+              ]}
+            />
+          </View>
+        )}
+
+        {/* Card — captures all touches */}
         <Animated.View
           key={`coach-${step}`}
           entering={FadeInDown.duration(260)}
           style={[styles.card, { backgroundColor: C.surface, borderColor: C.border }]}
+          {...panRef.current.panHandlers}
         >
           {/* Header row: icon badge + step dots */}
           <View style={styles.headerRow}>
@@ -137,12 +194,13 @@ export default function CoachMark({
 const styles = StyleSheet.create({
   overlay: {
     zIndex: 200,
+    pointerEvents: 'box-none',
   },
   positioner: {
     position: 'absolute',
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: CARD_MARGIN,
   },
   card: {
     borderRadius: 20,
@@ -214,7 +272,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
   },
-  arrowOuter: {
+  // Down-pointing arrow (tab tour) — sits between card and tab bar.
+  arrowDown: {
     position: 'absolute',
     width: 0,
     height: 0,
@@ -224,13 +283,38 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
-  arrowInner: {
+  arrowDownInner: {
     position: 'absolute',
     width: 0,
     height: 0,
     borderLeftWidth: ARROW_W - 1,
     borderRightWidth: ARROW_W - 1,
     borderTopWidth: ARROW_H - 1,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  // Up-pointing arrow (readiness / session) — sits at top of card positioner.
+  upArrowRow: {
+    flexDirection: 'row',
+    height: ARROW_H,
+    overflow: 'visible',
+  },
+  arrowUp: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: ARROW_W,
+    borderRightWidth: ARROW_W,
+    borderBottomWidth: ARROW_H,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  arrowUpInner: {
+    width: 0,
+    height: 0,
+    top: 1,
+    borderLeftWidth: ARROW_W - 1,
+    borderRightWidth: ARROW_W - 1,
+    borderBottomWidth: ARROW_H - 1,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },

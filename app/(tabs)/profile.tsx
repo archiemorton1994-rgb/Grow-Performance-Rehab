@@ -881,11 +881,7 @@ export default function ProfileScreen() {
                 style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
               >
                 <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
-                  <EquipmentIcon
-                    tier={effectiveTier}
-                    size={20}
-                    color={C.categoryMechanicalText}
-                  />
+                  <EquipmentIcon tier={effectiveTier} size={20} color={C.categoryMechanicalText} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Equipment</Text>
