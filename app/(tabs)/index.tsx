@@ -20,14 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { SessionType, useAppStore, STRENGTH_SESSION_TYPES, CompletedSession } from '@/lib/store';
+import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
-import {
-  SESSION_META,
-  getSessionColors,
-  SessionMeta,
-  SESSION_DISPLAY_NAMES,
-} from '@/lib/session-meta';
+import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
 import { getEquipmentLabel, getEquipmentIcon, getEffectiveTier } from '@/lib/workout-engine';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 
@@ -100,8 +95,6 @@ function WeeklyRing({
   );
 }
 
-const SESSION_ORDER_HOME: SessionType[] = ['squat', 'bench', 'deadlift'];
-
 function getContextMessageHome(
   completedCount: number,
   testWeekFrequency: number,
@@ -120,18 +113,6 @@ function getContextMessageHome(
   if (cycleSession >= 7) return 'Final stretch of this cycle - finish it strong.';
   if (completedCount < 6) return 'Early days - this is where the foundations are laid.';
   return 'Momentum is building. Every session moves the needle.';
-}
-
-function getLastTrainedLabelHome(
-  completedSessions: CompletedSession[],
-  sessionType: SessionType
-): string {
-  const matches = completedSessions.filter((s) => s.sessionType === sessionType);
-  if (matches.length === 0) return 'Not done yet';
-  const days = daysSince(matches[0].date);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return `${days} days ago`;
 }
 
 const SESSION_IMAGES: Record<string, any> = {
@@ -301,42 +282,9 @@ export default function HomeScreen() {
   const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
   const showBlockProgress = strengthCount >= 1 && !testWeek;
 
-  // ─── Your Program card state + computed values ──────────────────────────
-  const [programExpanded, setProgramExpanded] = useState(false);
+  // ─── Your Program card computed values ─────────────────────────────────
   const progCycleNumber = Math.floor(strengthCount / 3) + 1;
-  const progCyclePos = strengthCount % testWeekFrequency;
-  const progCycleLength = testWeekFrequency;
-  const progSessToTest =
-    strengthCount > 0 ? testWeekFrequency - (strengthCount % testWeekFrequency) : testWeekFrequency;
-
   const programContextMsg = getContextMessageHome(strengthCount, testWeekFrequency, testWeek);
-
-  const programTimeline = useMemo(() => {
-    const tlLen = Math.min(testWeekFrequency, 9);
-    const posInCycle = strengthCount % tlLen;
-    const items: {
-      sessionType: SessionType;
-      status: 'completed' | 'current' | 'upcoming';
-      isTestMarker: boolean;
-    }[] = [];
-    for (let i = 0; i < tlLen; i++) {
-      const sessionType = SESSION_ORDER_HOME[i % 3];
-      const status: 'completed' | 'current' | 'upcoming' =
-        i < posInCycle ? 'completed' : i === posInCycle ? 'current' : 'upcoming';
-      const sessionNumber = strengthCount - posInCycle + i + 1;
-      const isTestMarker = sessionNumber % testWeekFrequency === 0;
-      items.push({ sessionType, status, isTestMarker });
-    }
-    return items;
-  }, [strengthCount, testWeekFrequency]);
-
-  const programLastTrained = useMemo(() => {
-    const result = {} as Record<SessionType, string>;
-    for (const type of SESSION_ORDER_HOME) {
-      result[type] = getLastTrainedLabelHome(completedSessions, type);
-    }
-    return result;
-  }, [completedSessions]);
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -879,7 +827,7 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Your Program — expandable card shown once at least 1 strength session done */}
+          {/* Your Program — slim nav row, navigates to /program */}
           {strengthCount > 0 && (
             <Animated.View
               entering={FadeInDown.delay(250).duration(380)}
@@ -888,7 +836,7 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => {
                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setProgramExpanded((v) => !v);
+                  router.push('/program');
                 }}
                 style={styles.programCardHeaderRow}
                 testID="home-program-card"
@@ -900,173 +848,9 @@ export default function HomeScreen() {
                     <Text style={styles.programCycleBadgeText}>Cycle {progCycleNumber}</Text>
                   </View>
                 </View>
-                <Ionicons
-                  name={programExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={15}
-                  color={C.textTertiary}
-                />
+                <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
               </Pressable>
-
-              {!programExpanded && (
-                <Text style={styles.programCardSummary}>{programContextMsg}</Text>
-              )}
-
-              {programExpanded && (
-                <>
-                  <Text style={styles.programSubtitleText}>
-                    Squat · Bench · Deadlift · {getEquipmentLabel(todayEffectiveTier)}
-                  </Text>
-
-                  {/* Cycle stats row */}
-                  <View style={styles.progCycleInfo}>
-                    <View style={styles.progCycleCard}>
-                      <Text style={styles.progCycleValue}>Cycle {progCycleNumber}</Text>
-                      <Text style={styles.progCycleLabel}>of your program</Text>
-                    </View>
-                    <View style={styles.progCycleDivider} />
-                    <View style={styles.progCycleCard}>
-                      <Text style={styles.progCycleNumber}>{completedSessions.length}</Text>
-                      <Text style={styles.progCycleLabel}>sessions done</Text>
-                    </View>
-                    <View style={styles.progCycleDivider} />
-                    <View style={styles.progCycleCard}>
-                      <Text style={styles.progCycleNumber}>{progSessToTest}</Text>
-                      <Text style={styles.progCycleLabel}>until test</Text>
-                    </View>
-                  </View>
-
-                  {/* Arc dots */}
-                  <View style={styles.progArcCard}>
-                    <View style={styles.progArcHeader}>
-                      <Text style={styles.progArcLabel}>
-                        Session {progCyclePos + 1} of {progCycleLength}
-                      </Text>
-                      <Text style={styles.progArcSublabel}>current cycle</Text>
-                    </View>
-                    <View style={styles.progArcDots}>
-                      {Array.from({ length: progCycleLength }, (_, i) => {
-                        const isDone = i < progCyclePos;
-                        const isCur = i === progCyclePos;
-                        return (
-                          <View
-                            key={i}
-                            style={[
-                              styles.progArcDot,
-                              isDone && styles.progArcDotDone,
-                              isCur && styles.progArcDotCurrent,
-                            ]}
-                          />
-                        );
-                      })}
-                    </View>
-                  </View>
-
-                  {/* Context message */}
-                  <View style={styles.progContextRow}>
-                    <View style={styles.progContextDot} />
-                    <Text style={styles.progContextText}>{programContextMsg}</Text>
-                  </View>
-
-                  {/* Timeline */}
-                  {programTimeline.map((item, index) => {
-                    const isCurrent = item.status === 'current';
-                    const isCompleted = item.status === 'completed';
-                    const itemMeta = SESSION_TYPE_META[item.sessionType];
-                    return (
-                      <View key={index} style={styles.progTimelineRow}>
-                        <View style={styles.progTimelineTrack}>
-                          <View
-                            style={[
-                              styles.progTimelineDot,
-                              isCompleted && styles.progTimelineDotDone,
-                              isCurrent && styles.progTimelineDotCurrent,
-                              isCurrent && testWeek && styles.progTimelineDotTest,
-                            ]}
-                          >
-                            {isCompleted && (
-                              <Ionicons name="checkmark" size={10} color={C.textInverse} />
-                            )}
-                            {isCurrent && (
-                              <View
-                                style={[
-                                  styles.progCurrentPulse,
-                                  testWeek && { backgroundColor: C.categoryPrehabText },
-                                ]}
-                              />
-                            )}
-                          </View>
-                          {index < programTimeline.length - 1 && (
-                            <View
-                              style={[
-                                styles.progTimelineLine,
-                                isCompleted && styles.progTimelineLineDone,
-                              ]}
-                            />
-                          )}
-                        </View>
-                        <Pressable
-                          onPress={() => {
-                            if (isCurrent) handleStartSuggested();
-                          }}
-                          disabled={!isCurrent}
-                          style={({ pressed }) => [
-                            styles.progTimelineCard,
-                            isCurrent && styles.progTimelineCardCurrent,
-                            isCurrent && testWeek && styles.progTimelineCardTest,
-                            isCompleted && styles.progTimelineCardDone,
-                            pressed && isCurrent && { opacity: 0.9 },
-                          ]}
-                        >
-                          <View style={[styles.progCardIcon, { backgroundColor: itemMeta.bg }]}>
-                            <Ionicons
-                              name={isCurrent && testWeek ? 'trophy' : (itemMeta.icon as any)}
-                              size={18}
-                              color={isCurrent && testWeek ? C.categoryPrehabText : itemMeta.color}
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              style={[
-                                styles.progCardTitle,
-                                isCompleted && styles.progCardTitleDone,
-                              ]}
-                            >
-                              {SESSION_DISPLAY_NAMES[item.sessionType]}
-                            </Text>
-                            <Text style={styles.progCardSub}>
-                              {isCurrent && testWeek ? 'Strength Test' : itemMeta.subtitle}
-                            </Text>
-                            {!isCompleted && (
-                              <Text style={styles.progCardRecency}>
-                                {programLastTrained[item.sessionType]}
-                              </Text>
-                            )}
-                          </View>
-                          {isCurrent && !activeSession && (
-                            <View
-                              style={[styles.progStartPill, testWeek && styles.progStartPillTest]}
-                            >
-                              <Ionicons name="play" size={14} color={C.textInverse} />
-                            </View>
-                          )}
-                          {isCompleted && (
-                            <Ionicons name="checkmark-circle" size={20} color={C.primary} />
-                          )}
-                          {item.isTestMarker && !isCurrent && (
-                            <View style={styles.progTestMarker}>
-                              <Ionicons
-                                name="trophy-outline"
-                                size={12}
-                                color={C.categoryPrehabText}
-                              />
-                            </View>
-                          )}
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </>
-              )}
+              <Text style={styles.programCardSummary}>{programContextMsg}</Text>
             </Animated.View>
           )}
 
@@ -1744,167 +1528,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 6,
-    },
-    programSubtitleText: {
-      fontSize: 12,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      marginTop: 10,
-      marginBottom: 10,
-    },
-
-    progCycleInfo: {
-      flexDirection: 'row' as const,
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 12,
-      padding: 14,
-      marginBottom: 10,
-      alignItems: 'center' as const,
-    },
-    progCycleCard: { flex: 1, alignItems: 'center' as const },
-    progCycleValue: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary },
-    progCycleNumber: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.primary },
-    progCycleLabel: {
-      fontSize: 9,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      marginTop: 2,
-      textAlign: 'center' as const,
-    },
-    progCycleDivider: { width: 1, height: 30, backgroundColor: C.border },
-
-    progArcCard: {
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      marginBottom: 10,
-    },
-    progArcHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'baseline' as const,
-      gap: 6,
-      marginBottom: 8,
-    },
-    progArcLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text },
-    progArcSublabel: { fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary },
-    progArcDots: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 4 },
-    progArcDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-      backgroundColor: C.surfaceTertiary,
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    progArcDotDone: { backgroundColor: C.primary, borderColor: C.primary },
-    progArcDotCurrent: {
-      backgroundColor: C.primary,
-      borderColor: C.primary,
-      width: 9,
-      height: 9,
-      borderRadius: 4.5,
-    },
-
-    progContextRow: {
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      marginBottom: 12,
-      marginTop: 4,
-      gap: 7,
-    },
-    progContextDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 2.5,
-      backgroundColor: C.primary,
-      marginTop: 5,
-      flexShrink: 0,
-    },
-    progContextText: {
-      flex: 1,
-      fontSize: 12,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      lineHeight: 17,
-    },
-
-    progTimelineRow: { flexDirection: 'row' as const },
-    progTimelineTrack: { width: 26, alignItems: 'center' as const },
-    progTimelineDot: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      backgroundColor: C.surfaceTertiary,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      zIndex: 1,
-    },
-    progTimelineDotDone: { backgroundColor: C.primary, borderColor: C.primary },
-    progTimelineDotCurrent: {
-      backgroundColor: C.surface,
-      borderColor: C.primary,
-      borderWidth: 2.5,
-    },
-    progTimelineDotTest: { borderColor: C.categoryPrehabText },
-    progCurrentPulse: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.primary },
-    progTimelineLine: { width: 2, flex: 1, backgroundColor: C.border, marginVertical: -2 },
-    progTimelineLineDone: { backgroundColor: C.primary },
-    progTimelineCard: {
-      flex: 1,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 12,
-      padding: 12,
-      marginLeft: 10,
-      marginBottom: 6,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-    },
-    progTimelineCardCurrent: { borderColor: C.primary, borderWidth: 1.5 },
-    progTimelineCardTest: { borderColor: C.categoryPrehabText },
-    progTimelineCardDone: { opacity: 0.6 },
-    progCardIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      marginRight: 10,
-    },
-    progCardTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
-    progCardTitleDone: { textDecorationLine: 'line-through' as const, color: C.textSecondary },
-    progCardSub: {
-      fontSize: 11,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      marginTop: 1,
-    },
-    progCardRecency: {
-      fontSize: 10,
-      fontFamily: 'Inter_400Regular',
-      color: C.textTertiary,
-      marginTop: 1,
-    },
-    progStartPill: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: C.primary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    progStartPillTest: { backgroundColor: C.categoryPrehabText },
-    progTestMarker: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: C.categoryPrehab,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
     },
   });
 }

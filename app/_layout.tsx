@@ -478,6 +478,7 @@ function RootLayoutNav() {
           options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }}
         />
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
+        <Stack.Screen name="program" options={{ headerShown: false }} />
         <Stack.Screen name="past-sessions" options={{ headerShown: false }} />
       </Stack>
       <WeeklyWeightPrompt />
