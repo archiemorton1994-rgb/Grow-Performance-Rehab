@@ -1493,6 +1493,68 @@ export function PainAdaptBanner({
   );
 }
 
+// ─── Demo session exercises ────────────────────────────────────────────────
+// A hardcoded, realistic-looking set of exercises used in demo mode (?demo=true).
+// Covers each tutorial spotlight target: firstCard, sessionBar, progressBar.
+// No data from this session is ever persisted to the store.
+
+const DEMO_EXERCISES: Exercise[] = [
+  {
+    id: 'demo-squat',
+    name: 'Barbell Back Squat',
+    sets: 3,
+    reps: '8',
+    cue: 'Bar across upper traps, chest tall. Push knees out as you lower, drive hard through heels to stand.',
+    suggestedLoad: '60 kg',
+    category: 'main',
+    badge: undefined,
+    videoId: '',
+    hasSwap: true,
+    swapName: 'Goblet Squat',
+    swapCue: 'Hold a weight at chest height. Sit deep, elbows tracking inside knees.',
+    swapLoad: '16 kg',
+  },
+  {
+    id: 'demo-rdl',
+    name: 'Romanian Deadlift',
+    sets: 3,
+    reps: '10',
+    cue: 'Push hips back with a soft knee bend. Bar stays close to your legs the whole way down. Feel the hamstring stretch.',
+    suggestedLoad: '50 kg',
+    category: 'accessory',
+    badge: undefined,
+    videoId: '',
+    hasSwap: true,
+    swapName: 'Dumbbell RDL',
+    swapCue: 'Same hinge pattern, dumbbells either side. Keep the DBs close to your legs.',
+    swapLoad: '20 kg',
+  },
+  {
+    id: 'demo-leg-curl',
+    name: 'Lying Leg Curl',
+    sets: 3,
+    reps: '12',
+    cue: 'Hips flat on the pad. Curl heels toward glutes with control, hold briefly at the top.',
+    suggestedLoad: '40 kg',
+    category: 'accessory',
+    badge: undefined,
+    videoId: '',
+    hasSwap: false,
+  },
+  {
+    id: 'demo-plank',
+    name: 'Dead Bug',
+    sets: 3,
+    reps: '10',
+    cue: 'Lower back pressed flat. Extend opposite arm and leg, breathing out as you go. Keep core braced throughout.',
+    suggestedLoad: 'Bodyweight',
+    category: 'prehab',
+    badge: undefined,
+    videoId: '',
+    hasSwap: false,
+  },
+];
+
 // ─── In-session tutorial content ──────────────────────────────────────────
 
 interface TutorialStep {
@@ -1567,7 +1629,9 @@ export default function SessionScreen() {
     isTestWeek: string;
     equipment: string;
     displayLabel?: string;
+    demo?: string;
   }>();
+  const isDemo = params.demo === 'true';
 
   const VALID_SESSION_TYPES: SessionType[] = [
     'squat',
@@ -1634,6 +1698,8 @@ export default function SessionScreen() {
     clearPendingCustomExercises,
     sessionTutorialShown,
     setSessionTutorialShown,
+    setTourComplete,
+    setTourJustCompleted,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -1725,6 +1791,7 @@ export default function SessionScreen() {
   }, [completedSessions]);
 
   const exercises = useMemo(() => {
+    if (isDemo) return DEMO_EXERCISES;
     if (sessionType === 'custom') {
       return customExercisesSnapshot.current.map((ce: CustomExercise): Exercise => ({
         id: ce.id,
@@ -1782,6 +1849,7 @@ export default function SessionScreen() {
   );
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
+  const [showDemoComplete, setShowDemoComplete] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
   const [barTimerTrigger, setBarTimerTrigger] = useState(0);
   const [notesVisible, setNotesVisible] = useState<boolean[]>([]);
@@ -1841,26 +1909,32 @@ export default function SessionScreen() {
       const next = prev + 1;
       if (next >= effectiveTutorial.length) {
         setSessionTutorialShown(true);
+        if (isDemo) {
+          setTourComplete(true);
+          setTourJustCompleted(true);
+          setShowDemoComplete(true);
+        }
         return null;
       }
       return next;
     });
-  }, [effectiveTutorial, setSessionTutorialShown]);
+  }, [effectiveTutorial, isDemo, setSessionTutorialShown, setTourComplete, setTourJustCompleted]);
 
   const skipTut = useCallback(() => {
     setTutStep(null);
     setSessionTutorialShown(true);
-  }, [setSessionTutorialShown]);
+    if (isDemo) {
+      setTourComplete(true);
+      setTourJustCompleted(true);
+      router.navigate('/(tabs)' as any);
+    }
+  }, [isDemo, setSessionTutorialShown, setTourComplete, setTourJustCompleted]);
 
+  // Auto-start the tutorial only in demo mode. Real sessions never auto-trigger it.
   useEffect(() => {
-    if (
-      exercises.length > 0 &&
-      !sessionTutorialShown &&
-      !tutStartedRef.current &&
-      sessionType !== 'custom'
-    ) {
+    if (isDemo && exercises.length > 0 && !tutStartedRef.current) {
       tutStartedRef.current = true;
-      const timer = setTimeout(() => setTutStep(0), 900);
+      const timer = setTimeout(() => setTutStep(0), 800);
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1935,6 +2009,7 @@ export default function SessionScreen() {
   // Background save: persist state whenever app is backgrounded or goes inactive
   useEffect(() => {
     const saveSnapshot = () => {
+      if (isDemo) return;
       if (sessionTerminatedRef.current) return;
       const data = exerciseDataRef.current;
       if (data.length === 0) return;
@@ -2268,6 +2343,13 @@ export default function SessionScreen() {
   const progress = isPrehabOrFlex ? 1 : totalSets > 0 ? completedSetsCount / totalSets : 0;
 
   const handleComplete = () => {
+    if (isDemo) {
+      setTourComplete(true);
+      setSessionTutorialShown(true);
+      setTourJustCompleted(true);
+      router.navigate('/(tabs)' as any);
+      return;
+    }
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     if (isTestWeek) {
@@ -2362,6 +2444,12 @@ export default function SessionScreen() {
   };
 
   const handleExit = () => {
+    if (isDemo) {
+      setTourComplete(true);
+      setSessionTutorialShown(true);
+      router.navigate('/(tabs)' as any);
+      return;
+    }
     const hasProgress =
       exerciseData.some(
         (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
@@ -2659,6 +2747,96 @@ export default function SessionScreen() {
             </Pressable>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Demo Complete Overlay — shown after the demo session tutorial finishes */}
+      <Modal visible={showDemoComplete} transparent animationType="fade" onRequestClose={() => {}}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 24,
+          }}
+        >
+          <Animated.View
+            entering={FadeInDown.duration(340)}
+            style={{
+              width: '100%',
+              backgroundColor: C.surface,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: C.border,
+              paddingHorizontal: 24,
+              paddingVertical: 28,
+              alignItems: 'center',
+              gap: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.18,
+              shadowRadius: 24,
+              elevation: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: C.primarySurface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={52} color={C.primary} />
+            </View>
+            <Text
+              style={{
+                fontSize: 24,
+                fontFamily: 'Inter_700Bold',
+                color: C.text,
+                textAlign: 'center',
+              }}
+            >
+              {"You're all set!"}
+            </Text>
+            <Text
+              style={{
+                fontSize: 15,
+                fontFamily: 'Inter_400Regular',
+                color: C.textSecondary,
+                lineHeight: 22,
+                textAlign: 'center',
+              }}
+            >
+              {
+                'Your programme is ready. Sessions rotate automatically — just show up and the app handles the planning.'
+              }
+            </Text>
+            <Pressable
+              onPress={() => {
+                setShowDemoComplete(false);
+                router.navigate('/(tabs)' as any);
+              }}
+              style={({ pressed }) => ({
+                marginTop: 8,
+                paddingHorizontal: 28,
+                paddingVertical: 14,
+                borderRadius: 16,
+                alignSelf: 'stretch',
+                alignItems: 'center',
+                backgroundColor: C.primary,
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+                Start my first session →
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </View>
       </Modal>
 
       {/* Swap Modal */}

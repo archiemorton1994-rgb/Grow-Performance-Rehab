@@ -1,10 +1,8 @@
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View, Text, Pressable, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Animated, {
-  FadeIn,
-  FadeInDown,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -94,16 +92,21 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { width: W, height: H } = useWindowDimensions();
 
-  const { tourComplete, setTourComplete, setTourJustCompleted } = useAppStore();
+  const {
+    tourComplete,
+    setTourComplete,
+    setTourJustCompleted,
+    tourJustCompleted,
+    setSessionTutorialShown,
+  } = useAppStore();
 
   // Initialize from persisted state: new users start at step 0, veterans skip.
   const [tourStep, setTourStep] = useState<number | null>(() => (!tourComplete ? 0 : null));
-  const [showCompletion, setShowCompletion] = useState(false);
 
-  // Pulse the Home tab icon while the completion overlay is visible.
+  // Pulse the Home tab icon after the demo session completes and tourJustCompleted fires.
   const tabPulse = useSharedValue(1);
   useEffect(() => {
-    if (showCompletion) {
+    if (tourJustCompleted) {
       tabPulse.value = withRepeat(
         withSequence(withTiming(1.28, { duration: 370 }), withTiming(1, { duration: 370 })),
         -1,
@@ -112,7 +115,7 @@ export default function TabLayout() {
     } else {
       tabPulse.value = withTiming(1, { duration: 180 });
     }
-  }, [showCompletion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tourJustCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
   const tabPulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: tabPulse.value }],
   }));
@@ -141,8 +144,9 @@ export default function TabLayout() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next >= COACH_STEPS.length) {
-        // Show the completion overlay instead of immediately finishing.
-        setShowCompletion(true);
+        // Transition to the demo session where the in-session tutorial plays.
+        // tourComplete + tourJustCompleted are set when the demo session finishes.
+        setTimeout(() => router.navigate('/session?demo=true' as any), 150);
         return null;
       }
       return next;
@@ -151,24 +155,9 @@ export default function TabLayout() {
 
   const handleSkip = useCallback(() => {
     setTourComplete(true);
+    setSessionTutorialShown(true);
     setTourStep(null);
-  }, [setTourComplete]);
-
-  /** User tapped the "Go to Home" CTA — complete tour + pulse home card. */
-  const handleCompletionStart = useCallback(() => {
-    setTourComplete(true);
-    setTourJustCompleted(true);
-    setShowCompletion(false);
-    router.navigate('/');
-  }, [setTourComplete, setTourJustCompleted]);
-
-  /** User tapped the backdrop — complete tour and still trigger the home-card pulse. */
-  const handleCompletionDismiss = useCallback(() => {
-    setTourComplete(true);
-    setTourJustCompleted(true);
-    setShowCompletion(false);
-    router.navigate('/');
-  }, [setTourComplete, setTourJustCompleted]);
+  }, [setTourComplete, setSessionTutorialShown]);
 
   // Position the card above the tab bar, with 16 px to spare for the arrow.
   const tabBarHeight = isWeb ? 84 : insets.bottom + 50;
@@ -296,111 +285,6 @@ export default function TabLayout() {
             />
           );
         })()}
-
-      {/* ── Tutorial complete overlay ──────────────────────────────────────── */}
-      {showCompletion && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          style={[StyleSheet.absoluteFill, styles.completionBackdrop]}
-          pointerEvents="box-none"
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleCompletionDismiss} />
-          <Animated.View
-            entering={FadeInDown.duration(340)}
-            style={[
-              styles.completionCard,
-              {
-                backgroundColor: C.surface,
-                borderColor: C.border,
-                shadowColor: '#000',
-              },
-            ]}
-          >
-            <View style={[styles.completionIconWrap, { backgroundColor: C.primarySurface }]}>
-              <Ionicons name="checkmark-circle" size={52} color={C.primary} />
-            </View>
-            <Text style={[styles.completionTitle, { color: C.text }]}>You&apos;re all set!</Text>
-            <Text style={[styles.completionBody, { color: C.textSecondary }]}>
-              Your programme is ready. Sessions rotate automatically — just show up and the app
-              handles the planning.
-            </Text>
-            <Pressable
-              onPress={handleCompletionStart}
-              style={({ pressed }) => [
-                styles.completionBtn,
-                { backgroundColor: C.primary },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <Text style={[styles.completionBtnText, { color: C.textInverse }]}>
-                Start my first session →
-              </Text>
-            </Pressable>
-            <Text style={[styles.completionHint, { color: C.textTertiary }]}>
-              or tap anywhere to dismiss
-            </Text>
-          </Animated.View>
-        </Animated.View>
-      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  completionBackdrop: {
-    zIndex: 300,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  completionCard: {
-    width: '100%',
-    borderRadius: 24,
-    borderWidth: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
-    alignItems: 'center',
-    gap: 12,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  completionIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  completionTitle: {
-    fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    textAlign: 'center',
-  },
-  completionBody: {
-    fontSize: 15,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  completionBtn: {
-    marginTop: 8,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-  },
-  completionBtnText: {
-    fontSize: 16,
-    fontFamily: 'Inter_700Bold',
-  },
-  completionHint: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 4,
-  },
-});

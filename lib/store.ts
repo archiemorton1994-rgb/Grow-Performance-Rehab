@@ -489,7 +489,11 @@ export const useAppStore = create<AppState>()(
         if (uri) get().awardNewBadges();
       },
       setHistoryTypeFilter: (filter) => set({ historyTypeFilter: filter }),
-      setTourComplete: (complete) => set({ tourComplete: complete }),
+      setTourComplete: (complete) =>
+        set({
+          tourComplete: complete,
+          ...(complete === false ? { sessionTutorialShown: false } : {}),
+        }),
       setTourJustCompleted: (v) => set({ tourJustCompleted: v }),
       setReadinessTutorialShown: (shown) => set({ readinessTutorialShown: shown }),
       setSessionTutorialShown: (shown) => set({ sessionTutorialShown: shown }),
