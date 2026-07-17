@@ -1961,6 +1961,7 @@ export default function SessionScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecondsRef = useRef(0);
   useEffect(() => {
+    if (isDemo) return; // demo sessions do not run a live timer
     const timerId = setInterval(() => {
       setElapsedSeconds((s) => {
         elapsedSecondsRef.current = s + 1;
@@ -1968,7 +1969,7 @@ export default function SessionScreen() {
       });
     }, 1000);
     return () => clearInterval(timerId);
-  }, []);
+  }, [isDemo]);
   const elapsedMM = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
   const elapsedSS = String(elapsedSeconds % 60).padStart(2, '0');
 
@@ -2600,10 +2601,12 @@ export default function SessionScreen() {
               exercise={displayExercise}
               index={index}
               setData={data}
-              onSetChange={(si, u) => handleSetChange(index, si, u)}
+              onSetChange={isDemo ? () => {} : (si, u) => handleSetChange(index, si, u)}
               onVideoPress={() => openYouTube(displayExercise.name)}
-              onSwapPress={() => setSwapModal({ index, exercise: displayExercise })}
-              onSkipExercise={() => handleSkipExercise(index)}
+              onSwapPress={
+                isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
+              }
+              onSkipExercise={isDemo ? () => {} : () => handleSkipExercise(index)}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
@@ -2636,7 +2639,7 @@ export default function SessionScreen() {
               feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
               weightUnit={weightUnit}
               note={exerciseNotes[index] ?? ''}
-              onNoteChange={(text) => handleNoteChange(index, text)}
+              onNoteChange={isDemo ? () => {} : (text) => handleNoteChange(index, text)}
               isLastExercise={index === exercises.length - 1}
               comfortRegionLabel={
                 exercise.badge === 'comfort' && hasAches && painRegion
@@ -2645,7 +2648,7 @@ export default function SessionScreen() {
               }
               restTimerTrigger={activeIndex === index ? barTimerTrigger : 0}
               noteVisible={notesVisible[index] ?? false}
-              onToggleNote={() => toggleNoteVisible(index)}
+              onToggleNote={isDemo ? () => {} : () => toggleNoteVisible(index)}
             />
           );
           // Wrap the first card with a ref so the tutorial can spotlight it.
@@ -2691,9 +2694,9 @@ export default function SessionScreen() {
               isLastExercise={activeIndex === exercises.length - 1}
               sessionAllDone={allDone}
               isPrehabOrFlex={isPrehabOrFlex}
-              onSetChange={handleSetChange}
-              onSetCompleted={handleBarSetCompleted}
-              onFeedback={handleBarFeedback}
+              onSetChange={isDemo ? () => {} : handleSetChange}
+              onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
+              onFeedback={isDemo ? () => {} : handleBarFeedback}
               onCompleteSession={handleComplete}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
             />
