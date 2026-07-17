@@ -671,7 +671,8 @@ export default function HomeScreen() {
             >
               <View style={styles.summaryIconBox}>
                 <Ionicons name="albums-outline" size={32} color={C.primary} />
-                <Text style={styles.summaryBigNum}>Cycle {progCycleNumber}</Text>
+                <Text style={styles.summaryCycleLabel}>CYCLE</Text>
+                <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
               </View>
               <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
               <Text style={styles.summaryCardSub}>
@@ -1234,6 +1235,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
       color: C.text,
       lineHeight: 26,
+    },
+    summaryCycleLabel: {
+      fontSize: 8,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      letterSpacing: 0.6,
+      lineHeight: 9,
     },
 
     lastInline: {
