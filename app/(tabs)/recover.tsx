@@ -905,7 +905,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 10,
-      maxHeight: '92%',
+      height: '78%',
     },
 
     equipmentChipRow: {
