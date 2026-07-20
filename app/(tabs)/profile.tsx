@@ -106,9 +106,11 @@ function BodyweightSparkline({
 
   const filtered = useMemo(() => {
     const cutoffMs = Date.now() - 90 * 24 * 60 * 60 * 1000;
-    return entries
+    const recent = entries
       .filter((e) => new Date(e.date).getTime() >= cutoffMs)
       .sort((a, b) => a.date.localeCompare(b.date));
+    if (recent.length >= 2) return recent;
+    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
   }, [entries]);
 
   if (filtered.length < 2) return null;
