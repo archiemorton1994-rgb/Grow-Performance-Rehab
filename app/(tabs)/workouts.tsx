@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,23 @@ import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib
 const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;
 const HISTORY_PAGE_SIZE = 30;
+
+const GRID_CELL = 12;
+const GRID_GAP = 3;
+const WEEKS_COUNT = 12;
+const GRID_DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const CALENDAR_SESSION_PRIORITY: SessionType[] = [
+  'squat',
+  'deadlift',
+  'bench',
+  'lower_body',
+  'upper_body',
+  'full_body',
+  'conditioning',
+  'prehab',
+  'flexibility',
+  'custom',
+];
 
 function formatSessionDuration(seconds: number): string {
   const totalMins = Math.round(seconds / 60);
@@ -94,6 +111,293 @@ function getSessionTypeColors(
       color: C.categoryNeuroText,
     },
   };
+}
+
+// ─── Training Calendar Grid ────────────────────────────────────────────────────
+function TrainingCalendarGrid({
+  sessions,
+  C,
+}: {
+  sessions: CompletedSession[];
+  C: ReturnType<typeof useColors>;
+}) {
+  const calScrollRef = useRef<ScrollView>(null);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const typeColors = useMemo(() => getSessionTypeColors(C), [C]);
+
+  // Build the 12-week grid once on mount (Mon–Sun rows, oldest→current week columns)
+  const { gridCols, todayStr } = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const ds = now.toISOString().slice(0, 10);
+    const dayOfWeek = (now.getDay() + 6) % 7; // 0=Mon…6=Sun
+    const gridStart = new Date(now);
+    gridStart.setDate(now.getDate() - dayOfWeek - (WEEKS_COUNT - 1) * 7);
+    const cols: { dateStr: string; isFuture: boolean }[][] = [];
+    for (let w = 0; w < WEEKS_COUNT; w++) {
+      const col: { dateStr: string; isFuture: boolean }[] = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + w * 7 + d);
+        const cellDs = date.toISOString().slice(0, 10);
+        col.push({ dateStr: cellDs, isFuture: cellDs > ds });
+      }
+      cols.push(col);
+    }
+    return { gridCols: cols, todayStr: ds };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sessionMap = useMemo(() => {
+    const map = new Map<string, CompletedSession[]>();
+    for (const s of sessions) {
+      const k = s.date.slice(0, 10);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(s);
+    }
+    return map;
+  }, [sessions]);
+
+  useEffect(() => {
+    const t = setTimeout(() => calScrollRef.current?.scrollToEnd({ animated: false }), 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  const getDominantType = (daySessions: CompletedSession[]): SessionType =>
+    daySessions.reduce(
+      (best, s) =>
+        CALENDAR_SESSION_PRIORITY.indexOf(s.sessionType) <
+        CALENDAR_SESSION_PRIORITY.indexOf(best.sessionType)
+          ? s
+          : best,
+      daySessions[0]
+    ).sessionType;
+
+  const selectedSessions = selectedDayKey ? (sessionMap.get(selectedDayKey) ?? null) : null;
+
+  return (
+    <View
+      style={{
+        backgroundColor: C.surface,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: C.borderLight,
+      }}
+    >
+      <Text
+        style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 }}
+      >
+        12-Week Consistency
+      </Text>
+      <Text
+        style={{
+          fontSize: 12,
+          fontFamily: 'Inter_400Regular',
+          color: C.textSecondary,
+          marginBottom: 10,
+        }}
+      >
+        Tap a day to see what you trained
+      </Text>
+
+      <View style={{ flexDirection: 'row' }}>
+        {/* Day-of-week label column */}
+        <View style={{ width: 14, marginTop: 18, marginRight: 4 }}>
+          {GRID_DAY_LABELS.map((lbl, i) => (
+            <View
+              key={i}
+              style={{
+                height: GRID_CELL,
+                marginBottom: i < 6 ? GRID_GAP : 0,
+                justifyContent: 'center',
+              }}
+            >
+              {i % 2 === 0 && (
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontFamily: 'Inter_400Regular',
+                    color: C.textTertiary,
+                  }}
+                >
+                  {lbl}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* Horizontally scrollable week columns */}
+        <ScrollView
+          ref={calScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          style={{ flex: 1 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            {gridCols.map((col, wi) => {
+              const firstDate = col[0].dateStr;
+              const prevFirst = wi > 0 ? gridCols[wi - 1][0].dateStr : null;
+              const showMonth =
+                wi === 0 || firstDate.slice(5, 7) !== (prevFirst?.slice(5, 7) ?? '');
+              return (
+                <View key={firstDate} style={{ marginRight: wi < WEEKS_COUNT - 1 ? GRID_GAP : 0 }}>
+                  {/* Month label */}
+                  <View style={{ height: 16, justifyContent: 'flex-end', marginBottom: 2 }}>
+                    {showMonth && (
+                      <Text
+                        style={{
+                          fontSize: 9,
+                          fontFamily: 'Inter_400Regular',
+                          color: C.textTertiary,
+                        }}
+                      >
+                        {new Date(firstDate + 'T12:00:00').toLocaleString('default', {
+                          month: 'short',
+                        })}
+                      </Text>
+                    )}
+                  </View>
+                  {/* Day cells */}
+                  {col.map(({ dateStr, isFuture }, di) => {
+                    const daySessions = sessionMap.get(dateStr);
+                    const hasSession = !!daySessions?.length;
+                    const isSelected = selectedDayKey === dateStr;
+                    const isToday = dateStr === todayStr;
+                    const dominantColor = hasSession
+                      ? typeColors[getDominantType(daySessions!)].color
+                      : null;
+                    return (
+                      <Pressable
+                        key={dateStr}
+                        onPress={() => {
+                          if (hasSession) {
+                            setSelectedDayKey((prev) => (prev === dateStr ? null : dateStr));
+                          }
+                        }}
+                        style={[
+                          {
+                            width: GRID_CELL,
+                            height: GRID_CELL,
+                            borderRadius: 3,
+                            backgroundColor: dominantColor ?? C.borderLight,
+                            marginBottom: di < 6 ? GRID_GAP : 0,
+                            opacity: isFuture ? 0.25 : 1,
+                          },
+                          isToday &&
+                            !hasSession && {
+                              borderWidth: 1,
+                              borderColor: C.primary,
+                              backgroundColor: 'transparent',
+                            },
+                          isSelected && { borderWidth: 1.5, borderColor: C.text },
+                        ]}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Session tooltip card */}
+      {selectedDayKey && selectedSessions && (
+        <Animated.View
+          entering={FadeInDown.duration(200)}
+          style={{
+            marginTop: 10,
+            backgroundColor: C.surfaceTertiary,
+            borderRadius: 10,
+            padding: 10,
+            borderWidth: 1,
+            borderColor: C.borderLight,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 6,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+              {new Date(selectedDayKey + 'T12:00:00').toLocaleDateString('default', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Text>
+            <Pressable onPress={() => setSelectedDayKey(null)} hitSlop={8}>
+              <Ionicons name="close" size={14} color={C.textTertiary} />
+            </Pressable>
+          </View>
+          {selectedSessions.map((s, idx) => {
+            const meta = typeColors[s.sessionType];
+            const label = getSessionLabel(s.sessionType);
+            const dur = s.durationSeconds ? formatSessionDuration(s.durationSeconds) : null;
+            return (
+              <View
+                key={idx}
+                style={[
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingVertical: 3,
+                  },
+                  idx > 0 && {
+                    paddingTop: 7,
+                    borderTopWidth: 1,
+                    borderTopColor: C.borderLight,
+                    marginTop: 4,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 7,
+                    backgroundColor: meta.bg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Ionicons name={meta.icon} size={13} color={meta.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text }}
+                    numberOfLines={1}
+                  >
+                    {s.displayLabel ?? label}
+                  </Text>
+                </View>
+                {dur && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Inter_400Regular',
+                      color: C.textSecondary,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {dur}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, string> {
@@ -3493,6 +3797,9 @@ export default function StatsScreen() {
                   <Text style={styles.statLabel}>Total</Text>
                 </View>
               </View>
+
+              {/* 12-week consistency calendar */}
+              <TrainingCalendarGrid sessions={completedSessions} C={C} />
 
               {/* Primary chart — training frequency */}
               <WeeklyBarChart sessions={completedSessions} C={C} />
