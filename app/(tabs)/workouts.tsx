@@ -190,6 +190,22 @@ function TrainingCalendarGrid({
 
   const selectedSessions = selectedDayKey ? (sessionMap.get(selectedDayKey) ?? null) : null;
 
+  // Build the legend from only the session types that appear inside the 12-week window,
+  // sorted by frequency so the most-trained type appears first. Capped at 4 + "N more".
+  const legendItems = useMemo(() => {
+    if (!gridCols.length) return [];
+    const startDate = gridCols[0][0].dateStr;
+    const endDate = todayStr;
+    const freq = new Map<SessionType, number>();
+    for (const [dateStr, daySessions] of sessionMap.entries()) {
+      if (dateStr < startDate || dateStr > endDate) continue;
+      for (const s of daySessions) {
+        freq.set(s.sessionType, (freq.get(s.sessionType) ?? 0) + 1);
+      }
+    }
+    return [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([type]) => type);
+  }, [sessionMap, gridCols, todayStr]);
+
   return (
     <View
       style={{
@@ -412,6 +428,55 @@ function TrainingCalendarGrid({
             );
           })}
         </Animated.View>
+      )}
+
+      {/* Colour legend — only types present in this 12-week window */}
+      {legendItems.length > 0 && (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: selectedDayKey ? 10 : 8,
+            paddingTop: 10,
+            borderTopWidth: 1,
+            borderTopColor: C.borderLight,
+          }}
+        >
+          {legendItems.slice(0, 4).map((type) => (
+            <View key={type} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  backgroundColor: typeColors[type].color,
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Inter_400Regular',
+                  color: C.textSecondary,
+                }}
+              >
+                {getSessionLabel(type)}
+              </Text>
+            </View>
+          ))}
+          {legendItems.length > 4 && (
+            <Text
+              style={{
+                fontSize: 11,
+                fontFamily: 'Inter_400Regular',
+                color: C.textTertiary,
+                alignSelf: 'center',
+              }}
+            >
+              +{legendItems.length - 4} more
+            </Text>
+          )}
+        </View>
       )}
     </View>
   );
