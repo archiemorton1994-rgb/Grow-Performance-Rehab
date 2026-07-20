@@ -49,7 +49,7 @@ import {
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
-import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
+import { kgToDisplayUnit, displayUnitToKg, formatDate } from '@/lib/utils';
 import { router } from 'expo-router';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
@@ -83,7 +83,7 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
     { value: 'rehab', label: 'Rehab & Recover', icon: 'medical-outline' },
   ];
 
-type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | null;
+type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | 'bw-history' | null;
 
 // ─── Bodyweight Sparkline ──────────────────────────────────────────────────────
 function BodyweightSparkline({
@@ -280,6 +280,7 @@ export default function ProfileScreen() {
     weeklyStreakGoal,
     setWeeklyStreakGoal,
     bodyweightLog,
+    removeBodyweightEntry,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -571,7 +572,7 @@ export default function ProfileScreen() {
             <BodyweightSparkline
               entries={bodyweightLog}
               weightUnit={weightUnit}
-              onPress={openBodyweight}
+              onPress={() => setActiveModal('bw-history')}
             />
           </Animated.View>
         )}
@@ -1029,6 +1030,77 @@ export default function ProfileScreen() {
             </Pressable>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Bodyweight History Modal */}
+      <Modal
+        visible={activeModal === 'bw-history'}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActiveModal(null)}
+      >
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '80%' }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.bwHistoryHeader}>
+              <Text style={styles.sheetTitle}>Weight History</Text>
+              <Pressable onPress={() => setActiveModal(null)} style={styles.bwHistoryClose}>
+                <Ionicons name="close" size={22} color={C.textSecondary} />
+              </Pressable>
+            </View>
+            {bodyweightLog.length === 0 ? (
+              <Text style={styles.bwHistoryEmpty}>No entries yet.</Text>
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingBottom: 8 }}
+              >
+                {[...bodyweightLog]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((entry) => (
+                    <View
+                      key={entry.date}
+                      style={[styles.bwHistoryRow, { borderBottomColor: C.borderLight }]}
+                    >
+                      <Text style={[styles.bwHistoryDate, { color: C.textSecondary }]}>
+                        {formatDate(entry.date)}
+                      </Text>
+                      <View style={styles.bwHistoryRight}>
+                        <Text style={[styles.bwHistoryValue, { color: C.text }]}>
+                          {kgToDisplayUnit(entry.kg, weightUnit)} {weightUnit}
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            if (Platform.OS !== 'web')
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            removeBodyweightEntry(entry.date);
+                          }}
+                          style={styles.bwHistoryDelete}
+                          testID={`delete-bw-${entry.date}`}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={C.destructive} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+              </ScrollView>
+            )}
+            <Pressable
+              onPress={() => {
+                setActiveModal(null);
+                setTimeout(openBodyweight, 250);
+              }}
+              style={[styles.bwSaveBtn, { marginTop: 16 }]}
+              testID="bw-history-log-new"
+            >
+              <Text style={styles.bwSaveBtnText}>Log new weight</Text>
+            </Pressable>
+            <Pressable onPress={() => setActiveModal(null)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Settings Modal */}
@@ -2113,5 +2185,43 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 8,
     },
     bwSaveBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    bwHistoryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    bwHistoryClose: { padding: 4 },
+    bwHistoryEmpty: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      paddingVertical: 24,
+    },
+    bwHistoryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+    },
+    bwHistoryDate: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      flex: 1,
+    },
+    bwHistoryRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    bwHistoryValue: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+    },
+    bwHistoryDelete: {
+      padding: 4,
+    },
   });
 }

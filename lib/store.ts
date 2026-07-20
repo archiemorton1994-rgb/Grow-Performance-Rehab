@@ -417,6 +417,7 @@ interface AppState {
   getAllExerciseProgress: () => ExerciseProgress[];
   /** Update or clear the free-text notes on a completed session. */
   updateSessionNotes: (id: string, notes: string) => void;
+  removeBodyweightEntry: (date: string) => void;
   mergeServerData: (data: SyncPayload) => void;
 }
 
@@ -516,6 +517,8 @@ export const useAppStore = create<AppState>()(
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
       setBodyweightReminderEnabled: (enabled) => set({ bodyweightReminderEnabled: enabled }),
+      removeBodyweightEntry: (date) =>
+        set((state) => ({ bodyweightLog: state.bodyweightLog.filter((e) => e.date !== date) })),
       setStreakProtectionTime: (time) => set({ streakProtectionTime: time }),
       setWeeklyStreakGoal: (goal) => {
         set({ weeklyStreakGoal: goal });
