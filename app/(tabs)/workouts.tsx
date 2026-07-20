@@ -10,6 +10,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'react-native-svg';
@@ -122,8 +123,19 @@ function TrainingCalendarGrid({
   C: ReturnType<typeof useColors>;
 }) {
   const calScrollRef = useRef<ScrollView>(null);
+  const hasScrolledRef = useRef(false);
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const typeColors = useMemo(() => getSessionTypeColors(C), [C]);
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Derive a cell size that ensures the 12-week grid always overflows the
+  // viewport so horizontal scrolling is real on every device.
+  // Overhead: tab padding (20×2=40) + card padding (16×2=32) + day labels (14+4=18) ≈ 90px
+  const cellSize = useMemo(() => {
+    const available = Math.max(200, screenWidth - 90);
+    const computed = Math.ceil((available * 1.4 - (WEEKS_COUNT - 1) * GRID_GAP) / WEEKS_COUNT);
+    return Math.min(32, Math.max(GRID_CELL, computed));
+  }, [screenWidth]);
 
   // Build the 12-week grid once on mount (Mon–Sun rows, oldest→current week columns)
   const { gridCols, todayStr } = useMemo(() => {
@@ -157,9 +169,13 @@ function TrainingCalendarGrid({
     return map;
   }, [sessions]);
 
-  useEffect(() => {
-    const t = setTimeout(() => calScrollRef.current?.scrollToEnd({ animated: false }), 100);
-    return () => clearTimeout(t);
+  // Scroll to the right edge once the content is first laid out — fires
+  // deterministically when RN measures the content width, no timeout needed.
+  const handleContentSizeChange = useCallback(() => {
+    if (!hasScrolledRef.current) {
+      calScrollRef.current?.scrollToEnd({ animated: false });
+      hasScrolledRef.current = true;
+    }
   }, []);
 
   const getDominantType = (daySessions: CompletedSession[]): SessionType =>
@@ -208,7 +224,7 @@ function TrainingCalendarGrid({
             <View
               key={i}
               style={{
-                height: GRID_CELL,
+                height: cellSize,
                 marginBottom: i < 6 ? GRID_GAP : 0,
                 justifyContent: 'center',
               }}
@@ -234,6 +250,7 @@ function TrainingCalendarGrid({
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
+          onContentSizeChange={handleContentSizeChange}
           style={{ flex: 1 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -279,8 +296,8 @@ function TrainingCalendarGrid({
                         }}
                         style={[
                           {
-                            width: GRID_CELL,
-                            height: GRID_CELL,
+                            width: cellSize,
+                            height: cellSize,
                             borderRadius: 3,
                             backgroundColor: dominantColor ?? C.borderLight,
                             marginBottom: di < 6 ? GRID_GAP : 0,
