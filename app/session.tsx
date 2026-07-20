@@ -2179,6 +2179,7 @@ export default function SessionScreen() {
 
   // Auto-save in-progress state whenever data changes (sets, swaps, or notes)
   useEffect(() => {
+    if (isDemo) return; // demo sessions must never create a resume snapshot
     if (sessionTerminatedRef.current) return;
     if (exerciseData.length === 0) return;
     const completedSetsCount = exerciseData.reduce(

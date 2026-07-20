@@ -311,8 +311,62 @@ if (sessionTimerSetInterval === -1) {
   }
 }
 
-// ─── [6] completeSession is only called from the session-level handleComplete ──
-console.log('\n[6] completeSession( only called inside session-level handleComplete');
+// ─── [6] Auto-save effect (always-on) — guarded by isDemo ────────────────────
+// Unlike saveSnapshot (triggered on app-background), there is a continuously
+// running useEffect that calls setActiveSession whenever exerciseData changes.
+// This must also be guarded so demo sessions never create a "resume" snapshot.
+console.log('\n[6] Auto-save useEffect — isDemo guard present before setActiveSession');
+
+const autoSaveEffectLine = lineOf('// Auto-save in-progress state whenever data changes');
+if (autoSaveEffectLine === -1) {
+  fail(
+    'Auto-save useEffect block found in session.tsx',
+    '"Auto-save in-progress state" comment not found — check the comment text'
+  );
+} else {
+  ok(`Auto-save useEffect found at line ${autoSaveEffectLine}`);
+  // The guard `if (isDemo) return;` must be the first statement inside the effect
+  const autoSaveGuardLine = lineOf('if (isDemo) return;', autoSaveEffectLine);
+  const autoSaveSetActiveLine = lineOf('setActiveSession(', autoSaveEffectLine);
+  const autoSaveEffectEnd = autoSaveEffectLine + 40;
+
+  const guardDist = autoSaveGuardLine !== -1 ? autoSaveGuardLine - autoSaveEffectLine : 999;
+  if (autoSaveGuardLine !== -1 && guardDist <= 5) {
+    ok(
+      `if (isDemo) return guard at line ${autoSaveGuardLine} (${guardDist} lines into auto-save effect)`
+    );
+  } else if (autoSaveGuardLine !== -1) {
+    fail(
+      `if (isDemo) return is the FIRST check in auto-save effect (found ${guardDist} lines in)`,
+      'Guard must be the very first statement of the auto-save useEffect'
+    );
+  } else {
+    fail(
+      'Auto-save useEffect has if (isDemo) return guard',
+      `No if (isDemo) return; found after line ${autoSaveEffectLine} — ` +
+        'demo sessions will create a resume snapshot and appear in session history'
+    );
+  }
+
+  if (
+    autoSaveSetActiveLine !== -1 &&
+    autoSaveSetActiveLine <= autoSaveEffectEnd &&
+    autoSaveGuardLine !== -1
+  ) {
+    if (autoSaveSetActiveLine > autoSaveGuardLine) {
+      ok(`setActiveSession( at line ${autoSaveSetActiveLine} is after isDemo guard`);
+    } else {
+      fail(
+        'setActiveSession appears after isDemo guard in auto-save effect',
+        `setActiveSession( is at line ${autoSaveSetActiveLine}, ` +
+          `before the guard at line ${autoSaveGuardLine}`
+      );
+    }
+  }
+}
+
+// ─── [7] completeSession is only called from the session-level handleComplete ──
+console.log('\n[7] completeSession( only called inside session-level handleComplete');
 
 const completeSessionLine = lineOf('completeSession({', isDemoLine > 0 ? isDemoLine : 1);
 if (completeSessionLine === -1) {
