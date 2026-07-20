@@ -397,9 +397,7 @@ export default function SessionSummaryScreen() {
   const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '-';
   const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
-  const pbCount = summary.rows.filter(
-    (r) => r.badge === 'gain-weight' || r.badge === 'gain-reps'
-  ).length;
+  const pbCount = summary.rows.filter((r) => r.badge === 'gain-weight').length;
 
   const firstInitial =
     userName && userName.trim().length > 0 ? userName.trim()[0].toUpperCase() : '?';
