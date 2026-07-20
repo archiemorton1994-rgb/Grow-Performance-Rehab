@@ -1863,6 +1863,65 @@ function SessionHistoryList({
                     ? ` · ${formatSessionDuration(session.durationSeconds)}`
                     : ''}
                 </Text>
+                {(() => {
+                  const regions: string[] =
+                    session.painRegions?.length
+                      ? session.painRegions
+                      : session.painRegion
+                        ? [session.painRegion]
+                        : [];
+                  if (regions.length === 0) return null;
+                  const visible = regions.slice(0, 2);
+                  const overflow = regions.length - 2;
+                  return (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 }}>
+                      {visible.map((r) => (
+                        <View
+                          key={r}
+                          style={{
+                            backgroundColor: C.textSecondary + '22',
+                            borderRadius: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontFamily: 'Inter_500Medium',
+                              color: C.textSecondary,
+                            }}
+                          >
+                            {r
+                              .split('_')
+                              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                              .join(' ')}
+                          </Text>
+                        </View>
+                      ))}
+                      {overflow > 0 && (
+                        <View
+                          style={{
+                            backgroundColor: C.textSecondary + '22',
+                            borderRadius: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontFamily: 'Inter_500Medium',
+                              color: C.textSecondary,
+                            }}
+                          >
+                            +{overflow} more
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()}
               </View>
               <View style={{ alignItems: 'flex-end' as const, gap: 4 }}>
                 <View
