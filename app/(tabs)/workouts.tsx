@@ -1809,6 +1809,11 @@ function SessionHistoryList({
           })
           .filter((el) => el.weight > 0)
           .slice(0, 4);
+        const sessionRegions: PainRegion[] = session.painRegions?.length
+          ? session.painRegions
+          : session.painRegion
+            ? [session.painRegion]
+            : [];
 
         return (
           <View key={session.id}>
@@ -2215,6 +2220,33 @@ function SessionHistoryList({
                   </Text>
                 </View>
               )}
+            {isExpanded && sessionRegions.length > 0 && (
+              <View
+                style={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 10,
+                  paddingTop: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: C.borderLight,
+                  flexDirection: 'row',
+                  gap: 6,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Ionicons name="body-outline" size={12} color={C.textTertiary} />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_400Regular',
+                    color: C.textSecondary,
+                    flex: 1,
+                  }}
+                >
+                  {sessionRegions.map((r) => BODY_DIAGRAM_LABELS[r]).join(', ')}
+                </Text>
+              </View>
+            )}
             {isExpanded && !!session.notes && (
               <View
                 style={{
@@ -3703,8 +3735,9 @@ export default function StatsScreen() {
   const painRegionCounts = useMemo(() => {
     const counts: Partial<Record<PainRegion, number>> = {};
     for (const s of completedSessions) {
-      if (s.painRegion) {
-        counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+      const regions = s.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : [];
+      for (const r of regions) {
+        counts[r] = (counts[r] ?? 0) + 1;
       }
     }
     return counts;
@@ -3715,8 +3748,10 @@ export default function StatsScreen() {
     cutoff.setDate(cutoff.getDate() - 28);
     const counts: Partial<Record<PainRegion, number>> = {};
     for (const s of completedSessions) {
-      if (s.painRegion && new Date(s.date) >= cutoff) {
-        counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+      if (new Date(s.date) < cutoff) continue;
+      const regions = s.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : [];
+      for (const r of regions) {
+        counts[r] = (counts[r] ?? 0) + 1;
       }
     }
     return counts;
@@ -3730,10 +3765,11 @@ export default function StatsScreen() {
     prevCutoff.setDate(now.getDate() - 56);
     const counts: Partial<Record<PainRegion, number>> = {};
     for (const s of completedSessions) {
-      if (s.painRegion) {
-        const d = new Date(s.date);
-        if (d >= prevCutoff && d < recentCutoff) {
-          counts[s.painRegion] = (counts[s.painRegion] ?? 0) + 1;
+      const d = new Date(s.date);
+      if (d >= prevCutoff && d < recentCutoff) {
+        const regions = s.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : [];
+        for (const r of regions) {
+          counts[r] = (counts[r] ?? 0) + 1;
         }
       }
     }
@@ -3771,7 +3807,10 @@ export default function StatsScreen() {
     return completedSessions.filter((s) => {
       if (historyFilter && s.sessionType !== historyFilter) return false;
       if (cutoff && new Date(s.date) < cutoff) return false;
-      if (painRegionFilter && s.painRegion !== painRegionFilter) return false;
+      if (painRegionFilter) {
+        const regions = s.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : [];
+        if (!regions.includes(painRegionFilter)) return false;
+      }
       if (specificDateFilter && s.date.slice(0, 10) !== specificDateFilter) return false;
       return true;
     });
