@@ -1875,11 +1875,11 @@ export default function SessionScreen() {
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
   // Measure the spotlighted element whenever the tutorial step changes.
+  // Clear the spotlight immediately on step change to avoid showing a stale rect
+  // from the previous step while the new measurement is pending (fast-tap safety).
   useEffect(() => {
-    if (tutStep === null) {
-      setTutSpotlight(null);
-      return;
-    }
+    setTutSpotlight(null);
+    if (tutStep === null) return;
     const refLookup = {
       firstCard: firstCardRef,
       sessionBar: sessionBarRef,
@@ -1899,7 +1899,7 @@ export default function SessionScreen() {
           });
         }
       });
-    }, 60);
+    }, 120);
     return () => clearTimeout(timer);
   }, [tutStep]); // eslint-disable-line react-hooks/exhaustive-deps
 

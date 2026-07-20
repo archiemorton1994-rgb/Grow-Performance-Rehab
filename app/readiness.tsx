@@ -131,11 +131,11 @@ export default function ReadinessScreen() {
   const [readinessSpotlight, setReadinessSpotlight] = useState<SpotlightRect | null>(null);
 
   // Measure the spotlighted section whenever the tutorial step changes.
+  // Clear the spotlight immediately on step change to avoid showing a stale rect
+  // from the previous step while the new measurement is pending (fast-tap safety).
   useEffect(() => {
-    if (coachStep === null) {
-      setReadinessSpotlight(null);
-      return;
-    }
+    setReadinessSpotlight(null);
+    if (coachStep === null) return;
     const refs = [energyRef, timeRef, painRef];
     const target = refs[coachStep];
     const timer = setTimeout(() => {
@@ -150,7 +150,7 @@ export default function ReadinessScreen() {
           });
         }
       });
-    }, 60);
+    }, 120);
     return () => clearTimeout(timer);
   }, [coachStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
