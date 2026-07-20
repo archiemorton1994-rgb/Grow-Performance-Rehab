@@ -625,6 +625,11 @@ export default function ReadinessScreen() {
               <Ionicons name="trophy" size={18} color={C.textInverse} />
               <Text style={styles.startButtonText}>Begin Test</Text>
             </>
+          ) : hasAches ? (
+            <>
+              <Ionicons name="arrow-forward" size={18} color={C.textInverse} />
+              <Text style={styles.startButtonText}>Next — pick area →</Text>
+            </>
           ) : (
             <>
               <Ionicons name="flash" size={18} color={C.textInverse} />

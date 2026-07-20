@@ -2601,6 +2601,7 @@ export default function SessionScreen() {
       equipmentTier,
       hadAches: hasAches,
       painRegion,
+      ...(painRegions && painRegions.length > 0 ? { painRegions } : {}),
       energy,
       timeAvailable,
       exerciseCount: exercises.length,

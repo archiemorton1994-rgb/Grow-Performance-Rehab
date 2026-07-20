@@ -204,6 +204,8 @@ export interface CompletedSession {
   equipmentTier: EquipmentTier;
   hadAches: boolean;
   painRegion?: PainRegion;
+  /** All pain regions selected at session start (multi-select). Supersedes the single painRegion field. */
+  painRegions?: PainRegion[];
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
   exerciseCount: number;
@@ -1091,7 +1093,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 24,
+      version: 25,
     }
   )
 );
