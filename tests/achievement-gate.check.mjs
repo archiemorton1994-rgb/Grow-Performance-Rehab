@@ -45,7 +45,7 @@ function check(label, condition, detail) {
   }
 }
 
-console.log("\nachievement-gate: AchievementUnlockedSheet session guard\n");
+console.log('\nachievement-gate: AchievementUnlockedSheet session guard\n');
 
 // [1] TRANSIENT_SCREENS must include 'session'
 check(
