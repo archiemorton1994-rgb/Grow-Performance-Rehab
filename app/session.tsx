@@ -42,6 +42,7 @@ import {
   ExerciseFeedback,
   WeightUnit,
   CustomExercise,
+  CardioLogData,
   useAppStore,
   STRENGTH_SESSION_TYPES,
 } from '@/lib/store';
@@ -67,6 +68,7 @@ interface ExerciseSetData {
   sets: SetLog[];
   swapCount: 0 | 1 | 2;
   activeSetIndex: number;
+  cardioData?: CardioLogData;
 }
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
@@ -430,6 +432,7 @@ interface SessionActiveBarProps {
   isLastExercise: boolean;
   sessionAllDone: boolean;
   isPrehabOrFlex: boolean;
+  isCardioExercise: boolean;
   onSetChange: (exerciseIndex: number, setIndex: number, updated: SetLog) => void;
   onSetCompleted: () => void;
   onFeedback: (exerciseId: string, f: 'easy' | 'hard') => void;
@@ -451,6 +454,7 @@ export function SessionActiveBar({
   isLastExercise,
   sessionAllDone,
   isPrehabOrFlex,
+  isCardioExercise,
   onSetChange,
   onSetCompleted,
   onFeedback,
@@ -541,6 +545,17 @@ export function SessionActiveBar({
     if (exercise) onFeedback(exercise.id, f);
     setShowFeedback(false);
   };
+
+  if (isCardioExercise) {
+    return (
+      <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
+        <View style={styles.barCardioHint}>
+          <Ionicons name="timer-outline" size={20} color={C.primary} />
+          <Text style={styles.barCardioHintText}>Log your cardio in the card above ↑</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (sessionAllDone || isPrehabOrFlex) {
     return (
@@ -948,6 +963,96 @@ const ActiveSetBlock = React.forwardRef<
   );
 });
 
+// ── Cardio Input Block ─────────────────────────────────────────────────────
+function CardioInputBlock({
+  cardioData,
+  onLog,
+}: {
+  cardioData?: CardioLogData;
+  onLog: (data: CardioLogData) => void;
+}) {
+  const C = useColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const [duration, setDuration] = useState('');
+  const [speed, setSpeed] = useState('');
+  const [distance, setDistance] = useState('');
+
+  if (cardioData) {
+    const parts: string[] = [`${cardioData.durationMinutes} min`];
+    if (cardioData.speedKmh) parts.push(`${cardioData.speedKmh} km/h`);
+    if (cardioData.distanceKm) parts.push(`${cardioData.distanceKm} km`);
+    return (
+      <View style={styles.cardioLoggedRow}>
+        <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+        <Text style={styles.cardioLoggedText}>{parts.join(' · ')}</Text>
+      </View>
+    );
+  }
+
+  const durationNum = parseFloat(duration);
+  const canLog = durationNum > 0;
+
+  return (
+    <View style={styles.cardioInputBlock}>
+      <View style={styles.cardioInputRow}>
+        <View style={styles.cardioInputField}>
+          <Text style={styles.cardioInputLabel}>Duration (min)*</Text>
+          <TextInput
+            style={styles.cardioInputBox}
+            value={duration}
+            onChangeText={setDuration}
+            placeholder="e.g. 20"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="numeric"
+            returnKeyType="next"
+          />
+        </View>
+        <View style={styles.cardioInputField}>
+          <Text style={styles.cardioInputLabel}>Speed (km/h)</Text>
+          <TextInput
+            style={styles.cardioInputBox}
+            value={speed}
+            onChangeText={setSpeed}
+            placeholder="optional"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="numeric"
+            returnKeyType="next"
+          />
+        </View>
+        <View style={styles.cardioInputField}>
+          <Text style={styles.cardioInputLabel}>Distance (km)</Text>
+          <TextInput
+            style={styles.cardioInputBox}
+            value={distance}
+            onChangeText={setDistance}
+            placeholder="optional"
+            placeholderTextColor={C.textTertiary}
+            keyboardType="numeric"
+            returnKeyType="done"
+          />
+        </View>
+      </View>
+      <Pressable
+        onPress={() => {
+          if (!canLog) return;
+          onLog({
+            durationMinutes: durationNum,
+            ...(parseFloat(speed) > 0 ? { speedKmh: parseFloat(speed) } : {}),
+            ...(parseFloat(distance) > 0 ? { distanceKm: parseFloat(distance) } : {}),
+          });
+        }}
+        disabled={!canLog}
+        style={[styles.cardioLogBtn, !canLog && styles.cardioLogBtnDisabled]}
+      >
+        <Ionicons name="timer-outline" size={18} color={canLog ? '#000000' : C.textTertiary} />
+        <Text style={[styles.cardioLogBtnText, !canLog && styles.cardioLogBtnTextDisabled]}>
+          Log Cardio
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 type ExerciseState = 'active' | 'past' | 'future';
 
 export function ExerciseCard({
@@ -974,6 +1079,7 @@ export function ExerciseCard({
   restTimerTrigger,
   noteVisible = false,
   onToggleNote,
+  onCardioLog,
 }: {
   exercise: Exercise;
   index: number;
@@ -998,6 +1104,7 @@ export function ExerciseCard({
   restTimerTrigger?: number;
   noteVisible?: boolean;
   onToggleNote?: () => void;
+  onCardioLog?: (data: CardioLogData) => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1285,17 +1392,35 @@ export function ExerciseCard({
                     <Text style={styles.cueText}>{exercise.cue}</Text>
                   </View>
 
-                  {(exercise.id === 'cardio-warmup' ||
-                    (exercise.category === 'prep' && index === 0)) && (
-                    <CardioWarmupTimer repsStr={exercise.reps} />
+                  {exercise.type === 'cardio' && (
+                    <CardioInputBlock
+                      cardioData={setData.cardioData}
+                      onLog={(data) => {
+                        onSetChange(0, {
+                          setNumber: 1,
+                          weight: 0,
+                          reps: 0,
+                          completed: true,
+                        });
+                        onCardioLog?.(data);
+                      }}
+                    />
                   )}
 
-                  {exercise.id !== 'cardio-warmup' &&
+                  {exercise.type !== 'cardio' &&
+                    (exercise.id === 'cardio-warmup' ||
+                      (exercise.category === 'prep' && index === 0)) && (
+                      <CardioWarmupTimer repsStr={exercise.reps} />
+                    )}
+
+                  {exercise.type !== 'cardio' &&
+                    exercise.id !== 'cardio-warmup' &&
                     !(exercise.category === 'prep' && index === 0) && (
                       <RestTimer category={exercise.category} trigger={effectiveTimerTrigger} />
                     )}
 
-                  {!isBandExercise &&
+                  {exercise.type !== 'cardio' &&
+                    !isBandExercise &&
                     (exercise.category === 'main' || exercise.category === 'neuro') && (
                       <View style={styles.spotterAdvisory}>
                         <Ionicons
@@ -1309,87 +1434,90 @@ export function ExerciseCard({
                       </View>
                     )}
 
-                  {/* ── Set-by-set view ─────────────────────────────────────── */}
-                  {(() => {
-                    const activeSetIndex =
-                      setData.activeSetIndex ??
-                      (allDone ? setData.sets.length : setData.sets.findIndex((s) => !s.completed));
-                    // Use slice(0, activeSetIndex) but also verify each set is truly completed
-                    // - defensive for restored legacy data with irregular completion order
-                    const completedSets = setData.sets
-                      .slice(0, activeSetIndex)
-                      .filter((s) => s.completed);
-                    const prevSetWeight =
-                      activeSetIndex > 0
-                        ? setData.sets[activeSetIndex - 1].weight
-                        : previousSessionWeight;
+                  {/* ── Set-by-set view (hidden for cardio exercises) ───────── */}
+                  {exercise.type !== 'cardio' &&
+                    (() => {
+                      const activeSetIndex =
+                        setData.activeSetIndex ??
+                        (allDone
+                          ? setData.sets.length
+                          : setData.sets.findIndex((s) => !s.completed));
+                      // Use slice(0, activeSetIndex) but also verify each set is truly completed
+                      // - defensive for restored legacy data with irregular completion order
+                      const completedSets = setData.sets
+                        .slice(0, activeSetIndex)
+                        .filter((s) => s.completed);
+                      const prevSetWeight =
+                        activeSetIndex > 0
+                          ? setData.sets[activeSetIndex - 1].weight
+                          : previousSessionWeight;
 
-                    return (
-                      <>
-                        {/* Completed sets chips */}
-                        {completedSets.length > 0 && (
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.doneChipsScroll}
-                            contentContainerStyle={styles.doneChipsContent}
-                          >
-                            {completedSets.map((s, i) => {
-                              let chipLabel = '';
-                              if (isTimeExercise) {
-                                chipLabel = 'done';
-                              } else if (isBandExercise) {
-                                chipLabel = `${s.reps} reps`;
-                              } else {
-                                const w = kgToDisplayUnit(s.weight, weightUnit);
-                                chipLabel = `${w}${weightUnit} × ${s.reps}`;
-                              }
-                              return (
-                                <View key={i} style={styles.doneChip}>
-                                  <Text style={styles.doneChipText}>
-                                    S{i + 1} · {chipLabel}
-                                  </Text>
-                                  <Ionicons name="checkmark" size={10} color={C.primary} />
-                                </View>
-                              );
-                            })}
-                          </ScrollView>
-                        )}
+                      return (
+                        <>
+                          {/* Completed sets chips */}
+                          {completedSets.length > 0 && (
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              style={styles.doneChipsScroll}
+                              contentContainerStyle={styles.doneChipsContent}
+                            >
+                              {completedSets.map((s, i) => {
+                                let chipLabel = '';
+                                if (isTimeExercise) {
+                                  chipLabel = 'done';
+                                } else if (isBandExercise) {
+                                  chipLabel = `${s.reps} reps`;
+                                } else {
+                                  const w = kgToDisplayUnit(s.weight, weightUnit);
+                                  chipLabel = `${w}${weightUnit} × ${s.reps}`;
+                                }
+                                return (
+                                  <View key={i} style={styles.doneChip}>
+                                    <Text style={styles.doneChipText}>
+                                      S{i + 1} · {chipLabel}
+                                    </Text>
+                                    <Ionicons name="checkmark" size={10} color={C.primary} />
+                                  </View>
+                                );
+                              })}
+                            </ScrollView>
+                          )}
 
-                        {/* Active set indicator – inputs live in SessionActiveBar */}
-                        {!allDone &&
-                          activeSetIndex >= 0 &&
-                          activeSetIndex < setData.sets.length && (
-                            <View style={styles.activeSetInCard}>
-                              <Ionicons name="barbell-outline" size={14} color={C.primary} />
-                              <Text style={styles.activeSetInCardText}>
-                                Set {activeSetIndex + 1} of {setData.sets.length} · log below ↓
-                              </Text>
+                          {/* Active set indicator – inputs live in SessionActiveBar */}
+                          {!allDone &&
+                            activeSetIndex >= 0 &&
+                            activeSetIndex < setData.sets.length && (
+                              <View style={styles.activeSetInCard}>
+                                <Ionicons name="barbell-outline" size={14} color={C.primary} />
+                                <Text style={styles.activeSetInCardText}>
+                                  Set {activeSetIndex + 1} of {setData.sets.length} · log below ↓
+                                </Text>
+                              </View>
+                            )}
+
+                          {/* All sets done indicator */}
+                          {allDone && (
+                            <View style={styles.allSetsDone}>
+                              <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+                              <Text style={styles.allSetsDoneText}>All sets complete!</Text>
                             </View>
                           )}
 
-                        {/* All sets done indicator */}
-                        {allDone && (
-                          <View style={styles.allSetsDone}>
-                            <Ionicons name="checkmark-circle" size={18} color={C.primary} />
-                            <Text style={styles.allSetsDoneText}>All sets complete!</Text>
-                          </View>
-                        )}
-
-                        {!allDone && onSkipExercise && (
-                          <Pressable
-                            onPress={onSkipExercise}
-                            style={styles.skipExerciseLink}
-                            testID={`skip-exercise-${index}`}
-                          >
-                            <Text style={styles.skipExerciseLinkText}>
-                              {"Skip - couldn't do this exercise"}
-                            </Text>
-                          </Pressable>
-                        )}
-                      </>
-                    );
-                  })()}
+                          {!allDone && onSkipExercise && (
+                            <Pressable
+                              onPress={onSkipExercise}
+                              style={styles.skipExerciseLink}
+                              testID={`skip-exercise-${index}`}
+                            >
+                              <Text style={styles.skipExerciseLinkText}>
+                                {"Skip - couldn't do this exercise"}
+                              </Text>
+                            </Pressable>
+                          )}
+                        </>
+                      );
+                    })()}
 
                   {noteVisible && (
                     <View style={styles.noteInputRow}>
@@ -1801,6 +1929,7 @@ export default function SessionScreen() {
         cue: ce.cue,
         suggestedLoad: ce.suggestedLoad,
         category: ce.category,
+        type: ce.type,
         badge: undefined,
         videoId: '',
         hasSwap: false,
@@ -1848,6 +1977,7 @@ export default function SessionScreen() {
     [exercises, exerciseData]
   );
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
+  const [cardioLogs, setCardioLogs] = useState<(CardioLogData | null)[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [showDemoComplete, setShowDemoComplete] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
@@ -2239,6 +2369,21 @@ export default function SessionScreen() {
     []
   );
 
+  const handleCardioLog = useCallback((exerciseIndex: number, data: CardioLogData) => {
+    setExerciseData((prev) => {
+      const next = [...prev];
+      const ex = { ...next[exerciseIndex] };
+      ex.cardioData = data;
+      next[exerciseIndex] = ex;
+      return next;
+    });
+    setCardioLogs((prev) => {
+      const next = [...prev];
+      next[exerciseIndex] = data;
+      return next;
+    });
+  }, []);
+
   const handleNoteChange = useCallback((exerciseIndex: number, text: string) => {
     setExerciseNotes((prev) => {
       const next = [...prev];
@@ -2376,12 +2521,14 @@ export default function SessionScreen() {
       ? []
       : exercises.map((ex, i) => {
           const rating = inSessionFeedback[ex.id];
+          const cardio = cardioLogs[i] ?? undefined;
           return {
             exerciseId: ex.id,
             exerciseName: ex.name,
             sets: exerciseData[i].sets,
             note: exerciseNotes[i] || undefined,
             ...(rating != null ? { feedbackRating: rating } : {}),
+            ...(cardio != null ? { cardioData: cardio } : {}),
           };
         });
 
@@ -2608,6 +2755,7 @@ export default function SessionScreen() {
                 isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
               }
               onSkipExercise={isDemo ? () => {} : () => handleSkipExercise(index)}
+              onCardioLog={isDemo ? () => {} : (data) => handleCardioLog(index, data)}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
@@ -2695,6 +2843,7 @@ export default function SessionScreen() {
               isLastExercise={activeIndex === exercises.length - 1}
               sessionAllDone={allDone}
               isPrehabOrFlex={isPrehabOrFlex}
+              isCardioExercise={activeEx?.type === 'cardio'}
               onSetChange={isDemo ? () => {} : handleSetChange}
               onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
@@ -4178,6 +4327,84 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textTertiary,
       textAlign: 'center',
       fontStyle: 'italic' as const,
+    },
+    barCardioHint: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      paddingVertical: 14,
+    },
+    barCardioHintText: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.primary,
+    },
+    cardioInputBlock: {
+      marginTop: 8,
+      gap: 10,
+    },
+    cardioInputRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+    },
+    cardioInputField: {
+      flex: 1,
+      gap: 4,
+    },
+    cardioInputLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    cardioInputBox: {
+      height: 40,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      backgroundColor: C.surfaceTertiary,
+      paddingHorizontal: 10,
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.text,
+      textAlign: 'center' as const,
+    },
+    cardioLogBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: C.primary,
+    },
+    cardioLogBtnDisabled: {
+      backgroundColor: C.surfaceTertiary,
+    },
+    cardioLogBtnText: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: '#000000',
+    },
+    cardioLogBtnTextDisabled: {
+      color: C.textTertiary,
+    },
+    cardioLoggedRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: C.primarySurface,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      marginTop: 8,
+    },
+    cardioLoggedText: {
+      fontSize: 14,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryDark,
     },
   });
 }

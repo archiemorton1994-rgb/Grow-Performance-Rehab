@@ -80,6 +80,7 @@ function baseProps(overrides: Partial<BarProps> = {}): BarProps {
     onSetCompleted: jest.fn(),
     onFeedback: jest.fn(),
     onCompleteSession: jest.fn(),
+    isCardioExercise: false,
     bottomInset: 34,
     ...overrides,
   };

@@ -53,7 +53,55 @@ const CATEGORY_FILTERS = [
   { key: 'main', label: 'Main Lifts' },
   { key: 'accessory', label: 'Accessories' },
   { key: 'prehab', label: 'Prehab' },
+  { key: 'cardio', label: 'Cardio' },
 ];
+
+interface CardioOption {
+  id: string;
+  name: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  cue: string;
+}
+
+const CARDIO_OPTIONS: CardioOption[] = [
+  {
+    id: 'cardio-treadmill',
+    name: 'Treadmill',
+    icon: 'walk-outline',
+    cue: 'Run, walk, or jog at your chosen pace. Log duration and optional speed.',
+  },
+  {
+    id: 'cardio-bike',
+    name: 'Stationary Bike',
+    icon: 'bicycle-outline',
+    cue: 'Steady or interval cycling. Log duration and optional speed.',
+  },
+  {
+    id: 'cardio-rowing',
+    name: 'Rowing Machine',
+    icon: 'boat-outline',
+    cue: 'Drive with legs, then pull. Log duration and optional distance.',
+  },
+  {
+    id: 'cardio-ski-erg',
+    name: 'Ski Erg',
+    icon: 'body-outline',
+    cue: 'Pull down with arms, hinge from hips. Log duration and optional distance.',
+  },
+  {
+    id: 'cardio-other',
+    name: 'Other Cardio',
+    icon: 'fitness-outline',
+    cue: 'Any time-based cardio. Log duration and optional speed or distance.',
+  },
+];
+
+interface SelectedCardioExercise {
+  id: string;
+  name: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  cue: string;
+}
 
 // Movement-pattern & difficulty filters for the picker (multi-select).
 // Only chips whose value is present in the current equipment tier's pool are shown.
@@ -104,6 +152,7 @@ export default function CustomSessionScreen() {
   // When on, exercises not done in the last week sort to the top. Local state only — must NOT persist.
   const [freshFirst, setFreshFirst] = useState(false);
   const [selected, setSelected] = useState<SelectedExercise[]>([]);
+  const [selectedCardio, setSelectedCardio] = useState<SelectedCardioExercise[]>([]);
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
   const [editReps, setEditReps] = useState('');
@@ -422,7 +471,7 @@ export default function CustomSessionScreen() {
   ).current;
 
   const handleStart = useCallback(() => {
-    if (selected.length === 0) {
+    if (selected.length === 0 && selectedCardio.length === 0) {
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined')
           window.alert('Select at least one exercise to start your session.');
@@ -436,7 +485,7 @@ export default function CustomSessionScreen() {
       return;
     }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const customExercises: CustomExercise[] = selected.map((s) => ({
+    const strengthExercises: CustomExercise[] = selected.map((s) => ({
       id: s.template.id,
       name: s.template.name,
       sets: s.sets,
@@ -445,7 +494,17 @@ export default function CustomSessionScreen() {
       suggestedLoad: s.template.suggestedLoad,
       category: s.template.category,
     }));
-    setPendingCustomExercises(customExercises);
+    const cardioExercises: CustomExercise[] = selectedCardio.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sets: 1,
+      reps: '',
+      cue: c.cue,
+      suggestedLoad: 'Cardio',
+      category: 'accessory' as const,
+      type: 'cardio' as const,
+    }));
+    setPendingCustomExercises([...strengthExercises, ...cardioExercises]);
     router.push({
       pathname: '/session',
       params: {
@@ -458,7 +517,7 @@ export default function CustomSessionScreen() {
         equipment: tier,
       },
     });
-  }, [selected, setPendingCustomExercises, tier]);
+  }, [selected, selectedCardio, setPendingCustomExercises, tier]);
 
   const openSaveModal = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -474,7 +533,7 @@ export default function CustomSessionScreen() {
   const confirmSaveTemplate = useCallback(() => {
     const name = templateName.trim();
     if (!name) return;
-    const exercises: CustomExercise[] = selected.map((s) => ({
+    const strengthExercises: CustomExercise[] = selected.map((s) => ({
       id: s.template.id,
       name: s.template.name,
       sets: s.sets,
@@ -483,17 +542,29 @@ export default function CustomSessionScreen() {
       suggestedLoad: s.template.suggestedLoad,
       category: s.template.category,
     }));
-    saveTemplate(name, exercises);
+    const cardioExercises: CustomExercise[] = selectedCardio.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sets: 1,
+      reps: '',
+      cue: c.cue,
+      suggestedLoad: 'Cardio',
+      category: 'accessory' as const,
+      type: 'cardio' as const,
+    }));
+    saveTemplate(name, [...strengthExercises, ...cardioExercises]);
     setSaveModalVisible(false);
     setLoadedTemplateId(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [templateName, selected, saveTemplate]);
+  }, [templateName, selected, selectedCardio, saveTemplate]);
 
   const loadTemplate = useCallback(
     (tmpl: CustomTemplate) => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const exerciseById = new Map(allExercises.map((e) => [e.id, e]));
-      const newSelected: SelectedExercise[] = tmpl.exercises.map((ex) => {
+      const strengthExs = tmpl.exercises.filter((ex) => ex.type !== 'cardio');
+      const cardioExs = tmpl.exercises.filter((ex) => ex.type === 'cardio');
+      const newSelected: SelectedExercise[] = strengthExs.map((ex) => {
         const found = exerciseById.get(ex.id);
         const template: ExerciseTemplate = found ?? {
           id: ex.id,
@@ -508,7 +579,12 @@ export default function CustomSessionScreen() {
         };
         return { template, sets: ex.sets, reps: ex.reps };
       });
+      const newCardio: SelectedCardioExercise[] = cardioExs.map((ex) => {
+        const option = CARDIO_OPTIONS.find((o) => o.id === ex.id) ?? CARDIO_OPTIONS[4];
+        return { id: ex.id, name: ex.name, icon: option.icon, cue: ex.cue };
+      });
       setSelected(newSelected);
+      setSelectedCardio(newCardio);
       setLoadedTemplateId(tmpl.id);
       setSearch('');
       setCategoryFilter('all');
@@ -535,7 +611,7 @@ export default function CustomSessionScreen() {
 
   const confirmUpdateTemplate = useCallback(() => {
     if (!loadedTemplateId) return;
-    const exercises: CustomExercise[] = selected.map((s) => ({
+    const strengthExercises: CustomExercise[] = selected.map((s) => ({
       id: s.template.id,
       name: s.template.name,
       sets: s.sets,
@@ -544,6 +620,17 @@ export default function CustomSessionScreen() {
       suggestedLoad: s.template.suggestedLoad,
       category: s.template.category,
     }));
+    const cardioExercises: CustomExercise[] = selectedCardio.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sets: 1,
+      reps: '',
+      cue: c.cue,
+      suggestedLoad: 'Cardio',
+      category: 'accessory' as const,
+      type: 'cardio' as const,
+    }));
+    const exercises = [...strengthExercises, ...cardioExercises];
 
     const originalTemplate = savedTemplates.find((t) => t.id === loadedTemplateId);
     const removedCount = originalTemplate
@@ -597,7 +684,15 @@ export default function CustomSessionScreen() {
     }
 
     doUpdate();
-  }, [loadedTemplateId, selected, updateTemplate, savedTemplates, allExercises, showUndoToast]);
+  }, [
+    loadedTemplateId,
+    selected,
+    selectedCardio,
+    updateTemplate,
+    savedTemplates,
+    allExercises,
+    showUndoToast,
+  ]);
 
   const confirmDeleteTemplate = useCallback(
     (tmpl: CustomTemplate) => {
@@ -956,44 +1051,136 @@ export default function CustomSessionScreen() {
         </ScrollView>
       )}
 
-      <FlatList
-        data={displayList}
-        keyExtractor={(item) => item.id}
-        renderItem={renderExercise}
-        ListHeaderComponent={
-          <>
-            {TemplatesSection}
-            {selected.length === 0 && filtered.length > 0 && !hasEverSelected && (
-              <View style={styles.selectionHint}>
-                <Ionicons name="hand-left-outline" size={14} color={C.primary} />
-                <Text style={styles.selectionHintText}>
-                  Tap an exercise to add it - select at least one to start
-                </Text>
-              </View>
-            )}
-          </>
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: selected.length > 0 ? 180 + insets.bottom : 40 + insets.bottom },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={
-          <EmptyState
-            icon="search-outline"
-            title="No exercises found"
-            subtitle={
-              search.trim() || categoryFilter !== 'all' || attrFiltersActive
-                ? 'Try a different search or filter'
-                : 'Pick at least one exercise to start your session'
-            }
-            testID="custom-session-empty"
-          />
-        }
-      />
+      {categoryFilter === 'cardio' && (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingBottom:
+                selected.length + selectedCardio.length > 0
+                  ? 180 + insets.bottom
+                  : 40 + insets.bottom,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {CARDIO_OPTIONS.map((opt) => {
+            const isSelected = selectedCardio.some((c) => c.id === opt.id);
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (isSelected) {
+                    setSelectedCardio((prev) => prev.filter((c) => c.id !== opt.id));
+                  } else {
+                    setSelectedCardio((prev) => [
+                      ...prev,
+                      { id: opt.id, name: opt.name, icon: opt.icon, cue: opt.cue },
+                    ]);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.exerciseCard,
+                  isSelected && styles.exerciseCardSelected,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <View style={styles.exerciseCardLeft}>
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={18}
+                      color={isSelected ? C.primary : C.textSecondary}
+                    />
+                    <Text style={[styles.exerciseName, isSelected && { color: C.primary }]}>
+                      {opt.name}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: C.primaryMuted,
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontFamily: 'Inter_600SemiBold',
+                          color: C.primary,
+                          textTransform: 'uppercase' as const,
+                          letterSpacing: 0.4,
+                        }}
+                      >
+                        Cardio
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Inter_400Regular',
+                      color: C.textSecondary,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {opt.cue}
+                  </Text>
+                </View>
+                <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
+                  {isSelected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
 
-      {emptiedToastVisible && selected.length === 0 && (
+      {categoryFilter !== 'cardio' && (
+        <FlatList
+          data={displayList}
+          keyExtractor={(item) => item.id}
+          renderItem={renderExercise}
+          ListHeaderComponent={
+            <>
+              {TemplatesSection}
+              {selected.length === 0 && filtered.length > 0 && !hasEverSelected && (
+                <View style={styles.selectionHint}>
+                  <Ionicons name="hand-left-outline" size={14} color={C.primary} />
+                  <Text style={styles.selectionHintText}>
+                    Tap an exercise to add it - select at least one to start
+                  </Text>
+                </View>
+              )}
+            </>
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: selected.length > 0 ? 180 + insets.bottom : 40 + insets.bottom },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <EmptyState
+              icon="search-outline"
+              title="No exercises found"
+              subtitle={
+                search.trim() || categoryFilter !== 'all' || attrFiltersActive
+                  ? 'Try a different search or filter'
+                  : 'Pick at least one exercise to start your session'
+              }
+              testID="custom-session-empty"
+            />
+          }
+        />
+      )}
+
+      {emptiedToastVisible && selected.length === 0 && selectedCardio.length === 0 && (
         <Animated.View
           entering={FadeInDown.duration(220)}
           exiting={FadeOutDown.duration(220)}
@@ -1010,7 +1197,7 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      {selected.length > 0 && (
+      {(selected.length > 0 || selectedCardio.length > 0) && (
         <Animated.View
           entering={FadeInDown.duration(300)}
           style={[
@@ -1020,7 +1207,8 @@ export default function CustomSessionScreen() {
         >
           <View style={styles.trayTop}>
             <Text style={styles.trayCount}>
-              {selected.length} exercise{selected.length !== 1 ? 's' : ''} selected
+              {selected.length + selectedCardio.length} exercise
+              {selected.length + selectedCardio.length !== 1 ? 's' : ''} selected
             </Text>
             <View style={styles.trayTopRight}>
               <Pressable
@@ -1107,6 +1295,24 @@ export default function CustomSessionScreen() {
                 );
               })}
               {insertAtIdx === selected.length && <View style={styles.insertCursor} />}
+              {selectedCardio.map((c) => (
+                <View key={c.id} style={styles.trayChip}>
+                  <Ionicons name={c.icon} size={14} color={C.primary} style={{ marginRight: 4 }} />
+                  <View style={styles.trayChipBody}>
+                    <Text style={styles.trayChipName} numberOfLines={1}>
+                      {c.name}
+                    </Text>
+                    <Text style={styles.trayChipMeta}>Cardio</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setSelectedCardio((prev) => prev.filter((x) => x.id !== c.id))}
+                    hitSlop={8}
+                    style={styles.trayChipRemove}
+                  >
+                    <Ionicons name="close" size={13} color={C.textSecondary} />
+                  </Pressable>
+                </View>
+              ))}
             </ScrollView>
             {/* Right-edge overflow affordance: fade + chevron shown when chips extend beyond tray width */}
             {trayContentWidth > trayContainerWidth + 4 &&

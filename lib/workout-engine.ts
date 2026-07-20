@@ -55,6 +55,8 @@ export interface Exercise {
   isDumbbellExercise?: boolean;
   /** Surface a contextual note in the session UI when load was derived from last session data. */
   progressionNote?: string;
+  /** Marks a custom-session cardio exercise; shows duration/speed inputs instead of weight/reps. */
+  type?: 'cardio';
 }
 
 interface ReadinessCheck {

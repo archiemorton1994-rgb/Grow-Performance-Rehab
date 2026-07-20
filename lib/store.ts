@@ -22,7 +22,21 @@ export const STRENGTH_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlif
 /** Weekly balanced programming sessions (not KPI-focused). */
 export const WEEKLY_SESSION_TYPES: SessionType[] = ['upper_body', 'lower_body', 'full_body'];
 export type ExerciseCategory =
-  'prep' | 'mechanical' | 'neuro' | 'main' | 'accessory' | 'prehab' | 'finisher' | 'cooldown';
+  | 'prep'
+  | 'mechanical'
+  | 'neuro'
+  | 'main'
+  | 'accessory'
+  | 'prehab'
+  | 'finisher'
+  | 'cooldown'
+  | 'cardio';
+
+export interface CardioLogData {
+  durationMinutes: number;
+  speedKmh?: number;
+  distanceKm?: number;
+}
 export type TimeAvailable = '30' | '45' | '60';
 export type TestWeekFrequency = 12 | 18;
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -114,6 +128,7 @@ export interface CustomExercise {
   cue: string;
   suggestedLoad: string;
   category: ExerciseCategory;
+  type?: 'cardio';
 }
 
 export interface CustomTemplate {
@@ -170,6 +185,8 @@ export interface ExerciseLog {
   note?: string;
   /** How the user felt about this exercise during the session. Drives next-session load adjustments. */
   feedbackRating?: 'easy' | 'hard';
+  /** Populated for cardio exercises (Custom session type: 'cardio'). */
+  cardioData?: CardioLogData;
 }
 
 export interface OneRepMax {

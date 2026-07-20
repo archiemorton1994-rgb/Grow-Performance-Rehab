@@ -1433,7 +1433,8 @@ function SessionHistoryList({
             {isExpanded &&
               (heaviestSets.length > 0 ||
                 session.exerciseLogs.some((el) => el.note) ||
-                session.exerciseLogs.some((el) => el.feedbackRating)) && (
+                session.exerciseLogs.some((el) => el.feedbackRating) ||
+                session.exerciseLogs.some((el) => el.cardioData)) && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4 }}>
                   {heaviestSets.map((ex, idx) => {
                     const logEntry = session.exerciseLogs.find((el) => el.exerciseName === ex.name);
@@ -1623,6 +1624,57 @@ function SessionHistoryList({
                       </View>
                     ))}
                   {session.exerciseLogs
+                    .filter((el) => el.cardioData)
+                    .map((el, idx) => {
+                      const parts: string[] = [`${el.cardioData!.durationMinutes} min`];
+                      if (el.cardioData!.speedKmh) parts.push(`${el.cardioData!.speedKmh} km/h`);
+                      if (el.cardioData!.distanceKm) parts.push(`${el.cardioData!.distanceKm} km`);
+                      return (
+                        <View
+                          key={'cardio-' + idx}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingVertical: 4,
+                            gap: 6,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                              flex: 1,
+                              flexShrink: 1,
+                            }}
+                          >
+                            <Ionicons name="timer-outline" size={13} color={C.primary} />
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontFamily: 'Inter_400Regular',
+                                color: C.textSecondary,
+                                flexShrink: 1,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {el.exerciseName}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontFamily: 'Inter_600SemiBold',
+                              color: C.primary,
+                            }}
+                          >
+                            {parts.join(' · ')}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  {session.exerciseLogs
                     .filter(
                       (el) =>
                         el.feedbackRating &&
@@ -1698,7 +1750,8 @@ function SessionHistoryList({
             {isExpanded &&
               heaviestSets.length === 0 &&
               !session.exerciseLogs.some((el) => el.note) &&
-              !session.exerciseLogs.some((el) => el.feedbackRating) && (
+              !session.exerciseLogs.some((el) => el.feedbackRating) &&
+              !session.exerciseLogs.some((el) => el.cardioData) && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                   <Text
                     style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
