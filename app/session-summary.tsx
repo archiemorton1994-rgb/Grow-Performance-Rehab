@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   Image,
+  TextInput,
   useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
@@ -100,6 +101,7 @@ export default function SessionSummaryScreen() {
   const weightUnit = useAppStore((s) => s.weightUnit);
   const getStreakDays = useAppStore((s) => s.getStreakDays);
   const setExerciseFeedback = useAppStore((s) => s.setExerciseFeedback);
+  const updateSessionNotes = useAppStore((s) => s.updateSessionNotes);
 
   const certRef = useRef<View>(null);
 
@@ -108,6 +110,7 @@ export default function SessionSummaryScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveConfirmed, setSaveConfirmed] = useState(false);
+  const [sessionNotes, setSessionNotes] = useState('');
 
   const session = useMemo(() => {
     if (sessionId) {
@@ -116,6 +119,11 @@ export default function SessionSummaryScreen() {
     }
     return completedSessions[0] ?? null;
   }, [completedSessions, sessionId]);
+
+  useEffect(() => {
+    setSessionNotes(session?.notes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id]);
 
   const categoryMap = useMemo(() => getExerciseCategoryMap(), []);
 
@@ -582,6 +590,47 @@ export default function SessionSummaryScreen() {
             </Text>
           </Pressable>
         </Animated.View>
+
+        {/* Session notes */}
+        <View style={{ marginTop: 14 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontFamily: 'Inter_700Bold',
+              color: C.textTertiary,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              marginBottom: 8,
+            }}
+          >
+            Session notes
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: C.surfaceTertiary,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: C.border,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              fontSize: 14,
+              fontFamily: 'Inter_400Regular',
+              color: C.text,
+              minHeight: 72,
+              textAlignVertical: 'top',
+            }}
+            placeholder="How did it feel? Anything to remember..."
+            placeholderTextColor={C.textTertiary}
+            multiline
+            value={sessionNotes}
+            onChangeText={(text) => {
+              setSessionNotes(text);
+              if (session) updateSessionNotes(session.id, text);
+            }}
+            returnKeyType="done"
+            blurOnSubmit
+          />
+        </View>
 
         {/* Done */}
         <Pressable

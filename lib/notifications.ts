@@ -216,7 +216,7 @@ export async function cancelStreakProtectionAlert(): Promise<void> {
 }
 
 const BODYWEIGHT_NOTIF_ID = 'grow-bodyweight-reminder';
-const BODYWEIGHT_INTERVAL_DAYS = 21;
+const BODYWEIGHT_INTERVAL_DAYS = 14;
 
 export async function scheduleBodyweightReminder(
   bodyweightUpdatedAt: string | null,

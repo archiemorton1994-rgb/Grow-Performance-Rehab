@@ -241,6 +241,24 @@ export default function HomeScreen() {
   const missedStreakWarning =
     completedSessions.length >= 3 && streak > 0 && weekCount < goal && new Date().getDay() >= 3;
 
+  const [deloadDismissed, setDeloadDismissed] = useState(false);
+
+  const consecutiveActiveWeeks = useMemo(() => {
+    const now = Date.now();
+    let count = 0;
+    for (let w = 1; w <= 8; w++) {
+      const weekStart = now - w * 7 * 86400000;
+      const weekEnd = now - (w - 1) * 7 * 86400000;
+      const hasSession = completedSessions.some((s) => {
+        const d = new Date(s.date).getTime();
+        return d >= weekStart && d < weekEnd;
+      });
+      if (!hasSession) break;
+      count++;
+    }
+    return count;
+  }, [completedSessions]);
+
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
     const result = {} as Record<
@@ -476,6 +494,30 @@ export default function HomeScreen() {
               )}
             </Pressable>
           </Animated.View>
+
+          {/* Deload week suggestion — shown after 4+ consecutive active weeks */}
+          {consecutiveActiveWeeks >= 4 && !deloadDismissed && completedSessions.length >= 4 && (
+            <Animated.View entering={FadeInDown.duration(300)} style={styles.deloadBanner}>
+              <View style={styles.deloadBannerContent}>
+                <Ionicons name="moon-outline" size={18} color="#7C6EF0" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.deloadBannerTitle, { color: C.text }]}>
+                    {consecutiveActiveWeeks} weeks straight — consider a deload
+                  </Text>
+                  <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
+                    A lighter week now means more progress long-term.
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => setDeloadDismissed(true)}
+                hitSlop={10}
+                testID="deload-banner-dismiss"
+              >
+                <Ionicons name="close" size={14} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          )}
 
           {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
           {/* Glow wrapper: pulses green after the tab tour completes */}
@@ -1491,5 +1533,32 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
+    deloadBanner: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: 'rgba(124,110,240,0.08)',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(124,110,240,0.20)',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 10,
+      gap: 8,
+    },
+    deloadBannerContent: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: 10,
+    },
+    deloadBannerTitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      marginBottom: 2,
+    },
+    deloadBannerSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+    },
   });
 }

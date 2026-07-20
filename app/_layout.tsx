@@ -485,6 +485,7 @@ function RootLayoutNav() {
         (isSummaryToast(currentToast) ? (
           <AchievementUnlockedSheet
             badgeCount={currentToast.count}
+            sessionCount={completedSessions.length}
             onDismiss={() => setCurrentToast(null)}
           />
         ) : (
@@ -493,6 +494,7 @@ function RootLayoutNav() {
             badgeName={currentToast.name}
             badgeIcon={currentToast.icon}
             badgeColor={currentToast.color}
+            sessionCount={completedSessions.length}
             onDismiss={() => setCurrentToast(null)}
           />
         ))}

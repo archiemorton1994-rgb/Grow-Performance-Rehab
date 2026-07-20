@@ -353,6 +353,31 @@ export default function ReadinessScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.mainContent}
       >
+        {isTestWeek && (
+          <View style={styles.testWeekBanner}>
+            <View style={styles.testWeekBannerIcon}>
+              <Ionicons name="trophy" size={22} color="#F5A623" />
+            </View>
+            <View style={styles.testWeekBannerContent}>
+              <View style={styles.testWeekBannerRow}>
+                <View style={styles.testWeekBadge}>
+                  <Text style={styles.testWeekBadgeText}>TEST WEEK</Text>
+                </View>
+              </View>
+              <Text style={styles.testWeekBannerHeadline}>
+                {sessionType === 'squat'
+                  ? 'Squat 1RM'
+                  : sessionType === 'bench'
+                    ? 'Bench Press 1RM'
+                    : 'Deadlift 1RM'}{' '}
+                Test
+              </Text>
+              <Text style={styles.testWeekBannerSub}>
+                AMRAP @ 90% — go all out. Your numbers don&apos;t lie.
+              </Text>
+            </View>
+          </View>
+        )}
         {/* Equipment */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Equipment today</Text>
@@ -469,6 +494,8 @@ export default function ReadinessScreen() {
               onPress={() => {
                 hapticTap();
                 setHasAches(true);
+                setDiagramPainRegion(undefined);
+                setStep('painRegion');
               }}
               style={[styles.pill, styles.pillAches, hasAches && styles.pillAchesActive]}
               testID="aches-yes"
@@ -481,11 +508,6 @@ export default function ReadinessScreen() {
               <Text style={[styles.pillText, { color: hasAches ? '#fff' : C.warning }]}>Yes →</Text>
             </Pressable>
           </View>
-          {hasAches && (
-            <Text style={styles.achesHint}>
-              Tap Start to select which area - exercises will be adjusted
-            </Text>
-          )}
         </View>
 
         {!isTestWeek && (
@@ -584,16 +606,17 @@ export default function ReadinessScreen() {
           disabled={selectedEquipments.length === 0}
           style={({ pressed }) => [
             styles.startButton,
+            isTestWeek && styles.startButtonTestWeek,
             selectedEquipments.length === 0 && styles.startButtonDisabled,
             pressed &&
               selectedEquipments.length > 0 && { opacity: 0.9, transform: [{ scale: 0.98 }] },
           ]}
           testID="readiness-start"
         >
-          {hasAches ? (
+          {isTestWeek ? (
             <>
-              <Ionicons name="chevron-forward" size={18} color={C.textInverse} />
-              <Text style={styles.startButtonText}>Next - select area</Text>
+              <Ionicons name="trophy" size={18} color={C.textInverse} />
+              <Text style={styles.startButtonText}>Begin Test</Text>
             </>
           ) : (
             <>
@@ -1033,6 +1056,54 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
       textTransform: 'uppercase' as const,
       letterSpacing: 0.6,
+    },
+
+    testWeekBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: 'rgba(245,166,35,0.10)',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(245,166,35,0.30)',
+      padding: 16,
+      marginBottom: 16,
+    },
+    testWeekBannerIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: 'rgba(245,166,35,0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    testWeekBannerContent: { flex: 1 },
+    testWeekBannerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    testWeekBadge: {
+      backgroundColor: '#F5A623',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    testWeekBadgeText: {
+      fontSize: 10,
+      fontFamily: 'Inter_700Bold',
+      color: '#fff',
+      letterSpacing: 0.6,
+    },
+    testWeekBannerHeadline: {
+      fontSize: 16,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      marginBottom: 2,
+    },
+    testWeekBannerSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
+    startButtonTestWeek: {
+      backgroundColor: '#F5A623',
     },
   });
 }

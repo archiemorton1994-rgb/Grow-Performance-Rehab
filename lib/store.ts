@@ -212,6 +212,8 @@ export interface CompletedSession {
   durationSeconds?: number;
   /** Optional launch-context label (e.g. "Recovery" vs "Targeted Prehab") shown in history. */
   displayLabel?: string;
+  /** Optional free-text note the user added on the session summary screen. */
+  notes?: string;
 }
 
 /** One logged appearance of a weighted exercise within a single completed session. */
@@ -402,6 +404,8 @@ interface AppState {
   getExerciseHistory: (exerciseId: string) => { sessionId: string; date: string; sets: SetLog[] }[];
   /** All-time progress for every weighted exercise ever logged (completed sets with weight > 0). */
   getAllExerciseProgress: () => ExerciseProgress[];
+  /** Update or clear the free-text notes on a completed session. */
+  updateSessionNotes: (id: string, notes: string) => void;
   mergeServerData: (data: SyncPayload) => void;
 }
 
@@ -883,6 +887,14 @@ export const useAppStore = create<AppState>()(
           }
         }
         return Array.from(map.values());
+      },
+
+      updateSessionNotes: (id, notes) => {
+        set((s) => ({
+          completedSessions: s.completedSessions.map((sess) =>
+            sess.id === id ? { ...sess, notes } : sess
+          ),
+        }));
       },
 
       mergeServerData: (data) => {

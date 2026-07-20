@@ -477,6 +477,34 @@ export default function ProfileScreen() {
             );
           })()}
 
+        {/* Strength 1RM prompt — shown when no lifts have been logged yet */}
+        {oneRepMaxes.length === 0 && (
+          <Animated.View entering={FadeInDown.delay(90).duration(400)} style={{ marginBottom: 12 }}>
+            <View
+              style={[styles.ratioCard, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  backgroundColor: C.primarySurface,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="barbell-outline" size={22} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ratioCardTitle}>STRENGTH PROGRESS</Text>
+                <Text style={styles.ratioCardSub}>
+                  Log a 1RM to track your bodyweight multipliers
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Subscription card */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
           {hasActiveSubscription ? (

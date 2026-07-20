@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,11 +16,14 @@ const ENTER_MS = 300;
 const EXIT_MS = 210;
 const SLIDE_START = 460;
 
+const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
+
 interface AchievementUnlockedSheetProps {
   badgeCount: number;
   badgeName?: string;
   badgeIcon?: string;
   badgeColor?: string;
+  sessionCount?: number;
   onDismiss: () => void;
 }
 
@@ -28,6 +32,7 @@ export default function AchievementUnlockedSheet({
   badgeName,
   badgeIcon,
   badgeColor,
+  sessionCount,
   onDismiss,
 }: AchievementUnlockedSheetProps) {
   const C = useColors();
@@ -47,6 +52,12 @@ export default function AchievementUnlockedSheet({
   useEffect(() => {
     backdropOpacity.value = withTiming(1, { duration: ENTER_MS });
     translateY.value = withSpring(0, { damping: 22, stiffness: 200 });
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 180);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 360);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 520);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -66,6 +77,11 @@ export default function AchievementUnlockedSheet({
   const iconName = isSingle ? (badgeIcon ?? 'trophy') : 'trophy';
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
+
+  const nextMilestone =
+    sessionCount != null ? (MILESTONE_SESSIONS.find((m) => m > sessionCount) ?? null) : null;
+  const sessionsToGo =
+    nextMilestone != null && sessionCount != null ? nextMilestone - sessionCount : null;
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismiss}>
@@ -109,6 +125,13 @@ export default function AchievementUnlockedSheet({
             <Text style={[styles.subtitle, { color: C.textSecondary }]} numberOfLines={2}>
               {subtitle}
             </Text>
+            {sessionsToGo != null && sessionsToGo > 0 && (
+              <Text style={[styles.milestoneHint, { color: C.textTertiary }]}>
+                {sessionsToGo === 1
+                  ? 'One more session to your next badge 🎯'
+                  : `${sessionsToGo} sessions to your next badge`}
+              </Text>
+            )}
 
             {/* Primary CTA */}
             <Pressable
@@ -214,5 +237,12 @@ const styles = StyleSheet.create({
   dismissText: {
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
+  },
+  milestoneHint: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    marginTop: -2,
+    marginBottom: 6,
   },
 });
