@@ -397,6 +397,9 @@ export default function SessionSummaryScreen() {
   const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '-';
   const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
+  const pbCount = summary.rows.filter(
+    (r) => r.badge === 'gain-weight' || r.badge === 'gain-reps'
+  ).length;
 
   const firstInitial =
     userName && userName.trim().length > 0 ? userName.trim()[0].toUpperCase() : '?';
@@ -500,6 +503,15 @@ export default function SessionSummaryScreen() {
                   </React.Fragment>
                 ))}
               </View>
+
+              {/* PB count — only shown when at least one PB was set */}
+              {pbCount > 0 && (
+                <View style={styles.pbRow} testID="pb-count-row">
+                  <Text style={styles.pbText}>
+                    🏆 {pbCount} new personal best{pbCount > 1 ? 's' : ''} this session
+                  </Text>
+                </View>
+              )}
 
               {/* Dual body diagram — front + back side by side */}
               <View style={styles.diagramRow}>
@@ -933,6 +945,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginTop: 3,
     textTransform: 'uppercase',
+  },
+
+  // ── PB count row ────────────────────────────────────────────────────────────
+  pbRow: {
+    alignItems: 'center',
+    marginTop: -4,
+    marginBottom: 10,
+  },
+  pbText: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: BRAND_GREEN,
+    textAlign: 'center',
   },
 
   // ── Body diagram ────────────────────────────────────────────────────────────
