@@ -33,6 +33,8 @@ const LightColors = {
   tabInactive: '#9ca5a0',
 
   destructive: '#ef4444',
+  pbFlash: '#f59e0b',
+  pbFlashText: '#ffffff',
   trophy: '#f59e0b',
   trophyBg: '#fef9c3',
   trophyBorder: '#fde68a',
@@ -108,6 +110,8 @@ const DarkColors = {
   tabInactive: '#444444',
 
   destructive: '#f87171',
+  pbFlash: '#fbbf24',
+  pbFlashText: '#ffffff',
   trophy: '#fbbf24',
   trophyBg: '#1f1700',
   trophyBorder: '#352700',

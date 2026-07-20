@@ -3264,7 +3264,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       letterSpacing: 0.5,
     },
     pbFlashBadge: {
-      backgroundColor: '#f59e0b',
+      backgroundColor: C.pbFlash,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: 6,
@@ -3272,7 +3272,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     pbFlashBadgeText: {
       fontSize: 11,
       fontFamily: 'Inter_700Bold',
-      color: '#fff',
+      color: C.pbFlashText,
       letterSpacing: 0.3,
     },
     exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
