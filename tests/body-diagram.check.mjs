@@ -552,6 +552,100 @@ if (frontFnIdx !== -1 && backFnIdx !== -1 && afterBackIdx !== -1) {
   );
 }
 
+// ─── 9. Container–viewBox–scaleY three-way consistency ───────────────────────
+//
+// The body diagram coordinate system rests on three tightly coupled values:
+//
+//   containerMultiplier  — the N in `height: svgWidth * N` (currently 2.4)
+//   viewBoxHeight        — H in `viewBox="0 0 W H"` (currently 480)
+//   scaleY               — S in `<G transform="scale(1, S)">` (currently 0.8333)
+//
+// They must satisfy two equations:
+//
+//   viewBoxHeight = viewBoxWidth × containerMultiplier    (200 × 2.4 = 480)
+//   scaleY        = FIGURE_HEIGHT / viewBoxHeight          (400 / 480 ≈ 0.8333)
+//
+// Sections [8a] and [8b] check each value in isolation with hardcoded expectations.
+// This section EXTRACTS all three from source and verifies them as a mutually
+// consistent triple.  It therefore catches the silent failure mode where, e.g.,
+// the multiplier is changed to 3.0 for a layout fix without updating viewBox
+// height (should become 600) or scaleY (should become 400/600 ≈ 0.6667).
+//
+// If any equation fails, the error message shows all three extracted values plus
+// the expected values so the developer knows exactly which one needs updating.
+//
+console.log('\n[9] Container–viewBox–scaleY three-way consistency');
+
+// ── [9a] Extract the container height multiplier ──────────────────────────────
+// Matches both: `height: svgWidth * 2.4`  (style object)
+//          and: `height={svgWidth * 2.4}`  (JSX prop)
+const containerMultiplierMatch = src.match(/height[={:\s]+svgWidth\s*\*\s*([\d.]+)/);
+const containerMultiplier = containerMultiplierMatch
+  ? parseFloat(containerMultiplierMatch[1])
+  : null;
+
+check(
+  'container height multiplier (svgWidth * N) found in BodyDiagram.tsx',
+  containerMultiplier !== null,
+  'could not find "height: svgWidth * N" or "height={svgWidth * N}" — ' +
+    'check the View wrapping the Body + Svg elements'
+);
+
+// ── [9b] Extract viewBox width and height ────────────────────────────────────
+const viewBoxExtractMatch = src.match(/viewBox="0\s+0\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)"/);
+const vbWidth = viewBoxExtractMatch ? parseFloat(viewBoxExtractMatch[1]) : null;
+const vbHeight = viewBoxExtractMatch ? parseFloat(viewBoxExtractMatch[2]) : null;
+
+check(
+  'SVG viewBox="0 0 W H" dimensions extractable from BodyDiagram.tsx',
+  viewBoxExtractMatch !== null,
+  'viewBox not found or not in "0 0 W H" form — check the <Svg> element'
+);
+
+// ── [9c] Extract the G scaleY value ──────────────────────────────────────────
+const scaleYExtractMatch = src.match(/scale\(1,\s*([\d.]+)\)/);
+const extractedScaleY = scaleYExtractMatch ? parseFloat(scaleYExtractMatch[1]) : null;
+
+check(
+  'G transform scale(1, S) scaleY value extractable from BodyDiagram.tsx',
+  extractedScaleY !== null,
+  'scale(1, N) not found — check the <G transform="..."> element'
+);
+
+if (
+  containerMultiplier !== null &&
+  vbWidth !== null &&
+  vbHeight !== null &&
+  extractedScaleY !== null
+) {
+  // ── [9d] viewBoxHeight = viewBoxWidth × containerMultiplier ─────────────────
+  const expectedVbHeight = vbWidth * containerMultiplier;
+  const heightConsistent = Math.abs(vbHeight - expectedVbHeight) < 0.5;
+
+  check(
+    `viewBoxHeight (${vbHeight}) = viewBoxWidth (${vbWidth}) × multiplier (${containerMultiplier}) → ${expectedVbHeight}`,
+    heightConsistent,
+    `THREE-WAY MISMATCH — container uses svgWidth*${containerMultiplier} but viewBox height is ${vbHeight} (expected ${expectedVbHeight}). ` +
+      `Fix: update viewBox to "0 0 ${vbWidth} ${expectedVbHeight}" ` +
+      `OR revert the multiplier to ${(vbHeight / vbWidth).toFixed(4)}. ` +
+      `Hotspot taps will misfire until these match.`
+  );
+
+  // ── [9e] scaleY = FIGURE_HEIGHT / viewBoxHeight ─────────────────────────────
+  const expectedScaleY = FIGURE_HEIGHT / vbHeight;
+  // Tolerance: 0.001 — covers minor rounding in the source (e.g. 0.8333 vs exact 5/6)
+  const scaleYConsistent = Math.abs(extractedScaleY - expectedScaleY) < 0.001;
+
+  check(
+    `scaleY (${extractedScaleY}) = figureHeight (${FIGURE_HEIGHT}) / viewBoxHeight (${vbHeight}) → ${expectedScaleY.toFixed(4)}`,
+    scaleYConsistent,
+    `THREE-WAY MISMATCH — G transform has scale(1, ${extractedScaleY}) but ` +
+      `figureHeight(${FIGURE_HEIGHT}) / viewBoxHeight(${vbHeight}) = ${expectedScaleY.toFixed(4)}. ` +
+      `Fix: update the G transform to scale(1, ${expectedScaleY.toFixed(4)}) ` +
+      `so hotspot paths visually align with the body figure.`
+  );
+}
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
