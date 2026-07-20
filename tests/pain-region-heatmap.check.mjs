@@ -58,7 +58,7 @@ console.log('\n[1] Source pattern — all-time / recent / previous count useMemo
 const DERIVATION = 's.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : []';
 
 // Count how many times the pattern appears (should be ≥ 3: one per useMemo block)
-const occurrences = (workoutsSrc.split(DERIVATION).length - 1);
+const occurrences = workoutsSrc.split(DERIVATION).length - 1;
 check(
   `painRegions-with-fallback derivation appears ≥ 3 times in workouts.tsx (found ${occurrences})`,
   occurrences >= 3,
@@ -197,7 +197,10 @@ check(
 );
 
 // 8. Mixed session list — aggregate counts are additive across regions
-const threeRegionSession = makeSession({ id: 'three', painRegions: ['knee', 'lower_back', 'neck'] });
+const threeRegionSession = makeSession({
+  id: 'three',
+  painRegions: ['knee', 'lower_back', 'neck'],
+});
 const mixed = [multiSession, legacySession, threeRegionSession, noPainSession];
 const countsMixed = computeCounts(mixed);
 
