@@ -1094,9 +1094,23 @@ export const useAppStore = create<AppState>()(
         if (!persistedState.bodyweightLog) {
           persistedState.bodyweightLog = [];
         }
+        // v26: seed bodyweightLog for users who set their weight before the log
+        // existed (or via older setUserProfile that didn't append to the log).
+        // Uses bodyweightUpdatedAt as the entry date; falls back to now.
+        if (
+          persistedState.bodyweightLog.length === 0 &&
+          persistedState.userProfile?.bodyweightKg > 0
+        ) {
+          persistedState.bodyweightLog = [
+            {
+              date: persistedState.bodyweightUpdatedAt ?? new Date().toISOString(),
+              kg: persistedState.userProfile.bodyweightKg,
+            },
+          ];
+        }
         return persistedState;
       },
-      version: 25,
+      version: 26,
     }
   )
 );

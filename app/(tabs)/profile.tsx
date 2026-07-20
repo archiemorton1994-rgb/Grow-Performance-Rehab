@@ -113,7 +113,57 @@ function BodyweightSparkline({
     return [...entries].sort((a, b) => a.date.localeCompare(b.date));
   }, [entries]);
 
-  if (filtered.length < 2) return null;
+  if (filtered.length < 1) return null;
+
+  const fmtW = (w: number) => (w % 1 === 0 ? String(w) : w.toFixed(1));
+  const unitLabel = weightUnit === 'lbs' ? 'lbs' : 'kg';
+
+  // Single-entry: show a welcome card without a chart line
+  if (filtered.length === 1) {
+    const displayVal = kgToDisplayUnit(filtered[0].kg, weightUnit);
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          {
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            paddingHorizontal: 16,
+            paddingTop: 14,
+            paddingBottom: 14,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: C.borderLight,
+          },
+          pressed && { opacity: 0.85 },
+        ]}
+      >
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_600SemiBold',
+            color: C.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 10,
+          }}
+        >
+          Bodyweight Trend
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
+          <Text style={{ fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text }}>
+            {fmtW(displayVal)}
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+            {unitLabel}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          Log your weight again to start seeing your trend
+        </Text>
+      </Pressable>
+    );
+  }
 
   const weights = filtered.map((e) => kgToDisplayUnit(e.kg, weightUnit));
   const minW = Math.min(...weights);
@@ -129,14 +179,14 @@ function BodyweightSparkline({
   const plotH = CHART_H - PAD_T - PAD_B;
 
   const toX = (ts: number) => PAD_L + ((ts - minTs) / tsRange) * plotW;
-  const toY = (w: number) => PAD_T + plotH - ((w - minW) / wRange) * plotH;
+  const toY = (w: number) =>
+    maxW === minW ? PAD_T + plotH / 2 : PAD_T + plotH - ((w - minW) / wRange) * plotH;
 
   const points =
     chartWidth > 0
       ? filtered.map((e, i) => `${toX(timestamps[i])},${toY(weights[i])}`).join(' ')
       : '';
 
-  const fmtW = (w: number) => (w % 1 === 0 ? String(w) : w.toFixed(1));
   const spanDays = Math.ceil((maxTs - minTs) / 86400000);
   const spanLabel = spanDays <= 0 ? '' : spanDays === 1 ? '1 day' : `${spanDays} days`;
 
@@ -567,7 +617,7 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
-        {bodyweightLog.length >= 2 && (
+        {bodyweightLog.length >= 1 && (
           <Animated.View entering={FadeInDown.delay(50).duration(400)}>
             <BodyweightSparkline
               entries={bodyweightLog}
