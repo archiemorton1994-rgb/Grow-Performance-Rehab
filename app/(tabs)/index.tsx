@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
+  FadeInUp,
+  FadeOutDown,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -243,6 +245,7 @@ export default function HomeScreen() {
 
   const [deloadDismissed, setDeloadDismissed] = useState(false);
   const [deloadExpanded, setDeloadExpanded] = useState(false);
+  const [milestoneToastDismissed, setMilestoneToastDismissed] = useState(false);
 
   const consecutiveActiveWeeks = useMemo(() => {
     const now = Date.now();
@@ -348,6 +351,13 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
   }, [tourJustCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (milestoneHit === null) return;
+    setMilestoneToastDismissed(false);
+    const timer = setTimeout(() => setMilestoneToastDismissed(true), 3500);
+    return () => clearTimeout(timer);
+  }, [milestoneHit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cardGlowStyle = useAnimatedStyle(() => ({
     borderRadius: 20,
@@ -812,21 +822,6 @@ export default function HomeScreen() {
                 <Ionicons name="close" size={16} color={C.textTertiary} />
               </Pressable>
             </Animated.View>
-          ) : milestoneHit !== null ? (
-            <Animated.View
-              entering={FadeInDown.delay(180).duration(380)}
-              style={styles.milestoneCard}
-            >
-              <View style={styles.milestoneIcon}>
-                <Ionicons name="trophy" size={20} color={C.warning} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.milestoneTitle}>{milestoneHit} sessions completed</Text>
-                <Text style={styles.milestoneSub}>
-                  You just unlocked a new milestone - keep it going.
-                </Text>
-              </View>
-            </Animated.View>
           ) : calibrationComplete ? (
             <Animated.View
               entering={FadeInDown.delay(180).duration(380)}
@@ -937,6 +932,26 @@ export default function HomeScreen() {
           )}
         </View>
       </View>
+
+      {/* Milestone toast — floats above tab bar, auto-dismisses after 3.5 s */}
+      {milestoneHit !== null && !milestoneToastDismissed && (
+        <Animated.View
+          entering={FadeInUp.springify().damping(18).stiffness(160)}
+          exiting={FadeOutDown.duration(280)}
+          style={[styles.milestoneToast, { bottom: tabBarHeight + 12 }]}
+        >
+          <View style={styles.milestoneToastIcon}>
+            <Ionicons name="trophy" size={20} color={C.warning} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.milestoneToastTitle}>{milestoneHit} sessions completed</Text>
+            <Text style={styles.milestoneToastSub}>New milestone unlocked — keep it going.</Text>
+          </View>
+          <Pressable onPress={() => setMilestoneToastDismissed(true)} hitSlop={12}>
+            <Ionicons name="close" size={16} color={C.textTertiary} />
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Bodyweight update modal */}
       <Modal
@@ -1322,6 +1337,41 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 12,
       borderWidth: 1,
       borderColor: C.warning,
+    },
+    milestoneToast: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.warningLight,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderWidth: 1,
+      borderColor: C.warning,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: 8,
+    },
+    milestoneToastIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      backgroundColor: C.surface,
+    },
+    milestoneToastTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    milestoneToastSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
     },
     milestoneIcon: {
       width: 36,
