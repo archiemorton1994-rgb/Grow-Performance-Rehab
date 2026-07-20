@@ -1235,6 +1235,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
       color: C.text,
       lineHeight: 26,
+      textAlign: 'center' as const,
     },
     summaryCycleLabel: {
       fontSize: 8,

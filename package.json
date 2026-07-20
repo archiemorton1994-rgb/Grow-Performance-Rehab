@@ -15,7 +15,7 @@
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix",
     "test": "jest",
-    "check": "node tests/prehab-regions.check.mjs && node tests/body-diagram.check.mjs && node tests/body-diagram-region-coverage.check.mjs && node tests/conditioning.check.mjs && node tests/custom-session.check.mjs && node tests/muscle-heatmap-coverage.check.mjs && node tests/session-kav.check.mjs"
+    "check": "node tests/prehab-regions.check.mjs && node tests/body-diagram.check.mjs && node tests/body-diagram-region-coverage.check.mjs && node tests/conditioning.check.mjs && node tests/custom-session.check.mjs && node tests/muscle-heatmap-coverage.check.mjs && node tests/session-kav.check.mjs && node tests/your-program-card.check.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.0",
