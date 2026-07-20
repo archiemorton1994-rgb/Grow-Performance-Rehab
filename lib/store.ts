@@ -281,7 +281,7 @@ interface AppState {
   weightUnit: WeightUnit;
   /** ISO timestamp of the last time bodyweightKg was explicitly updated. Null if never updated via app. */
   bodyweightUpdatedAt: string | null;
-  /** Chronological log of bodyweight updates. One entry per day (latest value wins). */
+  /** Chronological log of bodyweight updates. A new entry is appended on every save. */
   bodyweightLog: BodyweightLogEntry[];
   /** ISO timestamp of when the bodyweight reminder was last snoozed (dismissed without saving). */
   weightReminderSnoozedAt: string | null;
@@ -482,14 +482,11 @@ export const useAppStore = create<AppState>()(
       setUserProfile: (profile) => {
         set((state) => {
           if (profile.bodyweightKg !== undefined && profile.bodyweightKg > 0) {
-            const today = new Date().toISOString().slice(0, 10);
+            const now = new Date().toISOString();
             return {
               userProfile: { ...state.userProfile, ...profile },
-              bodyweightUpdatedAt: new Date().toISOString(),
-              bodyweightLog: [
-                ...state.bodyweightLog.filter((e) => e.date !== today),
-                { date: today, kg: profile.bodyweightKg },
-              ],
+              bodyweightUpdatedAt: now,
+              bodyweightLog: [...state.bodyweightLog, { date: now, kg: profile.bodyweightKg }],
             };
           }
           return { userProfile: { ...state.userProfile, ...profile } };
