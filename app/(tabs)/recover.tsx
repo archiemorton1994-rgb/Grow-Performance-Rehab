@@ -279,6 +279,14 @@ export default function RecoverScreen() {
     () => getFlexRecency(completedSessions, 'prehab'),
     [completedSessions]
   );
+  const recoveryRecency = useMemo(() => {
+    const matches = completedSessions.filter((s) => s.sessionType === 'prehab' && !s.displayLabel);
+    if (matches.length === 0) return 'Not tried yet';
+    const days = daysSince(matches[0].date);
+    if (days === 0) return 'Done today';
+    if (days === 1) return 'Last done yesterday';
+    return `Last done ${days} days ago`;
+  }, [completedSessions]);
   const flexRecency = useMemo(
     () => getFlexRecency(completedSessions, 'flexibility'),
     [completedSessions]
@@ -386,7 +394,7 @@ export default function RecoverScreen() {
       icon: 'pulse',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
-      recency: prehabRecency,
+      recency: recoveryRecency,
       cardAccent: '#0d9488',
     },
     {

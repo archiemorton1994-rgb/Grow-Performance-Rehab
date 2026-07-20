@@ -119,7 +119,13 @@ export default function ReadinessScreen() {
   const [, setPainRegion] = useState<PainRegion | undefined>();
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
-  const [diagramPainRegion, setDiagramPainRegion] = useState<PainRegion | undefined>(undefined);
+  const [diagramPainRegions, setDiagramPainRegions] = useState<PainRegion[]>([]);
+  const togglePainRegion = (r: PainRegion | undefined) => {
+    if (!r) return;
+    setDiagramPainRegions((prev) =>
+      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
+    );
+  };
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
   const [coachStep, setCoachStep] = useState<number | null>(null);
@@ -242,7 +248,7 @@ export default function ReadinessScreen() {
   const handleStart = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (hasAches) {
-      setDiagramPainRegion(undefined);
+      setDiagramPainRegions([]);
       setStep('painRegion');
     } else {
       setLastReadiness(energy, timeAvailable);
@@ -276,17 +282,19 @@ export default function ReadinessScreen() {
     }
   };
 
-  const handlePainRegion = (region: PainRegion) => {
+  const handlePainRegion = (region: PainRegion | PainRegion[]) => {
     hapticTap();
-    setPainRegion(region);
-    setLastReadiness(energy, timeAvailable, region);
+    const primary = Array.isArray(region) ? region[0] : region;
+    const regionParam = Array.isArray(region) ? region.join(',') : region;
+    setPainRegion(primary);
+    setLastReadiness(energy, timeAvailable, primary);
     if (isTestWeek) {
       router.push({
         pathname: '/session',
         params: {
           sessionType,
           hasAches: 'true',
-          painRegion: region,
+          painRegion: regionParam,
           energy: 'normal',
           timeAvailable: '60',
           isTestWeek: 'true',
@@ -299,7 +307,7 @@ export default function ReadinessScreen() {
         params: {
           sessionType,
           hasAches: 'true',
-          painRegion: region,
+          painRegion: regionParam,
           energy,
           timeAvailable,
           isTestWeek: 'false',
@@ -494,7 +502,7 @@ export default function ReadinessScreen() {
               onPress={() => {
                 hapticTap();
                 setHasAches(true);
-                setDiagramPainRegion(undefined);
+                setDiagramPainRegions([]);
                 setStep('painRegion');
               }}
               style={[styles.pill, styles.pillAches, hasAches && styles.pillAchesActive]}
@@ -730,24 +738,33 @@ export default function ReadinessScreen() {
           Which area is affected?
         </Text>
         <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 2 }]}>
-          {"Tap the region - we'll adjust exercises"}
+          {"Tap one or more regions — we'll adjust exercises"}
         </Text>
+        <Pressable
+          onPress={() => setStep('main')}
+          hitSlop={8}
+          style={{ alignSelf: 'center', marginTop: 4, marginBottom: 2 }}
+        >
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+            ← Not sore after all
+          </Text>
+        </Pressable>
         <View
           style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
           onLayout={(e) => setPainDiagramAreaH(e.nativeEvent.layout.height)}
         >
           <BodyDiagram
-            selected={diagramPainRegion}
-            onSelect={setDiagramPainRegion}
+            selectedRegions={diagramPainRegions}
+            onSelect={togglePainRegion}
             accentColor={C.warning}
             accentColorLight={C.warningLight}
             maxWidth={painDiagramMaxWidth}
           />
         </View>
         <View style={{ width: '100%', minHeight: 52, justifyContent: 'flex-end' }}>
-          {diagramPainRegion ? (
+          {diagramPainRegions.length > 0 ? (
             <Pressable
-              onPress={() => handlePainRegion(diagramPainRegion)}
+              onPress={() => handlePainRegion(diagramPainRegions)}
               style={({ pressed }) => [
                 styles.startButton,
                 { width: '100%' },
@@ -756,7 +773,10 @@ export default function ReadinessScreen() {
               testID="pain-region-confirm"
             >
               <Ionicons name="flash" size={18} color={C.textInverse} />
-              <Text style={styles.startButtonText}>Continue</Text>
+              <Text style={styles.startButtonText}>
+                Continue
+                {diagramPainRegions.length > 1 ? ` (${diagramPainRegions.length} regions)` : ''}
+              </Text>
             </Pressable>
           ) : lastPainRegion ? (
             <Pressable

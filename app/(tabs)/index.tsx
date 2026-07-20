@@ -242,6 +242,7 @@ export default function HomeScreen() {
     completedSessions.length >= 3 && streak > 0 && weekCount < goal && new Date().getDay() >= 3;
 
   const [deloadDismissed, setDeloadDismissed] = useState(false);
+  const [deloadExpanded, setDeloadExpanded] = useState(false);
 
   const consecutiveActiveWeeks = useMemo(() => {
     const now = Date.now();
@@ -498,17 +499,33 @@ export default function HomeScreen() {
           {/* Deload week suggestion — shown after 4+ consecutive active weeks */}
           {consecutiveActiveWeeks >= 4 && !deloadDismissed && completedSessions.length >= 4 && (
             <Animated.View entering={FadeInDown.duration(300)} style={styles.deloadBanner}>
-              <View style={styles.deloadBannerContent}>
+              <Pressable
+                onPress={() => setDeloadExpanded((v) => !v)}
+                style={styles.deloadBannerContent}
+              >
                 <Ionicons name="moon-outline" size={18} color="#7C6EF0" />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.deloadBannerTitle, { color: C.text }]}>
                     {consecutiveActiveWeeks} weeks straight — consider a deload
                   </Text>
-                  <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
-                    A lighter week now means more progress long-term.
-                  </Text>
+                  {deloadExpanded ? (
+                    <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
+                      {
+                        'Drop to 50–60% of your normal loads this week, keep the same structure. It flushes fatigue, lets joints recover, and supercompensates — your next block starts sharper.'
+                      }
+                    </Text>
+                  ) : (
+                    <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
+                      A lighter week now means more progress long-term. Tap to learn more.
+                    </Text>
+                  )}
                 </View>
-              </View>
+                <Ionicons
+                  name={deloadExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={13}
+                  color="#7C6EF0"
+                />
+              </Pressable>
               <Pressable
                 onPress={() => setDeloadDismissed(true)}
                 hitSlop={10}

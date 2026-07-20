@@ -319,7 +319,7 @@ function RestTimer({
                 <Text style={styles.restTimerAddText}>+15s</Text>
               </Pressable>
               <Pressable onPress={skip} style={styles.restTimerPillSkip}>
-                <Text style={styles.restTimerPillSkipText}>Done resting</Text>
+                <Text style={styles.restTimerPillSkipText}>Skip rest</Text>
               </Pressable>
               <Pressable onPress={reset} style={styles.restTimerIconBtn}>
                 <Ionicons name="refresh-outline" size={14} color={C.textTertiary} />
@@ -500,7 +500,7 @@ export function SessionActiveBar({
   const currentSet = setData?.sets[activeSetIndex];
   const totalSets = setData?.sets.length ?? 1;
 
-  const parsedWeight = parseFloat(weightText) || 0;
+  const parsedWeight = Math.max(0, parseFloat(weightText) || 0);
   const parsedReps = parseInt(repsText) || 0;
   const effectiveWeightKg = displayUnitToKg(parsedWeight, weightUnit);
 
@@ -837,7 +837,7 @@ const ActiveSetBlock = React.forwardRef<
   };
 
   // Effective weight: prefer local weightText (may be pre-filled before blur) over data.weight
-  const parsedWeightText = parseFloat(weightText) || 0;
+  const parsedWeightText = Math.max(0, parseFloat(weightText) || 0);
   const effectiveWeightKg =
     parsedWeightText > 0 ? displayUnitToKg(parsedWeightText, weightUnit) : data.weight;
 
@@ -1780,7 +1780,15 @@ export default function SessionScreen() {
     ? (params.sessionType as SessionType)
     : 'squat';
   const hasAches = params.hasAches === 'true';
-  const painRegion = params.painRegion ? (params.painRegion as PainRegion) : undefined;
+  const painRegion = params.painRegion
+    ? (params.painRegion.split(',')[0] as PainRegion)
+    : undefined;
+  const painRegions: PainRegion[] | undefined = params.painRegion
+    ? params.painRegion
+        .split(',')
+        .filter(Boolean)
+        .map((r) => r as PainRegion)
+    : undefined;
   const energy = VALID_ENERGY.includes(params.energy as EnergyLevel)
     ? (params.energy as EnergyLevel)
     : 'normal';
@@ -1943,7 +1951,12 @@ export default function SessionScreen() {
     return generateWorkout(
       sessionType,
       equipmentTier,
-      { hasAches, painRegion, energy, timeAvailable },
+      {
+        hasAches,
+        painRegion: painRegions && painRegions.length > 0 ? painRegions : painRegion,
+        energy,
+        timeAvailable,
+      },
       userProfile,
       exerciseFeedbackAtStart.current,
       bestOrmKg,

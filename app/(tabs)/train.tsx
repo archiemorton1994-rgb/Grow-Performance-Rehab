@@ -452,12 +452,15 @@ export default function TrainScreen() {
           )}
 
           {isBeginnerExperience && (
-            <View style={styles.beginnerNote}>
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              style={({ pressed }) => [styles.beginnerNote, pressed && { opacity: 0.7 }]}
+            >
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
               <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands - unlock more in profile
+                Bodyweight & Bands — unlock more in Profile →
               </Text>
-            </View>
+            </Pressable>
           )}
 
           {ALL_TIERS.map((tier) => {

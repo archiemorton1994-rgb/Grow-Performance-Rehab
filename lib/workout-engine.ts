@@ -61,7 +61,7 @@ export interface Exercise {
 
 interface ReadinessCheck {
   hasAches: boolean;
-  painRegion?: PainRegion;
+  painRegion?: PainRegion | PainRegion[];
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
 }
@@ -365,15 +365,19 @@ function personalizeLoad(
   });
 }
 
-function shouldSwapForComfort(template: ExerciseTemplate, painRegion?: PainRegion): boolean {
+function shouldSwapForComfort(
+  template: ExerciseTemplate,
+  painRegion?: PainRegion | PainRegion[]
+): boolean {
   if (!painRegion || !template.comfortVariant) return false;
-  return template.comfortVariant.triggerRegions.includes(painRegion);
+  const regions = Array.isArray(painRegion) ? painRegion : [painRegion];
+  return regions.some((r) => template.comfortVariant!.triggerRegions.includes(r));
 }
 
 function applyComfortOrBadge(
   template: ExerciseTemplate,
   hasAches: boolean,
-  painRegion: PainRegion | undefined,
+  painRegion: PainRegion | PainRegion[] | undefined,
   tier: EquipmentTier,
   overrideSets?: number,
   overrideCategory?: ExerciseCategory
@@ -594,7 +598,10 @@ export function generateWorkout(
   }
   if (sessionType === 'prehab') {
     if (readiness?.painRegion) {
-      return getRegionPrehabWorkout(readiness.painRegion).map((t) => templateToExercise(t));
+      const primaryRegion = Array.isArray(readiness.painRegion)
+        ? readiness.painRegion[0]
+        : readiness.painRegion;
+      return getRegionPrehabWorkout(primaryRegion).map((t) => templateToExercise(t));
     }
     // Standalone prehab: rotate the middle exercise pool so users see
     // fresh joint-health work across sessions rather than the same 7 each time.
@@ -787,7 +794,9 @@ export function generateWorkout(
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
   if (timeAvailable !== '30') {
     const prehabTemplate = readiness?.painRegion
-      ? getRegionPrehabExercise(readiness.painRegion)
+      ? getRegionPrehabExercise(
+          Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion
+        )
       : getPrehab(mainType, equipmentTier)[0];
     const phEx = templateToExercise(prehabTemplate);
     phEx.sets = 1;
@@ -933,7 +942,7 @@ function generateWeeklyWorkout(
   // ── 3. Prehab (45 min only — 60 min uses finisher instead) ────────────────
   if (timeAvailable === '45') {
     const prehabTemplate = painRegion
-      ? getRegionPrehabExercise(painRegion)
+      ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion)
       : getPrehab(
           sessionType === 'upper_body'
             ? 'bench'

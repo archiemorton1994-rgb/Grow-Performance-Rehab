@@ -210,6 +210,8 @@ const REGION_ANCHOR: Record<PainRegion, { x: number; y: number }> = {
 interface BodyDiagramProps {
   selected?: PainRegion | undefined;
   onSelect: (region: PainRegion | undefined) => void;
+  /** Multi-select: all currently selected regions (highlighted alongside `selected`) */
+  selectedRegions?: PainRegion[];
   accentColor?: string;
   accentColorLight?: string;
   defaultView?: BodyView;
@@ -241,6 +243,7 @@ interface BodyDiagramProps {
 export function BodyDiagram({
   selected,
   onSelect,
+  selectedRegions,
   accentColor,
   accentColorLight,
   defaultView = 'front',
@@ -577,7 +580,7 @@ export function BodyDiagram({
     }
 
     for (const [region, slugs] of Object.entries(slugMap) as [PainRegion, Slug[]][]) {
-      const isSelected = selected === region;
+      const isSelected = selected === region || (selectedRegions?.includes(region) ?? false);
       const isMuscle = MUSCLE_SET.has(region);
       const inCategory = category === 'muscles' ? isMuscle : !isMuscle;
       for (const slug of slugs) {
@@ -591,7 +594,7 @@ export function BodyDiagram({
       }
     }
     return result;
-  }, [view, selected, category, heatmapCounts]);
+  }, [view, selected, selectedRegions, category, heatmapCounts]);
 
   // ─── Library press handler ─────────────────────────────────────────────────────
   const handleBodyPartPress = (bodyPart: ExtendedBodyPart) => {
@@ -611,7 +614,11 @@ export function BodyDiagram({
     }
   };
 
-  const label = selected ? BODY_DIAGRAM_LABELS[selected] : null;
+  const label = selected
+    ? BODY_DIAGRAM_LABELS[selected]
+    : selectedRegions?.length
+      ? selectedRegions.map((r) => BODY_DIAGRAM_LABELS[r]).join(' · ')
+      : null;
 
   // defaultFill: body silhouette — warm dark ink on light bg, white on dark panel/compact, themed otherwise
   const defaultFill = lightBg

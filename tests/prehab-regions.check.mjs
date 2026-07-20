@@ -272,7 +272,8 @@ check(
 
 check(
   'workout-engine.ts calls getRegionPrehabWorkout when painRegion is set',
-  engineSrc.includes('getRegionPrehabWorkout(readiness.painRegion)'),
+  engineSrc.includes('getRegionPrehabWorkout(readiness.painRegion)') ||
+    (engineSrc.includes('readiness?.painRegion') && engineSrc.includes('getRegionPrehabWorkout(')),
   'wiring between session generator and region workout builder is broken'
 );
 

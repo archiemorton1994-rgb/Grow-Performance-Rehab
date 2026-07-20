@@ -1158,9 +1158,24 @@ function StrengthLineChart({
             {formatWeight(data[0].weight, weightUnit)}
           </Text>
         </View>
-        <View style={{ height: LINE_CHART_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-            1 record - keep training!
+        <View
+          style={{
+            height: LINE_CHART_HEIGHT,
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: colors.line,
+            }}
+          />
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+            Keep training to see your progress line
           </Text>
         </View>
       </View>
@@ -1760,6 +1775,38 @@ function SessionHistoryList({
                   </Text>
                 </View>
               )}
+            {isExpanded && !!session.notes && (
+              <View
+                style={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 12,
+                  paddingTop: 8,
+                  borderTopWidth: 1,
+                  borderTopColor: C.borderLight,
+                  flexDirection: 'row',
+                  gap: 6,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={12}
+                  color={C.textTertiary}
+                  style={{ marginTop: 1 }}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_400Regular',
+                    color: C.textSecondary,
+                    flex: 1,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {session.notes}
+                </Text>
+              </View>
+            )}
           </View>
         );
       })}
