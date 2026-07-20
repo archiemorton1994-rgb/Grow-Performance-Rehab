@@ -2521,7 +2521,7 @@ export default function SessionScreen() {
       ? []
       : exercises.map((ex, i) => {
           const rating = inSessionFeedback[ex.id];
-          const cardio = cardioLogs[i] ?? undefined;
+          const cardio = exerciseData[i]?.cardioData ?? undefined;
           return {
             exerciseId: ex.id,
             exerciseName: ex.name,

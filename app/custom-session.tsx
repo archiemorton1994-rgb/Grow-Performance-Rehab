@@ -153,6 +153,7 @@ export default function CustomSessionScreen() {
   const [freshFirst, setFreshFirst] = useState(false);
   const [selected, setSelected] = useState<SelectedExercise[]>([]);
   const [selectedCardio, setSelectedCardio] = useState<SelectedCardioExercise[]>([]);
+  const [otherCardioName, setOtherCardioName] = useState('');
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
   const [editReps, setEditReps] = useState('');
@@ -583,8 +584,10 @@ export default function CustomSessionScreen() {
         const option = CARDIO_OPTIONS.find((o) => o.id === ex.id) ?? CARDIO_OPTIONS[4];
         return { id: ex.id, name: ex.name, icon: option.icon, cue: ex.cue };
       });
+      const restoredOtherName = cardioExs.find((ex) => ex.id === 'cardio-other')?.name ?? '';
       setSelected(newSelected);
       setSelectedCardio(newCardio);
+      setOtherCardioName(restoredOtherName === 'Other Cardio' ? '' : restoredOtherName);
       setLoadedTemplateId(tmpl.id);
       setSearch('');
       setCategoryFilter('all');
@@ -1068,74 +1071,133 @@ export default function CustomSessionScreen() {
         >
           {CARDIO_OPTIONS.map((opt) => {
             const isSelected = selectedCardio.some((c) => c.id === opt.id);
+            const isOther = opt.id === 'cardio-other';
             return (
-              <Pressable
-                key={opt.id}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (isSelected) {
-                    setSelectedCardio((prev) => prev.filter((c) => c.id !== opt.id));
-                  } else {
-                    setSelectedCardio((prev) => [
-                      ...prev,
-                      { id: opt.id, name: opt.name, icon: opt.icon, cue: opt.cue },
-                    ]);
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.exerciseCard,
-                  isSelected && styles.exerciseCardSelected,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={styles.exerciseCardLeft}>
-                  <View
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={18}
-                      color={isSelected ? C.primary : C.textSecondary}
-                    />
-                    <Text style={[styles.exerciseName, isSelected && { color: C.primary }]}>
-                      {opt.name}
-                    </Text>
+              <React.Fragment key={opt.id}>
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== 'web')
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (isSelected) {
+                      setSelectedCardio((prev) => prev.filter((c) => c.id !== opt.id));
+                      if (isOther) setOtherCardioName('');
+                    } else {
+                      const name = isOther ? otherCardioName.trim() || 'Other Cardio' : opt.name;
+                      setSelectedCardio((prev) => [
+                        ...prev,
+                        { id: opt.id, name, icon: opt.icon, cue: opt.cue },
+                      ]);
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.exerciseCard,
+                    isSelected && styles.exerciseCardSelected,
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <View style={styles.exerciseCardLeft}>
                     <View
                       style={{
-                        backgroundColor: C.primaryMuted,
-                        borderRadius: 8,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 4,
                       }}
                     >
-                      <Text
+                      <Ionicons
+                        name={opt.icon}
+                        size={18}
+                        color={isSelected ? C.primary : C.textSecondary}
+                      />
+                      <Text style={[styles.exerciseName, isSelected && { color: C.primary }]}>
+                        {opt.name}
+                      </Text>
+                      <View
                         style={{
-                          fontSize: 10,
-                          fontFamily: 'Inter_600SemiBold',
-                          color: C.primary,
-                          textTransform: 'uppercase' as const,
-                          letterSpacing: 0.4,
+                          backgroundColor: C.primaryMuted,
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
                         }}
                       >
-                        Cardio
-                      </Text>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontFamily: 'Inter_600SemiBold',
+                            color: C.primary,
+                            textTransform: 'uppercase' as const,
+                            letterSpacing: 0.4,
+                          }}
+                        >
+                          Cardio
+                        </Text>
+                      </View>
                     </View>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontFamily: 'Inter_400Regular',
+                        color: C.textSecondary,
+                      }}
+                      numberOfLines={2}
+                    >
+                      {opt.cue}
+                    </Text>
                   </View>
-                  <Text
+                  <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
+                    {isSelected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+                  </View>
+                </Pressable>
+                {isOther && isSelected && (
+                  <View
                     style={{
-                      fontSize: 12,
-                      fontFamily: 'Inter_400Regular',
-                      color: C.textSecondary,
+                      marginHorizontal: 0,
+                      marginTop: -4,
+                      marginBottom: 8,
+                      backgroundColor: C.surfaceSecondary,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: C.primary,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
                     }}
-                    numberOfLines={2}
                   >
-                    {opt.cue}
-                  </Text>
-                </View>
-                <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
-                  {isSelected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
-                </View>
-              </Pressable>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Inter_500Medium',
+                        color: C.textSecondary,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Name this exercise (optional)
+                    </Text>
+                    <TextInput
+                      style={{
+                        fontSize: 14,
+                        fontFamily: 'Inter_400Regular',
+                        color: C.text,
+                        paddingVertical: 0,
+                      }}
+                      value={otherCardioName}
+                      onChangeText={(text) => {
+                        setOtherCardioName(text);
+                        setSelectedCardio((prev) =>
+                          prev.map((c) =>
+                            c.id === 'cardio-other'
+                              ? { ...c, name: text.trim() || 'Other Cardio' }
+                              : c
+                          )
+                        );
+                      }}
+                      placeholder="e.g. Jump rope, Assault bike…"
+                      placeholderTextColor={C.textTertiary}
+                      returnKeyType="done"
+                      maxLength={40}
+                    />
+                  </View>
+                )}
+              </React.Fragment>
             );
           })}
         </ScrollView>
