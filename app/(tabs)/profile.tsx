@@ -13,6 +13,7 @@ import {
   Linking,
   Image,
 } from 'react-native';
+import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import {
+  BodyweightLogEntry,
   EquipmentTier,
   ExperienceLevel,
   FitnessGoal,
@@ -83,6 +85,160 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
 
 type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | null;
 
+// ─── Bodyweight Sparkline ──────────────────────────────────────────────────────
+function BodyweightSparkline({
+  entries,
+  weightUnit,
+  onPress,
+}: {
+  entries: BodyweightLogEntry[];
+  weightUnit: WeightUnit;
+  onPress: () => void;
+}) {
+  const C = useColors();
+  const [chartWidth, setChartWidth] = useState(0);
+
+  const CHART_H = 64;
+  const PAD_L = 42;
+  const PAD_R = 10;
+  const PAD_T = 10;
+  const PAD_B = 10;
+
+  const filtered = useMemo(() => {
+    const cutoffMs = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    return entries
+      .filter((e) => new Date(e.date).getTime() >= cutoffMs)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [entries]);
+
+  if (filtered.length < 2) return null;
+
+  const weights = filtered.map((e) => kgToDisplayUnit(e.kg, weightUnit));
+  const minW = Math.min(...weights);
+  const maxW = Math.max(...weights);
+  const wRange = maxW === minW ? 1 : maxW - minW;
+
+  const timestamps = filtered.map((e) => new Date(e.date).getTime());
+  const minTs = timestamps[0];
+  const maxTs = timestamps[timestamps.length - 1];
+  const tsRange = maxTs === minTs ? 1 : maxTs - minTs;
+
+  const plotW = Math.max(0, chartWidth - PAD_L - PAD_R);
+  const plotH = CHART_H - PAD_T - PAD_B;
+
+  const toX = (ts: number) => PAD_L + ((ts - minTs) / tsRange) * plotW;
+  const toY = (w: number) => PAD_T + plotH - ((w - minW) / wRange) * plotH;
+
+  const points =
+    chartWidth > 0
+      ? filtered.map((e, i) => `${toX(timestamps[i])},${toY(weights[i])}`).join(' ')
+      : '';
+
+  const fmtW = (w: number) => (w % 1 === 0 ? String(w) : w.toFixed(1));
+  const spanDays = Math.ceil((maxTs - minTs) / 86400000);
+  const spanLabel = spanDays <= 0 ? '' : spanDays === 1 ? '1 day' : `${spanDays} days`;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          backgroundColor: C.surface,
+          borderRadius: 16,
+          paddingHorizontal: 16,
+          paddingTop: 14,
+          paddingBottom: 12,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: C.borderLight,
+        },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_600SemiBold',
+            color: C.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+          }}
+        >
+          Bodyweight Trend
+        </Text>
+        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          {filtered.length} entries{spanLabel ? ` · ${spanLabel}` : ''}
+        </Text>
+      </View>
+      <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)} style={{ height: CHART_H }}>
+        {chartWidth > 0 && (
+          <Svg width={chartWidth} height={CHART_H}>
+            <Line
+              x1={PAD_L}
+              y1={PAD_T}
+              x2={chartWidth - PAD_R}
+              y2={PAD_T}
+              stroke={C.borderLight}
+              strokeWidth="1"
+            />
+            <Line
+              x1={PAD_L}
+              y1={CHART_H - PAD_B}
+              x2={chartWidth - PAD_R}
+              y2={CHART_H - PAD_B}
+              stroke={C.borderLight}
+              strokeWidth="1"
+            />
+            <SvgText
+              x={PAD_L - 5}
+              y={PAD_T + 4}
+              fill={C.textTertiary}
+              textAnchor="end"
+              fontSize={10}
+            >
+              {fmtW(maxW)}
+            </SvgText>
+            <SvgText
+              x={PAD_L - 5}
+              y={CHART_H - PAD_B + 4}
+              fill={C.textTertiary}
+              textAnchor="end"
+              fontSize={10}
+            >
+              {fmtW(minW)}
+            </SvgText>
+            <Polyline
+              points={points}
+              fill="none"
+              stroke={C.primary}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {filtered.map((e, i) => (
+              <Circle
+                key={e.date}
+                cx={toX(timestamps[i])}
+                cy={toY(weights[i])}
+                r={filtered.length <= 10 ? 3 : 2}
+                fill={C.primary}
+              />
+            ))}
+          </Svg>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -121,6 +277,7 @@ export default function ProfileScreen() {
     setTourComplete,
     weeklyStreakGoal,
     setWeeklyStreakGoal,
+    bodyweightLog,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -406,6 +563,16 @@ export default function ProfileScreen() {
             </View>
           )}
         </Animated.View>
+
+        {bodyweightLog.length >= 2 && (
+          <Animated.View entering={FadeInDown.delay(50).duration(400)}>
+            <BodyweightSparkline
+              entries={bodyweightLog}
+              weightUnit={weightUnit}
+              onPress={openBodyweight}
+            />
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsCard}>
           <View style={styles.stat}>

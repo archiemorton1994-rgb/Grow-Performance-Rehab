@@ -234,6 +234,13 @@ export interface ExerciseProgress {
 
 export type Sex = 'male' | 'female' | 'other';
 
+export interface BodyweightLogEntry {
+  /** ISO date string (YYYY-MM-DD). */
+  date: string;
+  /** Weight in kg. */
+  kg: number;
+}
+
 export interface UserProfile {
   name: string;
   sex: Sex;
@@ -274,6 +281,8 @@ interface AppState {
   weightUnit: WeightUnit;
   /** ISO timestamp of the last time bodyweightKg was explicitly updated. Null if never updated via app. */
   bodyweightUpdatedAt: string | null;
+  /** Chronological log of bodyweight updates. One entry per day (latest value wins). */
+  bodyweightLog: BodyweightLogEntry[];
   /** ISO timestamp of when the bodyweight reminder was last snoozed (dismissed without saving). */
   weightReminderSnoozedAt: string | null;
   lastWeightPromptedAt: number | null;
@@ -456,6 +465,7 @@ export const useAppStore = create<AppState>()(
       readinessTutorialShown: false,
       sessionTutorialShown: false,
       bodyweightUpdatedAt: null,
+      bodyweightLog: [],
       weightReminderSnoozedAt: null,
       sessionEquipmentOverride: null,
       earnedBadges: [],
@@ -470,12 +480,20 @@ export const useAppStore = create<AppState>()(
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       setUserProfile: (profile) => {
-        set((state) => ({
-          userProfile: { ...state.userProfile, ...profile },
-          ...(profile.bodyweightKg !== undefined
-            ? { bodyweightUpdatedAt: new Date().toISOString() }
-            : {}),
-        }));
+        set((state) => {
+          if (profile.bodyweightKg !== undefined && profile.bodyweightKg > 0) {
+            const today = new Date().toISOString().slice(0, 10);
+            return {
+              userProfile: { ...state.userProfile, ...profile },
+              bodyweightUpdatedAt: new Date().toISOString(),
+              bodyweightLog: [
+                ...state.bodyweightLog.filter((e) => e.date !== today),
+                { date: today, kg: profile.bodyweightKg },
+              ],
+            };
+          }
+          return { userProfile: { ...state.userProfile, ...profile } };
+        });
         get().awardNewBadges();
       },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
@@ -1071,9 +1089,12 @@ export const useAppStore = create<AppState>()(
         if (!('sessionTutorialShown' in persistedState)) {
           persistedState.sessionTutorialShown = (persistedState.completedSessions?.length ?? 0) > 0;
         }
+        if (!persistedState.bodyweightLog) {
+          persistedState.bodyweightLog = [];
+        }
         return persistedState;
       },
-      version: 23,
+      version: 24,
     }
   )
 );
