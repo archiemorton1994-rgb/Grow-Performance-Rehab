@@ -4,8 +4,6 @@ import Animated, {
   FadeInDown,
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,7 +43,7 @@ interface CoachMarkProps {
   upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
-  /** When provided, renders a pulsing ring around the described rect. */
+  /** When provided, renders a spotlight (dim overlay) around the described rect. */
   spotlightRect?: SpotlightRect;
 }
 
@@ -69,37 +67,19 @@ export default function CoachMark({
 }: CoachMarkProps) {
   const C = useColors();
 
-  // ── Pulsing ring animation ────────────────────────────────────────────────
+  // ── Spotlight dim animation ───────────────────────────────────────────────
   // Hooks must be called unconditionally (before any early return).
-  const pulseScale = useSharedValue(1);
-  const pulseOpacity = useSharedValue(0);
+  const dimOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible && spotlightRect) {
-      // Fade in, then loop breathe: opacity 0.85 ↔ 0.25, scale 1.0 ↔ 1.07
-      pulseScale.value = withRepeat(
-        withSequence(withTiming(1.07, { duration: 750 }), withTiming(1.0, { duration: 750 })),
-        -1,
-        false
-      );
-      pulseOpacity.value = withSequence(
-        withTiming(0.85, { duration: 300 }),
-        withRepeat(
-          withSequence(withTiming(0.25, { duration: 750 }), withTiming(0.85, { duration: 750 })),
-          -1,
-          false
-        )
-      );
+      dimOpacity.value = withTiming(0.78, { duration: 220 });
     } else {
-      pulseScale.value = withTiming(1, { duration: 150 });
-      pulseOpacity.value = withTiming(0, { duration: 150 });
+      dimOpacity.value = withTiming(0, { duration: 150 });
     }
   }, [visible, spotlightRect?.left, spotlightRect?.top]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pulseRingStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-    opacity: pulseOpacity.value,
-  }));
+  const dimStyle = useAnimatedStyle(() => ({ opacity: dimOpacity.value }));
 
   // Keep a live ref so the PanResponder (created once via useRef) always calls
   // the latest onSwipeLeft prop rather than the stale initial closure value.
@@ -139,28 +119,72 @@ export default function CoachMark({
     : 0;
 
   const sr = spotlightRect;
+  const sr_r = sr ? (sr.borderRadius ?? 12) : 12;
 
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
     // pass through the transparent area; only the card itself captures input.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-      {/* ── Spotlight: pulsing ring around the target element ─────────── */}
+      {/* ── Spotlight: 4 dark strips framing the cut-out window ────────── */}
       {sr && (
-        <Animated.View
-          style={[
-            styles.pulseRing,
-            {
-              top: sr.top - 6,
-              left: sr.left - 6,
-              width: sr.width + 12,
-              height: sr.height + 12,
-              borderRadius: (sr.borderRadius ?? 12) + 6,
-              borderColor: C.primary,
-            },
-            pulseRingStyle,
-          ]}
-          pointerEvents="none"
-        />
+        <>
+          {/* Top strip — covers screen above the element */}
+          <Animated.View
+            style={[styles.dimStrip, { top: 0, left: 0, right: 0, height: sr.top }, dimStyle]}
+            pointerEvents="none"
+          />
+          {/* Bottom strip — covers screen below the element */}
+          <Animated.View
+            style={[
+              styles.dimStrip,
+              { top: sr.top + sr.height, left: 0, right: 0, bottom: 0 },
+              dimStyle,
+            ]}
+            pointerEvents="none"
+          />
+          {/* Left strip — covers left of the element (same row height) */}
+          <Animated.View
+            style={[
+              styles.dimStrip,
+              { top: sr.top, left: 0, width: sr.left, height: sr.height },
+              dimStyle,
+            ]}
+            pointerEvents="none"
+          />
+          {/* Right strip — covers right of the element (same row height) */}
+          <Animated.View
+            style={[
+              styles.dimStrip,
+              {
+                top: sr.top,
+                left: sr.left + sr.width,
+                right: 0,
+                height: sr.height,
+              },
+              dimStyle,
+            ]}
+            pointerEvents="none"
+          />
+
+          {/* Glow border — soft white ring around the illuminated cut-out */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: sr.top - 2,
+              left: sr.left - 2,
+              width: sr.width + 4,
+              height: sr.height + 4,
+              borderRadius: sr_r + 2,
+              borderWidth: 1.5,
+              borderColor: 'rgba(255,255,255,0.32)',
+              shadowColor: '#fff',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.22,
+              shadowRadius: 10,
+            }}
+          />
+        </>
       )}
 
       {/* Down-pointing arrow — between card bottom and tab bar */}
@@ -271,11 +295,11 @@ const styles = StyleSheet.create({
     zIndex: 200,
     pointerEvents: 'box-none',
   },
-  // Pulsing ring that traces the spotlighted element — purely decorative.
-  pulseRing: {
+  // Dark strip — one of four that form the spotlight dim overlay.
+  // backgroundColor is solid black; opacity is animated on each strip.
+  dimStrip: {
     position: 'absolute',
-    borderWidth: 2.5,
-    backgroundColor: 'transparent',
+    backgroundColor: '#000',
   },
   positioner: {
     position: 'absolute',
