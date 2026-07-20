@@ -117,9 +117,11 @@ function getSessionTypeColors(
 // ─── Training Calendar Grid ────────────────────────────────────────────────────
 function TrainingCalendarGrid({
   sessions,
+  onNavigateToDate,
   C,
 }: {
   sessions: CompletedSession[];
+  onNavigateToDate?: (dateStr: string) => void;
   C: ReturnType<typeof useColors>;
 }) {
   const calScrollRef = useRef<ScrollView>(null);
@@ -427,6 +429,31 @@ function TrainingCalendarGrid({
               </View>
             );
           })}
+          {onNavigateToDate && selectedDayKey && (
+            <Pressable
+              onPress={() => {
+                onNavigateToDate(selectedDayKey);
+                setSelectedDayKey(null);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                marginTop: 10,
+                paddingVertical: 8,
+                borderRadius: 8,
+                backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                borderWidth: 1,
+                borderColor: C.primaryMuted,
+              })}
+            >
+              <Ionicons name="list-outline" size={14} color={C.primary} />
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                View in history
+              </Text>
+            </Pressable>
+          )}
         </Animated.View>
       )}
 
@@ -1151,9 +1178,11 @@ function WeeklyVolumeChart({
 
 function MonthCalendar({
   sessions,
+  onNavigateToDate,
   C,
 }: {
   sessions: CompletedSession[];
+  onNavigateToDate?: (dateStr: string) => void;
   C: ReturnType<typeof useColors>;
 }) {
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -1431,6 +1460,31 @@ function MonthCalendar({
               )}
             </View>
           ))}
+          {onNavigateToDate && selectedDate && (
+            <Pressable
+              onPress={() => {
+                onNavigateToDate(selectedDate);
+                setSelectedDate(null);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                marginTop: 10,
+                paddingVertical: 8,
+                borderRadius: 8,
+                backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
+                borderWidth: 1,
+                borderColor: C.primaryMuted,
+              })}
+            >
+              <Ionicons name="list-outline" size={14} color={C.primary} />
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                View in history
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -3633,6 +3687,7 @@ export default function StatsScreen() {
   const [painOverviewSelected, setPainOverviewSelected] = useState<PainRegion | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [painPatternsExpanded, setPainPatternsExpanded] = useState(false);
+  const [specificDateFilter, setSpecificDateFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (historyFilter && !completedSessions.some((s) => s.sessionType === historyFilter)) {
@@ -3717,9 +3772,10 @@ export default function StatsScreen() {
       if (historyFilter && s.sessionType !== historyFilter) return false;
       if (cutoff && new Date(s.date) < cutoff) return false;
       if (painRegionFilter && s.painRegion !== painRegionFilter) return false;
+      if (specificDateFilter && s.date.slice(0, 10) !== specificDateFilter) return false;
       return true;
     });
-  }, [completedSessions, historyFilter, dateFilter, painRegionFilter]);
+  }, [completedSessions, historyFilter, dateFilter, painRegionFilter, specificDateFilter]);
 
   const DATE_FILTER_LABELS: Record<typeof dateFilter, string> = {
     all: 'All',
@@ -3732,13 +3788,22 @@ export default function StatsScreen() {
     this_month: 'this month',
   };
 
-  const historyHeading = painRegionFilter
-    ? `${BODY_DIAGRAM_LABELS[painRegionFilter]} Pain`
-    : historyFilter
-      ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions`
-      : 'Session History';
+  const historyHeading = specificDateFilter
+    ? new Date(specificDateFilter + 'T12:00:00').toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })
+    : painRegionFilter
+      ? `${BODY_DIAGRAM_LABELS[painRegionFilter]} Pain`
+      : historyFilter
+        ? `${SESSION_TYPE_LABELS[historyFilter]} Sessions`
+        : 'Session History';
   const hasActiveFilter =
-    historyFilter !== null || dateFilter !== 'all' || painRegionFilter !== null;
+    historyFilter !== null ||
+    dateFilter !== 'all' ||
+    painRegionFilter !== null ||
+    specificDateFilter !== null;
   const sessionWord = `session${filteredSessions.length !== 1 ? 's' : ''}`;
   const scope = DATE_FILTER_SCOPE[dateFilter];
   const historySubheading = hasActiveFilter
@@ -3746,6 +3811,9 @@ export default function StatsScreen() {
     : 'Tap a row to see exercise details';
 
   const historyEmptyMessage = (() => {
+    if (specificDateFilter) {
+      return `No sessions on ${new Date(specificDateFilter + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;
+    }
     if (painRegionFilter) {
       const regionName = BODY_DIAGRAM_LABELS[painRegionFilter];
       return `No sessions with ${regionName} flagged${scope ? ` ${scope}` : ''}`;
@@ -3881,7 +3949,17 @@ export default function StatsScreen() {
               </View>
 
               {/* 12-week consistency calendar */}
-              <TrainingCalendarGrid sessions={completedSessions} C={C} />
+              <TrainingCalendarGrid
+                sessions={completedSessions}
+                onNavigateToDate={(dateStr) => {
+                  setSpecificDateFilter(dateStr);
+                  setDateFilter('all');
+                  setHistoryFilter(null);
+                  setPainRegionFilter(null);
+                  setActiveTab('history');
+                }}
+                C={C}
+              />
 
               {/* Primary chart — training frequency */}
               <WeeklyBarChart sessions={completedSessions} C={C} />
@@ -4442,6 +4520,7 @@ export default function StatsScreen() {
                       setHistoryFilter(null);
                       setDateFilter('all');
                       setPainRegionFilter(null);
+                      setSpecificDateFilter(null);
                     }}
                     style={({ pressed }) => ({
                       flexDirection: 'row',
@@ -4598,7 +4677,7 @@ export default function StatsScreen() {
               )}
 
               <SessionHistoryList
-                key={`${historyFilter ?? 'all'}-${dateFilter}-${painRegionFilter ?? 'none'}`}
+                key={`${historyFilter ?? 'all'}-${dateFilter}-${painRegionFilter ?? 'none'}-${specificDateFilter ?? 'any'}`}
                 sessions={filteredSessions}
                 weightUnit={weightUnit}
                 emptyMessage={historyEmptyMessage}
@@ -4688,7 +4767,18 @@ export default function StatsScreen() {
               paddingBottom: insets.bottom + 16,
             }}
           >
-            <MonthCalendar sessions={completedSessions} C={C} />
+            <MonthCalendar
+              sessions={completedSessions}
+              onNavigateToDate={(dateStr) => {
+                setShowCalendar(false);
+                setSpecificDateFilter(dateStr);
+                setDateFilter('all');
+                setHistoryFilter(null);
+                setPainRegionFilter(null);
+                setActiveTab('history');
+              }}
+              C={C}
+            />
           </ScrollView>
         </View>
       </Modal>
