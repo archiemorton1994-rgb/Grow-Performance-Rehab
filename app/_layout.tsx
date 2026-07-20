@@ -41,8 +41,9 @@ import { BADGE_MAP, Badge } from '@/lib/badges';
 import AchievementUnlockedSheet from '@/components/AchievementUnlockedSheet';
 
 /** A toast queue item: either an individual badge or a batched-summary token. */
-type ToastItem = Badge | { readonly isSummary: true; count: number };
-const isSummaryToast = (t: ToastItem): t is { readonly isSummary: true; count: number } =>
+type SummaryToast = { readonly isSummary: true; count: number; badgeIds: string[] };
+type ToastItem = Badge | SummaryToast;
+const isSummaryToast = (t: ToastItem): t is SummaryToast =>
   'isSummary' in t && (t as { isSummary?: unknown }).isSummary === true;
 
 if (!__DEV__) {
@@ -336,7 +337,10 @@ function RootLayoutNav() {
     if (newIds.length >= 2) {
       // Batch simultaneous unlocks into a single summary toast so the user
       // doesn't get a parade of sequential pop-ups (especially on first use).
-      setToastQueue((q) => [...q, { isSummary: true as const, count: newIds.length }]);
+      setToastQueue((q) => [
+        ...q,
+        { isSummary: true as const, count: newIds.length, badgeIds: newIds },
+      ]);
     } else {
       const badge = BADGE_MAP.get(newIds[0]);
       if (badge) setToastQueue((q) => [...q, badge]);
@@ -485,6 +489,10 @@ function RootLayoutNav() {
         (isSummaryToast(currentToast) ? (
           <AchievementUnlockedSheet
             badgeCount={currentToast.count}
+            badges={currentToast.badgeIds.flatMap((id) => {
+              const b = BADGE_MAP.get(id);
+              return b ? [b] : [];
+            })}
             sessionCount={completedSessions.length}
             onDismiss={() => setCurrentToast(null)}
           />

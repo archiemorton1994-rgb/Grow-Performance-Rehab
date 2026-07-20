@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
+import { Badge } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ENTER_MS = 300;
@@ -24,6 +25,9 @@ interface AchievementUnlockedSheetProps {
   badgeIcon?: string;
   badgeColor?: string;
   sessionCount?: number;
+  /** Resolved Badge objects — provided for the 2–4 simultaneous case so we
+   *  can render individual icons + names instead of a generic subtitle. */
+  badges?: Badge[];
   onDismiss: () => void;
 }
 
@@ -33,6 +37,7 @@ export default function AchievementUnlockedSheet({
   badgeIcon,
   badgeColor,
   sessionCount,
+  badges,
   onDismiss,
 }: AchievementUnlockedSheetProps) {
   const C = useColors();
@@ -73,6 +78,8 @@ export default function AchievementUnlockedSheet({
   };
 
   const isSingle = badgeCount === 1;
+  // 2–4 simultaneous badges: show individual icons + names instead of generic subtitle
+  const isSmallBatch = !isSingle && badgeCount <= 4 && !!badges?.length;
   const accent = isSingle ? (badgeColor ?? C.primary) : ACHIEVEMENT_GOLD;
   const iconName = isSingle ? (badgeIcon ?? 'trophy') : 'trophy';
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
@@ -122,9 +129,34 @@ export default function AchievementUnlockedSheet({
 
             {/* Heading */}
             <Text style={[styles.title, { color: C.text }]}>{title}</Text>
-            <Text style={[styles.subtitle, { color: C.textSecondary }]} numberOfLines={2}>
-              {subtitle}
-            </Text>
+
+            {/* For 2–4 simultaneous badges: show each badge icon + name */}
+            {isSmallBatch ? (
+              <View style={styles.badgeRow}>
+                {badges!.map((b) => (
+                  <View key={b.id} style={styles.badgeRowItem}>
+                    <View
+                      style={[
+                        styles.badgeRowRing,
+                        { backgroundColor: b.color + '18', borderColor: b.color + '44' },
+                      ]}
+                    >
+                      <Ionicons name={b.icon as any} size={22} color={b.color} />
+                    </View>
+                    <Text
+                      style={[styles.badgeRowName, { color: C.textSecondary }]}
+                      numberOfLines={2}
+                    >
+                      {b.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={[styles.subtitle, { color: C.textSecondary }]} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            )}
             {sessionsToGo != null && sessionsToGo > 0 && (
               <Text style={[styles.milestoneHint, { color: C.textTertiary }]}>
                 {sessionsToGo === 1
@@ -244,5 +276,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: -2,
     marginBottom: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 10,
+    alignSelf: 'stretch',
+  },
+  badgeRowItem: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    maxWidth: 72,
+  },
+  badgeRowRing: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeRowName: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    lineHeight: 15,
   },
 });
