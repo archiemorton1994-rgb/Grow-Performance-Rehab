@@ -23,6 +23,7 @@ import Animated, {
   FadeInDown,
   FadeInUp,
   FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -435,6 +436,7 @@ interface SessionActiveBarProps {
   isCardioExercise: boolean;
   onSetChange: (exerciseIndex: number, setIndex: number, updated: SetLog) => void;
   onSetCompleted: () => void;
+  onNewPb?: () => void;
   onFeedback: (exerciseId: string, f: 'easy' | 'hard') => void;
   onCompleteSession: () => void;
   bottomInset: number;
@@ -457,6 +459,7 @@ export function SessionActiveBar({
   isCardioExercise,
   onSetChange,
   onSetCompleted,
+  onNewPb,
   onFeedback,
   onCompleteSession,
   bottomInset,
@@ -534,6 +537,7 @@ export function SessionActiveBar({
       reps: parsedReps,
       completed: true,
     });
+    if (isNewRecord) onNewPb?.();
     onSetCompleted();
     setShowFeedback(true);
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
@@ -1080,6 +1084,7 @@ export function ExerciseCard({
   noteVisible = false,
   onToggleNote,
   onCardioLog,
+  showPbFlash = false,
 }: {
   exercise: Exercise;
   index: number;
@@ -1105,6 +1110,7 @@ export function ExerciseCard({
   noteVisible?: boolean;
   onToggleNote?: () => void;
   onCardioLog?: (data: CardioLogData) => void;
+  showPbFlash?: boolean;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1285,6 +1291,15 @@ export function ExerciseCard({
                           </Text>
                         </View>
                       )}
+                    {showPbFlash && (
+                      <Animated.View
+                        entering={FadeInDown.duration(300).springify()}
+                        exiting={FadeOut.duration(400)}
+                        style={styles.pbFlashBadge}
+                      >
+                        <Text style={styles.pbFlashBadgeText}>New PB 🏆</Text>
+                      </Animated.View>
+                    )}
                   </View>
                   <View style={styles.exerciseMeta}>
                     <View style={[styles.categoryPill, { backgroundColor: cat.bg }]}>
@@ -2087,6 +2102,19 @@ export default function SessionScreen() {
     setBarTimerTrigger((n) => n + 1);
   }, []);
 
+  const [pbFlashIndex, setPbFlashIndex] = useState<number | null>(null);
+  const pbShownRef = useRef<Set<number>>(new Set());
+  const pbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleNewPb = useCallback(() => {
+    const idx = activeIndexRef.current;
+    if (pbShownRef.current.has(idx)) return;
+    pbShownRef.current.add(idx);
+    if (pbTimerRef.current) clearTimeout(pbTimerRef.current);
+    setPbFlashIndex(idx);
+    pbTimerRef.current = setTimeout(() => setPbFlashIndex(null), 2500);
+  }, []);
+
   const toggleNoteVisible = useCallback((idx: number) => {
     setNotesVisible((prev) => {
       const next = [...prev];
@@ -2811,6 +2839,7 @@ export default function SessionScreen() {
               restTimerTrigger={activeIndex === index ? barTimerTrigger : 0}
               noteVisible={notesVisible[index] ?? false}
               onToggleNote={isDemo ? () => {} : () => toggleNoteVisible(index)}
+              showPbFlash={pbFlashIndex === index}
             />
           );
           // Wrap the first card with a ref so the tutorial can spotlight it.
@@ -2859,6 +2888,7 @@ export default function SessionScreen() {
               isCardioExercise={activeEx?.type === 'cardio'}
               onSetChange={isDemo ? () => {} : handleSetChange}
               onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
+              onNewPb={isDemo ? undefined : handleNewPb}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
               onCompleteSession={handleComplete}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
@@ -3231,6 +3261,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_600SemiBold',
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
+    },
+    pbFlashBadge: {
+      backgroundColor: '#f59e0b',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    pbFlashBadgeText: {
+      fontSize: 11,
+      fontFamily: 'Inter_700Bold',
+      color: '#fff',
+      letterSpacing: 0.3,
     },
     exerciseMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
     categoryPill: {
