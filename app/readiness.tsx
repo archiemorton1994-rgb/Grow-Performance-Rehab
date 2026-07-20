@@ -503,7 +503,6 @@ export default function ReadinessScreen() {
                 hapticTap();
                 setHasAches(true);
                 setDiagramPainRegions([]);
-                setStep('painRegion');
               }}
               style={[styles.pill, styles.pillAches, hasAches && styles.pillAchesActive]}
               testID="aches-yes"
