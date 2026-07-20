@@ -37,9 +37,8 @@ import {
   scheduleStreakProtectionAlert,
   cancelStreakProtectionAlert,
 } from '@/lib/notifications';
-import { Ionicons } from '@expo/vector-icons';
 import { BADGE_MAP, Badge } from '@/lib/badges';
-import BadgeUnlockToast, { BadgeSummaryToast } from '@/components/BadgeUnlockToast';
+import AchievementUnlockedSheet from '@/components/AchievementUnlockedSheet';
 
 /** A toast queue item: either an individual badge or a batched-summary token. */
 type ToastItem = Badge | { readonly isSummary: true; count: number };
@@ -484,12 +483,16 @@ function RootLayoutNav() {
       <WeeklyWeightPrompt />
       {currentToast &&
         (isSummaryToast(currentToast) ? (
-          <BadgeSummaryToast count={currentToast.count} onDismiss={() => setCurrentToast(null)} />
+          <AchievementUnlockedSheet
+            badgeCount={currentToast.count}
+            onDismiss={() => setCurrentToast(null)}
+          />
         ) : (
-          <BadgeUnlockToast
-            name={currentToast.name}
-            icon={currentToast.icon as React.ComponentProps<typeof Ionicons>['name']}
-            color={currentToast.color}
+          <AchievementUnlockedSheet
+            badgeCount={1}
+            badgeName={currentToast.name}
+            badgeIcon={currentToast.icon}
+            badgeColor={currentToast.color}
             onDismiss={() => setCurrentToast(null)}
           />
         ))}
