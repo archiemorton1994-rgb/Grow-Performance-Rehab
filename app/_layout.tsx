@@ -559,11 +559,13 @@ export default function RootLayout() {
             paddingTop: 60,
           }}
         >
-          <Text style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+          <Text
+            style={{ color: DarkColors.error, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}
+          >
             ⚠️ Previous Launch Crash
           </Text>
           <RNScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-            <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'monospace' }}>
+            <Text style={{ color: DarkColors.textInverse, fontSize: 11, fontFamily: 'monospace' }}>
               {lastCrash}
             </Text>
           </RNScrollView>
@@ -580,7 +582,9 @@ export default function RootLayout() {
               alignItems: 'center',
             }}
           >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Dismiss & Continue Loading</Text>
+            <Text style={{ color: DarkColors.textInverse, fontWeight: '600' }}>
+              Dismiss & Continue Loading
+            </Text>
           </Pressable>
         </View>
       );
@@ -617,7 +621,14 @@ export default function RootLayout() {
                 maxHeight: '80%',
               }}
             >
-              <Text style={{ color: '#ff4444', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+              <Text
+                style={{
+                  color: DarkColors.error,
+                  fontWeight: 'bold',
+                  fontSize: 16,
+                  marginBottom: 8,
+                }}
+              >
                 Last Crash Log
               </Text>
               <ScrollViewInline text={lastCrash} />
@@ -631,7 +642,7 @@ export default function RootLayout() {
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Dismiss</Text>
+                <Text style={{ color: DarkColors.textInverse, fontWeight: '600' }}>Dismiss</Text>
               </Pressable>
             </View>
           </View>
