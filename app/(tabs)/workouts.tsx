@@ -3854,6 +3854,24 @@ export default function StatsScreen() {
   const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>(
     'overview'
   );
+
+  // Scroll refs — one per sub-tab ScrollView; used to scroll back to top on tab activation.
+  const overviewScrollRef = useRef<ScrollView>(null);
+  const strengthScrollRef = useRef<ScrollView>(null);
+  const historyScrollRef = useRef<ScrollView>(null);
+  const progressScrollRef = useRef<ScrollView>(null);
+
+  // Smooth-scroll the incoming sub-tab to the top whenever the active tab changes.
+  useEffect(() => {
+    const map: Record<typeof activeTab, React.RefObject<ScrollView | null>> = {
+      overview: overviewScrollRef,
+      strength: strengthScrollRef,
+      history: historyScrollRef,
+      progress: progressScrollRef,
+    };
+    map[activeTab]?.current?.scrollTo({ x: 0, y: 0, animated: true });
+  }, [activeTab]);
+
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
   const [showCalculator, setShowCalculator] = useState(false);
   const [selectedProgress, setSelectedProgress] = useState<ExerciseProgress | null>(null);
@@ -4108,6 +4126,7 @@ export default function StatsScreen() {
         <View style={{ flex: 1 }}>
           {/* OVERVIEW TAB */}
           <ScrollView
+            ref={overviewScrollRef}
             style={{ flex: 1, display: activeTab === 'overview' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
@@ -4183,6 +4202,7 @@ export default function StatsScreen() {
 
           {/* STRENGTH TAB */}
           <ScrollView
+            ref={strengthScrollRef}
             style={{ flex: 1, display: activeTab === 'strength' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
@@ -4269,6 +4289,7 @@ export default function StatsScreen() {
               })}
             </View>
             <ScrollView
+              ref={historyScrollRef}
               style={{ flex: 1 }}
               contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
               showsVerticalScrollIndicator={false}
@@ -4798,6 +4819,7 @@ export default function StatsScreen() {
 
           {/* PROGRESS TAB */}
           <ScrollView
+            ref={progressScrollRef}
             style={{ flex: 1, display: activeTab === 'progress' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
