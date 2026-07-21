@@ -4050,7 +4050,19 @@ export default function StatsScreen() {
             return (
               <Pressable
                 key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => {
+                  if (activeTab === tab.key) {
+                    const map: Record<typeof activeTab, React.RefObject<ScrollView | null>> = {
+                      overview: overviewScrollRef,
+                      strength: strengthScrollRef,
+                      history: historyScrollRef,
+                      progress: progressScrollRef,
+                    };
+                    map[tab.key]?.current?.scrollTo({ x: 0, y: 0, animated: true });
+                  } else {
+                    setActiveTab(tab.key);
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.segmentTab,
                   active && styles.segmentTabActive,
