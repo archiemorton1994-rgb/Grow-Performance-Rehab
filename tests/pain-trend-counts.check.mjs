@@ -28,6 +28,9 @@
  * 12. LOGIC  — previous window excludes sessions inside the recent 28-day window
  * 13. LOGIC  — previous window excludes sessions older than 56 days
  * 14. LOGIC  — trend is ↑ when recent > previous, ↓ when recent < previous, → when equal
+ * 15. SOURCE — `const painTrends = useMemo(` is present
+ * 16. SOURCE — painTrends dependency array is exactly [recentPainCounts, previousPainCounts]
+ * 17. SOURCE — painTrends body does NOT reference completedSessions or filteredSessions directly
  *
  * Run:  node tests/pain-trend-counts.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -293,6 +296,52 @@ check(
   'shoulder_front trend is ↓ (recent=0, previous=1)',
   trends['shoulder_front'] === '↓',
   `got "${trends['shoulder_front']}", expected "↓"`
+);
+
+// ─── 15–17. painTrends useMemo dependency correctness ─────────────────────────
+console.log('\n[15–17] Source — painTrends useMemo presence, dependencies, and body');
+
+const TRENDS_ANCHOR = 'const painTrends = useMemo(';
+const TRENDS_CLOSE = '}, [recentPainCounts, previousPainCounts])';
+
+function extractTrendsMemoBlock(maxLen = 900) {
+  const start = src.indexOf(TRENDS_ANCHOR);
+  if (start === -1) return { start: -1, block: null, closeFound: false };
+  const window = src.slice(start, start + maxLen);
+  const closeOffset = window.indexOf(TRENDS_CLOSE);
+  const block = closeOffset !== -1 ? window.slice(0, closeOffset + TRENDS_CLOSE.length) : null;
+  return { start, block, closeFound: closeOffset !== -1 };
+}
+
+const {
+  start: trendsStart,
+  block: trendsBlock,
+  closeFound: trendsCloseFound,
+} = extractTrendsMemoBlock();
+
+check(
+  `"${TRENDS_ANCHOR}" found in source`,
+  trendsStart !== -1,
+  'painTrends useMemo is missing — trend arrows have no computed source'
+);
+
+check(
+  `painTrends dependency array is exactly [recentPainCounts, previousPainCounts]`,
+  trendsCloseFound,
+  trendsBlock === null
+    ? `closing "${TRENDS_CLOSE}" not found within 600 chars — dep array may have drifted`
+    : `dep array is not "[recentPainCounts, previousPainCounts]" — stale arrows possible after new sessions`
+);
+
+check(
+  'painTrends useMemo body does not reference completedSessions or filteredSessions',
+  trendsBlock !== null &&
+    !trendsBlock.includes('completedSessions') &&
+    !trendsBlock.includes('filteredSessions'),
+  trendsBlock === null
+    ? 'could not extract memo block — see check 15/16 failures'
+    : 'painTrends body references completedSessions or filteredSessions directly — ' +
+        'should only consume recentPainCounts / previousPainCounts'
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
