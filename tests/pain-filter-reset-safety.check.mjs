@@ -119,8 +119,8 @@ const NULL_RESET = 'setPainRegionFilter(null)';
 const nullResetCount = src.split(NULL_RESET).length - 1;
 
 check(
-  `setPainRegionFilter(null) appears exactly 4 times (found ${nullResetCount})`,
-  nullResetCount === 4,
+  `setPainRegionFilter(null) appears exactly 3 times (found ${nullResetCount})`,
+  nullResetCount === 3,
   'call count changed — a reset path was added or removed. Update this baseline if intentional.'
 );
 
@@ -146,8 +146,8 @@ check(
     'even a non-null call could set the filter unexpectedly during side-effects'
 );
 
-// ─── 4–7. HANDLER CHECKS — each call site is inside an explicit callback ─────
-console.log('\n[4–7] Handler checks — each call site is inside an explicit user callback');
+// ─── 4–6. HANDLER CHECKS — each call site is inside an explicit callback ─────
+console.log('\n[4–6] Handler checks — each call site is inside an explicit user callback');
 
 /**
  * Returns the ~600-char window before the Nth occurrence of `needle` in `source`.
@@ -162,38 +162,29 @@ function windowBefore(source, needle, nth = 1) {
   return source.slice(Math.max(0, idx - 600), idx);
 }
 
-// 4. TrainingCalendarGrid onNavigateToDate (1st occurrence)
+// 4. "clear all filters" Pressable onPress (1st occurrence)
 const w1 = windowBefore(src, NULL_RESET, 1);
 check(
-  'call site 1: setPainRegionFilter(null) is inside a TrainingCalendarGrid onNavigateToDate callback',
-  w1 !== null && w1.includes('onNavigateToDate') && w1.includes('TrainingCalendarGrid'),
-  'first null reset is not inside the TrainingCalendarGrid onNavigateToDate callback — ' +
-    'the clear may have moved to an unsafe location'
-);
-
-// 5. "clear all filters" Pressable onPress (2nd occurrence)
-const w2 = windowBefore(src, NULL_RESET, 2);
-check(
-  'call site 2: setPainRegionFilter(null) is inside a "clear all filters" Pressable onPress',
-  w2 !== null && w2.includes('onPress') && w2.includes('setHistoryFilter(null)'),
-  'second null reset is not co-located with setHistoryFilter(null) in an onPress — ' +
+  'call site 1: setPainRegionFilter(null) is inside a "clear all filters" Pressable onPress',
+  w1 !== null && w1.includes('onPress') && w1.includes('setHistoryFilter(null)'),
+  'first null reset is not co-located with setHistoryFilter(null) in an onPress — ' +
     'the clear-all-filters button may have regressed'
 );
 
-// 6. Heatmap body diagram clear button — inline onPress (3rd occurrence)
-const w3 = windowBefore(src, NULL_RESET, 3);
+// 5. Heatmap body diagram clear button — inline onPress (2nd occurrence)
+const w2 = windowBefore(src, NULL_RESET, 2);
 check(
-  'call site 3: setPainRegionFilter(null) is the sole body of an inline onPress (heatmap clear button)',
-  w3 !== null && w3.includes('onPress'),
-  'third null reset is not inside an onPress — the heatmap clear button may have moved to a side-effect'
+  'call site 2: setPainRegionFilter(null) is the sole body of an inline onPress (heatmap clear button)',
+  w2 !== null && w2.includes('onPress'),
+  'second null reset is not inside an onPress — the heatmap clear button may have moved to a side-effect'
 );
 
-// 7. MonthCalendar onNavigateToDate (4th occurrence)
-const w4 = windowBefore(src, NULL_RESET, 4);
+// 6. MonthCalendar onNavigateToDate (3rd occurrence)
+const w3 = windowBefore(src, NULL_RESET, 3);
 check(
-  'call site 4: setPainRegionFilter(null) is inside a MonthCalendar onNavigateToDate callback',
-  w4 !== null && w4.includes('onNavigateToDate') && w4.includes('MonthCalendar'),
-  'fourth null reset is not inside the MonthCalendar onNavigateToDate callback — ' +
+  'call site 3: setPainRegionFilter(null) is inside a MonthCalendar onNavigateToDate callback',
+  w3 !== null && w3.includes('onNavigateToDate') && w3.includes('MonthCalendar'),
+  'third null reset is not inside the MonthCalendar onNavigateToDate callback — ' +
     'the clear may have moved to an unsafe location'
 );
 

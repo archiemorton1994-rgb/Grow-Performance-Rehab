@@ -39,20 +39,18 @@
  *   S4. A clean useEffect does not produce a false positive.
  *
  * Real checks:
- *  1. COUNT  setDateFilter('all')       — exactly 3 call sites
- *  2. COUNT  setHistoryFilter(null)     — exactly 4 call sites
+ *  1. COUNT  setDateFilter('all')       — exactly 2 call sites
+ *  2. COUNT  setHistoryFilter(null)     — exactly 3 call sites
  *  3. COUNT  setSpecificDateFilter(null)— exactly 1 call site
  *  4. EFFECT setDateFilter('all')       — appears in 0 useEffect bodies
  *  5. EFFECT setHistoryFilter(null)     — appears in exactly 1 useEffect body
  *  6. EFFECT setHistoryFilter(null)     — that 1 useEffect is the stale-filter cleanup
  *  7. EFFECT setSpecificDateFilter(null)— appears in 0 useEffect bodies
- *  8. HANDLER setDateFilter('all') #1   — inside TrainingCalendarGrid onNavigateToDate
- *  9. HANDLER setDateFilter('all') #2   — inside "clear all filters" Pressable onPress
- * 10. HANDLER setDateFilter('all') #3   — inside MonthCalendar onNavigateToDate
- * 11. HANDLER setHistoryFilter(null) #2 — inside TrainingCalendarGrid onNavigateToDate
- * 12. HANDLER setHistoryFilter(null) #3 — inside "clear all filters" Pressable onPress
- * 13. HANDLER setHistoryFilter(null) #4 — inside MonthCalendar onNavigateToDate
- * 14. HANDLER setSpecificDateFilter(null) #1 — inside "clear all filters" Pressable onPress
+ *  8. HANDLER setDateFilter('all') #1   — inside "clear all filters" Pressable onPress
+ *  9. HANDLER setDateFilter('all') #2   — inside MonthCalendar onNavigateToDate
+ * 10. HANDLER setHistoryFilter(null) #2 — inside "clear all filters" Pressable onPress
+ * 11. HANDLER setHistoryFilter(null) #3 — inside MonthCalendar onNavigateToDate
+ * 12. HANDLER setSpecificDateFilter(null) #1 — inside "clear all filters" Pressable onPress
  *
  * Run:  node tests/filter-reset-safety.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -148,13 +146,13 @@ const histResetCount = src.split(HIST_RESET).length - 1;
 const specResetCount = src.split(SPEC_RESET).length - 1;
 
 check(
-  `setDateFilter('all') appears exactly 3 times (found ${dateResetCount})`,
-  dateResetCount === 3,
+  `setDateFilter('all') appears exactly 2 times (found ${dateResetCount})`,
+  dateResetCount === 2,
   'call count changed — a reset path was added or removed; update this baseline if intentional'
 );
 check(
-  `setHistoryFilter(null) appears exactly 4 times (found ${histResetCount})`,
-  histResetCount === 4,
+  `setHistoryFilter(null) appears exactly 3 times (found ${histResetCount})`,
+  histResetCount === 3,
   'call count changed — a reset path was added or removed; update this baseline if intentional'
 );
 check(
@@ -202,8 +200,8 @@ check(
     'this would silently clear the date-jump filter on re-render'
 );
 
-// ─── 8–14. Handler checks ────────────────────────────────────────────────────
-console.log('\n[8–14] Handler checks — each non-effect call site is inside an explicit callback');
+// ─── 8–12. Handler checks ────────────────────────────────────────────────────
+console.log('\n[8–12] Handler checks — each non-effect call site is inside an explicit callback');
 
 /**
  * Returns the ~700-char window of source text immediately before the Nth
@@ -232,58 +230,44 @@ function windowAfter(source, needle, nth) {
   return source.slice(end, Math.min(source.length, end + 300));
 }
 
-// setDateFilter('all') — 3 occurrences, all inside navigation/clear handlers
+// setDateFilter('all') — 2 occurrences, all inside navigation/clear handlers
 
 const dw1 = windowBefore(src, DATE_RESET, 1);
 check(
-  "setDateFilter('all') #1: inside TrainingCalendarGrid onNavigateToDate",
-  dw1 !== null && dw1.includes('onNavigateToDate') && dw1.includes('TrainingCalendarGrid'),
-  "first setDateFilter('all') is not inside the TrainingCalendarGrid onNavigateToDate callback"
+  "setDateFilter('all') #1: inside 'clear all filters' Pressable onPress",
+  dw1 !== null && dw1.includes('onPress') && dw1.includes('setHistoryFilter(null)'),
+  "first setDateFilter('all') is not co-located with setHistoryFilter(null) in an onPress"
 );
 
 const dw2 = windowBefore(src, DATE_RESET, 2);
 check(
-  "setDateFilter('all') #2: inside 'clear all filters' Pressable onPress",
-  dw2 !== null && dw2.includes('onPress') && dw2.includes('setHistoryFilter(null)'),
-  "second setDateFilter('all') is not co-located with setHistoryFilter(null) in an onPress"
+  "setDateFilter('all') #2: inside MonthCalendar onNavigateToDate",
+  dw2 !== null && dw2.includes('onNavigateToDate') && dw2.includes('MonthCalendar'),
+  "second setDateFilter('all') is not inside the MonthCalendar onNavigateToDate callback"
 );
 
-const dw3 = windowBefore(src, DATE_RESET, 3);
-check(
-  "setDateFilter('all') #3: inside MonthCalendar onNavigateToDate",
-  dw3 !== null && dw3.includes('onNavigateToDate') && dw3.includes('MonthCalendar'),
-  "third setDateFilter('all') is not inside the MonthCalendar onNavigateToDate callback"
-);
+// setHistoryFilter(null) — 3 occurrences; #1 is the useEffect stale-cleanup (no handler check
+// needed there), so we check #2, #3 which are the user-action handlers.
 
-// setHistoryFilter(null) — 4 occurrences; #1 is the useEffect stale-cleanup (no handler check
-// needed there), so we check #2, #3, #4 which are the user-action handlers.
-
-const hw2 = windowBefore(src, HIST_RESET, 2);
-check(
-  'setHistoryFilter(null) #2: inside TrainingCalendarGrid onNavigateToDate',
-  hw2 !== null && hw2.includes('onNavigateToDate') && hw2.includes('TrainingCalendarGrid'),
-  'second setHistoryFilter(null) is not inside the TrainingCalendarGrid onNavigateToDate callback'
-);
-
-// #3 is the FIRST statement in the clear-all onPress body, so setDateFilter('all')
+// #2 is the FIRST statement in the clear-all onPress body, so setDateFilter('all')
 // comes AFTER it — check onPress in the window before AND setDateFilter('all') after.
-const hw3 = windowBefore(src, HIST_RESET, 3);
-const hw3after = windowAfter(src, HIST_RESET, 3);
+const hw2 = windowBefore(src, HIST_RESET, 2);
+const hw2after = windowAfter(src, HIST_RESET, 2);
 check(
-  "setHistoryFilter(null) #3: inside 'clear all filters' Pressable onPress",
-  hw3 !== null &&
-    hw3after !== null &&
-    hw3.includes('onPress') &&
-    hw3after.includes("setDateFilter('all')"),
-  'third setHistoryFilter(null) is not the first statement inside a clear-all onPress ' +
+  "setHistoryFilter(null) #2: inside 'clear all filters' Pressable onPress",
+  hw2 !== null &&
+    hw2after !== null &&
+    hw2.includes('onPress') &&
+    hw2after.includes("setDateFilter('all')"),
+  'second setHistoryFilter(null) is not the first statement inside a clear-all onPress ' +
     "(expected onPress before it and setDateFilter('all') immediately after)"
 );
 
-const hw4 = windowBefore(src, HIST_RESET, 4);
+const hw3 = windowBefore(src, HIST_RESET, 3);
 check(
-  'setHistoryFilter(null) #4: inside MonthCalendar onNavigateToDate',
-  hw4 !== null && hw4.includes('onNavigateToDate') && hw4.includes('MonthCalendar'),
-  'fourth setHistoryFilter(null) is not inside the MonthCalendar onNavigateToDate callback'
+  'setHistoryFilter(null) #3: inside MonthCalendar onNavigateToDate',
+  hw3 !== null && hw3.includes('onNavigateToDate') && hw3.includes('MonthCalendar'),
+  'third setHistoryFilter(null) is not inside the MonthCalendar onNavigateToDate callback'
 );
 
 // setSpecificDateFilter(null) — 1 occurrence, in the clear-all Pressable
