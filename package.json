@@ -63,6 +63,7 @@
     "jsonwebtoken": "^9.0.3",
     "node-addon-api": "^8.8.0",
     "pg": "^8.16.3",
+    "prettier": "^3.9.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

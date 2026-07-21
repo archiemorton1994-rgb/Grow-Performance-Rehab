@@ -126,6 +126,58 @@ check(
   'one or both calls are missing from the onViewHistory callback — the heatmap card navigation path has diverged'
 );
 
+// ─── 6. SOURCE — SessionTypeBreakdown (Conditioning card) has an onFilterChange prop
+console.log('\n[6] Source — SessionTypeBreakdown onFilterChange prop exists');
+
+// The SessionTypeBreakdown donut chart on the Overview tab has an onFilterChange
+// callback. When the user taps a segment (including "Conditioning") it must call
+// BOTH setHistoryFilter(type) AND setActiveTab('history'). If either call is
+// dropped, users will be silently left on the Overview tab with an invisible
+// filter, or land on History with no filter applied.
+const STB_ANCHOR = 'onFilterChange={(type) => {';
+const stbIdx = src.indexOf(STB_ANCHOR);
+
+check(
+  'SessionTypeBreakdown onFilterChange prop handler exists in workouts.tsx',
+  stbIdx !== -1,
+  'onFilterChange handler not found — the SessionTypeBreakdown conditioning card may have lost its navigation callback'
+);
+
+// ─── 7. SOURCE — handler calls setHistoryFilter(type) ─────────────────────────
+console.log('\n[7] Source — SessionTypeBreakdown onFilterChange calls setHistoryFilter(type)');
+
+check(
+  'setHistoryFilter(type) is called inside the onFilterChange handler',
+  stbIdx !== -1 && src.slice(stbIdx, stbIdx + 200).includes('setHistoryFilter(type)'),
+  'call not found — session-type filter will not be set when navigating from the Conditioning card'
+);
+
+// ─── 8. SOURCE — handler calls setActiveTab('history') ────────────────────────
+console.log("\n[8] Source — SessionTypeBreakdown onFilterChange calls setActiveTab('history')");
+
+check(
+  "setActiveTab('history') is called inside the onFilterChange handler",
+  stbIdx !== -1 && src.slice(stbIdx, stbIdx + 200).includes("setActiveTab('history')"),
+  'call not found — app will not switch to the History tab when tapping the Conditioning segment'
+);
+
+// ─── 9. SOURCE — both calls co-located in the same handler block ──────────────
+console.log('\n[9] Source — both calls are co-located in the same onFilterChange handler');
+
+let stbColocated = false;
+if (stbIdx !== -1) {
+  const handlerSlice = src.slice(stbIdx, stbIdx + 200);
+  stbColocated =
+    handlerSlice.includes('setHistoryFilter(type)') &&
+    handlerSlice.includes("setActiveTab('history')");
+}
+
+check(
+  'setHistoryFilter and setActiveTab are in the same onFilterChange handler block',
+  stbColocated,
+  'one or both calls are outside the expected handler block — they may have drifted apart during a refactor'
+);
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
