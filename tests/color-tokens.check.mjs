@@ -75,13 +75,6 @@ const GLOBAL_ALLOWED = new Set([
 // TODO: the values below correspond to open colour-token cleanup tasks.
 //       Trim this map as those tasks land.
 const KNOWN_VIOLATIONS = {
-  // Recover tab — session-type accent colours not yet in the token set
-  'app/(tabs)/recover.tsx': new Set(['#0d9488', '#6366f1', '#f59e0b']),
-
-  // Home tab — primary shadow colour + energy-badge purple (tracked by
-  // "Replace the energy-badge hex-alpha trick with proper colour tokens" task)
-  'app/(tabs)/index.tsx': new Set(['#2f6b46', '#7C6EF0']),
-
   // 404 screen — link blue not yet tokenised
   'app/+not-found.tsx': new Set(['#2e78b7']),
 

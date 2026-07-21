@@ -299,7 +299,7 @@ export default function HomeScreen() {
 
   const cardGlowStyle = useAnimatedStyle(() => ({
     borderRadius: 20,
-    shadowColor: '#2f6b46',
+    shadowColor: C.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: pulseBorder.value * 0.75,
     shadowRadius: pulseBorder.value * 20,
@@ -466,7 +466,7 @@ export default function HomeScreen() {
                 onPress={() => setDeloadExpanded((v) => !v)}
                 style={styles.deloadBannerContent}
               >
-                <Ionicons name="moon-outline" size={18} color="#7C6EF0" />
+                <Ionicons name="moon-outline" size={18} color={C.energyBadge} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.deloadBannerTitle, { color: C.text }]}>
                     {consecutiveActiveWeeks} weeks straight — consider a deload
@@ -486,7 +486,7 @@ export default function HomeScreen() {
                 <Ionicons
                   name={deloadExpanded ? 'chevron-up' : 'chevron-down'}
                   size={13}
-                  color="#7C6EF0"
+                  color={C.energyBadge}
                 />
               </Pressable>
               <Pressable

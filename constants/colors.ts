@@ -47,6 +47,11 @@ const LightColors = {
   achievementGoldMuted: '#fef3c7',
   achievementGoldBorder: '#f59e0b55',
 
+  cardAccentRecovery: '#0d9488',
+  cardAccentMobility: '#6366f1',
+  cardAccentPrehab: '#f59e0b',
+  energyBadge: '#7C6EF0',
+
   youtubeSurface: '#FFF0F0',
   youtubeBorder: '#FFCCCC',
 
@@ -141,6 +146,11 @@ const DarkColors = {
   achievementGoldBg: '#1a1100',
   achievementGoldMuted: '#f59e0b22',
   achievementGoldBorder: '#f59e0b33',
+
+  cardAccentRecovery: '#14b8a6',
+  cardAccentMobility: '#818cf8',
+  cardAccentPrehab: '#fbbf24',
+  energyBadge: '#9d8cf5',
 
   youtubeSurface: '#1a0808',
   youtubeBorder: '#2a1010',

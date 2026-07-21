@@ -414,7 +414,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: recoveryRecency,
-      cardAccent: '#0d9488',
+      cardAccent: C.cardAccentRecovery,
     },
     {
       key: 'mobility',
@@ -424,7 +424,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: flexRecency,
-      cardAccent: '#6366f1',
+      cardAccent: C.cardAccentMobility,
     },
     {
       key: 'prehab',
@@ -434,7 +434,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
       recency: prehabRecency,
-      cardAccent: '#f59e0b',
+      cardAccent: C.cardAccentPrehab,
     },
   ];
 
