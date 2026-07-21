@@ -19,7 +19,7 @@ import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useColors } from '@/constants/colors';
+import { useColors, DarkColors } from '@/constants/colors';
 import { EmptyState } from '@/components/EmptyState';
 import {
   CompletedSession,
@@ -593,18 +593,22 @@ function getMuscleProgressCounts(
 const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; message: string }> = {
   0: {
     label: 'Not Trained',
-    color: '#6b7280',
+    color: DarkColors.trendNeutral,
     message: 'No sessions targeting this muscle in the last 2 weeks.',
   },
-  1: { label: 'Progressing', color: '#2f6b46', message: 'Good training frequency - keep it up!' },
+  1: {
+    label: 'Progressing',
+    color: DarkColors.primary,
+    message: 'Good training frequency - keep it up!',
+  },
   2: {
     label: 'Attention',
-    color: '#d97706',
+    color: DarkColors.trendWarning,
     message: 'Last trained 8-14 days ago - consider adding a session this week.',
   },
   4: {
     label: 'High Load',
-    color: '#dc2626',
+    color: DarkColors.trendDanger,
     message: 'Trained on 5+ days this week. Allow some recovery time.',
   },
 };
@@ -774,10 +778,10 @@ function MuscleProgressPanel({
         }}
       >
         {[
-          { color: '#2f6b46', label: 'Progressing' },
-          { color: '#d97706', label: 'Attention' },
-          { color: '#dc2626', label: 'Too much' },
-          { color: '#3a3a3a', label: 'Not trained', border: true },
+          { color: C.primary, label: 'Progressing' },
+          { color: C.trendWarning, label: 'Attention' },
+          { color: C.trendDanger, label: 'Too much' },
+          { color: C.trendInactive, label: 'Not trained', border: true },
         ].map((item) => (
           <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View
@@ -786,7 +790,7 @@ function MuscleProgressPanel({
                 height: 10,
                 borderRadius: 5,
                 backgroundColor: item.color,
-                ...(item.border ? { borderWidth: 1, borderColor: '#666' } : {}),
+                ...(item.border ? { borderWidth: 1, borderColor: C.trendInactiveBorder } : {}),
               }}
             />
             <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
@@ -4578,9 +4582,9 @@ export default function StatsScreen() {
                               const isUp = trend === '↑';
                               const isDown = trend === '↓';
                               const trendColor = isDown
-                                ? '#2f6b46'
+                                ? C.primary
                                 : isUp
-                                  ? '#c0392b'
+                                  ? C.trendNegativeText
                                   : C.textSecondary;
                               const trendLabel = isDown
                                 ? 'Improving'
@@ -4598,9 +4602,9 @@ export default function StatsScreen() {
                                     alignItems: 'center',
                                     gap: 4,
                                     backgroundColor: isDown
-                                      ? '#e8f5ee'
+                                      ? C.trendPositiveBg
                                       : isUp
-                                        ? '#fdecea'
+                                        ? C.trendNegativeBg
                                         : C.surfaceTertiary,
                                     borderRadius: 8,
                                     paddingHorizontal: 8,
@@ -4674,14 +4678,14 @@ export default function StatsScreen() {
                                   const isUp = trend === '↑';
                                   const isDown = trend === '↓';
                                   const trendColor = isDown
-                                    ? '#2f6b46'
+                                    ? C.primary
                                     : isUp
-                                      ? '#c0392b'
+                                      ? C.trendNegativeText
                                       : C.textSecondary;
                                   const chipBg = isDown
-                                    ? '#e8f5ee'
+                                    ? C.trendPositiveBg
                                     : isUp
-                                      ? '#fdecea'
+                                      ? C.trendNegativeBg
                                       : C.surfaceTertiary;
                                   return (
                                     <Pressable
@@ -4697,9 +4701,9 @@ export default function StatsScreen() {
                                         paddingVertical: 4,
                                         borderWidth: 1,
                                         borderColor: isDown
-                                          ? '#b7deca'
+                                          ? C.trendPositiveBorder
                                           : isUp
-                                            ? '#f5bdb8'
+                                            ? C.trendNegativeBorder
                                             : C.borderLight,
                                       })}
                                     >

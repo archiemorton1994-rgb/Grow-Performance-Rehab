@@ -787,10 +787,10 @@ export default function CustomSessionScreen() {
                     {
                       backgroundColor:
                         item.difficulty === 'advanced'
-                          ? '#fde8e8'
+                          ? C.difficultyAdvancedBg
                           : item.difficulty === 'intermediate'
-                            ? '#fff8e1'
-                            : '#e8f5e9',
+                            ? C.difficultyIntermediateBg
+                            : C.difficultyBeginnerBg,
                     },
                   ]}
                 >
@@ -800,10 +800,10 @@ export default function CustomSessionScreen() {
                       {
                         color:
                           item.difficulty === 'advanced'
-                            ? '#c0392b'
+                            ? C.difficultyAdvancedText
                             : item.difficulty === 'intermediate'
-                              ? '#f39c12'
-                              : '#27ae60',
+                              ? C.difficultyIntermediateText
+                              : C.difficultyBeginnerText,
                       },
                     ]}
                   >

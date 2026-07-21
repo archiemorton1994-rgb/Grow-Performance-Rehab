@@ -82,33 +82,8 @@ const KNOWN_VIOLATIONS = {
   // "Replace the energy-badge hex-alpha trick with proper colour tokens" task)
   'app/(tabs)/index.tsx': new Set(['#2f6b46', '#7C6EF0']),
 
-  // Stats/workouts tab — training-frequency trend-indicator palette
-  'app/(tabs)/workouts.tsx': new Set([
-    '#6b7280',
-    '#2f6b46',
-    '#d97706',
-    '#dc2626',
-    '#3a3a3a',
-    '#666',
-    '#c0392b',
-    '#e8f5ee',
-    '#fdecea',
-    '#b7deca',
-    '#f5bdb8',
-  ]),
-
   // 404 screen — link blue not yet tokenised
   'app/+not-found.tsx': new Set(['#2e78b7']),
-
-  // Custom-session screen — validation-state background/text colours
-  'app/custom-session.tsx': new Set([
-    '#fde8e8',
-    '#fff8e1',
-    '#e8f5e9',
-    '#c0392b',
-    '#f39c12',
-    '#27ae60',
-  ]),
 
   // Readiness screen — trophy amber (already exists as C.trophy in the token set;
   // pending substitution)
