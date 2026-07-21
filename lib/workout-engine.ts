@@ -13,6 +13,7 @@ import {
   ExerciseTemplate,
   CARDIO_WARMUP,
   CARDIO_WARMUPS,
+  toInternalTier,
   getPrep,
   getMechanical,
   getPowerMechanical,
@@ -664,7 +665,11 @@ export function generateWorkout(
   const sessionSeed = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
 
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min - safety requirement) ──
-  const cardioWarmup = seededShuffleDiverse(CARDIO_WARMUPS, sessionSeed)[0] ?? CARDIO_WARMUP;
+  const warmupPool =
+    toInternalTier(equipmentTier) === 'fullgym'
+      ? CARDIO_WARMUPS
+      : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
+  const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
 
   // ── 2. Pre-Training Prep ─────────────────────────────────────────────────
@@ -864,7 +869,11 @@ function generateWeeklyWorkout(
   const exercises: Exercise[] = [];
 
   // ── 1. Cardio Warm-Up (always) ─────────────────────────────────────────────
-  const cardioWarmup = seededShuffleDiverse(CARDIO_WARMUPS, sessionSeed)[0] ?? CARDIO_WARMUP;
+  const warmupPool =
+    toInternalTier(equipmentTier) === 'fullgym'
+      ? CARDIO_WARMUPS
+      : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
+  const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
 
   // ── 2. Main exercises — pattern-first, never drop required movements ───────
