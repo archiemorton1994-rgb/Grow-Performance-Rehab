@@ -229,6 +229,73 @@ if (summaryKavOpenIdx !== -1) {
   }
 }
 
+// ─── [7] toggleNoteVisible two-phase scroll wiring ───────────────────────────
+console.log(
+  '[7] toggleNoteVisible — two-phase scroll: scrollTo called on open, setTimeout delay ≥ 50ms'
+);
+
+// WHY TWO PHASES
+// ──────────────
+// When the user taps the pencil icon, toggleNoteVisible:
+//   Phase 1 (immediate): calls scrollTo ~50 ms after state update so the card
+//     is fully visible before the keyboard rises.
+//   Phase 2 (automatic): once the keyboard appears, KeyboardAwareScrollViewCompat
+//     does a second scroll to keep the TextInput above the keyboard edge.
+// Both phases must remain wired. If scrollTo is removed, the card may sit
+// behind the keyboard on short screens (iPhone SE). If the delay drops to 0 ms
+// the layout pass hasn't completed yet and the stored y-position can be stale.
+
+// Locate the toggleNoteVisible callback in session.tsx
+const toggleIdx = sessionSrc.indexOf('toggleNoteVisible');
+check(
+  toggleIdx !== -1,
+  'toggleNoteVisible callback is defined in session.tsx',
+  'Callback not found — note open/close logic may have been renamed or removed'
+);
+
+if (toggleIdx !== -1) {
+  // Extract a generous window covering the whole callback body
+  // (from the identifier up to ~600 chars which safely covers the function body)
+  const toggleWindow = sessionSrc.slice(toggleIdx, toggleIdx + 700);
+
+  // ── [7a] scrollTo called inside the if-open branch ───────────────────────
+  check(
+    /\.scrollTo\s*\(/.test(toggleWindow),
+    'toggleNoteVisible calls scrollTo when the note opens',
+    'scrollTo not found in toggleNoteVisible — Phase 1 scroll removed; card may hide behind keyboard on iPhone SE'
+  );
+
+  // ── [7b] scrollTo is guarded by the open-branch condition ─────────────────
+  // The open branch is: if (next[idx]) { setTimeout(…) }
+  // We verify that the scrollTo call follows an if that checks next[idx]
+  const openBranchMatch = toggleWindow.match(/if\s*\(\s*next\s*\[\s*idx\s*\]\s*\)/);
+  check(
+    openBranchMatch !== null,
+    'scrollTo is guarded by the if (next[idx]) open-branch check',
+    'If the branch guard is missing, scrollTo fires on both open AND close — causing an unwanted scroll when the note is hidden'
+  );
+
+  // ── [7c] setTimeout delay is ≥ 50 ms ─────────────────────────────────────
+  // Match: setTimeout(() => { … }, <number>)
+  const setTimeoutMatch = toggleWindow.match(
+    /setTimeout\s*\(\s*\(\s*\)\s*=>\s*\{[\s\S]*?\}\s*,\s*(\d+)\s*\)/
+  );
+  check(
+    setTimeoutMatch !== null,
+    'setTimeout wraps the scrollTo call (deferred scroll for layout pass)',
+    'scrollTo must be deferred — a synchronous call runs before React has committed the layout, giving a stale y-position'
+  );
+
+  if (setTimeoutMatch) {
+    const delayMs = parseInt(setTimeoutMatch[1], 10);
+    check(
+      delayMs >= 50,
+      `setTimeout delay (${delayMs} ms) is ≥ 50 ms — layout pass completes before scroll fires`,
+      `Delay of ${delayMs} ms is too short; the React layout pass may not have committed y-positions yet, causing the scroll to land at the wrong offset`
+    );
+  }
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');
 if (failed === 0) {
