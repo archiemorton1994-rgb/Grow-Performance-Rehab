@@ -163,7 +163,7 @@ const scrollViewIdx = Math.min(
     sessionSrc.indexOf('<ScrollView', kavOpenIdx),
     sessionSrc.indexOf('<KeyboardAwareScrollViewCompat', kavOpenIdx),
   ].filter((i) => i !== -1),
-  Infinity,
+  Infinity
 );
 const scrollViewFound = scrollViewIdx !== Infinity;
 check(scrollViewFound, 'ScrollView found inside session KAV');

@@ -13,6 +13,7 @@ module.exports = {
     '^react-native-body-highlighter$': '<rootDir>/__mocks__/react-native-body-highlighter.js',
     '^@expo/vector-icons$': '<rootDir>/__mocks__/expo-vector-icons.js',
     '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
+    '^react-native-keyboard-controller$': '<rootDir>/__mocks__/react-native-keyboard-controller.js',
     '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
     '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
     '^expo-store-review$': '<rootDir>/__mocks__/expo-store-review.js',
