@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  PanResponder,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -244,6 +245,19 @@ function RegionBodyPicker({
   );
 }
 
+function useDismissGesture(onDismiss: () => void) {
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  return useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 60) onDismissRef.current();
+      },
+    })
+  ).current;
+}
+
 export default function RecoverScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -306,6 +320,10 @@ export default function RecoverScreen() {
     setRecoveryPending(undefined);
     setPrehabPending(undefined);
   };
+
+  const recoveryDismiss = useDismissGesture(closeModal);
+  const mobilityDismiss = useDismissGesture(closeModal);
+  const prehabDismiss = useDismissGesture(closeModal);
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -531,7 +549,11 @@ export default function RecoverScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.pickerSheet}
+            onPress={(e) => e.stopPropagation()}
+            {...recoveryDismiss.panHandlers}
+          >
             <View style={styles.sheetHandle} />
 
             <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
@@ -574,6 +596,7 @@ export default function RecoverScreen() {
           <Pressable
             style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}
             onPress={(e) => e.stopPropagation()}
+            {...mobilityDismiss.panHandlers}
           >
             <View style={styles.sheetHandle} />
 
@@ -627,7 +650,11 @@ export default function RecoverScreen() {
         onRequestClose={closeModal}
       >
         <Pressable style={styles.sheetOverlay} onPress={closeModal}>
-          <Pressable style={styles.pickerSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.pickerSheet}
+            onPress={(e) => e.stopPropagation()}
+            {...prehabDismiss.panHandlers}
+          >
             <View style={styles.sheetHandle} />
 
             <View style={[styles.sheetHeader, { paddingHorizontal: 20 }]}>
