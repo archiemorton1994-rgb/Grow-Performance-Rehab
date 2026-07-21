@@ -158,6 +158,9 @@ export function useColors(): AppColors {
   return DarkColors;
 }
 
+/** Direct access to dark-mode tokens for non-hook contexts (e.g. pre-render crash views). */
+export { DarkColors };
+
 /** Canonical amber/gold for achievement accents — for non-hook contexts (lib modules, static data). */
 export const ACHIEVEMENT_GOLD = DarkColors.achievementGold;
 

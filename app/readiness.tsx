@@ -1117,7 +1117,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     testWeekBannerContent: { flex: 1 },
     testWeekBannerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
     testWeekBadge: {
-      backgroundColor: '#F5A623',
+      backgroundColor: C.pbFlash,
       borderRadius: 6,
       paddingHorizontal: 8,
       paddingVertical: 2,
@@ -1140,7 +1140,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
     },
     startButtonTestWeek: {
-      backgroundColor: '#F5A623',
+      backgroundColor: C.pbFlash,
     },
   });
 }

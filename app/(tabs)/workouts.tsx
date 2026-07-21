@@ -685,7 +685,7 @@ function MuscleProgressPanel({
       {/* Dark panel — front + back side by side */}
       <View
         style={{
-          backgroundColor: '#0d0d0d',
+          backgroundColor: C.background,
           borderRadius: 16,
           paddingVertical: 10,
           paddingHorizontal: 6,

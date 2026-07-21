@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 // native modules crash module evaluation in Expo Go (SDK 54), which causes
 // Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { useColors } from '@/constants/colors';
+import { useColors, DarkColors } from '@/constants/colors';
 import { useAppStore, SetLog, ExerciseCategory, PainRegion } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
 import {
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#fff',
+    backgroundColor: DarkColors.textInverse,
     overflow: 'hidden',
   },
   logoImg: {

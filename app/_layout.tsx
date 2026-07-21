@@ -29,7 +29,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/lib/store';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { useColors } from '@/constants/colors';
+import { useColors, DarkColors } from '@/constants/colors';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   scheduleWorkoutReminder,
@@ -553,7 +553,7 @@ export default function RootLayout() {
         <View
           style={{
             flex: 1,
-            backgroundColor: '#0a0a0a',
+            backgroundColor: DarkColors.background,
             justifyContent: 'flex-start',
             padding: 24,
             paddingTop: 60,
@@ -574,7 +574,7 @@ export default function RootLayout() {
             }}
             style={{
               marginTop: 12,
-              backgroundColor: '#333',
+              backgroundColor: DarkColors.surfaceTertiary,
               padding: 14,
               borderRadius: 10,
               alignItems: 'center',
@@ -610,7 +610,7 @@ export default function RootLayout() {
           >
             <View
               style={{
-                backgroundColor: '#1a1a1a',
+                backgroundColor: DarkColors.surfaceSecondary,
                 borderRadius: 16,
                 padding: 20,
                 width: '100%',
@@ -625,7 +625,7 @@ export default function RootLayout() {
                 onPress={() => setLastCrash(null)}
                 style={{
                   marginTop: 16,
-                  backgroundColor: '#333',
+                  backgroundColor: DarkColors.surfaceTertiary,
                   borderRadius: 10,
                   padding: 12,
                   alignItems: 'center',

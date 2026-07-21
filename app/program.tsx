@@ -330,7 +330,7 @@ export default function ProgramScreen() {
                   pressed && isCurrent && { opacity: 0.9 },
                 ]}
               >
-                <View style={[styles.cardIcon, { backgroundColor: '#111111' }]}>
+                <View style={[styles.cardIcon, { backgroundColor: C.surface }]}>
                   {isCurrent && testWeek ? (
                     <Ionicons name="trophy" size={18} color={C.categoryPrehabText} />
                   ) : SESSION_IMAGES[item.sessionType] ? (
