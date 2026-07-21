@@ -1,0 +1,67 @@
+Replit prompt:
+
+Redesign the Stats area of my fitness app using the current dark-mode style, but make it feel more polished, cleaner, and easier to scan. Keep the overall vibe sharp, minimal, premium, and workout-focused, with subtle green accents, rounded cards, strong hierarchy, and lots of spacing.
+
+Main goals
+Reduce visual clutter
+Show less information at once
+Make each tab have a clear purpose
+Use progressive disclosure: summary first, details on tap
+Keep the design consistent across all tabs
+Stats tab structure
+Create a Stats section with these sub-tabs:
+
+Overview
+Strength
+Progress
+History
+Overview tab
+Make this a quick-glance dashboard only:
+
+3 compact summary metrics at the top
+1 hero chart only
+1 supporting insight card
+1 drill-down card or quick link
+Avoid showing too many charts on the same screen.
+Strength tab
+Focus on performance and lifts:
+
+one primary strength chart
+lift summary cards for squat, bench, and deadlift
+optional muscle progress section
+personal bests below
+Make the hero content stand out more than the secondary content.
+Progress tab
+Focus on training volume and exercise trends:
+
+weekly volume chart
+compact progress stats
+grouped exercise/session cards
+make rows shorter and easier to skim
+This tab should feel like workload and consistency tracking.
+History tab
+Focus on filtering and detailed review:
+
+session history
+pain/body region view
+filter controls
+body map or timeline as a main visual
+This should feel like the deep-dive tab, not another overview screen.
+Design rules
+Use a dark background with charcoal cards
+Keep green as the main accent, but use it sparingly
+Make one thing the hero on each screen
+Avoid repeating the same card size everywhere
+Increase spacing between sections
+Use clear typography hierarchy
+Make the UI feel more like a structured dashboard and less like a long scroll of equal-weight cards
+Overall direction
+The result should feel like a clean fitness analytics dashboard with:
+
+a simple top-level summary
+clear sub-tab navigation
+strong hierarchy
+compact but readable cards
+fewer competing visuals
+a premium mobile app feel
+Use the screenshots as reference, but improve the layout, balance, and information density.

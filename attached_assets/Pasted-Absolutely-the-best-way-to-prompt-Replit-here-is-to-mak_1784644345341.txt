@@ -1,0 +1,161 @@
+Absolutely — the best way to prompt Replit here is to make it refactor the existing app, not redesign it from scratch.
+
+You want to preserve:
+
+the current structure
+the current navigation
+the current screen purposes
+the current assets/content
+…and ask for:
+
+better spacing
+stronger hierarchy
+more premium dark styling
+sharper asset handling
+less clutter
+more consistent components
+Use this prompt in Replit
+Refactor my existing fitness app UI to feel more premium, polished, and consistent, while keeping the current app structure, navigation, and screen flow the same.
+
+IMPORTANT:
+- Do NOT redesign the app from scratch
+- Do NOT change the overall screen structure or user flow
+- Do NOT replace the current content strategy
+- Keep the existing tabs and page purposes
+- Improve the visual design, hierarchy, spacing, and polish
+- Use the uploaded assets directly, not screenshots of screenshots
+
+DESIGN GOAL:
+Create a premium dark-mode fitness dashboard feel:
+- charcoal / black background
+- subtle green accent color
+- rounded cards
+- clean spacing
+- strong hierarchy
+- minimal clutter
+- crisp typography
+- polished mobile-first UI
+- modern, confident, calm, and high-end
+
+GLOBAL UI RULES:
+1. Each screen should have one clear hero element
+2. Reduce the number of equal-weight cards on a screen
+3. Use progressive disclosure: summary first, details on tap
+4. Keep card styles and spacing consistent across the app
+5. Use fewer outlined boxes and more breathing room
+6. Make headers simpler and stronger
+7. Make active states and primary CTAs more obvious
+8. Keep the design clean and quiet, not busy
+
+ASSET RULES:
+- Use the original logo/icon/image assets directly
+- Do NOT use cropped screenshots for logos or icons
+- Avoid scaling small images up too much
+- Prefer SVG or transparent PNG assets when possible
+- Keep aspect ratios intact
+- Use proper sizing and padding so assets stay sharp and don’t look blurry
+- If an asset is low quality, recreate it as a vector/SVG or replace it with a sharper version
+
+SCREEN-BY-SCREEN DIRECTION:
+
+HOME
+- Keep the current “today/session” structure
+- Make the hero session card more dominant
+- Keep the primary CTA strong and clear
+- Reduce clutter below the hero area
+- Keep summary cards like streak / this week / total workouts / achievements, but make them more compact and premium
+
+STATS
+- Keep the current tab structure: Overview, Strength, Progress, History
+- Make each tab feel like it has one job
+- Overview should be summary-first only
+- Strength should focus on performance and lift progression
+- Progress should focus on training volume and exercise history
+- History should focus on filtering and deep dive details
+- Reduce visual density and avoid too many equal-sized cards
+
+TRAIN
+- Keep the workout selection hub structure
+- Make the session cards cleaner and more consistent
+- Keep the illustrated workout assets
+- Improve spacing, alignment, and card hierarchy
+- Make the most relevant workout visually prominent
+
+RESTORE
+- Keep the recovery / prehab structure
+- Use the recovery assets and body visuals directly
+- Make the recovery path feel guided and calm
+- Keep the recommended action clear
+- Reduce visual noise and make the body map / recovery visual the hero
+
+PROFILE
+- Keep the profile + progress + settings structure
+- Make the header more prominent
+- Keep the goal tags, progress stats, and settings areas, but simplify the layout
+- Push settings lower so the top of the screen feels more like identity + progress
+- Make the page feel cleaner and more premium
+
+ACHIEVEMENTS
+- Keep the badge / milestone structure
+- Improve spacing and grouping
+- Make earned achievements feel more special
+- Reduce the amount of locked content visible at once
+- Improve hierarchy so the page feels less crowded
+
+SETTINGS
+- Keep the current settings structure
+- Group related settings more cleanly
+- Align rows and toggles consistently
+- Reduce icon clutter
+- Separate destructive actions clearly
+- Make the page feel calm, structured, and easy to scan
+
+IMPLEMENTATION PRIORITIES:
+1. Improve layout hierarchy
+2. Improve spacing and card consistency
+3. Improve typography scale
+4. Improve asset sharpness and usage
+5. Improve button and card styling
+6. Reduce clutter on every screen
+7. Keep the app structure the same
+
+THE END RESULT SHOULD FEEL LIKE:
+- a premium fitness dashboard
+- not a generic template
+- not a heavy redesign
+- not a cluttered analytics app
+- a polished product with clear hierarchy and sharp assets
+
+Before making changes, identify reusable UI components and apply consistent styling across the app.
+
+Even better: give Replit these extra instructions
+If it supports follow-up instructions, add this too:
+
+Use the same base layout and user flow across the app, but make every page feel cleaner, sharper, and more premium. Preserve the existing structure, just improve the design system, spacing, hierarchy, and asset quality.
+
+Why this works
+This prompt tells Replit:
+
+what not to change
+what to improve
+what to keep structurally intact
+how to handle assets properly
+which screens need what kind of treatment
+That’s the key difference between a prompt that causes a messy redesign and one that produces a polished iteration.
+
+My recommendation
+If you want the best result, I’d tell Replit to work in this order:
+
+create shared components and styling tokens
+refactor the Home screen first
+then Stats
+then Train / Restore / Profile
+then Achievements and Settings
+finally fix asset handling across the app
+That way it doesn’t get inconsistent as it goes.
+
+If you want, I can also turn this into:
+
+a shorter Replit prompt
+a more technical developer prompt
+or a screen-by-screen implementation brief you can paste section by section.

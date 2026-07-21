@@ -1,0 +1,200 @@
+Refactor the existing fitness app UI to a more premium, polished, and consistent design system while preserving the current product structure, navigation, screen purposes, and core user flow.
+
+IMPORTANT CONSTRAINTS
+- Do NOT redesign the app from scratch
+- Do NOT change the current screen hierarchy or navigation structure
+- Do NOT remove existing functionality
+- Do NOT replace the content model or workout logic
+- Keep the existing tabs/pages and their purpose
+- Improve the visual treatment, layout consistency, spacing, and hierarchy only
+- Use the original uploaded assets directly wherever possible
+- Do NOT use cropped screenshots as final logo/icon assets
+- Do NOT upscale low-resolution images beyond their native clarity
+
+PRIMARY DESIGN GOAL
+Create a premium dark-mode fitness dashboard with:
+- charcoal / near-black backgrounds
+- subtle green accent color
+- rounded cards
+- clean spacing
+- strong information hierarchy
+- minimal clutter
+- crisp typography
+- polished mobile-first layout
+- consistent component styling across all pages
+
+DESIGN SYSTEM REQUIREMENTS
+Define reusable design tokens and apply them globally:
+
+Colors:
+- background: deep black / charcoal
+- surface cards: slightly lighter dark panels
+- text primary: off-white
+- text secondary: muted gray
+- accent: green
+- success / active: green
+- warning / destructive: use clear distinct colors, but sparingly
+
+Spacing:
+- use consistent padding and margins across all cards
+- increase vertical breathing room between sections
+- reduce crowded stacks of small elements
+
+Radius:
+- consistent rounded corners for cards, buttons, inputs, and sheets
+- use one radius scale across the app
+
+Typography:
+- clear hierarchy between page title, section title, card title, body text, and metadata
+- titles should be bold and distinct
+- secondary labels should be smaller and muted
+- avoid overly similar sizes across tiers
+
+Cards:
+- standardize card padding, radius, border style, and elevation
+- avoid too many equal-weight cards on one screen
+- each screen should have one clear hero element
+- supporting cards should feel visually secondary
+
+INTERACTION RULES
+- Primary CTA should be obvious on each screen
+- Use progressive disclosure: summary first, details on tap
+- Make active states more obvious
+- Make selected tabs, selected workout cards, and selected settings states visually clear
+- Use collapsible / expandable rows where appropriate instead of showing everything at once
+- Keep transitions subtle and clean
+
+ASSET HANDLING RULES
+- Use the original logo / icon / illustration assets directly
+- Prefer SVG or transparent PNG for sharpness
+- Do not use cropped screenshots of assets as production elements
+- If an asset is blurry or too small, recreate it as a vector/SVG or replace it with a cleaner version
+- Keep original aspect ratios intact
+- Do not stretch or distort the illustrations
+
+ARCHITECTURE / COMPONENTIZATION
+Refactor the UI into reusable components where possible.
+
+Suggested reusable components:
+- AppShell
+- TopStatusBar
+- PageHeader
+- SectionHeader
+- TabBar
+- BottomNav
+- HeroSessionCard
+- SummaryMetricCard
+- InsightCard
+- ChartCard
+- LiftCard
+- WorkoutSessionCard
+- RecoveryCard
+- ProgressStatRow
+- BadgeGrid
+- SettingsGroup
+- SettingsRow
+- ToggleRow
+- ModalSheet / BottomSheet
+- BodyMapCard
+- ExerciseListItem
+- CTAButton
+
+SCREEN-BY-SCREEN IMPLEMENTATION
+
+1) HOME
+Keep the current “today/session” structure.
+- Make the hero session card dominant
+- Keep the primary action button large and clear
+- Keep summary metrics like week streak / this week / total workouts / achievements
+- Reduce clutter below the hero area
+- Keep secondary cards compact and visually lighter
+- Home should feel like: “what should I do today?”
+
+2) STATS
+Keep the existing tab structure:
+- Overview
+- Strength
+- Progress
+- History
+
+Implement clearer separation between tabs:
+- Overview: summary-only dashboard
+- Strength: performance and lift progression
+- Progress: training volume and exercise history
+- History: filtering and deep-dive analysis
+
+Rules for Stats:
+- only one hero module per tab
+- reduce the number of visible charts/cards on first view
+- make each tab feel like it has one job
+- use drill-down sections instead of flat dense layouts
+- simplify card repetition and avoid equal-weight chart blocks
+
+3) TRAIN
+Keep the current workout selection hub.
+- Use the existing training illustration assets
+- Keep categories like squat, bench, deadlift, full body, upper body, lower body, conditioning, custom
+- Make the grid cleaner and more consistent
+- Make the most relevant workout visually stronger
+- Keep text short and scannable
+- Make card proportions and spacing consistent
+
+4) RESTORE
+Keep the recovery / prehab flow.
+- Use the recovery body/pose assets directly
+- Make the recovery goal the hero visual
+- Keep the guided path structure
+- Reduce visual noise in the modal / sheet flow
+- Make the selected recommendation state obvious
+- The screen should feel calm, guided, and structured
+
+5) PROFILE
+Keep the profile + progress + settings structure.
+- Make the header more prominent
+- Reduce the visual weight of tags
+- Keep the key summary stats but simplify their layout
+- Push settings lower
+- Make the page feel like identity + progress first, account controls second
+- Keep bodyweight trend / strength progress / free trial / settings as distinct sections
+- Improve hierarchy and spacing
+
+6) ACHIEVEMENTS
+Keep the badge / milestone structure.
+- Group items more clearly
+- Reduce how much locked content is visible immediately
+- Make earned achievements more prominent
+- Improve spacing and section hierarchy
+- Make the screen feel more celebratory and less crowded
+
+7) SETTINGS
+Keep the current settings categories.
+- Group related settings into clear sections
+- Align toggles, labels, and row actions consistently
+- Reduce icon clutter
+- Separate destructive actions clearly
+- Make the page feel calm, structured, and easy to scan
+
+QUALITY TARGET
+The final result should feel like:
+- a premium fitness dashboard
+- not a generic template
+- not a cluttered analytics app
+- not a redesign that changes the app’s identity
+- a refined version of the existing app with stronger hierarchy, cleaner spacing, and better asset quality
+
+IMPLEMENTATION PRIORITIES
+1. Refactor the design system / tokens
+2. Standardize card, button, and section styles
+3. Improve page hierarchy and spacing
+4. Improve asset sharpness / handling
+5. Refactor each screen with the same structure, but cleaner presentation
+6. Make sure the experience feels consistent across all tabs
+
+If the codebase is React, extract shared components and apply a consistent token-based styling system. If it is not React, implement the same component structure and design principles in the existing framework.
+
+If you want, I can also turn that into a super technical version with:
+
+exact component props
+suggested spacing values
+a color token set
+and a page-by-page implementation order.

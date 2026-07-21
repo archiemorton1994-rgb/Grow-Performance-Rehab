@@ -1,0 +1,147 @@
+Replit prompt:
+
+Refactor the Stats area of my fitness app into a cleaner, more structured, dark-mode dashboard. Keep the current visual language, but improve the layout hierarchy, spacing, and information density so it feels more premium and easier to scan.
+
+Design direction
+Dark background
+Charcoal cards
+Subtle green accent color
+Rounded corners
+Minimal borders
+Clear typography hierarchy
+Lots of spacing between sections
+Clean, sharp, fitness-focused, and data-driven
+Global layout rules
+Each tab must have a single clear purpose
+Use progressive disclosure: summary first, details on tap
+Avoid showing too many charts on one screen
+Make one module the hero element per tab
+Reduce repetition of equal-sized cards
+Keep the UI balanced and uncluttered
+Stats area structure
+Create these sub-tabs:
+
+Overview
+Strength
+Progress
+History
+Overview tab
+This should feel like a quick-glance summary dashboard.
+
+Layout
+Top summary row with 3 compact stat cards:
+This week
+Day streak
+Total sessions or volume
+Primary hero chart
+one chart only
+show overall consistency or weekly frequency
+Supporting insight card
+one focused insight, such as training streak, consistency, or trend
+Drill-down card
+tap to open a more detailed section like muscle progress or session breakdown
+Avoid
+multiple charts with equal emphasis
+dense lists on the overview screen
+too many highlighted numbers
+Strength tab
+This tab should focus on performance and lifts.
+
+Layout
+Top utility card
+1RM calculator or estimated strength summary
+Primary strength progression chart
+highlight recent trend
+Lift cards
+squat
+bench
+deadlift
+Optional muscle progress block
+use a body map or heatmap
+Personal bests / record list
+lower on the screen
+Notes
+Make squat / bench / deadlift cards visually distinct
+Use one hero chart, not several charts competing at the same size
+Keep the strength tab more analytical than the overview tab
+Progress tab
+This tab should focus on workload, exercise trends, and training volume.
+
+Layout
+Weekly volume chart
+main hero element
+Compact stats row
+exercises
+sessions
+kg lifted
+Grouped exercise/session cards
+group by workout or movement pattern
+Expandable rows
+each row should open to full session details
+UI behavior
+Rows should be shorter and easier to skim
+Show only the most relevant metadata first
+Use subtle inline trend indicators if helpful
+History tab
+This should be the deep-dive / filtering view.
+
+Layout
+Top filter controls
+all
+this week
+this month
+Main visual
+body map, pain map, or timeline
+Session history list
+grouped and tappable
+Detail view on tap
+exercise info, volume, date, and notes
+Notes
+This tab should feel like exploration and analysis
+The body map should be a strong focal component, not squeezed into a secondary spot
+Keep filtering intuitive and easy to access
+Component suggestions
+Use reusable components like:
+
+StatsHeader
+StatsTabBar
+SummaryMetricCard
+InsightCard
+HeroChartCard
+LiftCard
+ProgressCard
+SessionListItem
+DrillDownCard
+BodyMapCard
+FilterSegmentedControl
+Styling rules
+Background: near-black / charcoal
+Cards: slightly lighter dark panels
+Accent color: green, used sparingly for active or positive states
+Typography: strong hierarchy, larger titles, smaller secondary labels
+Icons: simple, minimal, consistent size
+Shadows: subtle or nearly none
+Spacing: generous vertical padding between sections
+What to improve from the current screens
+reduce clutter
+reduce repeated card density
+make each tab visually distinct
+turn some cards into tap-to-expand modules
+emphasize hierarchy rather than trying to show everything at once
+make the overview feel like a summary, not a report
+Final outcome
+The result should feel like a clean fitness analytics dashboard:
+
+simple summary at the top
+strong tab-specific structure
+one hero module per screen
+compact supporting cards
+fewer competing visuals
+premium mobile app feel
+Use the existing screens as a base, but simplify the presentation and improve the layout balance.
+
+If you want, I can also turn this into a more UI-framework-friendly version with:
+
+React component structure
+Tailwind class guidance
+or a screen-by-screen layout spec.

@@ -1,0 +1,230 @@
+This is a good foundation already — the visual language is consistent, dark, and fitness-specific — but the main opportunity is to make the whole Stats area feel more like a product system and less like separate screens with different amounts of information.
+
+My overall read
+Your current direction is strongest when it feels:
+
+clean and data-led
+one primary insight per screen
+deep details hidden behind taps
+consistent card language
+subtle green accent, not green everywhere
+The biggest issue right now is density.
+A few of the screens are trying to show too much at the same level.
+
+Better overall layout strategy
+I’d structure the entire Stats area like this:
+
+1) Overview = summary only
+This should answer:
+
+How am I doing?
+Am I consistent?
+Is progress going up?
+Keep it to:
+
+3 compact stat chips
+1 main chart
+1 supporting insight card
+1 drill-down card
+Best layout idea for Overview
+Top title + subtitle
+segmented tabs
+3 summary metrics in one row
+one hero card: consistency or weekly volume
+below that, a single expandable card for either muscle progress or session breakdown
+everything else becomes tap-through
+Why this is better
+It gives the user a quick “I’m doing fine” overview before they dive deeper.
+
+2) Strength = performance view
+This tab is probably the most visually interesting, but it can be cleaner.
+
+What to keep
+1RM calculator
+strength progression
+top lift charts
+muscle progress / personal bests
+What I’d improve
+Right now there’s a lot of “same-weight, same-card, same-height” repetition.
+Instead:
+
+make one lift the hero
+stack the other two as secondary cards
+use a clearer distinction between:
+estimated strength
+recent training trend
+personal bests
+Better format
+Option A:
+
+top insight card
+one larger multi-line strength chart
+then a compact list of squat / bench / deadlift cards
+Option B:
+
+separate sub-tabs inside Strength:
+Lifts
+Muscle
+Records
+That would reduce clutter a lot.
+
+3) Progress = training history / workload
+This tab currently feels closer to a session log + workload summary. That’s a good thing, but it should look more intentional.
+
+What it should answer
+How much have I trained?
+What have I actually done?
+What’s the workload trend?
+Better layout
+hero chart: weekly volume
+compact summary stats row
+session list grouped by exercise or day
+use the session list as the detail area, not the first thing the eye lands on
+Improvement idea
+The current session rows are useful, but they look a bit like a logbook.
+To make it feel more premium:
+
+show exercise groups as cards
+use small inline trend markers
+keep each list item shorter
+show only the most important metadata first:
+exercise
+weight
+sessions
+trend / change
+4) History = filtering and exploration
+This tab should feel like the deep dive area, not a second overview screen.
+
+What it should focus on
+pain patterns
+session history
+body region analysis
+exercise detail
+Better structure
+This page would work better if it were split into:
+
+top filter row
+main visualization
+history list
+detail panel on tap
+Important note
+The body map is good, but it’s visually strong enough to deserve a full screen or at least a very dominant card.
+It should not feel squeezed in beside too many other elements.
+
+Layout issues I’d fix across all tabs
+1) Too many cards at the same visual weight
+A lot of screens use cards that all feel equally important.
+That makes the page harder to scan.
+
+Fix:
+Use a clearer hierarchy:
+
+Hero card
+Supporting card
+List / drill-down items
+Expanded details only when tapped
+2) The top tabs are doing too much work
+The tab bar is clear, but the content beneath it is not always distinct enough between tabs.
+
+Fix:
+Each tab needs a very different “first thing”:
+
+Overview → summary
+Strength → performance
+Progress → workload
+History → timeline / analysis
+Right now some tabs blur together.
+
+3) Repetition in green accents
+The green is effective, but if every important number, chart, icon, and status is green, the design loses emphasis.
+
+Fix:
+Use green only for:
+
+positive progress
+active selection
+current state
+key highlight
+Use softer neutrals elsewhere.
+
+4) Some screens feel too vertically dense
+Particularly:
+
+overview
+strength
+history
+Fix:
+Increase spacing and cut one layer of content from each screen.
+If something is not the primary answer to the tab’s purpose, it should move down or become tap-to-open.
+
+My recommended format for each tab
+Overview
+Purpose: “Quick glance”
+
+Best structure:
+
+summary chips
+consistency or frequency chart
+one insight card
+one drill-down card
+Avoid:
+
+too many charts
+multiple competing insight blocks
+Strength
+Purpose: “How strong am I getting?”
+
+Best structure:
+
+1RM / key stat strip
+strength trend chart
+lift cards
+muscle progress or PBs lower down
+Avoid:
+
+equal emphasis on every lift
+charts that all feel the same size
+Progress
+Purpose: “What did I actually do?”
+
+Best structure:
+
+weekly volume chart
+exercise progress stats
+grouped session cards
+Avoid:
+
+long lists without hierarchy
+too many inline details in each row
+History
+Purpose: “Search and filter my training”
+
+Best structure:
+
+pain / region insight
+session filters
+body map or timeline
+history list
+Avoid:
+
+cramming both analysis and logbook into the same visual weight
+If you want the best possible design direction
+I’d push this toward:
+
+A “summary-first dashboard” with drill-down detail
+Meaning:
+
+the first layer is simple and readable
+the second layer is rich and interactive
+the third layer is full detail
+That fits your app style much better than trying to show everything on the first screen.
+
+My strongest recommendation
+If you only change a few things, do these:
+
+Make Overview much lighter
+Give each tab one clear job
+Promote one hero module per screen
+Reduce repeated card density
+Push detailed lists/maps into drill-down views
+That will make the whole Stats area feel more premium, more usable, and more in line with the sharp, clean style you’ve been building.
