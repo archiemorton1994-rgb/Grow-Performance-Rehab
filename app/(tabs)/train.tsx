@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Pressable,
+  ScrollView,
   StyleSheet,
   Platform,
   Alert,
@@ -257,165 +258,169 @@ export default function TrainScreen() {
 
   return (
     <>
-      <View
-        style={[
-          styles.container,
-          styles.content,
-          {
-            paddingTop: insets.top + webTopInset + 16,
-            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50),
-          },
-        ]}
-      >
-        <Text style={styles.title}>Train</Text>
-        {!activeSession && <Text style={styles.subtitle}>Choose a session to start</Text>}
-
-        {/* Equipment chip */}
-        <View style={styles.equipmentChipRow}>
-          <Pressable
-            onPress={openEquipmentSheet}
-            style={({ pressed }) => [
-              styles.equipmentChip,
-              isOverrideActive && styles.equipmentChipOverride,
-              pressed && { opacity: 0.8 },
-            ]}
-            testID="train-equipment-chip"
-          >
-            <EquipmentIcon
-              tier={todayEffectiveTier}
-              size={13}
-              color={isOverrideActive ? C.primary : C.textSecondary}
-            />
-            <Text
-              style={[
-                styles.equipmentChipText,
-                isOverrideActive && styles.equipmentChipTextOverride,
-              ]}
-            >
-              {isOverrideActive ? 'Today: ' : ''}
-              {getEquipmentLabel(todayEffectiveTier)}
-            </Text>
-            {isOverrideActive && <View style={styles.overrideDot} />}
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={isOverrideActive ? C.primary : C.textTertiary}
-            />
-          </Pressable>
-          {isOverrideActive && (
-            <Pressable
-              onPress={() => {
-                clearSessionEquipmentOverride();
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              hitSlop={8}
-              style={styles.equipmentDismissBtn}
-              testID="train-equipment-dismiss"
-            >
-              <Ionicons name="close-circle" size={18} color={C.textTertiary} />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Resume banner */}
-        {activeSession && (
-          <Animated.View
-            entering={FadeInDown.duration(350)}
-            style={[styles.resumeBanner, { marginBottom: 10 }]}
-          >
-            <View style={styles.resumeBannerLeft}>
-              <Ionicons name="time-outline" size={20} color={C.warning} />
-              <View>
-                <Text style={styles.resumeBannerTitle}>Session in progress</Text>
-                <Text style={styles.resumeBannerSub}>
-                  {activeSession.displayLabel ??
-                    SESSION_META_LABELS[activeSession.sessionType]?.label}{' '}
-                  · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
-                </Text>
-              </View>
-            </View>
-            <Pressable
-              onPress={handleResume}
-              style={({ pressed }) => [styles.resumeBannerBtn, pressed && { opacity: 0.85 }]}
-              testID="train-resume-session"
-            >
-              <Text style={styles.resumeBannerBtnText}>Resume</Text>
-            </Pressable>
-          </Animated.View>
-        )}
-
-        {/* KPI Sessions */}
-        <Text style={styles.sectionHeading}>KPI Sessions</Text>
-        <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
-          {KPI_SESSION_TYPES.map((type) => {
-            const meta = SESSION_META[type];
-            return (
-              <Pressable
-                key={type}
-                onPress={() => handleSelect(type)}
-                style={({ pressed }) => [
-                  styles.sessionCard,
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                ]}
-                testID={`train-session-${type}`}
-              >
-                <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                  <Image
-                    source={SESSION_IMAGES[type]}
-                    style={styles.sessionCardImage}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={styles.sessionCardLabel} numberOfLines={1}>
-                  {meta.label}
-                </Text>
-                <Text style={styles.sessionCardSub} numberOfLines={1}>
-                  {meta.subtitle}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </Animated.View>
-
-        {/* Additional Sessions */}
-        <Text
-          style={[
-            styles.sectionHeading,
-            { marginTop: activeSession ? (compactCards ? 2 : 4) : compactCards ? 4 : 8 },
+      <View style={styles.container}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + webTopInset + 16,
+              paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50),
+            },
           ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          Additional Sessions
-        </Text>
-        <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
-          {WEEKLY_SESSION_TYPES_UI.map((type) => {
-            const meta = SESSION_META[type];
-            return (
-              <Pressable
-                key={type}
-                onPress={() => handleSelect(type)}
-                style={({ pressed }) => [
-                  styles.sessionCard,
-                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+          <Text style={styles.title}>Train</Text>
+          {!activeSession && <Text style={styles.subtitle}>Choose a session to start</Text>}
+
+          {/* Equipment chip */}
+          <View style={styles.equipmentChipRow}>
+            <Pressable
+              onPress={openEquipmentSheet}
+              style={({ pressed }) => [
+                styles.equipmentChip,
+                isOverrideActive && styles.equipmentChipOverride,
+                pressed && { opacity: 0.8 },
+              ]}
+              testID="train-equipment-chip"
+            >
+              <EquipmentIcon
+                tier={todayEffectiveTier}
+                size={13}
+                color={isOverrideActive ? C.primary : C.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.equipmentChipText,
+                  isOverrideActive && styles.equipmentChipTextOverride,
                 ]}
-                testID={`train-session-${type}`}
               >
-                <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                  <Image
-                    source={SESSION_IMAGES[type]}
-                    style={styles.sessionCardImage}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={styles.sessionCardLabel} numberOfLines={1}>
-                  {meta.label}
-                </Text>
-                <Text style={styles.sessionCardSub} numberOfLines={1}>
-                  {meta.subtitle}
-                </Text>
+                {isOverrideActive ? 'Today: ' : ''}
+                {getEquipmentLabel(todayEffectiveTier)}
+              </Text>
+              {isOverrideActive && <View style={styles.overrideDot} />}
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={isOverrideActive ? C.primary : C.textTertiary}
+              />
+            </Pressable>
+            {isOverrideActive && (
+              <Pressable
+                onPress={() => {
+                  clearSessionEquipmentOverride();
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                hitSlop={8}
+                style={styles.equipmentDismissBtn}
+                testID="train-equipment-dismiss"
+              >
+                <Ionicons name="close-circle" size={18} color={C.textTertiary} />
               </Pressable>
-            );
-          })}
-        </Animated.View>
+            )}
+          </View>
+
+          {/* Resume banner */}
+          {activeSession && (
+            <Animated.View
+              entering={FadeInDown.duration(350)}
+              style={[styles.resumeBanner, { marginBottom: 10 }]}
+            >
+              <View style={styles.resumeBannerLeft}>
+                <Ionicons name="time-outline" size={20} color={C.warning} />
+                <View>
+                  <Text style={styles.resumeBannerTitle}>Session in progress</Text>
+                  <Text style={styles.resumeBannerSub}>
+                    {activeSession.displayLabel ??
+                      SESSION_META_LABELS[activeSession.sessionType]?.label}{' '}
+                    · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={handleResume}
+                style={({ pressed }) => [styles.resumeBannerBtn, pressed && { opacity: 0.85 }]}
+                testID="train-resume-session"
+              >
+                <Text style={styles.resumeBannerBtnText}>Resume</Text>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* KPI Sessions */}
+          <Text style={styles.sectionHeading}>KPI Sessions</Text>
+          <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
+            {KPI_SESSION_TYPES.map((type) => {
+              const meta = SESSION_META[type];
+              return (
+                <Pressable
+                  key={type}
+                  onPress={() => handleSelect(type)}
+                  style={({ pressed }) => [
+                    styles.sessionCard,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                  ]}
+                  testID={`train-session-${type}`}
+                >
+                  <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
+                    <Image
+                      source={SESSION_IMAGES[type]}
+                      style={styles.sessionCardImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.sessionCardLabel} numberOfLines={1}>
+                    {meta.label}
+                  </Text>
+                  <Text style={styles.sessionCardSub} numberOfLines={1}>
+                    {meta.subtitle}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+
+          {/* Additional Sessions */}
+          <Text
+            style={[
+              styles.sectionHeading,
+              { marginTop: activeSession ? (compactCards ? 2 : 4) : compactCards ? 4 : 8 },
+            ]}
+          >
+            Additional Sessions
+          </Text>
+          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
+            {WEEKLY_SESSION_TYPES_UI.map((type) => {
+              const meta = SESSION_META[type];
+              return (
+                <Pressable
+                  key={type}
+                  onPress={() => handleSelect(type)}
+                  style={({ pressed }) => [
+                    styles.sessionCard,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                  ]}
+                  testID={`train-session-${type}`}
+                >
+                  <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
+                    <Image
+                      source={SESSION_IMAGES[type]}
+                      style={styles.sessionCardImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={styles.sessionCardLabel} numberOfLines={1}>
+                    {meta.label}
+                  </Text>
+                  <Text style={styles.sessionCardSub} numberOfLines={1}>
+                    {meta.subtitle}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        </ScrollView>
       </View>
 
       {/* Equipment picker sheet */}

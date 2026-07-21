@@ -40,8 +40,8 @@ const COACH_STEPS = [
     tabArrowFraction: 0.5,
     iconName: 'barbell',
     iconLabel: 'Train',
-    title: '7 ways to train',
-    body: 'Strength sessions (Lower / Upper / Full Body), Conditioning, Flexibility, and Custom — every session adapts to your equipment and energy.',
+    title: '8 ways to train',
+    body: 'KPI sessions (Squat / Bench / Deadlift) build your 1RM strength. Additional sessions — Lower Body, Upper Body, Full Body, Conditioning, and Custom — cover every training goal. All adapt to your equipment.',
   },
   {
     route: '/recover',
@@ -49,7 +49,7 @@ const COACH_STEPS = [
     iconName: 'medkit',
     iconLabel: 'Restore',
     title: 'Recover smarter',
-    body: 'Recovery circuits, mobility flows and targeted prehab. Use these on rest days to stay loose and injury-free.',
+    body: 'Flexibility sessions and Prehab circuits for rest days — keeps joints healthy, mobility sharp, and injuries at bay.',
   },
   {
     route: '/workouts',

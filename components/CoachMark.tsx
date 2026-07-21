@@ -5,6 +5,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withRepeat,
+  withSequence,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
@@ -67,19 +69,28 @@ export default function CoachMark({
 }: CoachMarkProps) {
   const C = useColors();
 
-  // ── Spotlight dim animation ───────────────────────────────────────────────
+  // ── Spotlight dim + pulse animation ──────────────────────────────────────
   // Hooks must be called unconditionally (before any early return).
   const dimOpacity = useSharedValue(0);
+  const pulseOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible && spotlightRect) {
-      dimOpacity.value = withTiming(0.78, { duration: 220 });
+      dimOpacity.value = withTiming(0.82, { duration: 220 });
+      // Pulse: fade in/out repeatedly to draw attention to the tab icon area
+      pulseOpacity.value = withRepeat(
+        withSequence(withTiming(0.35, { duration: 500 }), withTiming(0.05, { duration: 500 })),
+        -1,
+        false
+      );
     } else {
       dimOpacity.value = withTiming(0, { duration: 150 });
+      pulseOpacity.value = withTiming(0, { duration: 150 });
     }
   }, [visible, spotlightRect?.left, spotlightRect?.top]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dimStyle = useAnimatedStyle(() => ({ opacity: dimOpacity.value }));
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
 
   // Keep a live ref so the PanResponder (created once via useRef) always calls
   // the latest onSwipeLeft prop rather than the stale initial closure value.
@@ -166,23 +177,21 @@ export default function CoachMark({
             pointerEvents="none"
           />
 
-          {/* Glow border — soft white ring around the illuminated cut-out */}
-          <View
+          {/* Pulse highlight — soft flashing fill on the tab icon area, no box */}
+          <Animated.View
             pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: sr.top - 2,
-              left: sr.left - 2,
-              width: sr.width + 4,
-              height: sr.height + 4,
-              borderRadius: sr_r + 2,
-              borderWidth: 1.5,
-              borderColor: 'rgba(255,255,255,0.32)',
-              shadowColor: '#fff',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.22,
-              shadowRadius: 10,
-            }}
+            style={[
+              {
+                position: 'absolute',
+                top: sr.top,
+                left: sr.left,
+                width: sr.width,
+                height: sr.height,
+                borderRadius: sr_r,
+                backgroundColor: '#ffffff',
+              },
+              pulseStyle,
+            ]}
           />
         </>
       )}
