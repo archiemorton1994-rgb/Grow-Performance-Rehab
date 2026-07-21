@@ -941,7 +941,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     tierImageWrap: {
       width: '100%',
       height: 86,
-      backgroundColor: '#111111',
+      backgroundColor: C.surfaceTertiary,
       alignItems: 'center',
       justifyContent: 'center',
     },
