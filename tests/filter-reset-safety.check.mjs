@@ -32,7 +32,13 @@
  * useEffect usage — this test explicitly checks the count is exactly 1 and that
  * the enclosing body contains the `completedSessions.some` stale-check pattern.
  *
- * Checks:
+ * Parser self-tests (run before the real checks):
+ *   S1. Block-body useEffect is detected.
+ *   S2. Async block-body useEffect is detected.
+ *   S3. Concise-arrow useEffect is detected (closes the one-liner loophole).
+ *   S4. A clean useEffect does not produce a false positive.
+ *
+ * Real checks:
  *  1. COUNT  setDateFilter('all')       — exactly 3 call sites
  *  2. COUNT  setHistoryFilter(null)     — exactly 4 call sites
  *  3. COUNT  setSpecificDateFilter(null)— exactly 1 call site
@@ -55,6 +61,7 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { extractUseEffectBodies } from './helpers/extract-use-effect-bodies.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dir, '../app/(tabs)/workouts.tsx'), 'utf8');
@@ -72,58 +79,43 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Parser self-tests ────────────────────────────────────────────────────────
+// Run before the real checks so a broken parser fails loudly rather than
+// silently producing false-green results on the real file.
+console.log('\n[S1–S4] Parser self-tests — extractUseEffectBodies catches all three forms');
 
-/**
- * Extracts every useEffect arrow-function body from source using brace-depth
- * counting. Returns an array of body strings (content between `{` and its
- * matching `}`). Handles both deps-array and no-deps forms.
- */
-function extractUseEffectBodies(source) {
-  const PATTERN = /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{/g;
-  const bodies = [];
-  let match;
-  while ((match = PATTERN.exec(source)) !== null) {
-    const bodyStart = match.index + match[0].length;
-    let depth = 1;
-    let pos = bodyStart;
-    while (pos < source.length && depth > 0) {
-      if (source[pos] === '{') depth++;
-      else if (source[pos] === '}') depth--;
-      pos++;
-    }
-    bodies.push(source.slice(bodyStart, pos - 1));
-  }
-  return bodies;
-}
+const NEEDLE = '__SENTINEL_CALL__()';
 
-/**
- * Returns the ~700-char window of source text immediately before the Nth
- * occurrence of `needle` (1-indexed). Returns null if not found.
- */
-function windowBefore(source, needle, nth) {
-  let idx = -1;
-  for (let i = 0; i < nth; i++) {
-    idx = source.indexOf(needle, idx + 1);
-    if (idx === -1) return null;
-  }
-  return source.slice(Math.max(0, idx - 700), idx);
-}
+const blockBodies = extractUseEffectBodies(`useEffect(() => { ${NEEDLE}; }, [deps])`);
+check(
+  'S1: block-body useEffect body is extracted',
+  blockBodies.length === 1 && blockBodies[0].includes(NEEDLE),
+  'block body not detected — the parser is broken for standard block-body effects'
+);
 
-/**
- * Returns the ~300-char window of source text immediately after the Nth
- * occurrence of `needle` (1-indexed). Returns null if not found.
- */
-function windowAfter(source, needle, nth) {
-  let idx = -1;
-  for (let i = 0; i < nth; i++) {
-    idx = source.indexOf(needle, idx + 1);
-    if (idx === -1) return null;
-  }
-  const end = idx + needle.length;
-  return source.slice(end, Math.min(source.length, end + 300));
-}
+const asyncBodies = extractUseEffectBodies(`useEffect(async () => { ${NEEDLE}; }, [deps])`);
+check(
+  'S2: async block-body useEffect body is extracted',
+  asyncBodies.length === 1 && asyncBodies[0].includes(NEEDLE),
+  'async block body not detected — useEffect(async () => { ... }) violations would be missed'
+);
 
+const conciseBodies = extractUseEffectBodies(`useEffect(() => ${NEEDLE}, [deps])`);
+check(
+  'S3: concise-arrow useEffect body is extracted (one-liner loophole closed)',
+  conciseBodies.length === 1 && conciseBodies[0].includes(NEEDLE),
+  'concise arrow body not detected — a one-liner like ' +
+    '`useEffect(() => setHistoryFilter(null), [deps])` would pass undetected'
+);
+
+const cleanBodies = extractUseEffectBodies(`useEffect(() => { doOtherThing(); }, [deps])`);
+check(
+  'S4: clean useEffect body does not produce a false positive',
+  cleanBodies.length === 1 && !cleanBodies[0].includes(NEEDLE),
+  'clean useEffect body incorrectly contains the sentinel — parser has a false-positive bug'
+);
+
+// ─── Real file checks ─────────────────────────────────────────────────────────
 const useEffectBodies = extractUseEffectBodies(src);
 
 // ─── 1–3. COUNT checks ───────────────────────────────────────────────────────
@@ -194,6 +186,33 @@ check(
 
 // ─── 8–14. Handler checks ────────────────────────────────────────────────────
 console.log('\n[8–14] Handler checks — each non-effect call site is inside an explicit callback');
+
+/**
+ * Returns the ~700-char window of source text immediately before the Nth
+ * occurrence of `needle` (1-indexed). Returns null if not found.
+ */
+function windowBefore(source, needle, nth) {
+  let idx = -1;
+  for (let i = 0; i < nth; i++) {
+    idx = source.indexOf(needle, idx + 1);
+    if (idx === -1) return null;
+  }
+  return source.slice(Math.max(0, idx - 700), idx);
+}
+
+/**
+ * Returns the ~300-char window of source text immediately after the Nth
+ * occurrence of `needle` (1-indexed). Returns null if not found.
+ */
+function windowAfter(source, needle, nth) {
+  let idx = -1;
+  for (let i = 0; i < nth; i++) {
+    idx = source.indexOf(needle, idx + 1);
+    if (idx === -1) return null;
+  }
+  const end = idx + needle.length;
+  return source.slice(end, Math.min(source.length, end + 300));
+}
 
 // setDateFilter('all') — 3 occurrences, all inside navigation/clear handlers
 

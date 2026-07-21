@@ -15,7 +15,13 @@
  *   C. The number of setPainRegionFilter(null) call sites changes unexpectedly
  *      (signals an accidental addition or removal of a reset path).
  *
- * Checks:
+ * Parser self-tests (run before the real checks):
+ *   S1. Block-body useEffect is detected.
+ *   S2. Async block-body useEffect is detected.
+ *   S3. Concise-arrow useEffect is detected (closes the one-liner loophole).
+ *   S4. A clean useEffect does not produce a false positive.
+ *
+ * Real checks:
  *  1. COUNT      — exactly 4 setPainRegionFilter(null) occurrences (baseline)
  *  2. USE-EFFECT — no useEffect body in workouts.tsx contains setPainRegionFilter(null)
  *  3. USE-EFFECT — no useEffect body in workouts.tsx contains setPainRegionFilter at all
@@ -31,6 +37,7 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { extractUseEffectBodies } from './helpers/extract-use-effect-bodies.mjs';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dir, '../app/(tabs)/workouts.tsx'), 'utf8');
@@ -48,42 +55,43 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Parser self-tests ────────────────────────────────────────────────────────
+// Run before the real checks so a broken parser fails loudly rather than
+// silently producing false-green results on the real file.
+console.log('\n[S1–S4] Parser self-tests — extractUseEffectBodies catches all three forms');
 
-/**
- * Finds all useEffect bodies in `source` by matching `useEffect(()=>{…})` with
- * a brace-depth counter, then returns them as an array of body strings.
- *
- * Handles both forms:
- *   useEffect(() => { ... }, [deps])
- *   useEffect(() => { ... })
- */
-function extractUseEffectBodies(source) {
-  // Match the opening of each useEffect arrow function
-  const PATTERN = /useEffect\s*\(\s*\(\s*\)\s*=>\s*\{/g;
-  const bodies = [];
-  let match;
+const NEEDLE = '__SENTINEL_CALL__()';
 
-  while ((match = PATTERN.exec(source)) !== null) {
-    // bodyStart is just after the opening `{`
-    const bodyStart = match.index + match[0].length;
-    let depth = 1; // we are inside the first `{`
-    let pos = bodyStart;
+const blockBodies = extractUseEffectBodies(`useEffect(() => { ${NEEDLE}; }, [deps])`);
+check(
+  'S1: block-body useEffect body is extracted',
+  blockBodies.length === 1 && blockBodies[0].includes(NEEDLE),
+  'block body not detected — the parser is broken for standard block-body effects'
+);
 
-    while (pos < source.length && depth > 0) {
-      const ch = source[pos];
-      if (ch === '{') depth++;
-      else if (ch === '}') depth--;
-      pos++;
-    }
+const asyncBodies = extractUseEffectBodies(`useEffect(async () => { ${NEEDLE}; }, [deps])`);
+check(
+  'S2: async block-body useEffect body is extracted',
+  asyncBodies.length === 1 && asyncBodies[0].includes(NEEDLE),
+  'async block body not detected — useEffect(async () => { ... }) violations would be missed'
+);
 
-    // pos now points just past the matching `}`; body is everything before it
-    bodies.push(source.slice(bodyStart, pos - 1));
-  }
+const conciseBodies = extractUseEffectBodies(`useEffect(() => ${NEEDLE}, [deps])`);
+check(
+  'S3: concise-arrow useEffect body is extracted (one-liner loophole closed)',
+  conciseBodies.length === 1 && conciseBodies[0].includes(NEEDLE),
+  'concise arrow body not detected — a one-liner like ' +
+    '`useEffect(() => setPainRegionFilter(null), [deps])` would pass undetected'
+);
 
-  return bodies;
-}
+const cleanBodies = extractUseEffectBodies(`useEffect(() => { doOtherThing(); }, [deps])`);
+check(
+  'S4: clean useEffect body does not produce a false positive',
+  cleanBodies.length === 1 && !cleanBodies[0].includes(NEEDLE),
+  'clean useEffect body incorrectly contains the sentinel — parser has a false-positive bug'
+);
 
+// ─── Real file checks ─────────────────────────────────────────────────────────
 const useEffectBodies = extractUseEffectBodies(src);
 
 // ─── 1. COUNT — baseline call-site count ─────────────────────────────────────
@@ -99,13 +107,15 @@ check(
 );
 
 // ─── 2 & 3. USE-EFFECT — null reset and any call ─────────────────────────────
-console.log('\n[2–3] useEffect bodies — no pain filter resets in any effect');
+console.log(
+  `\n[2–3] useEffect bodies — no pain filter resets in any effect (${useEffectBodies.length} effects found)`
+);
 
 const effectsWithNullReset = useEffectBodies.filter((b) => b.includes(NULL_RESET));
 const effectsWithAnyCall = useEffectBodies.filter((b) => b.includes('setPainRegionFilter'));
 
 check(
-  `no useEffect body calls setPainRegionFilter(null) (checked ${useEffectBodies.length} effects)`,
+  `no useEffect body calls setPainRegionFilter(null)`,
   effectsWithNullReset.length === 0,
   `${effectsWithNullReset.length} useEffect(s) contain the null reset — ` +
     'this would silently wipe the filter on re-render'
