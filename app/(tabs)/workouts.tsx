@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   Modal,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -62,6 +63,19 @@ const CALENDAR_SESSION_PRIORITY: SessionType[] = [
   'flexibility',
   'custom',
 ];
+
+const SESSION_IMAGES: Record<string, any> = {
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
+  conditioning: require('@/assets/images/sessions/conditioning.png'),
+  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
+  flexibility: require('@/assets/images/sessions/mobility.png'),
+  custom: require('@/assets/images/sessions/custom.png'),
+  lower_body: require('@/assets/images/sessions/lower-body.png'),
+  upper_body: require('@/assets/images/sessions/upper-body.png'),
+  full_body: require('@/assets/images/sessions/full-body.png'),
+};
 
 function formatSessionDuration(seconds: number): string {
   const totalMins = Math.round(seconds / 60);
@@ -400,13 +414,15 @@ function TrainingCalendarGrid({
                     width: 26,
                     height: 26,
                     borderRadius: 7,
-                    backgroundColor: meta.bg,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    overflow: 'hidden',
                     flexShrink: 0,
                   }}
                 >
-                  <Ionicons name={meta.icon} size={13} color={meta.color} />
+                  <Image
+                    source={SESSION_IMAGES[s.sessionType]}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
@@ -1439,15 +1455,13 @@ function MonthCalendar({
                   width: 28,
                   height: 28,
                   borderRadius: 8,
-                  backgroundColor: C.primaryMuted,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                <Ionicons
-                  name={(SHARED_SESSION_META[s.sessionType]?.icon ?? 'fitness-outline') as any}
-                  size={14}
-                  color={C.primary}
+                <Image
+                  source={SESSION_IMAGES[s.sessionType]}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="contain"
                 />
               </View>
               <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.text }}>
@@ -1868,12 +1882,14 @@ function SessionHistoryList({
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  backgroundColor: meta.bg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                <Ionicons name={meta.icon} size={18} color={meta.color} />
+                <Image
+                  source={SESSION_IMAGES[session.sessionType]}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="contain"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
