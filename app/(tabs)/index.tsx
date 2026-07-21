@@ -1221,8 +1221,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 4,
     },
     summaryCardImage: {
-      width: 64,
-      height: 64,
+      width: 52,
+      height: 52,
       marginBottom: 2,
     },
     summaryIconBox: {

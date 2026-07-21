@@ -363,7 +363,7 @@ export default function TrainScreen() {
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </View>
                 <Text style={styles.sessionCardLabel} numberOfLines={1}>
@@ -403,7 +403,7 @@ export default function TrainScreen() {
                   <Image
                     source={SESSION_IMAGES[type]}
                     style={styles.sessionCardImage}
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                 </View>
                 <Text style={styles.sessionCardLabel} numberOfLines={1}>
@@ -640,7 +640,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     },
     sessionCardIcon: {
       width: '100%',
-      height: 80,
+      height: 110,
       borderRadius: 10,
       backgroundColor: '#111111',
       overflow: 'hidden',

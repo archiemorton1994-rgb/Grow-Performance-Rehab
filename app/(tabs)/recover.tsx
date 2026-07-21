@@ -492,17 +492,12 @@ export default function RecoverScreen() {
             ]}
             testID={`recover-row-${row.key}`}
           >
-            <View
-              style={[
-                styles.navIcon,
-                { backgroundColor: row.cardAccent + '22', overflow: 'hidden' },
-              ]}
-            >
+            <View style={[styles.navIcon, { backgroundColor: row.cardAccent + '22' }]}>
               {RECOVER_IMAGES[row.key] ? (
                 <Image
                   source={RECOVER_IMAGES[row.key]}
                   style={styles.navIconImage}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
               ) : (
                 <Ionicons name={row.icon} size={30} color={row.iconColor} />

@@ -207,19 +207,19 @@ export default function TabLayout() {
             tabBarIcon: ({ focused }) => (
               <View
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transform: [{ translateY: -8 }],
+                  transform: [{ translateY: -10 }],
                   backgroundColor: C.primaryLight,
                   opacity: focused ? 1 : 0.75,
                 }}
               >
                 <Image
                   source={TAB_ICONS.train}
-                  style={{ width: 28, height: 28 }}
+                  style={{ width: 46, height: 46 }}
                   resizeMode="contain"
                 />
               </View>

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -35,6 +34,14 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Available',
   kettlebells: 'Available',
   fullgym: 'Everything',
+};
+
+const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
+  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
+  bands: require('@/assets/images/equipment/bands.png'),
+  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
+  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
+  fullgym: require('@/assets/images/equipment/fullgym.png'),
 };
 
 // ─── Readiness tutorial content ───────────────────────────────────────────
@@ -428,49 +435,44 @@ export default function ReadinessScreen() {
                     isActive && styles.tierRowActive,
                     !isAvailable && styles.tierRowLocked,
                     pressed && isAvailable && { opacity: 0.8 },
+                    tier === 'fullgym' && styles.tierTileFull,
                   ]}
                   testID={`equipment-${tier}`}
                 >
-                  <View
-                    style={[
-                      styles.tierIcon,
-                      {
-                        backgroundColor: isActive
-                          ? C.primary
-                          : isAvailable
-                            ? C.primaryMuted
-                            : C.surfaceTertiary,
-                      },
-                    ]}
-                  >
-                    <EquipmentIcon
-                      tier={tier}
-                      size={16}
-                      color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
+                  <View style={styles.tierImageWrap}>
+                    <Image
+                      source={EQUIPMENT_IMAGES[tier]}
+                      style={styles.tierImage}
+                      resizeMode="contain"
                     />
+                    {!isAvailable && (
+                      <View style={styles.tierLockedOverlay}>
+                        <Ionicons name="lock-closed" size={18} color="rgba(255,255,255,0.7)" />
+                      </View>
+                    )}
                   </View>
-                  <View style={styles.tierText}>
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        styles.tierLabel,
-                        isActive && { color: C.primary },
-                        !isAvailable && { color: C.textTertiary },
-                      ]}
-                    >
-                      {getEquipmentLabel(tier)}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.tierSub}>
-                      {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
-                    </Text>
-                  </View>
-                  {!isAvailable ? (
-                    <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
-                  ) : (
-                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                  <View style={styles.tierTextRow}>
+                    <View style={styles.tierText}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.tierLabel,
+                          isActive && { color: C.primary },
+                          !isAvailable && { color: C.textTertiary },
+                        ]}
+                      >
+                        {getEquipmentLabel(tier)}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.tierSub}>
+                        {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
+                      </Text>
                     </View>
-                  )}
+                    {isAvailable && (
+                      <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                        {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                      </View>
+                    )}
+                  </View>
                 </Pressable>
               );
             })}
@@ -926,28 +928,39 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     tierGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     tierTile: {
       width: '48%',
-      minHeight: 58,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
+      flexDirection: 'column',
       backgroundColor: C.surface,
-      borderRadius: 12,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      borderRadius: 14,
+      overflow: 'hidden',
       borderWidth: 1,
       borderColor: C.borderLight,
     },
+    tierTileFull: { width: '100%' },
     tierRowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
-    tierRowLocked: { opacity: 0.55 },
-    tierIcon: {
-      width: 30,
-      height: 30,
-      borderRadius: 9,
+    tierRowLocked: { opacity: 0.5 },
+    tierImageWrap: {
+      width: '100%',
+      height: 86,
+      backgroundColor: '#111111',
       alignItems: 'center',
       justifyContent: 'center',
     },
+    tierImage: { width: '100%', height: '100%' },
+    tierLockedOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tierTextRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      gap: 6,
+    },
     tierText: { flex: 1 },
-    tierLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+    tierLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text },
     tierSub: {
       fontSize: 10,
       fontFamily: 'Inter_400Regular',
