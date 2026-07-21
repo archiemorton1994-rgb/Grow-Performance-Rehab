@@ -82,7 +82,7 @@ function check(label, condition, detail) {
 // ─── Parser self-tests ────────────────────────────────────────────────────────
 // Run before the real checks so a broken parser fails loudly rather than
 // silently producing false-green results on the real file.
-console.log('\n[S1–S4] Parser self-tests — extractUseEffectBodies catches all three forms');
+console.log('\n[S1–S5b] Parser self-tests — extractUseEffectBodies catches all four forms');
 
 const NEEDLE = '__SENTINEL_CALL__()';
 
@@ -113,6 +113,24 @@ check(
   'S4: clean useEffect body does not produce a false positive',
   cleanBodies.length === 1 && !cleanBodies[0].includes(NEEDLE),
   'clean useEffect body incorrectly contains the sentinel — parser has a false-positive bug'
+);
+
+const anonFuncBodies = extractUseEffectBodies(`useEffect(function () { ${NEEDLE}; }, [deps])`);
+check(
+  'S5: anonymous function-expression useEffect body is extracted',
+  anonFuncBodies.length === 1 && anonFuncBodies[0].includes(NEEDLE),
+  'anonymous function-expression body not detected — ' +
+    '`useEffect(function() { setHistoryFilter(null); })` violations would be missed'
+);
+
+const namedFuncBodies = extractUseEffectBodies(
+  `useEffect(function myEffect() { ${NEEDLE}; }, [deps])`
+);
+check(
+  'S5b: named function-expression useEffect body is extracted',
+  namedFuncBodies.length === 1 && namedFuncBodies[0].includes(NEEDLE),
+  'named function-expression body not detected — ' +
+    '`useEffect(function myEffect() { setHistoryFilter(null); })` violations would be missed'
 );
 
 // ─── Real file checks ─────────────────────────────────────────────────────────
