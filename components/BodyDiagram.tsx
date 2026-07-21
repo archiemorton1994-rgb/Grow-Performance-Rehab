@@ -12,6 +12,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { PainRegion, useAppStore } from '@/lib/store';
 import { useColors } from '@/constants/colors';
 
@@ -87,6 +88,37 @@ export const BODY_DIAGRAM_LABELS: Record<PainRegion, string> = {
   glutes: 'Glutes',
   lat_mid_back: 'Lats / Mid Back',
 };
+
+// ── Cycle-through order: body-order top → bottom, per view ───────────────────
+// Used by the cycle-through arrow button to step through selectable regions.
+const FRONT_CYCLE_ORDER: PainRegion[] = [
+  'neck',
+  'front_shoulder',
+  'chest',
+  'bicep',
+  'elbow_wrist',
+  'upper_back',
+  'core_ribs',
+  'hip_groin',
+  'quads',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
+];
+const BACK_CYCLE_ORDER: PainRegion[] = [
+  'neck',
+  'rear_shoulder',
+  'upper_back',
+  'lat_mid_back',
+  'tricep',
+  'elbow_wrist',
+  'lower_back',
+  'glutes',
+  'hamstrings',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
+];
 
 // ── Library slug mappings ─────────────────────────────────────────────────────
 // Front view: PainRegion → library Slug(s)
@@ -324,6 +356,22 @@ export function BodyDiagram({
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // ─── Cycle-through: advance to next selectable region in body order ─────────
+  const handleCycle = () => {
+    const allRegions = view === 'front' ? FRONT_CYCLE_ORDER : BACK_CYCLE_ORDER;
+    const regions = allRegions.filter((r) => {
+      const isMuscle = MUSCLE_SET.has(r);
+      return category === 'muscles' ? isMuscle : !isMuscle;
+    });
+    if (regions.length === 0) return;
+    const currentIdx = selected !== undefined ? regions.indexOf(selected) : -1;
+    const nextRegion = regions[(currentIdx + 1) % regions.length];
+    stopPulse();
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    triggerRipple(nextRegion);
+    onSelect(nextRegion);
+  };
+
   // ─── h(): interactive zone — MUST use rgba(0,0,0,0.001) (not transparent/none)
   // react-native-svg only fires onPress for painted (non-transparent) fills on iOS/Android.
   // Out-of-category regions use rgba(0,0,0,0) (fully transparent) so native touch
@@ -364,8 +412,8 @@ export function BodyDiagram({
 
   const renderFrontHotspots = () => (
     <G>
-      {/* Neck */}
-      <Path d="M 88,48 C 85,53 84,59 84,66 L 116,66 C 116,59 115,53 112,48 Z" {...h('neck')} />
+      {/* Neck — enlarged tap target (was 28 wide × 18 tall, now 46 wide × 24 tall) */}
+      <Path d="M 80,42 C 76,48 74,56 74,64 L 126,64 C 126,56 124,48 120,42 Z" {...h('neck')} />
       {/* Front shoulders — enlarged to cover full deltoid area */}
       <Path
         d="M 50,72 C 38,70 22,68 10,72 C 2,76 0,88 0,102 C 0,116 4,128 12,136 C 18,142 28,146 38,144 C 48,142 54,134 54,122 L 54,94 Z"
@@ -407,9 +455,9 @@ export function BodyDiagram({
         d="M 53,120 C 54,132 54,144 54,156 C 54,164 56,170 58,176 C 66,180 82,182 100,182 C 118,182 134,180 142,176 C 144,170 146,164 146,156 C 146,144 146,132 147,120 C 134,124 120,126 110,126 L 90,126 C 80,126 66,124 53,120 Z"
         {...h('core_ribs')}
       />
-      {/* Hip / Groin */}
+      {/* Hip / Groin — enlarged tap target (taller band, extends higher) */}
       <Path
-        d="M 58,178 C 52,184 48,192 46,200 C 50,206 62,210 78,212 L 122,212 C 138,210 150,206 154,200 C 152,192 148,184 142,178 C 132,182 118,184 100,184 C 82,184 68,182 58,178 Z"
+        d="M 54,172 C 46,180 42,192 42,204 C 46,212 62,216 82,218 L 118,218 C 138,216 154,212 158,204 C 158,192 154,180 146,172 C 134,176 118,178 100,178 C 82,178 66,176 54,172 Z"
         {...h('hip_groin')}
       />
       {/* Quads */}
@@ -421,13 +469,13 @@ export function BodyDiagram({
         d="M 152,202 C 160,214 168,230 174,248 C 178,262 178,278 176,294 C 174,306 168,318 160,322 C 150,324 138,320 130,312 C 122,302 120,288 122,272 C 124,256 128,240 130,226 C 132,214 130,204 128,200 C 138,198 146,198 152,202 Z"
         {...h('quads')}
       />
-      {/* Knees */}
+      {/* Knees — enlarged tap targets (start 14px higher, wider) */}
       <Path
-        d="M 22,318 C 20,328 22,338 26,344 C 30,348 40,352 50,352 C 60,352 70,348 74,342 C 78,336 78,324 76,316 C 66,322 58,326 50,326 C 42,326 32,322 22,318 Z"
+        d="M 16,306 C 14,320 16,336 22,346 C 28,354 40,358 52,358 C 64,358 74,352 78,344 C 82,334 82,318 78,308 C 66,314 58,320 50,320 C 42,320 30,314 16,306 Z"
         {...h('knee')}
       />
       <Path
-        d="M 178,318 C 180,328 178,338 174,344 C 170,348 160,352 150,352 C 140,352 130,348 126,342 C 122,336 122,324 124,316 C 134,322 142,326 150,326 C 158,326 168,322 178,318 Z"
+        d="M 184,306 C 186,320 184,336 178,346 C 172,354 160,358 148,358 C 136,358 126,352 122,344 C 118,334 118,318 122,308 C 134,314 142,320 150,320 C 158,320 170,314 184,306 Z"
         {...h('knee')}
       />
       {/* Calf / Shin */}
@@ -439,13 +487,13 @@ export function BodyDiagram({
         d="M 176,348 C 182,360 184,374 184,388 C 184,402 180,416 174,426 C 168,434 160,438 150,438 C 140,438 132,434 126,426 C 120,416 118,402 120,388 C 122,374 126,358 130,348 C 138,342 150,340 160,344 Z"
         {...h('calf_shin')}
       />
-      {/* Ankles / Achilles */}
+      {/* Ankles / Achilles — enlarged tap targets (start 14px higher) */}
       <Path
-        d="M 18,432 C 14,438 12,444 14,450 C 16,454 24,456 38,456 L 68,456 C 80,456 88,454 90,450 C 92,446 88,438 84,432 C 72,436 60,438 50,438 C 38,438 26,436 18,432 Z"
+        d="M 14,418 C 8,428 6,440 10,452 C 12,460 24,462 40,462 L 66,462 C 82,462 92,460 94,452 C 96,438 90,426 84,418 C 72,422 60,424 50,424 C 38,424 26,422 14,418 Z"
         {...h('ankle_achilles')}
       />
       <Path
-        d="M 182,432 C 186,438 188,444 186,450 C 184,454 176,456 162,456 L 132,456 C 120,456 112,454 110,450 C 108,446 112,438 116,432 C 128,436 140,438 150,438 C 162,438 174,436 182,432 Z"
+        d="M 186,418 C 192,428 194,440 190,452 C 188,460 176,462 160,462 L 134,462 C 118,462 108,460 106,452 C 104,438 110,426 116,418 C 128,422 140,424 150,424 C 162,424 174,422 186,418 Z"
         {...h('ankle_achilles')}
       />
       {/* Upper back / Trapezius (front view — visible as trap at top) */}
@@ -455,8 +503,8 @@ export function BodyDiagram({
 
   const renderBackHotspots = () => (
     <G>
-      {/* Neck */}
-      <Path d="M 88,48 C 85,53 84,59 84,66 L 116,66 C 116,59 115,53 112,48 Z" {...h('neck')} />
+      {/* Neck — enlarged tap target (was 28 wide × 18 tall, now 46 wide × 24 tall) */}
+      <Path d="M 80,42 C 76,48 74,56 74,64 L 126,64 C 126,56 124,48 120,42 Z" {...h('neck')} />
       {/* Front shoulder — rendered beneath rear_shoulder so rear_shoulder captures
           taps from the back view; front_shoulder is still selectable from the sides
           of the shoulder area not covered by the rear_shoulder path */}
@@ -533,13 +581,13 @@ export function BodyDiagram({
         d="M 174,268 C 180,280 184,294 186,310 C 188,322 188,334 184,342 C 180,348 172,352 162,350 C 152,348 144,340 140,330 C 136,320 134,306 136,290 C 138,276 142,264 148,258 C 156,260 166,264 174,268 Z"
         {...h('hamstrings')}
       />
-      {/* Knees */}
+      {/* Knees — enlarged tap targets (start 14px higher, wider) */}
       <Path
-        d="M 22,318 C 20,328 22,338 26,344 C 30,348 40,352 50,352 C 60,352 70,348 74,342 C 78,336 78,324 76,316 C 66,322 58,326 50,326 C 42,326 32,322 22,318 Z"
+        d="M 16,306 C 14,320 16,336 22,346 C 28,354 40,358 52,358 C 64,358 74,352 78,344 C 82,334 82,318 78,308 C 66,314 58,320 50,320 C 42,320 30,314 16,306 Z"
         {...h('knee')}
       />
       <Path
-        d="M 178,318 C 180,328 178,338 174,344 C 170,348 160,352 150,352 C 140,352 130,348 126,342 C 122,336 122,324 124,316 C 134,322 142,326 150,326 C 158,326 168,322 178,318 Z"
+        d="M 184,306 C 186,320 184,336 178,346 C 172,354 160,358 148,358 C 136,358 126,352 122,344 C 118,334 118,318 122,308 C 134,314 142,320 150,320 C 158,320 170,314 184,306 Z"
         {...h('knee')}
       />
       {/* Calf / Shin */}
@@ -551,13 +599,13 @@ export function BodyDiagram({
         d="M 176,348 C 182,360 184,374 184,388 C 184,402 180,416 174,426 C 168,434 160,438 150,438 C 140,438 132,434 126,426 C 120,416 118,402 120,388 C 122,374 126,358 130,348 C 138,342 150,340 160,344 Z"
         {...h('calf_shin')}
       />
-      {/* Ankles / Achilles */}
+      {/* Ankles / Achilles — enlarged tap targets (start 14px higher) */}
       <Path
-        d="M 18,432 C 14,438 12,444 14,450 C 16,454 24,456 38,456 L 68,456 C 80,456 88,454 90,450 C 92,446 88,438 84,432 C 72,436 60,438 50,438 C 38,438 26,436 18,432 Z"
+        d="M 14,418 C 8,428 6,440 10,452 C 12,460 24,462 40,462 L 66,462 C 82,462 92,460 94,452 C 96,438 90,426 84,418 C 72,422 60,424 50,424 C 38,424 26,422 14,418 Z"
         {...h('ankle_achilles')}
       />
       <Path
-        d="M 182,432 C 186,438 188,444 186,450 C 184,454 176,456 162,456 L 132,456 C 120,456 112,454 110,450 C 108,446 112,438 116,432 C 128,436 140,438 150,438 C 162,438 174,436 182,432 Z"
+        d="M 186,418 C 192,428 194,440 190,452 C 188,460 176,462 160,462 L 134,462 C 118,462 108,460 106,452 C 104,438 110,426 116,418 C 128,422 140,424 150,424 C 162,424 174,422 186,418 Z"
         {...h('ankle_achilles')}
       />
     </G>
@@ -682,6 +730,25 @@ export function BodyDiagram({
         },
         catMuscleActive: { color: VOCAB_WORKED },
         catJointActive: { color: JOINT_CLR },
+        bodyRow: {
+          flexDirection: 'row' as const,
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+        },
+        cyclerSpacer: { width: 60 },
+        cyclerBtn: {
+          alignSelf: 'center' as const,
+          padding: 4,
+          marginLeft: 4,
+        },
+        cyclerBtnInner: {
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          borderWidth: 1.5,
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+        },
         bodyWrap: { alignItems: 'center' as const },
         rippleWrap: {
           position: 'absolute' as const,
@@ -796,49 +863,76 @@ export function BodyDiagram({
         </View>
       )}
 
-      {/* Body diagram + hotspot overlay */}
-      <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
-        <View style={{ position: 'relative', width: svgWidth, height: svgWidth * 2.4 }}>
-          <Body
-            data={bodyData}
-            gender={gender}
-            side={view}
-            scale={scale}
-            colors={[defaultFill]}
-            onBodyPartPress={handleBodyPartPress}
-          />
-          <Svg
-            width={svgWidth}
-            height={svgWidth * 2.4}
-            viewBox="0 0 200 480"
-            style={StyleSheet.absoluteFillObject}
+      {/* Body diagram + hotspot overlay + cycle-through arrow */}
+      <View style={styles.bodyRow}>
+        {/* Spacer mirrors the cycle button width so the body stays centred */}
+        {!compact && !heatmapCounts && <View style={styles.cyclerSpacer} />}
+
+        <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
+          <View style={{ position: 'relative', width: svgWidth, height: svgWidth * 2.4 }}>
+            <Body
+              data={bodyData}
+              gender={gender}
+              side={view}
+              scale={scale}
+              colors={[defaultFill]}
+              onBodyPartPress={handleBodyPartPress}
+            />
+            <Svg
+              width={svgWidth}
+              height={svgWidth * 2.4}
+              viewBox="0 0 200 480"
+              style={StyleSheet.absoluteFillObject}
+            >
+              {/* scaleY 5/6: library renders at 400*scale px, container is 480*scale px.
+                  Compressing hotspot paths by 400/480 aligns them with the visual body. */}
+              <G transform="scale(1, 0.8333)">
+                {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
+              </G>
+            </Svg>
+          </View>
+          {/* Ripple overlay — anchored to the tapped region centre */}
+          {ripplePos && (
+            <Animated.View
+              style={[
+                styles.rippleWrap,
+                {
+                  width: RIPPLE_SIZE,
+                  height: RIPPLE_SIZE,
+                  top: ripplePos.py,
+                  left: ripplePos.px,
+                  pointerEvents: 'none',
+                },
+                rippleStyle,
+              ]}
+            >
+              <View style={[styles.rippleCircle, { width: RIPPLE_SIZE, height: RIPPLE_SIZE }]} />
+            </Animated.View>
+          )}
+        </Animated.View>
+
+        {/* Cycle-through arrow button — steps through regions one-by-one */}
+        {!compact && !heatmapCounts && (
+          <Pressable
+            onPress={handleCycle}
+            style={({ pressed }) => [styles.cyclerBtn, pressed && { opacity: 0.7 }]}
+            hitSlop={16}
+            testID="body-diagram-cycle"
           >
-            {/* scaleY 5/6: library renders at 400*scale px, container is 480*scale px.
-                Compressing hotspot paths by 400/480 aligns them with the visual body. */}
-            <G transform="scale(1, 0.8333)">
-              {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
-            </G>
-          </Svg>
-        </View>
-        {/* Ripple overlay — anchored to the tapped region centre */}
-        {ripplePos && (
-          <Animated.View
-            style={[
-              styles.rippleWrap,
-              {
-                width: RIPPLE_SIZE,
-                height: RIPPLE_SIZE,
-                top: ripplePos.py,
-                left: ripplePos.px,
-                pointerEvents: 'none',
-              },
-              rippleStyle,
-            ]}
-          >
-            <View style={[styles.rippleCircle, { width: RIPPLE_SIZE, height: RIPPLE_SIZE }]} />
-          </Animated.View>
+            <View
+              style={[
+                styles.cyclerBtnInner,
+                {
+                  backgroundColor: colorWithAlpha(accent, 0.12),
+                  borderColor: colorWithAlpha(accent, 0.4),
+                },
+              ]}
+            >
+              <Ionicons name="chevron-forward" size={22} color={accent} />
+            </View>
+          </Pressable>
         )}
-      </Animated.View>
+      </View>
 
       {/* Label / hint — hidden in compact mode */}
       {!compact && (
