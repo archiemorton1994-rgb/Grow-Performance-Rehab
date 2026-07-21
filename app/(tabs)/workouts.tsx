@@ -4520,6 +4520,7 @@ export default function StatsScreen() {
                             <Pressable
                               onPress={() => {
                                 setPainRegionFilter(painOverviewSelected);
+                                setActiveTab('history');
                               }}
                               hitSlop={8}
                               style={({ pressed }) => ({
@@ -4539,7 +4540,7 @@ export default function StatsScreen() {
                                   color: C.primary,
                                 }}
                               >
-                                Filter
+                                See sessions
                               </Text>
                             </Pressable>
                           </View>
