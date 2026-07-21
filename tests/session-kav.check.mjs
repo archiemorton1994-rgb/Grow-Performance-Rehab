@@ -154,12 +154,20 @@ check(
   'If a native header is added, keyboardVerticalOffset must be updated to match header height'
 );
 
-// ─── [6] KAV wraps ScrollView AND bar (order check) ──────────────────────────
+// ─── [6] KAV wraps ScrollView (or KeyboardAwareScrollViewCompat) AND bar ─────
 console.log('[6] KAV child order — ScrollView appears before SessionActiveBar');
 
-const scrollViewIdx = sessionSrc.indexOf('<ScrollView', kavOpenIdx);
-check(scrollViewIdx !== -1, 'ScrollView found inside session KAV');
-if (scrollViewIdx !== -1 && barIdx !== -1) {
+// Accept either a plain ScrollView or the keyboard-aware compat wrapper.
+const scrollViewIdx = Math.min(
+  ...[
+    sessionSrc.indexOf('<ScrollView', kavOpenIdx),
+    sessionSrc.indexOf('<KeyboardAwareScrollViewCompat', kavOpenIdx),
+  ].filter((i) => i !== -1),
+  Infinity,
+);
+const scrollViewFound = scrollViewIdx !== Infinity;
+check(scrollViewFound, 'ScrollView found inside session KAV');
+if (scrollViewFound && barIdx !== -1) {
   check(
     scrollViewIdx < barIdx,
     'ScrollView (exercise cards) renders before SessionActiveBar (natural stacking order)'

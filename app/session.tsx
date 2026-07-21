@@ -31,6 +31,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
   EquipmentTier,
@@ -2767,7 +2768,7 @@ export default function SessionScreen() {
         onDismiss={() => setPainBannerDismissed(true)}
       />
 
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
         ref={scrollViewRef}
         style={styles.exerciseList}
         contentContainerStyle={[
@@ -2777,6 +2778,7 @@ export default function SessionScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        bottomOffset={24}
       >
         {exercises.map((exercise, index) => {
           const data = exerciseData[index];
@@ -2852,7 +2854,7 @@ export default function SessionScreen() {
           }
           return card;
         })}
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       {/* Wrap the active bar so the tutorial can spotlight it (steps 1 & 2). */}
       <View ref={sessionBarRef}>
