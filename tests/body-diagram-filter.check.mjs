@@ -3,32 +3,30 @@
  *
  * WHY THIS MATTERS
  * ────────────────
- * The Stats tab has two separate paths that both drive painRegionFilter:
+ * The Stats tab has two separate paths that both drive painRegionFilter, both
+ * now unified through the shared togglePainFilter helper in lib/filter-utils.ts:
  *
  *   1. Pain pills on session rows (guarded by pain-pill-filter.check.mjs)
- *      toggle: `prev === region ? null : region`
+ *      call: `setPainRegionFilter((prev) => togglePainFilter(prev, region))`
  *
  *   2. BodyDiagram heatmap regions (guarded here)
- *      toggle: `r === prev ? null : (r ?? null)`
+ *      call: `setPainRegionFilter((prev) => togglePainFilter(prev, r))`
  *
- * The body-diagram path is subtly different — `r` is typed `PainRegion |
- * undefined` (the BodyDiagram can send undefined to deselect), so the toggle
- * uses `(r ?? null)` instead of bare `r`. If this pattern is simplified to a
- * plain setter or the prev-based guard is dropped, a second tap on the same
- * region will no longer clear the filter — a silent regression.
- *
- * Additionally, both toggle paths must stay functionally equivalent for normal
- * (non-undefined) region values so that tapping a heatmap zone behaves the
- * same as tapping the pill for the same region.
+ * The body-diagram path passes `r` which is typed `PainRegion | undefined`
+ * (the BodyDiagram can send undefined to deselect). togglePainFilter handles
+ * this with `(next ?? null)` so undefined always clears the filter. If the
+ * call is replaced with a plain setter or the helper is inlined incorrectly,
+ * the second-tap-to-clear behaviour silently breaks.
  *
  * Checks:
- *  1. SOURCE — onSelect uses the prev-based toggle `r === prev ? null : (r ?? null)`
+ *  1. SOURCE — BodyDiagram onSelect calls togglePainFilter(prev, r)
+ *  1b. SOURCE — togglePainFilter in lib/filter-utils.ts implements `next === prev ? null : (next ?? null)`
  *  2. SOURCE — BodyDiagram selected prop is wired to `painRegionFilter ?? undefined`
  *  3. SOURCE — onSelect is an inline arrow function (not a pre-bound ref that hides the toggle)
  *  4. LOGIC  — first tap sets region; second tap on same region clears to null
  *  5. LOGIC  — switching regions replaces (not stacks)
  *  6. LOGIC  — `r = undefined` (BodyDiagram deselect) always clears the filter
- *  7. PARITY — diagram toggle == pill toggle for all non-undefined region values
+ *  7. PARITY — togglePainFilter is consistent with both original toggle expressions
  *
  * Run:  node tests/body-diagram-filter.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -40,6 +38,7 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dir, '../app/(tabs)/workouts.tsx'), 'utf8');
+const filterUtilsSrc = readFileSync(join(__dir, '../lib/filter-utils.ts'), 'utf8');
 
 let failures = 0;
 let total = 0;
@@ -54,16 +53,28 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. SOURCE — prev-based toggle pattern ───────────────────────────────────
-console.log('\n[1] Source — onSelect toggle uses the prev-based pattern');
+// ─── 1. SOURCE — BodyDiagram onSelect delegates to togglePainFilter ──────────
+console.log('\n[1] Source — BodyDiagram onSelect calls togglePainFilter(prev, r)');
 
-const DIAGRAM_TOGGLE = 'r === prev ? null : (r ?? null)';
+const DIAGRAM_CALL = 'togglePainFilter(prev, r)';
 
 check(
-  `onSelect toggle uses "${DIAGRAM_TOGGLE}"`,
-  src.includes(DIAGRAM_TOGGLE),
-  'pattern not found — second tap will no longer clear the filter, or the ' +
-    'undefined-deselect path is broken'
+  `BodyDiagram onSelect calls \`${DIAGRAM_CALL}\``,
+  src.includes(DIAGRAM_CALL),
+  'togglePainFilter not called from BodyDiagram onSelect — second tap may no longer clear ' +
+    'the filter, or the undefined-deselect path is broken'
+);
+
+// ─── 1b. SOURCE — helper implements the canonical toggle pattern ──────────────
+console.log('\n[1b] Source — togglePainFilter in lib/filter-utils.ts has correct implementation');
+
+const HELPER_PATTERN = 'next === prev ? null : (next ?? null)';
+
+check(
+  `togglePainFilter implements "${HELPER_PATTERN}"`,
+  filterUtilsSrc.includes(HELPER_PATTERN),
+  'helper implementation in lib/filter-utils.ts has changed — all pain-region filter ' +
+    'toggle behaviour may be affected (both pill and heatmap paths)'
 );
 
 // ─── 2. SOURCE — selected prop wired to painRegionFilter ─────────────────────
@@ -106,8 +117,9 @@ console.log('\n[4–6] Logic — BodyDiagram toggle state machine');
 
 /**
  * Re-implements the BodyDiagram onSelect handler from workouts.tsx:
- *   setPainRegionFilter((prev) => (r === prev ? null : (r ?? null)))
- * where `r` is PainRegion | undefined.
+ *   setPainRegionFilter((prev) => togglePainFilter(prev, r))
+ * where `r` is PainRegion | undefined. Mirrors togglePainFilter's logic
+ * (`next === prev ? null : (next ?? null)`) for independent verification.
  */
 function diagramToggle(prev, r) {
   return r === prev ? null : (r ?? null);
@@ -168,7 +180,9 @@ console.log(
 
 /**
  * Re-implements the pill onPainRegionPress toggle from workouts.tsx:
- *   setPainRegionFilter((prev) => (prev === region ? null : region))
+ *   setPainRegionFilter((prev) => togglePainFilter(prev, region))
+ * Mirrors the original inline logic (`prev === region ? null : region`)
+ * for parity verification against the diagram path.
  */
 function pillToggle(prev, region) {
   return prev === region ? null : region;

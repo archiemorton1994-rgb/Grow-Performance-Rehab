@@ -39,6 +39,7 @@ import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
+import { togglePainFilter } from '@/lib/filter-utils';
 
 const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;
@@ -4782,9 +4783,7 @@ export default function StatsScreen() {
                   </View>
                   <BodyDiagram
                     selected={painRegionFilter ?? undefined}
-                    onSelect={(r) =>
-                      setPainRegionFilter((prev) => (r === prev ? null : (r ?? null)))
-                    }
+                    onSelect={(r) => setPainRegionFilter((prev) => togglePainFilter(prev, r))}
                     heatmapCounts={painRegionCounts}
                     legendLabels={['Occasional', 'Regular', 'Frequent']}
                     maxWidth={150}
@@ -4798,7 +4797,7 @@ export default function StatsScreen() {
                 weightUnit={weightUnit}
                 emptyMessage={historyEmptyMessage}
                 onPainRegionPress={(region) =>
-                  setPainRegionFilter((prev) => (prev === region ? null : region))
+                  setPainRegionFilter((prev) => togglePainFilter(prev, region))
                 }
                 activePainRegion={painRegionFilter}
                 C={C}

@@ -9,13 +9,13 @@
  * clear the filter (toggle off). The filteredSessions useMemo then narrows
  * the visible list to only sessions whose painRegions include the active filter.
  *
- * If the toggle handler is changed from `prev === region ? null : region` to a
- * simple setter, the "tap again to clear" behaviour silently breaks. If the
- * pill press is ever stopped from propagating to the parent, the filter never
- * activates. Both regressions would ship silently without these checks.
+ * If the togglePainFilter call is replaced with a plain setter, the "tap again
+ * to clear" behaviour silently breaks. If the pill press is ever stopped from
+ * propagating to the parent, the filter never activates. Both regressions would
+ * ship silently without these checks.
  *
  * Checks:
- *  1. SOURCE — toggle handler uses the prev-based pattern (tap again = clear)
+ *  1. SOURCE — pill handler calls togglePainFilter(prev, region) (tap again = clear)
  *  2. SOURCE — pill Pressable calls onPainRegionPress (wired to parent setter)
  *  3. SOURCE — active pill styling gates on activePainRegion === r
  *  4. LOGIC  — toggle: first tap sets region, second tap clears it
@@ -49,14 +49,15 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. SOURCE — toggle handler uses prev-based pattern ──────────────────────
-console.log('\n[1] Source — onPainRegionPress toggle uses prev-based pattern');
+// ─── 1. SOURCE — pill handler delegates to togglePainFilter ──────────────────
+console.log('\n[1] Source — onPainRegionPress calls togglePainFilter(prev, region)');
 
-const TOGGLE_PATTERN = 'prev === region ? null : region';
+const TOGGLE_CALL = 'togglePainFilter(prev, region)';
 check(
-  `onPainRegionPress toggle uses "${TOGGLE_PATTERN}"`,
-  src.includes(TOGGLE_PATTERN),
-  'pattern not found — second tap will no longer clear the filter'
+  `onPainRegionPress toggle calls \`${TOGGLE_CALL}\``,
+  src.includes(TOGGLE_CALL),
+  'togglePainFilter not called from pill handler — second tap may no longer clear the filter, ' +
+    'or the two toggle paths (pill + heatmap) have drifted'
 );
 
 // ─── 2. SOURCE — pill Pressable calls onPainRegionPress ──────────────────────
