@@ -71,15 +71,7 @@ const TAB_ICONS = {
   stats: require('@/assets/images/tabs/stats.png'),
 } as const;
 
-function TabIcon({
-  source,
-  focused,
-  size = 28,
-}: {
-  source: any;
-  focused: boolean;
-  size?: number;
-}) {
+function TabIcon({ source, focused, size = 28 }: { source: any; focused: boolean; size?: number }) {
   return (
     <Image
       source={source}
@@ -204,9 +196,7 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: 'Profile',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon source={TAB_ICONS.profile} focused={focused} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.profile} focused={focused} />,
           }}
         />
         <Tabs.Screen
@@ -245,18 +235,14 @@ export default function TabLayout() {
           name="recover"
           options={{
             title: 'Restore',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon source={TAB_ICONS.restore} focused={focused} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.restore} focused={focused} />,
           }}
         />
         <Tabs.Screen
           name="workouts"
           options={{
             title: 'Stats',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon source={TAB_ICONS.stats} focused={focused} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.stats} focused={focused} />,
           }}
         />
       </Tabs>

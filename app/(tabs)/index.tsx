@@ -676,6 +676,7 @@ export default function HomeScreen() {
                 style={styles.summaryCardImage}
                 resizeMode="contain"
               />
+              <Text style={styles.summaryCycleLabel}>CYCLE</Text>
               <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
               <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
               <Text style={styles.summaryCardSub}>
