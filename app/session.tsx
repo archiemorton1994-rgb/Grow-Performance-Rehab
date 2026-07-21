@@ -664,7 +664,6 @@ export function SessionActiveBar({
                 }}
                 testID={`set-${activeSetIndex + 1}-weight`}
               />
-              <Text style={styles.barInputUnit}>{weightUnit}</Text>
             </View>
           )}
 
@@ -4253,6 +4252,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
     },
     barInputBlock: {
+      flex: 1,
       alignItems: 'center',
       gap: 3,
     },
@@ -4262,7 +4262,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textTertiary,
     },
     barInput: {
-      width: 88,
+      width: '100%',
       height: 56,
       borderRadius: 12,
       backgroundColor: C.surfaceTertiary,
