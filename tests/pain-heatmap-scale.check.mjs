@@ -72,9 +72,7 @@ const hcWindow = hcStart !== -1 ? bodySrc.slice(hcStart, hcStart + 250) : null;
 // The function closes with a lone `}` on its own line.
 const hcCloseOffset = hcWindow !== null ? hcWindow.indexOf('\n}') : -1;
 const hcBody =
-  hcWindow !== null && hcCloseOffset !== -1
-    ? hcWindow.slice(0, hcCloseOffset + 2)
-    : null;
+  hcWindow !== null && hcCloseOffset !== -1 ? hcWindow.slice(0, hcCloseOffset + 2) : null;
 
 // ─── 1. SOURCE — heatmapColor is exported ────────────────────────────────────
 console.log('\n[1] Source — heatmapColor is exported from BodyDiagram');
