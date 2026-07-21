@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, Platform, Image } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,8 +7,20 @@ import * as Haptics from 'expo-haptics';
 import { useColors, AppColors } from '@/constants/colors';
 import { useAppStore, CompletedSession } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
-import { SESSION_META, getSessionColors } from '@/lib/session-meta';
 import { formatDate, formatWeight } from '@/lib/utils';
+
+const SESSION_IMAGES: Record<string, any> = {
+  squat: require('@/assets/images/sessions/squat.png'),
+  bench: require('@/assets/images/sessions/bench.png'),
+  deadlift: require('@/assets/images/sessions/deadlift.png'),
+  conditioning: require('@/assets/images/sessions/conditioning.png'),
+  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
+  flexibility: require('@/assets/images/sessions/mobility.png'),
+  custom: require('@/assets/images/sessions/custom.png'),
+  lower_body: require('@/assets/images/sessions/lower-body.png'),
+  upper_body: require('@/assets/images/sessions/upper-body.png'),
+  full_body: require('@/assets/images/sessions/full-body.png'),
+};
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
@@ -37,15 +49,11 @@ export default function PastSessionsScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
   const completedSessions = useAppStore((s) => s.completedSessions);
   const weightUnit = useAppStore((s) => s.weightUnit);
-  const sessionColors = useMemo(() => getSessionColors(C), [C]);
-
   const topPad = Platform.OS === 'web' ? WEB_TOP_INSET : insets.top;
   const bottomPad = Platform.OS === 'web' ? WEB_BOTTOM_INSET : insets.bottom;
   const total = completedSessions.length;
 
   const renderItem = ({ item }: { item: CompletedSession }) => {
-    const colors = sessionColors[item.sessionType];
-    const icon = SESSION_META[item.sessionType].icon;
     const tw = topWeightKg(item);
     const duration =
       item.durationSeconds && item.durationSeconds > 0
@@ -61,8 +69,12 @@ export default function PastSessionsScreen() {
         style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
         testID={`past-session-${item.id}`}
       >
-        <View style={[styles.iconBadge, { backgroundColor: colors.bg }]}>
-          <Ionicons name={icon} size={20} color={colors.color} />
+        <View style={styles.iconBadge}>
+          <Image
+            source={SESSION_IMAGES[item.sessionType]}
+            style={styles.iconBadgeImage}
+            resizeMode="contain"
+          />
         </View>
         <View style={styles.rowMid}>
           <Text style={styles.rowTitle} numberOfLines={1}>
@@ -164,9 +176,9 @@ function makeStyles(C: AppColors) {
       width: 44,
       height: 44,
       borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
+      overflow: 'hidden',
     },
+    iconBadgeImage: { width: '100%' as any, height: '100%' as any },
     rowMid: { flex: 1, gap: 3 },
     rowTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     rowMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
