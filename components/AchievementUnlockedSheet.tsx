@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, Platform, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,6 +12,8 @@ import * as Haptics from 'expo-haptics';
 import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
 import { Badge } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
 
 const ENTER_MS = 300;
 const EXIT_MS = 210;
@@ -81,7 +83,6 @@ export default function AchievementUnlockedSheet({
   // 2–4 simultaneous badges: show individual icons + names instead of generic subtitle
   const isSmallBatch = !isSingle && badgeCount <= 4 && !!badges?.length;
   const accent = isSingle ? (badgeColor ?? C.primary) : ACHIEVEMENT_GOLD;
-  const iconName = isSingle ? (badgeIcon ?? 'trophy') : 'trophy';
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
 
@@ -124,7 +125,7 @@ export default function AchievementUnlockedSheet({
                 { backgroundColor: accent + '18', borderColor: accent + '44' },
               ]}
             >
-              <Ionicons name={iconName as any} size={40} color={accent} />
+              <Image source={ACHIEVEMENT_LOGO} style={styles.iconImage} resizeMode="contain" />
             </View>
 
             {/* Heading */}
@@ -232,6 +233,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
+  },
+  iconImage: {
+    width: 56,
+    height: 56,
   },
   title: {
     fontSize: 22,
