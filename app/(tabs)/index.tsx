@@ -542,16 +542,11 @@ export default function HomeScreen() {
                     ]}
                     testID={`first-session-${type}`}
                   >
-                    <View
-                      style={[
-                        styles.firstChoiceIcon,
-                        { backgroundColor: '#111111', overflow: 'hidden' },
-                      ]}
-                    >
+                    <View style={styles.firstChoiceIcon}>
                       <Image
                         source={SESSION_IMAGES[type]}
                         style={styles.firstChoiceImage}
-                        resizeMode="cover"
+                        resizeMode="contain"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -576,13 +571,11 @@ export default function HomeScreen() {
                     <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
                     <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
                   </View>
-                  <View
-                    style={[styles.todayIcon, { backgroundColor: '#111111', overflow: 'hidden' }]}
-                  >
+                  <View style={styles.todayIcon}>
                     <Image
                       source={SESSION_IMAGES[suggestedSession]}
                       style={styles.todayIconImage}
-                      resizeMode="cover"
+                      resizeMode="contain"
                     />
                   </View>
                 </View>
