@@ -396,7 +396,18 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, [isAuthenticated, hasActiveSubscription]);
 
-  const { hasHydrated, reminderEnabled, reminderTime } = useAppStore();
+  const { hasHydrated, reminderEnabled, reminderTime, activeSession, clearActiveSession } =
+    useAppStore();
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (activeSession?.savedAt) {
+      const age = Date.now() - new Date(activeSession.savedAt).getTime();
+      if (age > 24 * 60 * 60 * 1000) {
+        clearActiveSession();
+      }
+    }
+  }, [hasHydrated, activeSession, clearActiveSession]);
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web') return;

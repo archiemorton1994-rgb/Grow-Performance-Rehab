@@ -485,11 +485,15 @@ export const useAppStore = create<AppState>()(
       setUserProfile: (profile) => {
         set((state) => {
           if (profile.bodyweightKg !== undefined && profile.bodyweightKg > 0) {
+            const lastEntry = state.bodyweightLog[state.bodyweightLog.length - 1];
+            const weightChanged = !lastEntry || lastEntry.kg !== profile.bodyweightKg;
             const now = new Date().toISOString();
             return {
               userProfile: { ...state.userProfile, ...profile },
               bodyweightUpdatedAt: now,
-              bodyweightLog: [...state.bodyweightLog, { date: now, kg: profile.bodyweightKg }],
+              bodyweightLog: weightChanged
+                ? [...state.bodyweightLog, { date: now, kg: profile.bodyweightKg }]
+                : state.bodyweightLog,
             };
           }
           return { userProfile: { ...state.userProfile, ...profile } };

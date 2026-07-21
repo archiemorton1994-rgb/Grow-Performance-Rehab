@@ -19,6 +19,7 @@ import { useAuth } from '@/lib/auth-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SEC = 30;
+const RATE_LIMIT_COOLDOWN_SEC = 10 * 60;
 
 export default function OtpAuthScreen() {
   const C = useColors();
@@ -91,6 +92,8 @@ export default function OtpAuthScreen() {
     }
   }, [step, code, loading, handleVerifyCode]);
 
+  const isRateLimitError = (msg: string) => msg.toLowerCase().includes('too many');
+
   const handleResend = async () => {
     if (!canResend) return;
     setCode('');
@@ -104,6 +107,9 @@ export default function OtpAuthScreen() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not resend code.';
       setErrorMsg(msg);
+      if (isRateLimitError(msg)) {
+        setResendSecondsLeft(RATE_LIMIT_COOLDOWN_SEC);
+      }
     } finally {
       setLoading(false);
     }

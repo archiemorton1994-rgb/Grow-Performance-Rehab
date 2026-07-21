@@ -185,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (isRateLimited(otpRateLimitStore, REQUEST_RATE_LIMIT_MAX, normalised)) {
       return res
         .status(429)
-        .json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
+        .json({ message: 'Too many attempts. Please wait 10 minutes before trying again.' });
     }
 
     const code = generateOtp();
