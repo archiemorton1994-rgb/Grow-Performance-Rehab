@@ -674,7 +674,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       width: '100%',
       height: 110,
       borderRadius: 10,
-      backgroundColor: '#111111',
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
