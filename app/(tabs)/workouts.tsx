@@ -1750,8 +1750,31 @@ function StrengthLineChart({
           </View>
         )}
       </View>
+      {/* X-axis date span — first and last entry dates */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginTop: 2,
+          paddingHorizontal: 2,
+        }}
+      >
+        <Text style={{ fontSize: 9, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          {shortMonthYear(data[0].date)}
+        </Text>
+        {data.length > 1 && (
+          <Text style={{ fontSize: 9, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+            {shortMonthYear(data[data.length - 1].date)}
+          </Text>
+        )}
+      </View>
     </View>
   );
+}
+
+function shortMonthYear(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
 }
 
 function SessionHistoryList({
