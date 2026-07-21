@@ -2859,20 +2859,22 @@ export default function SessionScreen() {
         {(() => {
           const activeEx = exercises[activeIndex];
           const activeData = exerciseData[activeIndex];
+          const displayEx =
+            activeEx && activeData ? getDisplayExercise(activeEx, activeData) : activeEx;
           const activeSetIdx =
             activeData?.activeSetIndex ?? activeData?.sets.findIndex((s) => !s.completed) ?? 0;
           const clampedSetIdx = Math.min(
             Math.max(activeSetIdx, 0),
             (activeData?.sets.length ?? 1) - 1
           );
-          const weightGuidesForBar = activeEx
-            ? getWeightGuideKg(activeEx.category, activeEx.sets, activeEx.suggestedLoad)
+          const weightGuidesForBar = displayEx
+            ? getWeightGuideKg(displayEx.category, displayEx.sets, displayEx.suggestedLoad)
             : [];
-          const isBandEx = activeEx ? isLoadBandOrBodyweight(activeEx.suggestedLoad) : false;
-          const isTimeEx = activeEx ? isRepsTimeBased(activeEx.reps, sessionType) : false;
+          const isBandEx = displayEx ? isLoadBandOrBodyweight(displayEx.suggestedLoad) : false;
+          const isTimeEx = displayEx ? isRepsTimeBased(displayEx.reps, sessionType) : false;
           return (
             <SessionActiveBar
-              exercise={activeEx ?? null}
+              exercise={displayEx ?? null}
               exerciseIndex={activeIndex}
               setData={activeData ?? null}
               activeSetIndex={clampedSetIdx}
