@@ -104,6 +104,7 @@ export default function TrainScreen() {
 
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
+  const hasFullGym = profileEquipment.includes('fullgym');
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const testWeek = isTestWeekDue();
@@ -391,6 +392,22 @@ export default function TrainScreen() {
             })}
           </Animated.View>
 
+          {/* KPI equipment callout — only for non-full-gym users */}
+          {!hasFullGym && (
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              style={({ pressed }) => [styles.kpiCallout, pressed && { opacity: 0.7 }]}
+              testID="train-kpi-equipment-callout"
+            >
+              <Ionicons name="information-circle-outline" size={14} color={C.primary} />
+              <Text style={styles.kpiCalloutText}>
+                Sessions adapt to your equipment. Add Full Gym to unlock barbell lifts and 1RM
+                tracking.
+              </Text>
+              <Ionicons name="chevron-forward" size={12} color={C.primary} />
+            </Pressable>
+          )}
+
           {/* Additional Sessions */}
           <Text
             style={[
@@ -666,6 +683,24 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     sessionCardImage: { width: '100%', height: '100%' },
     sessionCardLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    kpiCallout: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 4,
+    },
+    kpiCalloutText: {
+      flex: 1,
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.primary,
+      lineHeight: 15,
+    },
 
     // Equipment sheet
     sheetBackdrop: {
