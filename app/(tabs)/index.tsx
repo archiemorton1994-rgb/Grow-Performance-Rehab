@@ -12,7 +12,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,74 +35,12 @@ import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 
-// ─── Weekly Progress Ring ─────────────────────────────────────────────────────
-function WeeklyRing({
-  count,
-  goal,
-  activeColor,
-  trackColor,
-  textColor,
-  size = 56,
-}: {
-  count: number;
-  goal: number;
-  activeColor: string;
-  trackColor: string;
-  textColor: string;
-  size?: number;
-}) {
-  const SIZE = size;
-  const SW = 5;
-  const radius = (SIZE - SW) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = goal > 0 ? Math.min(count / goal, 1) : 0;
-  const offset = circumference * (1 - progress);
-  const done = count >= goal;
-
-  return (
-    <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={SIZE} height={SIZE} style={{ position: 'absolute' }}>
-        <G rotation="-90" origin={`${SIZE / 2},${SIZE / 2}`}>
-          <Circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={radius}
-            stroke={trackColor}
-            strokeWidth={SW}
-            fill="none"
-          />
-          {progress > 0 && (
-            <Circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={radius}
-              stroke={activeColor}
-              strokeWidth={SW}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-            />
-          )}
-        </G>
-      </Svg>
-      {done ? (
-        <Ionicons name="checkmark" size={24} color={activeColor} />
-      ) : (
-        <Text
-          style={{
-            fontSize: 20,
-            fontFamily: 'Inter_700Bold',
-            color: textColor,
-            textAlign: 'center',
-          }}
-        >
-          {count}
-        </Text>
-      )}
-    </View>
-  );
-}
+const HOME_ICONS = {
+  weekStreak: require('@/assets/images/home/week-streak.png'),
+  yourProgram: require('@/assets/images/home/your-program.png'),
+  totalWorkouts: require('@/assets/images/home/total-workouts.png'),
+  achievements: require('@/assets/images/home/achievements.png'),
+} as const;
 
 const SESSION_IMAGES: Record<string, any> = {
   squat: require('@/assets/images/sessions/squat.png'),
@@ -713,16 +650,12 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.summaryGrid}>
             {/* Week Streak */}
             <View style={styles.summaryCard}>
-              <View style={styles.summaryIconBox}>
-                <WeeklyRing
-                  count={streak}
-                  goal={4}
-                  activeColor={streak > 0 ? C.primary : 'transparent'}
-                  trackColor="rgba(255,255,255,0.08)"
-                  textColor={C.text}
-                  size={72}
-                />
-              </View>
+              <Image
+                source={HOME_ICONS.weekStreak}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.summaryBigNum}>{streak}</Text>
               <Text style={styles.summaryCardTitle}>WEEK STREAK</Text>
               <Text style={styles.summaryCardSub}>
                 {streak > 0 ? 'Keep it going' : 'Get started'}
@@ -738,11 +671,12 @@ export default function HomeScreen() {
               }}
               testID="your-program-card"
             >
-              <View style={styles.summaryIconBox}>
-                <Ionicons name="albums-outline" size={32} color={C.primary} />
-                <Text style={styles.summaryCycleLabel}>CYCLE</Text>
-                <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
-              </View>
+              <Image
+                source={HOME_ICONS.yourProgram}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
               <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
               <Text style={styles.summaryCardSub}>
                 {strengthCount === 0 ? 'Get started' : `Session ${(strengthCount % 3) + 1} of 3`}
@@ -758,10 +692,12 @@ export default function HomeScreen() {
               }}
               testID="total-sessions-tap"
             >
-              <View style={styles.summaryIconBox}>
-                <Ionicons name="barbell" size={36} color={C.textSecondary} />
-                <Text style={styles.summaryBigNum}>{completedSessions.length}</Text>
-              </View>
+              <Image
+                source={HOME_ICONS.totalWorkouts}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.summaryBigNum}>{completedSessions.length}</Text>
               <Text style={styles.summaryCardTitle}>TOTAL</Text>
               <Text style={styles.summaryCardSub}>Workouts</Text>
             </Pressable>
@@ -775,10 +711,12 @@ export default function HomeScreen() {
               }}
               testID="summary-achievements"
             >
-              <View style={styles.summaryIconBox}>
-                <Ionicons name="trophy" size={36} color={C.warning} />
-                <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
-              </View>
+              <Image
+                source={HOME_ICONS.achievements}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
               <Text style={styles.summaryCardTitle}>ACHIEVEMENTS</Text>
               <Text style={styles.summaryCardSub}>Unlocked</Text>
             </Pressable>
@@ -1279,7 +1217,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center' as const,
       borderWidth: 1,
       borderColor: C.borderLight,
-      gap: 6,
+      gap: 4,
+    },
+    summaryCardImage: {
+      width: 64,
+      height: 64,
+      marginBottom: 2,
     },
     summaryIconBox: {
       width: 72,

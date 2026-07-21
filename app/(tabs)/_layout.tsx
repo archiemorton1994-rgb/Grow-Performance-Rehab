@@ -1,6 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, StyleSheet, View, Image, useWindowDimensions } from 'react-native';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Animated, {
   useSharedValue,
@@ -62,25 +61,31 @@ const COACH_STEPS = [
   },
 ] as const;
 
-// ─── Train tab icon (green circle with barbell) ───────────────────────────
+// ─── 3D PNG Tab Icons ────────────────────────────────────────────────────────
 
-function TrainTabIcon({ focused }: { focused: boolean }) {
-  const C = useColors();
+const TAB_ICONS = {
+  home: require('@/assets/images/tabs/home.png'),
+  profile: require('@/assets/images/tabs/profile.png'),
+  train: require('@/assets/images/tabs/train.png'),
+  restore: require('@/assets/images/tabs/restore.png'),
+  stats: require('@/assets/images/tabs/stats.png'),
+} as const;
+
+function TabIcon({
+  source,
+  focused,
+  size = 28,
+}: {
+  source: any;
+  focused: boolean;
+  size?: number;
+}) {
   return (
-    <View
-      style={{
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        transform: [{ translateY: -8 }],
-        backgroundColor: C.primaryLight,
-        opacity: focused ? 1 : 0.7,
-      }}
-    >
-      <Ionicons name="barbell" size={24} color="#fff" />
-    </View>
+    <Image
+      source={source}
+      style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
+      resizeMode="contain"
+    />
   );
 }
 
@@ -188,13 +193,9 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Home',
-            tabBarIcon: ({ color, size, focused }) => (
+            tabBarIcon: ({ focused }) => (
               <Animated.View style={tabPulseStyle}>
-                <Ionicons
-                  name={focused ? 'home' : 'home-outline'}
-                  size={size || 24}
-                  color={color}
-                />
+                <TabIcon source={TAB_ICONS.home} focused={focused} />
               </Animated.View>
             ),
           }}
@@ -203,12 +204,8 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: 'Profile',
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'person' : 'person-outline'}
-                size={size || 24}
-                color={color}
-              />
+            tabBarIcon: ({ focused }) => (
+              <TabIcon source={TAB_ICONS.profile} focused={focused} />
             ),
           }}
         />
@@ -217,7 +214,26 @@ export default function TabLayout() {
           options={{
             title: 'Train',
             tabBarItemStyle: { overflow: 'visible' },
-            tabBarIcon: ({ focused }) => <TrainTabIcon focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: [{ translateY: -8 }],
+                  backgroundColor: C.primaryLight,
+                  opacity: focused ? 1 : 0.75,
+                }}
+              >
+                <Image
+                  source={TAB_ICONS.train}
+                  style={{ width: 28, height: 28 }}
+                  resizeMode="contain"
+                />
+              </View>
+            ),
             tabBarLabelStyle: {
               fontSize: 10,
               fontWeight: '600',
@@ -229,12 +245,8 @@ export default function TabLayout() {
           name="recover"
           options={{
             title: 'Restore',
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'medkit' : 'medkit-outline'}
-                size={size || 24}
-                color={color}
-              />
+            tabBarIcon: ({ focused }) => (
+              <TabIcon source={TAB_ICONS.restore} focused={focused} />
             ),
           }}
         />
@@ -242,12 +254,8 @@ export default function TabLayout() {
           name="workouts"
           options={{
             title: 'Stats',
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons
-                name={focused ? 'bar-chart' : 'bar-chart-outline'}
-                size={size || 24}
-                color={color}
-              />
+            tabBarIcon: ({ focused }) => (
+              <TabIcon source={TAB_ICONS.stats} focused={focused} />
             ),
           }}
         />

@@ -120,6 +120,14 @@ const EQUIPMENT_OPTIONS: {
   },
 ];
 
+const EQUIPMENT_IMAGES: Record<string, any> = {
+  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
+  bands: require('@/assets/images/equipment/bands.png'),
+  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
+  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
+  fullgym: require('@/assets/images/equipment/fullgym.png'),
+};
+
 const WELCOME_FEATURES = [
   'Personalised loads every session',
   'Pain & energy adaptive',
@@ -682,13 +690,14 @@ export default function OnboardingScreen() {
                           style={[
                             styles.optionIcon,
                             styles.optionIconCompact,
+                            { overflow: 'hidden', backgroundColor: C.surfaceTertiary },
                             selected && styles.optionIconSelected,
                           ]}
                         >
-                          <EquipmentIcon
-                            tier={opt.value as EquipmentTier}
-                            size={44}
-                            color={selected ? C.textInverse : C.primary}
+                          <Image
+                            source={EQUIPMENT_IMAGES[opt.value]}
+                            style={{ width: 44, height: 44 }}
+                            resizeMode="contain"
                           />
                         </View>
                         <View style={{ flex: 1 }}>

@@ -54,6 +54,14 @@ import { router } from 'expo-router';
 
 const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
+const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
+  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
+  bands: require('@/assets/images/equipment/bands.png'),
+  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
+  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
+  fullgym: require('@/assets/images/equipment/fullgym.png'),
+};
+
 function getLegalUrls() {
   try {
     const base = getApiUrl().replace(/\/$/, '');
@@ -991,11 +999,22 @@ export default function ProfileScreen() {
                   ]}
                   testID={`tier-${tier}`}
                 >
-                  <EquipmentIcon
-                    tier={tier}
-                    size={22}
-                    color={isActive ? C.primary : isLocked ? C.textTertiary : C.textSecondary}
-                  />
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      backgroundColor: C.surfaceTertiary,
+                      opacity: isLocked ? 0.4 : 1,
+                    }}
+                  >
+                    <Image
+                      source={EQUIPMENT_IMAGES[tier]}
+                      style={{ width: 44, height: 44 }}
+                      resizeMode="contain"
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.equipLabel,
