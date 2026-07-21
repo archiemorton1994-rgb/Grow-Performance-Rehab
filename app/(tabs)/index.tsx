@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
   Text,
@@ -403,6 +404,14 @@ export default function HomeScreen() {
         })()
       : null;
 
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTopRegister(
+    'index',
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+    }, [])
+  );
+
   return (
     <>
       <View
@@ -410,11 +419,18 @@ export default function HomeScreen() {
           styles.container,
           {
             paddingTop: insets.top + webTopInset,
-            paddingBottom: Platform.OS === 'web' ? 84 : tabBarHeight,
           },
         ]}
       >
-        <View style={[{ flex: 1 }, styles.inner]}>
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          contentContainerStyle={[
+            styles.inner,
+            { paddingBottom: Platform.OS === 'web' ? 84 + 24 : tabBarHeight + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
             <View style={{ flex: 1 }}>
@@ -869,7 +885,7 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
           )}
-        </View>
+        </ScrollView>
       </View>
 
       {/* Milestone toast — floats above tab bar, auto-dismisses after 3.5 s */}

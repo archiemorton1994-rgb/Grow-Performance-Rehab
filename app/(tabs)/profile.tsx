@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
   Text,
@@ -580,9 +581,18 @@ export default function ProfileScreen() {
 
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTopRegister(
+    'profile',
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+    }, [])
+  );
+
   return (
     <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}

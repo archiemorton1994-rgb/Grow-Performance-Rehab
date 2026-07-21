@@ -1,6 +1,7 @@
 import { Tabs, router } from 'expo-router';
 import { Platform, StyleSheet, View, Image, useWindowDimensions } from 'react-native';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { ScrollToTopProvider, useScrollToTopTrigger } from '@/lib/scroll-to-top-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -84,10 +85,19 @@ function TabIcon({ source, focused, size = 28 }: { source: any; focused: boolean
 // ─── Main TabLayout ────────────────────────────────────────────────────────
 
 export default function TabLayout() {
+  return (
+    <ScrollToTopProvider>
+      <TabsInner />
+    </ScrollToTopProvider>
+  );
+}
+
+function TabsInner() {
   const C = useColors();
   const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
   const { width: W, height: H } = useWindowDimensions();
+  const triggerScrollToTop = useScrollToTopTrigger();
 
   const {
     tourComplete,
@@ -183,6 +193,11 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="index"
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) triggerScrollToTop('index');
+            },
+          })}
           options={{
             title: 'Home',
             tabBarIcon: ({ focused }) => (
@@ -194,6 +209,11 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="profile"
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) triggerScrollToTop('profile');
+            },
+          })}
           options={{
             title: 'Profile',
             tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.profile} focused={focused} />,
@@ -201,6 +221,11 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="train"
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) triggerScrollToTop('train');
+            },
+          })}
           options={{
             title: 'Train',
             tabBarItemStyle: { overflow: 'visible' },
@@ -233,6 +258,11 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="recover"
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) triggerScrollToTop('recover');
+            },
+          })}
           options={{
             title: 'Restore',
             tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.restore} focused={focused} />,
@@ -240,6 +270,11 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="workouts"
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (navigation.isFocused()) triggerScrollToTop('workouts');
+            },
+          })}
           options={{
             title: 'Stats',
             tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.stats} focused={focused} />,

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
   Text,
@@ -3871,6 +3872,20 @@ export default function StatsScreen() {
     };
     map[activeTab]?.current?.scrollTo({ x: 0, y: 0, animated: true });
   }, [activeTab]);
+
+  // Register scroll-to-top for the Stats bottom tab — scrolls the active sub-tab.
+  useScrollToTopRegister(
+    'workouts',
+    useCallback(() => {
+      const map: Record<typeof activeTab, React.RefObject<ScrollView | null>> = {
+        overview: overviewScrollRef,
+        strength: strengthScrollRef,
+        history: historyScrollRef,
+        progress: progressScrollRef,
+      };
+      map[activeTab]?.current?.scrollTo({ x: 0, y: 0, animated: true });
+    }, [activeTab])
+  );
 
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
   const [showCalculator, setShowCalculator] = useState(false);

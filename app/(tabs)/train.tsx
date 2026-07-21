@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
   Text,
@@ -81,6 +82,14 @@ export default function TrainScreen() {
     prevSessionCount.current = completedSessions.length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedSessions.length]);
+
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTopRegister(
+    'train',
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+    }, [])
+  );
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
@@ -260,6 +269,7 @@ export default function TrainScreen() {
     <>
       <View style={styles.container}>
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={[
             styles.content,

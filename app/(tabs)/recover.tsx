@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
   Text,
@@ -421,8 +422,17 @@ export default function RecoverScreen() {
 
   const activeInfo = activeModal === 'mobility' ? SESSION_INFO['mobility'] : null;
 
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTopRegister(
+    'recover',
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+    }, [])
+  );
+
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.root}
       contentContainerStyle={[
         styles.rootContent,
