@@ -75,6 +75,7 @@ function check(cond, label, detail = '') {
 
 // ─── Sources ───────────────────────────────────────────────────────────────────
 const sessionSrc = readFile('app/session.tsx');
+const summarySrc = readFile('app/session-summary.tsx');
 const compatSrc = readFile('components/KeyboardAwareScrollViewCompat.tsx');
 
 // ─── [1] Exercise list uses KeyboardAwareScrollViewCompat ─────────────────────
@@ -193,6 +194,40 @@ check(
   /Platform\.OS.*web/.test(compatSrc) && /ScrollView/.test(compatSrc),
   "Compat wrapper falls back to plain ScrollView on web (Platform.OS === 'web' guard present)"
 );
+
+// ─── [6] Session-summary screen bottomOffset ─────────────────────────────────
+console.log('[6] Session-summary — KeyboardAwareScrollView bottomOffset ≥ 24');
+
+// The notes TextInput on the summary screen lives inside a KeyboardAwareScrollView
+// (not the Compat wrapper). Extract the bottomOffset from its opening tag.
+const summaryKavOpenIdx = summarySrc.indexOf('<KeyboardAwareScrollView');
+check(
+  summaryKavOpenIdx !== -1,
+  'KeyboardAwareScrollView found in session-summary.tsx',
+  'Without a keyboard-aware scroll view the notes input hides behind the keyboard'
+);
+
+if (summaryKavOpenIdx !== -1) {
+  const summaryKavTagEnd = summarySrc.indexOf('>', summaryKavOpenIdx);
+  const summaryKavTagBlock = summarySrc.slice(
+    summaryKavOpenIdx,
+    Math.min(summaryKavTagEnd + 200, summarySrc.length)
+  );
+  const summaryOffsetMatch = summaryKavTagBlock.match(/bottomOffset=\{(\d+)\}/);
+  check(
+    summaryOffsetMatch !== null,
+    'bottomOffset prop is present on KeyboardAwareScrollView in session-summary.tsx',
+    'Without bottomOffset the notes input lands flush against the keyboard edge'
+  );
+  if (summaryOffsetMatch) {
+    const summaryOffsetValue = parseInt(summaryOffsetMatch[1], 10);
+    check(
+      summaryOffsetValue >= 24,
+      `session-summary bottomOffset (${summaryOffsetValue}) is ≥ 24 — safe for iPhone SE (375×667 pt)`,
+      'Values < 24 can clip the notes input on the smallest supported screen size'
+    );
+  }
+}
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');

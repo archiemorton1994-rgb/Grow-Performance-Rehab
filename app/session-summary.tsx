@@ -428,7 +428,7 @@ export default function SessionSummaryScreen() {
           paddingBottom: bottomPad + 12,
         }}
         keyboardShouldPersistTaps="handled"
-        bottomOffset={20}
+        bottomOffset={24}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.cardWrap}>
