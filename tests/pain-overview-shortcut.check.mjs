@@ -68,7 +68,7 @@ console.log('\n[3] Source — onPress calls setActiveTab("history")');
 check(
   "setActiveTab('history') is called",
   src.includes("setActiveTab('history')"),
-  "call not found — app will not switch to the History tab"
+  'call not found — app will not switch to the History tab'
 );
 
 // ─── 4. SOURCE — both calls appear together in the same handler block ──────────
@@ -101,7 +101,9 @@ check(
 );
 
 // ─── 5. PATTERN — PainInsightSheet onViewHistory uses the same two-call pattern
-console.log('\n[5] Pattern — PainInsightSheet onViewHistory uses identical two-call navigation pattern');
+console.log(
+  '\n[5] Pattern — PainInsightSheet onViewHistory uses identical two-call navigation pattern'
+);
 
 // The PainInsightSheet "onViewHistory" callback (workouts.tsx ~line 4927-4931)
 // is the other explicit pain-filter navigation path. Locate it by its signal
