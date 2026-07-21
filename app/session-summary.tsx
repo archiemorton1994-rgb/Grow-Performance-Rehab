@@ -12,6 +12,7 @@ import {
   TextInput,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -419,13 +420,16 @@ export default function SessionSummaryScreen() {
     <View style={[styles.container, { backgroundColor: OUTER_BG }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View
-        style={{
-          flex: 1,
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
           paddingTop: topPad + 10,
           paddingHorizontal: 16,
           paddingBottom: bottomPad + 12,
         }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.cardWrap}>
           {/* ── Certificate card (this View is captured for sharing) ── */}
@@ -650,7 +654,7 @@ export default function SessionSummaryScreen() {
         >
           <Text style={[styles.doneButtonText, { color: C.textInverse }]}>Done</Text>
         </Pressable>
-      </View>
+      </KeyboardAwareScrollView>
 
       {/* Rate Exercises Modal */}
       <Modal
