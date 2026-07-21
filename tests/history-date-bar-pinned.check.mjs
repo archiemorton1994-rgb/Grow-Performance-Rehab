@@ -7,21 +7,22 @@
  * that must stay fixed above the scrollable session list. It was previously moved
  * from inside the ScrollView to a pinned bar above it. This test preserves that
  * structural decision: if a future refactor accidentally nests `historyDateBar`
- * back inside the ScrollView (or replaces it with a FlatList and nests the bar
- * inside that), these checks will fail immediately.
+ * back inside any scroll-capable container — ScrollView, FlatList, SectionList,
+ * or VirtualizedList — these checks will fail immediately.
  *
  * WHAT IS CHECKED
  * ───────────────
- *  1. MARKER        — the `historyDateBar` style marker exists in the History tab section
- *  2. ORDER (SV)    — `historyDateBar` appears BEFORE the first `<ScrollView` in that section
- *  3. OUTSIDE (SV)  — no `<ScrollView` open-tag appears between the history section start
- *                     and the `historyDateBar` (the bar is not nested inside a ScrollView)
- *  4. ORDER (FL)    — if a `<FlatList` exists in the section, `historyDateBar` appears before it
- *  5. OUTSIDE (FL)  — no `<FlatList` open-tag appears between the history section start
- *                     and the `historyDateBar` (the bar is not nested inside a FlatList)
- *  6–8. PILLS       — all three date-option values ('all', 'this_week', 'this_month') are
- *                     present inside the date bar block (before whichever scroll container
- *                     opens first — ScrollView or FlatList)
+ *  1.  MARKER           — `historyDateBar` style marker exists after history section anchor
+ *  2.  ORDER (SV)       — `historyDateBar` appears BEFORE the first `<ScrollView`
+ *  3.  OUTSIDE (SV)     — no `<ScrollView` opens between section start and date bar
+ *  4.  ORDER (FL)       — if `<FlatList` exists, `historyDateBar` appears before it
+ *  5.  OUTSIDE (FL)     — no `<FlatList` opens between section start and date bar
+ *  6.  ORDER (SL)       — if `<SectionList` exists, `historyDateBar` appears before it
+ *  7.  OUTSIDE (SL)     — no `<SectionList` opens between section start and date bar
+ *  8.  ORDER (VL)       — if `<VirtualizedList` exists, `historyDateBar` appears before it
+ *  9.  OUTSIDE (VL)     — no `<VirtualizedList` opens between section start and date bar
+ *  10–12. PILLS         — all three date-option values ('all', 'this_week', 'this_month')
+ *                         present before whichever scroll container opens first
  *
  * Run:  node tests/history-date-bar-pinned.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -50,32 +51,40 @@ function check(label, condition, detail) {
 // ─── Anchors ─────────────────────────────────────────────────────────────────
 const HISTORY_SECTION_MARKER = '/* HISTORY TAB */';
 const DATE_BAR_MARKER = 'historyDateBar';
-const SCROLLVIEW_OPEN = '<ScrollView';
-const FLATLIST_OPEN = '<FlatList';
+
+// All React Native scroll-capable containers that could nest the date bar
+const CONTAINERS = [
+  { tag: '<ScrollView', label: 'ScrollView' },
+  { tag: '<FlatList', label: 'FlatList' },
+  { tag: '<SectionList', label: 'SectionList' },
+  { tag: '<VirtualizedList', label: 'VirtualizedList' },
+];
 
 const historySectionIdx = src.indexOf(HISTORY_SECTION_MARKER);
 const dateBarIdx = src.indexOf(DATE_BAR_MARKER);
 
-// First <ScrollView / <FlatList that follows the history section start
-const scrollViewAfterHistoryIdx = src.indexOf(SCROLLVIEW_OPEN, historySectionIdx);
-const flatListAfterHistoryIdx = src.indexOf(FLATLIST_OPEN, historySectionIdx);
-
-// Slice between section start and date bar (used to detect nested containers)
+// Slice between section start and date bar — used to detect containers before the bar
 const betweenHistoryAndBar =
   historySectionIdx !== -1 && dateBarIdx !== -1 ? src.slice(historySectionIdx, dateBarIdx) : '';
 
-// The "bar block" is the source between the date bar marker and whichever scroll
-// container opens first (ScrollView or FlatList). Pills must live in this block.
-const firstScrollContainerIdx = (() => {
-  const sv = scrollViewAfterHistoryIdx !== -1 ? scrollViewAfterHistoryIdx : Infinity;
-  const fl = flatListAfterHistoryIdx !== -1 ? flatListAfterHistoryIdx : Infinity;
-  const first = Math.min(sv, fl);
-  return first === Infinity ? -1 : first;
+// First occurrence of each container after the history section start
+const containerIndices = CONTAINERS.map(({ tag, label }) => ({
+  tag,
+  label,
+  idx: src.indexOf(tag, historySectionIdx),
+}));
+
+// Pill-block boundary: earliest scroll container that follows the date bar
+const firstContainerAfterBarIdx = (() => {
+  const candidates = containerIndices
+    .map(({ idx }) => idx)
+    .filter((idx) => idx !== -1 && dateBarIdx !== -1 && idx > dateBarIdx);
+  return candidates.length > 0 ? Math.min(...candidates) : -1;
 })();
 
 const barBlock =
-  dateBarIdx !== -1 && firstScrollContainerIdx !== -1
-    ? src.slice(dateBarIdx, firstScrollContainerIdx)
+  dateBarIdx !== -1 && firstContainerAfterBarIdx !== -1
+    ? src.slice(dateBarIdx, firstContainerAfterBarIdx)
     : '';
 
 // ─── Checks ───────────────────────────────────────────────────────────────────
@@ -89,57 +98,57 @@ check(
     'the pinned bar may have been removed or renamed'
 );
 
-console.log('\n[2–3] ScrollView structural checks');
+// ─── Per-container order + nesting checks ────────────────────────────────────
+const containerCheckMap = [
+  { label: 'ScrollView', checkNum: '2–3', required: true },
+  { label: 'FlatList', checkNum: '4–5', required: false },
+  { label: 'SectionList', checkNum: '6–7', required: false },
+  { label: 'VirtualizedList', checkNum: '8–9', required: false },
+];
 
-// 2. historyDateBar must appear BEFORE the first <ScrollView in the history section.
-check(
-  `"${DATE_BAR_MARKER}" appears before the first <ScrollView in the history section`,
-  historySectionIdx !== -1 &&
-    dateBarIdx !== -1 &&
-    scrollViewAfterHistoryIdx !== -1 &&
-    dateBarIdx < scrollViewAfterHistoryIdx,
-  '"historyDateBar" is positioned after (or inside) the first <ScrollView in the history ' +
-    'section — the date filter has been moved back inside the scroll; it must be pinned above it'
-);
+for (const { label, checkNum, required } of containerCheckMap) {
+  const tag = `<${label}`;
+  const containerIdx = src.indexOf(tag, historySectionIdx);
+  const containerExists = containerIdx !== -1;
+  const countBeforeBar = (betweenHistoryAndBar.match(new RegExp(tag.replace('<', '<'), 'g')) || [])
+    .length;
 
-// 3. No <ScrollView opens between the history section start and historyDateBar.
-const scrollViewsBeforeBar = (betweenHistoryAndBar.match(/<ScrollView/g) || []).length;
-check(
-  'no <ScrollView opens between the history section start and the date bar',
-  scrollViewsBeforeBar === 0,
-  `${scrollViewsBeforeBar} <ScrollView open-tag(s) found before "historyDateBar" inside the ` +
-    'history section — the date filter bar is nested inside a ScrollView and will scroll ' +
-    'away instead of staying pinned'
-);
+  console.log(`\n[${checkNum}] ${label} structural checks`);
 
-console.log('\n[4–5] FlatList structural checks');
+  // ORDER check: date bar must appear before this container (if it exists; required for SV)
+  if (required) {
+    check(
+      `"${DATE_BAR_MARKER}" appears before the first <${label} in the history section`,
+      historySectionIdx !== -1 &&
+        dateBarIdx !== -1 &&
+        containerIdx !== -1 &&
+        dateBarIdx < containerIdx,
+      `"historyDateBar" is positioned after (or inside) the first <${label} — ` +
+        'the date filter has been moved back inside the scroll; it must be pinned above it'
+    );
+  } else {
+    check(
+      containerExists
+        ? `"${DATE_BAR_MARKER}" appears before the first <${label} in the history section`
+        : `no <${label} present in history section (check is a no-op pass)`,
+      !containerExists || (dateBarIdx !== -1 && dateBarIdx < containerIdx),
+      `"historyDateBar" is positioned after (or inside) the first <${label} — ` +
+        `if <${label} replaces the existing scroll container the date bar must remain pinned above it`
+    );
+  }
 
-// 4. If a <FlatList exists after the history section, historyDateBar must appear before it.
-//    (Guard against the ScrollView being replaced by a FlatList with the bar nested inside.)
-const flatListExists = flatListAfterHistoryIdx !== -1;
-check(
-  flatListExists
-    ? `"${DATE_BAR_MARKER}" appears before the first <FlatList in the history section`
-    : `no <FlatList present in history section (check is a no-op pass)`,
-  !flatListExists || (dateBarIdx !== -1 && dateBarIdx < flatListAfterHistoryIdx),
-  '"historyDateBar" is positioned after (or inside) the first <FlatList in the history ' +
-    'section — if ScrollView was replaced by FlatList the date bar must remain pinned above it'
-);
+  // OUTSIDE check: no instance of this container must appear before the date bar
+  check(
+    `no <${label} opens between the history section start and the date bar`,
+    countBeforeBar === 0,
+    `${countBeforeBar} <${label} open-tag(s) found before "historyDateBar" inside the ` +
+      `history section — the date filter bar is nested inside a ${label} and will scroll away`
+  );
+}
 
-// 5. No <FlatList opens between the history section start and historyDateBar.
-const flatListsBeforeBar = (betweenHistoryAndBar.match(/<FlatList/g) || []).length;
-check(
-  'no <FlatList opens between the history section start and the date bar',
-  flatListsBeforeBar === 0,
-  `${flatListsBeforeBar} <FlatList open-tag(s) found before "historyDateBar" inside the ` +
-    'history section — the date filter bar is nested inside a FlatList and will scroll ' +
-    'away instead of staying pinned'
-);
+// ─── Filter pill values ───────────────────────────────────────────────────────
+console.log('\n[10–12] Filter pill values present in pinned bar block');
 
-console.log('\n[6–8] Filter pill values present in pinned bar block');
-
-// 6–8. All three filter pill values appear inside the bar block (between historyDateBar
-//      and whichever scroll container opens first).
 const EXPECTED_PILLS = ["'all'", "'this_week'", "'this_month'"];
 for (const pill of EXPECTED_PILLS) {
   check(
