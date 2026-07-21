@@ -2115,13 +2115,27 @@ export default function SessionScreen() {
     pbTimerRef.current = setTimeout(() => setPbFlashIndex(null), 2500);
   }, []);
 
-  const toggleNoteVisible = useCallback((idx: number) => {
-    setNotesVisible((prev) => {
-      const next = [...prev];
-      next[idx] = !next[idx];
-      return next;
-    });
-  }, []);
+  const toggleNoteVisible = useCallback(
+    (idx: number) => {
+      setNotesVisible((prev) => {
+        const next = [...prev];
+        next[idx] = !next[idx];
+        // Scroll the card into view when opening the note input so the pencil
+        // button and the text field are both reachable before the keyboard appears.
+        if (next[idx]) {
+          setTimeout(() => {
+            const y = cardYPositions.current[idx];
+            if (y !== undefined && scrollViewRef.current) {
+              scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
+            }
+          }, 50);
+        }
+        return next;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const handleBarFeedback = useCallback((exerciseId: string, f: 'easy' | 'hard') => {
     setInSessionFeedback((prev) => ({ ...prev, [exerciseId]: f }));
