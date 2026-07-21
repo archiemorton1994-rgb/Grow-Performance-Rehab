@@ -371,7 +371,7 @@ export default function ReadinessScreen() {
         {isTestWeek && (
           <View style={styles.testWeekBanner}>
             <View style={styles.testWeekBannerIcon}>
-              <Ionicons name="trophy" size={22} color="#F5A623" />
+              <Ionicons name="trophy" size={22} color={C.trophy} />
             </View>
             <View style={styles.testWeekBannerContent}>
               <View style={styles.testWeekBannerRow}>

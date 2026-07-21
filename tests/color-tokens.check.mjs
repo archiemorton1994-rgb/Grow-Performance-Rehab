@@ -78,10 +78,6 @@ const KNOWN_VIOLATIONS = {
   // 404 screen — link blue not yet tokenised
   'app/+not-found.tsx': new Set(['#2e78b7']),
 
-  // Readiness screen — trophy amber (already exists as C.trophy in the token set;
-  // pending substitution)
-  'app/readiness.tsx': new Set(['#F5A623']),
-
   // Root layout — debug/error-overlay colours used before the colour system loads
   'app/_layout.tsx': new Set(['#ff4444', '#ccc']),
 };
