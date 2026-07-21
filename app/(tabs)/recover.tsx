@@ -492,7 +492,7 @@ export default function RecoverScreen() {
             ]}
             testID={`recover-row-${row.key}`}
           >
-            <View style={[styles.navIcon, { backgroundColor: row.cardAccent + '22' }]}>
+            <View style={styles.navIcon}>
               {RECOVER_IMAGES[row.key] ? (
                 <Image
                   source={RECOVER_IMAGES[row.key]}
@@ -810,9 +810,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
     },
     navIcon: {
-      width: 72,
-      height: 72,
-      borderRadius: 18,
+      width: 90,
+      height: 90,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
