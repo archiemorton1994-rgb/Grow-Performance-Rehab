@@ -136,7 +136,31 @@ export default function SubscriptionScreen() {
     } catch (err: unknown) {
       const rcErr = err as { userCancelled?: boolean; message?: string; code?: number };
       if (__DEV__) console.warn('[Subscription] purchasePackage error:', rcErr);
-      if (!rcErr?.userCancelled) {
+      if (rcErr?.userCancelled) {
+        // User dismissed the payment sheet — no error message needed
+      } else {
+        const msg = (rcErr?.message ?? '').toLowerCase();
+        const alreadyOwned =
+          rcErr?.code === 7 ||
+          rcErr?.code === 17 ||
+          msg.includes('already') ||
+          msg.includes('owned');
+        if (alreadyOwned) {
+          // Subscription exists (e.g. cancelled but not yet expired) — restore it
+          setPurchasing(false);
+          setRestoring(true);
+          try {
+            await Purchases.restorePurchases();
+            await refreshSubscription();
+          } catch {
+            setErrorMsg(
+              'Your subscription is still processing. Please wait a moment and try Restore again.'
+            );
+          } finally {
+            setRestoring(false);
+          }
+          return;
+        }
         setErrorMsg(rcErr?.message ?? 'Purchase failed. Please try again.');
       }
     } finally {
