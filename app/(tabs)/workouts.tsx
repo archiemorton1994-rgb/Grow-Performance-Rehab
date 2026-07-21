@@ -1757,11 +1757,15 @@ function SessionHistoryList({
   sessions,
   weightUnit,
   emptyMessage,
+  onPainRegionPress,
+  activePainRegion,
   C,
 }: {
   sessions: CompletedSession[];
   weightUnit: 'kg' | 'lbs';
   emptyMessage?: string;
+  onPainRegionPress?: (region: PainRegion) => void;
+  activePainRegion?: PainRegion | null;
   C: ReturnType<typeof useColors>;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -1864,41 +1868,54 @@ function SessionHistoryList({
                     : ''}
                 </Text>
                 {(() => {
-                  const regions: string[] =
-                    session.painRegions?.length
-                      ? session.painRegions
-                      : session.painRegion
-                        ? [session.painRegion]
-                        : [];
+                  const regions: string[] = session.painRegions?.length
+                    ? session.painRegions
+                    : session.painRegion
+                      ? [session.painRegion]
+                      : [];
                   if (regions.length === 0) return null;
                   const visible = regions.slice(0, 2);
                   const overflow = regions.length - 2;
                   return (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 }}>
-                      {visible.map((r) => (
-                        <View
-                          key={r}
-                          style={{
-                            backgroundColor: C.textSecondary + '22',
-                            borderRadius: 4,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              fontFamily: 'Inter_500Medium',
-                              color: C.textSecondary,
+                      {visible.map((r) => {
+                        const isActive = activePainRegion === r;
+                        return (
+                          <Pressable
+                            key={r}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              onPainRegionPress?.(r as PainRegion);
                             }}
+                            hitSlop={4}
+                            style={({ pressed }) => ({
+                              backgroundColor: isActive
+                                ? C.primary + '30'
+                                : pressed
+                                  ? C.textSecondary + '33'
+                                  : C.textSecondary + '22',
+                              borderRadius: 4,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderWidth: isActive ? 1 : 0,
+                              borderColor: isActive ? C.primary : 'transparent',
+                            })}
                           >
-                            {r
-                              .split('_')
-                              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                              .join(' ')}
-                          </Text>
-                        </View>
-                      ))}
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontFamily: 'Inter_500Medium',
+                                color: isActive ? C.primary : C.textSecondary,
+                              }}
+                            >
+                              {r
+                                .split('_')
+                                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                                .join(' ')}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                       {overflow > 0 && (
                         <View
                           style={{
@@ -4779,6 +4796,10 @@ export default function StatsScreen() {
                 sessions={filteredSessions}
                 weightUnit={weightUnit}
                 emptyMessage={historyEmptyMessage}
+                onPainRegionPress={(region) =>
+                  setPainRegionFilter((prev) => (prev === region ? null : region))
+                }
+                activePainRegion={painRegionFilter}
                 C={C}
               />
             </ScrollView>
