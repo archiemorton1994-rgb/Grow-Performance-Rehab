@@ -1115,7 +1115,6 @@ export function ExerciseCard({
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(true);
-  const [actionsExpanded, setActionsExpanded] = useState(false);
   const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
   const weightGuidesKg = getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
@@ -1142,7 +1141,7 @@ export function ExerciseCard({
     mechanical: { bg: C.categoryMechanical, text: C.categoryMechanicalText, label: 'Activation' },
     neuro: { bg: C.categoryNeuro, text: C.categoryNeuroText, label: 'Power Primer' },
     main: { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
-    accessory: { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Pump' },
+    accessory: { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Accessory' },
     prehab: { bg: C.categoryPrehab, text: C.categoryPrehabText, label: 'Prehab' },
     finisher: { bg: C.categoryFinisher, text: C.categoryFinisherText, label: 'Finisher' },
     cooldown: { bg: C.categoryCooldown, text: C.categoryCooldownText, label: 'Cool Down' },
@@ -1369,27 +1368,7 @@ export function ExerciseCard({
                     color={noteVisible ? C.primary : C.textSecondary}
                   />
                 </Pressable>
-                <Pressable
-                  onPress={() => setActionsExpanded((v) => !v)}
-                  style={styles.iconActionBtn}
-                >
-                  <Ionicons
-                    name={actionsExpanded ? 'chevron-up' : 'ellipsis-horizontal'}
-                    size={17}
-                    color={C.textSecondary}
-                  />
-                </Pressable>
               </View>
-              {actionsExpanded && (
-                <View style={styles.expandedActionsRow}>
-                  <Pressable onPress={onVideoPress} style={styles.actionBtn}>
-                    <Ionicons name="logo-youtube" size={14} color="#CC0000" />
-                    <Text style={[styles.actionBtnText, { color: '#CC0000' }]}>
-                      Watch on YouTube
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
 
               {exercise.badge === 'comfort' && comfortRegionLabel && (
                 <View style={styles.comfortNote}>
@@ -3347,21 +3326,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     chevron: { marginTop: 2 },
     actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 32 },
-    actionBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 8,
-      backgroundColor: C.surfaceTertiary,
-    },
     actionBtnYoutube: {
       backgroundColor: C.youtubeSurface,
       borderWidth: 1,
       borderColor: C.youtubeBorder,
     },
-    actionBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     setsContainer: {
       marginTop: 12,
       paddingTop: 12,
@@ -4219,12 +4188,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primarySurface,
       borderWidth: 1,
       borderColor: C.primaryMuted,
-    },
-    expandedActionsRow: {
-      flexDirection: 'row',
-      paddingTop: 6,
-      paddingHorizontal: 4,
-      gap: 8,
     },
     // ── Session Active Bar ───────────────────────────────────────────────────────
     barContainer: {
