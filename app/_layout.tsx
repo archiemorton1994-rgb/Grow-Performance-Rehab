@@ -111,6 +111,7 @@ function WeeklyWeightPrompt() {
     userProfile,
     setUserProfile,
     weightUnit,
+    completedSessions,
   } = useAppStore();
   const { isAuthenticated } = useAuth();
 
@@ -122,7 +123,10 @@ function WeeklyWeightPrompt() {
 
   useEffect(() => {
     if (!isReadyToPrompt) return;
-    const shouldPrompt = !lastWeightPromptedAt || Date.now() - lastWeightPromptedAt > SEVEN_DAYS_MS;
+    const hasCompletedSessions = completedSessions.length > 0;
+    const shouldPrompt =
+      (hasCompletedSessions || neverSetWeight) &&
+      (!lastWeightPromptedAt || Date.now() - lastWeightPromptedAt > SEVEN_DAYS_MS);
     if (shouldPrompt && !showPrompt) {
       const display =
         userProfile.bodyweightKg > 0

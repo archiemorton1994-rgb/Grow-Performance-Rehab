@@ -388,7 +388,8 @@ export default function ReadinessScreen() {
                 Test
               </Text>
               <Text style={styles.testWeekBannerSub}>
-                AMRAP @ 90% — go all out. Your numbers don&apos;t lie.
+                1RM = max weight you can lift for one rep.{'\n'}AMRAP @ 90% — go all out. Your
+                numbers don&apos;t lie.
               </Text>
             </View>
           </View>
@@ -780,7 +781,7 @@ export default function ReadinessScreen() {
             >
               <Ionicons name="flash" size={18} color={C.textInverse} />
               <Text style={styles.startButtonText}>
-                Continue
+                Start Session →
                 {diagramPainRegions.length > 1 ? ` (${diagramPainRegions.length} regions)` : ''}
               </Text>
             </Pressable>

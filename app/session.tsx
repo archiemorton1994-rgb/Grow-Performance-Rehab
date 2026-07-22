@@ -1309,6 +1309,9 @@ export function ExerciseCard({
                       {setsLabel} × {repDisplay}
                     </Text>
                   </View>
+                  {exercise.category === 'main' && (
+                    <Text style={styles.kpiHint}>Your main strength move for today</Text>
+                  )}
                   {!isBandExercise && <Text style={styles.targetWeightLabel}>Target weight: </Text>}
                   <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
                     {convertLoadString(exercise.suggestedLoad, weightUnit)}
@@ -3284,6 +3287,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
     metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    kpiHint: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 2,
+      marginBottom: 2,
+    },
     dumbbellNote: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',

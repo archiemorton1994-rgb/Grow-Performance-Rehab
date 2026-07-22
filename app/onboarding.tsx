@@ -128,14 +128,26 @@ const EQUIPMENT_IMAGES: Record<string, any> = {
   fullgym: require('@/assets/images/equipment/fullgym.png'),
 };
 
-const WELCOME_FEATURES = [
-  'Personalised loads every session',
-  'Pain & energy adaptive',
-  'Tracks your strength progress',
-  'Strength, recovery, conditioning & custom sessions',
-  'Recovery, mobility & flexibility sessions',
-  'Achievements & detailed progress stats',
-  'No guesswork - always know what to do',
+const WELCOME_GROUPS = [
+  {
+    heading: 'Personalise',
+    items: [
+      'Adapts to your equipment, energy & pain',
+      'Personalised loads every session',
+      'No guesswork — always know what to do',
+    ],
+  },
+  {
+    heading: 'Train',
+    items: [
+      'Strength, conditioning & custom sessions',
+      'Recovery, mobility & flexibility',
+    ],
+  },
+  {
+    heading: 'Track',
+    items: ['Strength progress & 1RM trends', 'Achievements & detailed stats'],
+  },
 ];
 
 function experienceLabel(e: ExperienceLevel | null): string {
@@ -456,10 +468,15 @@ export default function OnboardingScreen() {
                 Build your training profile.{'\n'}Takes less than 2 minutes.
               </Text>
               <View style={styles.welcomeFeatureList}>
-                {WELCOME_FEATURES.map((f) => (
-                  <View key={f} style={styles.welcomeFeatureItem}>
-                    <Ionicons name="checkmark-circle" size={20} color={C.primaryDark} />
-                    <Text style={styles.welcomeFeatureText}>{f}</Text>
+                {WELCOME_GROUPS.map((group) => (
+                  <View key={group.heading} style={styles.welcomeGroup}>
+                    <Text style={styles.welcomeGroupHeading}>{group.heading}</Text>
+                    {group.items.map((item) => (
+                      <View key={item} style={styles.welcomeFeatureItem}>
+                        <Ionicons name="checkmark-circle" size={16} color={C.primaryDark} />
+                        <Text style={styles.welcomeFeatureText}>{item}</Text>
+                      </View>
+                    ))}
                   </View>
                 ))}
               </View>
@@ -1205,16 +1222,27 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     welcomeFeatureList: {
       alignSelf: 'stretch',
       paddingHorizontal: 36,
-      gap: 14,
+      gap: 16,
       marginTop: 4,
+    },
+    welcomeGroup: {
+      gap: 8,
+    },
+    welcomeGroupHeading: {
+      fontSize: 10,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.8,
+      marginBottom: 2,
     },
     welcomeFeatureItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 10,
     },
     welcomeFeatureText: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_500Medium',
       color: C.text,
       flex: 1,
