@@ -158,6 +158,18 @@ function RegionBodyPicker({
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
         keyboardShouldPersistTaps="handled"
       >
+        <Text
+          style={{
+            textAlign: 'center',
+            fontSize: 13,
+            fontFamily: 'Inter_500Medium',
+            color: C.textSecondary,
+            paddingTop: 6,
+            paddingBottom: 4,
+          }}
+        >
+          Tap one or more regions — we&apos;ll adjust exercises
+        </Text>
         <BodyDiagram selected={pending} onSelect={onPendingChange} />
       </ScrollView>
 

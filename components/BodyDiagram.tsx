@@ -364,7 +364,15 @@ export function BodyDiagram({
       return category === 'muscles' ? isMuscle : !isMuscle;
     });
     if (regions.length === 0) return;
-    const currentIdx = selected !== undefined ? regions.indexOf(selected) : -1;
+    // Multi-select: advance past the last added region.
+    // Single-select: advance past the currently selected region.
+    const currentRegion =
+      selected !== undefined
+        ? selected
+        : selectedRegions?.length
+          ? selectedRegions[selectedRegions.length - 1]
+          : undefined;
+    const currentIdx = currentRegion !== undefined ? regions.indexOf(currentRegion) : -1;
     const nextRegion = regions[(currentIdx + 1) % regions.length];
     stopPulse();
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

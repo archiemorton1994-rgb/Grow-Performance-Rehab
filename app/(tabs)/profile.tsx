@@ -594,7 +594,10 @@ export default function ProfileScreen() {
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroSection}>
