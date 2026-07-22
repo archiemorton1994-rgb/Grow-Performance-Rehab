@@ -136,7 +136,7 @@ function WeeklyWeightPrompt() {
       setShowPrompt(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReadyToPrompt, lastWeightPromptedAt]);
+  }, [isReadyToPrompt, lastWeightPromptedAt, completedSessions.length, neverSetWeight]);
 
   const trimmed = weightText.trim();
   const parsedWeight = /^\d+(\.\d+)?$/.test(trimmed) ? parseFloat(trimmed) : NaN;

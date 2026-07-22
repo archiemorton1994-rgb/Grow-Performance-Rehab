@@ -139,10 +139,7 @@ const WELCOME_GROUPS = [
   },
   {
     heading: 'Train',
-    items: [
-      'Strength, conditioning & custom sessions',
-      'Recovery, mobility & flexibility',
-    ],
+    items: ['Strength, conditioning & custom sessions', 'Recovery, mobility & flexibility'],
   },
   {
     heading: 'Track',
