@@ -1,3 +1,6 @@
+import { useColorScheme } from 'react-native';
+import { useAppStore } from '@/lib/store';
+
 const LightColors = {
   primary: '#2f6b46',
   primaryLight: '#3d8a5c',
@@ -201,7 +204,11 @@ const DarkColors = {
 export type AppColors = typeof LightColors;
 
 export function useColors(): AppColors {
-  return DarkColors;
+  const themePreference = useAppStore((s) => s.themePreference);
+  const systemScheme = useColorScheme();
+  if (themePreference === 'light') return LightColors;
+  if (themePreference === 'dark') return DarkColors;
+  return systemScheme === 'light' ? LightColors : DarkColors;
 }
 
 /** Direct access to dark-mode tokens for non-hook contexts (e.g. pre-render crash views). */

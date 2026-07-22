@@ -311,6 +311,8 @@ interface AppState {
   streakProtectionTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
+  /** User's preferred colour scheme. 'system' follows the device setting. Default 'dark'. Persisted. */
+  themePreference: 'dark' | 'light' | 'system';
   /**
    * Transient per-session equipment override. Set by the Train or Home tab chip; cleared on app
    * restart. NOT persisted — lives only in memory for the current app session.
@@ -367,6 +369,7 @@ interface AppState {
   setStreakProtectionTime: (time: string) => void;
   setWeeklyStreakGoal: (goal: number) => void;
   setCycleStartOffset: (offset: number) => void;
+  setThemePreference: (pref: 'dark' | 'light' | 'system') => void;
   setProfilePhotoUri: (uri: string | null) => void;
   setSessionEquipmentOverride: (tiers: EquipmentTier[]) => void;
   clearSessionEquipmentOverride: () => void;
@@ -457,6 +460,7 @@ export const useAppStore = create<AppState>()(
       streakProtectionTime: '20:00',
       weeklyStreakGoal: 2,
       cycleStartOffset: 0,
+      themePreference: 'dark',
       profilePhotoUri: null,
       exerciseNormalStreak: {},
       lastSessionPerformance: {},
@@ -529,6 +533,7 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
+      setThemePreference: (pref) => set({ themePreference: pref }),
       setProfilePhotoUri: (uri) => {
         set({ profilePhotoUri: uri });
         if (uri) get().awardNewBadges();
@@ -1052,6 +1057,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!('weeklyStreakGoal' in persistedState)) {
           persistedState.weeklyStreakGoal = 2;
+        }
+        if (!('themePreference' in persistedState)) {
+          persistedState.themePreference = 'dark';
         }
         // v21: badge prestige revamp. Profile-setup badges were removed — badges
         // are now earned through training only. Strip the 9 retired profile IDs

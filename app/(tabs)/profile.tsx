@@ -340,6 +340,8 @@ export default function ProfileScreen() {
     setWeeklyStreakGoal,
     bodyweightLog,
     removeBodyweightEntry,
+    themePreference,
+    setThemePreference,
   } = useAppStore();
 
   const { user, signOut } = useAuth();
@@ -822,7 +824,7 @@ export default function ProfileScreen() {
             <View style={styles.navBtnText}>
               <Text style={styles.infoCardTitle}>SETTINGS</Text>
               <Text style={styles.infoCardSub}>
-                Profile • Equipment • Reminders • Units • Account
+                Profile • Equipment • Reminders • Units • Appearance • Account
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
@@ -1550,6 +1552,39 @@ export default function ProfileScreen() {
                       style={[styles.freqBtnText, weightUnit === unit && styles.freqBtnTextActive]}
                     >
                       {unit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.settingDivider} />
+
+              <Text style={styles.settingItemLabel}>Appearance</Text>
+              <Text style={styles.settingItemSub}>Choose your preferred colour theme</Text>
+              <View style={styles.freqRow}>
+                {(
+                  [
+                    { value: 'dark', label: 'Dark' },
+                    { value: 'light', label: 'Light' },
+                    { value: 'system', label: 'System' },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <Pressable
+                    key={value}
+                    onPress={() => {
+                      setThemePreference(value);
+                      if (Platform.OS !== 'web')
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[styles.freqBtn, themePreference === value && styles.freqBtnActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.freqBtnText,
+                        themePreference === value && styles.freqBtnTextActive,
+                      ]}
+                    >
+                      {label}
                     </Text>
                   </Pressable>
                 ))}
