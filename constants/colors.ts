@@ -69,12 +69,12 @@ const LightColors = {
   trendPositiveBorder: '#b7deca',
   trendNegativeBorder: '#f5bdb8',
 
-  difficultyAdvancedBg: '#fde8e8',
-  difficultyIntermediateBg: '#fef0c0',
-  difficultyBeginnerBg: '#e8f5e9',
+  difficultyAdvancedBg: '#f0b8b8',
+  difficultyIntermediateBg: '#f0c860',
+  difficultyBeginnerBg: '#a8d8ac',
   difficultyAdvancedText: '#c0392b',
-  difficultyIntermediateText: '#c96b00',
-  difficultyBeginnerText: '#1e8449',
+  difficultyIntermediateText: '#7c3800',
+  difficultyBeginnerText: '#166534',
 
   categoryMechanical: '#80cbc4',
   categoryMechanicalText: '#00695c',
