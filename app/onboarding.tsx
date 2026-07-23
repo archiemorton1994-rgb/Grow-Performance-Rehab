@@ -186,6 +186,8 @@ export default function OnboardingScreen() {
     addOneRepMax,
     bodyweightUpdatedAt,
     completedSessions,
+    themePreference,
+    setThemePreference,
   } = useAppStore();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -246,7 +248,7 @@ export default function OnboardingScreen() {
       setTimeout(() => nameInputRef.current?.focus(), 350);
     } else if (currentIndex === 4) {
       setTimeout(() => bwInputRef.current?.focus(), 350);
-    } else if (currentIndex === 8) {
+    } else if (currentIndex === 9) {
       checkScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 180 }));
       checkOpacity.value = withDelay(200, withTiming(1, { duration: 250 }));
       celebTitleOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
@@ -311,6 +313,8 @@ export default function OnboardingScreen() {
         return equipment.length > 0;
       case 7:
         return true;
+      case 8:
+        return true;
       default:
         return false;
     }
@@ -336,6 +340,8 @@ export default function OnboardingScreen() {
     } else if (currentIndex === 7) {
       saveAndComplete();
       goTo(8);
+    } else if (currentIndex === 8) {
+      goTo(9);
     }
   }, [canContinue, hapticMedium, currentIndex, goTo, saveAndComplete]);
 
@@ -411,9 +417,9 @@ export default function OnboardingScreen() {
 
   const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
   const showProgress = currentIndex >= 1;
-  const progressFraction = showProgress ? Math.min(currentIndex / 8, 1) : 0;
+  const progressFraction = showProgress ? Math.min(currentIndex / 9, 1) : 0;
   const showBack = currentIndex > 0;
-  const showContinue = currentIndex < 8;
+  const showContinue = currentIndex < 9;
   const canGo = canContinue();
 
   const topPad = insets.top + webTop;
@@ -796,7 +802,79 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
 
-          {/* Screen 8: Profile Built! */}
+          {/* Screen 8: Theme */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="color-palette-outline" size={56} color={C.primary} />
+              </View>
+              <Text style={styles.question}>Choose your look</Text>
+              <Text style={styles.hint}>The screen updates live — change anytime in settings</Text>
+              <View style={[styles.optionList, { marginTop: 4 }]}>
+                {(
+                  [
+                    {
+                      value: 'dark',
+                      label: 'Dark',
+                      icon: 'moon-outline' as const,
+                      desc: 'Dark background, easy on the eyes',
+                    },
+                    {
+                      value: 'light',
+                      label: 'Light',
+                      icon: 'sunny-outline' as const,
+                      desc: 'Light background, clean and bright',
+                    },
+                  ] as const
+                ).map(({ value, label, icon, desc }) => {
+                  const selected = themePreference === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        haptic();
+                        setThemePreference(value);
+                      }}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        pressed && styles.optionCardPressed,
+                      ]}
+                      testID={`theme-${value}`}
+                    >
+                      <View
+                        style={[
+                          styles.optionIcon,
+                          {
+                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={icon}
+                          size={28}
+                          color={selected ? C.primary : C.textSecondary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
+                          {desc}
+                        </Text>
+                      </View>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* Screen 9: Profile Built! */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
@@ -852,7 +930,9 @@ export default function OnboardingScreen() {
                   ? 'Get Started'
                   : currentIndex === 7
                     ? 'Save & Continue'
-                    : 'Continue'}
+                    : currentIndex === 8
+                      ? 'Looks good'
+                      : 'Continue'}
               </Text>
               <Ionicons
                 name={currentIndex === 0 ? 'chevron-forward' : 'arrow-forward'}

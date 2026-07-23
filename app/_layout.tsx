@@ -112,13 +112,14 @@ function WeeklyWeightPrompt() {
     setUserProfile,
     weightUnit,
     completedSessions,
+    onboardingComplete,
   } = useAppStore();
   const { isAuthenticated } = useAuth();
 
   const [showPrompt, setShowPrompt] = useState(false);
   const [weightText, setWeightText] = useState('');
 
-  const isReadyToPrompt = hasHydrated && isAuthenticated;
+  const isReadyToPrompt = hasHydrated && isAuthenticated && onboardingComplete;
   const neverSetWeight = userProfile.bodyweightKg === 0;
 
   useEffect(() => {
