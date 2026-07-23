@@ -239,7 +239,9 @@ function checkFill(name, token, background, min) {
   return pass;
 }
 
-console.log('\n[light-badge-contrast] checking status-badge, category-pill, and achievement-badge readability\n');
+console.log(
+  '\n[light-badge-contrast] checking status-badge, category-pill, and achievement-badge readability\n'
+);
 console.log(`  Background (LightColors.surface): ${surface}`);
 console.log(`  Fill-vs-surface minimum : ${FILL_MIN} : 1`);
 console.log(`  Text-vs-fill minimum    : ${TEXT_MIN} : 1\n`);
