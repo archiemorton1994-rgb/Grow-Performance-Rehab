@@ -1,5 +1,6 @@
 /**
- * Contrast check — LightColors status-badge, category-pill, and difficulty-badge tokens
+ * Contrast check — LightColors status-badge, category-pill, difficulty-badge, and
+ * achievement/streak/trophy badge tokens
  *
  * WHY THIS MATTERS
  * ────────────────
@@ -32,6 +33,16 @@
  *   difficultyAdvancedBg     + difficultyAdvancedText     (fill + text-on-fill)
  *   difficultyIntermediateBg + difficultyIntermediateText
  *   difficultyBeginnerBg     + difficultyBeginnerText
+ *
+ *   achievementGoldBg  + achievementGold  (fill + text-on-fill)
+ *   streakBg           + streakText
+ *   trophyBg           + trophy
+ *
+ *   achievementGoldBorder / streakBorder / trophyBorder  — fill vs surface only
+ *   (container outlines; no text sits directly on them)
+ *   Note: achievementGoldBorder is stored with an alpha suffix (#rrggbbaa); the
+ *   helper ignores the alpha channel and checks the solid RGB component (worst-case
+ *   opaque hue).
  *
  * Run:  node tests/light-badge-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -174,6 +185,40 @@ const difficultyBadgePairs = [
   },
 ];
 
+// Achievement / streak / trophy badge fill + text pairs: fill vs surface, then text vs fill.
+// These are rendered on the Session and Profile screens (milestone badges, streak pill, etc.).
+const achievementBadgePairs = [
+  {
+    fillName: 'LightColors.achievementGoldBg',
+    fillKey: 'achievementGoldBg',
+    textName: 'LightColors.achievementGold',
+    textKey: 'achievementGold',
+  },
+  {
+    fillName: 'LightColors.streakBg',
+    fillKey: 'streakBg',
+    textName: 'LightColors.streakText',
+    textKey: 'streakText',
+  },
+  {
+    fillName: 'LightColors.trophyBg',
+    fillKey: 'trophyBg',
+    textName: 'LightColors.trophy',
+    textKey: 'trophy',
+  },
+];
+
+// Achievement / streak / trophy border tokens — fill-only check vs surface (these act as
+// visible container outlines; no text sits directly on them).
+// Note: achievementGoldBorder is stored with an alpha suffix (#rrggbbaa); the contrast
+// helper ignores the alpha channel and checks the solid RGB component, which represents
+// the worst-case visible hue when fully opaque.
+const achievementBorderTokens = [
+  { name: 'LightColors.achievementGoldBorder', key: 'achievementGoldBorder' },
+  { name: 'LightColors.streakBorder', key: 'streakBorder' },
+  { name: 'LightColors.trophyBorder', key: 'trophyBorder' },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -194,7 +239,7 @@ function checkFill(name, token, background, min) {
   return pass;
 }
 
-console.log('\n[light-badge-contrast] checking status-badge and category-pill readability\n');
+console.log('\n[light-badge-contrast] checking status-badge, category-pill, and achievement-badge readability\n');
 console.log(`  Background (LightColors.surface): ${surface}`);
 console.log(`  Fill-vs-surface minimum : ${FILL_MIN} : 1`);
 console.log(`  Text-vs-fill minimum    : ${TEXT_MIN} : 1\n`);
@@ -219,6 +264,20 @@ for (const { fillName, fillKey, textName, textKey } of difficultyBadgePairs) {
   const text = extractLightToken(textKey);
   checkFill(fillName, fill, surface, FILL_MIN);
   checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── Achievement / streak / trophy badges (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of achievementBadgePairs) {
+  const fill = extractLightToken(fillKey);
+  const text = extractLightToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── Achievement / streak / trophy borders (fill vs surface) ──');
+for (const { name, key } of achievementBorderTokens) {
+  const token = extractLightToken(key);
+  checkFill(name, token, surface, FILL_MIN);
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
