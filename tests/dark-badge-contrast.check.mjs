@@ -1,13 +1,14 @@
 /**
- * Contrast check — DarkColors status-badge and category-pill tokens
+ * Contrast check — DarkColors status-badge, category-pill, and difficulty-badge tokens
  *
  * WHY THIS MATTERS
  * ────────────────
- * Session-type category pills (Mechanical, Neuro, Prehab, Finisher, Cooldown)
- * and trend-status badges (Warning, Danger, Neutral) are rendered in dark mode
- * using DarkColors tokens.  Without an automated guard, a future colour-token
- * refactor could silently make badge fills invisible (dark-on-dark) or render
- * text unreadable against its badge background.
+ * Session-type category pills (Mechanical, Neuro, Prehab, Finisher, Cooldown),
+ * trend-status badges (Warning, Danger, Neutral), and difficulty badges
+ * (Advanced, Intermediate, Beginner) are rendered in dark mode using DarkColors
+ * tokens.  Without an automated guard, a future colour-token refactor could
+ * silently make badge fills invisible (dark-on-dark) or render text unreadable
+ * against its badge background.
  *
  * Two thresholds (WCAG 2.1 contrast-ratio formula):
  *   • FILL_MIN  1.5 : 1  — fill vs DarkColors.surface
@@ -29,6 +30,10 @@
  *   categoryPrehab      + categoryPrehabText
  *   categoryFinisher    + categoryFinisherText
  *   categoryCooldown    + categoryCooldownText
+ *
+ *   difficultyAdvancedBg     + difficultyAdvancedText     (fill + text-on-fill)
+ *   difficultyIntermediateBg + difficultyIntermediateText
+ *   difficultyBeginnerBg     + difficultyBeginnerText
  *
  * Run:  node tests/dark-badge-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -149,6 +154,28 @@ const badgePairs = [
   },
 ];
 
+// Difficulty badge fill + text pairs: fill vs surface, then text vs fill.
+const difficultyBadgePairs = [
+  {
+    fillName: 'DarkColors.difficultyAdvancedBg',
+    fillKey: 'difficultyAdvancedBg',
+    textName: 'DarkColors.difficultyAdvancedText',
+    textKey: 'difficultyAdvancedText',
+  },
+  {
+    fillName: 'DarkColors.difficultyIntermediateBg',
+    fillKey: 'difficultyIntermediateBg',
+    textName: 'DarkColors.difficultyIntermediateText',
+    textKey: 'difficultyIntermediateText',
+  },
+  {
+    fillName: 'DarkColors.difficultyBeginnerBg',
+    fillKey: 'difficultyBeginnerBg',
+    textName: 'DarkColors.difficultyBeginnerText',
+    textKey: 'difficultyBeginnerText',
+  },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -182,6 +209,14 @@ for (const { name, key } of fillOnlyTokens) {
 
 console.log('\n── Category pills (fill vs surface, then text vs fill) ──');
 for (const { fillName, fillKey, textName, textKey } of badgePairs) {
+  const fill = extractDarkToken(fillKey);
+  const text = extractDarkToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── Difficulty badges (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of difficultyBadgePairs) {
   const fill = extractDarkToken(fillKey);
   const text = extractDarkToken(textKey);
   checkFill(fillName, fill, surface, FILL_MIN);

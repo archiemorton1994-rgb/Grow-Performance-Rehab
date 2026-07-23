@@ -169,9 +169,9 @@ const DarkColors = {
   trendPositiveBorder: '#1e4a30',
   trendNegativeBorder: '#3a1510',
 
-  difficultyAdvancedBg: '#1a0808',
-  difficultyIntermediateBg: '#1a1200',
-  difficultyBeginnerBg: '#0a1f12',
+  difficultyAdvancedBg: '#6b1f1f',
+  difficultyIntermediateBg: '#5c3600',
+  difficultyBeginnerBg: '#1c4a2a',
   difficultyAdvancedText: '#e07060',
   difficultyIntermediateText: '#f5a523',
   difficultyBeginnerText: '#4ade80',
