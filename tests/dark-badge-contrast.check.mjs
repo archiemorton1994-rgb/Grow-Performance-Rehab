@@ -176,6 +176,40 @@ const difficultyBadgePairs = [
   },
 ];
 
+// Achievement / streak / trophy badge fill + text pairs: fill vs surface, then text vs fill.
+// These are rendered on the Profile screen (milestone badges and streak pill).
+const achievementBadgePairs = [
+  {
+    fillName: 'DarkColors.achievementGoldBg',
+    fillKey: 'achievementGoldBg',
+    textName: 'DarkColors.achievementGold',
+    textKey: 'achievementGold',
+  },
+  {
+    fillName: 'DarkColors.streakBg',
+    fillKey: 'streakBg',
+    textName: 'DarkColors.streakText',
+    textKey: 'streakText',
+  },
+  {
+    fillName: 'DarkColors.trophyBg',
+    fillKey: 'trophyBg',
+    textName: 'DarkColors.trophy',
+    textKey: 'trophy',
+  },
+];
+
+// Achievement / streak border tokens — fill-only check vs surface (these act as visible
+// container outlines; no text sits directly on them).
+// Note: achievementGoldBorder is stored with an alpha suffix (#rrggbbaa); the contrast
+// helper ignores the alpha channel and checks the solid RGB component, which represents
+// the worst-case visible hue when fully opaque.
+const achievementBorderTokens = [
+  { name: 'DarkColors.achievementGoldBorder', key: 'achievementGoldBorder' },
+  { name: 'DarkColors.streakBorder', key: 'streakBorder' },
+  { name: 'DarkColors.trophyBorder', key: 'trophyBorder' },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -221,6 +255,20 @@ for (const { fillName, fillKey, textName, textKey } of difficultyBadgePairs) {
   const text = extractDarkToken(textKey);
   checkFill(fillName, fill, surface, FILL_MIN);
   checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── Achievement / streak / trophy badges (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of achievementBadgePairs) {
+  const fill = extractDarkToken(fillKey);
+  const text = extractDarkToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── Achievement / streak / trophy borders (fill vs surface) ──');
+for (const { name, key } of achievementBorderTokens) {
+  const token = extractDarkToken(key);
+  checkFill(name, token, surface, FILL_MIN);
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
