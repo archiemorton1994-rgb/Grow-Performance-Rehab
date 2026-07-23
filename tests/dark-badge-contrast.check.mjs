@@ -1,14 +1,15 @@
 /**
- * Contrast check — DarkColors status-badge, category-pill, and difficulty-badge tokens
+ * Contrast check — DarkColors status-badge, category-pill, difficulty-badge,
+ * achievement/streak/trophy badge, energy-badge, and PB-flash tokens
  *
  * WHY THIS MATTERS
  * ────────────────
  * Session-type category pills (Mechanical, Neuro, Prehab, Finisher, Cooldown),
- * trend-status badges (Warning, Danger, Neutral), and difficulty badges
- * (Advanced, Intermediate, Beginner) are rendered in dark mode using DarkColors
- * tokens.  Without an automated guard, a future colour-token refactor could
- * silently make badge fills invisible (dark-on-dark) or render text unreadable
- * against its badge background.
+ * trend-status badges (Warning, Danger, Neutral), difficulty badges
+ * (Advanced, Intermediate, Beginner), and mid-session PB-flash badges are all
+ * rendered in dark mode using DarkColors tokens.  Without an automated guard,
+ * a future colour-token refactor could silently make badge fills invisible
+ * (dark-on-dark) or render text unreadable against its badge background.
  *
  * Two thresholds (WCAG 2.1 contrast-ratio formula):
  *   • FILL_MIN  1.5 : 1  — fill vs DarkColors.surface
@@ -25,6 +26,9 @@
  *   (these are used as coloured text / icon indicators, not as badge fills that
  *   contain a text label, so no text-on-fill pair exists for them)
  *
+ *   energyBadge  — fill vs surface only
+ *   (used as an icon tint on the Home/Readiness energy row; no text on the fill)
+ *
  *   categoryMechanical  + categoryMechanicalText  (fill + text-on-fill)
  *   categoryNeuro       + categoryNeuroText
  *   categoryPrehab      + categoryPrehabText
@@ -34,6 +38,19 @@
  *   difficultyAdvancedBg     + difficultyAdvancedText     (fill + text-on-fill)
  *   difficultyIntermediateBg + difficultyIntermediateText
  *   difficultyBeginnerBg     + difficultyBeginnerText
+ *
+ *   achievementGoldBg  + achievementGold  (fill + text-on-fill)
+ *   streakBg           + streakText
+ *   trophyBg           + trophy
+ *
+ *   achievementGoldBorder / streakBorder / trophyBorder  — fill vs surface only
+ *   (container outlines; no text sits directly on them)
+ *   Note: achievementGoldBorder is stored with an alpha suffix (#rrggbbaa); the
+ *   helper ignores the alpha channel and checks the solid RGB component (worst-case
+ *   opaque hue).
+ *
+ *   pbFlash  + pbFlashText  (fill + text-on-fill)
+ *   (the "New PB 🏆" badge that flashes mid-session when a personal best is logged)
  *
  * Run:  node tests/dark-badge-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -118,6 +135,7 @@ const fillOnlyTokens = [
   { name: 'DarkColors.trendWarning', key: 'trendWarning' },
   { name: 'DarkColors.trendDanger', key: 'trendDanger' },
   { name: 'DarkColors.trendNeutral', key: 'trendNeutral' },
+  { name: 'DarkColors.energyBadge', key: 'energyBadge' },
 ];
 
 // Fill + text pairs: badge background fill vs surface, then text vs fill.
@@ -210,6 +228,17 @@ const achievementBorderTokens = [
   { name: 'DarkColors.trophyBorder', key: 'trophyBorder' },
 ];
 
+// PB-flash badge fill + text pair: the "New PB 🏆" badge shown mid-session when a
+// personal best is logged in session.tsx.
+const pbFlashBadgePairs = [
+  {
+    fillName: 'DarkColors.pbFlash',
+    fillKey: 'pbFlash',
+    textName: 'DarkColors.pbFlashText',
+    textKey: 'pbFlashText',
+  },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -230,7 +259,9 @@ function checkFill(name, token, background, min) {
   return pass;
 }
 
-console.log('\n[dark-badge-contrast] checking status-badge and category-pill readability\n');
+console.log(
+  '\n[dark-badge-contrast] checking status-badge, category-pill, achievement-badge, and PB-flash readability\n'
+);
 console.log(`  Background (DarkColors.surface): ${surface}`);
 console.log(`  Fill-vs-surface minimum : ${FILL_MIN} : 1`);
 console.log(`  Text-vs-fill minimum    : ${TEXT_MIN} : 1\n`);
@@ -269,6 +300,14 @@ console.log('\n── Achievement / streak / trophy borders (fill vs surface) �
 for (const { name, key } of achievementBorderTokens) {
   const token = extractDarkToken(key);
   checkFill(name, token, surface, FILL_MIN);
+}
+
+console.log('\n── PB-flash badge (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of pbFlashBadgePairs) {
+  const fill = extractDarkToken(fillKey);
+  const text = extractDarkToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

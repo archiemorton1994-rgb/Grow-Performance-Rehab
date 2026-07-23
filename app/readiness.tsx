@@ -1126,7 +1126,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     testWeekBadgeText: {
       fontSize: 10,
       fontFamily: 'Inter_700Bold',
-      color: '#fff',
+      color: C.pbFlashText,
       letterSpacing: 0.6,
     },
     testWeekBannerHeadline: {

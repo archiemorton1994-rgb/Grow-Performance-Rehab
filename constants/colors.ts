@@ -37,7 +37,7 @@ const LightColors = {
 
   destructive: '#ef4444',
   pbFlash: '#f59e0b',
-  pbFlashText: '#ffffff',
+  pbFlashText: '#5c2d00',
   trophy: '#7a4400',
   trophyBg: '#e8a900',
   trophyBorder: '#daa000',
@@ -137,7 +137,7 @@ const DarkColors = {
 
   destructive: '#f87171',
   pbFlash: '#fbbf24',
-  pbFlashText: '#ffffff',
+  pbFlashText: '#5c2d00',
   trophy: '#fbbf24',
   trophyBg: '#4a3600',
   trophyBorder: '#5c4500',

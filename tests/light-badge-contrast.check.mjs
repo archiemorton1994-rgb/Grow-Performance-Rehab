@@ -1,15 +1,15 @@
 /**
- * Contrast check — LightColors status-badge, category-pill, difficulty-badge, and
- * achievement/streak/trophy badge tokens
+ * Contrast check — LightColors status-badge, category-pill, difficulty-badge,
+ * achievement/streak/trophy badge, energy-badge, and PB-flash tokens
  *
  * WHY THIS MATTERS
  * ────────────────
  * Session-type category pills (Mechanical, Neuro, Prehab, Finisher, Cooldown),
- * trend-status indicators (Warning, Danger, Neutral), and difficulty badges
- * (Advanced, Intermediate, Beginner) are rendered in light mode using LightColors
- * tokens.  Without an automated guard, a future colour-token refactor could
- * silently make badge fills invisible (light-on-white) or render text unreadable
- * against its badge background.
+ * trend-status indicators (Warning, Danger, Neutral), difficulty badges
+ * (Advanced, Intermediate, Beginner), and mid-session PB-flash badges are all
+ * rendered in light mode using LightColors tokens.  Without an automated guard,
+ * a future colour-token refactor could silently make badge fills invisible
+ * (light-on-white) or render text unreadable against its badge background.
  *
  * Two thresholds (WCAG 2.1 contrast-ratio formula):
  *   • FILL_MIN  1.5 : 1  — fill vs LightColors.surface
@@ -23,6 +23,9 @@
  *   trendWarning / trendDanger / trendNeutral  — fill vs surface only
  *   (these are used as coloured text / icon indicators, not as badge fills that
  *   contain a text label, so no text-on-fill pair exists for them)
+ *
+ *   energyBadge  — fill vs surface only
+ *   (used as an icon tint on the Home/Readiness energy row; no text on the fill)
  *
  *   categoryMechanical  + categoryMechanicalText  (fill + text-on-fill)
  *   categoryNeuro       + categoryNeuroText
@@ -43,6 +46,9 @@
  *   Note: achievementGoldBorder is stored with an alpha suffix (#rrggbbaa); the
  *   helper ignores the alpha channel and checks the solid RGB component (worst-case
  *   opaque hue).
+ *
+ *   pbFlash  + pbFlashText  (fill + text-on-fill)
+ *   (the "New PB 🏆" badge that flashes mid-session when a personal best is logged)
  *
  * Run:  node tests/light-badge-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -127,6 +133,7 @@ const fillOnlyTokens = [
   { name: 'LightColors.trendWarning', key: 'trendWarning' },
   { name: 'LightColors.trendDanger', key: 'trendDanger' },
   { name: 'LightColors.trendNeutral', key: 'trendNeutral' },
+  { name: 'LightColors.energyBadge', key: 'energyBadge' },
 ];
 
 // Fill + text pairs: badge background fill vs surface, then text vs fill.
@@ -219,6 +226,17 @@ const achievementBorderTokens = [
   { name: 'LightColors.trophyBorder', key: 'trophyBorder' },
 ];
 
+// PB-flash badge fill + text pair: the "New PB 🏆" badge shown mid-session when a
+// personal best is logged in session.tsx.
+const pbFlashBadgePairs = [
+  {
+    fillName: 'LightColors.pbFlash',
+    fillKey: 'pbFlash',
+    textName: 'LightColors.pbFlashText',
+    textKey: 'pbFlashText',
+  },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -240,7 +258,7 @@ function checkFill(name, token, background, min) {
 }
 
 console.log(
-  '\n[light-badge-contrast] checking status-badge, category-pill, and achievement-badge readability\n'
+  '\n[light-badge-contrast] checking status-badge, category-pill, achievement-badge, and PB-flash readability\n'
 );
 console.log(`  Background (LightColors.surface): ${surface}`);
 console.log(`  Fill-vs-surface minimum : ${FILL_MIN} : 1`);
@@ -280,6 +298,14 @@ console.log('\n── Achievement / streak / trophy borders (fill vs surface) �
 for (const { name, key } of achievementBorderTokens) {
   const token = extractLightToken(key);
   checkFill(name, token, surface, FILL_MIN);
+}
+
+console.log('\n── PB-flash badge (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of pbFlashBadgePairs) {
+  const fill = extractLightToken(fillKey);
+  const text = extractLightToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
