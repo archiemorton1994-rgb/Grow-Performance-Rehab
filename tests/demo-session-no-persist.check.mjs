@@ -88,11 +88,11 @@ if (isDemoLine !== -1) {
 // session.tsx has THREE `const handleComplete` functions:
 //   - line ~522: inside ExerciseCard sub-component (handles individual set taps)
 //   - line ~844: inside BarExerciseCard sub-component (handles bar-set taps)
-//   - line ~2346: the SESSION-LEVEL handler that calls completeSession()
+//   - line ~2530: the SESSION-LEVEL handler that calls completeSession()
 //
-// Unique anchor: `const progress = isPrehabOrFlex` appears exactly 2 lines before
-// the session-level handleComplete and nowhere else in the file.
-const progressAnchorLine = lineOf('const progress = isPrehabOrFlex');
+// Unique anchor: `const currentPhaseLabel = phaseLabelMap` appears exactly 2 lines
+// before the session-level handleComplete and nowhere else in the file.
+const progressAnchorLine = lineOf('const currentPhaseLabel = phaseLabelMap');
 let sessionHandleCompleteLine = -1;
 if (progressAnchorLine !== -1) {
   // Search for the handleComplete declaration within 5 lines after the anchor

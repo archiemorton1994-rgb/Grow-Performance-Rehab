@@ -562,7 +562,7 @@ export function SessionActiveBar({
     );
   }
 
-  if (sessionAllDone || isPrehabOrFlex) {
+  if (sessionAllDone) {
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <Pressable
@@ -2504,7 +2504,7 @@ export default function SessionScreen() {
   }
 
   const isPrehabOrFlex = sessionType === 'prehab' || sessionType === 'flexibility';
-  const allDone = isPrehabOrFlex || exerciseData.every((ed) => ed.sets.every((s) => s.completed));
+  const allDone = exerciseData.every((ed) => ed.sets.every((s) => s.completed));
   const completedSetsCount = exerciseData.reduce(
     (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
     0
@@ -2524,7 +2524,7 @@ export default function SessionScreen() {
   };
   const activePhaseCategory = exercises[activeIndex]?.category ?? 'prep';
   const currentPhaseLabel = phaseLabelMap[activePhaseCategory] ?? activePhaseCategory;
-  const progress = isPrehabOrFlex ? 1 : totalSets > 0 ? completedSetsCount / totalSets : 0;
+  const progress = totalSets > 0 ? completedSetsCount / totalSets : 0;
 
   const handleComplete = () => {
     if (isDemo) {
