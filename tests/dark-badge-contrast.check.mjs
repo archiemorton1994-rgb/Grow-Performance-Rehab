@@ -239,6 +239,17 @@ const pbFlashBadgePairs = [
   },
 ];
 
+// New Record badge fill + text pair: the green "New Record" badge rendered in session.tsx
+// (newRecordBadge style) using C.success as fill and C.textInverse as label text.
+const newRecordBadgePairs = [
+  {
+    fillName: 'DarkColors.success',
+    fillKey: 'success',
+    textName: 'DarkColors.textInverse',
+    textKey: 'textInverse',
+  },
+];
+
 // ─── Run checks ───────────────────────────────────────────────────────────────
 
 let failures = 0;
@@ -304,6 +315,14 @@ for (const { name, key } of achievementBorderTokens) {
 
 console.log('\n── PB-flash badge (fill vs surface, then text vs fill) ──');
 for (const { fillName, fillKey, textName, textKey } of pbFlashBadgePairs) {
+  const fill = extractDarkToken(fillKey);
+  const text = extractDarkToken(textKey);
+  checkFill(fillName, fill, surface, FILL_MIN);
+  checkFill(textName, text, fill, TEXT_MIN);
+}
+
+console.log('\n── New Record badge (fill vs surface, then text vs fill) ──');
+for (const { fillName, fillKey, textName, textKey } of newRecordBadgePairs) {
   const fill = extractDarkToken(fillKey);
   const text = extractDarkToken(textKey);
   checkFill(fillName, fill, surface, FILL_MIN);
