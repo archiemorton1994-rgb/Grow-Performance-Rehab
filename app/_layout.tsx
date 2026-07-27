@@ -315,7 +315,7 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
 const TRANSIENT_SCREENS = new Set(['session', 'session-summary', 'readiness', 'custom-session']);
 
 function RootLayoutNav() {
-  const { onboardingComplete } = useAppStore();
+  const { onboardingComplete, hasHydrated } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
   const hasNavigated = useRef(false);
   const segments = useSegments();
@@ -374,6 +374,12 @@ function RootLayoutNav() {
   // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
+    // onboardingComplete defaults to false until AsyncStorage rehydration
+    // finishes. isLoading (auth) can resolve first — with no stored token
+    // that's near-instant — so without this guard the gate could make its
+    // one-shot navigation decision on the stale default and never revisit it,
+    // bouncing a genuinely already-onboarded user back into onboarding.
+    if (!hasHydrated) return;
     if (hasNavigated.current) return;
     // Never redirect away from screens that manage their own post-action
     // navigation (e.g. session → session-summary). A store update inside
@@ -394,7 +400,14 @@ function RootLayoutNav() {
       hasNavigated.current = true;
       setTimeout(() => router.replace('/(tabs)'), 0);
     }
-  }, [isLoading, onboardingComplete, isAuthenticated, hasActiveSubscription, isOnTransientScreen]);
+  }, [
+    isLoading,
+    hasHydrated,
+    onboardingComplete,
+    isAuthenticated,
+    hasActiveSubscription,
+    isOnTransientScreen,
+  ]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -406,8 +419,7 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, [isAuthenticated, hasActiveSubscription]);
 
-  const { hasHydrated, reminderEnabled, reminderTime, activeSession, clearActiveSession } =
-    useAppStore();
+  const { reminderEnabled, reminderTime, activeSession, clearActiveSession } = useAppStore();
 
   useEffect(() => {
     if (!hasHydrated) return;
