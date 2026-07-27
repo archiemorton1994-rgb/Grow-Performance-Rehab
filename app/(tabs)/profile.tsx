@@ -471,6 +471,11 @@ export default function ProfileScreen() {
 
   const saveEdit = () => {
     if (!editWeightValid) return;
+    // Downgrading experience can make previously-selected equipment tiers
+    // invalid (e.g. dumbbells while now Beginner) — filter them out so they
+    // don't stay stuck in stored state with no UI path to remove them.
+    const allowedTiers = editExp === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
+    setEquipmentTiers(equipmentTiers.filter((t) => allowedTiers.includes(t)));
     setUserProfile({
       name: editName.trim(),
       bodyweightKg: displayUnitToKg(editWeightParsed, weightUnit),
