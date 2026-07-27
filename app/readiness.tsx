@@ -50,21 +50,18 @@ const READINESS_TUTORIAL = [
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
-    upArrowFraction: 0.25,
     title: 'How are you feeling?',
     body: 'Pick your energy honestly — low energy gets a lighter session, high energy pushes harder. We adjust the weight automatically.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
-    upArrowFraction: 0.5,
     title: 'How long have you got?',
     body: '30 min = core lift only. 45 min adds accessories and prehab. 60 min is the full session with a finisher.',
   },
   {
     iconName: 'medical-outline',
     iconLabel: 'Pain',
-    upArrowFraction: 0.75,
     title: 'Any pain today?',
     body: "Tap a region if anything is sore — we'll automatically swap exercises away from that area so you can train safely.",
   },
@@ -142,12 +139,14 @@ export default function ReadinessScreen() {
   const timeRef = useRef<View>(null);
   const painRef = useRef<View>(null);
   const [readinessSpotlight, setReadinessSpotlight] = useState<SpotlightRect | null>(null);
+  const [coachArrowX, setCoachArrowX] = useState<number | null>(null);
 
   // Measure the spotlighted section whenever the tutorial step changes.
   // Clear the spotlight immediately on step change to avoid showing a stale rect
   // from the previous step while the new measurement is pending (fast-tap safety).
   useEffect(() => {
     setReadinessSpotlight(null);
+    setCoachArrowX(null);
     if (coachStep === null) return;
     const refs = [energyRef, timeRef, painRef];
     const target = refs[coachStep];
@@ -161,6 +160,9 @@ export default function ReadinessScreen() {
             height: h + 16,
             borderRadius: 14,
           });
+          // Point the arrow at the real center of the measured section rather
+          // than a guessed fraction of the card's width.
+          setCoachArrowX(x + w / 2);
         }
       });
     }, 120);
@@ -185,7 +187,9 @@ export default function ReadinessScreen() {
   }, [setReadinessTutorialShown]);
 
   useEffect(() => {
-    if (!readinessTutorialShown) {
+    // Energy/Time sections (and their refs) don't render during a test week,
+    // so the tutorial would start with nothing to measure or spotlight.
+    if (!readinessTutorialShown && !isTestWeek) {
       const timer = setTimeout(() => setCoachStep(0), 600);
       return () => clearTimeout(timer);
     }
@@ -850,7 +854,7 @@ export default function ReadinessScreen() {
           onNext={advanceCoach}
           onSkip={skipCoach}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
-          upArrowFraction={READINESS_TUTORIAL[coachStep].upArrowFraction}
+          upArrowScreenX={coachArrowX ?? undefined}
           iconName={READINESS_TUTORIAL[coachStep].iconName}
           iconLabel={READINESS_TUTORIAL[coachStep].iconLabel}
           spotlightRect={readinessSpotlight ?? undefined}

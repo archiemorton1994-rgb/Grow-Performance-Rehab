@@ -1,5 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions, PanResponder } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  PanResponder,
+} from 'react-native';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -11,11 +18,9 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const ARROW_H = 10;
 const ARROW_W = 9;
 const CARD_MARGIN = 16;
-const CARD_W = SCREEN_WIDTH - CARD_MARGIN * 2;
 
 export type SpotlightRect = {
   top: number;
@@ -41,7 +46,12 @@ interface CoachMarkProps {
   bottomOffset?: number;
   /** Horizontal position (0–1) for down-pointing tab-bar arrow. */
   tabArrowFraction?: number;
-  /** Horizontal position (0–1) for up-pointing element anchor arrow. */
+  /** Absolute screen-space X (same coordinate space as spotlightRect / measureInWindow)
+   *  to point the up-arrow at — e.g. the measured center of a specific button.
+   *  Takes precedence over upArrowFraction when provided. */
+  upArrowScreenX?: number;
+  /** Horizontal position (0–1) for up-pointing element anchor arrow. Fallback for
+   *  callers that don't have a specific measured target — prefer upArrowScreenX. */
   upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
@@ -62,12 +72,15 @@ export default function CoachMark({
   onSwipeLeft,
   bottomOffset = 0,
   tabArrowFraction,
+  upArrowScreenX,
   upArrowFraction,
   iconName,
   iconLabel,
   spotlightRect,
 }: CoachMarkProps) {
   const C = useColors();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const CARD_W = SCREEN_WIDTH - CARD_MARGIN * 2;
 
   // ── Spotlight dim + pulse animation ──────────────────────────────────────
   // Hooks must be called unconditionally (before any early return).
@@ -87,7 +100,7 @@ export default function CoachMark({
       dimOpacity.value = withTiming(0, { duration: 150 });
       pulseOpacity.value = withTiming(0, { duration: 150 });
     }
-  }, [visible, spotlightRect?.left, spotlightRect?.top]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visible, spotlightRect?.left, spotlightRect?.top, spotlightRect?.width, spotlightRect?.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dimStyle = useAnimatedStyle(() => ({ opacity: dimOpacity.value }));
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
@@ -124,9 +137,18 @@ export default function CoachMark({
     : 0;
 
   // Up arrow (readiness/session) — appears at the top edge of the card positioner.
-  const hasUpArrow = upArrowFraction !== undefined;
+  // Prefer a real measured screen position (upArrowScreenX) over a guessed
+  // fraction-of-card-width — the target's actual layout doesn't scale
+  // proportionally with screen width the way a fraction assumes it does.
+  const hasUpArrow = upArrowScreenX !== undefined || upArrowFraction !== undefined;
+  const rawUpArrowLeft =
+    upArrowScreenX !== undefined
+      ? upArrowScreenX - CARD_MARGIN - ARROW_W
+      : upArrowFraction !== undefined
+        ? upArrowFraction * CARD_W - ARROW_W
+        : 0;
   const upArrowLeft = hasUpArrow
-    ? Math.max(0, Math.min(CARD_W - ARROW_W * 2, upArrowFraction * CARD_W - ARROW_W))
+    ? Math.max(0, Math.min(CARD_W - ARROW_W * 2, rawUpArrowLeft))
     : 0;
 
   const sr = spotlightRect;

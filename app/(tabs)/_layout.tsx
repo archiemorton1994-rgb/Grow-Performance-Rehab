@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CoachMark from '@/components/CoachMark';
 
 // ─── Tab tour coach mark steps ─────────────────────────────────────────────
-// Tour order: Home → Train → Restore → Stats → Profile
+// Tour order: Home → Profile → Train → Restore → Stats (matches the array below
+// and the actual left-to-right tab bar order).
 // tabArrowFraction is the horizontal position (0–1) of the corresponding tab
 // icon in the visual tab bar (Home=0.1, Profile=0.3, Train=0.5, Restore=0.7, Stats=0.9).
 
