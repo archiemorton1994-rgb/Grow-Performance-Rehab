@@ -60,6 +60,12 @@
       "expo-font",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Grow uses your photo library so you can set a profile picture."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow Grow to save your workout certificate to your photo library.",
