@@ -67,6 +67,18 @@ interface ReadinessCheck {
   timeAvailable: TimeAvailable;
 }
 
+/**
+ * A day index that flips at the device's local midnight, not UTC midnight —
+ * used to seed exercise rotation so variety changes overnight rather than
+ * mid-afternoon/evening for non-UTC users.
+ */
+function getLocalDayIndex(): number {
+  const now = new Date();
+  return Math.floor(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000
+  );
+}
+
 type MainSessionType = Exclude<
   SessionType,
   'conditioning' | 'prehab' | 'flexibility' | 'custom' | 'upper_body' | 'lower_body' | 'full_body'
@@ -612,7 +624,7 @@ export function generateWorkout(
     const warmup = allPrehab.filter((e) => e.category === 'prep');
     const middle = allPrehab.filter((e) => e.category === 'prehab');
     const cooldown = allPrehab.filter((e) => e.category === 'cooldown');
-    const daySeed = strengthSessionCount + Math.floor(Date.now() / 86400000);
+    const daySeed = strengthSessionCount + getLocalDayIndex();
     const rotated = seededShuffleDiverse(middle, daySeed).slice(0, PICK);
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
@@ -628,7 +640,7 @@ export function generateWorkout(
     // subsetA = middle[0..7], subsetB = middle[6..13] — only 2 exercises in common (indices 6–7).
     // This caps back-to-back day overlap at 2/8 (25%) vs the ~57% from random independent draws.
     // A seeded shuffle within the chosen subset still varies ordering session-to-session.
-    const dayIndex = Math.floor(Date.now() / 86400000);
+    const dayIndex = getLocalDayIndex();
     const isEvenDay = dayIndex % 2 === 0;
     const subset = isEvenDay ? middle.slice(0, 8) : middle.slice(6);
     const daySeed = (strengthSessionCount ?? 0) + dayIndex;
@@ -662,7 +674,7 @@ export function generateWorkout(
 
   // Shared seed for all seededShuffleDiverse calls in this session: rotates
   // by session count AND by day so exercises change even on same-day replays.
-  const sessionSeed = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
+  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
 
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min - safety requirement) ──
   const warmupPool =
@@ -865,7 +877,7 @@ function generateWeeklyWorkout(
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
-  const sessionSeed = (strengthSessionCount ?? 0) + Math.floor(Date.now() / 86400000);
+  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
   const exercises: Exercise[] = [];
 
   // ── 1. Cardio Warm-Up (always) ─────────────────────────────────────────────
