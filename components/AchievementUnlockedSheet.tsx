@@ -9,7 +9,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { Badge } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -82,7 +82,7 @@ export default function AchievementUnlockedSheet({
   const isSingle = badgeCount === 1;
   // 2–4 simultaneous badges: show individual icons + names instead of generic subtitle
   const isSmallBatch = !isSingle && badgeCount <= 4 && !!badges?.length;
-  const accent = isSingle ? (badgeColor ?? C.primary) : ACHIEVEMENT_GOLD;
+  const accent = isSingle ? (badgeColor ?? C.primary) : C.achievementGold;
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
 

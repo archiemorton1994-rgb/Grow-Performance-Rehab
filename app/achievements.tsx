@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { ACHIEVEMENT_GOLD, useColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import {
   BADGE_CATALOG,
@@ -51,30 +51,34 @@ const COLS = 4;
 // Category-specific accent colours give each badge family its own identity.
 // Earned badges render in full colour with a soft glow; locked badges are shown
 // as a desaturated silhouette (see makeStyles.badgeIconLocked).
-const CATEGORY_COLORS: Record<BadgeCategory, string> = {
-  milestone: ACHIEVEMENT_GOLD, // amber / gold
-  streak: '#3b82f6', // blue
-  strength_progress: '#dc2626', // crimson
-  session_lower: '#8b5cf6', // violet
-  session_upper: '#0ea5e9', // sky
-  session_full: '#ef4444', // red
-  session_conditioning: '#f97316', // orange
-  session_prehab: '#10b981', // emerald
-  session_flex: '#06b6d4', // cyan
-  session_custom: '#64748b', // slate
-  consistency: '#22c55e', // green
-  goals: '#a855f7', // purple
-  equipment: '#94a3b8', // steel
-  test_week: '#6366f1', // indigo
-  time_of_day: '#eab308', // yellow
-  variety: '#d946ef', // fuchsia
-  recovery: '#14b8a6', // teal
-  duration: '#0891b2', // deep cyan
-  comeback: '#ec4899', // pink
-  pain_warrior: '#e11d48', // rose
-  endurance: '#fb923c', // light orange
-  exercise_milestone: '#7c3aed', // deep violet
-};
+// `milestone` uses the theme's achievementGold token (passed in) since amber needs
+// different light/dark values for contrast — every other category is a fixed hex.
+function getCategoryColors(achievementGold: string): Record<BadgeCategory, string> {
+  return {
+    milestone: achievementGold, // amber / gold
+    streak: '#3b82f6', // blue
+    strength_progress: '#dc2626', // crimson
+    session_lower: '#8b5cf6', // violet
+    session_upper: '#0ea5e9', // sky
+    session_full: '#ef4444', // red
+    session_conditioning: '#f97316', // orange
+    session_prehab: '#10b981', // emerald
+    session_flex: '#06b6d4', // cyan
+    session_custom: '#64748b', // slate
+    consistency: '#22c55e', // green
+    goals: '#a855f7', // purple
+    equipment: '#94a3b8', // steel
+    test_week: '#6366f1', // indigo
+    time_of_day: '#eab308', // yellow
+    variety: '#d946ef', // fuchsia
+    recovery: '#14b8a6', // teal
+    duration: '#0891b2', // deep cyan
+    comeback: '#ec4899', // pink
+    pain_warrior: '#e11d48', // rose
+    endurance: '#fb923c', // light orange
+    exercise_milestone: '#7c3aed', // deep violet
+  };
+}
 
 // ─── Tour overlay callout ──────────────────────────────────────────────────────
 
@@ -247,6 +251,7 @@ const tourStyles = StyleSheet.create({
 export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
+  const CATEGORY_COLORS = getCategoryColors(C.achievementGold);
   const { earnedBadges } = useAppStore();
   const earnedSet = useMemo(() => new Set(earnedBadges), [earnedBadges]);
   const params = useLocalSearchParams<{ tour?: string }>();
