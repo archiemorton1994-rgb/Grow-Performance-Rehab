@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import { Badge } from '@/lib/badges';
+import { Badge, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
@@ -18,8 +18,6 @@ const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
 const ENTER_MS = 300;
 const EXIT_MS = 210;
 const SLIDE_START = 460;
-
-const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
 
 interface AchievementUnlockedSheetProps {
   badgeCount: number;
@@ -87,7 +85,9 @@ export default function AchievementUnlockedSheet({
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
 
   const nextMilestone =
-    sessionCount != null ? (MILESTONE_SESSIONS.find((m) => m > sessionCount) ?? null) : null;
+    sessionCount != null
+      ? (MILESTONE_SESSION_THRESHOLDS.find((m) => m > sessionCount) ?? null)
+      : null;
   const sessionsToGo =
     nextMilestone != null && sessionCount != null ? nextMilestone - sessionCount : null;
 

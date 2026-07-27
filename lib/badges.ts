@@ -119,6 +119,10 @@ const MILESTONE_DATA: [number, string, string][] = [
   [500, 'Legend', 'Complete 500 sessions'],
   [750, 'Immortal', 'Complete 750 sessions'],
 ];
+/** Single source of truth for session-count milestone thresholds — used by
+ *  AchievementUnlockedSheet and session-summary to detect/celebrate milestones
+ *  and compute "N sessions to go," so they can't drift from the real badges. */
+export const MILESTONE_SESSION_THRESHOLDS = MILESTONE_DATA.map(([n]) => n);
 const milestoneBadges: Badge[] = MILESTONE_DATA.map(([n, name, description]) => ({
   id: `milestone_${n}`,
   name,

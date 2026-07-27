@@ -30,13 +30,12 @@ import {
   getExerciseTargetRegionsMap,
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
+import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
 import { formatDate, formatWeight } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
-
-const MILESTONE_SESSIONS = [1, 5, 10, 25, 50, 100, 150, 200];
 
 // ── Certificate palette (fixed ecru/parchment — always light regardless of
 //    device theme so the shareable card reads as a physical document) ──────────
@@ -220,7 +219,7 @@ export default function SessionSummaryScreen() {
     return idx >= 0 ? completedSessions.length - idx : 0;
   }, [session, completedSessions]);
 
-  const isMilestone = MILESTONE_SESSIONS.includes(sessionNumber);
+  const isMilestone = MILESTONE_SESSION_THRESHOLDS.includes(sessionNumber);
 
   const workedRegions = useMemo(() => {
     if (!session || session.exerciseLogs.length === 0) return null;
