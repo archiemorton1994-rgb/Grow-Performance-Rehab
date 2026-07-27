@@ -344,7 +344,7 @@ export default function ProfileScreen() {
     setThemePreference,
   } = useAppStore();
 
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const { isActive: hasActiveSubscription, isOnTrial, expiryDate } = useSubscription();
 
   const effectiveTier = storeGetEffectiveTier();
@@ -524,6 +524,32 @@ export default function ProfileScreen() {
 
   const handleSendFeedback = () => {
     Linking.openURL('mailto:feedback@growperformance.app?subject=App Feedback').catch(() => {});
+  };
+
+  const performDeleteAccount = async () => {
+    try {
+      if (Platform.OS !== 'web')
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      await deleteAccount();
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Could not delete your account. Please try again.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Delete failed', msg);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    const message =
+      'This permanently deletes your account and all your data — sessions, stats, achievements, everything. This cannot be undone.';
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete your account?\n\n${message}`)) performDeleteAccount();
+      return;
+    }
+    Alert.alert('Delete account', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: performDeleteAccount },
+    ]);
   };
 
   const handleReminderToggle = async (value: boolean) => {
@@ -1222,6 +1248,14 @@ export default function ProfileScreen() {
               <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">
                 <Ionicons name="log-out-outline" size={16} color={C.error} />
                 <Text style={styles.signOutText}>Sign out</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDeleteAccount}
+                style={styles.signOutBtn}
+                testID="delete-account-btn"
+              >
+                <Ionicons name="trash-outline" size={16} color={C.error} />
+                <Text style={styles.signOutText}>Delete account</Text>
               </Pressable>
 
               <View style={styles.settingDivider} />

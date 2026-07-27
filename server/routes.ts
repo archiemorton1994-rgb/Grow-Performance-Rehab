@@ -296,6 +296,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ ok: true });
   });
 
+  app.delete('/api/user/account', async (req: Request, res: Response) => {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ message: 'Unauthorised.' });
+    const payload = verifyToken(token);
+    if (!payload) return res.status(401).json({ message: 'Invalid or expired token.' });
+    await storage.deleteUserAccount(payload.userId, payload.email);
+    return res.json({ ok: true });
+  });
+
   const legalPageHtml = (title: string, body: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -338,8 +347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p><strong>Information you provide directly:</strong></p>
       <ul>
         <li><strong>Email address</strong> - collected when you create an account. Used exclusively to send your one-time login code and to identify your account.</li>
-        <li><strong>Profile information</strong> - name, sex, experience level, fitness goals, and bodyweight. Stored locally on your device and used to personalise your training programme.</li>
-        <li><strong>Workout data</strong> - session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored locally on your device to power your progress tracking.</li>
+        <li><strong>Profile information</strong> - name, sex, experience level, fitness goals, and bodyweight. Stored on your device and synced to our servers (linked to your account) so your programme carries over across devices, and used to personalise your training programme.</li>
+        <li><strong>Workout data</strong> - session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored on your device and synced to our servers (linked to your account) to power your progress tracking and keep it available across devices.</li>
       </ul>
       <p><strong>Information collected automatically:</strong></p>
       <ul>
@@ -366,11 +375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       </ul>
 
       <h2>4. Data Storage and Security</h2>
-      <p>Your workout data and profile are stored locally on your device using industry-standard secure storage. Your email address and authentication tokens are stored on our servers and protected with appropriate technical and organisational measures.</p>
+      <p>Your workout data and profile are stored locally on your device and, once you're signed in, also synced to our servers so your progress carries over across devices. Your email address and authentication tokens are likewise stored on our servers. All server-side data is protected with appropriate technical and organisational measures.</p>
       <p>No method of transmission or storage is 100% secure. While we take reasonable steps to protect your information, we cannot guarantee absolute security.</p>
 
       <h2>5. Data Retention and Deletion</h2>
-      <p>We retain your account data for as long as your account is active. You may request deletion of your account and all associated data by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>. We will action deletion requests within 30 days.</p>
+      <p>We retain your account data for as long as your account is active. You can permanently delete your account and all associated data at any time from Settings within the app ("Delete account") — this takes effect immediately. You can also request deletion by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>, and we will action the request within 30 days.</p>
 
       <h2>6. Children's Privacy</h2>
       <p>The Service is not directed at children under the age of 13 (or under 16 in the European Economic Area). We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will promptly delete it.</p>

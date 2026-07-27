@@ -25,6 +25,7 @@ export interface IStorage {
   loadCounters(storeName: string): Promise<Map<string, number>>;
   saveCounter(storeName: string, email: string, count: number): Promise<void>;
   deleteCounter(storeName: string, email: string): Promise<void>;
+  deleteUserAccount(userId: string, email: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -120,6 +121,18 @@ export class DbStorage implements IStorage {
       storeName,
       email,
     ]);
+  }
+
+  /**
+   * Permanently deletes a user's account and all associated data. user_data
+   * cascades automatically via its FK to users.id; otps and rate_limits are
+   * keyed by email with no FK, so they're cleared explicitly.
+   */
+  async deleteUserAccount(userId: string, email: string): Promise<void> {
+    const normalised = email.toLowerCase();
+    await pool.query('DELETE FROM otps WHERE email = $1', [normalised]);
+    await pool.query('DELETE FROM rate_limits WHERE email = $1', [normalised]);
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
   }
 }
 

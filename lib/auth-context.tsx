@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
+import { reloadAppAsync } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
@@ -37,6 +38,7 @@ interface AuthContextValue {
   requestCode: (email: string) => Promise<{ devCode?: string }>;
   verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshSubscription: () => Promise<void>;
   uploadData: () => Promise<void>;
 }
@@ -52,6 +54,7 @@ const AuthContext = createContext<AuthContextValue>({
   requestCode: async () => ({}),
   verifyCode: async () => {},
   signOut: async () => {},
+  deleteAccount: async () => {},
   refreshSubscription: async () => {},
   uploadData: async () => {},
 });
@@ -247,6 +250,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const res = await apiRequest('DELETE', '/api/user/account');
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.message ?? 'Failed to delete account.');
+    }
+    await clearToken();
+    if (RC_API_KEY && rcConfigured) {
+      try {
+        await Purchases.logOut();
+      } catch {}
+    }
+    // Wipe all locally persisted app data too, then reload to a guaranteed
+    // clean slate rather than trying to manually reset every store field.
+    await useAppStore.persist.clearStorage();
+    await reloadAppAsync();
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -260,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         requestCode,
         verifyCode,
         signOut,
+        deleteAccount,
         refreshSubscription,
         uploadData,
       }}
