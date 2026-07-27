@@ -451,10 +451,10 @@ export default function HomeScreen() {
             >
               {profilePhotoUri ? (
                 <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
+              ) : firstName ? (
+                <Text style={styles.headerAvatarInitial}>{firstName[0].toUpperCase()}</Text>
               ) : (
-                <Text style={styles.headerAvatarInitial}>
-                  {firstName ? firstName[0].toUpperCase() : '?'}
-                </Text>
+                <Ionicons name="person" size={18} color={C.primary} />
               )}
             </Pressable>
           </Animated.View>

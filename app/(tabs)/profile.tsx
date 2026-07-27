@@ -468,9 +468,13 @@ export default function ProfileScreen() {
   // existing bodyweight without telling the user the new value wasn't applied.
   const editWeightValid =
     editWeightTrimmed !== '' && !isNaN(editWeightParsed) && editWeightParsed > 0;
+  // Onboarding requires a non-empty name to continue; mirror that here so a
+  // name can't be cleared and saved empty (Home's avatar has no good fallback
+  // for that state — it's a bare "?" with no explanation).
+  const editNameValid = editName.trim().length > 0;
 
   const saveEdit = () => {
-    if (!editWeightValid) return;
+    if (!editWeightValid || !editNameValid) return;
     // Downgrading experience can make previously-selected equipment tiers
     // invalid (e.g. dumbbells while now Beginner) — filter them out so they
     // don't stay stuck in stored state with no UI path to remove them.
@@ -639,10 +643,10 @@ export default function ProfileScreen() {
             <View style={styles.avatar}>
               {profilePhotoUri ? (
                 <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
+              ) : userProfile.name ? (
+                <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
               ) : (
-                <Text style={styles.avatarInitial}>
-                  {userProfile.name ? userProfile.name[0].toUpperCase() : '?'}
-                </Text>
+                <Ionicons name="person" size={38} color={C.primary} />
               )}
             </View>
             <View style={styles.avatarEditBadge}>
@@ -877,13 +881,26 @@ export default function ProfileScreen() {
 
             <Text style={styles.inputLabel}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !editNameValid && { borderColor: C.error }]}
               value={editName}
               onChangeText={setEditName}
               placeholder="Your name"
               placeholderTextColor={C.textTertiary}
               returnKeyType="next"
             />
+            {!editNameValid && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Inter_400Regular',
+                  color: C.error,
+                  marginTop: -6,
+                  marginBottom: 6,
+                }}
+              >
+                Enter your name
+              </Text>
+            )}
 
             <Text style={styles.inputLabel}>Bodyweight ({weightUnit})</Text>
             <TextInput
@@ -984,8 +1001,8 @@ export default function ProfileScreen() {
 
             <Pressable
               onPress={saveEdit}
-              disabled={!editWeightValid}
-              style={[styles.saveBtn, !editWeightValid && { opacity: 0.4 }]}
+              disabled={!editWeightValid || !editNameValid}
+              style={[styles.saveBtn, (!editWeightValid || !editNameValid) && { opacity: 0.4 }]}
             >
               <Text style={styles.saveBtnText}>Save Details</Text>
             </Pressable>
