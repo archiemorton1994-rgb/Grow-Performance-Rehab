@@ -15178,42 +15178,11 @@ const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
   ],
 };
 
-const PREHAB_WARMUP: ExerciseTemplate = {
-  id: 'ph-s-1',
-  name: 'Cardio Warm-Up (Easy Walk / Bike)',
-  sets: 1,
-  reps: '3 min',
-  cue: 'Start easy - just get blood flowing to the joints before any movement',
-  suggestedLoad: 'Low intensity',
-  category: 'prep',
-  targetRegions: [],
-  videoId: '',
-  movementPattern: 'rehabilitation',
-  primaryMuscle: 'Full body',
-  secondaryMuscles: [],
-  equipmentRequired: 'bodyweight',
-  difficulty: 'beginner',
-  isUnilateral: false,
-  injuryFriendlyAlternatives: [],
-};
-const PREHAB_COOLDOWN: ExerciseTemplate = {
-  id: 'ph-s-9',
-  name: 'Supine Hip 90/90 Stretch',
-  sets: 1,
-  reps: '45s each side',
-  cue: 'On back, figure-4 position - breathe deeply, let hip open. Hip capsule and piriformis',
-  suggestedLoad: 'Bodyweight',
-  category: 'cooldown',
-  targetRegions: ['hip_groin', 'lower_back'],
-  videoId: '',
-  movementPattern: 'rehabilitation',
-  primaryMuscle: 'Glutes',
-  secondaryMuscles: [],
-  equipmentRequired: 'bodyweight',
-  difficulty: 'beginner',
-  isUnilateral: false,
-  injuryFriendlyAlternatives: [],
-};
+// Reuse the same exercise objects STANDALONE_PREHAB already defines, rather
+// than redeclaring them, so a future edit to one can't silently drift from
+// the other.
+const PREHAB_WARMUP: ExerciseTemplate = STANDALONE_PREHAB.find((e) => e.id === 'ph-s-1')!;
+const PREHAB_COOLDOWN: ExerciseTemplate = STANDALONE_PREHAB.find((e) => e.id === 'ph-s-9')!;
 
 export function getRegionPrehabWorkout(region: PainRegion): ExerciseTemplate[] {
   return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN];
