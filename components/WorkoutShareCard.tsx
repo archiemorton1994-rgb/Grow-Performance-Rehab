@@ -5,7 +5,7 @@ import { WeightUnit } from '@/lib/store';
 import { BADGE_CATALOG } from '@/lib/badges';
 import { useColors } from '@/constants/colors';
 
-const BRAND_GREEN = '#2f6b46';
+export const BRAND_GREEN = '#2f6b46';
 const CARD_WIDTH = 480;
 const CARD_HEIGHT = 520;
 

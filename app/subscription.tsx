@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -174,8 +175,20 @@ export default function SubscriptionScreen() {
     setErrorMsg('');
     setRestoring(true);
     try {
-      await Purchases.restorePurchases();
+      const info = await Purchases.restorePurchases();
       await refreshSubscription();
+      const hasEntitlement = Object.keys(info.entitlements.active).length > 0;
+      if (hasEntitlement) {
+        Alert.alert('Subscription restored', 'Your subscription is active again.');
+      } else {
+        // restorePurchases() resolves successfully even when there's nothing to
+        // restore - without this, the button just silently reverts and leaves
+        // the user guessing whether it worked.
+        Alert.alert(
+          'Nothing to restore',
+          "We couldn't find a previous purchase for this account."
+        );
+      }
     } catch {
       setErrorMsg('Could not restore purchases. Please try again.');
     } finally {

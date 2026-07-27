@@ -32,6 +32,7 @@ import {
 } from '@/lib/exercise-db';
 import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
+import { BRAND_GREEN } from '@/components/WorkoutShareCard';
 import { formatDate, formatWeight } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -41,7 +42,6 @@ const WEB_BOTTOM_INSET = 34;
 //    device theme so the shareable card reads as a physical document) ──────────
 const CARD_BG = '#F5F0E8'; // warm parchment
 const OUTER_BG = '#1A1611'; // dark-warm surround so the card floats visibly
-const BRAND_GREEN = '#2f6b46';
 const CARD_TEXT = '#1A1A1A'; // near-black ink
 const CARD_MUTED = '#5C5248'; // warm dark muted
 const CARD_FAINT = '#9C8E82'; // warm medium gray
@@ -291,6 +291,8 @@ export default function SessionSummaryScreen() {
         }
       }
     } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Share failed', "Couldn't share your workout - please try again");
     } finally {
       setIsSharing(false);
     }

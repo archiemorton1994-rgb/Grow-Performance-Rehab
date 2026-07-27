@@ -2292,39 +2292,12 @@ function PBHistorySection({
 
   if (strengthOrms.length === 0) {
     return (
-      <View
-        style={{
-          backgroundColor: C.surface,
-          borderRadius: 16,
-          padding: 20,
-          borderWidth: 1,
-          borderColor: C.borderLight,
-          alignItems: 'center',
-          marginBottom: 10,
-        }}
-      >
-        <Ionicons name="trophy-outline" size={28} color={C.textTertiary} />
-        <Text
-          style={{
-            fontSize: 14,
-            fontFamily: 'Inter_400Regular',
-            color: C.textTertiary,
-            marginTop: 8,
-          }}
-        >
-          No strength tests yet
-        </Text>
-        <Text
-          style={{
-            fontSize: 12,
-            fontFamily: 'Inter_400Regular',
-            color: C.textTertiary,
-            marginTop: 4,
-            textAlign: 'center',
-          }}
-        >
-          Save your first PB using the calculator below
-        </Text>
+      <View style={{ marginBottom: 10 }}>
+        <EmptyState
+          icon="trophy-outline"
+          title="No strength tests yet"
+          subtitle="Save your first PB using the calculator below"
+        />
       </View>
     );
   }

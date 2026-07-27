@@ -644,6 +644,19 @@ export default function OnboardingScreen() {
                 />
                 <Text style={styles.unitLabel}>kg</Text>
               </View>
+              {bodyweight.trim() !== '' && !(parseFloat(bodyweight) > 0) && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'Inter_400Regular',
+                    color: C.error,
+                    textAlign: 'center',
+                    marginTop: 8,
+                  }}
+                >
+                  Enter a valid bodyweight
+                </Text>
+              )}
             </ScrollView>
           </View>
 
