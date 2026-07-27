@@ -29,6 +29,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
@@ -1145,11 +1146,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       padding: 20,
       borderWidth: 1,
       borderColor: C.border,
-      shadowColor: C.shadow,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      elevation: Platform.OS !== 'web' ? 5 : 0,
+      ...shadowStyle(C.shadow, 0.18, 14, 6, 5),
     },
     todayCardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
     todayLabel: {
@@ -1304,11 +1301,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 14,
       borderWidth: 1,
       borderColor: C.warning,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      elevation: 8,
+      ...shadowStyle('#000', 0.18, 14, 4, 8),
     },
     milestoneToastIcon: {
       width: 36,

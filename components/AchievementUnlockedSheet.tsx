@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { Badge, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -171,7 +172,7 @@ export default function AchievementUnlockedSheet({
               onPress={handleViewBadges}
               style={({ pressed }) => [
                 styles.primaryBtn,
-                { backgroundColor: C.primary, shadowColor: C.primary },
+                { backgroundColor: C.primary, ...shadowStyle(C.primary, 0.28, 8, 3, 5) },
                 pressed && { opacity: 0.85, transform: [{ scale: 0.98 as number }] },
               ]}
               testID="achievement-sheet-view-badges"
@@ -213,11 +214,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 16,
+    ...shadowStyle('#000', 0.1, 20, -4, 16),
   },
   handle: {
     width: 36,
@@ -259,10 +256,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderRadius: 16,
     paddingVertical: 16,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadowStyle('#000', 0.28, 8, 3, 5),
   },
   primaryBtnText: {
     fontSize: 16,

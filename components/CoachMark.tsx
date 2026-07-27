@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 
 const ARROW_H = 10;
 const ARROW_W = 9;
@@ -345,11 +346,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 8,
+    ...shadowStyle('#000', 0.07, 12, -2, 8),
   },
   headerRow: {
     flexDirection: 'row',

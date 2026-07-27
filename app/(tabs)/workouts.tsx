@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors, DarkColors } from '@/constants/colors';
+import { xsShadow } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import {
   CompletedSession,
@@ -4031,15 +4032,7 @@ export default function StatsScreen() {
                                     borderRadius: 6,
                                     backgroundColor: active ? C.surface : 'transparent',
                                     opacity: pressed && !active ? 0.7 : 1,
-                                    ...(active
-                                      ? {
-                                          shadowColor: C.shadow,
-                                          shadowOpacity: 0.06,
-                                          shadowRadius: 2,
-                                          shadowOffset: { width: 0, height: 1 },
-                                          elevation: 1,
-                                        }
-                                      : {}),
+                                    ...(active ? xsShadow(C.shadow) : {}),
                                   })}
                                 >
                                   <Text
@@ -4604,11 +4597,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     segmentTabActive: {
       backgroundColor: C.primarySurface,
-      shadowColor: C.shadow,
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 2,
+      ...xsShadow(C.shadow),
     },
     segmentTabText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.primary },
@@ -4692,11 +4681,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     historyDateBtnActive: {
       backgroundColor: C.surface,
-      shadowColor: C.shadow,
-      shadowOpacity: 0.06,
-      shadowRadius: 3,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 1,
+      ...xsShadow(C.shadow),
     },
     historyDateBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     historyDateBtnTextActive: { fontFamily: 'Inter_600SemiBold', color: C.text },

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
@@ -1841,11 +1842,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopColor: C.borderLight,
       paddingTop: 14,
       paddingHorizontal: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 8,
+      ...shadowStyle('#000', 0.06, 8, -2, 8),
     },
     trayTop: {
       flexDirection: 'row',
@@ -1879,11 +1876,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 12,
       paddingHorizontal: 14,
       borderRadius: 12,
-      shadowColor: '#000',
-      shadowOpacity: 0.18,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 6,
+      ...shadowStyle('#000', 0.18, 12, 4, 6),
     },
     emptiedToastText: {
       flex: 1,
@@ -2069,11 +2062,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 14,
       paddingVertical: 12,
       paddingHorizontal: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.22,
-      shadowRadius: 10,
-      elevation: 12,
+      ...shadowStyle('#000', 0.22, 10, 4, 12),
       gap: 10,
     },
     undoToastText: {

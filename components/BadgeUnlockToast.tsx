@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BadgeUnlockToastProps {
@@ -185,11 +186,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
+    ...shadowStyle('#000', 0.12, 12, 4, 8),
   },
   iconWrap: {
     width: 44,

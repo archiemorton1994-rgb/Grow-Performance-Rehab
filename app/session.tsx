@@ -31,6 +31,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
@@ -3003,11 +3004,7 @@ export default function SessionScreen() {
               paddingVertical: 28,
               alignItems: 'center',
               gap: 12,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.18,
-              shadowRadius: 24,
-              elevation: 12,
+              ...shadowStyle('#000', 0.18, 24, 8, 12),
             }}
           >
             <View

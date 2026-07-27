@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { shadowStyle } from '@/constants/shadows';
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -203,14 +204,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 24,
     minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadowStyle('#000', 0.1, 4, 2, 3),
   },
   buttonText: {
     fontWeight: '600',

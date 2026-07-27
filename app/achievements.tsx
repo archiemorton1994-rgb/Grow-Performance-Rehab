@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
 import {
   BADGE_CATALOG,
@@ -397,11 +398,7 @@ export default function AchievementsScreen() {
                           ? {
                               backgroundColor: badgeColor + '26',
                               borderColor: badgeColor + '80',
-                              shadowColor: badgeColor,
-                              shadowOpacity: 0.5,
-                              shadowRadius: 8,
-                              shadowOffset: { width: 0, height: 0 },
-                              elevation: 6,
+                              ...shadowStyle(badgeColor, 0.5, 8, 0, 6),
                             }
                           : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                         !isEarned && styles.badgeIconLocked,
@@ -467,11 +464,7 @@ export default function AchievementsScreen() {
                     ? {
                         backgroundColor: detailColor + '26',
                         borderColor: detailColor + '80',
-                        shadowColor: detailColor,
-                        shadowOpacity: 0.5,
-                        shadowRadius: 14,
-                        shadowOffset: { width: 0, height: 0 },
-                        elevation: 8,
+                        ...shadowStyle(detailColor, 0.5, 14, 0, 8),
                       }
                     : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                 ]}

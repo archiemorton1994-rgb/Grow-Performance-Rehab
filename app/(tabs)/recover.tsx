@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
+import { glowShadow } from '@/constants/shadows';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
@@ -194,11 +195,7 @@ function RegionBodyPicker({
                 backgroundColor: C.primary,
                 borderRadius: 14,
                 paddingVertical: 15,
-                shadowColor: C.primary,
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.35,
-                shadowRadius: 8,
-                elevation: 5,
+                ...glowShadow(C.primary),
               },
               pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
             ]}
@@ -223,15 +220,7 @@ function RegionBodyPicker({
               paddingVertical: 15,
               borderWidth: pending ? 1 : 0,
               borderColor: C.borderLight,
-              ...(pending
-                ? {}
-                : {
-                    shadowColor: C.primary,
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 8,
-                    elevation: 5,
-                  }),
+              ...(pending ? {} : glowShadow(C.primary)),
             },
             pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
           ]}
@@ -943,11 +932,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primary,
       borderRadius: 14,
       paddingVertical: 15,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.35,
-      shadowRadius: 8,
-      elevation: 5,
+      ...glowShadow(C.primary),
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 

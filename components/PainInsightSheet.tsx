@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
+import { shadowStyle } from '@/constants/shadows';
 import { BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 import type { PainRegion } from '@/lib/store';
 
@@ -140,11 +141,7 @@ export function PainInsightSheet({
                 borderRadius: 14,
                 paddingVertical: 15,
                 marginBottom: 10,
-                shadowColor: C.primary,
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 4,
+                ...shadowStyle(C.primary, 0.3, 8, 3, 4),
               },
               pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
             ]}
