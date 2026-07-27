@@ -624,7 +624,7 @@ export default function HomeScreen() {
                   ]}
                   testID="start-suggested-session"
                 >
-                  <Ionicons name="flash" size={18} color="#000000" />
+                  <Ionicons name="flash" size={18} color={C.primaryDarkText} />
                   <Text style={styles.startBtnText}>
                     {testWeek ? 'Start Strength Test' : 'Start Session'}
                   </Text>
@@ -1180,7 +1180,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 14,
       paddingVertical: 15,
     },
-    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: '#000000' },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
 
     equipmentChip: {
       flexDirection: 'row' as const,

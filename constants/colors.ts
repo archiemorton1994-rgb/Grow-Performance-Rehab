@@ -17,6 +17,11 @@ const LightColors = {
   textSecondary: '#6b7570',
   textTertiary: '#9ca5a0',
   textInverse: '#ffffff',
+  /** Text/icon color for content placed on a `primaryDark`-filled surface.
+   *  primaryDark flips from dark green (light theme) to bright green (dark
+   *  theme), so unlike textInverse this must flip too — plain white on the
+   *  dark-theme bright green is unreadable (~1.7:1 contrast). */
+  primaryDarkText: '#ffffff',
 
   border: '#e2e5e3',
   borderLight: '#f0f2f1',
@@ -117,6 +122,7 @@ const DarkColors = {
   textSecondary: '#b8b8b8',
   textTertiary: '#6e6e6e',
   textInverse: '#ffffff',
+  primaryDarkText: '#1a1d1b',
 
   border: 'rgba(255,255,255,0.08)',
   borderLight: 'rgba(255,255,255,0.05)',

@@ -699,7 +699,7 @@ export function SessionActiveBar({
             <Ionicons
               name="checkmark-circle"
               size={26}
-              color={isZeroBlocked ? C.textTertiary : C.textInverse}
+              color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
             />
           </Pressable>
         </View>
@@ -721,7 +721,7 @@ export function SessionActiveBar({
           <Ionicons
             name="checkmark-circle"
             size={20}
-            color={isZeroBlocked ? C.textTertiary : '#000000'}
+            color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
           />
           <Text style={[styles.didItBtnText, isZeroBlocked && styles.didItBtnTextDisabled]}>
             Did It
@@ -883,7 +883,7 @@ const ActiveSetBlock = React.forwardRef<
           style={styles.completeSetBtn}
           testID={`set-${setNum}-check`}
         >
-          <Ionicons name="checkmark-circle" size={20} color="#000000" />
+          <Ionicons name="checkmark-circle" size={20} color={C.primaryDarkText} />
           <Text style={styles.completeSetBtnText}>Mark Set Done</Text>
         </Pressable>
       </Animated.View>
@@ -955,7 +955,7 @@ const ActiveSetBlock = React.forwardRef<
         <Ionicons
           name="checkmark-circle"
           size={20}
-          color={isZeroBlocked ? C.textTertiary : '#000000'}
+          color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
         />
         <Text
           style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}
@@ -1048,7 +1048,7 @@ function CardioInputBlock({
         disabled={!canLog}
         style={[styles.cardioLogBtn, !canLog && styles.cardioLogBtnDisabled]}
       >
-        <Ionicons name="timer-outline" size={18} color={canLog ? '#000000' : C.textTertiary} />
+        <Ionicons name="timer-outline" size={18} color={canLog ? C.textInverse : C.textTertiary} />
         <Text style={[styles.cardioLogBtnText, !canLog && styles.cardioLogBtnTextDisabled]}>
           Log Cardio
         </Text>
@@ -4154,7 +4154,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
     },
     completeSetBtnDisabled: { backgroundColor: C.surfaceTertiary },
-    completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: '#000000' },
+    completeSetBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.primaryDarkText },
     completeSetBtnTextDisabled: { color: C.textTertiary },
     // All sets done row
     allSetsDone: {
@@ -4302,7 +4302,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     didItBtnText: {
       fontSize: 16,
       fontFamily: 'Inter_600SemiBold',
-      color: '#000000',
+      color: C.primaryDarkText,
     },
     didItBtnTextDisabled: {
       color: C.textTertiary,
@@ -4431,7 +4431,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     cardioLogBtnText: {
       fontSize: 15,
       fontFamily: 'Inter_600SemiBold',
-      color: '#000000',
+      color: C.textInverse,
     },
     cardioLogBtnTextDisabled: {
       color: C.textTertiary,

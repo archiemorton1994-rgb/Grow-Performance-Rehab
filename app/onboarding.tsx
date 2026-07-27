@@ -903,8 +903,10 @@ export default function OnboardingScreen() {
                   ]}
                   testID="profile-built-cta"
                 >
-                  <Text style={[styles.continueBtnText, { color: '#000000' }]}>Start Training</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#000000" />
+                  <Text style={[styles.continueBtnText, { color: C.primaryDarkText }]}>
+                    Start Training
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={C.primaryDarkText} />
                 </Pressable>
               </Animated.View>
             </View>
