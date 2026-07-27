@@ -401,6 +401,8 @@ export default function OnboardingScreen() {
 
   const toggleEquipment = useCallback(
     (tier: EquipmentTier) => {
+      const isLocked = experience === 'beginner' && !['bodyweight', 'bands'].includes(tier);
+      if (isLocked) return;
       haptic();
       setEquipment((prev) => {
         if (tier === 'fullgym') {
@@ -412,7 +414,7 @@ export default function OnboardingScreen() {
         return [...prev, tier];
       });
     },
-    [haptic]
+    [haptic, experience]
   );
 
   const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
@@ -691,58 +693,74 @@ export default function OnboardingScreen() {
                 Select everything available to you
               </Text>
               <View style={[styles.optionList, styles.optionListCompact]}>
-                {EQUIPMENT_OPTIONS.filter((opt) => (available as string[]).includes(opt.value)).map(
-                  (opt) => {
-                    const selected = equipment.includes(opt.value);
-                    return (
-                      <Pressable
-                        key={opt.value}
-                        onPress={() => toggleEquipment(opt.value)}
-                        style={({ pressed }) => [
-                          styles.optionCard,
-                          styles.optionCardCompact,
-                          selected && styles.optionCardSelected,
-                          pressed && styles.optionCardPressed,
+                {EQUIPMENT_OPTIONS.map((opt) => {
+                  const selected = equipment.includes(opt.value);
+                  const isLocked = !(available as string[]).includes(opt.value);
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => toggleEquipment(opt.value)}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        styles.optionCardCompact,
+                        selected && styles.optionCardSelected,
+                        isLocked && { opacity: 0.5 },
+                        pressed && !isLocked && styles.optionCardPressed,
+                      ]}
+                      testID={`equipment-${opt.value}`}
+                    >
+                      <View
+                        style={[
+                          styles.optionIcon,
+                          styles.optionIconCompact,
+                          { overflow: 'hidden', backgroundColor: C.surfaceTertiary },
+                          selected && styles.optionIconSelected,
                         ]}
-                        testID={`equipment-${opt.value}`}
                       >
-                        <View
-                          style={[
-                            styles.optionIcon,
-                            styles.optionIconCompact,
-                            { overflow: 'hidden', backgroundColor: C.surfaceTertiary },
-                            selected && styles.optionIconSelected,
-                          ]}
-                        >
-                          <Image
-                            source={EQUIPMENT_IMAGES[opt.value]}
-                            style={{ width: 44, height: 44 }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text
+                        <Image
+                          source={EQUIPMENT_IMAGES[opt.value]}
+                          style={{ width: 44, height: 44 }}
+                          resizeMode="contain"
+                        />
+                        {isLocked && (
+                          <View
                             style={[
-                              styles.optionLabel,
-                              styles.optionLabelCompact,
-                              selected && styles.optionLabelSelected,
+                              StyleSheet.absoluteFillObject,
+                              {
+                                backgroundColor: 'rgba(0,0,0,0.35)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              },
                             ]}
                           >
-                            {opt.label}
-                          </Text>
-                          <Text style={[styles.optionDesc, styles.optionDescCompact]}>
-                            {opt.description}
-                          </Text>
-                        </View>
+                            <Ionicons name="lock-closed" size={16} color="rgba(255,255,255,0.85)" />
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.optionLabel,
+                            styles.optionLabelCompact,
+                            selected && styles.optionLabelSelected,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                        <Text style={[styles.optionDesc, styles.optionDescCompact]}>
+                          {isLocked ? 'Unlock with more experience' : opt.description}
+                        </Text>
+                      </View>
+                      {!isLocked && (
                         <View style={[styles.checkBox, selected && styles.checkBoxSelected]}>
                           {selected && (
                             <Ionicons name="checkmark" size={14} color={C.textInverse} />
                           )}
                         </View>
-                      </Pressable>
-                    );
-                  }
-                )}
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
               <Text
                 style={{
