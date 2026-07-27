@@ -293,10 +293,12 @@ export default function ReadinessScreen() {
     }
   };
 
-  const handlePainRegion = (region: PainRegion | PainRegion[]) => {
+  // region is null for "general soreness, no specific area" — the fallback
+  // when a user says they're sore but doesn't tap a region on the diagram.
+  const handlePainRegion = (region: PainRegion | PainRegion[] | null) => {
     hapticTap();
-    const primary = Array.isArray(region) ? region[0] : region;
-    const regionParam = Array.isArray(region) ? region.join(',') : region;
+    const primary = Array.isArray(region) ? region[0] : (region ?? undefined);
+    const regionParam = Array.isArray(region) ? region.join(',') : (region ?? '');
     setPainRegion(primary);
     setLastReadiness(energy, timeAvailable, primary);
     if (isTestWeek) {
@@ -807,7 +809,30 @@ export default function ReadinessScreen() {
               <Ionicons name="time-outline" size={16} color={C.warning} />
               <Text style={[styles.startButtonText, { color: C.warning }]}>Same as last time</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            // Nothing tapped and no prior pain history — always give a way
+            // forward rather than leaving the user stuck with only the
+            // "not sore after all" link, which forces them to misreport.
+            <Pressable
+              onPress={() => handlePainRegion(null)}
+              style={({ pressed }) => [
+                styles.startButton,
+                {
+                  width: '100%',
+                  backgroundColor: C.surfaceTertiary,
+                  borderWidth: 1,
+                  borderColor: C.warning,
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+              testID="pain-region-general"
+            >
+              <Ionicons name="body-outline" size={16} color={C.warning} />
+              <Text style={[styles.startButtonText, { color: C.warning }]}>
+                Not sure — train carefully
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Animated.View>
