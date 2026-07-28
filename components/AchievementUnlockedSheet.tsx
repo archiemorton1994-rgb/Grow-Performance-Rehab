@@ -79,8 +79,11 @@ export default function AchievementUnlockedSheet({
   };
 
   const isSingle = badgeCount === 1;
-  // 2–4 simultaneous badges: show individual icons + names instead of generic subtitle
-  const isSmallBatch = !isSingle && badgeCount <= 4 && !!badges?.length;
+  // 2–9 simultaneous badges: show individual icons + names (wraps to a grid)
+  // instead of collapsing to a bare number — a first real session commonly
+  // clears several "first of category" thresholds at once, and that's the
+  // moment this needs to feel like something, not just say "9".
+  const isSmallBatch = !isSingle && badgeCount <= 9 && !!badges?.length;
   const accent = isSingle ? (badgeColor ?? C.primary) : C.achievementGold;
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
@@ -278,16 +281,16 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
+    gap: 14,
     marginBottom: 10,
     alignSelf: 'stretch',
   },
   badgeRowItem: {
     alignItems: 'center',
     gap: 6,
-    flex: 1,
-    maxWidth: 72,
+    width: 78,
   },
   badgeRowRing: {
     width: 52,

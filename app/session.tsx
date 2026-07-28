@@ -1870,6 +1870,7 @@ export default function SessionScreen() {
     setSessionTutorialShown,
     setTourComplete,
     setTourJustCompleted,
+    markTourGenuinelyCompleted,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -2623,6 +2624,9 @@ export default function SessionScreen() {
       setTourComplete(true);
       setSessionTutorialShown(true);
       setTourJustCompleted(true);
+      // Only path that reaches this point without skipping or exiting early —
+      // earns the one-time welcome badge for genuinely finishing the tour.
+      markTourGenuinelyCompleted();
       router.navigate('/(tabs)' as any);
       return;
     }

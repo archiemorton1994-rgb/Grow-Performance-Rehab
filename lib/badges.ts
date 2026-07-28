@@ -754,14 +754,15 @@ const goalsBadges: Badge[] = [
 ];
 
 // ─── Onboarding Welcome Badge ─────────────────────────────────────────────────
-// The ONLY badge that is not earned through training. It marks the start of the
-// journey and is awarded once when onboarding completes. Every other badge is a
-// training reward (see lib/badge-engine.ts), so a brand-new user finishes
-// onboarding with EXACTLY ONE earned badge. Do NOT add profile-setup badges.
+// The ONLY badge that is not earned through training. Awarded once, when the
+// user genuinely finishes the guided tour (reaches the end of the demo
+// session) — not when they skip or exit it early. Every other badge is a
+// training reward (see lib/badge-engine.ts), so a brand-new user finishes the
+// tour with EXACTLY ONE earned badge. Do NOT add profile-setup badges.
 const onboardingBadge: Badge = {
   id: 'onboarding_complete',
   name: 'First Steps',
-  description: 'You built your GROW profile and started your journey.',
+  description: 'You completed your first-look tour of GROW and started your journey.',
   category: 'milestone',
   criteriaType: 'profile_action',
   icon: 'rocket-outline',

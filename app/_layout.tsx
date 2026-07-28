@@ -333,10 +333,14 @@ function RootLayoutNav() {
   // auth / subscription). Badges earned during those flows accumulate silently
   // and are delivered as a single moment when the user first reaches the tabs.
   const inMainApp = !isLoading && onboardingComplete && isAuthenticated && hasActiveSubscription;
-  // Extra guard: also confirm the router has actually landed inside (tabs) so
-  // the toast never fires on top of gate screens (auth, subscription, etc.)
+  // Extra guard: also confirm the router has actually landed somewhere safe to
+  // show a toast — inside (tabs), or on session-summary right after a session
+  // ends (so a badge earned by that session celebrates there and then, instead
+  // of silently queuing until the next time the user happens to open Home) —
+  // so the toast never fires on top of gate screens (auth, subscription, etc.)
   // even when hasActiveSubscription briefly becomes true before navigation.
-  const isInTabs = segments[0] === '(tabs)';
+  const canShowBadgeToast =
+    segments[0] === '(tabs)' || segments.some((s) => s === 'session-summary');
 
   useEffect(() => {
     if (newlyUnlockedBadges.length === 0) return;
@@ -358,12 +362,12 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!inMainApp) return;
-    if (!isInTabs) return; // don't pop toasts on gate screens before navigation completes
+    if (!canShowBadgeToast) return; // don't pop toasts on gate screens before navigation completes
     if (currentToast || toastQueue.length === 0) return;
     const [next, ...rest] = toastQueue;
     setToastQueue(rest);
     setCurrentToast(next);
-  }, [inMainApp, isInTabs, currentToast, toastQueue]);
+  }, [inMainApp, canShowBadgeToast, currentToast, toastQueue]);
 
   useEffect(() => {
     if (currentToast !== null || toastQueue.length > 0) return;

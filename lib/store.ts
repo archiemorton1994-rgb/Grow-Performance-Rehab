@@ -276,6 +276,12 @@ interface AppState {
   /** Transient flag set for ~2.5 s after the tour completion CTA is tapped.
    *  Home screen reads this to briefly pulse the suggested session card. */
   tourJustCompleted: boolean;
+  /** True only when the user reached the natural end of the demo session —
+   *  never set by skipping or exiting the tour early. Distinct from
+   *  `tourComplete`, which is also true when skipped. Gates the one-time
+   *  'onboarding_complete' badge so it rewards actually finishing, not
+   *  bailing out. Persisted. */
+  tourGenuinelyCompleted: boolean;
   /** Whether the readiness-screen 3-step tutorial has been shown. Persisted. */
   readinessTutorialShown: boolean;
   /** Whether the in-session 5-step tutorial has been shown. Persisted. */
@@ -378,6 +384,9 @@ interface AppState {
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
   setTourJustCompleted: (v: boolean) => void;
+  /** Marks the tour as genuinely finished (not skipped) and evaluates badges
+   *  immediately, so the one-time welcome badge is earned at this exact moment. */
+  markTourGenuinelyCompleted: () => void;
   setReadinessTutorialShown: (shown: boolean) => void;
   setSessionTutorialShown: (shown: boolean) => void;
   setWeightReminderSnoozedAt: (ts: string | null) => void;
@@ -469,6 +478,7 @@ export const useAppStore = create<AppState>()(
       historyTypeFilter: null,
       tourComplete: false,
       tourJustCompleted: false,
+      tourGenuinelyCompleted: false,
       readinessTutorialShown: false,
       sessionTutorialShown: false,
       bodyweightUpdatedAt: null,
@@ -481,7 +491,6 @@ export const useAppStore = create<AppState>()(
 
       setOnboardingComplete: (complete) => {
         set({ onboardingComplete: complete });
-        if (complete) get().awardNewBadges();
       },
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
@@ -545,6 +554,10 @@ export const useAppStore = create<AppState>()(
           ...(complete === false ? { sessionTutorialShown: false } : {}),
         }),
       setTourJustCompleted: (v) => set({ tourJustCompleted: v }),
+      markTourGenuinelyCompleted: () => {
+        set({ tourGenuinelyCompleted: true });
+        get().awardNewBadges();
+      },
       setReadinessTutorialShown: (shown) => set({ readinessTutorialShown: shown }),
       setSessionTutorialShown: (shown) => set({ sessionTutorialShown: shown }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
@@ -738,6 +751,7 @@ export const useAppStore = create<AppState>()(
           equipmentTiers: state.equipmentTiers,
           bodyweightUpdatedAt: state.bodyweightUpdatedAt,
           onboardingComplete: state.onboardingComplete,
+          tourGenuinelyCompleted: state.tourGenuinelyCompleted,
           weeklyStreakGoal: state.weeklyStreakGoal ?? 2,
         });
         const newlyUnlocked = allEarned.filter((id) => !state.earnedBadges.includes(id));

@@ -34,7 +34,7 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   session_type_count: 'Complete more sessions of this type.',
   consistency_habit: 'Train regularly each week to build this habit.',
   goal_progress: 'Keep training toward your selected goals.',
-  profile_action: 'Awarded when you finish setting up your profile.',
+  profile_action: 'Awarded when you complete your first-look tour of the app.',
   equipment_usage: 'Use different equipment tiers in your sessions.',
   test_week: 'Complete a 1RM test week to unlock this.',
   time_based: 'Train at a consistent time of day.',

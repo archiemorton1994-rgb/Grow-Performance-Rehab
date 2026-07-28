@@ -28,6 +28,10 @@ export interface BadgeEvalState {
   equipmentTiers: EquipmentTier[];
   bodyweightUpdatedAt: string | null;
   onboardingComplete: boolean;
+  /** True only when the user reached the natural end of the demo session —
+   *  not when they skipped or exited the tour early. Gates the one-time
+   *  welcome badge. */
+  tourGenuinelyCompleted: boolean;
   /** Minimum sessions per Mon–Sun week required to keep a streak alive. Default 2. */
   weeklyStreakGoal: number;
 }
@@ -269,7 +273,6 @@ function consecutiveWeeksWithMinSessions(
 export function evaluateBadges(state: BadgeEvalState): string[] {
   const earned: string[] = [];
   const s = computeStats(state);
-  const { onboardingComplete } = state;
 
   function award(id: string) {
     earned.push(id);
@@ -476,12 +479,12 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.total >= 1 && s.ormLiftsSet.size >= 3, 'goal_power_max');
 
   // ── 16. Onboarding ──────────────────────────────────────────────────────────
-  // The ONLY badge awarded outside of training. Every other award in this engine
-  // is gated on completedSessions (or on 1RMs logged AFTER at least one session),
-  // so a fresh user finishes onboarding with EXACTLY ONE earned badge:
-  // 'onboarding_complete'. Do NOT reintroduce profile-setup awards here — badges
-  // are a training reward, not a profile-completion reward.
-  awardIf(onboardingComplete, 'onboarding_complete');
+  // The ONLY badge awarded outside of training. Gated on genuinely finishing
+  // the guided tour (reaching the end of the demo session) rather than just
+  // completing the onboarding form — skipping or exiting the tour early must
+  // NOT earn it. Do NOT reintroduce profile-setup awards here — badges are a
+  // training reward (plus this one welcome badge), not a profile-completion one.
+  awardIf(state.tourGenuinelyCompleted, 'onboarding_complete');
 
   // ── 17. Equipment ─────────────────────────────────────────────────────────
   awardIf(s.uniqueEquipmentUsed.has('bodyweight'), 'equip_bodyweight');
