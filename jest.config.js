@@ -10,7 +10,7 @@ module.exports = {
   },
 
   transformIgnorePatterns: [
-    '/node_modules/(?!(react-native|@react-native|expo|@expo)/)',
+    '/node_modules/(?!(react-native|@react-native|expo|expo-.*|@expo)/)',
   ],
 
   moduleNameMapper: {
