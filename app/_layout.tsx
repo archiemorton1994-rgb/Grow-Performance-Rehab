@@ -317,8 +317,8 @@ const TRANSIENT_SCREENS = new Set(['session', 'session-summary', 'readiness', 'c
 function RootLayoutNav() {
   const { onboardingComplete, hasHydrated } = useAppStore();
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
-  const hasNavigated = useRef(false);
   const segments = useSegments();
+  const currentPath = segments.join('/');
   // True while the user is on any screen that drives its own post-action
   // navigation (session → session-summary, readiness → session, etc.).
   const isOnTransientScreen = segments.some((s) => TRANSIENT_SCREENS.has(s));
@@ -377,27 +377,40 @@ function RootLayoutNav() {
     // onboardingComplete defaults to false until AsyncStorage rehydration
     // finishes. isLoading (auth) can resolve first — with no stored token
     // that's near-instant — so without this guard the gate could make its
-    // one-shot navigation decision on the stale default and never revisit it,
-    // bouncing a genuinely already-onboarded user back into onboarding.
+    // navigation decision on the stale default, bouncing a genuinely
+    // already-onboarded user back into onboarding.
     if (!hasHydrated) return;
-    if (hasNavigated.current) return;
     // Never redirect away from screens that manage their own post-action
     // navigation (e.g. session → session-summary). A store update inside
     // completeSession() can re-trigger this effect before session-summary
     // has mounted, causing the router to land on the +not-found screen.
     if (isOnTransientScreen) return;
 
+    // Re-evaluate on every relevant state change (not just once) — this must
+    // keep enforcing itself for the life of the session, not just at launch:
+    // a subscription can expire, a token can be cleared, and gate screens
+    // (onboarding, auth, subscription) intentionally don't navigate
+    // themselves — they update their own piece of state and rely entirely on
+    // this effect to route forward. A one-shot guard here previously meant
+    // the gate's very first decision (redirecting a fresh user to
+    // /onboarding) permanently disabled it, silently letting anyone who
+    // finished onboarding through to the tabs without ever being required to
+    // sign in or subscribe.
     if (!onboardingComplete) {
-      hasNavigated.current = true;
-      setTimeout(() => router.replace('/onboarding'), 0);
+      if (currentPath !== 'onboarding') setTimeout(() => router.replace('/onboarding'), 0);
     } else if (!isAuthenticated) {
-      hasNavigated.current = true;
-      setTimeout(() => router.replace('/auth'), 0);
+      if (currentPath !== 'auth') setTimeout(() => router.replace('/auth'), 0);
     } else if (!hasActiveSubscription) {
-      hasNavigated.current = true;
-      setTimeout(() => router.replace('/subscription'), 0);
-    } else {
-      hasNavigated.current = true;
+      if (currentPath !== 'subscription') setTimeout(() => router.replace('/subscription'), 0);
+    } else if (
+      currentPath === '' ||
+      currentPath === 'onboarding' ||
+      currentPath === 'auth' ||
+      currentPath === 'subscription'
+    ) {
+      // Only force into the tabs from a gate screen — once the user is fully
+      // cleared and already somewhere else in the app (tabs, achievements,
+      // program, etc.), leave navigation alone.
       setTimeout(() => router.replace('/(tabs)'), 0);
     }
   }, [
@@ -407,6 +420,7 @@ function RootLayoutNav() {
     isAuthenticated,
     hasActiveSubscription,
     isOnTransientScreen,
+    currentPath,
   ]);
 
   useEffect(() => {

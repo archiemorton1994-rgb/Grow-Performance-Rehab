@@ -14,7 +14,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
@@ -380,8 +379,11 @@ export default function OnboardingScreen() {
       const kg = parseFloat(value);
       if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
     }
+    // Don't navigate directly — that would skip the auth/subscription gate
+    // entirely. Every other gate screen (auth, subscription) just updates its
+    // own piece of state and lets the root gate in app/_layout.tsx decide the
+    // correct next screen; do the same here for consistency and correctness.
     setOnboardingComplete(true);
-    router.replace('/(tabs)');
   }, [hapticMedium, ormSquat, ormBench, ormDeadlift, addOneRepMax, setOnboardingComplete]);
 
   const handleSkipLifts = useCallback(() => {
