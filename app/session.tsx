@@ -450,6 +450,10 @@ interface SessionActiveBarProps {
    *  to the feedback-buttons UI on tap — the tutorial's spotlight is measured
    *  once per step and doesn't re-measure if the bar's own content changes. */
   isDemo?: boolean;
+  /** Demo mode only: show the feedback UI unconditionally, driven by which
+   *  tutorial step is active rather than by a real tap (the demo doesn't
+   *  process taps) — see TutorialStep.demoForceFeedback. */
+  demoForceFeedback?: boolean;
 }
 
 export function SessionActiveBar({
@@ -475,6 +479,7 @@ export function SessionActiveBar({
   onGoBack,
   bottomInset,
   isDemo = false,
+  demoForceFeedback = false,
 }: SessionActiveBarProps) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -595,7 +600,7 @@ export function SessionActiveBar({
 
   if (!exercise || !currentSet || activeSetIndex >= totalSets) return null;
 
-  if (showFeedback) {
+  if (showFeedback || demoForceFeedback) {
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <Text style={styles.barFeedbackPrompt}>
@@ -1738,6 +1743,12 @@ interface TutorialStep {
    *  sessionBar) — the card anchors above the target's measured position with
    *  a down-pointing arrow instead. */
   arrowDirection?: 'up' | 'down';
+  /** Demo mode only: force the session bar into its post-set feedback UI
+   *  (Too Easy / OK / Hard) for the duration of this step, regardless of
+   *  whether the user actually tapped the demo's log-set button — the demo
+   *  doesn't process real taps, so without this the step would narrate a
+   *  UI that never actually appears. */
+  demoForceFeedback?: true;
 }
 
 const SESSION_TUTORIAL: readonly TutorialStep[] = [
@@ -1766,6 +1777,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     title: 'Tell us how it felt',
     body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — your next session adjusts itself.',
     arrowDirection: 'down',
+    demoForceFeedback: true,
   },
   {
     spotlightRef: 'firstCard',
@@ -3008,6 +3020,9 @@ export default function SessionScreen() {
               onGoBack={isDemo ? undefined : handleGoBackExercise}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
+              demoForceFeedback={
+                isDemo && tutStep !== null && effectiveTutorial[tutStep]?.demoForceFeedback === true
+              }
             />
           );
         })()}

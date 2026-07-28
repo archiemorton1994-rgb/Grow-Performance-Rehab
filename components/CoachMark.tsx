@@ -162,10 +162,14 @@ export default function CoachMark({
     : 0;
 
   const sr = spotlightRect;
-  // Default to a pill/circle shape rather than a boxy rounded-rect: icon-sized
-  // targets (roughly square, small) come out fully circular, wide or tall
-  // targets (a whole card) get a sensible cap so they don't turn into a blob.
-  const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height, 56) / 2) : 12;
+  // True pill/circle, always: half of the shorter side. A roughly-square icon
+  // target comes out as a full circle; a wide or tall region (a whole card)
+  // comes out as a stadium — its short axis fully rounds, the long axis keeps
+  // a straight run in the middle. There's no case where this looks wrong, so
+  // no cap is needed — capping the inputs (an earlier version of this) is
+  // what produced the "still square" look: it under-rounded anything whose
+  // shorter side was already below the cap.
+  const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height) / 2) : 12;
 
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
@@ -240,7 +244,7 @@ export default function CoachMark({
               {
                 bottom: bottomOffset - ARROW_H,
                 left: downArrowLeft,
-                borderTopColor: C.border,
+                borderTopColor: C.primary,
               },
             ]}
           />
@@ -267,7 +271,7 @@ export default function CoachMark({
         {hasUpArrow && (
           <View style={styles.upArrowRow}>
             <View style={{ width: upArrowLeft }} />
-            <View style={[styles.arrowUp, { borderBottomColor: C.border }]} />
+            <View style={[styles.arrowUp, { borderBottomColor: C.primary }]} />
             <View
               style={[
                 styles.arrowUpInner,
@@ -281,7 +285,7 @@ export default function CoachMark({
         <Animated.View
           key={`coach-${step}`}
           entering={FadeInDown.duration(260)}
-          style={[styles.card, { backgroundColor: C.surface, borderColor: C.border }]}
+          style={[styles.card, { backgroundColor: C.surface, borderColor: C.primary }]}
           {...panRef.current.panHandlers}
         >
           {/* Header row: icon badge + step dots + label */}

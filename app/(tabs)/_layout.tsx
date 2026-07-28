@@ -1,6 +1,16 @@
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View, Image, useWindowDimensions } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  View,
+  Image,
+  Modal,
+  Text,
+  Pressable,
+  useWindowDimensions,
+} from 'react-native';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { ScrollToTopProvider, useScrollToTopTrigger } from '@/lib/scroll-to-top-context';
 import Animated, {
   useSharedValue,
@@ -10,9 +20,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { elevatedShadow } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CoachMark from '@/components/CoachMark';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 
 // ─── Tab tour coach mark steps ─────────────────────────────────────────────
 // Tour order: Home → Profile → Train → Restore → Stats (matches the array below
@@ -108,8 +119,32 @@ function TabsInner() {
     setSessionTutorialShown,
   } = useAppStore();
 
-  // Initialize from persisted state: new users start at step 0, veterans skip.
-  const [tourStep, setTourStep] = useState<number | null>(() => (!tourComplete ? 0 : null));
+  // New users see an intro card first ("Let's take a tour!"); the tour proper
+  // (tourStep) only starts once that's dismissed. Veterans skip both.
+  const [showTourIntro, setShowTourIntro] = useState<boolean>(() => !tourComplete);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+
+  const startTour = useCallback(() => {
+    setShowTourIntro(false);
+    setTourStep(0);
+  }, []);
+
+  const skipFromIntro = useCallback(() => {
+    setShowTourIntro(false);
+    setTourComplete(true);
+    setSessionTutorialShown(true);
+  }, [setTourComplete, setSessionTutorialShown]);
+
+  // ── Tab tour spotlight: measured, not guessed ────────────────────────────
+  // The old approach computed the highlight purely from screen-width fractions
+  // (tabIdx * tabW), which assumes every tab occupies an identical, evenly-
+  // spaced rectangle. Train doesn't — it's a raised 56×56 button that sticks up
+  // above the rest of the tab bar — so that math always undershot it, cutting
+  // its top off. Measuring the actual rendered icon fixes that for Train and
+  // makes every other tab's highlight pixel-accurate too.
+  const tabIconRefs = useRef<Record<string, View | null>>({});
+  const [tabSpotlight, setTabSpotlight] = useState<SpotlightRect | null>(null);
+  const [tabArrowX, setTabArrowX] = useState<number | null>(null);
 
   // Pulse the Home tab icon after the demo session completes and tourJustCompleted fires.
   const tabPulse = useSharedValue(1);
@@ -149,6 +184,25 @@ function TabsInner() {
     if (tourStep === null || tourStep === 0 || tourStep >= COACH_STEPS.length) return;
     const step = COACH_STEPS[tourStep];
     const timer = setTimeout(() => router.navigate(step.route as any), 200);
+    return () => clearTimeout(timer);
+  }, [tourStep]);
+
+  // Measure the current step's actual tab icon once the tab switch above (if
+  // any) has settled, rather than trusting geometry to match what's rendered.
+  useEffect(() => {
+    setTabSpotlight(null);
+    setTabArrowX(null);
+    if (tourStep === null || tourStep >= COACH_STEPS.length) return;
+    const step = COACH_STEPS[tourStep];
+    const delay = tourStep === 0 ? 120 : 320;
+    const timer = setTimeout(() => {
+      tabIconRefs.current[step.route]?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTabSpotlight({ top: y - 12, left: x - 12, width: w + 24, height: h + 24 });
+          setTabArrowX(x + w / 2);
+        }
+      });
+    }, delay);
     return () => clearTimeout(timer);
   }, [tourStep]);
 
@@ -207,7 +261,13 @@ function TabsInner() {
           options={{
             title: 'Home',
             tabBarIcon: ({ focused }) => (
-              <Animated.View style={tabPulseStyle}>
+              <Animated.View
+                ref={(el) => {
+                  tabIconRefs.current['/'] = el as unknown as View | null;
+                }}
+                collapsable={false}
+                style={tabPulseStyle}
+              >
                 <TabIcon source={TAB_ICONS.home} focused={focused} />
               </Animated.View>
             ),
@@ -222,7 +282,16 @@ function TabsInner() {
           })}
           options={{
             title: 'Profile',
-            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.profile} focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <View
+                ref={(el) => {
+                  tabIconRefs.current['/profile'] = el;
+                }}
+                collapsable={false}
+              >
+                <TabIcon source={TAB_ICONS.profile} focused={focused} />
+              </View>
+            ),
           }}
         />
         <Tabs.Screen
@@ -237,6 +306,10 @@ function TabsInner() {
             tabBarItemStyle: { overflow: 'visible' },
             tabBarIcon: ({ focused }) => (
               <View
+                ref={(el) => {
+                  tabIconRefs.current['/train'] = el;
+                }}
+                collapsable={false}
                 style={{
                   width: 56,
                   height: 56,
@@ -271,7 +344,16 @@ function TabsInner() {
           })}
           options={{
             title: 'Restore',
-            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.restore} focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <View
+                ref={(el) => {
+                  tabIconRefs.current['/recover'] = el;
+                }}
+                collapsable={false}
+              >
+                <TabIcon source={TAB_ICONS.restore} focused={focused} />
+              </View>
+            ),
           }}
         />
         <Tabs.Screen
@@ -283,7 +365,16 @@ function TabsInner() {
           })}
           options={{
             title: 'Stats',
-            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.stats} focused={focused} />,
+            tabBarIcon: ({ focused }) => (
+              <View
+                ref={(el) => {
+                  tabIconRefs.current['/workouts'] = el;
+                }}
+                collapsable={false}
+              >
+                <TabIcon source={TAB_ICONS.stats} focused={focused} />
+              </View>
+            ),
           }}
         />
       </Tabs>
@@ -294,13 +385,16 @@ function TabsInner() {
           const tabW = W / 5;
           // tabArrowFraction: 0.1=Home, 0.3=Profile, 0.5=Train, 0.7=Restore, 0.9=Stats
           // Maps to tab indices 0–4 via (fraction - 0.1) / 0.2
+          // Fallback only, used for the brief window before the real
+          // measurement above lands — the actual icon (tabSpotlight) wins
+          // once available, since Train's raised button doesn't fit this
+          // uniform-slot geometry.
           const tabIdx = Math.round((step.tabArrowFraction - 0.1) / 0.2);
-          const spotlightRect = {
+          const fallbackRect: SpotlightRect = {
             top: H - tabBarHeight,
             left: tabIdx * tabW,
             width: tabW,
             height: tabBarHeight,
-            borderRadius: 0,
           };
           return (
             <CoachMark
@@ -314,12 +408,100 @@ function TabsInner() {
               onSwipeLeft={handleNext}
               bottomOffset={coachMarkBottom}
               tabArrowFraction={step.tabArrowFraction}
+              downArrowScreenX={tabArrowX ?? undefined}
               iconName={step.iconName}
               iconLabel={step.iconLabel}
-              spotlightRect={spotlightRect}
+              spotlightRect={tabSpotlight ?? fallbackRect}
             />
           );
         })()}
+
+      <Modal visible={showTourIntro} transparent animationType="fade" onRequestClose={startTour}>
+        <View style={styles.introOverlay}>
+          <View style={[styles.introCard, { backgroundColor: C.surface, borderColor: C.primary }]}>
+            <View style={[styles.introIconRing, { backgroundColor: C.primarySurface }]}>
+              <Ionicons name="compass-outline" size={30} color={C.primary} />
+            </View>
+            <Text style={[styles.introTitle, { color: C.text }]}>Let&apos;s take a tour!</Text>
+            <Text style={[styles.introBody, { color: C.textSecondary }]}>
+              A 60-second walkthrough of the five tabs, then a quick practice session so logging a
+              real one feels familiar.
+            </Text>
+            <Pressable
+              onPress={startTour}
+              style={({ pressed }) => [
+                styles.introBtn,
+                { backgroundColor: C.primary },
+                pressed && { opacity: 0.88 },
+              ]}
+              testID="tour-intro-start"
+            >
+              <Text style={[styles.introBtnText, { color: C.textInverse }]}>Let&apos;s go →</Text>
+            </Pressable>
+            <Pressable onPress={skipFromIntro} hitSlop={10} testID="tour-intro-skip">
+              <Text style={[styles.introSkipText, { color: C.textTertiary }]}>Skip for now</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  introOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  introCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 22,
+    alignItems: 'center',
+    gap: 4,
+    ...elevatedShadow('#000'),
+  },
+  introIconRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  introTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  introBody: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  introBtn: {
+    alignSelf: 'stretch',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  introBtnText: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+  },
+  introSkipText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+  },
+});
