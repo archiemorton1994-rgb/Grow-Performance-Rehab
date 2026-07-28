@@ -106,7 +106,12 @@ function isRateLimited(store: PersistedRateLimitMap, max: number, email: string)
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// Fail-safe on purpose: gate OTP exposure (console log + devCode in the
+// response body) on an explicit 'development' allowlist rather than "not
+// production". If NODE_ENV is ever unset or misconfigured on a deploy path
+// this file doesn't already know about, the old check would leak live login
+// codes over the network in the request-code response; this one stays closed.
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -133,11 +138,11 @@ function generateOtp(): string {
 }
 
 async function sendOtpEmail(email: string, code: string): Promise<void> {
-  if (!IS_PRODUCTION) {
+  if (IS_DEVELOPMENT) {
     console.log(`[OTP] ${email} → ${code}`);
   }
 
-  if (IS_PRODUCTION && !resendClient) {
+  if (!IS_DEVELOPMENT && !resendClient) {
     console.error('[OTP] RESEND_API_KEY is not set. Email delivery is unavailable in production.');
     throw new Error('Email service not configured. Set RESEND_API_KEY to enable OTP delivery.');
   }
@@ -198,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Failed to send code. Please try again.' });
     }
 
-    const devCode = !IS_PRODUCTION ? code : undefined;
+    const devCode = IS_DEVELOPMENT ? code : undefined;
     return res.json({ message: 'Code sent.', devCode });
   });
 
@@ -330,10 +335,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 </body>
 </html>`;
 
-  app.post('/api/crash-log', express.text({ type: '*/*' }), (req: Request, res: Response) => {
-    console.error('[CRASH LOG FROM DEVICE]', req.body);
-    res.sendStatus(200);
-  });
+  // Unauthenticated by necessity (fires before a signed-in session may exist),
+  // so it's a log-flood vector without its own limits — a per-IP limit isn't
+  // reliable here since the deployment's proxy trust isn't configured, so this
+  // caps payload size and a simple global rate instead.
+  let crashLogCount = 0;
+  let crashLogWindowStart = Date.now();
+  const CRASH_LOG_WINDOW_MS = 60 * 1000;
+  const CRASH_LOG_MAX_PER_WINDOW = 20;
+  app.post(
+    '/api/crash-log',
+    express.text({ type: '*/*', limit: '10kb' }),
+    (req: Request, res: Response) => {
+      const now = Date.now();
+      if (now - crashLogWindowStart > CRASH_LOG_WINDOW_MS) {
+        crashLogWindowStart = now;
+        crashLogCount = 0;
+      }
+      crashLogCount++;
+      if (crashLogCount > CRASH_LOG_MAX_PER_WINDOW) {
+        return res.sendStatus(429);
+      }
+      console.error('[CRASH LOG FROM DEVICE]', req.body);
+      res.sendStatus(200);
+    }
+  );
 
   app.get('/privacy', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -353,6 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p><strong>Information collected automatically:</strong></p>
       <ul>
         <li>Basic server logs (IP address, request timestamps) retained for up to 30 days for security and operational purposes.</li>
+        <li>Crash diagnostics - if the app crashes, a short error message and stack trace (no personal data) is sent to our servers on next launch so we can fix the underlying bug. Stored in the same server logs described above.</li>
       </ul>
 
       <h2>2. How We Use Your Information</h2>
@@ -372,6 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <li><strong>RevenueCat</strong> - manages your subscription and in-app purchase receipts. RevenueCat receives your anonymised app user ID and subscription status. RevenueCat does not receive your email address. See <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's Privacy Policy</a>.</li>
         <li><strong>Resend</strong> - delivers your one-time login code by email. Resend processes your email address solely to deliver transactional messages on our behalf. See <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
         <li><strong>Apple App Store</strong> - handles subscription billing. We do not store or process your payment card details. See <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
+        <li><strong>Replit</strong> - hosts our server and database infrastructure. Replit stores your data on our behalf as our infrastructure provider; it does not use your data for its own purposes. See <a href="https://replit.com/site/privacy" target="_blank">Replit's Privacy Policy</a>.</li>
       </ul>
 
       <h2>4. Data Storage and Security</h2>
