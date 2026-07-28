@@ -35,6 +35,7 @@ import {
   BODY_DIAGRAM_LABELS,
   MUSCLE_SET,
   heatmapBucketColor,
+  PANEL_BG,
 } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
 import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-db';
@@ -288,10 +289,13 @@ function MuscleProgressPanel({
         Last 14 days · tap a region for details
       </Text>
 
-      {/* Dark panel — front + back side by side */}
+      {/* Dark panel — front + back side by side. Always dark (matches
+          BodyDiagram's own panel colour) regardless of theme — compact mode
+          skips BodyDiagram's own panel wrapper, so this recreates it, and the
+          white labels/divider below assume this fixed dark background. */}
       <View
         style={{
-          backgroundColor: C.background,
+          backgroundColor: PANEL_BG,
           borderRadius: 16,
           paddingVertical: 10,
           paddingHorizontal: 6,

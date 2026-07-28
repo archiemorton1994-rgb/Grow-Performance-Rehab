@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { cardShadow } from '@/constants/shadows';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
   EquipmentTier,
@@ -675,12 +676,14 @@ export default function ReadinessScreen() {
         <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>
           Tap a region - or run a full body circuit
         </Text>
-        <BodyDiagram
-          selected={diagramPrehabRegion}
-          onSelect={setDiagramPrehabRegion}
-          accentColor={C.primary}
-          accentColorLight={C.primarySurface}
-        />
+        <View style={styles.diagramCard}>
+          <BodyDiagram
+            selected={diagramPrehabRegion}
+            onSelect={setDiagramPrehabRegion}
+            accentColor={C.primary}
+            accentColorLight={C.primarySurface}
+          />
+        </View>
         {diagramPrehabRegion ? (
           <Pressable
             onPress={() => handlePrehabFocus(diagramPrehabRegion)}
@@ -766,13 +769,15 @@ export default function ReadinessScreen() {
           style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
           onLayout={(e) => setPainDiagramAreaH(e.nativeEvent.layout.height)}
         >
-          <BodyDiagram
-            selectedRegions={diagramPainRegions}
-            onSelect={togglePainRegion}
-            accentColor={C.warning}
-            accentColorLight={C.warningLight}
-            maxWidth={painDiagramMaxWidth}
-          />
+          <View style={styles.diagramCard}>
+            <BodyDiagram
+              selectedRegions={diagramPainRegions}
+              onSelect={togglePainRegion}
+              accentColor={C.warning}
+              accentColorLight={C.warningLight}
+              maxWidth={painDiagramMaxWidth}
+            />
+          </View>
         </View>
         <View style={{ width: '100%', minHeight: 52, justifyContent: 'flex-end' }}>
           {diagramPainRegions.length > 0 ? (
@@ -1069,6 +1074,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 20,
+    },
+    // Wraps BodyDiagram so it reads as a card like everywhere else the diagram
+    // appears (Recover's sheet, the Stats panel) instead of floating directly
+    // on the screen background — the diagram's own panel stays dark regardless
+    // of theme, so without this frame it has nothing to visually separate it
+    // from a dark-mode background of the same colour.
+    diagramCard: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: 8,
+      width: '100%',
+      alignItems: 'center',
+      ...cardShadow(C.shadow),
     },
     question: {
       fontSize: 24,

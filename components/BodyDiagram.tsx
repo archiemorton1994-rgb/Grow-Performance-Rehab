@@ -33,8 +33,10 @@ const VOCAB_REST = '#2a2a2a'; // dark grey (visible on dark panel)
 // Legacy joint colour kept for non-heatmap joint category display
 const JOINT_CLR = '#4a7e9b';
 
-// Dark panel background for the diagram container
-const PANEL_BG = '#0d0d0d';
+// Dark panel background for the diagram container. Exported so screens using
+// `compact` mode (which skips this component's own panel wrapper) can recreate
+// the same panel colour around their own layout instead of guessing a value.
+export const PANEL_BG = '#0d0d0d';
 
 // ─── Region categorisation ────────────────────────────────────────────────────
 export const MUSCLE_SET = new Set<PainRegion>([
