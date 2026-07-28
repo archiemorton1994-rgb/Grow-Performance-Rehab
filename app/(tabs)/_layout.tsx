@@ -139,11 +139,16 @@ function TabsInner() {
   }, [tourComplete]);
 
   // Programmatically switch to the tab for the current tour step.
+  // Step 0 is always Home, and the tour only ever starts right after the root
+  // gate's own router.replace('/(tabs)') has landed the user on Home — firing
+  // a second, uncoordinated navigate('/') into a screen that's still settling
+  // from that replace risks a navigation race (observed as the app becoming
+  // totally unresponsive right after onboarding, recoverable only by
+  // restarting). Skip it: there's nothing to navigate to yet.
   useEffect(() => {
-    if (tourStep === null || tourStep >= COACH_STEPS.length) return;
+    if (tourStep === null || tourStep === 0 || tourStep >= COACH_STEPS.length) return;
     const step = COACH_STEPS[tourStep];
-    const delay = tourStep === 0 ? 0 : 200;
-    const timer = setTimeout(() => router.navigate(step.route as any), delay);
+    const timer = setTimeout(() => router.navigate(step.route as any), 200);
     return () => clearTimeout(timer);
   }, [tourStep]);
 
