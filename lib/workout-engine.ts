@@ -888,7 +888,18 @@ function generateWeeklyWorkout(
   const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
 
-  // ── 2. Main exercises — pattern-first, never drop required movements ───────
+  // ── 2. Pre-Training Prep (active mobility) — mirrors the KPI session
+  //   builder's prep step, which this function was missing: raising the heart
+  //   rate isn't the same as mobilising the joints about to be loaded.
+  //   45 min → 2 stretches, 30/60 min → 3. Pattern-matched the same way
+  //   prehab/finisher already are below (upper→bench, lower→squat, full→deadlift).
+  const prepSource: MainSessionType =
+    sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
+  const prep = getPrep(prepSource, equipmentTier);
+  const prepCount = timeAvailable === '45' ? 2 : 3;
+  for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
+
+  // ── 3. Main exercises — pattern-first, never drop required movements ───────
   // Pool is ordered by pattern priority so first N exercises always cover all
   // required movement patterns. Optional "bonus" exercises (beyond minRequired)
   // are seeded-shuffled for variety across sessions.
@@ -960,7 +971,7 @@ function generateWeeklyWorkout(
     exercises.push(fullBodySets > 0 ? { ...withCategory, sets: fullBodySets } : withCategory);
   }
 
-  // ── 3. Prehab (45 min only — 60 min uses finisher instead) ────────────────
+  // ── 4. Prehab (45 min only — 60 min uses finisher instead) ────────────────
   if (timeAvailable === '45') {
     const prehabTemplate = painRegion
       ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion)
@@ -977,7 +988,7 @@ function generateWeeklyWorkout(
     exercises.push(phEx);
   }
 
-  // ── 4. Finisher (60 min only) ─────────────────────────────────────────────
+  // ── 5. Finisher (60 min only) ─────────────────────────────────────────────
   if (timeAvailable === '60') {
     const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
     const finisherSource: MainSessionType =
@@ -988,7 +999,7 @@ function generateWeeklyWorkout(
     }
   }
 
-  // ── 5. Cooldown (ALL sessions — always closes with recovery) ──────────────
+  // ── 6. Cooldown (ALL sessions — always closes with recovery) ──────────────
   const cooldownPool = getCooldown();
   if (cooldownPool.length > 0) {
     exercises.push(templateToExercise(cooldownPool[0]));
@@ -1038,10 +1049,20 @@ function generateConditioningWorkout(
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
 ): Exercise[] {
-  const { energy } = readiness;
+  const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const templates = getConditioningWorkout(equipmentTier, energyKey);
-  const personalized = templates.map((t) =>
+
+  // Insert active mobility stretches right after the cardio warm-up (always
+  // templates[0] in this pool) — raising the heart rate isn't the same as
+  // mobilising the joints about to be loaded, and this pool was missing that
+  // step entirely. Same 45min→2 / else→3 scaling used by the other builders.
+  const prepCount = timeAvailable === '45' ? 2 : 3;
+  const prepTemplates = getPrep('squat', equipmentTier).slice(0, prepCount);
+  const withPrep =
+    templates.length > 0 ? [templates[0], ...prepTemplates, ...templates.slice(1)] : templates;
+
+  const personalized = withPrep.map((t) =>
     applyPersonalization(
       templateToExercise(t),
       profile,
