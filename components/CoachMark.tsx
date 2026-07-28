@@ -47,6 +47,11 @@ interface CoachMarkProps {
   bottomOffset?: number;
   /** Horizontal position (0–1) for down-pointing tab-bar arrow. */
   tabArrowFraction?: number;
+  /** Absolute screen-space X for a down-pointing arrow at a measured target
+   *  below the card (e.g. a pinned bottom bar). Takes precedence over
+   *  tabArrowFraction when provided — prefer this for any target whose
+   *  position isn't a fixed fraction of screen width. */
+  downArrowScreenX?: number;
   /** Absolute screen-space X (same coordinate space as spotlightRect / measureInWindow)
    *  to point the up-arrow at — e.g. the measured center of a specific button.
    *  Takes precedence over upArrowFraction when provided. */
@@ -73,6 +78,7 @@ export default function CoachMark({
   onSwipeLeft,
   bottomOffset = 0,
   tabArrowFraction,
+  downArrowScreenX,
   upArrowScreenX,
   upArrowFraction,
   iconName,
@@ -125,16 +131,19 @@ export default function CoachMark({
 
   const ctaLabel = nextLabel ?? (step >= total ? "Let's go!" : 'Next →');
 
-  // Down arrow (tab tour) — positioned in the overlay between card and tab bar.
-  const hasDownArrow = tabArrowFraction !== undefined;
+  // Down arrow (tab tour / any target below the card) — positioned in the
+  // overlay between card and target. Prefer a real measured screen position
+  // (downArrowScreenX) over a guessed fraction-of-screen-width, same reasoning
+  // as the up arrow above.
+  const hasDownArrow = downArrowScreenX !== undefined || tabArrowFraction !== undefined;
+  const rawDownArrowLeft =
+    downArrowScreenX !== undefined
+      ? downArrowScreenX - ARROW_W
+      : tabArrowFraction !== undefined
+        ? tabArrowFraction * SCREEN_WIDTH - ARROW_W
+        : 0;
   const downArrowLeft = hasDownArrow
-    ? Math.max(
-        CARD_MARGIN,
-        Math.min(
-          SCREEN_WIDTH - CARD_MARGIN - ARROW_W * 2,
-          tabArrowFraction * SCREEN_WIDTH - ARROW_W
-        )
-      )
+    ? Math.max(CARD_MARGIN, Math.min(SCREEN_WIDTH - CARD_MARGIN - ARROW_W * 2, rawDownArrowLeft))
     : 0;
 
   // Up arrow (readiness/session) — appears at the top edge of the card positioner.

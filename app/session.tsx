@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   AppState,
   AppStateStatus,
+  useWindowDimensions,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
@@ -441,6 +442,9 @@ interface SessionActiveBarProps {
   onNewPb?: () => void;
   onFeedback: (exerciseId: string, f: 'easy' | 'hard') => void;
   onCompleteSession: () => void;
+  /** Returns to the previous exercise to fix a mis-logged set. Omitted (no
+   *  button shown) for the first exercise or in the demo tutorial. */
+  onGoBack?: () => void;
   bottomInset: number;
   /** In the demo tutorial, keep this bar's layout stable rather than flipping
    *  to the feedback-buttons UI on tap — the tutorial's spotlight is measured
@@ -468,6 +472,7 @@ export function SessionActiveBar({
   onNewPb,
   onFeedback,
   onCompleteSession,
+  onGoBack,
   bottomInset,
   isDemo = false,
 }: SessionActiveBarProps) {
@@ -623,6 +628,16 @@ export function SessionActiveBar({
   return (
     <View style={[styles.barContainer, { paddingBottom: bottomInset + 8 }]}>
       <View style={styles.barHeader}>
+        {exerciseIndex > 0 && onGoBack && (
+          <Pressable
+            onPress={onGoBack}
+            hitSlop={10}
+            style={styles.barBackBtn}
+            testID="session-bar-back"
+          >
+            <Ionicons name="chevron-back" size={18} color={C.textSecondary} />
+          </Pressable>
+        )}
         <Text style={styles.barExerciseName} numberOfLines={1}>
           {exercise.name}
         </Text>
@@ -1713,6 +1728,12 @@ interface TutorialStep {
   arrowTarget?: 'video' | 'swap';
   /** If true, this step is skipped for session types that don't use weight logging (prehab, flexibility). */
   requiresWeightLogging?: true;
+  /** 'up' (default) means the spotlighted element sits above the card, so the
+   *  card is anchored near the bottom of the screen with an up-pointing arrow.
+   *  'down' means the target is a bottom-pinned bar BELOW the card (e.g.
+   *  sessionBar) — the card anchors above the target's measured position with
+   *  a down-pointing arrow instead. */
+  arrowDirection?: 'up' | 'down';
 }
 
 const SESSION_TUTORIAL: readonly TutorialStep[] = [
@@ -1731,7 +1752,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconLabel: 'Log sets',
     title: 'Log every set',
     body: 'Type the weight and reps, then tap the green button to save the set. The app remembers your weights and auto-suggests next time.',
-    bottomOffset: 320,
+    arrowDirection: 'down',
   },
   {
     spotlightRef: 'sessionBar',
@@ -1740,7 +1761,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
     body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — your next session adjusts itself.',
-    bottomOffset: 320,
+    arrowDirection: 'down',
   },
   {
     spotlightRef: 'firstCard',
@@ -2034,6 +2055,11 @@ export default function SessionScreen() {
   const swapBtnRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
   const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+  // Only set for arrowDirection: 'down' steps — derived from the target's
+  // measured top so the card sits flush above it regardless of how tall the
+  // target actually is (sessionBar's height varies with its content).
+  const [tutBottomOffset, setTutBottomOffset] = useState<number | null>(null);
+  const { height: SCREEN_H } = useWindowDimensions();
 
   // Measure the spotlighted element whenever the tutorial step changes.
   // Clear the spotlight immediately on step change to avoid showing a stale rect
@@ -2041,6 +2067,7 @@ export default function SessionScreen() {
   useEffect(() => {
     setTutSpotlight(null);
     setTutArrowX(null);
+    setTutBottomOffset(null);
     if (tutStep === null) return;
     const refLookup = {
       firstCard: firstCardRef,
@@ -2063,6 +2090,11 @@ export default function SessionScreen() {
           });
           // Default: center the arrow on the spotlighted rect itself.
           setTutArrowX(x + w / 2);
+          // Down-arrow steps: anchor the card to the target's real top edge
+          // instead of a fixed guess, so it tracks sessionBar's actual height.
+          if (step?.arrowDirection === 'down') {
+            setTutBottomOffset(SCREEN_H - y + 12);
+          }
         }
       });
       // If this step points at a specific icon, measure it too and use its
@@ -2188,6 +2220,11 @@ export default function SessionScreen() {
   const sessionTerminatedRef = useRef(false);
   // Guard: ensure we only restore from activeSession once
   const hasRestoredRef = useRef(false);
+  // Guard: when the user manually goes back to a previous (already-completed)
+  // exercise, skip the very next auto-advance check — otherwise it would
+  // immediately bounce them straight forward again since that exercise's sets
+  // are all still marked complete.
+  const suppressAutoAdvanceRef = useRef(false);
   useEffect(() => {
     exerciseDataRef.current = exerciseData;
   }, [exerciseData]);
@@ -2362,6 +2399,10 @@ export default function SessionScreen() {
   useEffect(() => {
     if (exerciseData.length === 0) return;
     if (activeIndex >= exerciseData.length) return;
+    if (suppressAutoAdvanceRef.current) {
+      suppressAutoAdvanceRef.current = false;
+      return;
+    }
     const currentDone = exerciseData[activeIndex]?.sets.every((s) => s.completed);
     if (currentDone) {
       const nextIndex = activeIndex + 1;
@@ -2376,6 +2417,24 @@ export default function SessionScreen() {
       }, 350);
     }
   }, [exerciseData, activeIndex]);
+
+  // Manual back-navigation — lets the user return to the previous exercise to
+  // fix a mis-logged set. The exercise stays marked complete/locked in the
+  // list (exState still derives from activeIndex the same way it always has);
+  // this just moves the editable "active" pointer back by one step.
+  const handleGoBackExercise = useCallback(() => {
+    if (activeIndex === 0) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    suppressAutoAdvanceRef.current = true;
+    const prevIndex = activeIndex - 1;
+    setActiveIndex(prevIndex);
+    setTimeout(() => {
+      const y = cardYPositions.current[prevIndex];
+      if (y !== undefined && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
+      }
+    }, 350);
+  }, [activeIndex]);
 
   // Auto-save in-progress state whenever data changes (sets, swaps, or notes)
   useEffect(() => {
@@ -2926,6 +2985,7 @@ export default function SessionScreen() {
               onNewPb={isDemo ? undefined : handleNewPb}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
               onCompleteSession={handleComplete}
+              onGoBack={isDemo ? undefined : handleGoBackExercise}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
             />
@@ -3185,11 +3245,19 @@ export default function SessionScreen() {
           onNext={advanceTut}
           onSkip={skipTut}
           bottomOffset={
-            insets.bottom +
-            (Platform.OS === 'web' ? 34 : 0) +
-            (effectiveTutorial[tutStep].bottomOffset ?? 190)
+            effectiveTutorial[tutStep].arrowDirection === 'down'
+              ? (tutBottomOffset ??
+                insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 190)
+              : insets.bottom +
+                (Platform.OS === 'web' ? 34 : 0) +
+                (effectiveTutorial[tutStep].bottomOffset ?? 190)
           }
-          upArrowScreenX={tutArrowX ?? undefined}
+          upArrowScreenX={
+            effectiveTutorial[tutStep].arrowDirection === 'down' ? undefined : (tutArrowX ?? undefined)
+          }
+          downArrowScreenX={
+            effectiveTutorial[tutStep].arrowDirection === 'down' ? (tutArrowX ?? undefined) : undefined
+          }
           iconName={effectiveTutorial[tutStep].iconName}
           iconLabel={effectiveTutorial[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}
@@ -4251,6 +4319,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.text,
       flex: 1,
       marginRight: 8,
+    },
+    barBackBtn: {
+      marginRight: 4,
+      padding: 2,
     },
     barSetCountRow: {
       flexDirection: 'row',
