@@ -1726,6 +1726,10 @@ interface TutorialStep {
    *  point at (e.g. a specific icon button). When omitted, the arrow points at
    *  the horizontal center of the spotlighted rect itself. */
   arrowTarget?: 'video' | 'swap';
+  /** When true (requires arrowTarget), the spotlight cutout tightly hugs the
+   *  arrowTarget element itself instead of the whole spotlightRef region —
+   *  use when the step is only about one icon, not the card in general. */
+  spotlightArrowTargetOnly?: true;
   /** If true, this step is skipped for session types that don't use weight logging (prehab, flexibility). */
   requiresWeightLogging?: true;
   /** 'up' (default) means the spotlighted element sits above the card, so the
@@ -1766,6 +1770,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
   {
     spotlightRef: 'firstCard',
     arrowTarget: 'swap',
+    spotlightArrowTargetOnly: true,
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
     title: 'Swap any exercise',
@@ -2079,7 +2084,19 @@ export default function SessionScreen() {
     const step = effectiveTutorial[tutStep];
     const target = step ? refLookup[step.spotlightRef] : null;
     const arrowTargetRef = step?.arrowTarget ? arrowTargetRefLookup[step.arrowTarget] : null;
+    const tightIconSpotlight = step?.spotlightArrowTargetOnly && arrowTargetRef;
     const timer = setTimeout(() => {
+      if (tightIconSpotlight) {
+        // This step is only about one icon — spotlight it tightly instead of
+        // the whole card, and skip the separate whole-region measurement below.
+        arrowTargetRef.current?.measureInWindow((x, y, w, h) => {
+          if (w > 0 && h > 0) {
+            setTutSpotlight({ top: y - 8, left: x - 8, width: w + 16, height: h + 16 });
+            setTutArrowX(x + w / 2);
+          }
+        });
+        return;
+      }
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({
@@ -2087,7 +2104,6 @@ export default function SessionScreen() {
             left: x - 4,
             width: w + 8,
             height: h + 8,
-            borderRadius: 14,
           });
           // Default: center the arrow on the spotlighted rect itself.
           setTutArrowX(x + w / 2);

@@ -47,7 +47,16 @@ const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
 
 // ─── Readiness tutorial content ───────────────────────────────────────────
 
+// Order matches the page's actual top-to-bottom layout (Pain, then Energy,
+// then Time) so the tutorial scrolls one direction instead of zigzagging up
+// and down the page between steps.
 const READINESS_TUTORIAL = [
+  {
+    iconName: 'medical-outline',
+    iconLabel: 'Pain',
+    title: 'Any pain today?',
+    body: "Tap a region if anything is sore — we'll automatically swap exercises away from that area so you can train safely.",
+  },
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
@@ -59,12 +68,6 @@ const READINESS_TUTORIAL = [
     iconLabel: 'Time',
     title: 'How long have you got?',
     body: '30 min = core lift only. 45 min adds accessories and prehab. 60 min is the full session with a finisher.',
-  },
-  {
-    iconName: 'medical-outline',
-    iconLabel: 'Pain',
-    title: 'Any pain today?',
-    body: "Tap a region if anything is sore — we'll automatically swap exercises away from that area so you can train safely.",
   },
 ] as const;
 
@@ -136,11 +139,23 @@ export default function ReadinessScreen() {
   const [coachStep, setCoachStep] = useState<number | null>(null);
 
   // ── Spotlight refs for each readiness tutorial section ──────────────────
+  const painRef = useRef<View>(null);
   const energyRef = useRef<View>(null);
   const timeRef = useRef<View>(null);
-  const painRef = useRef<View>(null);
   const [readinessSpotlight, setReadinessSpotlight] = useState<SpotlightRect | null>(null);
   const [coachArrowX, setCoachArrowX] = useState<number | null>(null);
+  // 'main' step's ScrollView + each section's distance from its top, captured
+  // via onLayout as sections render. Lets the tutorial scroll a section into
+  // view before measuring it — Energy/Time/Pain sit below Equipment on the
+  // page, so without this the tutorial would just measure (and spotlight)
+  // whatever happened to already be on screen, which is usually wrong.
+  const mainScrollRef = useRef<ScrollView>(null);
+  const sectionScrollY = useRef<{ pain: number; energy: number; time: number }>({
+    pain: 0,
+    energy: 0,
+    time: 0,
+  });
+  const SCROLL_TOP_PADDING = 90;
 
   // Measure the spotlighted section whenever the tutorial step changes.
   // Clear the spotlight immediately on step change to avoid showing a stale rect
@@ -149,8 +164,14 @@ export default function ReadinessScreen() {
     setReadinessSpotlight(null);
     setCoachArrowX(null);
     if (coachStep === null) return;
-    const refs = [energyRef, timeRef, painRef];
+    const stepKeys = ['pain', 'energy', 'time'] as const;
+    const refs = [painRef, energyRef, timeRef];
+    const stepKey = stepKeys[coachStep];
     const target = refs[coachStep];
+    mainScrollRef.current?.scrollTo({
+      y: Math.max(0, sectionScrollY.current[stepKey] - SCROLL_TOP_PADDING),
+      animated: true,
+    });
     const timer = setTimeout(() => {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
@@ -159,14 +180,15 @@ export default function ReadinessScreen() {
             left: x - 8,
             width: w + 16,
             height: h + 16,
-            borderRadius: 14,
           });
           // Point the arrow at the real center of the measured section rather
           // than a guessed fraction of the card's width.
           setCoachArrowX(x + w / 2);
         }
       });
-    }, 120);
+      // Long enough for the scrollTo animation above to actually settle —
+      // measuring mid-scroll would capture a transient, wrong position.
+    }, 420);
     return () => clearTimeout(timer);
   }, [coachStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -371,6 +393,7 @@ export default function ReadinessScreen() {
   const renderMain = () => (
     <Animated.View key="main" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
       <ScrollView
+        ref={mainScrollRef}
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={styles.mainContent}
@@ -489,8 +512,14 @@ export default function ReadinessScreen() {
 
         <View style={styles.divider} />
 
-        {/* Aches — tutorial step 2 spotlight target */}
-        <View style={styles.section} ref={painRef}>
+        {/* Aches — tutorial step 0 spotlight target */}
+        <View
+          style={styles.section}
+          ref={painRef}
+          onLayout={(e) => {
+            sectionScrollY.current.pain = e.nativeEvent.layout.y;
+          }}
+        >
           <Text style={styles.sectionTitle}>Any pain or soreness?</Text>
           <View style={styles.pillRow}>
             <Pressable
@@ -531,8 +560,14 @@ export default function ReadinessScreen() {
           <>
             <View style={styles.divider} />
 
-            {/* Energy — tutorial step 0 spotlight target */}
-            <View style={styles.section} ref={energyRef}>
+            {/* Energy — tutorial step 1 spotlight target */}
+            <View
+              style={styles.section}
+              ref={energyRef}
+              onLayout={(e) => {
+                sectionScrollY.current.energy = e.nativeEvent.layout.y;
+              }}
+            >
               <Text style={styles.sectionTitle}>Energy level</Text>
               <View style={styles.pillRow}>
                 {[
@@ -580,8 +615,14 @@ export default function ReadinessScreen() {
 
             <View style={styles.divider} />
 
-            {/* Time — tutorial step 1 spotlight target */}
-            <View style={styles.section} ref={timeRef}>
+            {/* Time — tutorial step 2 spotlight target */}
+            <View
+              style={styles.section}
+              ref={timeRef}
+              onLayout={(e) => {
+                sectionScrollY.current.time = e.nativeEvent.layout.y;
+              }}
+            >
               <Text style={styles.sectionTitle}>Time available</Text>
               <View style={styles.pillRow}>
                 {[

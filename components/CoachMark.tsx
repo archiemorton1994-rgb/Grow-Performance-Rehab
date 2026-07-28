@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
-import { shadowStyle } from '@/constants/shadows';
+import { elevatedShadow } from '@/constants/shadows';
 
 const ARROW_H = 10;
 const ARROW_W = 9;
@@ -162,7 +162,10 @@ export default function CoachMark({
     : 0;
 
   const sr = spotlightRect;
-  const sr_r = sr ? (sr.borderRadius ?? 12) : 12;
+  // Default to a pill/circle shape rather than a boxy rounded-rect: icon-sized
+  // targets (roughly square, small) come out fully circular, wide or tall
+  // targets (a whole card) get a sensible cap so they don't turn into a blob.
+  const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height, 56) / 2) : 12;
 
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
@@ -350,12 +353,16 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 16,
     gap: 10,
-    ...shadowStyle('#000', 0.07, 12, -2, 8),
+    // A stronger "floating" shadow than a normal content card — this needs to
+    // read as a distinct layer above the app, not another card on the page,
+    // especially in light mode where it can otherwise blend into a bright
+    // spotlit area right next to it.
+    ...elevatedShadow('#000'),
   },
   headerRow: {
     flexDirection: 'row',
