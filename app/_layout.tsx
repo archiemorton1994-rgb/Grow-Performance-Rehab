@@ -22,6 +22,7 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LayoutAnimationConfig } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
@@ -400,14 +401,14 @@ function RootLayoutNav() {
     // /onboarding) permanently disabled it, silently letting anyone who
     // finished onboarding through to the tabs without ever being required to
     // sign in or subscribe.
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (!onboardingComplete) {
-      if (currentPath !== 'onboarding') setTimeout(() => router.replace('/onboarding'), 0);
+      if (currentPath !== 'onboarding') timer = setTimeout(() => router.replace('/onboarding'), 0);
     } else if (!isAuthenticated) {
-      if (currentPath !== 'auth') setTimeout(() => router.replace('/auth'), 0);
+      if (currentPath !== 'auth') timer = setTimeout(() => router.replace('/auth'), 0);
     } else if (!hasActiveSubscription) {
-      if (currentPath !== 'subscription') setTimeout(() => router.replace('/subscription'), 0);
+      if (currentPath !== 'subscription') timer = setTimeout(() => router.replace('/subscription'), 0);
     } else if (
-      currentPath === '' ||
       currentPath === 'onboarding' ||
       currentPath === 'auth' ||
       currentPath === 'subscription'
@@ -415,8 +416,21 @@ function RootLayoutNav() {
       // Only force into the tabs from a gate screen — once the user is fully
       // cleared and already somewhere else in the app (tabs, achievements,
       // program, etc.), leave navigation alone.
-      setTimeout(() => router.replace('/(tabs)'), 0);
+      timer = setTimeout(() => router.replace('/(tabs)'), 0);
+    } else if (currentPath === '') {
+      // Empty segments means either a genuine cold start (no route resolved
+      // yet) or, on web, a brief transient while a hard-loaded deep link
+      // (e.g. refreshing the browser on /profile) is still resolving its
+      // real path from the URL. Wait longer than the 0ms used above so a
+      // resolving deep link has a chance to update currentPath first — that
+      // re-runs this effect and the cleanup below cancels this timer before
+      // it fires, instead of forcing the tabs root and stranding the
+      // refreshed page on Home before its real destination ever resolves.
+      timer = setTimeout(() => router.replace('/(tabs)'), 300);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [
     isLoading,
     hasHydrated,
@@ -636,9 +650,17 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <AuthProvider>
-            <RootLayoutNav />
-          </AuthProvider>
+          {/* Reanimated's web layout-animation renderer can get entering
+              views stuck at their pre-animation visibility:hidden state on
+              first mount (a known rough edge of its web support, distinct
+              from its native UI-thread implementation). Skip entering/exiting
+              animations on web entirely rather than risk a blank screen -
+              native is unaffected since this only applies on that platform. */}
+          <LayoutAnimationConfig skipEntering={Platform.OS === 'web'}>
+            <AuthProvider>
+              <RootLayoutNav />
+            </AuthProvider>
+          </LayoutAnimationConfig>
         </GestureHandlerRootView>
       </QueryClientProvider>
       {lastCrash ? (
