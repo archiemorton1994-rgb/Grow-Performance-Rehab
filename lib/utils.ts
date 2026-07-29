@@ -1,4 +1,4 @@
-import { WeightUnit } from '@/lib/store';
+import type { WeightUnit } from '@/lib/store';
 
 export function formatWeight(kg: number, unit: WeightUnit): string {
   if (unit === 'lbs') {
@@ -54,6 +54,19 @@ export function daysSince(dateStr: string): number {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+/** ISO 8601 week string (YYYY-Www) for a date. Weeks run Mon–Sun.
+ *  Shared by lib/badge-engine.ts and lib/store.ts so the week a session
+ *  counts toward for streak display and for badge eligibility can never
+ *  silently disagree. */
+export function isoWeek(date: Date): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dow = d.getUTCDay() || 7; // 1=Mon … 7=Sun
+  d.setUTCDate(d.getUTCDate() + 4 - dow); // shift to the Thursday of that ISO week
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 export function getTimeOfDayGreeting(): string {

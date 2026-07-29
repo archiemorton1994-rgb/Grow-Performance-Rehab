@@ -23,16 +23,10 @@ import { shadowStyle } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
+import { daysSince } from '@/lib/utils';
 
 // An exercise logged within this many days is considered "recently done".
 const RECENT_WINDOW_DAYS = 7;
-
-/** Whole days elapsed since an ISO date. Returns Infinity for unparseable input. */
-function daysSince(iso: string): number {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return Infinity;
-  return Math.floor((Date.now() - then) / 86400000);
-}
 
 /** Short relative label for a recent date, or null if outside the recent window. */
 function recentLabel(iso: string): string | null {

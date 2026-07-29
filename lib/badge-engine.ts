@@ -19,6 +19,7 @@ import type {
   EquipmentTier,
   SessionType,
 } from '@/lib/store';
+import { isoWeek } from '@/lib/utils';
 
 export interface BadgeEvalState {
   completedSessions: CompletedSession[];
@@ -72,14 +73,6 @@ interface Stats {
   weeklySessionCounts: Map<string, number>; // "YYYY-Www" → session count
   monthlySessionCounts: Map<string, number>; // "YYYY-MM"  → session count
   ormLiftsSet: Set<string>; // lifts with at least one ORM entry
-}
-
-function isoWeek(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 function computeStats(state: BadgeEvalState): Stats {
