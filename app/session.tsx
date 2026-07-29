@@ -36,6 +36,7 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { GlossaryTerm } from '@/components/GlossaryTerm';
 import {
   EquipmentTier,
   EnergyLevel,
@@ -2616,7 +2617,13 @@ export default function SessionScreen() {
           <Text style={styles.sessionLabel}>
             {isTestWeek ? 'Strength Test' : (displayLabel ?? getSessionLabel(sessionType))}
           </Text>
-          {isTestWeek ? <Text style={styles.sessionSub}>AMRAP @ 90%</Text> : null}
+          {isTestWeek ? (
+            <GlossaryTerm
+              term="AMRAP @ 90%"
+              definition="As Many Reps As Possible — you'll lift 90% of your estimated max for as many clean reps as you can manage."
+              textStyle={styles.sessionSub}
+            />
+          ) : null}
         </View>
         <View style={styles.elapsedTimer}>
           <Ionicons name="time-outline" size={12} color={C.textTertiary} />

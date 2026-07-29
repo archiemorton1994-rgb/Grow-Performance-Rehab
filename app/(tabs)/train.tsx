@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
+import { GlossaryTerm } from '@/components/GlossaryTerm';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -356,7 +357,11 @@ export default function TrainScreen() {
           )}
 
           {/* KPI Sessions */}
-          <Text style={styles.sectionHeading}>KPI Sessions</Text>
+          <GlossaryTerm
+            term="KPI Sessions"
+            definition="Key Performance Indicator lifts — Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
+            textStyle={styles.sectionHeading}
+          />
           <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
             {KPI_SESSION_TYPES.map((type) => {
               const meta = SESSION_META[type];

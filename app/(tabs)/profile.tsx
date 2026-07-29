@@ -16,9 +16,12 @@ import {
 } from 'react-native';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
+import * as StoreReview from 'expo-store-review';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
+import { GlossaryTerm } from '@/components/GlossaryTerm';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -525,7 +528,28 @@ export default function ProfileScreen() {
   };
 
   const handleSendFeedback = () => {
-    Linking.openURL('mailto:feedback@growperformance.app?subject=App Feedback').catch(() => {});
+    // Matches the address used everywhere else in the app (Privacy Policy,
+    // Terms, and the actual OTP sender address) - was previously a different,
+    // unrelated-looking domain (growperformance.app vs .com), which reads as
+    // an inconsistency for a paid app rather than one deliberate contact channel.
+    Linking.openURL('mailto:hello@growperformanceandrehab.com?subject=App Feedback').catch(
+      () => {}
+    );
+  };
+
+  const handleRateApp = async () => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Same native review sheet the automatic post-5th-session prompt uses.
+    // Apple/Google throttle how often this can actually appear regardless of
+    // how many times it's requested, so a manual button here is safe to add
+    // alongside the automatic trigger rather than needing a separate path.
+    const available = await StoreReview.isAvailableAsync();
+    if (available) {
+      await StoreReview.requestReview();
+    } else {
+      const url = StoreReview.storeUrl();
+      if (url) Linking.openURL(url).catch(() => {});
+    }
   };
 
   const performDeleteAccount = async () => {
@@ -778,7 +802,13 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.ratioCardTitle}>STRENGTH PROGRESS</Text>
                 <Text style={styles.ratioCardSub}>
-                  Log a 1RM to track your bodyweight multipliers
+                  Log a{' '}
+                  <GlossaryTerm
+                    term="1RM"
+                    definition="One-Rep Max — the most weight you can lift for a single clean rep of a lift. Used to calibrate your training weights."
+                    textStyle={styles.ratioCardSub}
+                  />{' '}
+                  to track your bodyweight multipliers
                 </Text>
               </View>
             </View>
@@ -1735,6 +1765,31 @@ export default function ProfileScreen() {
                   </Pressable>
                 </>
               )}
+
+              <Pressable
+                onPress={handleRateApp}
+                style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
+                testID="rate-app"
+              >
+                <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                  <Ionicons name="star-outline" size={20} color={C.primary} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>Rate Grow</Text>
+                  <Text style={styles.navSub}>Enjoying the app? Leave a review</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+              </Pressable>
+
+              <View style={styles.settingsLinkRow} testID="app-version">
+                <View style={[styles.navIcon, { backgroundColor: C.surfaceTertiary }]}>
+                  <Ionicons name="information-circle-outline" size={20} color={C.textSecondary} />
+                </View>
+                <View style={styles.navBtnText}>
+                  <Text style={styles.navLabel}>Version</Text>
+                </View>
+                <Text style={styles.navSub}>{Constants.expoConfig?.version ?? '—'}</Text>
+              </View>
 
               <View style={styles.settingDivider} />
 
