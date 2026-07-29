@@ -1775,7 +1775,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
-    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — your next session adjusts itself.',
+    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — check the Progress tab after your session to see exactly what changed.',
     arrowDirection: 'down',
     demoForceFeedback: true,
   },
