@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   PanResponder,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -136,6 +137,23 @@ function getSessionInfo(
   };
 }
 
+// Fixed vertical chrome around the diagram inside the picker sheet: handle +
+// header + BodyDiagram's own toggle rows/panel padding/label row + footer.
+// Used to size the diagram so the whole body is visible without scrolling on
+// as wide a range of device heights as practical, instead of the diagram
+// always claiming a fixed size regardless of how much room is actually left.
+const PICKER_SHEET_HEIGHT_PCT = 0.9;
+const CHROME_HANDLE = 24;
+const CHROME_HEADER = 68;
+const CHROME_TOGGLE_ROWS = 76;
+const CHROME_PANEL_PADDING = 60;
+const CHROME_LABEL_ROW = 44;
+const CHROME_FOOTER = 100;
+const SHEET_CHROME_H =
+  CHROME_HANDLE + CHROME_HEADER + CHROME_TOGGLE_ROWS + CHROME_PANEL_PADDING + CHROME_LABEL_ROW + CHROME_FOOTER;
+const MIN_DIAGRAM_WIDTH = 150; // floor so regions like wrist/ankle stay easy to tap
+const DEFAULT_DIAGRAM_WIDTH = 200; // BodyDiagram's own default maxWidth
+
 function RegionBodyPicker({
   pending,
   onPendingChange,
@@ -152,6 +170,13 @@ function RegionBodyPicker({
   testPrefix: string;
 }) {
   const C = useColors();
+  const { height: windowHeight } = useWindowDimensions();
+  const diagramBudget = windowHeight * PICKER_SHEET_HEIGHT_PCT - SHEET_CHROME_H - bottomInset;
+  const diagramMaxWidth = Math.max(
+    MIN_DIAGRAM_WIDTH,
+    Math.min(DEFAULT_DIAGRAM_WIDTH, Math.round(diagramBudget / 2.4))
+  );
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -159,19 +184,7 @@ function RegionBodyPicker({
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text
-          style={{
-            textAlign: 'center',
-            fontSize: 13,
-            fontFamily: 'Inter_500Medium',
-            color: C.textSecondary,
-            paddingTop: 6,
-            paddingBottom: 4,
-          }}
-        >
-          Tap one or more regions — we&apos;ll adjust exercises
-        </Text>
-        <BodyDiagram selected={pending} onSelect={onPendingChange} />
+        <BodyDiagram selected={pending} onSelect={onPendingChange} maxWidth={diagramMaxWidth} />
       </ScrollView>
 
       {/* Pinned footer — always visible regardless of diagram height */}
@@ -180,67 +193,46 @@ function RegionBodyPicker({
           paddingHorizontal: 16,
           paddingTop: 10,
           paddingBottom: bottomInset + 16,
-          gap: 10,
+          gap: 4,
         }}
       >
-        {pending && (
-          <Pressable
-            onPress={() => onConfirm(pending)}
-            style={({ pressed }) => [
-              {
-                flexDirection: 'row' as const,
-                alignItems: 'center' as const,
-                justifyContent: 'center' as const,
-                gap: 8,
-                backgroundColor: C.primary,
-                borderRadius: 14,
-                paddingVertical: 15,
-                ...glowShadow(C.primary),
-              },
-              pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
-            ]}
-            testID={`${testPrefix}-start-region`}
-          >
-            <Ionicons name="play" size={16} color={C.textInverse} />
-            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
-              Start {BODY_DIAGRAM_LABELS[pending]}
-            </Text>
-          </Pressable>
-        )}
         <Pressable
-          onPress={onFullBody}
+          onPress={() => (pending ? onConfirm(pending) : onFullBody())}
           style={({ pressed }) => [
             {
               flexDirection: 'row' as const,
               alignItems: 'center' as const,
               justifyContent: 'center' as const,
               gap: 8,
-              backgroundColor: pending ? C.surfaceTertiary : C.primary,
+              backgroundColor: C.primary,
               borderRadius: 14,
               paddingVertical: 15,
-              borderWidth: pending ? 1 : 0,
-              borderColor: C.borderLight,
-              ...(pending ? {} : glowShadow(C.primary)),
+              ...glowShadow(C.primary),
             },
             pressed && { opacity: 0.88, transform: [{ scale: 0.98 as number }] },
           ]}
-          testID={`${testPrefix}-fullbody`}
+          testID={pending ? `${testPrefix}-start-region` : `${testPrefix}-fullbody`}
         >
-          <Ionicons
-            name="flash-outline"
-            size={16}
-            color={pending ? C.textSecondary : C.textInverse}
-          />
-          <Text
-            style={{
-              fontSize: 16,
-              fontFamily: 'Inter_700Bold',
-              color: pending ? C.textSecondary : C.textInverse,
-            }}
-          >
-            Full body circuit
+          <Ionicons name={pending ? 'play' : 'flash-outline'} size={16} color={C.textInverse} />
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+            {pending ? `Start ${BODY_DIAGRAM_LABELS[pending]}` : 'Full body circuit'}
           </Text>
         </Pressable>
+        {pending && (
+          <Pressable
+            onPress={onFullBody}
+            hitSlop={8}
+            style={({ pressed }) => [
+              { alignItems: 'center' as const, paddingVertical: 8 },
+              pressed && { opacity: 0.6 },
+            ]}
+            testID={`${testPrefix}-fullbody`}
+          >
+            <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary }}>
+              or do a full body circuit instead
+            </Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -941,7 +933,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 10,
-      height: '78%',
+      // Kept in sync with PICKER_SHEET_HEIGHT_PCT, which RegionBodyPicker uses
+      // to size the body diagram to fit this sheet without scrolling.
+      height: `${PICKER_SHEET_HEIGHT_PCT * 100}%`,
     },
 
     equipmentChipRow: {
