@@ -85,12 +85,27 @@ const TAB_ICONS = {
 } as const;
 
 function TabIcon({ source, focused, size = 28 }: { source: any; focused: boolean; size?: number }) {
+  const C = useColors();
+  const chipSize = size + 14;
   return (
-    <Image
-      source={source}
-      style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
-      resizeMode="contain"
-    />
+    <View
+      style={{
+        width: chipSize,
+        height: chipSize,
+        borderRadius: chipSize / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: C.tabIconBg,
+        borderWidth: 1,
+        borderColor: C.tabIconBorder,
+      }}
+    >
+      <Image
+        source={source}
+        style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
+        resizeMode="contain"
+      />
+    </View>
   );
 }
 

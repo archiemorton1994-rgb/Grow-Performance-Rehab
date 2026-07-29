@@ -38,7 +38,15 @@ const LightColors = {
   badgeVolumeText: '#2a5f8f',
 
   tabActive: '#2f6b46',
-  tabInactive: '#9ca5a0',
+  // Was '#9ca5a0' - only ~2.4:1 against the near-white tab bar, hard to read.
+  // Matches textSecondary's already-vetted contrast (~4.8:1).
+  tabInactive: '#6b7570',
+  /** Soft backdrop chip behind the plain (non-Train) tab icons so they read
+   *  as a shape against the light tab bar instead of just floating artwork. */
+  tabIconBg: '#e8f2ec',
+  /** Outline on that chip - the fill alone is only ~1.1:1 against the tab
+   *  bar, too subtle to reliably read as a boundary on its own. */
+  tabIconBorder: '#9ca5a0',
 
   destructive: '#ef4444',
   pbFlash: '#f59e0b',
@@ -140,6 +148,9 @@ const DarkColors = {
 
   tabActive: '#3d8a5c',
   tabInactive: '#444444',
+  // Dark tab bar already has good icon/text contrast - no backdrop needed.
+  tabIconBg: 'transparent',
+  tabIconBorder: 'transparent',
 
   destructive: '#f87171',
   pbFlash: '#fbbf24',
