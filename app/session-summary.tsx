@@ -24,30 +24,33 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useColors, DarkColors, AppColors } from '@/constants/colors';
 import { useAppStore, SetLog, ExerciseCategory, PainRegion, SessionType } from '@/lib/store';
-import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
+import { getSessionLabel } from '@/lib/workout-engine';
 import {
   getExerciseCategoryMap,
   getExerciseTargetRegionsMap,
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
 import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
-import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
-import { formatDate, formatWeight } from '@/lib/utils';
+import { BodyDiagram, MUSCLE_SET, PANEL_BG } from '@/components/BodyDiagram';
+import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
-// ── Certificate palette (fixed ecru/parchment — always light regardless of
-//    device theme so the shareable card reads as a physical document) ──────────
-const CARD_BG = '#F5F0E8'; // warm parchment
-const OUTER_BG = '#1A1611'; // dark-warm surround so the card floats visibly
-const CARD_TEXT = '#1A1A1A'; // near-black ink
-const CARD_MUTED = '#5C5248'; // warm dark muted
-const CARD_FAINT = '#9C8E82'; // warm medium gray
-const CARD_HAIRLINE = 'rgba(60,45,30,0.14)'; // warm dark divider
-const PILL_BG = 'rgba(60,45,30,0.06)'; // subtle warm tint for stat strip
+// Certificate palette (fixed regardless of device theme so the shareable card
+// always looks the same). Iron-and-chalk dark palette, not a light parchment
+// certificate - the card is meant to feel like a win worth showing off, not a
+// diploma. PANEL_BG matches the dark panel already used behind the body
+// diagram elsewhere in the app, so this doesn't introduce a new near-black.
+const OUTER_BG = PANEL_BG; // '#0d0d0d' - screen background around the card
+const CARD_BG = '#161613'; // the card itself
+const PILL_BG = '#1b1b17'; // sub-panels inside the card (hero, stats, map)
+const CARD_TEXT = '#f4f2ec'; // warm off-white ink
+const CARD_MUTED = '#a8a49a'; // warm grey - secondary text
+const CARD_FAINT = '#726e64'; // warm dark grey - tertiary text, labels
+const CARD_HAIRLINE = '#2b2a26'; // warm dark divider
 const GOLD = '#fbbf24';
-const BRAND_GREEN = '#2f6b46';
+const ACCENT_GREEN = '#4ade80'; // bright accent for text/glow sitting directly on the dark card
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 
@@ -258,8 +261,6 @@ export default function SessionSummaryScreen() {
 
   const completedSessions = useAppStore((s) => s.completedSessions);
   const getExerciseHistory = useAppStore((s) => s.getExerciseHistory);
-  const userName = useAppStore((s) => s.userProfile?.name);
-  const profilePhotoUri = useAppStore((s) => s.profilePhotoUri);
   const weightUnit = useAppStore((s) => s.weightUnit);
   const getStreakDays = useAppStore((s) => s.getStreakDays);
   const setExerciseFeedback = useAppStore((s) => s.setExerciseFeedback);
@@ -559,13 +560,9 @@ export default function SessionSummaryScreen() {
       : `${Math.floor(durationSeconds / 60)}m`;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
-  const topWeightDisplay = topWeightKg > 0 ? formatWeight(topWeightKg, weightUnit) : '-';
   const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
   const pbCount = summary.rows.filter((r) => r.badge === 'gain-weight').length;
-
-  const firstInitial =
-    userName && userName.trim().length > 0 ? userName.trim()[0].toUpperCase() : '?';
 
   // Responsive compact-diagram sizing: larger on tall phones, smaller on short
   // ones so the certificate always fits on one screen without scrolling.
@@ -573,10 +570,43 @@ export default function SessionSummaryScreen() {
 
   const heatmap = (workedRegions ?? {}) as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
 
+  // Lead with the one biggest thing that happened, not three equal stats.
+  // Priority: a genuine PB beats hitting a milestone session beats an
+  // ordinary day's top weight (or, for a recovery session with nothing
+  // weighted, the set count).
+  const bestPbRow = summary.rows
+    .filter((r) => r.badge === 'gain-weight')
+    .sort((a, b) => b.deltaWeight - a.deltaWeight)[0];
+  const heroKind: 'pb' | 'milestone' | 'default' = bestPbRow
+    ? 'pb'
+    : isMilestone
+      ? 'milestone'
+      : 'default';
+
+  const heroNumber =
+    heroKind === 'pb' && bestPbRow
+      ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
+      : heroKind === 'milestone'
+        ? sessionNumber
+        : topWeightKg > 0
+          ? kgToDisplayUnit(topWeightKg, weightUnit)
+          : summary.totalSets;
+  const heroUnit =
+    heroKind === 'milestone' ? '' : heroKind === 'default' && topWeightKg === 0 ? 'sets' : weightUnit;
+  const heroBadgeLabel =
+    heroKind === 'pb' ? 'New personal best' : heroKind === 'milestone' ? 'Milestone session' : null;
+  const heroCaption =
+    heroKind === 'pb' && bestPbRow
+      ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
+      : heroKind === 'milestone'
+        ? `${sessionNumber} sessions and counting`
+        : streakDays >= 1
+          ? `${streakDays} day streak. Keep it going.`
+          : 'Nice work today.';
+
   const stats: { label: string; value: string; accent?: boolean }[] = [
     { label: 'Duration', value: durationLabel },
     { label: 'Sets', value: String(summary.totalSets) },
-    { label: 'Top Weight', value: topWeightDisplay, accent: topWeightKg > 0 },
     { label: 'Muscles', value: String(musclesHit) },
   ];
 
@@ -648,12 +678,10 @@ export default function SessionSummaryScreen() {
         ) : (
         <>
         <View style={styles.cardWrap}>
-          {/* ── Certificate card (this View is captured for sharing) ── */}
+          {/* Certificate card (this View is captured for sharing) */}
           <Animated.View entering={FadeIn.duration(450)}>
             <View ref={certRef} collapsable={false} style={styles.card}>
-              <View style={styles.accentBar} />
-
-              {/* Header: brand + date */}
+              {/* Top line: brand + date */}
               <View style={styles.cardHeader}>
                 <View style={styles.brandRow}>
                   <View style={styles.logoCircle}>
@@ -668,156 +696,145 @@ export default function SessionSummaryScreen() {
                 <Text style={styles.dateText}>{formatDate(session.date)}</Text>
               </View>
 
-              {/* Identity: avatar + headline */}
-              <View style={styles.identityRow}>
-                <View style={[styles.avatar, isMilestone && styles.avatarMilestone]}>
-                  {profilePhotoUri ? (
-                    <Image source={{ uri: profilePhotoUri }} style={styles.avatarImg} />
-                  ) : (
-                    <Text style={styles.avatarInitial}>{firstInitial}</Text>
-                  )}
-                </View>
-                <View style={styles.identityText}>
-                  <View style={styles.tagRow}>
-                    <Text style={styles.sessionTag}>SESSION {sessionNumber}</Text>
-                    {isMilestone && (
-                      <View style={styles.milestonePill}>
-                        <Ionicons name="trophy" size={9} color="#0d0d0d" />
-                        <Text style={styles.milestonePillText}>MILESTONE</Text>
-                      </View>
-                    )}
-                    {session.isTestWeek && (
-                      <View style={styles.testPill}>
-                        <Text style={styles.testPillText}>TEST WEEK</Text>
-                      </View>
-                    )}
+              {/* Hero: the single biggest thing that happened this session */}
+              <Animated.View
+                entering={FadeInDown.duration(500).delay(80)}
+                style={styles.heroPanel}
+              >
+                {heroBadgeLabel && (
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="trophy" size={11} color={GOLD} />
+                    <Text style={styles.heroBadgeText}>{heroBadgeLabel.toUpperCase()}</Text>
                   </View>
-                  <Text style={styles.headline} numberOfLines={1} adjustsFontSizeToFit>
+                )}
+                <View style={styles.heroNumberRow}>
+                  <Text style={styles.heroNumber} numberOfLines={1} adjustsFontSizeToFit>
+                    {heroNumber}
+                  </Text>
+                  {heroUnit ? <Text style={styles.heroUnit}>{heroUnit}</Text> : null}
+                </View>
+                <Text style={styles.heroCaption} numberOfLines={2}>
+                  {heroCaption}
+                </Text>
+                {pbCount > 1 && (
+                  <Text style={styles.heroExtra} testID="pb-count-row">
+                    +{pbCount - 1} more personal best{pbCount > 2 ? 's' : ''} this session
+                  </Text>
+                )}
+                <View style={styles.heroSessionRow}>
+                  <Text style={styles.heroSessionName} numberOfLines={1}>
                     {session.displayLabel ?? getSessionLabel(session.sessionType)}
                   </Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>
-                    {getSessionSubtitle(session.sessionType)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Stat strip */}
-              <View style={styles.statStrip}>
-                {stats.map((s, i) => (
-                  <React.Fragment key={s.label}>
-                    {i > 0 && <View style={styles.statSep} />}
-                    <View style={styles.statItem}>
-                      <Text
-                        style={[styles.statValue, s.accent && { color: BRAND_GREEN }]}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                      >
-                        {s.value}
-                      </Text>
-                      <Text style={styles.statLabel} numberOfLines={1}>
-                        {s.label}
-                      </Text>
+                  <View style={styles.heroDot} />
+                  <Text style={styles.heroSessionNum}>Session {sessionNumber}</Text>
+                  {session.isTestWeek && (
+                    <View style={styles.testPill}>
+                      <Text style={styles.testPillText}>TEST WEEK</Text>
                     </View>
-                  </React.Fragment>
+                  )}
+                </View>
+              </Animated.View>
+
+              {/* Stat rail */}
+              <Animated.View
+                entering={FadeInDown.duration(450).delay(160)}
+                style={styles.statRail}
+              >
+                {stats.map((s) => (
+                  <View key={s.label} style={styles.statTile}>
+                    <Text style={styles.statLabel} numberOfLines={1}>
+                      {s.label.toUpperCase()}
+                    </Text>
+                    <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {s.value}
+                    </Text>
+                  </View>
                 ))}
-              </View>
+              </Animated.View>
 
-              {/* PB count — only shown when at least one PB was set */}
-              {pbCount > 0 && (
-                <View style={styles.pbRow} testID="pb-count-row">
-                  <Text style={styles.pbText}>
-                    🏆 {pbCount} new personal best{pbCount > 1 ? 's' : ''} this session
-                  </Text>
+              {/* Body diagram */}
+              <Animated.View
+                entering={FadeInDown.duration(450).delay(220)}
+                style={styles.mapPanel}
+              >
+                <View style={styles.diagramRow}>
+                  <View style={styles.diagramCol}>
+                    <BodyDiagram
+                      compact
+                      defaultView="front"
+                      heatmapCounts={heatmap}
+                      maxWidth={bodyMaxWidth}
+                      onSelect={() => {}}
+                    />
+                    <Text style={styles.diagramLabel}>FRONT</Text>
+                  </View>
+                  <View style={styles.diagramCol}>
+                    <BodyDiagram
+                      compact
+                      defaultView="back"
+                      heatmapCounts={heatmap}
+                      maxWidth={bodyMaxWidth}
+                      onSelect={() => {}}
+                    />
+                    <Text style={styles.diagramLabel}>BACK</Text>
+                  </View>
                 </View>
-              )}
-
-              {/* Dual body diagram — front + back side by side */}
-              <View style={styles.diagramRow}>
-                <View style={styles.diagramCol}>
-                  <BodyDiagram
-                    compact
-                    lightBg
-                    defaultView="front"
-                    heatmapCounts={heatmap}
-                    maxWidth={bodyMaxWidth}
-                    onSelect={() => {}}
-                  />
-                  <Text style={styles.diagramLabel}>FRONT</Text>
-                </View>
-                <View style={styles.diagramCol}>
-                  <BodyDiagram
-                    compact
-                    lightBg
-                    defaultView="back"
-                    heatmapCounts={heatmap}
-                    maxWidth={bodyMaxWidth}
-                    onSelect={() => {}}
-                  />
-                  <Text style={styles.diagramLabel}>BACK</Text>
-                </View>
-              </View>
+              </Animated.View>
 
               {/* Footer */}
               <View style={styles.cardFooter}>
                 {streakDays >= 1 ? (
-                  <Text style={styles.footerStreak}>
-                    🔥 {streakDays} day{streakDays > 1 ? 's' : ''} streak
-                  </Text>
+                  <View style={styles.footerStreak}>
+                    <Ionicons name="flame" size={13} color={GOLD} />
+                    <Text style={styles.footerStreakText}>
+                      {streakDays} day{streakDays > 1 ? 's' : ''} streak
+                    </Text>
+                  </View>
                 ) : (
-                  <Text style={styles.footerStreak}>Keep it going</Text>
+                  <Text style={styles.footerStreakText}>Keep it going</Text>
                 )}
-                <Text style={styles.footerBrand}>growperformance.app</Text>
+                <Text style={styles.footerBrand}>growperformanceandrehab.com</Text>
               </View>
             </View>
           </Animated.View>
         </View>
 
-        {/* ── Actions (not captured) ── */}
-        <Animated.View entering={FadeInDown.delay(120).duration(420)} style={styles.actionRow}>
+        {/* Actions (not captured) */}
+        <Animated.View entering={FadeInDown.delay(280).duration(420)} style={styles.actionRow}>
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowRatingModal(true);
             }}
-            style={[styles.actionBtn, { backgroundColor: C.surface, borderColor: C.borderLight }]}
+            style={styles.actionBtn}
             testID="open-rate-modal"
           >
-            <Ionicons name="thumbs-up-outline" size={18} color={C.primary} />
-            <Text style={[styles.actionBtnText, { color: C.text }]}>Rate</Text>
+            <Ionicons name="thumbs-up-outline" size={18} color={CARD_TEXT} />
+            <Text style={styles.actionBtnText}>Rate</Text>
           </Pressable>
           <Pressable
             onPress={handleSave}
             disabled={isSaving}
-            style={[
-              styles.actionBtn,
-              { backgroundColor: C.surface, borderColor: C.borderLight },
-              isSaving && { opacity: 0.5 },
-            ]}
+            style={[styles.actionBtn, isSaving && { opacity: 0.5 }]}
             testID="save-workout"
           >
             <Ionicons
               name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
               size={18}
-              color={saveConfirmed ? C.primary : C.primary}
+              color={CARD_TEXT}
             />
-            <Text style={[styles.actionBtnText, { color: C.text }]}>
+            <Text style={styles.actionBtnText}>
               {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
             </Text>
           </Pressable>
           <Pressable
             onPress={handleShare}
             disabled={isSharing}
-            style={[
-              styles.actionBtn,
-              { backgroundColor: C.surface, borderColor: C.borderLight },
-              isSharing && { opacity: 0.5 },
-            ]}
+            style={[styles.actionBtnPrimary, isSharing && { opacity: 0.5 }]}
             testID="share-workout"
           >
-            <Ionicons name="share-outline" size={18} color={C.primary} />
-            <Text style={[styles.actionBtnText, { color: C.text }]}>
-              {isSharing ? '…' : 'Share'}
-            </Text>
+            <Ionicons name="share-outline" size={18} color={OUTER_BG} />
+            <Text style={styles.actionBtnPrimaryText}>{isSharing ? '…' : 'Share'}</Text>
           </Pressable>
         </Animated.View>
         </>
@@ -1015,7 +1032,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
-  // ── Certificate card ────────────────────────────────────────────────────────
+  // Certificate card
   cardWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -1024,22 +1041,18 @@ const styles = StyleSheet.create({
     backgroundColor: CARD_BG,
     borderRadius: 24,
     overflow: 'hidden',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 16,
     borderWidth: 1,
     borderColor: CARD_HAIRLINE,
-  },
-  accentBar: {
-    height: 5,
-    backgroundColor: BRAND_GREEN,
-    marginHorizontal: -20,
-    marginBottom: 16,
+    gap: 14,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    paddingHorizontal: 2,
   },
   brandRow: {
     flexDirection: 'row',
@@ -1058,154 +1071,156 @@ const styles = StyleSheet.create({
     height: 26,
   },
   brandText: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: 'Inter_700Bold',
-    color: CARD_TEXT,
-    letterSpacing: 2,
+    color: CARD_MUTED,
+    letterSpacing: 2.5,
   },
   dateText: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    color: CARD_MUTED,
+    color: CARD_FAINT,
+    fontVariant: ['tabular-nums'],
   },
 
-  // ── Identity ────────────────────────────────────────────────────────────────
-  identityRow: {
+  // Hero - the single biggest thing that happened this session
+  heroPanel: {
+    backgroundColor: PILL_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: CARD_HAIRLINE,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+  },
+  heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginBottom: 18,
+    gap: 5,
+    backgroundColor: 'rgba(251,191,36,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 14,
   },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: BRAND_GREEN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarMilestone: {
-    borderWidth: 2,
-    borderColor: GOLD,
-  },
-  avatarImg: {
-    width: 52,
-    height: 52,
-  },
-  avatarInitial: {
-    fontSize: 22,
-    fontFamily: 'Inter_700Bold',
-    color: '#fff',
-  },
-  identityText: {
-    flex: 1,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  sessionTag: {
+  heroBadgeText: {
     fontSize: 10,
     fontFamily: 'Inter_700Bold',
-    color: CARD_FAINT,
-    letterSpacing: 1.5,
+    color: GOLD,
+    letterSpacing: 1,
   },
-  milestonePill: {
+  heroNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  heroNumber: {
+    fontSize: 56,
+    lineHeight: 58,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_TEXT,
+    fontVariant: ['tabular-nums'],
+  },
+  heroUnit: {
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    color: CARD_MUTED,
+    paddingBottom: 8,
+  },
+  heroCaption: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: CARD_MUTED,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  heroExtra: {
+    fontSize: 11.5,
+    fontFamily: 'Inter_600SemiBold',
+    color: ACCENT_GREEN,
+    marginTop: 4,
+  },
+  heroSessionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: GOLD,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    gap: 8,
+    marginTop: 16,
   },
-  milestonePillText: {
-    fontSize: 8,
-    fontFamily: 'Inter_700Bold',
-    color: '#0d0d0d',
-    letterSpacing: 0.8,
+  heroSessionName: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    color: CARD_TEXT,
+  },
+  heroDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: CARD_FAINT,
+  },
+  heroSessionNum: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: CARD_FAINT,
   },
   testPill: {
-    backgroundColor: 'rgba(47,107,70,0.12)',
+    backgroundColor: 'rgba(74,222,128,0.12)',
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
+    marginLeft: 2,
   },
   testPillText: {
     fontSize: 8,
     fontFamily: 'Inter_700Bold',
-    color: BRAND_GREEN,
+    color: ACCENT_GREEN,
     letterSpacing: 0.8,
   },
-  headline: {
-    fontSize: 28,
-    fontFamily: 'Inter_700Bold',
-    color: CARD_TEXT,
-    lineHeight: 32,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    color: CARD_MUTED,
-    marginTop: 1,
-  },
 
-  // ── Stat strip ──────────────────────────────────────────────────────────────
-  statStrip: {
+  // Stat rail
+  statRail: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: PILL_BG,
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
+    gap: 10,
   },
-  statItem: {
+  statTile: {
     flex: 1,
+    backgroundColor: PILL_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: CARD_HAIRLINE,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  statSep: {
-    width: 1,
-    height: 30,
-    backgroundColor: CARD_HAIRLINE,
-  },
-  statValue: {
-    fontSize: 18,
-    fontFamily: 'Inter_700Bold',
-    color: CARD_TEXT,
+    gap: 4,
   },
   statLabel: {
     fontSize: 9,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_700Bold',
     color: CARD_FAINT,
-    letterSpacing: 0.8,
-    marginTop: 3,
-    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  statValue: {
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
+    color: CARD_TEXT,
+    fontVariant: ['tabular-nums'],
   },
 
-  // ── PB count row ────────────────────────────────────────────────────────────
-  pbRow: {
-    alignItems: 'center',
-    marginTop: -4,
-    marginBottom: 10,
+  // Body diagram panel
+  mapPanel: {
+    backgroundColor: PILL_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CARD_HAIRLINE,
+    paddingVertical: 14,
   },
-  pbText: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: BRAND_GREEN,
-    textAlign: 'center',
-  },
-
-  // ── Body diagram ────────────────────────────────────────────────────────────
   diagramRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'flex-start',
     gap: 20,
-    marginBottom: 14,
   },
   diagramCol: {
     alignItems: 'center',
@@ -1218,16 +1233,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Card footer ─────────────────────────────────────────────────────────────
+  // Card footer
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: CARD_HAIRLINE,
+    paddingHorizontal: 2,
   },
   footerStreak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  footerStreakText: {
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
     color: CARD_MUTED,
@@ -1253,10 +1271,28 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
+    backgroundColor: PILL_BG,
+    borderColor: CARD_HAIRLINE,
   },
   actionBtnText: {
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
+    color: CARD_TEXT,
+  },
+  actionBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: ACCENT_GREEN,
+  },
+  actionBtnPrimaryText: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+    color: OUTER_BG,
   },
 
   // ── Done ────────────────────────────────────────────────────────────────────
