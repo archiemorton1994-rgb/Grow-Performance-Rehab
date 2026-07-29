@@ -567,7 +567,7 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = () => {
     const message =
-      'This permanently deletes your account and all your data — sessions, stats, achievements, everything. This cannot be undone.';
+      'This permanently deletes your account and all your data: sessions, stats, achievements, everything. This cannot be undone.';
     if (Platform.OS === 'web') {
       if (window.confirm(`Delete your account?\n\n${message}`)) performDeleteAccount();
       return;
@@ -805,7 +805,7 @@ export default function ProfileScreen() {
                   Log a{' '}
                   <GlossaryTerm
                     term="1RM"
-                    definition="One-Rep Max — the most weight you can lift for a single clean rep of a lift. Used to calibrate your training weights."
+                    definition="One-Rep Max: the most weight you can lift for a single clean rep of a lift. Used to calibrate your training weights."
                     textStyle={styles.ratioCardSub}
                   />{' '}
                   to track your bodyweight multipliers

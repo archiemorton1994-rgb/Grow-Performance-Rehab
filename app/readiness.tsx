@@ -53,13 +53,13 @@ const READINESS_TUTORIAL = [
     iconName: 'medical-outline',
     iconLabel: 'Pain',
     title: 'Any pain today?',
-    body: "Tap a region if anything is sore — we'll automatically swap exercises away from that area so you can train safely.",
+    body: "Tap a region if anything is sore, and we'll automatically swap exercises away from that area so you can train safely.",
   },
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
     title: 'How are you feeling?',
-    body: 'Pick your energy honestly — low energy gets a lighter session, high energy pushes harder. We adjust the weight automatically.',
+    body: 'Pick your energy honestly: low energy gets a lighter session, high energy pushes harder. We adjust the weight automatically.',
   },
   {
     iconName: 'time-outline',
@@ -426,7 +426,7 @@ export default function ReadinessScreen() {
                 Test
               </Text>
               <Text style={styles.testWeekBannerSub}>
-                1RM = max weight you can lift for one rep.{'\n'}AMRAP @ 90% — go all out. Your
+                1RM = max weight you can lift for one rep.{'\n'}AMRAP @ 90%: go all out. Your
                 numbers don&apos;t lie.
               </Text>
             </View>
@@ -451,7 +451,7 @@ export default function ReadinessScreen() {
           <View style={styles.testDeferConfirm}>
             <Ionicons name="checkmark-circle-outline" size={16} color={C.primary} />
             <Text style={styles.testDeferConfirmText}>
-              Test postponed — we&apos;ll ask again next session. Today&apos;s a normal session.
+              Test postponed. We&apos;ll ask again next session, today&apos;s a normal one.
             </Text>
           </View>
         )}
@@ -710,7 +710,7 @@ export default function ReadinessScreen() {
           ) : hasAches ? (
             <>
               <Ionicons name="arrow-forward" size={18} color={C.textInverse} />
-              <Text style={styles.startButtonText}>Next — pick area →</Text>
+              <Text style={styles.startButtonText}>Next: pick area →</Text>
             </>
           ) : (
             <>
@@ -826,7 +826,7 @@ export default function ReadinessScreen() {
           Which area is affected?
         </Text>
         <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 2 }]}>
-          {"Tap one or more regions — we'll adjust exercises"}
+          {"Tap one or more regions and we'll adjust your exercises"}
         </Text>
         <Pressable
           onPress={() => setStep('main')}
@@ -906,7 +906,7 @@ export default function ReadinessScreen() {
             >
               <Ionicons name="body-outline" size={16} color={C.warning} />
               <Text style={[styles.startButtonText, { color: C.warning }]}>
-                Not sure — train carefully
+                Not sure, train carefully
               </Text>
             </Pressable>
           )}

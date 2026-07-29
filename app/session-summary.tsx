@@ -162,7 +162,7 @@ function ProgressTab({
             lineHeight: 19,
           }}
         >
-          Every set you complete — and how you rate it — decides the weight the app suggests next
+          Every set you complete, and how you rate it, decides the weight the app suggests next
           time you do this exercise. This is that decision, made visible.
         </Text>
       </View>
@@ -171,7 +171,7 @@ function ProgressTab({
         <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
           <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
             {isRecoverySession
-              ? "Recovery sessions don't load exercises, so there's nothing to compare here — this one's about the reps and holds, not the numbers."
+              ? "Recovery sessions don't load exercises, so there's nothing to compare here. This one's about the reps and holds, not the numbers."
               : "No weighted sets logged this session, so there's nothing to compare yet."}
           </Text>
         </View>

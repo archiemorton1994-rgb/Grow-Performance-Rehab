@@ -1550,7 +1550,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
     title: 'Your first exercise',
-    body: "Tap 'Watch form' for a video demo before you start. Work through exercises in order — the app builds them to flow.",
+    body: "Tap 'Watch form' for a video demo before you start. Work through exercises in order, the app builds them to flow.",
   },
   {
     spotlightRef: 'sessionBar',
@@ -1567,7 +1567,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
-    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression — check the Progress tab after your session to see exactly what changed.',
+    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression. Check the Progress tab after your session to see exactly what changed.',
     arrowDirection: 'down',
     demoForceFeedback: true,
   },
@@ -2620,7 +2620,7 @@ export default function SessionScreen() {
           {isTestWeek ? (
             <GlossaryTerm
               term="AMRAP @ 90%"
-              definition="As Many Reps As Possible — you'll lift 90% of your estimated max for as many clean reps as you can manage."
+              definition="As Many Reps As Possible: you'll lift 90% of your estimated max for as many clean reps as you can manage."
               textStyle={styles.sessionSub}
             />
           ) : null}
@@ -2926,7 +2926,7 @@ export default function SessionScreen() {
               }}
             >
               {
-                'Your programme is ready. Sessions rotate automatically — just show up and the app handles the planning.'
+                "Your programme is ready. Sessions rotate automatically, just show up and the app handles the planning."
               }
             </Text>
             <Pressable

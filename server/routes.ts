@@ -407,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>No method of transmission or storage is 100% secure. While we take reasonable steps to protect your information, we cannot guarantee absolute security.</p>
 
       <h2>5. Data Retention and Deletion</h2>
-      <p>We retain your account data for as long as your account is active. You can permanently delete your account and all associated data at any time from Settings within the app ("Delete account") — this takes effect immediately. You can also request deletion by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>, and we will action the request within 30 days.</p>
+      <p>We retain your account data for as long as your account is active. You can permanently delete your account and all associated data at any time from Settings within the app ("Delete account"), and this takes effect immediately. You can also request deletion by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>, and we will action the request within 30 days.</p>
 
       <h2>6. Children's Privacy</h2>
       <p>The Service is not directed at children under the age of 13 (or under 16 in the European Economic Area). We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will promptly delete it.</p>

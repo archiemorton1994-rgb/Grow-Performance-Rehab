@@ -359,7 +359,7 @@ export default function TrainScreen() {
           {/* KPI Sessions */}
           <GlossaryTerm
             term="KPI Sessions"
-            definition="Key Performance Indicator lifts — Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
+            definition="Key Performance Indicator lifts: Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
             textStyle={styles.sectionHeading}
           />
           <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
@@ -491,7 +491,7 @@ export default function TrainScreen() {
             >
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
               <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands — unlock more in Profile →
+                Bodyweight & Bands. Unlock more in Profile →
               </Text>
             </Pressable>
           )}

@@ -762,7 +762,7 @@ const goalsBadges: Badge[] = [
 const onboardingBadge: Badge = {
   id: 'onboarding_complete',
   name: 'First Steps',
-  description: 'You completed your first-look tour of GROW and started your journey.',
+  description: 'You made it through the full guided tour, start to finish.',
   category: 'milestone',
   criteriaType: 'profile_action',
   icon: 'rocket-outline',

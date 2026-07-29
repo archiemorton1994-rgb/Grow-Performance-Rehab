@@ -470,12 +470,12 @@ export default function HomeScreen() {
                 <Ionicons name="moon-outline" size={18} color={C.energyBadge} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.deloadBannerTitle, { color: C.text }]}>
-                    {consecutiveActiveWeeks} weeks straight — consider a deload
+                    {consecutiveActiveWeeks} weeks straight, might be time for a deload
                   </Text>
                   {deloadExpanded ? (
                     <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
                       {
-                        'Drop to 50–60% of your normal loads this week, keep the same structure. It flushes fatigue, lets joints recover, and supercompensates — your next block starts sharper.'
+                        'Drop to 50–60% of your normal loads this week, keep the same structure. It flushes fatigue, lets joints recover, and supercompensates, so your next block starts sharper.'
                       }
                     </Text>
                   ) : (
@@ -894,7 +894,7 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.milestoneToastTitle}>{milestoneHit} sessions completed</Text>
-            <Text style={styles.milestoneToastSub}>New milestone unlocked — keep it going.</Text>
+            <Text style={styles.milestoneToastSub}>That&apos;s a real milestone. Nice work.</Text>
           </View>
           <Pressable onPress={() => setMilestoneToastDismissed(true)} hitSlop={12}>
             <Ionicons name="close" size={16} color={C.textTertiary} />

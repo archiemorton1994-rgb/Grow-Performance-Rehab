@@ -133,7 +133,7 @@ const WELCOME_GROUPS = [
     items: [
       'Adapts to your equipment, energy & pain',
       'Personalised loads every session',
-      'No guesswork — always know what to do',
+      'Always know exactly what to do next',
     ],
   },
   {
@@ -842,7 +842,7 @@ export default function OnboardingScreen() {
                 <Ionicons name="color-palette-outline" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Choose your look</Text>
-              <Text style={styles.hint}>The screen updates live — change anytime in settings</Text>
+              <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
               <View style={[styles.optionList, { marginTop: 4 }]}>
                 {(
                   [
