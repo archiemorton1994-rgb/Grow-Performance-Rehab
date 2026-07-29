@@ -14,6 +14,7 @@ export interface SyncPayload {
   exerciseFeedback: Record<string, any>;
   weightUnit: string;
   testWeekFrequency: number;
+  testWeekDeferred: boolean;
   cycleStartOffset: number;
   lastLoggedWeights: Record<string, number>;
   lastSessionPerformance: Record<string, string>;

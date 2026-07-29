@@ -266,6 +266,12 @@ interface AppState {
   completedSessions: CompletedSession[];
   oneRepMaxes: OneRepMax[];
   testWeekFrequency: TestWeekFrequency;
+  /** True when a due test week was postponed (e.g. proper equipment wasn't
+   *  available that day) rather than skipped outright. Keeps isTestWeekDue()
+   *  true on the very next strength session instead of waiting a full
+   *  testWeekFrequency-session cycle for it to come due again. Cleared once a
+   *  genuine test-week session completes. Persisted. */
+  testWeekDeferred: boolean;
   userProfile: UserProfile;
   exerciseFeedback: Record<string, ExerciseFeedback>;
   lastReadinessEnergy: EnergyLevel;
@@ -349,6 +355,9 @@ interface AppState {
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
+  /** Postpone today's due test week — isTestWeekDue() stays true until a
+   *  genuine test-week session completes, instead of the count moving past it. */
+  deferTestWeek: () => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   setLastWeightPromptedAt: (ts: number) => void;
   setHasHydrated: (hydrated: boolean) => void;
@@ -444,6 +453,7 @@ export const useAppStore = create<AppState>()(
       completedSessions: [],
       oneRepMaxes: [],
       testWeekFrequency: 12,
+      testWeekDeferred: false,
       userProfile: {
         name: '',
         sex: 'male' as Sex,
@@ -495,6 +505,7 @@ export const useAppStore = create<AppState>()(
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
+      deferTestWeek: () => set({ testWeekDeferred: true }),
       setUserProfile: (profile) => {
         set((state) => {
           if (profile.bodyweightKg !== undefined && profile.bodyweightKg > 0) {
@@ -655,6 +666,9 @@ export const useAppStore = create<AppState>()(
             completedSessions: [{ ...session, id }, ...state.completedSessions],
             lastSessionPerformance: newPerformance,
             exerciseNormalStreak: newStreak,
+            // A genuine test-week session clears any postponement — the thing
+            // it was standing in for has now actually happened.
+            ...(session.isTestWeek ? { testWeekDeferred: false } : {}),
           };
         });
         // Award any newly unlocked badges based on the updated state.
@@ -777,7 +791,12 @@ export const useAppStore = create<AppState>()(
       },
 
       isTestWeekDue: () => {
-        const { completedSessions, testWeekFrequency } = get();
+        const { completedSessions, testWeekFrequency, testWeekDeferred } = get();
+        // A postponed test stays due regardless of count until it's actually
+        // taken — otherwise the next strength session would consume the
+        // "due" count and push the real test a full testWeekFrequency-session
+        // cycle away instead of just to the next session.
+        if (testWeekDeferred) return true;
         // Test week is based on strength session count only.
         const strengthCount = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)
@@ -878,6 +897,7 @@ export const useAppStore = create<AppState>()(
           exerciseFeedback: s.exerciseFeedback,
           weightUnit: s.weightUnit,
           testWeekFrequency: s.testWeekFrequency,
+          testWeekDeferred: s.testWeekDeferred,
           cycleStartOffset: s.cycleStartOffset,
           lastLoggedWeights: s.lastLoggedWeights,
           lastSessionPerformance: s.lastSessionPerformance,
@@ -953,6 +973,7 @@ export const useAppStore = create<AppState>()(
             exerciseFeedback: data.exerciseFeedback ?? s.exerciseFeedback,
             weightUnit: (data.weightUnit as any) ?? s.weightUnit,
             testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
+            testWeekDeferred: data.testWeekDeferred ?? s.testWeekDeferred,
             cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
             lastLoggedWeights: data.lastLoggedWeights ?? s.lastLoggedWeights,
             lastSessionPerformance:
@@ -1071,6 +1092,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!('weeklyStreakGoal' in persistedState)) {
           persistedState.weeklyStreakGoal = 2;
+        }
+        if (!('testWeekDeferred' in persistedState)) {
+          persistedState.testWeekDeferred = false;
         }
         if (!('themePreference' in persistedState)) {
           persistedState.themePreference = 'dark';

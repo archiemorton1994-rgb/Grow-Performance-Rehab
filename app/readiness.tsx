@@ -94,7 +94,17 @@ export default function ReadinessScreen() {
     setLastReadiness,
     readinessTutorialShown,
     setReadinessTutorialShown,
+    deferTestWeek,
   } = useAppStore();
+  // Once a due test is postponed, treat the rest of this screen as a normal
+  // session for good — the user still needs a plan for today.
+  const [testPostponed, setTestPostponed] = useState(false);
+  const effectiveTestWeek = isTestWeek && !testPostponed;
+  const handlePostponeTest = () => {
+    hapticTap();
+    deferTestWeek();
+    setTestPostponed(true);
+  };
 
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
@@ -286,7 +296,7 @@ export default function ReadinessScreen() {
       setStep('painRegion');
     } else {
       setLastReadiness(energy, timeAvailable);
-      if (isTestWeek) {
+      if (effectiveTestWeek) {
         router.push({
           pathname: '/session',
           params: {
@@ -324,7 +334,7 @@ export default function ReadinessScreen() {
     const regionParam = Array.isArray(region) ? region.join(',') : (region ?? '');
     setPainRegion(primary);
     setLastReadiness(energy, timeAvailable, primary);
-    if (isTestWeek) {
+    if (effectiveTestWeek) {
       router.push({
         pathname: '/session',
         params: {
@@ -398,7 +408,7 @@ export default function ReadinessScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.mainContent}
       >
-        {isTestWeek && (
+        {effectiveTestWeek && (
           <View style={styles.testWeekBanner}>
             <View style={styles.testWeekBannerIcon}>
               <Ionicons name="trophy" size={22} color={C.trophy} />
@@ -422,6 +432,29 @@ export default function ReadinessScreen() {
                 numbers don&apos;t lie.
               </Text>
             </View>
+          </View>
+        )}
+        {effectiveTestWeek &&
+          TIER_ORDER.indexOf(effectiveTier) < TIER_ORDER.indexOf('dumbbells') && (
+            <View style={styles.testDeferBanner}>
+              <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.testDeferText}>
+                  {getEquipmentLabel(effectiveTier)} won&apos;t give a number you can trust for a
+                  real 1RM test.
+                </Text>
+                <Pressable onPress={handlePostponeTest} hitSlop={6} testID="postpone-test-week">
+                  <Text style={styles.testDeferLink}>Postpone the test to next session →</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        {testPostponed && (
+          <View style={styles.testDeferConfirm}>
+            <Ionicons name="checkmark-circle-outline" size={16} color={C.primary} />
+            <Text style={styles.testDeferConfirmText}>
+              Test postponed — we&apos;ll ask again next session. Today&apos;s a normal session.
+            </Text>
           </View>
         )}
         {/* Equipment */}
@@ -556,7 +589,7 @@ export default function ReadinessScreen() {
           </View>
         </View>
 
-        {!isTestWeek && (
+        {!effectiveTestWeek && (
           <>
             <View style={styles.divider} />
 
@@ -664,14 +697,14 @@ export default function ReadinessScreen() {
           disabled={selectedEquipments.length === 0}
           style={({ pressed }) => [
             styles.startButton,
-            isTestWeek && styles.startButtonTestWeek,
+            effectiveTestWeek && styles.startButtonTestWeek,
             selectedEquipments.length === 0 && styles.startButtonDisabled,
             pressed &&
               selectedEquipments.length > 0 && { opacity: 0.9, transform: [{ scale: 0.98 }] },
           ]}
           testID="readiness-start"
         >
-          {isTestWeek ? (
+          {effectiveTestWeek ? (
             <>
               <Ionicons name="trophy" size={18} color={C.textInverse} />
               <Text style={styles.startButtonText}>Begin Test</Text>
@@ -894,10 +927,10 @@ export default function ReadinessScreen() {
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
-            {isTestWeek ? 'Strength Test Week' : getSessionLabel(sessionType)}
+            {effectiveTestWeek ? 'Strength Test Week' : getSessionLabel(sessionType)}
           </Text>
           <Text style={styles.sessionSub}>
-            {isTestWeek ? 'Strength Testing' : getSessionSubtitle(sessionType)}
+            {effectiveTestWeek ? 'Strength Testing' : getSessionSubtitle(sessionType)}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -1232,6 +1265,44 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     startButtonTestWeek: {
       backgroundColor: C.pbFlash,
+    },
+    testDeferBanner: {
+      flexDirection: 'row',
+      gap: 10,
+      backgroundColor: C.warningLight,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.warning + '4d',
+      padding: 14,
+      marginBottom: 16,
+    },
+    testDeferText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+      lineHeight: 18,
+      marginBottom: 6,
+    },
+    testDeferLink: {
+      fontSize: 13,
+      fontFamily: 'Inter_700Bold',
+      color: C.warning,
+    },
+    testDeferConfirm: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.primarySurface,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    testDeferConfirmText: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.primary,
+      lineHeight: 17,
     },
   });
 }
