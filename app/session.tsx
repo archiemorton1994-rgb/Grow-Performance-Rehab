@@ -10,6 +10,7 @@ import {
   Modal,
   Linking,
   KeyboardAvoidingView,
+  Keyboard,
   AppState,
   AppStateStatus,
   useWindowDimensions,
@@ -545,6 +546,7 @@ export function SessionActiveBar({
 
   const handleComplete = () => {
     if (isZeroBlocked || !currentSet || !exercise) return;
+    Keyboard.dismiss();
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -685,6 +687,7 @@ export function SessionActiveBar({
                 placeholderTextColor={C.textTertiary}
                 keyboardType="decimal-pad"
                 returnKeyType="next"
+                selectTextOnFocus
                 value={weightText}
                 onChangeText={setWeightText}
                 onBlur={() => {
@@ -712,8 +715,10 @@ export function SessionActiveBar({
               placeholderTextColor={C.textTertiary}
               keyboardType="number-pad"
               returnKeyType="done"
+              selectTextOnFocus
               value={repsText}
               onChangeText={setRepsText}
+              onSubmitEditing={Keyboard.dismiss}
               testID={`set-${activeSetIndex + 1}-reps`}
             />
           </View>
