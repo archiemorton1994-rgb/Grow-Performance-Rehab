@@ -19,7 +19,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useColors } from '@/constants/colors';
+import { DarkColors, useColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,27 +85,12 @@ const TAB_ICONS = {
 } as const;
 
 function TabIcon({ source, focused, size = 28 }: { source: any; focused: boolean; size?: number }) {
-  const C = useColors();
-  const chipSize = size + 14;
   return (
-    <View
-      style={{
-        width: chipSize,
-        height: chipSize,
-        borderRadius: chipSize / 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: C.tabIconBg,
-        borderWidth: 1,
-        borderColor: C.tabIconBorder,
-      }}
-    >
-      <Image
-        source={source}
-        style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
-        resizeMode="contain"
-      />
-    </View>
+    <Image
+      source={source}
+      style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
+      resizeMode="contain"
+    />
   );
 }
 
@@ -249,20 +234,20 @@ function TabsInner() {
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: C.tabActive,
-          tabBarInactiveTintColor: C.tabInactive,
+          tabBarActiveTintColor: DarkColors.tabActive,
+          tabBarInactiveTintColor: DarkColors.tabInactive,
           headerShown: false,
           tabBarStyle: {
             position: 'absolute',
-            backgroundColor: C.background,
+            backgroundColor: DarkColors.background,
             borderTopWidth: 1,
-            borderTopColor: C.border,
+            borderTopColor: DarkColors.border,
             elevation: 0,
             ...(isWeb ? { height: 84 } : {}),
           },
           tabBarBackground: () =>
             isWeb ? (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: C.background }]} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: DarkColors.background }]} />
             ) : null,
         }}
       >
