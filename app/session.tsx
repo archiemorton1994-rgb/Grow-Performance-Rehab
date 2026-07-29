@@ -50,6 +50,7 @@ import {
   CardioLogData,
   useAppStore,
   STRENGTH_SESSION_TYPES,
+  TIER_ORDER,
 } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
 import {
@@ -457,6 +458,13 @@ interface SessionActiveBarProps {
   demoForceFeedback?: boolean;
 }
 
+// Generous ceilings, not realistic targets - just enough to catch a
+// fat-fingered entry (e.g. "2225" instead of "225") before it gets logged as
+// a permanent PR and skews progression/badges going forward. The heaviest
+// raw deadlift ever recorded is ~500kg.
+const MAX_PLAUSIBLE_KG = 500;
+const MAX_PLAUSIBLE_REPS = 200;
+
 export function SessionActiveBar({
   exercise,
   exerciseIndex,
@@ -528,6 +536,9 @@ export function SessionActiveBar({
   const isZeroBlocked =
     !isTimeExercise &&
     (isBandExercise ? parsedReps === 0 : effectiveWeightKg === 0 || parsedReps === 0);
+  const isImplausible =
+    !isTimeExercise && (effectiveWeightKg > MAX_PLAUSIBLE_KG || parsedReps > MAX_PLAUSIBLE_REPS);
+  const isCompleteBlocked = isZeroBlocked || isImplausible;
 
   const isNewRecord =
     !isBandExercise &&
@@ -545,7 +556,7 @@ export function SessionActiveBar({
       : null;
 
   const handleComplete = () => {
-    if (isZeroBlocked || !currentSet || !exercise) return;
+    if (isCompleteBlocked || !currentSet || !exercise) return;
     Keyboard.dismiss();
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -725,38 +736,42 @@ export function SessionActiveBar({
 
           <Pressable
             onPress={handleComplete}
-            disabled={isZeroBlocked}
-            style={[styles.barCompleteBtn, isZeroBlocked && styles.barCompleteBtnDisabled]}
+            disabled={isCompleteBlocked}
+            style={[styles.barCompleteBtn, isCompleteBlocked && styles.barCompleteBtnDisabled]}
             testID={`set-${activeSetIndex + 1}-check`}
           >
             <Ionicons
               name="checkmark-circle"
               size={26}
-              color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
+              color={isCompleteBlocked ? C.textTertiary : C.primaryDarkText}
             />
           </Pressable>
         </View>
       )}
 
-      {isZeroBlocked && !isTimeExercise && (
+      {!isTimeExercise && (isZeroBlocked || isImplausible) && (
         <Text style={styles.barZeroHint}>
-          {isBandExercise ? 'Enter reps to complete' : 'Enter weight and reps to complete'}
+          {isImplausible
+            ? `Double check that ${effectiveWeightKg > MAX_PLAUSIBLE_KG ? 'weight' : 'rep count'} - looks like a typo`
+            : isBandExercise
+              ? 'Enter reps to complete'
+              : 'Enter weight and reps to complete'}
         </Text>
       )}
 
       {!isTimeExercise && (
         <Pressable
           onPress={handleComplete}
-          disabled={isZeroBlocked}
-          style={[styles.didItBtn, isZeroBlocked && styles.didItBtnDisabled]}
+          disabled={isCompleteBlocked}
+          style={[styles.didItBtn, isCompleteBlocked && styles.didItBtnDisabled]}
           testID={`did-it-${activeSetIndex + 1}`}
         >
           <Ionicons
             name="checkmark-circle"
             size={20}
-            color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
+            color={isCompleteBlocked ? C.textTertiary : C.primaryDarkText}
           />
-          <Text style={[styles.didItBtnText, isZeroBlocked && styles.didItBtnTextDisabled]}>
+          <Text style={[styles.didItBtnText, isCompleteBlocked && styles.didItBtnTextDisabled]}>
             Did It
           </Text>
         </Pressable>
@@ -764,241 +779,6 @@ export function SessionActiveBar({
     </View>
   );
 }
-
-export interface ActiveSetBlockHandle {
-  focus: () => void;
-}
-
-const ActiveSetBlock = React.forwardRef<
-  ActiveSetBlockHandle,
-  {
-    setNum: number;
-    totalSets: number;
-    data: SetLog;
-    onChange: (updated: SetLog) => void;
-    isBandExercise?: boolean;
-    isTimeExercise?: boolean;
-    previousBest?: number;
-    prevSetWeight?: number;
-    recommendedWeightKg?: number;
-    weightUnit?: WeightUnit;
-    onCompleted?: () => void;
-  }
->(function ActiveSetBlock(
-  {
-    setNum,
-    totalSets,
-    data,
-    onChange,
-    isBandExercise,
-    isTimeExercise,
-    previousBest,
-    prevSetWeight,
-    recommendedWeightKg,
-    weightUnit = 'kg',
-    onCompleted,
-  },
-  forwardedRef
-) {
-  const C = useColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-
-  // Pre-fill weight: prefer stored > guide recommendation > previous set > empty.
-  // The guide recommendation takes precedence over previous-set carry-forward so
-  // each set shows its specific ramped target (e.g. 50% on set 1, 100% on final set)
-  // rather than repeating whatever was typed for the last set.
-  const initialWeight =
-    data.weight > 0
-      ? String(kgToDisplayUnit(data.weight, weightUnit))
-      : recommendedWeightKg && recommendedWeightKg > 0
-        ? String(kgToDisplayUnit(recommendedWeightKg, weightUnit))
-        : prevSetWeight && prevSetWeight > 0
-          ? String(kgToDisplayUnit(prevSetWeight, weightUnit))
-          : '';
-
-  // Parent keys this component by setNum so it re-mounts on each new set,
-  // which resets weightText state automatically.
-  const [weightText, setWeightText] = useState(initialWeight);
-
-  // Re-sync displayed weight when the user toggles kg ↔ lbs from Settings
-  // mid-session. We convert the *current* weightText (which may be an unblurred
-  // in-progress edit) through the previous unit so typed-but-unsaved values are
-  // preserved across the toggle. Falls back to data.weight (always kg) when the
-  // field is empty.
-  const prevUnitRef = useRef<WeightUnit>(weightUnit);
-  useEffect(() => {
-    const prevUnit = prevUnitRef.current;
-    if (prevUnit === weightUnit) return;
-    const typed = parseFloat(weightText);
-    if (typed > 0) {
-      const kg = displayUnitToKg(typed, prevUnit);
-      setWeightText(String(kgToDisplayUnit(kg, weightUnit)));
-    } else {
-      const sourceKg = data.weight > 0 ? data.weight : (prevSetWeight ?? 0);
-      setWeightText(sourceKg > 0 ? String(kgToDisplayUnit(sourceKg, weightUnit)) : '');
-    }
-    prevUnitRef.current = weightUnit;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weightUnit]);
-
-  const flashBg = useSharedValue(0);
-  const flashStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      flashBg.value,
-      [0, 1],
-      ['rgba(47,107,70,0)', 'rgba(47,107,70,0.18)']
-    ),
-    borderRadius: 14,
-  }));
-
-  // Expose a focus() method so the parent (ExerciseCard) can shift focus to
-  // this set's primary input when the rest timer ends. Weight input is the
-  // primary input for weighted exercises; reps for band/bodyweight.
-  const weightInputRef = useRef<TextInput>(null);
-  const repsInputRef = useRef<TextInput>(null);
-  React.useImperativeHandle(
-    forwardedRef,
-    () => ({
-      focus: () => {
-        const target = !isBandExercise ? weightInputRef.current : repsInputRef.current;
-        target?.focus();
-      },
-    }),
-    [isBandExercise]
-  );
-
-  const handleWeightBlur = () => {
-    const displayVal = parseFloat(weightText) || 0;
-    setWeightText(displayVal > 0 ? String(displayVal) : '');
-    onChange({ ...data, weight: displayUnitToKg(displayVal, weightUnit) });
-  };
-
-  // Effective weight: prefer local weightText (may be pre-filled before blur) over data.weight
-  const parsedWeightText = Math.max(0, parseFloat(weightText) || 0);
-  const effectiveWeightKg =
-    parsedWeightText > 0 ? displayUnitToKg(parsedWeightText, weightUnit) : data.weight;
-
-  // Only show "New Record!" on sets that are already saved/completed, not while typing.
-  // data.weight is already stored in kg - no unit conversion needed.
-  const savedWeightKg = data.weight ?? 0;
-  const isNewRecord =
-    !isBandExercise &&
-    data.completed &&
-    previousBest !== undefined &&
-    previousBest > 0 &&
-    savedWeightKg > previousBest;
-
-  // For weighted: require both effective weight > 0 AND reps > 0. For band: reps > 0 only.
-  const isZeroBlocked =
-    !isTimeExercise &&
-    (isBandExercise ? data.reps === 0 : effectiveWeightKg === 0 || data.reps === 0);
-
-  const handleComplete = () => {
-    if (isZeroBlocked) return;
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    flashBg.value = 1;
-    flashBg.value = withTiming(0, { duration: 600 });
-    // Use effectiveWeightKg (derived from local weightText or data.weight)
-    onChange({ ...data, weight: effectiveWeightKg, completed: true });
-    onCompleted?.();
-  };
-
-  if (isTimeExercise) {
-    return (
-      <Animated.View style={[styles.activeSetBlock, flashStyle]}>
-        <Text style={styles.activeSetLabel}>
-          Set {setNum} of {totalSets}
-        </Text>
-        <Pressable
-          onPress={handleComplete}
-          style={styles.completeSetBtn}
-          testID={`set-${setNum}-check`}
-        >
-          <Ionicons name="checkmark-circle" size={20} color={C.primaryDarkText} />
-          <Text style={styles.completeSetBtnText}>Mark Set Done</Text>
-        </Pressable>
-      </Animated.View>
-    );
-  }
-
-  return (
-    <Animated.View style={[styles.activeSetBlock, flashStyle]}>
-      <Text style={styles.activeSetLabel}>
-        Set {setNum} of {totalSets}
-      </Text>
-
-      <View style={styles.activeSetInputRow}>
-        {!isBandExercise && (
-          <View style={styles.activeInputGroup}>
-            <TextInput
-              ref={weightInputRef}
-              style={styles.activeSetInput}
-              placeholder="0"
-              placeholderTextColor={C.textTertiary}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-              value={weightText}
-              onChangeText={setWeightText}
-              onBlur={handleWeightBlur}
-              testID={`set-${setNum}-weight`}
-            />
-            <Text style={styles.activeInputUnit}>{weightUnit}</Text>
-          </View>
-        )}
-        <View style={styles.activeInputGroup}>
-          <TextInput
-            ref={repsInputRef}
-            style={styles.activeSetInput}
-            placeholder="0"
-            placeholderTextColor={C.textTertiary}
-            keyboardType="number-pad"
-            returnKeyType="done"
-            value={data.reps > 0 ? String(data.reps) : ''}
-            onChangeText={(t) => {
-              const r = parseInt(t) || 0;
-              onChange({ ...data, reps: r });
-            }}
-            testID={`set-${setNum}-reps`}
-          />
-          <Text style={styles.activeInputUnit}>reps</Text>
-        </View>
-      </View>
-
-      {isNewRecord && (
-        <View style={styles.newRecordBadge}>
-          <Ionicons name="star" size={10} color="#fff" />
-          <Text style={styles.newRecordText}>New Record!</Text>
-        </View>
-      )}
-
-      {isZeroBlocked && (
-        <Text style={styles.zeroBlockHint}>
-          {isBandExercise ? 'Enter reps to complete' : 'Enter weight and reps to complete'}
-        </Text>
-      )}
-
-      <Pressable
-        onPress={handleComplete}
-        disabled={isZeroBlocked}
-        style={[styles.completeSetBtn, isZeroBlocked && styles.completeSetBtnDisabled]}
-        testID={`set-${setNum}-check`}
-      >
-        <Ionicons
-          name="checkmark-circle"
-          size={20}
-          color={isZeroBlocked ? C.textTertiary : C.primaryDarkText}
-        />
-        <Text
-          style={[styles.completeSetBtnText, isZeroBlocked && styles.completeSetBtnTextDisabled]}
-        >
-          Complete Set
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-});
 
 // ── Cardio Input Block ─────────────────────────────────────────────────────
 function CardioInputBlock({
@@ -1197,7 +977,13 @@ export function ExerciseCard({
 
   const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
   const repsLabel = exercise.reps;
-  const repDisplay = isTimeExercise ? repsLabel : `${repsLabel} reps`;
+  // Exercise-db rep strings aren't uniformly formatted - some are bare counts
+  // ("10", "10-12") that need " reps" appended for clarity, others already
+  // read naturally on their own ("10 each", "15 each direction", "12 reps
+  // each side"). Appending unconditionally produced "10 each reps". Skip the
+  // suffix when the string already contains "reps" or "each".
+  const repsAlreadyDescriptive = /\breps?\b|\beach\b/i.test(repsLabel);
+  const repDisplay = isTimeExercise || repsAlreadyDescriptive ? repsLabel : `${repsLabel} reps`;
 
   const isPast = exerciseState === 'past';
   const isFuture = exerciseState === 'future';
@@ -1906,14 +1692,7 @@ export default function SessionScreen() {
   const strengthCount = completedSessions.filter((s) =>
     STRENGTH_SESSION_TYPES.includes(s.sessionType)
   ).length;
-  const VALID_EQUIPMENT: EquipmentTier[] = [
-    'bodyweight',
-    'bands',
-    'dumbbells',
-    'kettlebells',
-    'fullgym',
-  ];
-  const equipmentTier: EquipmentTier = VALID_EQUIPMENT.includes(params.equipment as EquipmentTier)
+  const equipmentTier: EquipmentTier = TIER_ORDER.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
     : getEffectiveTier();
 
