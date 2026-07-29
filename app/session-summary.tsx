@@ -32,7 +32,6 @@ import {
 } from '@/lib/exercise-db';
 import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
-import { BRAND_GREEN } from '@/components/WorkoutShareCard';
 import { formatDate, formatWeight } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -48,6 +47,7 @@ const CARD_FAINT = '#9C8E82'; // warm medium gray
 const CARD_HAIRLINE = 'rgba(60,45,30,0.14)'; // warm dark divider
 const PILL_BG = 'rgba(60,45,30,0.06)'; // subtle warm tint for stat strip
 const GOLD = '#fbbf24';
+const BRAND_GREEN = '#2f6b46';
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 

@@ -1078,47 +1078,6 @@ function generateConditioningWorkout(
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
-/** Named conditioning intensity levels, mapped from the Flex tab level picker. */
-export type ConditioningLevel = 'beginner' | 'intermediate' | 'advanced';
-
-const CONDITIONING_LEVEL_TO_READINESS: Record<
-  ConditioningLevel,
-  Pick<ReadinessCheck, 'energy' | 'timeAvailable'>
-> = {
-  beginner: { energy: 'low', timeAvailable: '30' },
-  intermediate: { energy: 'normal', timeAvailable: '45' },
-  advanced: { energy: 'high', timeAvailable: '60' },
-};
-
-/**
- * Generate a standalone conditioning session directly from a named intensity
- * level. Provides a clean, level-first API so callers do not need to map
- * energy/timeAvailable manually - the engine handles that internally.
- */
-export function generateWorkoutForConditioningLevel(
-  level: ConditioningLevel,
-  equipmentTier: EquipmentTier,
-  profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>,
-  /** Count of completed STRENGTH sessions only - see personalizeLoad. */
-  strengthSessionCount: number = 0,
-  lastLoggedWeights?: Record<string, number>
-): Exercise[] {
-  const readiness: ReadinessCheck = {
-    hasAches: false,
-    painRegion: undefined,
-    ...CONDITIONING_LEVEL_TO_READINESS[level],
-  };
-  return generateConditioningWorkout(
-    equipmentTier,
-    readiness,
-    profile,
-    exerciseFeedback,
-    strengthSessionCount,
-    lastLoggedWeights
-  );
-}
-
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
