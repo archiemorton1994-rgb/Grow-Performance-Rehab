@@ -23,8 +23,6 @@ import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META as SESSION_META_LABELS, getSessionColors } from '@/lib/session-meta';
 
-const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
-
 const KPI_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
 
 const WEEKLY_SESSION_TYPES_UI: SessionType[] = [
@@ -46,8 +44,6 @@ const SESSION_IMAGES: Record<SessionType, any> = {
   upper_body: require('@/assets/images/sessions/upper-body.png'),
   full_body: require('@/assets/images/sessions/full-body.png'),
 };
-
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -94,7 +90,7 @@ export default function TrainScreen() {
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
     ? ['bodyweight', 'bands']
-    : ALL_TIERS;
+    : TIER_ORDER;
 
   const profileEquipment: EquipmentTier[] =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight'];
@@ -495,7 +491,7 @@ export default function TrainScreen() {
             </Pressable>
           )}
 
-          {ALL_TIERS.map((tier) => {
+          {TIER_ORDER.map((tier) => {
             const isAvailable = availableTiers.includes(tier);
             const isActive = sheetDraft.includes(tier);
             return (

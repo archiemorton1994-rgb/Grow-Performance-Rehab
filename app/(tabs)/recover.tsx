@@ -65,8 +65,6 @@ const RECOVER_IMAGES: Record<string, any> = {
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
 };
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
-
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
   bands: 'Resistance bands only',
@@ -268,7 +266,7 @@ export default function RecoverScreen() {
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
     ? ['bodyweight', 'bands']
-    : ALL_TIERS;
+    : TIER_ORDER;
   const profileEquipment: EquipmentTier[] =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight'];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
@@ -731,7 +729,7 @@ export default function RecoverScreen() {
             </View>
           )}
 
-          {ALL_TIERS.map((tier) => {
+          {TIER_ORDER.map((tier) => {
             const isAvailable = availableTiers.includes(tier);
             const isActive = sheetDraft.includes(tier);
             return (

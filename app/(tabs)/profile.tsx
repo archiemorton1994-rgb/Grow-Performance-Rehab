@@ -53,8 +53,6 @@ import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg, formatDate } from '@/lib/utils';
 import { router } from 'expo-router';
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
-
 const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
@@ -1050,7 +1048,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
-            {ALL_TIERS.map((tier) => {
+            {TIER_ORDER.map((tier) => {
               const isActive = editTiers.includes(tier);
               const isLocked =
                 userProfile.experienceLevel === 'beginner' &&

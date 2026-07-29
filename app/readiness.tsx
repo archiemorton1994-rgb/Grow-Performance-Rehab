@@ -27,8 +27,6 @@ import { BodyDiagram } from '@/components/BodyDiagram';
 
 type Step = 'main' | 'painRegion' | 'prehabFocus';
 
-const ALL_TIERS: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
-
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment',
   bands: 'Bands only',
@@ -109,7 +107,7 @@ export default function ReadinessScreen() {
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
     ? ['bodyweight', 'bands']
-    : ALL_TIERS;
+    : TIER_ORDER;
 
   const overrideTiers: EquipmentTier[] | null = (() => {
     if (!params.equipmentOverride) return null;
@@ -487,7 +485,7 @@ export default function ReadinessScreen() {
             </View>
           )}
           <View style={styles.tierGrid}>
-            {ALL_TIERS.map((tier) => {
+            {TIER_ORDER.map((tier) => {
               const isAvailable = availableTiers.includes(tier);
               const isActive = selectedEquipments.includes(tier);
               return (

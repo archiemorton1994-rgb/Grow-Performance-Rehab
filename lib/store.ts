@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
+import { isoWeek } from '@/lib/utils';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -442,7 +443,7 @@ interface AppState {
   mergeServerData: (data: SyncPayload) => void;
 }
 
-const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
+export const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -810,20 +811,10 @@ export const useAppStore = create<AppState>()(
         if (completedSessions.length === 0) return 0;
         const goal = weeklyStreakGoal ?? 2;
 
-        // Returns ISO 8601 week string (YYYY-Www) for a date. Weeks run Mon–Sun.
-        function weekKey(date: Date): string {
-          const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-          const dow = d.getUTCDay() || 7; // 1=Mon … 7=Sun
-          d.setUTCDate(d.getUTCDate() + 4 - dow); // shift to the Thursday of that ISO week
-          const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-          const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-          return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-        }
-
         // Count sessions per ISO week.
         const weekCounts = new Map<string, number>();
         for (const session of completedSessions) {
-          const w = weekKey(new Date(session.date));
+          const w = isoWeek(new Date(session.date));
           weekCounts.set(w, (weekCounts.get(w) ?? 0) + 1);
         }
 
@@ -832,13 +823,13 @@ export const useAppStore = create<AppState>()(
         // If the current week already qualifies, include it; otherwise treat it as
         // "in progress" and start counting from the previous week so the streak is
         // not broken just because it is early in the week.
-        const thisWeek = weekKey(new Date());
+        const thisWeek = isoWeek(new Date());
         const thisWeekCount = weekCounts.get(thisWeek) ?? 0;
         let checkDate = thisWeekCount >= goal ? new Date() : new Date(Date.now() - 7 * 86400000);
 
         let streak = 0;
         for (let i = 0; i < 200; i++) {
-          const key = weekKey(checkDate);
+          const key = isoWeek(checkDate);
           if ((weekCounts.get(key) ?? 0) >= goal) {
             streak++;
             checkDate = new Date(checkDate.getTime() - 7 * 86400000);

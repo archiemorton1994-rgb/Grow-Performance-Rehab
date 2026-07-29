@@ -14,7 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import { SessionType, useAppStore, STRENGTH_SESSION_TYPES, CompletedSession } from '@/lib/store';
+import {
+  SessionType,
+  useAppStore,
+  STRENGTH_SESSION_TYPES,
+  CompletedSession,
+  SESSION_ORDER,
+} from '@/lib/store';
 import {
   SESSION_META,
   getSessionColors,
@@ -30,10 +36,6 @@ const SESSION_IMAGES: Partial<Record<string, any>> = {
   bench: require('@/assets/images/sessions/bench.png'),
   deadlift: require('@/assets/images/sessions/deadlift.png'),
 };
-
-// ─── Helpers (duplicated from Home so program.tsx is self-contained) ────────
-
-const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 function getContextMessage(
   completedCount: number,
