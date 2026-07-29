@@ -22,8 +22,8 @@ import * as Haptics from 'expo-haptics';
 // native modules crash module evaluation in Expo Go (SDK 54), which causes
 // Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { useColors, DarkColors } from '@/constants/colors';
-import { useAppStore, SetLog, ExerciseCategory, PainRegion } from '@/lib/store';
+import { useColors, DarkColors, AppColors } from '@/constants/colors';
+import { useAppStore, SetLog, ExerciseCategory, PainRegion, SessionType } from '@/lib/store';
 import { getSessionLabel, getSessionSubtitle } from '@/lib/workout-engine';
 import {
   getExerciseCategoryMap,
@@ -88,6 +88,168 @@ function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | nu
   );
 }
 
+const BADGE_META: Record<
+  BadgeKind,
+  { label: (r: ExerciseRow) => string; icon: string; tone: 'up' | 'down' | 'neutral' | 'first' }
+> = {
+  'gain-weight': {
+    label: (r) => `+${r.deltaWeight} kg vs last time`,
+    icon: 'trending-up',
+    tone: 'up',
+  },
+  'gain-reps': {
+    label: (r) => `+${r.deltaReps} rep${r.deltaReps === 1 ? '' : 's'} at the same weight`,
+    icon: 'trending-up',
+    tone: 'up',
+  },
+  drop: {
+    label: (r) => `${r.deltaWeight} kg lighter than last time`,
+    icon: 'trending-down',
+    tone: 'down',
+  },
+  first: { label: () => 'First time logging this', icon: 'sparkles', tone: 'first' },
+  matched: { label: () => 'Matched your last result', icon: 'remove', tone: 'neutral' },
+  none: { label: () => 'Completed', icon: 'checkmark', tone: 'neutral' },
+};
+
+/**
+ * "Here's what changed" view — makes the progression engine's decisions
+ * visible instead of invisible. The badge/delta data here already existed
+ * (computed for the certificate's PB count) but was never shown per exercise,
+ * so a real effect ("your feedback moved this exercise's weight") had no way
+ * to be perceived. Doesn't recompute anything — just surfaces what completing
+ * this session and rating it already decided for next time.
+ */
+function ProgressTab({
+  C,
+  rows,
+  sessionType,
+  hasWeighted,
+  onOpenRating,
+}: {
+  C: AppColors;
+  rows: ExerciseRow[];
+  sessionType: SessionType;
+  hasWeighted: boolean;
+  onOpenRating: () => void;
+}) {
+  const weighted = rows.filter((r) => r.isWeighted);
+  const toneColor: Record<'up' | 'down' | 'neutral' | 'first', string> = {
+    up: C.success,
+    down: C.warning,
+    neutral: C.textTertiary,
+    first: C.primary,
+  };
+  const isRecoverySession = sessionType === 'prehab' || sessionType === 'flexibility';
+
+  return (
+    <Animated.View
+      entering={FadeIn.duration(350)}
+      style={{ backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border }}
+    >
+      <View style={{ padding: 20, gap: 4 }}>
+        <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text }}>
+          What this session changed
+        </Text>
+        <Text
+          style={{
+            fontSize: 13,
+            fontFamily: 'Inter_400Regular',
+            color: C.textSecondary,
+            lineHeight: 19,
+          }}
+        >
+          Every set you complete — and how you rate it — decides the weight the app suggests next
+          time you do this exercise. This is that decision, made visible.
+        </Text>
+      </View>
+
+      {!hasWeighted ? (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+            {isRecoverySession
+              ? "Recovery sessions don't load exercises, so there's nothing to compare here — this one's about the reps and holds, not the numbers."
+              : "No weighted sets logged this session, so there's nothing to compare yet."}
+          </Text>
+        </View>
+      ) : (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+          {weighted.map((r) => {
+            const meta = BADGE_META[r.badge];
+            return (
+              <View
+                key={r.exerciseId}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: C.borderLight,
+                }}
+              >
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: toneColor[meta.tone] + '1a',
+                  }}
+                >
+                  <Ionicons name={meta.icon as any} size={16} color={toneColor[meta.tone]} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
+                    numberOfLines={1}
+                  >
+                    {r.exerciseName}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontFamily: 'Inter_400Regular',
+                      color: toneColor[meta.tone],
+                      marginTop: 1,
+                    }}
+                  >
+                    {meta.label(r)}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textTertiary }}>
+                  {r.bestWeight > 0 ? `${r.bestWeight} kg` : ''}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <Pressable
+        onPress={onOpenRating}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          paddingVertical: 14,
+          borderTopWidth: 1,
+          borderTopColor: C.borderLight,
+        }}
+        testID="progress-tab-rate"
+      >
+        <Ionicons name="thumbs-up-outline" size={15} color={C.primary} />
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+          Didn&apos;t feel right? Rate your exercises
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function SessionSummaryScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
@@ -105,6 +267,7 @@ export default function SessionSummaryScreen() {
 
   const certRef = useRef<View>(null);
 
+  const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary');
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [thumbsRatings, setThumbsRatings] = useState<Record<string, 'up' | 'down'>>({});
   const [isSharing, setIsSharing] = useState(false);
@@ -418,7 +581,12 @@ export default function SessionSummaryScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: OUTER_BG }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: activeTab === 'summary' ? OUTER_BG : C.background },
+      ]}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAwareScrollView
@@ -432,6 +600,53 @@ export default function SessionSummaryScreen() {
         bottomOffset={24}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Summary / Progress tab switcher ── */}
+        <View style={styles.tabSwitcherRow}>
+          <View style={[styles.tabSwitcher, { backgroundColor: C.surfaceTertiary }]}>
+            <Pressable
+              onPress={() => setActiveTab('summary')}
+              style={[styles.tabBtn, activeTab === 'summary' && { backgroundColor: C.surface }]}
+              testID="summary-tab-summary"
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  { color: activeTab === 'summary' ? C.text : C.textTertiary },
+                ]}
+              >
+                Certificate
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActiveTab('progress')}
+              style={[styles.tabBtn, activeTab === 'progress' && { backgroundColor: C.surface }]}
+              testID="summary-tab-progress"
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  { color: activeTab === 'progress' ? C.text : C.textTertiary },
+                ]}
+              >
+                Progress
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {activeTab === 'progress' ? (
+          <ProgressTab
+            C={C}
+            rows={summary.rows}
+            sessionType={session.sessionType}
+            hasWeighted={summary.hasWeighted}
+            onOpenRating={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowRatingModal(true);
+            }}
+          />
+        ) : (
+        <>
         <View style={styles.cardWrap}>
           {/* ── Certificate card (this View is captured for sharing) ── */}
           <Animated.View entering={FadeIn.duration(450)}>
@@ -605,6 +820,8 @@ export default function SessionSummaryScreen() {
             </Text>
           </Pressable>
         </Animated.View>
+        </>
+        )}
 
         {/* Session notes */}
         <View style={{ marginTop: 14 }}>
@@ -673,7 +890,7 @@ export default function SessionSummaryScreen() {
               <View style={styles.modalHeaderText}>
                 <Text style={[styles.modalTitle, { color: C.text }]}>Rate Exercises</Text>
                 <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
-                  How did each exercise feel?
+                  Sets the weight you&apos;ll see next time you do these
                 </Text>
               </View>
             </View>
@@ -765,6 +982,25 @@ export default function SessionSummaryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+
+  tabSwitcherRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tabSwitcher: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 3,
+  },
+  tabBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    borderRadius: 9,
+  },
+  tabBtnText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
   },
 
   emptyWrap: {
