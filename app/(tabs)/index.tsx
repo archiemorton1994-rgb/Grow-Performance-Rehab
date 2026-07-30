@@ -225,6 +225,16 @@ export default function HomeScreen() {
     !testWeek && strengthCount > 0 ? strengthCount % testWeekFrequency || testWeekFrequency : 0;
   const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
   const showBlockProgress = strengthCount >= 1 && !testWeek;
+  // How many full test-week blocks they've already been through, counted from
+  // actual completed test weeks (not derived from strengthCount / frequency)
+  // so it stays correct even if testWeekFrequency is changed mid-program or a
+  // test was deferred. The block they're currently working through is always
+  // one past however many they've finished.
+  const testWeeksCompleted = useMemo(
+    () => completedSessions.filter((s) => s.isTestWeek).length,
+    [completedSessions]
+  );
+  const blockCycleNumber = testWeeksCompleted + 1;
 
   const progCycleNumber = Math.floor(strengthCount / 3) + 1;
 
@@ -648,10 +658,11 @@ export default function HomeScreen() {
               </View>
               <Text
                 style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}
+                numberOfLines={1}
               >
                 {sessionsUntilTest <= 2
                   ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                  : `Block ${sessionsInBlock} / ${testWeekFrequency}`}
+                  : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${testWeekFrequency}`}
               </Text>
             </Animated.View>
           )}
