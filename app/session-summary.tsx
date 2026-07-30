@@ -22,8 +22,17 @@ import * as Haptics from 'expo-haptics';
 // native modules crash module evaluation in Expo Go (SDK 54), which causes
 // Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { useColors, DarkColors, AppColors } from '@/constants/colors';
-import { useAppStore, SetLog, ExerciseCategory, PainRegion, SessionType } from '@/lib/store';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useColors, DarkColors } from '@/constants/colors';
+import {
+  useAppStore,
+  SetLog,
+  ExerciseCategory,
+  ExerciseFeedback,
+  PainRegion,
+  SessionType,
+  WeightUnit,
+} from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import {
   getExerciseCategoryMap,
@@ -31,26 +40,56 @@ import {
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
 import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
-import { BodyDiagram, MUSCLE_SET, PANEL_BG } from '@/components/BodyDiagram';
+import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
-// Certificate palette (fixed regardless of device theme so the shareable card
-// always looks the same). Iron-and-chalk dark palette, not a light parchment
-// certificate - the card is meant to feel like a win worth showing off, not a
-// diploma. PANEL_BG matches the dark panel already used behind the body
-// diagram elsewhere in the app, so this doesn't introduce a new near-black.
-const OUTER_BG = PANEL_BG; // '#0d0d0d' - screen background around the card
-const CARD_BG = '#161613'; // the card itself
-const PILL_BG = '#1b1b17'; // sub-panels inside the card (hero, stats, map)
-const CARD_TEXT = '#f4f2ec'; // warm off-white ink
-const CARD_MUTED = '#a8a49a'; // warm grey - secondary text
-const CARD_FAINT = '#726e64'; // warm dark grey - tertiary text, labels
-const CARD_HAIRLINE = '#2b2a26'; // warm dark divider
-const GOLD = '#fbbf24';
-const ACCENT_GREEN = '#4ade80'; // bright accent for text/glow sitting directly on the dark card
+// Two fixed palettes (independent of device theme, and of each other) so
+// each tab reads as its own moment instead of blending into the same near-
+// black card. Ember for the Certificate (a win worth showing off), Cobalt
+// for Progress (the analytical "here's why" read).
+interface CardPalette {
+  outerBg: string;
+  cardGradient: readonly [string, string, string];
+  pillBg: string;
+  text: string;
+  muted: string;
+  faint: string;
+  hairline: string;
+  accent: string;
+  badgeBg: string;
+}
+
+const EMBER: CardPalette = {
+  outerBg: '#140705',
+  cardGradient: ['#8a2a1f', '#3d1210', '#1c0908'],
+  pillBg: 'rgba(255,138,76,0.07)',
+  text: '#fff2ea',
+  muted: '#d6a291',
+  faint: '#a8776a',
+  hairline: 'rgba(255,170,120,0.18)',
+  accent: '#ff8a4c',
+  badgeBg: 'rgba(255,138,76,0.18)',
+};
+
+const COBALT: CardPalette = {
+  outerBg: '#070b1c',
+  cardGradient: ['#26418f', '#101c42', '#080e26'],
+  pillBg: 'rgba(94,161,255,0.07)',
+  text: '#eef3ff',
+  muted: '#93a6d6',
+  faint: '#6f81ab',
+  hairline: 'rgba(140,190,255,0.16)',
+  accent: '#5ea1ff',
+  badgeBg: 'rgba(94,161,255,0.18)',
+};
+
+// Semantic tone colours for progress rows - separate from either palette's
+// accent, these mean "up/down/neutral" regardless of which tab they sit on.
+const TONE_UP = '#4ade80';
+const TONE_DOWN = '#fb923c';
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 
@@ -115,140 +154,200 @@ const BADGE_META: Record<
   none: { label: () => 'Completed', icon: 'checkmark', tone: 'neutral' },
 };
 
+// What actually decides the weight this exercise starts at next time.
+// Mirrors personalizeLoad()'s real priority order in lib/workout-engine.ts:
+// a held/thumbs-down session holds the weight; an easy rating or a 3-session
+// clean streak earns the bigger +5kg jump; anything else clean gets +2.5kg.
+// Only meaningful for the session the app is CURRENTLY basing its next
+// suggestion on - lastSessionPerformance/exerciseNormalStreak are live store
+// state, not a history snapshot, so this is only shown for the most recent
+// completed session, never an older one pulled up from history.
+function getNextHint(
+  exerciseId: string,
+  bestWeightKg: number,
+  isLatestSession: boolean,
+  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>,
+  exerciseNormalStreak: Record<string, number>,
+  exerciseFeedback: Record<string, ExerciseFeedback>,
+  weightUnit: WeightUnit
+): string | null {
+  if (!isLatestSession || bestWeightKg <= 0) return null;
+  const perf = lastSessionPerformance[exerciseId];
+  if (perf === 'failed') {
+    const ratedDown = exerciseFeedback[exerciseId]?.thumbs === 'down';
+    const why = ratedDown ? 'You rated this tough' : 'A set was left incomplete';
+    return `Next time: holding at ${formatWeight(bestWeightKg, weightUnit)}. ${why}.`;
+  }
+  const streak = exerciseNormalStreak[exerciseId] ?? 0;
+  if (perf === 'easy' || streak >= 3) {
+    const why =
+      perf === 'easy' ? 'You rated this easy' : `${streak} clean sessions in a row`;
+    return `Next time: up to ${formatWeight(bestWeightKg + 5, weightUnit)}. ${why}.`;
+  }
+  return `Next time: up to ${formatWeight(bestWeightKg + 2.5, weightUnit)}. Clean session.`;
+}
+
 /**
- * "Here's what changed" view — makes the progression engine's decisions
- * visible instead of invisible. The badge/delta data here already existed
- * (computed for the certificate's PB count) but was never shown per exercise,
- * so a real effect ("your feedback moved this exercise's weight") had no way
- * to be perceived. Doesn't recompute anything — just surfaces what completing
- * this session and rating it already decided for next time.
+ * "What's driving your numbers" view - makes the progression engine's real
+ * decision visible instead of invisible. The badge/delta here already
+ * existed (computed for the certificate's PB count) but was never shown per
+ * exercise; getNextHint above adds the forward-looking half - not just what
+ * changed, but what happens next session and why.
  */
 function ProgressTab({
-  C,
   rows,
   sessionType,
   hasWeighted,
+  isLatestSession,
+  lastSessionPerformance,
+  exerciseNormalStreak,
+  exerciseFeedback,
+  weightUnit,
   onOpenRating,
 }: {
-  C: AppColors;
   rows: ExerciseRow[];
   sessionType: SessionType;
   hasWeighted: boolean;
+  isLatestSession: boolean;
+  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>;
+  exerciseNormalStreak: Record<string, number>;
+  exerciseFeedback: Record<string, ExerciseFeedback>;
+  weightUnit: WeightUnit;
   onOpenRating: () => void;
 }) {
+  const P = COBALT;
   const weighted = rows.filter((r) => r.isWeighted);
   const toneColor: Record<'up' | 'down' | 'neutral' | 'first', string> = {
-    up: C.success,
-    down: C.warning,
-    neutral: C.textTertiary,
-    first: C.primary,
+    up: TONE_UP,
+    down: TONE_DOWN,
+    neutral: P.muted,
+    first: P.accent,
   };
   const isRecoverySession = sessionType === 'prehab' || sessionType === 'flexibility';
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(350)}
-      style={{ backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border }}
-    >
-      <View style={{ padding: 20, gap: 4 }}>
-        <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text }}>
-          What this session changed
-        </Text>
-        <Text
-          style={{
-            fontSize: 13,
-            fontFamily: 'Inter_400Regular',
-            color: C.textSecondary,
-            lineHeight: 19,
-          }}
-        >
-          Every set you complete, and how you rate it, decides the weight the app suggests next
-          time you do this exercise. This is that decision, made visible.
-        </Text>
-      </View>
-
-      {!hasWeighted ? (
-        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-          <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
-            {isRecoverySession
-              ? "Recovery sessions don't load exercises, so there's nothing to compare here. This one's about the reps and holds, not the numbers."
-              : "No weighted sets logged this session, so there's nothing to compare yet."}
+    <Animated.View entering={FadeIn.duration(350)}>
+      <LinearGradient
+        colors={P.cardGradient}
+        style={{ borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: P.hairline }}
+      >
+        <View style={{ padding: 20, gap: 4 }}>
+          <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: P.text }}>
+            What&apos;s driving your numbers
+          </Text>
+          <Text
+            style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: P.muted, lineHeight: 19 }}
+          >
+            Your next weight comes from what you actually lifted, not the suggestion. A clean
+            session nudges it up, a tough one holds it, and a run of clean sessions earns a
+            bigger jump.
           </Text>
         </View>
-      ) : (
-        <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-          {weighted.map((r) => {
-            const meta = BADGE_META[r.badge];
-            return (
-              <View
-                key={r.exerciseId}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingHorizontal: 8,
-                  paddingVertical: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: C.borderLight,
-                }}
-              >
+
+        {!hasWeighted ? (
+          <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+            <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: P.muted }}>
+              {isRecoverySession
+                ? "Recovery sessions don't load exercises, so there's nothing to compare here. This one's about the reps and holds, not the numbers."
+                : 'No weighted sets logged this session, so there is nothing to compare yet.'}
+            </Text>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+            {weighted.map((r) => {
+              const meta = BADGE_META[r.badge];
+              const nextHint = getNextHint(
+                r.exerciseId,
+                r.bestWeight,
+                isLatestSession,
+                lastSessionPerformance,
+                exerciseNormalStreak,
+                exerciseFeedback,
+                weightUnit
+              );
+              return (
                 <View
+                  key={r.exerciseId}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: toneColor[meta.tone] + '1a',
+                    gap: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: P.hairline,
                   }}
                 >
-                  <Ionicons name={meta.icon as any} size={16} color={toneColor[meta.tone]} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 17,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: toneColor[meta.tone] + '22',
+                      }}
+                    >
+                      <Ionicons name={meta.icon as any} size={16} color={toneColor[meta.tone]} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: P.text }}
+                        numberOfLines={1}
+                      >
+                        {r.exerciseName}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: 'Inter_400Regular',
+                          color: toneColor[meta.tone],
+                          marginTop: 1,
+                        }}
+                      >
+                        {meta.label(r)}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.muted }}>
+                      {r.bestWeight > 0 ? formatWeight(r.bestWeight, weightUnit) : ''}
+                    </Text>
+                  </View>
+                  {nextHint && (
+                    <Text
+                      style={{
+                        fontSize: 11.5,
+                        fontFamily: 'Inter_500Medium',
+                        color: P.faint,
+                        marginLeft: 46,
+                      }}
+                    >
+                      {nextHint}
+                    </Text>
+                  )}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
-                    numberOfLines={1}
-                  >
-                    {r.exerciseName}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontFamily: 'Inter_400Regular',
-                      color: toneColor[meta.tone],
-                      marginTop: 1,
-                    }}
-                  >
-                    {meta.label(r)}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textTertiary }}>
-                  {r.bestWeight > 0 ? `${r.bestWeight} kg` : ''}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
+              );
+            })}
+          </View>
+        )}
 
-      <Pressable
-        onPress={onOpenRating}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          paddingVertical: 14,
-          borderTopWidth: 1,
-          borderTopColor: C.borderLight,
-        }}
-        testID="progress-tab-rate"
-      >
-        <Ionicons name="thumbs-up-outline" size={15} color={C.primary} />
-        <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
-          Didn&apos;t feel right? Rate your exercises
-        </Text>
-      </Pressable>
+        <Pressable
+          onPress={onOpenRating}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 14,
+            borderTopWidth: 1,
+            borderTopColor: P.hairline,
+          }}
+          testID="progress-tab-rate"
+        >
+          <Ionicons name="thumbs-up-outline" size={15} color={P.accent} />
+          <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.accent }}>
+            Didn&apos;t feel right? Rate your exercises
+          </Text>
+        </Pressable>
+      </LinearGradient>
     </Animated.View>
   );
 }
@@ -265,6 +364,9 @@ export default function SessionSummaryScreen() {
   const getStreakDays = useAppStore((s) => s.getStreakDays);
   const setExerciseFeedback = useAppStore((s) => s.setExerciseFeedback);
   const updateSessionNotes = useAppStore((s) => s.updateSessionNotes);
+  const lastSessionPerformance = useAppStore((s) => s.lastSessionPerformance);
+  const exerciseNormalStreak = useAppStore((s) => s.exerciseNormalStreak);
+  const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
 
   const certRef = useRef<View>(null);
 
@@ -283,6 +385,12 @@ export default function SessionSummaryScreen() {
     }
     return completedSessions[0] ?? null;
   }, [completedSessions, sessionId]);
+
+  // lastSessionPerformance/exerciseNormalStreak are live store state driving
+  // the NEXT session's suggestion, not a per-session snapshot - only valid to
+  // show as "what happens next" when this is genuinely the most recent
+  // completed session, not one pulled up from history.
+  const isLatestSession = !!session && completedSessions[0]?.id === session.id;
 
   useEffect(() => {
     setSessionNotes(session?.notes ?? '');
@@ -614,7 +722,7 @@ export default function SessionSummaryScreen() {
     <View
       style={[
         styles.container,
-        { backgroundColor: activeTab === 'summary' ? OUTER_BG : C.background },
+        { backgroundColor: activeTab === 'summary' ? EMBER.outerBg : COBALT.outerBg },
       ]}
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -666,10 +774,14 @@ export default function SessionSummaryScreen() {
 
         {activeTab === 'progress' ? (
           <ProgressTab
-            C={C}
             rows={summary.rows}
             sessionType={session.sessionType}
             hasWeighted={summary.hasWeighted}
+            isLatestSession={isLatestSession}
+            lastSessionPerformance={lastSessionPerformance}
+            exerciseNormalStreak={exerciseNormalStreak}
+            exerciseFeedback={exerciseFeedback}
+            weightUnit={weightUnit}
             onOpenRating={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowRatingModal(true);
@@ -681,6 +793,11 @@ export default function SessionSummaryScreen() {
           {/* Certificate card (this View is captured for sharing) */}
           <Animated.View entering={FadeIn.duration(450)}>
             <View ref={certRef} collapsable={false} style={styles.card}>
+              <LinearGradient
+                colors={EMBER.cardGradient}
+                style={StyleSheet.absoluteFillObject}
+                pointerEvents="none"
+              />
               {/* Top line: brand + date */}
               <View style={styles.cardHeader}>
                 <View style={styles.brandRow}>
@@ -703,7 +820,7 @@ export default function SessionSummaryScreen() {
               >
                 {heroBadgeLabel && (
                   <View style={styles.heroBadge}>
-                    <Ionicons name="trophy" size={11} color={GOLD} />
+                    <Ionicons name="trophy" size={11} color={EMBER.accent} />
                     <Text style={styles.heroBadgeText}>{heroBadgeLabel.toUpperCase()}</Text>
                   </View>
                 )}
@@ -785,7 +902,7 @@ export default function SessionSummaryScreen() {
               <View style={styles.cardFooter}>
                 {streakDays >= 1 ? (
                   <View style={styles.footerStreak}>
-                    <Ionicons name="flame" size={13} color={GOLD} />
+                    <Ionicons name="flame" size={13} color={EMBER.accent} />
                     <Text style={styles.footerStreakText}>
                       {streakDays} day{streakDays > 1 ? 's' : ''} streak
                     </Text>
@@ -809,7 +926,7 @@ export default function SessionSummaryScreen() {
             style={styles.actionBtn}
             testID="open-rate-modal"
           >
-            <Ionicons name="thumbs-up-outline" size={18} color={CARD_TEXT} />
+            <Ionicons name="thumbs-up-outline" size={18} color={EMBER.text} />
             <Text style={styles.actionBtnText}>Rate</Text>
           </Pressable>
           <Pressable
@@ -821,7 +938,7 @@ export default function SessionSummaryScreen() {
             <Ionicons
               name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
               size={18}
-              color={CARD_TEXT}
+              color={EMBER.text}
             />
             <Text style={styles.actionBtnText}>
               {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
@@ -833,7 +950,7 @@ export default function SessionSummaryScreen() {
             style={[styles.actionBtnPrimary, isSharing && { opacity: 0.5 }]}
             testID="share-workout"
           >
-            <Ionicons name="share-outline" size={18} color={OUTER_BG} />
+            <Ionicons name="share-outline" size={18} color={EMBER.outerBg} />
             <Text style={styles.actionBtnPrimaryText}>{isSharing ? '…' : 'Share'}</Text>
           </Pressable>
         </Animated.View>
@@ -1038,14 +1155,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    backgroundColor: CARD_BG,
     borderRadius: 24,
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
     borderWidth: 1,
-    borderColor: CARD_HAIRLINE,
+    borderColor: EMBER.hairline,
     gap: 14,
   },
   cardHeader: {
@@ -1073,22 +1189,22 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 13,
     fontFamily: 'Inter_700Bold',
-    color: CARD_MUTED,
+    color: EMBER.muted,
     letterSpacing: 2.5,
   },
   dateText: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    color: CARD_FAINT,
+    color: EMBER.faint,
     fontVariant: ['tabular-nums'],
   },
 
   // Hero - the single biggest thing that happened this session
   heroPanel: {
-    backgroundColor: PILL_BG,
+    backgroundColor: EMBER.pillBg,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: CARD_HAIRLINE,
+    borderColor: EMBER.hairline,
     paddingVertical: 22,
     paddingHorizontal: 18,
     alignItems: 'center',
@@ -1097,9 +1213,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(251,191,36,0.14)',
+    backgroundColor: EMBER.badgeBg,
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.35)',
+    borderColor: EMBER.hairline,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1108,7 +1224,7 @@ const styles = StyleSheet.create({
   heroBadgeText: {
     fontSize: 10,
     fontFamily: 'Inter_700Bold',
-    color: GOLD,
+    color: EMBER.accent,
     letterSpacing: 1,
   },
   heroNumberRow: {
@@ -1120,19 +1236,19 @@ const styles = StyleSheet.create({
     fontSize: 56,
     lineHeight: 58,
     fontFamily: 'Inter_700Bold',
-    color: CARD_TEXT,
+    color: EMBER.text,
     fontVariant: ['tabular-nums'],
   },
   heroUnit: {
     fontSize: 18,
     fontFamily: 'Inter_600SemiBold',
-    color: CARD_MUTED,
+    color: EMBER.muted,
     paddingBottom: 8,
   },
   heroCaption: {
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
-    color: CARD_MUTED,
+    color: EMBER.muted,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
@@ -1140,7 +1256,7 @@ const styles = StyleSheet.create({
   heroExtra: {
     fontSize: 11.5,
     fontFamily: 'Inter_600SemiBold',
-    color: ACCENT_GREEN,
+    color: EMBER.accent,
     marginTop: 4,
   },
   heroSessionRow: {
@@ -1152,21 +1268,21 @@ const styles = StyleSheet.create({
   heroSessionName: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    color: CARD_TEXT,
+    color: EMBER.text,
   },
   heroDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: CARD_FAINT,
+    backgroundColor: EMBER.faint,
   },
   heroSessionNum: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    color: CARD_FAINT,
+    color: EMBER.faint,
   },
   testPill: {
-    backgroundColor: 'rgba(74,222,128,0.12)',
+    backgroundColor: EMBER.badgeBg,
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1175,7 +1291,7 @@ const styles = StyleSheet.create({
   testPillText: {
     fontSize: 8,
     fontFamily: 'Inter_700Bold',
-    color: ACCENT_GREEN,
+    color: EMBER.accent,
     letterSpacing: 0.8,
   },
 
@@ -1186,10 +1302,10 @@ const styles = StyleSheet.create({
   },
   statTile: {
     flex: 1,
-    backgroundColor: PILL_BG,
+    backgroundColor: EMBER.pillBg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: CARD_HAIRLINE,
+    borderColor: EMBER.hairline,
     paddingVertical: 11,
     paddingHorizontal: 8,
     alignItems: 'center',
@@ -1198,22 +1314,22 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
-    color: CARD_FAINT,
+    color: EMBER.faint,
     letterSpacing: 0.6,
   },
   statValue: {
     fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    color: CARD_TEXT,
+    color: EMBER.text,
     fontVariant: ['tabular-nums'],
   },
 
   // Body diagram panel
   mapPanel: {
-    backgroundColor: PILL_BG,
+    backgroundColor: EMBER.pillBg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: CARD_HAIRLINE,
+    borderColor: EMBER.hairline,
     paddingVertical: 14,
   },
   diagramRow: {
@@ -1228,7 +1344,7 @@ const styles = StyleSheet.create({
   diagramLabel: {
     fontSize: 9,
     fontFamily: 'Inter_600SemiBold',
-    color: CARD_FAINT,
+    color: EMBER.faint,
     letterSpacing: 1.5,
     marginTop: 2,
   },
@@ -1248,12 +1364,12 @@ const styles = StyleSheet.create({
   footerStreakText: {
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
-    color: CARD_MUTED,
+    color: EMBER.muted,
   },
   footerBrand: {
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
-    color: CARD_FAINT,
+    color: EMBER.faint,
   },
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -1271,13 +1387,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: PILL_BG,
-    borderColor: CARD_HAIRLINE,
+    backgroundColor: EMBER.pillBg,
+    borderColor: EMBER.hairline,
   },
   actionBtnText: {
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-    color: CARD_TEXT,
+    color: EMBER.text,
   },
   actionBtnPrimary: {
     flex: 1,
@@ -1287,12 +1403,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: ACCENT_GREEN,
+    backgroundColor: EMBER.accent,
   },
   actionBtnPrimaryText: {
     fontSize: 15,
     fontFamily: 'Inter_700Bold',
-    color: OUTER_BG,
+    color: EMBER.outerBg,
   },
 
   // ── Done ────────────────────────────────────────────────────────────────────
