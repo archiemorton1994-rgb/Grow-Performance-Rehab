@@ -117,6 +117,7 @@ function TabsInner() {
     setTourJustCompleted,
     tourJustCompleted,
     setSessionTutorialShown,
+    newlyUnlockedBadges,
   } = useAppStore();
 
   // New users see an intro card first ("Let's take a tour!"); the tour proper
@@ -416,7 +417,17 @@ function TabsInner() {
           );
         })()}
 
-      <Modal visible={showTourIntro} transparent animationType="fade" onRequestClose={startTour}>
+      {/* Achievement toasts render as their own root-level <Modal> (app/_layout.tsx).
+          Two native Modals presented at once break touch routing on both and
+          look like the whole app has frozen - hold this one back until any
+          badge earned during onboarding (e.g. logging a 1RM) has been shown
+          and cleared, so only one is ever visible at a time. */}
+      <Modal
+        visible={showTourIntro && newlyUnlockedBadges.length === 0}
+        transparent
+        animationType="fade"
+        onRequestClose={startTour}
+      >
         <View style={styles.introOverlay}>
           <View style={[styles.introCard, { backgroundColor: C.surface, borderColor: C.primary }]}>
             <View style={[styles.introIconRing, { backgroundColor: C.primarySurface }]}>

@@ -114,13 +114,17 @@ function WeeklyWeightPrompt() {
     weightUnit,
     completedSessions,
     onboardingComplete,
+    tourComplete,
   } = useAppStore();
   const { isAuthenticated } = useAuth();
 
   const [showPrompt, setShowPrompt] = useState(false);
   const [weightText, setWeightText] = useState('');
 
-  const isReadyToPrompt = hasHydrated && isAuthenticated && onboardingComplete;
+  // Also wait for the guided tour to be done/skipped - it and the achievement
+  // toast are separate root/tab-level Modals; this one shouldn't compete with
+  // them for the screen right after a fresh onboarding completes.
+  const isReadyToPrompt = hasHydrated && isAuthenticated && onboardingComplete && tourComplete;
   const neverSetWeight = userProfile.bodyweightKg === 0;
 
   useEffect(() => {
@@ -328,7 +332,19 @@ function RootLayoutNav() {
   const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
   const [currentToast, setCurrentToast] = useState<ToastItem | null>(null);
+  // Dedup guard for which ids have already been turned into a toastQueue entry.
+  // Kept as a ref (fine - only ever read/written by the enqueue effect itself,
+  // never used to gate the clear effect below, which is what used to race it).
   const enqueuedBadgeIds = useRef<Set<string>>(new Set());
+  // Whether the enqueue effect has handed at least one badge to toastQueue that
+  // the clear effect hasn't accounted for yet. This MUST be state, not a ref -
+  // the clear effect needs to read it from the same render's snapshot as
+  // toastQueue/currentToast. A ref mutated synchronously inside the enqueue
+  // effect was already updated by the time the clear effect ran in the same
+  // commit, while toastQueue/currentToast were still their pre-update values -
+  // so the clear effect saw "nothing queued yet" and "already marked handled"
+  // simultaneously and wiped newlyUnlockedBadges before the toast ever showed.
+  const [hasQueuedWork, setHasQueuedWork] = useState(false);
 
   // Only drain the queue once the user has passed all gate screens (onboarding /
   // auth / subscription). Badges earned during those flows accumulate silently
@@ -355,9 +371,13 @@ function RootLayoutNav() {
         ...q,
         { isSummary: true as const, count: newIds.length, badgeIds: newIds },
       ]);
+      setHasQueuedWork(true);
     } else {
       const badge = BADGE_MAP.get(newIds[0]);
-      if (badge) setToastQueue((q) => [...q, badge]);
+      if (badge) {
+        setToastQueue((q) => [...q, badge]);
+        setHasQueuedWork(true);
+      }
     }
   }, [newlyUnlockedBadges]);
 
@@ -372,10 +392,11 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (currentToast !== null || toastQueue.length > 0) return;
-    if (enqueuedBadgeIds.current.size === 0) return;
+    if (!hasQueuedWork) return;
     enqueuedBadgeIds.current.clear();
+    setHasQueuedWork(false);
     clearNewlyUnlockedBadges();
-  }, [currentToast, toastQueue, clearNewlyUnlockedBadges]);
+  }, [currentToast, toastQueue, hasQueuedWork, clearNewlyUnlockedBadges]);
   // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
