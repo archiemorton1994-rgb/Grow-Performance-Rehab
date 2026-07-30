@@ -6,19 +6,26 @@
  * The new-user experience follows a multi-file chain.  A regression in any
  * single link silently breaks the entire first-run journey:
  *
- *   app/(tabs)/_layout.tsx   — tab-tour COACH_STEPS + handleNext navigation
+ *   app/(tabs)/_layout.tsx   — TOUR_TAB_ROUTES + per-tab handoff via tourActiveTab
+ *   app/(tabs)/workouts.tsx  — Stats' own tutorial, final step → demo handoff
  *   app/session.tsx          — demo mode, auto-trigger, tour-complete callbacks
  *   lib/store.ts             — setTourComplete resets sessionTutorialShown
  *
+ * The tour is no longer one generic card per tab driven centrally from
+ * _layout.tsx — each tab (Home, Profile, Train, Restore, Stats) now has its
+ * own in-page tutorial, walking through that screen's real sections. The
+ * shared tourActiveTab store field says which tab is currently touring;
+ * _layout.tsx's only remaining job is navigating to that tab.
+ *
  * The five critical invariants this file guards:
  *
- *   [1] TOUR DEPTH — COACH_STEPS has exactly 5 steps (Home, Profile, Train,
- *       Restore, Stats).  Adding or removing steps without updating the UI
- *       breaks navigation and the "step N of 5" indicator.
+ *   [1] TOUR DEPTH — TOUR_TAB_ROUTES has exactly 5 entries (Home, Profile,
+ *       Train, Restore, Stats).  Adding or removing tabs from the tour
+ *       without updating this breaks the route/segment lookup tables.
  *
- *   [2] DEMO HANDOFF — when handleNext exhausts the tour steps
- *       (next >= COACH_STEPS.length) it navigates to /session?demo=true.
- *       Without this the tour simply ends with no demo session.
+ *   [2] DEMO HANDOFF — Stats' advanceStatsTut (the tour's last screen) routes
+ *       to /session?demo=true when its own tutorial is exhausted.  Without
+ *       this the tour simply ends with no demo session.
  *
  *   [3] DEMO AUTO-TRIGGER — session.tsx starts the in-session tutorial
  *       automatically when isDemo is true, without waiting for user action.
@@ -68,71 +75,82 @@ function fail(label, detail) {
 }
 
 const layoutSrc = readFile('app/(tabs)/_layout.tsx');
+const workoutsSrc = readFile('app/(tabs)/workouts.tsx');
 const sessionSrc = readFile('app/session.tsx');
 const storeSrc = readFile('lib/store.ts');
 
-// ─── [1] Tour depth: COACH_STEPS has exactly 5 entries ───────────────────────
-console.log('\n[1] Tour depth — COACH_STEPS has exactly 5 steps');
+// ─── [1] Tour depth: TOUR_TAB_ROUTES has exactly 5 entries ───────────────────
+console.log('\n[1] Tour depth — TOUR_TAB_ROUTES has exactly 5 steps');
 
-const coachStepsBlockMatch = layoutSrc.match(/const COACH_STEPS\s*=\s*\[([\s\S]*?)\]\s*as const/);
-if (!coachStepsBlockMatch) {
+const tourRoutesMatch = layoutSrc.match(/const TOUR_TAB_ROUTES\s*=\s*\[([\s\S]*?)\]\s*as const/);
+if (!tourRoutesMatch) {
   fail(
-    'COACH_STEPS array found in _layout.tsx',
-    'const COACH_STEPS = [...] as const not found — check _layout.tsx'
+    'TOUR_TAB_ROUTES array found in _layout.tsx',
+    'const TOUR_TAB_ROUTES = [...] as const not found — check _layout.tsx'
   );
 } else {
-  ok('COACH_STEPS array found in _layout.tsx');
-  const block = coachStepsBlockMatch[1];
-  // Count top-level opening braces in the array body — each { starts one step object.
-  const stepCount = (block.match(/^\s*\{/gm) || []).length;
+  ok('TOUR_TAB_ROUTES array found in _layout.tsx');
+  const block = tourRoutesMatch[1];
+  // Count quoted route strings — each one is a tab in the tour.
+  const stepCount = (block.match(/'[^']*'/g) || []).length;
   if (stepCount === 5) {
-    ok(`COACH_STEPS contains exactly 5 step objects (found ${stepCount})`);
+    ok(`TOUR_TAB_ROUTES contains exactly 5 routes (found ${stepCount})`);
   } else {
     fail(
-      `COACH_STEPS contains exactly 5 step objects (found ${stepCount})`,
-      `Expected 5 steps (Home, Profile, Train, Restore, Stats) but found ${stepCount}. ` +
+      `TOUR_TAB_ROUTES contains exactly 5 routes (found ${stepCount})`,
+      `Expected 5 routes (Home, Profile, Train, Restore, Stats) but found ${stepCount}. ` +
         'Update the step count expectation here if the tour intentionally changed.'
     );
   }
 }
 
-// ─── [2] Demo handoff: handleNext navigates to /session?demo=true ─────────────
-console.log('\n[2] Demo handoff — handleNext routes to /session?demo=true');
+// ─── [2] Demo handoff: advanceStatsTut navigates to /session?demo=true ────────
+console.log('\n[2] Demo handoff — advanceStatsTut (Stats, the tour\'s last screen) routes to /session?demo=true');
 
-// The handleNext callback must contain the demo navigation call inside the
-// "last step reached" branch (next >= COACH_STEPS.length).
-const handleNextBlockMatch = layoutSrc.match(
-  /const handleNext\s*=\s*useCallback\(\s*\(\s*\)\s*=>\s*\{([\s\S]*?)\},\s*\[\s*\]\s*\)/
+// The advanceStatsTut callback in workouts.tsx must contain the demo
+// navigation call inside the "last step reached" branch.
+const advanceStatsTutMatch = workoutsSrc.match(
+  /const advanceStatsTut\s*=\s*useCallback\(\s*\(\s*\)\s*=>\s*\{([\s\S]*?)\},\s*\[/
 );
 
-if (!handleNextBlockMatch) {
+if (!advanceStatsTutMatch) {
   fail(
-    'handleNext useCallback block found in _layout.tsx',
-    'const handleNext = useCallback(() => {...}, []) not found — check _layout.tsx'
+    'advanceStatsTut useCallback block found in workouts.tsx',
+    'const advanceStatsTut = useCallback(() => {...}, [...]) not found — check workouts.tsx'
   );
 } else {
-  ok('handleNext useCallback block found in _layout.tsx');
-  const block = handleNextBlockMatch[1];
+  ok('advanceStatsTut useCallback block found in workouts.tsx');
+  const block = advanceStatsTutMatch[1];
 
-  const hasLengthGuard = /next\s*>=\s*COACH_STEPS\.length/.test(block);
+  const hasLengthGuard = /next\s*>=\s*STATS_TUTORIAL\.length/.test(block);
   if (hasLengthGuard) {
-    ok('handleNext guards last step with next >= COACH_STEPS.length');
+    ok('advanceStatsTut guards last step with next >= STATS_TUTORIAL.length');
   } else {
     fail(
-      'handleNext guards last step with next >= COACH_STEPS.length',
-      'the COACH_STEPS.length boundary check is missing from handleNext — ' +
+      'advanceStatsTut guards last step with next >= STATS_TUTORIAL.length',
+      'the STATS_TUTORIAL.length boundary check is missing from advanceStatsTut — ' +
         'the tour will not transition to the demo session at the final step'
     );
   }
 
   const hasDemoNav = /\/session\?demo=true/.test(block);
   if (hasDemoNav) {
-    ok('handleNext navigates to /session?demo=true at final step');
+    ok('advanceStatsTut navigates to /session?demo=true at final step');
   } else {
     fail(
-      'handleNext navigates to /session?demo=true at final step',
-      '/session?demo=true not found in the handleNext block — ' +
+      'advanceStatsTut navigates to /session?demo=true at final step',
+      '/session?demo=true not found in the advanceStatsTut block — ' +
         "the tour's final step must navigate to the demo session"
+    );
+  }
+
+  const hasTourComplete = /setTourComplete\(true\)/.test(block);
+  if (hasTourComplete) {
+    ok('advanceStatsTut marks the whole tour complete via setTourComplete(true)');
+  } else {
+    fail(
+      'advanceStatsTut marks the whole tour complete via setTourComplete(true)',
+      'setTourComplete(true) not found in the advanceStatsTut block'
     );
   }
 }

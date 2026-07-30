@@ -43,6 +43,32 @@ import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
 import { togglePainFilter } from '@/lib/filter-utils';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+
+interface StatsTutorialStep {
+  spotlightRef: 'tabs' | 'stats';
+  iconName: string;
+  iconLabel: string;
+  title: string;
+  body: string;
+}
+
+const STATS_TUTORIAL: readonly StatsTutorialStep[] = [
+  {
+    spotlightRef: 'tabs',
+    iconName: 'swap-horizontal-outline',
+    iconLabel: 'Views',
+    title: 'Four ways to look at your training',
+    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for volume trends, and History for every session logged.',
+  },
+  {
+    spotlightRef: 'stats',
+    iconName: 'stats-chart-outline',
+    iconLabel: 'Overview',
+    title: 'Your training, summarised',
+    body: 'This week, your current streak, and your all-time total. Charts and personal bests fill in as you log sessions.',
+  },
+] as const;
 
 const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;
@@ -3430,6 +3456,11 @@ export default function StatsScreen() {
     historyTypeFilter,
     setHistoryTypeFilter,
     getEffectiveTier,
+    tourActiveTab,
+    setTourActiveTab,
+    setTourComplete,
+    setTourJustCompleted,
+    skipTour,
   } = useAppStore();
 
   const historyFilter = historyTypeFilter;
@@ -3469,6 +3500,64 @@ export default function StatsScreen() {
       map[activeTab]?.current?.scrollTo({ x: 0, y: 0, animated: true });
     }, [activeTab])
   );
+
+  // ── Guided tour: Stats' own in-page tutorial ─────────────────────────────
+  // Runs when the shared tour reaches this tab (index 4) — the tour's last
+  // screen. Completes the whole tour and hands off to the demo session on
+  // its last step; skip abandons the whole tour, same as every other screen.
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const tabsRowRef = useRef<View>(null);
+  const statPillsRef = useRef<View>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourActiveTab === 4) {
+      setActiveTab('overview'); // both spotlight targets only exist on Overview
+      const t = setTimeout(() => setTutStep(0), 300);
+      return () => clearTimeout(t);
+    }
+    setTutStep(null);
+  }, [tourActiveTab]);
+
+  useEffect(() => {
+    setTutSpotlight(null);
+    setTutArrowX(null);
+    if (tutStep === null) return;
+    const refLookup = { tabs: tabsRowRef, stats: statPillsRef };
+    const target = refLookup[STATS_TUTORIAL[tutStep].spotlightRef];
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
+          setTutArrowX(x + w / 2);
+        }
+      });
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [tutStep]);
+
+  const advanceStatsTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= STATS_TUTORIAL.length) {
+        // Last screen of the tour - complete it and hand off to the demo
+        // session, exactly like the old COACH_STEPS completion did.
+        setTourActiveTab(null);
+        setTourComplete(true);
+        setTourJustCompleted(true);
+        setTimeout(() => router.navigate('/session?demo=true' as any), 150);
+        return null;
+      }
+      return next;
+    });
+  }, [setTourActiveTab, setTourComplete, setTourJustCompleted]);
+
+  const skipStatsTut = useCallback(() => {
+    setTutStep(null);
+    skipTour();
+  }, [skipTour]);
 
   const [dateFilter, setDateFilter] = useState<'all' | 'this_week' | 'this_month'>('all');
   const [showCalculator, setShowCalculator] = useState(false);
@@ -3641,7 +3730,7 @@ export default function StatsScreen() {
       </View>
 
       {/* Segment control */}
-      <View style={styles.segmentWrap}>
+      <View ref={tabsRowRef} collapsable={false} style={styles.segmentWrap}>
         <View style={styles.segment}>
           {TABS.map((tab) => {
             const active = activeTab === tab.key;
@@ -3683,7 +3772,7 @@ export default function StatsScreen() {
           contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.statRow}>
+          <View ref={statPillsRef} collapsable={false} style={styles.statRow}>
             <View style={styles.statCell}>
               <Text style={styles.statValue}>{weekCount}</Text>
               <Text style={styles.statLabel}>This Week</Text>
@@ -3742,7 +3831,7 @@ export default function StatsScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* 3 key stat pills */}
-            <View style={styles.statRow}>
+            <View ref={statPillsRef} collapsable={false} style={styles.statRow}>
               <View style={styles.statCell}>
                 <Text style={styles.statValue}>{weekCount}</Text>
                 <Text style={styles.statLabel}>This Week</Text>
@@ -4544,6 +4633,23 @@ export default function StatsScreen() {
         onDismiss={() => setPainInsightRegion(null)}
         insets={insets}
       />
+
+      {tutStep !== null && (
+        <CoachMark
+          visible
+          title={STATS_TUTORIAL[tutStep].title}
+          body={STATS_TUTORIAL[tutStep].body}
+          step={tutStep + 1}
+          total={STATS_TUTORIAL.length}
+          onNext={advanceStatsTut}
+          onSkip={skipStatsTut}
+          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
+          upArrowScreenX={tutArrowX ?? undefined}
+          iconName={STATS_TUTORIAL[tutStep].iconName}
+          iconLabel={STATS_TUTORIAL[tutStep].iconLabel}
+          spotlightRect={tutSpotlight ?? undefined}
+        />
+      )}
     </View>
   );
 }

@@ -36,6 +36,53 @@ import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta'
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+
+interface HomeTutorialStep {
+  spotlightRef: 'session' | 'block' | 'streak' | 'program' | 'achievements';
+  iconName: string;
+  iconLabel: string;
+  title: string;
+  body: string;
+}
+
+const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
+  {
+    spotlightRef: 'session',
+    iconName: 'flash-outline',
+    iconLabel: 'Today',
+    title: 'Start here every day',
+    body: "This card always shows today's recommended session. Tap Start and the whole workout gets built for you.",
+  },
+  {
+    spotlightRef: 'block',
+    iconName: 'stats-chart-outline',
+    iconLabel: 'Progress',
+    title: 'Your training block',
+    body: "Shows how many sessions until your next test week, and which cycle you're on overall.",
+  },
+  {
+    spotlightRef: 'streak',
+    iconName: 'flame-outline',
+    iconLabel: 'Streak',
+    title: 'Keep the streak alive',
+    body: 'Counts consistent weeks, not perfect ones. Hit your weekly goal and this keeps climbing.',
+  },
+  {
+    spotlightRef: 'program',
+    iconName: 'repeat-outline',
+    iconLabel: 'Program',
+    title: 'Your program rotation',
+    body: "Rotates through Squat, Bench, and Deadlift. This shows which one's next and how far through the cycle you are.",
+  },
+  {
+    spotlightRef: 'achievements',
+    iconName: 'trophy-outline',
+    iconLabel: 'Badges',
+    title: "Badges you've earned",
+    body: 'Milestones, strength PBs, and consistency streaks all unlock badges here. Tap in anytime to see the full list.',
+  },
+] as const;
 
 const HOME_ICONS = {
   weekStreak: require('@/assets/images/home/week-streak.png'),
@@ -86,6 +133,9 @@ export default function HomeScreen() {
     setCalibrationBannerDismissed,
     tourJustCompleted,
     setTourJustCompleted,
+    tourActiveTab,
+    setTourActiveTab,
+    skipTour,
   } = useAppStore();
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
@@ -423,6 +473,74 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // ── Guided tour: Home's own in-page tutorial ─────────────────────────────
+  // Runs when the shared tour reaches this tab (index 0). Hands off to
+  // Profile on its last step; skip abandons the whole tour, not just Home.
+  // The block-progress row only renders once showBlockProgress is true (a
+  // brand-new user with zero sessions doesn't have one yet) - skip that step
+  // entirely rather than spotlighting nothing.
+  const homeEffectiveTutorial = useMemo(
+    () => HOME_TUTORIAL.filter((s) => s.spotlightRef !== 'block' || showBlockProgress),
+    [showBlockProgress]
+  );
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const sessionCardRef = useRef<View>(null);
+  const blockRowRef = useRef<View>(null);
+  const streakTileRef = useRef<View>(null);
+  const programTileRef = useRef<View>(null);
+  const achievementsTileRef = useRef<View>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourActiveTab === 0) {
+      const t = setTimeout(() => setTutStep(0), 300);
+      return () => clearTimeout(t);
+    }
+    setTutStep(null);
+  }, [tourActiveTab]);
+
+  useEffect(() => {
+    setTutSpotlight(null);
+    setTutArrowX(null);
+    if (tutStep === null || homeEffectiveTutorial[tutStep] == null) return;
+    const refLookup = {
+      session: sessionCardRef,
+      block: blockRowRef,
+      streak: streakTileRef,
+      program: programTileRef,
+      achievements: achievementsTileRef,
+    };
+    const target = refLookup[homeEffectiveTutorial[tutStep].spotlightRef];
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
+          setTutArrowX(x + w / 2);
+        }
+      });
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [tutStep, homeEffectiveTutorial]);
+
+  const advanceHomeTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= homeEffectiveTutorial.length) {
+        setTourActiveTab(1); // hand off to Profile
+        return null;
+      }
+      return next;
+    });
+  }, [setTourActiveTab, homeEffectiveTutorial]);
+
+  const skipHomeTut = useCallback(() => {
+    setTutStep(null);
+    skipTour();
+  }, [skipTour]);
+
   return (
     <>
       <View
@@ -512,6 +630,7 @@ export default function HomeScreen() {
 
           {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
           {/* Glow wrapper: pulses green after the tab tour completes */}
+          <View ref={sessionCardRef} collapsable={false}>
           <Animated.View style={cardGlowStyle}>
             {completedSessions.length === 0 ? (
               <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
@@ -643,34 +762,37 @@ export default function HomeScreen() {
               </Animated.View>
             )}
           </Animated.View>
+          </View>
 
           {/* Block progress — standalone slim row between hero card and stats strip */}
           {completedSessions.length > 0 && showBlockProgress && (
-            <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
-              <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
-              <View style={styles.blockBarTrack}>
-                <View
-                  style={[
-                    styles.blockBarFill,
-                    { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any },
-                  ]}
-                />
-              </View>
-              <Text
-                style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}
-                numberOfLines={1}
-              >
-                {sessionsUntilTest <= 2
-                  ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                  : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${testWeekFrequency}`}
-              </Text>
-            </Animated.View>
+            <View ref={blockRowRef} collapsable={false}>
+              <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
+                <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
+                <View style={styles.blockBarTrack}>
+                  <View
+                    style={[
+                      styles.blockBarFill,
+                      { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any },
+                    ]}
+                  />
+                </View>
+                <Text
+                  style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}
+                  numberOfLines={1}
+                >
+                  {sessionsUntilTest <= 2
+                    ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
+                    : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${testWeekFrequency}`}
+                </Text>
+              </Animated.View>
+            </View>
           )}
 
           {/* Summary cards — 2×2 grid */}
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.summaryGrid}>
             {/* Week Streak */}
-            <View style={styles.summaryCard}>
+            <View ref={streakTileRef} collapsable={false} style={styles.summaryCard}>
               <Image
                 source={HOME_ICONS.weekStreak}
                 style={styles.summaryCardImage}
@@ -685,6 +807,7 @@ export default function HomeScreen() {
 
             {/* Your Program */}
             <Pressable
+              ref={programTileRef}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -726,6 +849,7 @@ export default function HomeScreen() {
 
             {/* Achievements */}
             <Pressable
+              ref={achievementsTileRef}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1069,6 +1193,23 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      {tutStep !== null && homeEffectiveTutorial[tutStep] != null && (
+        <CoachMark
+          visible
+          title={homeEffectiveTutorial[tutStep].title}
+          body={homeEffectiveTutorial[tutStep].body}
+          step={tutStep + 1}
+          total={homeEffectiveTutorial.length}
+          onNext={advanceHomeTut}
+          onSkip={skipHomeTut}
+          bottomOffset={(Platform.OS === 'web' ? 84 : tabBarHeight) + 16}
+          upArrowScreenX={tutArrowX ?? undefined}
+          iconName={homeEffectiveTutorial[tutStep].iconName}
+          iconLabel={homeEffectiveTutorial[tutStep].iconLabel}
+          spotlightRect={tutSpotlight ?? undefined}
+        />
+      )}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
@@ -23,6 +23,39 @@ import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store'
 import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+
+interface RestoreTutorialStep {
+  spotlightRef: 'recovery' | 'mobility' | 'prehab';
+  iconName: string;
+  iconLabel: string;
+  title: string;
+  body: string;
+}
+
+const RESTORE_TUTORIAL: readonly RestoreTutorialStep[] = [
+  {
+    spotlightRef: 'recovery',
+    iconName: 'pulse-outline',
+    iconLabel: 'Recovery',
+    title: 'A gentle full-body reset',
+    body: 'A joint circuit for the days you want to move without pushing hard, good after a heavy week.',
+  },
+  {
+    spotlightRef: 'mobility',
+    iconName: 'accessibility-outline',
+    iconLabel: 'Mobility',
+    title: 'Stay loose, stay mobile',
+    body: 'A full-body stretch session that keeps your range of motion sharp between training days.',
+  },
+  {
+    spotlightRef: 'prehab',
+    iconName: 'locate-outline',
+    iconLabel: 'Prehab',
+    title: 'Target a specific area',
+    body: 'Pick the region that needs it, tight hips, a cranky shoulder, and get a focused circuit just for that.',
+  },
+] as const;
 
 // ── Regions visible on each body diagram face ────────────────────────────────
 // Mirrors FRONT_REGION_SLUGS / BACK_REGION_SLUGS in BodyDiagram.tsx.
@@ -259,6 +292,9 @@ export default function RecoverScreen() {
     sessionEquipmentOverride,
     setSessionEquipmentOverride,
     clearSessionEquipmentOverride,
+    tourActiveTab,
+    setTourActiveTab,
+    skipTour,
   } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
@@ -439,7 +475,59 @@ export default function RecoverScreen() {
     }, [])
   );
 
+  // ── Guided tour: Restore's own in-page tutorial ──────────────────────────
+  // Runs when the shared tour reaches this tab (index 3). This is the tour's
+  // last screen-content step - hands off to Stats on its last step; skip
+  // abandons the whole tour, not just Restore.
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const navRefs = useRef<Record<string, View | null>>({});
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourActiveTab === 3) {
+      const t = setTimeout(() => setTutStep(0), 300);
+      return () => clearTimeout(t);
+    }
+    setTutStep(null);
+  }, [tourActiveTab]);
+
+  useEffect(() => {
+    setTutSpotlight(null);
+    setTutArrowX(null);
+    if (tutStep === null) return;
+    const key = RESTORE_TUTORIAL[tutStep].spotlightRef;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    const timer = setTimeout(() => {
+      navRefs.current[key]?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
+          setTutArrowX(x + w / 2);
+        }
+      });
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [tutStep]);
+
+  const advanceRestoreTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= RESTORE_TUTORIAL.length) {
+        setTourActiveTab(4); // hand off to Stats
+        return null;
+      }
+      return next;
+    });
+  }, [setTourActiveTab]);
+
+  const skipRestoreTut = useCallback(() => {
+    setTutStep(null);
+    skipTour();
+  }, [skipTour]);
+
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       ref={scrollRef}
       style={styles.root}
@@ -503,6 +591,9 @@ export default function RecoverScreen() {
         {ROWS.map((row) => (
           <Pressable
             key={row.key}
+            ref={(el) => {
+              navRefs.current[row.key] = el as unknown as View | null;
+            }}
             onPress={() => openModal(row.key)}
             style={({ pressed }) => [
               styles.navBtn,
@@ -803,6 +894,24 @@ export default function RecoverScreen() {
         </View>
       </Modal>
     </ScrollView>
+
+    {tutStep !== null && (
+      <CoachMark
+        visible
+        title={RESTORE_TUTORIAL[tutStep].title}
+        body={RESTORE_TUTORIAL[tutStep].body}
+        step={tutStep + 1}
+        total={RESTORE_TUTORIAL.length}
+        onNext={advanceRestoreTut}
+        onSkip={skipRestoreTut}
+        bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
+        upArrowScreenX={tutArrowX ?? undefined}
+        iconName={RESTORE_TUTORIAL[tutStep].iconName}
+        iconLabel={RESTORE_TUTORIAL[tutStep].iconLabel}
+        spotlightRect={tutSpotlight ?? undefined}
+      />
+    )}
+    </View>
   );
 }
 

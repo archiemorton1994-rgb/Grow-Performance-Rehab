@@ -1,14 +1,5 @@
-import { Tabs, router } from 'expo-router';
-import {
-  Platform,
-  StyleSheet,
-  View,
-  Image,
-  Modal,
-  Text,
-  Pressable,
-  useWindowDimensions,
-} from 'react-native';
+import { Tabs, router, useSegments } from 'expo-router';
+import { Platform, StyleSheet, View, Image, Modal, Text, Pressable } from 'react-native';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollToTopProvider, useScrollToTopTrigger } from '@/lib/scroll-to-top-context';
@@ -25,56 +16,16 @@ import { DarkColors, useColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 
-// ─── Tab tour coach mark steps ─────────────────────────────────────────────
-// Tour order: Home → Profile → Train → Restore → Stats (matches the array below
-// and the actual left-to-right tab bar order).
-// tabArrowFraction is the horizontal position (0–1) of the corresponding tab
-// icon in the visual tab bar (Home=0.1, Profile=0.3, Train=0.5, Restore=0.7, Stats=0.9).
-
-const COACH_STEPS = [
-  {
-    route: '/',
-    tabArrowFraction: 0.1,
-    iconName: 'home',
-    iconLabel: 'Home',
-    title: 'Your daily starting point',
-    body: 'Shows your recommended session for today. Tap the card to begin, the app plans your whole week automatically.',
-  },
-  {
-    route: '/profile',
-    tabArrowFraction: 0.3,
-    iconName: 'person',
-    iconLabel: 'Profile',
-    title: 'Your records and settings',
-    body: 'Strength records, milestone achievement badges, equipment settings and your full training history.',
-  },
-  {
-    route: '/train',
-    tabArrowFraction: 0.5,
-    iconName: 'barbell',
-    iconLabel: 'Train',
-    title: '8 ways to train',
-    body: 'KPI sessions (Squat / Bench / Deadlift) build your 1RM strength. Additional sessions like Lower Body, Upper Body, Full Body, Conditioning, and Custom cover every other training goal, and all adapt to your equipment.',
-  },
-  {
-    route: '/recover',
-    tabArrowFraction: 0.7,
-    iconName: 'medkit',
-    iconLabel: 'Restore',
-    title: 'For your rest days',
-    body: 'Flexibility sessions and Prehab circuits keep joints healthy, mobility sharp, and injuries at bay.',
-  },
-  {
-    route: '/workouts',
-    tabArrowFraction: 0.9,
-    iconName: 'bar-chart',
-    iconLabel: 'Stats',
-    title: 'Everything you lift, in one place',
-    body: 'Every set and weight is logged here. Strength KPIs, volume trends, and milestones fill in as you train.',
-  },
-] as const;
+// ─── Tab tour routing ───────────────────────────────────────────────────────
+// The guided tour no longer shows one generic card per tab from here — each
+// tab now has its own in-page tutorial (walking through that screen's real
+// sections), driven by the shared tourActiveTab store field. This file's only
+// remaining tour job is: own the intro card, and navigate to whichever tab
+// is currently touring so that tab's own tutorial can mount and take over.
+// Order matches the tab bar's actual left-to-right layout.
+const TOUR_TAB_ROUTES = ['/', '/profile', '/train', '/recover', '/workouts'] as const;
+const TOUR_TAB_SEGMENT = ['index', 'profile', 'train', 'recover', 'workouts'] as const;
 
 // ─── 3D PNG Tab Icons ────────────────────────────────────────────────────────
 
@@ -110,25 +61,28 @@ function TabsInner() {
   const C = useColors();
   const isWeb = Platform.OS === 'web';
   const insets = useSafeAreaInsets();
-  const { width: W, height: H } = useWindowDimensions();
   const triggerScrollToTop = useScrollToTopTrigger();
 
   const {
     tourComplete,
-    setTourComplete,
-    setTourJustCompleted,
     tourJustCompleted,
-    setSessionTutorialShown,
+    tourActiveTab,
+    tourSkipNonce,
+    setTourActiveTab,
+    skipTour,
     newlyUnlockedBadges,
   } = useAppStore();
+  const segments = useSegments();
 
-  // New users see an intro card first ("Let's take a tour!"); the tour proper
-  // (tourStep) only starts once that's dismissed. Veterans skip both.
+  // New users see an intro card first ("Let's take a tour!"); the tab-by-tab
+  // tour (tourActiveTab) only starts once that's dismissed. Veterans skip both.
   const [showTourIntro, setShowTourIntro] = useState<boolean>(() => !tourComplete);
-  const [tourStep, setTourStep] = useState<number | null>(null);
 
   // Brief "you can replay this later" toast, shown whenever the tour is
-  // skipped (from the intro or mid-tour) so skipping doesn't feel final.
+  // skipped — from the intro card, or from any tab's own in-page tutorial —
+  // so skipping doesn't feel final. Driven by tourSkipNonce (store) rather
+  // than a locally-owned skip handler, since the skip can now originate from
+  // a completely different screen than this one.
   const [showSkipHint, setShowSkipHint] = useState(false);
   const skipHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashSkipHint = useCallback(() => {
@@ -142,34 +96,28 @@ function TabsInner() {
     },
     []
   );
+  const prevSkipNonce = useRef(tourSkipNonce);
+  useEffect(() => {
+    if (tourSkipNonce !== prevSkipNonce.current) {
+      flashSkipHint();
+      prevSkipNonce.current = tourSkipNonce;
+    }
+  }, [tourSkipNonce, flashSkipHint]);
 
   const startTour = useCallback(() => {
     setShowTourIntro(false);
     // Wait for the intro Modal's dismiss animation to actually finish before
-    // mounting the first tour card. Starting it in the same tick left the
-    // card visually present but completely unresponsive to taps - the
+    // handing off to Home's own tutorial. Starting it in the same tick left
+    // the card visually present but completely unresponsive to taps - the
     // outgoing native Modal was still owning touch input underneath for a
     // beat after `visible` flipped false.
-    setTimeout(() => setTourStep(0), 300);
-  }, []);
+    setTimeout(() => setTourActiveTab(0), 300);
+  }, [setTourActiveTab]);
 
   const skipFromIntro = useCallback(() => {
     setShowTourIntro(false);
-    setTourComplete(true);
-    setSessionTutorialShown(true);
-    flashSkipHint();
-  }, [setTourComplete, setSessionTutorialShown, flashSkipHint]);
-
-  // ── Tab tour spotlight: measured, not guessed ────────────────────────────
-  // The old approach computed the highlight purely from screen-width fractions
-  // (tabIdx * tabW), which assumes every tab occupies an identical, evenly-
-  // spaced rectangle. Train doesn't — it's a raised 56×56 button that sticks up
-  // above the rest of the tab bar — so that math always undershot it, cutting
-  // its top off. Measuring the actual rendered icon fixes that for Train and
-  // makes every other tab's highlight pixel-accurate too.
-  const tabIconRefs = useRef<Record<string, View | null>>({});
-  const [tabSpotlight, setTabSpotlight] = useState<SpotlightRect | null>(null);
-  const [tabArrowX, setTabArrowX] = useState<number | null>(null);
+    skipTour();
+  }, [skipTour]);
 
   // Pulse the Home tab icon after the demo session completes and tourJustCompleted fires.
   const tabPulse = useSharedValue(1);
@@ -188,73 +136,31 @@ function TabsInner() {
     transform: [{ scale: tabPulse.value }],
   }));
 
-  // Replay: when tourComplete flips from true → false (e.g. "Replay tour" in Settings),
-  // restart from step 0.
+  // Replay: when tourComplete flips from true → false (e.g. "Replay tour" in
+  // Settings, triggered from Profile), restart from tab 0 (Home).
   const prevTourComplete = useRef(tourComplete);
   useEffect(() => {
     if (prevTourComplete.current === true && tourComplete === false) {
-      setTourStep(0);
+      setTourActiveTab(0);
     }
     prevTourComplete.current = tourComplete;
-  }, [tourComplete]);
+  }, [tourComplete, setTourActiveTab]);
 
-  // Programmatically switch to the tab for the current tour step.
-  // Step 0 is always Home, and the tour only ever starts right after the root
-  // gate's own router.replace('/(tabs)') has landed the user on Home — firing
-  // a second, uncoordinated navigate('/') into a screen that's still settling
-  // from that replace risks a navigation race (observed as the app becoming
-  // totally unresponsive right after onboarding, recoverable only by
-  // restarting). Skip it: there's nothing to navigate to yet.
+  // Navigate to whichever tab the tour is currently on. Guarded against the
+  // current route already matching the target so this never fires a
+  // redundant navigate right after onboarding's own gate navigation already
+  // landed the user on Home — only a genuine tab switch (advancing between
+  // tabs, or replaying the tour from Profile) actually triggers one.
   useEffect(() => {
-    if (tourStep === null || tourStep === 0 || tourStep >= COACH_STEPS.length) return;
-    const step = COACH_STEPS[tourStep];
-    const timer = setTimeout(() => router.navigate(step.route as any), 200);
+    if (tourActiveTab === null) return;
+    const currentSegment = segments[segments.length - 1];
+    if (currentSegment === TOUR_TAB_SEGMENT[tourActiveTab]) return;
+    const timer = setTimeout(() => router.navigate(TOUR_TAB_ROUTES[tourActiveTab] as any), 200);
     return () => clearTimeout(timer);
-  }, [tourStep]);
+  }, [tourActiveTab, segments]);
 
-  // Measure the current step's actual tab icon once the tab switch above (if
-  // any) has settled, rather than trusting geometry to match what's rendered.
-  useEffect(() => {
-    setTabSpotlight(null);
-    setTabArrowX(null);
-    if (tourStep === null || tourStep >= COACH_STEPS.length) return;
-    const step = COACH_STEPS[tourStep];
-    const delay = tourStep === 0 ? 120 : 320;
-    const timer = setTimeout(() => {
-      tabIconRefs.current[step.route]?.measureInWindow((x, y, w, h) => {
-        if (w > 0 && h > 0) {
-          setTabSpotlight({ top: y - 12, left: x - 12, width: w + 24, height: h + 24 });
-          setTabArrowX(x + w / 2);
-        }
-      });
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [tourStep]);
-
-  const handleNext = useCallback(() => {
-    setTourStep((prev) => {
-      if (prev === null) return null;
-      const next = prev + 1;
-      if (next >= COACH_STEPS.length) {
-        // Transition to the demo session where the in-session tutorial plays.
-        // tourComplete + tourJustCompleted are set when the demo session finishes.
-        setTimeout(() => router.navigate('/session?demo=true' as any), 150);
-        return null;
-      }
-      return next;
-    });
-  }, []);
-
-  const handleSkip = useCallback(() => {
-    setTourComplete(true);
-    setSessionTutorialShown(true);
-    setTourStep(null);
-    flashSkipHint();
-  }, [setTourComplete, setSessionTutorialShown, flashSkipHint]);
-
-  // Position the card above the tab bar, with 16 px to spare for the arrow.
+  // Position the skip-hint toast above the tab bar, with room to breathe.
   const tabBarHeight = isWeb ? 84 : insets.bottom + 50;
-  const coachMarkBottom = tabBarHeight + 16;
 
   return (
     <View style={{ flex: 1 }}>
@@ -287,13 +193,7 @@ function TabsInner() {
           options={{
             title: 'Home',
             tabBarIcon: ({ focused }) => (
-              <Animated.View
-                ref={(el) => {
-                  tabIconRefs.current['/'] = el as unknown as View | null;
-                }}
-                collapsable={false}
-                style={tabPulseStyle}
-              >
+              <Animated.View style={tabPulseStyle}>
                 <TabIcon source={TAB_ICONS.home} focused={focused} />
               </Animated.View>
             ),
@@ -308,16 +208,7 @@ function TabsInner() {
           })}
           options={{
             title: 'Profile',
-            tabBarIcon: ({ focused }) => (
-              <View
-                ref={(el) => {
-                  tabIconRefs.current['/profile'] = el;
-                }}
-                collapsable={false}
-              >
-                <TabIcon source={TAB_ICONS.profile} focused={focused} />
-              </View>
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.profile} focused={focused} />,
           }}
         />
         <Tabs.Screen
@@ -332,10 +223,6 @@ function TabsInner() {
             tabBarItemStyle: { overflow: 'visible' },
             tabBarIcon: ({ focused }) => (
               <View
-                ref={(el) => {
-                  tabIconRefs.current['/train'] = el;
-                }}
-                collapsable={false}
                 style={{
                   width: 56,
                   height: 56,
@@ -370,16 +257,7 @@ function TabsInner() {
           })}
           options={{
             title: 'Restore',
-            tabBarIcon: ({ focused }) => (
-              <View
-                ref={(el) => {
-                  tabIconRefs.current['/recover'] = el;
-                }}
-                collapsable={false}
-              >
-                <TabIcon source={TAB_ICONS.restore} focused={focused} />
-              </View>
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.restore} focused={focused} />,
           }}
         />
         <Tabs.Screen
@@ -391,56 +269,10 @@ function TabsInner() {
           })}
           options={{
             title: 'Stats',
-            tabBarIcon: ({ focused }) => (
-              <View
-                ref={(el) => {
-                  tabIconRefs.current['/workouts'] = el;
-                }}
-                collapsable={false}
-              >
-                <TabIcon source={TAB_ICONS.stats} focused={focused} />
-              </View>
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={TAB_ICONS.stats} focused={focused} />,
           }}
         />
       </Tabs>
-
-      {tourStep !== null &&
-        (() => {
-          const step = COACH_STEPS[tourStep];
-          const tabW = W / 5;
-          // tabArrowFraction: 0.1=Home, 0.3=Profile, 0.5=Train, 0.7=Restore, 0.9=Stats
-          // Maps to tab indices 0–4 via (fraction - 0.1) / 0.2
-          // Fallback only, used for the brief window before the real
-          // measurement above lands — the actual icon (tabSpotlight) wins
-          // once available, since Train's raised button doesn't fit this
-          // uniform-slot geometry.
-          const tabIdx = Math.round((step.tabArrowFraction - 0.1) / 0.2);
-          const fallbackRect: SpotlightRect = {
-            top: H - tabBarHeight,
-            left: tabIdx * tabW,
-            width: tabW,
-            height: tabBarHeight,
-          };
-          return (
-            <CoachMark
-              visible
-              title={step.title}
-              body={step.body}
-              step={tourStep + 1}
-              total={COACH_STEPS.length}
-              onNext={handleNext}
-              onSkip={handleSkip}
-              onSwipeLeft={handleNext}
-              bottomOffset={coachMarkBottom}
-              tabArrowFraction={step.tabArrowFraction}
-              downArrowScreenX={tabArrowX ?? undefined}
-              iconName={step.iconName}
-              iconLabel={step.iconLabel}
-              spotlightRect={tabSpotlight ?? fallbackRect}
-            />
-          );
-        })()}
 
       {/* Achievement toasts render as their own root-level <Modal> (app/_layout.tsx).
           Two native Modals presented at once break touch routing on both and

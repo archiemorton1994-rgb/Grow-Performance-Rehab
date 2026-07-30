@@ -23,6 +23,39 @@ import { useColors } from '@/constants/colors';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META as SESSION_META_LABELS, getSessionColors } from '@/lib/session-meta';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+
+interface TrainTutorialStep {
+  spotlightRef: 'equipment' | 'kpi' | 'additional';
+  iconName: string;
+  iconLabel: string;
+  title: string;
+  body: string;
+}
+
+const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
+  {
+    spotlightRef: 'equipment',
+    iconName: 'barbell-outline',
+    iconLabel: 'Equipment',
+    title: 'Your equipment for today',
+    body: "Tap here to change what's available just for this session, it won't touch your saved profile equipment.",
+  },
+  {
+    spotlightRef: 'kpi',
+    iconName: 'flash-outline',
+    iconLabel: 'KPI',
+    title: 'Your strength foundation',
+    body: 'Squat, Bench, and Deadlift drive your 1RM and strength tracking, everything else is measured against these.',
+  },
+  {
+    spotlightRef: 'additional',
+    iconName: 'grid-outline',
+    iconLabel: 'More',
+    title: 'Every other way to train',
+    body: 'Lower Body, Upper Body, Full Body, and Conditioning cover the rest, pick whichever fits your day.',
+  },
+] as const;
 
 const KPI_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
 
@@ -69,6 +102,9 @@ export default function TrainScreen() {
     sessionEquipmentOverride,
     setSessionEquipmentOverride,
     clearSessionEquipmentOverride,
+    tourActiveTab,
+    setTourActiveTab,
+    skipTour,
   } = useAppStore();
 
   const prevSessionCount = useRef(completedSessions.length);
@@ -87,6 +123,59 @@ export default function TrainScreen() {
       scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
     }, [])
   );
+
+  // ── Guided tour: Train's own in-page tutorial ────────────────────────────
+  // Runs when the shared tour reaches this tab (index 2). Hands off to
+  // Restore on its last step; skip abandons the whole tour, not just Train.
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const equipmentRef = useRef<View>(null);
+  const kpiRef = useRef<View>(null);
+  const additionalRef = useRef<View>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourActiveTab === 2) {
+      const t = setTimeout(() => setTutStep(0), 300);
+      return () => clearTimeout(t);
+    }
+    setTutStep(null);
+  }, [tourActiveTab]);
+
+  useEffect(() => {
+    setTutSpotlight(null);
+    setTutArrowX(null);
+    if (tutStep === null) return;
+    const refLookup = { equipment: equipmentRef, kpi: kpiRef, additional: additionalRef };
+    const target = refLookup[TRAIN_TUTORIAL[tutStep].spotlightRef];
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
+          setTutArrowX(x + w / 2);
+        }
+      });
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [tutStep]);
+
+  const advanceTrainTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= TRAIN_TUTORIAL.length) {
+        setTourActiveTab(3); // hand off to Restore
+        return null;
+      }
+      return next;
+    });
+  }, [setTourActiveTab]);
+
+  const skipTrainTut = useCallback(() => {
+    setTutStep(null);
+    skipTour();
+  }, [skipTour]);
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
@@ -283,7 +372,7 @@ export default function TrainScreen() {
           {!activeSession && <Text style={styles.subtitle}>Choose a session to start</Text>}
 
           {/* Equipment chip */}
-          <View style={styles.equipmentChipRow}>
+          <View ref={equipmentRef} collapsable={false} style={styles.equipmentChipRow}>
             <Pressable
               onPress={openEquipmentSheet}
               style={({ pressed }) => [
@@ -357,6 +446,7 @@ export default function TrainScreen() {
           )}
 
           {/* KPI Sessions */}
+          <View ref={kpiRef} collapsable={false}>
           <GlossaryTerm
             term="KPI Sessions"
             definition="Key Performance Indicator lifts: Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
@@ -392,6 +482,7 @@ export default function TrainScreen() {
               );
             })}
           </Animated.View>
+          </View>
 
           {/* KPI equipment callout — only for non-full-gym users */}
           {!hasFullGym && (
@@ -410,6 +501,7 @@ export default function TrainScreen() {
           )}
 
           {/* Additional Sessions */}
+          <View ref={additionalRef} collapsable={false}>
           <Text
             style={[
               styles.sectionHeading,
@@ -448,6 +540,7 @@ export default function TrainScreen() {
               );
             })}
           </Animated.View>
+          </View>
         </ScrollView>
       </View>
 
@@ -569,6 +662,23 @@ export default function TrainScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      {tutStep !== null && (
+        <CoachMark
+          visible
+          title={TRAIN_TUTORIAL[tutStep].title}
+          body={TRAIN_TUTORIAL[tutStep].body}
+          step={tutStep + 1}
+          total={TRAIN_TUTORIAL.length}
+          onNext={advanceTrainTut}
+          onSkip={skipTrainTut}
+          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
+          upArrowScreenX={tutArrowX ?? undefined}
+          iconName={TRAIN_TUTORIAL[tutStep].iconName}
+          iconLabel={TRAIN_TUTORIAL[tutStep].iconLabel}
+          spotlightRect={tutSpotlight ?? undefined}
+        />
+      )}
     </>
   );
 }

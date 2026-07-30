@@ -283,6 +283,16 @@ interface AppState {
   /** Transient flag set for ~2.5 s after the tour completion CTA is tapped.
    *  Home screen reads this to briefly pulse the suggested session card. */
   tourJustCompleted: boolean;
+  /** Which tab (0=Home, 1=Profile, 2=Train, 3=Restore, 4=Stats) the guided
+   *  tour is currently walking through, driving that tab's own in-page
+   *  tutorial. Null when no tour is in progress. NOT persisted - a killed
+   *  app just re-lands on the intro card rather than resuming mid-tour. */
+  tourActiveTab: number | null;
+  /** Bumped every time the tour is skipped, from the intro card or from any
+   *  tab's own tutorial, so the tabs layout (which owns the "find it in
+   *  Settings" toast) can react regardless of where the skip happened.
+   *  NOT persisted. */
+  tourSkipNonce: number;
   /** True only when the user reached the natural end of the demo session —
    *  never set by skipping or exiting the tour early. Distinct from
    *  `tourComplete`, which is also true when skipped. Gates the one-time
@@ -394,6 +404,10 @@ interface AppState {
   setHistoryTypeFilter: (filter: SessionType | null) => void;
   setTourComplete: (complete: boolean) => void;
   setTourJustCompleted: (v: boolean) => void;
+  setTourActiveTab: (tab: number | null) => void;
+  /** Abandons the tour from wherever it currently is - the intro card or any
+   *  tab's own in-page tutorial - and bumps tourSkipNonce for the toast. */
+  skipTour: () => void;
   /** Marks the tour as genuinely finished (not skipped) and evaluates badges
    *  immediately, so the one-time welcome badge is earned at this exact moment. */
   markTourGenuinelyCompleted: () => void;
@@ -489,6 +503,8 @@ export const useAppStore = create<AppState>()(
       historyTypeFilter: null,
       tourComplete: false,
       tourJustCompleted: false,
+      tourActiveTab: null,
+      tourSkipNonce: 0,
       tourGenuinelyCompleted: false,
       readinessTutorialShown: false,
       sessionTutorialShown: false,
@@ -566,6 +582,14 @@ export const useAppStore = create<AppState>()(
           ...(complete === false ? { sessionTutorialShown: false } : {}),
         }),
       setTourJustCompleted: (v) => set({ tourJustCompleted: v }),
+      setTourActiveTab: (tab) => set({ tourActiveTab: tab }),
+      skipTour: () =>
+        set((s) => ({
+          tourComplete: true,
+          tourActiveTab: null,
+          sessionTutorialShown: true,
+          tourSkipNonce: s.tourSkipNonce + 1,
+        })),
       markTourGenuinelyCompleted: () => {
         set({ tourGenuinelyCompleted: true });
         get().awardNewBadges();
@@ -983,6 +1007,8 @@ export const useAppStore = create<AppState>()(
         const {
           sessionEquipmentOverride: _transient,
           tourJustCompleted: _tourJustCompleted,
+          tourActiveTab: _tourActiveTab,
+          tourSkipNonce: _tourSkipNonce,
           ...persisted
         } = state;
         return persisted as typeof state;

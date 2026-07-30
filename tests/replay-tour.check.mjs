@@ -13,10 +13,10 @@
  *      feature entirely.
  *
  *   2. STORE RESET — the onPress handler calls `setTourComplete(false)`.  The
- *      tab-layout useEffect watches this value and restarts the tour at step 0
- *      when it flips true → false.  Any other action (e.g. `setTourStep(0)`
- *      directly) would be a no-op because _layout.tsx drives step from the
- *      store value.
+ *      tab-layout useEffect watches this value and restarts the tour at tab 0
+ *      (Home) when it flips true → false, by setting the shared tourActiveTab
+ *      store field. Any other action would be a no-op because each tab screen
+ *      drives its own in-page tutorial from that store value.
  *
  *   3. SHEET DISMISSAL — `setActiveModal(null)` must be called alongside the
  *      store reset so the Settings sheet closes before the first coach-mark
@@ -28,8 +28,8 @@
  *
  *   5. LAYOUT WATCHER — `app/(tabs)/_layout.tsx` must have the
  *      `prevTourComplete` ref + useEffect that reacts to a true→false flip by
- *      calling `setTourStep(0)`.  If this watcher is removed the replay button
- *      resets the store but nothing restarts the tour.
+ *      calling `setTourActiveTab(0)`.  If this watcher is removed the replay
+ *      button resets the store but nothing restarts the tour.
  *
  * Silent failure modes this catches:
  *  - `{tourComplete && (...)}` guard removed (tour row shows before first run)
@@ -153,32 +153,32 @@ if (profileSrc.includes('testID="replay-tour"')) {
   );
 }
 
-// ─── 5. Layout watcher — prevTourComplete + setTourStep(0) ───────────────────
-// _layout.tsx must have the ref + useEffect that fires setTourStep(0) when
-// tourComplete flips from true to false.
+// ─── 5. Layout watcher — prevTourComplete + setTourActiveTab(0) ──────────────
+// _layout.tsx must have the ref + useEffect that fires setTourActiveTab(0)
+// when tourComplete flips from true to false, restarting the tour at Home.
 const hasPrevTourCompleteRef = layoutSrc.includes('prevTourComplete');
-const hasSetTourStep0 = layoutSrc.includes('setTourStep(0)');
+const hasSetTourActiveTab0 = layoutSrc.includes('setTourActiveTab(0)');
 const hasFlipGuard =
   layoutSrc.includes('prevTourComplete.current === true') &&
   layoutSrc.includes('tourComplete === false');
 
-if (hasPrevTourCompleteRef && hasSetTourStep0 && hasFlipGuard) {
-  ok('_layout.tsx has prevTourComplete watcher that calls setTourStep(0) on true→false flip');
+if (hasPrevTourCompleteRef && hasSetTourActiveTab0 && hasFlipGuard) {
+  ok('_layout.tsx has prevTourComplete watcher that calls setTourActiveTab(0) on true→false flip');
 } else if (!hasPrevTourCompleteRef) {
   fail(
-    '_layout.tsx has prevTourComplete watcher that calls setTourStep(0) on true→false flip',
+    '_layout.tsx has prevTourComplete watcher that calls setTourActiveTab(0) on true→false flip',
     'prevTourComplete ref not found in _layout.tsx — the watcher that restarts ' +
       'the tour on store flip is missing'
   );
-} else if (!hasSetTourStep0) {
+} else if (!hasSetTourActiveTab0) {
   fail(
-    '_layout.tsx has prevTourComplete watcher that calls setTourStep(0) on true→false flip',
-    'setTourStep(0) not found in _layout.tsx — the watcher must call setTourStep(0) ' +
-      'to restart the tour at the first step'
+    '_layout.tsx has prevTourComplete watcher that calls setTourActiveTab(0) on true→false flip',
+    'setTourActiveTab(0) not found in _layout.tsx — the watcher must call ' +
+      'setTourActiveTab(0) to restart the tour at Home'
   );
 } else {
   fail(
-    '_layout.tsx has prevTourComplete watcher that calls setTourStep(0) on true→false flip',
+    '_layout.tsx has prevTourComplete watcher that calls setTourActiveTab(0) on true→false flip',
     'flip guard (prevTourComplete.current === true && tourComplete === false) ' +
       'not found in _layout.tsx — the watcher must only fire on a true→false flip, ' +
       'not on every tourComplete change'

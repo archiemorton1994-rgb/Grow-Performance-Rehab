@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useScrollToTopRegister } from '@/lib/scroll-to-top-context';
 import {
   View,
@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
+import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -94,6 +95,45 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
   ];
 
 type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | 'bw-history' | null;
+
+interface ProfileTutorialStep {
+  spotlightRef: 'header' | 'stats' | 'strength' | 'settings';
+  iconName: string;
+  iconLabel: string;
+  title: string;
+  body: string;
+}
+
+const PROFILE_TUTORIAL: readonly ProfileTutorialStep[] = [
+  {
+    spotlightRef: 'header',
+    iconName: 'person-outline',
+    iconLabel: 'You',
+    title: 'This is you',
+    body: 'Your goals and experience level from onboarding, they shape every session the app builds.',
+  },
+  {
+    spotlightRef: 'stats',
+    iconName: 'stats-chart-outline',
+    iconLabel: 'Stats',
+    title: 'Your training at a glance',
+    body: 'Total sessions, your current streak, and how many you have logged this week.',
+  },
+  {
+    spotlightRef: 'strength',
+    iconName: 'trending-up-outline',
+    iconLabel: 'Strength',
+    title: 'Strength, tracked over time',
+    body: "Log a 1RM and this fills in with your lift-to-bodyweight ratios, so you can see real progress, not just numbers.",
+  },
+  {
+    spotlightRef: 'settings',
+    iconName: 'settings-outline',
+    iconLabel: 'Settings',
+    title: 'Everything else lives here',
+    body: 'Equipment, reminders, units, appearance, account, and this guided tour if you ever want to replay it.',
+  },
+] as const;
 
 // ─── Bodyweight Sparkline ──────────────────────────────────────────────────────
 function BodyweightSparkline({
@@ -343,6 +383,9 @@ export default function ProfileScreen() {
     removeBodyweightEntry,
     themePreference,
     setThemePreference,
+    tourActiveTab,
+    setTourActiveTab,
+    skipTour,
   } = useAppStore();
 
   const { user, signOut, deleteAccount } = useAuth();
@@ -652,6 +695,65 @@ export default function ProfileScreen() {
     }, [])
   );
 
+  // ── Guided tour: Profile's own in-page tutorial ──────────────────────────
+  // Runs when the shared tour reaches this tab (index 1). Hands off to
+  // Train on its last step; skip abandons the whole tour, not just Profile.
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const headerRef = useRef<View>(null);
+  const statsRef = useRef<View>(null);
+  const strengthRef = useRef<View>(null);
+  const settingsRef = useRef<View>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourActiveTab === 1) {
+      const t = setTimeout(() => setTutStep(0), 300);
+      return () => clearTimeout(t);
+    }
+    setTutStep(null);
+  }, [tourActiveTab]);
+
+  useEffect(() => {
+    setTutSpotlight(null);
+    setTutArrowX(null);
+    if (tutStep === null) return;
+    const refLookup = {
+      header: headerRef,
+      stats: statsRef,
+      strength: strengthRef,
+      settings: settingsRef,
+    };
+    const target = refLookup[PROFILE_TUTORIAL[tutStep].spotlightRef];
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    const timer = setTimeout(() => {
+      target?.current?.measureInWindow((x, y, w, h) => {
+        if (w > 0 && h > 0) {
+          setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
+          setTutArrowX(x + w / 2);
+        }
+      });
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [tutStep]);
+
+  const advanceProfileTut = useCallback(() => {
+    setTutStep((prev) => {
+      if (prev === null) return null;
+      const next = prev + 1;
+      if (next >= PROFILE_TUTORIAL.length) {
+        setTourActiveTab(2); // hand off to Train
+        return null;
+      }
+      return next;
+    });
+  }, [setTourActiveTab]);
+
+  const skipProfileTut = useCallback(() => {
+    setTutStep(null);
+    skipTour();
+  }, [skipTour]);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top + webTopInset }]}>
       <ScrollView
@@ -663,6 +765,7 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <View ref={headerRef} collapsable={false}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroSection}>
           <Text style={styles.heroName}>{displayName}</Text>
           <Pressable style={styles.avatarWrap} onPress={handlePickPhoto} testID="profile-avatar">
@@ -700,6 +803,7 @@ export default function ProfileScreen() {
             </View>
           )}
         </Animated.View>
+        </View>
 
         {bodyweightLog.length >= 1 && (
           <Animated.View entering={FadeInDown.delay(50).duration(400)}>
@@ -711,6 +815,7 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
+        <View ref={statsRef} collapsable={false}>
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsCard}>
           <View style={styles.stat}>
             <View style={styles.statNumRow}>
@@ -749,7 +854,9 @@ export default function ProfileScreen() {
             <Text style={styles.statLbl}>This Week</Text>
           </View>
         </Animated.View>
+        </View>
 
+        <View ref={strengthRef} collapsable={false}>
         {/* Strength-to-bodyweight ratio strip - only shown when 1RM data + bodyweight are both set */}
         {oneRepMaxes.length > 0 &&
           userProfile.bodyweightKg > 0 &&
@@ -814,6 +921,7 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
         )}
+        </View>
 
         {/* Subscription card */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
@@ -873,6 +981,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Single Settings entry - everything else lives behind here */}
+        <View ref={settingsRef} collapsable={false}>
         <Animated.View entering={FadeInDown.delay(180).duration(400)}>
           <Pressable
             onPress={() => {
@@ -897,6 +1006,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
           </Pressable>
         </Animated.View>
+        </View>
       </ScrollView>
 
       {/* Edit Details Modal */}
@@ -1836,6 +1946,23 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {tutStep !== null && (
+        <CoachMark
+          visible
+          title={PROFILE_TUTORIAL[tutStep].title}
+          body={PROFILE_TUTORIAL[tutStep].body}
+          step={tutStep + 1}
+          total={PROFILE_TUTORIAL.length}
+          onNext={advanceProfileTut}
+          onSkip={skipProfileTut}
+          bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
+          upArrowScreenX={tutArrowX ?? undefined}
+          iconName={PROFILE_TUTORIAL[tutStep].iconName}
+          iconLabel={PROFILE_TUTORIAL[tutStep].iconLabel}
+          spotlightRect={tutSpotlight ?? undefined}
+        />
+      )}
     </View>
   );
 }
