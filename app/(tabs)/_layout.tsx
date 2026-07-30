@@ -13,6 +13,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollToTopProvider, useScrollToTopTrigger } from '@/lib/scroll-to-top-context';
 import Animated, {
+  FadeIn,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -125,16 +127,38 @@ function TabsInner() {
   const [showTourIntro, setShowTourIntro] = useState<boolean>(() => !tourComplete);
   const [tourStep, setTourStep] = useState<number | null>(null);
 
+  // Brief "you can replay this later" toast, shown whenever the tour is
+  // skipped (from the intro or mid-tour) so skipping doesn't feel final.
+  const [showSkipHint, setShowSkipHint] = useState(false);
+  const skipHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashSkipHint = useCallback(() => {
+    setShowSkipHint(true);
+    if (skipHintTimer.current) clearTimeout(skipHintTimer.current);
+    skipHintTimer.current = setTimeout(() => setShowSkipHint(false), 3200);
+  }, []);
+  useEffect(
+    () => () => {
+      if (skipHintTimer.current) clearTimeout(skipHintTimer.current);
+    },
+    []
+  );
+
   const startTour = useCallback(() => {
     setShowTourIntro(false);
-    setTourStep(0);
+    // Wait for the intro Modal's dismiss animation to actually finish before
+    // mounting the first tour card. Starting it in the same tick left the
+    // card visually present but completely unresponsive to taps - the
+    // outgoing native Modal was still owning touch input underneath for a
+    // beat after `visible` flipped false.
+    setTimeout(() => setTourStep(0), 300);
   }, []);
 
   const skipFromIntro = useCallback(() => {
     setShowTourIntro(false);
     setTourComplete(true);
     setSessionTutorialShown(true);
-  }, [setTourComplete, setSessionTutorialShown]);
+    flashSkipHint();
+  }, [setTourComplete, setSessionTutorialShown, flashSkipHint]);
 
   // ── Tab tour spotlight: measured, not guessed ────────────────────────────
   // The old approach computed the highlight purely from screen-width fractions
@@ -225,7 +249,8 @@ function TabsInner() {
     setTourComplete(true);
     setSessionTutorialShown(true);
     setTourStep(null);
-  }, [setTourComplete, setSessionTutorialShown]);
+    flashSkipHint();
+  }, [setTourComplete, setSessionTutorialShown, flashSkipHint]);
 
   // Position the card above the tab bar, with 16 px to spare for the arrow.
   const tabBarHeight = isWeb ? 84 : insets.bottom + 50;
@@ -455,11 +480,41 @@ function TabsInner() {
           </View>
         </View>
       </Modal>
+
+      {showSkipHint && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          style={[styles.skipHint, { bottom: tabBarHeight + 16, backgroundColor: C.text }]}
+          pointerEvents="none"
+          testID="tour-skip-hint"
+        >
+          <Text style={[styles.skipHintText, { color: C.background }]}>
+            Tour skipped. Find it again anytime in Profile → Settings.
+          </Text>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  skipHint: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    zIndex: 250,
+    ...elevatedShadow('#000'),
+  },
+  skipHintText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    textAlign: 'center',
+  },
   introOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

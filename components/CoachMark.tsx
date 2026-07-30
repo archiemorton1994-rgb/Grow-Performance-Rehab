@@ -172,9 +172,18 @@ export default function CoachMark({
   const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height) / 2) : 12;
 
   return (
-    // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so touches
-    // pass through the transparent area; only the card itself captures input.
+    // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so the
+    // card (a later, higher-stacked sibling below) still receives its own
+    // taps; the blocker directly below is what actually stops everything
+    // else from being reachable.
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+      {/* Full-screen tap blocker - swallows touches anywhere on screen,
+          including inside the spotlight cut-out, so the tour is a hard gate:
+          nothing underneath (not even the highlighted tab icon itself) is
+          reachable until Next/Skip is used. onPress with no handler is
+          enough to make it capture rather than pass through. */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} testID="coachmark-blocker" />
+
       {/* ── Spotlight: 4 dark strips framing the cut-out window ────────── */}
       {sr && (
         <>
