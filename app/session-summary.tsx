@@ -31,6 +31,7 @@ import {
   SetLog,
   ExerciseCategory,
   ExerciseFeedback,
+  ExercisePerformance,
   PainRegion,
   SessionType,
   WeightUnit,
@@ -183,7 +184,7 @@ function getNextHint(
   exerciseId: string,
   bestWeightKg: number,
   isLatestSession: boolean,
-  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>,
+  lastSessionPerformance: Record<string, ExercisePerformance>,
   exerciseNormalStreak: Record<string, number>,
   exerciseFeedback: Record<string, ExerciseFeedback>,
   weightUnit: WeightUnit
@@ -194,6 +195,9 @@ function getNextHint(
     const ratedDown = exerciseFeedback[exerciseId]?.thumbs === 'down';
     const why = ratedDown ? 'You rated this tough' : 'A set was left incomplete';
     return `Next time: holding at ${formatWeight(bestWeightKg, weightUnit)}. ${why}.`;
+  }
+  if (perf === 'very_easy') {
+    return `Next time: up to ${formatWeight(bestWeightKg + 7.5, weightUnit)}. You said you had plenty left.`;
   }
   const streak = exerciseNormalStreak[exerciseId] ?? 0;
   if (perf === 'easy' || streak >= 3) {
@@ -272,6 +276,7 @@ function ProgressTab({
   isLatestSession,
   lastSessionPerformance,
   exerciseNormalStreak,
+  exerciseStuckStreak,
   exerciseFeedback,
   weightUnit,
   onOpenRating,
@@ -286,8 +291,9 @@ function ProgressTab({
    *  been logged, in which case there's nothing to compare against. */
   previousTotals: { totalVolumeKg: number; totalReps: number } | null;
   isLatestSession: boolean;
-  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>;
+  lastSessionPerformance: Record<string, ExercisePerformance>;
   exerciseNormalStreak: Record<string, number>;
+  exerciseStuckStreak: Record<string, number>;
   exerciseFeedback: Record<string, ExerciseFeedback>;
   weightUnit: WeightUnit;
   onOpenRating: () => void;
@@ -381,6 +387,8 @@ function ProgressTab({
                 exerciseFeedback,
                 weightUnit
               );
+              const stuckStreak = exerciseStuckStreak[r.exerciseId] ?? 0;
+              const showPlateauNudge = isLatestSession && stuckStreak >= 3;
               return (
                 <View
                   key={r.exerciseId}
@@ -439,6 +447,35 @@ function ProgressTab({
                       {nextHint}
                     </Text>
                   )}
+                  {showPlateauNudge && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        gap: 6,
+                        marginLeft: 46,
+                        marginTop: 2,
+                      }}
+                    >
+                      <Ionicons
+                        name="swap-horizontal-outline"
+                        size={13}
+                        color={TONE_DOWN}
+                        style={{ marginTop: 1 }}
+                      />
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 11.5,
+                          fontFamily: 'Inter_500Medium',
+                          color: TONE_DOWN,
+                          lineHeight: 15,
+                        }}
+                      >
+                        {`Held at this weight for ${stuckStreak} sessions in a row - a deload or swapping this exercise for a while could help it move again.`}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               );
             })}
@@ -482,6 +519,7 @@ export default function SessionSummaryScreen() {
   const updateSessionNotes = useAppStore((s) => s.updateSessionNotes);
   const lastSessionPerformance = useAppStore((s) => s.lastSessionPerformance);
   const exerciseNormalStreak = useAppStore((s) => s.exerciseNormalStreak);
+  const exerciseStuckStreak = useAppStore((s) => s.exerciseStuckStreak);
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
 
   const certRef = useRef<View>(null);
@@ -906,6 +944,7 @@ export default function SessionSummaryScreen() {
             isLatestSession={isLatestSession}
             lastSessionPerformance={lastSessionPerformance}
             exerciseNormalStreak={exerciseNormalStreak}
+            exerciseStuckStreak={exerciseStuckStreak}
             exerciseFeedback={exerciseFeedback}
             weightUnit={weightUnit}
             onOpenRating={() => {

@@ -4636,7 +4636,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Glutes', 'Hamstrings'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'resistance bands',
+        equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Seated Quad Extension (chair)'],
         swapAlternative: {
           name: 'Isometric Split Squat Hold',

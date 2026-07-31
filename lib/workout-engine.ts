@@ -2,6 +2,7 @@ import {
   EquipmentTier,
   EnergyLevel,
   ExerciseFeedback,
+  ExercisePerformance,
   FitnessGoal,
   PainRegion,
   SessionType,
@@ -56,6 +57,8 @@ export interface Exercise {
   isDumbbellExercise?: boolean;
   /** Surface a contextual note in the session UI when load was derived from last session data. */
   progressionNote?: string;
+  /** Whether progressionNote describes a step up or a hold - drives which icon the UI shows. */
+  progressionDirection?: 'up' | 'hold';
   /** Marks a custom-session cardio exercise; shows duration/speed inputs instead of weight/reps. */
   type?: 'cardio';
 }
@@ -186,6 +189,31 @@ function isDumbbellTier(tier: EquipmentTier): boolean {
 }
 
 /**
+ * Working weight for a main KPI lift derived directly from a 1RM, using the
+ * same goal-appropriate percentages personalizeLoad's bootstrap path uses
+ * (strength: 85%, muscle: 75%, fat_loss: 65%, fitness: 70%, rehab: 50%,
+ * power: 90%). Exported so a freshly-tested 1RM can also re-baseline
+ * lastLoggedWeights when a test week completes (see completeSession in
+ * lib/store.ts) - without this, a new 1RM only ever mattered the very first
+ * time a lift was suggested, since personalizeLoad's lastLoggedWeight+step
+ * path takes priority over this one for every session after that.
+ */
+export function workingWeightFromOrm(ormKg: number, profile: UserProfile): number {
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const goalPct: Record<string, number> = {
+    strength: 0.85,
+    muscle: 0.75,
+    fat_loss: 0.65,
+    fitness: 0.7,
+    rehab: 0.5,
+    power: 0.9,
+  };
+  const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
+  const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.7), 0) / activeGoals.length;
+  return roundTo2_5(ormKg * avgPct);
+}
+
+/**
  * Personalizes a suggestedLoad string based on the user's profile.
  *
  * Reference athlete in the exercise database: intermediate male, ~80 kg, muscle goal.
@@ -211,7 +239,7 @@ function personalizeLoad(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+  lastSessionPerformance?: Record<string, ExercisePerformance>
 ): string {
   if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
 
@@ -264,6 +292,7 @@ function personalizeLoad(
   // recent session, not a persistent state that keeps triggering jumps:
   //
   //   'failed'              → hold weight (incomplete sets / thumbs-down)
+  //   'very_easy'           → +7.5 kg (in-session "5+ more left" feedback)
   //   'easy'                → +5 kg (easy session or thumbs-up feedback)
   //   'normal' + streak ≥3  → +5 kg (3+ consistent normal sessions = ready)
   //   'normal' / undefined  → +2.5 kg (standard progressive overload)
@@ -302,8 +331,9 @@ function personalizeLoad(
     // store so it resets to 0 precisely when feedback is received for *this*
     // exercise, not based on unrelated global session count changes.
     const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
-    const step = performance === 'easy' || normalStreak >= 3 ? 5 : 2.5;
-    // Apply exact additive step (hold / +2.5 / +5) as specified.
+    const step =
+      performance === 'very_easy' ? 7.5 : performance === 'easy' || normalStreak >= 3 ? 5 : 2.5;
+    // Apply exact additive step (hold / +2.5 / +5 / +7.5) as specified.
     // feedbackMult is NOT applied on top - it is only used in the heuristic
     // path below (when there is no previous logged weight to anchor from).
     const progressedKg = roundTo2_5(lastKg + step);
@@ -328,18 +358,7 @@ function personalizeLoad(
   // to calculate the working weight directly rather than relying on body-weight
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
-    const goalPct: Record<string, number> = {
-      strength: 0.85,
-      muscle: 0.75,
-      fat_loss: 0.65,
-      fitness: 0.7,
-      rehab: 0.5,
-      power: 0.9,
-    };
-    const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
-    const avgPct =
-      activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.7), 0) / activeGoals.length;
-    const targetKg = roundTo2_5(ormKg * avgPct * combinedMult);
+    const targetKg = roundTo2_5(workingWeightFromOrm(ormKg, profile) * combinedMult);
     return `${targetKg} kg`;
   }
 
@@ -527,26 +546,40 @@ function applyPersonalization(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+  lastSessionPerformance?: Record<string, ExercisePerformance>
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
 
   // Derive a human-readable progression note from the same signals used in
   // personalizeLoad, so ExerciseCard can explain the suggested load to the user.
+  // Mirrors getNextHint()'s reasoning/voice in session-summary.tsx, phrased for
+  // "why this weight right now" rather than "what happens next time" - the two
+  // are the same underlying decision, seen at different points in the loop.
   let progressionNote: string | undefined;
+  let progressionDirection: 'up' | 'hold' | undefined;
   const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
   if (lastKg > 0) {
     const performance = ex.id ? lastSessionPerformance?.[ex.id] : undefined;
     const normalStreak = ex.id ? (exerciseNormalStreak?.[ex.id] ?? 0) : 0;
     if (performance === 'failed') {
-      progressionNote = 'Load held - take your time with this weight';
+      const ratedDown = ex.id ? exerciseFeedback?.[ex.id]?.thumbs === 'down' : false;
+      progressionNote = ratedDown
+        ? 'Held steady - you rated this tough last time'
+        : 'Held steady - a set was left incomplete last time';
+      progressionDirection = 'hold';
+    } else if (performance === 'very_easy') {
+      progressionNote = 'Bumped up big - you said you had plenty left last time';
+      progressionDirection = 'up';
     } else if (performance === 'easy') {
-      progressionNote = 'Load increased - strong performance last session';
+      progressionNote = 'Bumped up - you rated this easy last time';
+      progressionDirection = 'up';
     } else if (normalStreak >= 3) {
-      progressionNote = `Load bumped - ${normalStreak} consistent sessions, time to progress`;
+      progressionNote = `Bumped up - ${normalStreak} clean sessions in a row`;
+      progressionDirection = 'up';
     } else {
-      progressionNote = 'Load adjusted from your last session';
+      progressionNote = 'Nudged up - clean session last time';
+      progressionDirection = 'up';
     }
   }
 
@@ -581,6 +614,7 @@ function applyPersonalization(
         )
       : ex.swapLoad,
     progressionNote,
+    progressionDirection,
   };
 }
 
@@ -595,7 +629,7 @@ export function generateWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+  lastSessionPerformance?: Record<string, ExercisePerformance>
 ): Exercise[] {
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(
@@ -688,7 +722,7 @@ export function generateWorkout(
   //   30 min → all 3 stretches (safety warmup - never skip)
   //   45 min → first 2 stretches
   //   60 min → all 3 stretches
-  const prep = getPrep(mainType, equipmentTier);
+  const prep = seededShuffleDiverse(getPrep(mainType, equipmentTier), sessionSeed);
   const prepCount = timeAvailable === '45' ? 2 : 3;
   for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
@@ -814,7 +848,7 @@ export function generateWorkout(
       ? getRegionPrehabExercise(
           Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion
         )
-      : getPrehab(mainType, equipmentTier)[0];
+      : seededShuffleDiverse(getPrehab(mainType, equipmentTier), sessionSeed)[0];
     const phEx = templateToExercise(prehabTemplate);
     phEx.sets = 1;
     exercises.push(phEx);
@@ -874,7 +908,7 @@ function generateWeeklyWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+  lastSessionPerformance?: Record<string, ExercisePerformance>
 ): Exercise[] {
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
@@ -895,7 +929,7 @@ function generateWeeklyWorkout(
   //   prehab/finisher already are below (upper→bench, lower→squat, full→deadlift).
   const prepSource: MainSessionType =
     sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-  const prep = getPrep(prepSource, equipmentTier);
+  const prep = seededShuffleDiverse(getPrep(prepSource, equipmentTier), sessionSeed);
   const prepCount = timeAvailable === '45' ? 2 : 3;
   for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
@@ -975,13 +1009,16 @@ function generateWeeklyWorkout(
   if (timeAvailable === '45') {
     const prehabTemplate = painRegion
       ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion)
-      : getPrehab(
-          sessionType === 'upper_body'
-            ? 'bench'
-            : sessionType === 'full_body'
-              ? 'deadlift'
-              : 'squat',
-          equipmentTier
+      : seededShuffleDiverse(
+          getPrehab(
+            sessionType === 'upper_body'
+              ? 'bench'
+              : sessionType === 'full_body'
+                ? 'deadlift'
+                : 'squat',
+            equipmentTier
+          ),
+          sessionSeed
         )[0];
     const phEx = templateToExercise(prehabTemplate);
     phEx.sets = 1;
@@ -1047,7 +1084,7 @@ function generateConditioningWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, 'easy' | 'normal' | 'failed'>
+  lastSessionPerformance?: Record<string, ExercisePerformance>
 ): Exercise[] {
   const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
@@ -1058,7 +1095,11 @@ function generateConditioningWorkout(
   // mobilising the joints about to be loaded, and this pool was missing that
   // step entirely. Same 45min→2 / else→3 scaling used by the other builders.
   const prepCount = timeAvailable === '45' ? 2 : 3;
-  const prepTemplates = getPrep('squat', equipmentTier).slice(0, prepCount);
+  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
+  const prepTemplates = seededShuffleDiverse(getPrep('squat', equipmentTier), sessionSeed).slice(
+    0,
+    prepCount
+  );
   const withPrep =
     templates.length > 0 ? [templates[0], ...prepTemplates, ...templates.slice(1)] : templates;
 
@@ -1087,6 +1128,32 @@ export function generate1RMWorkout(
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
   const exercises = protocol.map((t) => templateToExercise(t));
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(exercises) : exercises;
+}
+
+/**
+ * The real KPI-lift exercise ID (e.g. 'sq-main-fg') a normal session for
+ * this type/tier would suggest - as opposed to the different ID a 1RM-test
+ * protocol uses for the same lift. Lets a test-week completion write its
+ * result to the ID that lastLoggedWeights lookups will actually hit next
+ * time, instead of the test's own exercise ID (which normal sessions never
+ * read from). Null for session types that don't have a single KPI lift.
+ */
+export function getMainLiftExerciseId(
+  sessionType: SessionType,
+  equipmentTier: EquipmentTier
+): string | null {
+  if (
+    sessionType === 'conditioning' ||
+    sessionType === 'custom' ||
+    sessionType === 'prehab' ||
+    sessionType === 'flexibility' ||
+    sessionType === 'upper_body' ||
+    sessionType === 'lower_body' ||
+    sessionType === 'full_body'
+  ) {
+    return null;
+  }
+  return getMainLift(sessionType as MainSessionType, equipmentTier).id;
 }
 
 /**

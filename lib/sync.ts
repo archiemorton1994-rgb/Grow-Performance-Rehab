@@ -19,6 +19,7 @@ export interface SyncPayload {
   lastLoggedWeights: Record<string, number>;
   lastSessionPerformance: Record<string, string>;
   exerciseNormalStreak: Record<string, number>;
+  exerciseStuckStreak: Record<string, number>;
   savedTemplates: any[];
 }
 

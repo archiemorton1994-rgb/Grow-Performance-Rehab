@@ -40,11 +40,13 @@ import {
   EquipmentTier,
   EnergyLevel,
   PainRegion,
+  PainSeverity,
   SessionType,
   TimeAvailable,
   SetLog,
   ExerciseLog,
   ExerciseFeedback,
+  FeedbackRating,
   WeightUnit,
   CustomExercise,
   CardioLogData,
@@ -67,6 +69,8 @@ import {
   getSessionLabel,
   getPainRegionLabel,
   getWeightGuideKg,
+  getMainLiftExerciseId,
+  workingWeightFromOrm,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 
@@ -442,7 +446,7 @@ interface SessionActiveBarProps {
   onSetChange: (exerciseIndex: number, setIndex: number, updated: SetLog) => void;
   onSetCompleted: () => void;
   onNewPb?: () => void;
-  onFeedback: (exerciseId: string, f: 'easy' | 'hard') => void;
+  onFeedback: (exerciseId: string, f: FeedbackRating) => void;
   onCompleteSession: () => void;
   /** Returns to the previous exercise to fix a mis-logged set. Omitted (no
    *  button shown) for the first exercise or in the demo tutorial. */
@@ -576,7 +580,7 @@ export function SessionActiveBar({
     }
   };
 
-  const handleFeedback = (f: 'easy' | 'hard') => {
+  const handleFeedback = (f: FeedbackRating) => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
     if (exercise) onFeedback(exercise.id, f);
     setShowFeedback(false);
@@ -619,25 +623,32 @@ export function SessionActiveBar({
         <Text style={styles.barFeedbackPrompt}>
           Set {activeSetIndex + 1} logged · How did it feel?
         </Text>
-        <View style={styles.barFeedbackRow}>
-          <Pressable onPress={() => handleFeedback('easy')} style={styles.barFeedbackBtn}>
-            <Text style={styles.barFeedbackBtnText}>👍 Too easy</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowFeedback(false)}
-            style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
-            testID="feedback-good"
-          >
-            <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ OK</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => handleFeedback('hard')}
-            style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
-          >
-            <Text style={[styles.barFeedbackBtnText, { color: C.categoryFinisherText }]}>
-              💪 Hard
-            </Text>
-          </Pressable>
+        <View style={styles.barFeedbackGrid}>
+          <View style={styles.barFeedbackRow}>
+            <Pressable onPress={() => handleFeedback('very_easy')} style={styles.barFeedbackBtn}>
+              <Text style={styles.barFeedbackBtnText}>💪 5+ more left</Text>
+            </Pressable>
+            <Pressable onPress={() => handleFeedback('easy')} style={styles.barFeedbackBtn}>
+              <Text style={styles.barFeedbackBtnText}>👍 2-3 more left</Text>
+            </Pressable>
+          </View>
+          <View style={styles.barFeedbackRow}>
+            <Pressable
+              onPress={() => setShowFeedback(false)}
+              style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
+              testID="feedback-good"
+            >
+              <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ Last rep</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleFeedback('hard')}
+              style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
+            >
+              <Text style={[styles.barFeedbackBtnText, { color: C.categoryFinisherText }]}>
+                😓 Missed reps
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     );
@@ -1150,7 +1161,15 @@ export function ExerciseCard({
                   )}
                   {exercise.progressionNote && (
                     <View style={styles.progressionNoteRow}>
-                      <Ionicons name="trending-up-outline" size={11} color={C.primary} />
+                      <Ionicons
+                        name={
+                          exercise.progressionDirection === 'hold'
+                            ? 'remove-outline'
+                            : 'trending-up-outline'
+                        }
+                        size={11}
+                        color={C.primary}
+                      />
                       <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
                     </View>
                   )}
@@ -1560,7 +1579,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
-    body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression. Check the Progress tab after your session to see exactly what changed.',
+    body: 'After each exercise, say how many more reps you had left. This drives the automatic weight progression. Check the Progress tab after your session to see exactly what changed.',
     demoForceFeedback: true,
   },
   {
@@ -1587,6 +1606,7 @@ export default function SessionScreen() {
     sessionType: string;
     hasAches: string;
     painRegion: string;
+    painSeverity?: string;
     energy: string;
     timeAvailable: string;
     isTestWeek: string;
@@ -1623,6 +1643,10 @@ export default function SessionScreen() {
         .split(',')
         .filter(Boolean)
         .map((r) => r as PainRegion)
+    : undefined;
+  const VALID_PAIN_SEVERITY: PainSeverity[] = ['mild', 'moderate', 'severe'];
+  const painSeverity = VALID_PAIN_SEVERITY.includes(params.painSeverity as PainSeverity)
+    ? (params.painSeverity as PainSeverity)
     : undefined;
   const energy = VALID_ENERGY.includes(params.energy as EnergyLevel)
     ? (params.energy as EnergyLevel)
@@ -1826,7 +1850,7 @@ export default function SessionScreen() {
   const [barTimerTrigger, setBarTimerTrigger] = useState(0);
   const [notesVisible, setNotesVisible] = useState<boolean[]>([]);
   const [inSessionFeedback, setInSessionFeedback] = useState<
-    Record<string, 'easy' | 'hard' | null>
+    Record<string, FeedbackRating | null>
   >({});
 
   const [tutStep, setTutStep] = useState<number | null>(null);
@@ -1954,7 +1978,7 @@ export default function SessionScreen() {
     []
   );
 
-  const handleBarFeedback = useCallback((exerciseId: string, f: 'easy' | 'hard') => {
+  const handleBarFeedback = useCallback((exerciseId: string, f: FeedbackRating) => {
     setInSessionFeedback((prev) => ({ ...prev, [exerciseId]: f }));
     if (Platform.OS !== 'web') Haptics.selectionAsync();
   }, []);
@@ -2401,6 +2425,14 @@ export default function SessionScreen() {
     }
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // Set when a test week completes with a usable AMRAP result, so the
+    // sessionWeights block below can also re-baseline the real KPI-lift
+    // exercise ID - not just the test protocol's own (different) ID - with
+    // this fresh number. Without this, a new 1RM never reaches
+    // lastLoggedWeights for the exercise a normal session actually reads
+    // from, so it stops influencing suggested weight after the very first
+    // time that lift is ever suggested.
+    let testWeekWorkingWeight: number | undefined;
     if (isTestWeek) {
       const mainExIndex = exercises.findIndex((e) => e.category === 'main');
       if (mainExIndex >= 0) {
@@ -2415,6 +2447,9 @@ export default function SessionScreen() {
             date: new Date().toISOString(),
             unit: 'kg',
           });
+          if (userProfile) {
+            testWeekWorkingWeight = workingWeightFromOrm(estimatedMax, userProfile);
+          }
         }
       }
     }
@@ -2448,6 +2483,13 @@ export default function SessionScreen() {
           sessionWeights[log.exerciseId] = Math.max(...completedWeights);
         }
       }
+      // Also re-baseline the real (non-test-protocol) KPI-lift exercise ID
+      // when this was a test week, so the fresh 1RM actually feeds into the
+      // next normal session's suggestion instead of being ignored.
+      if (testWeekWorkingWeight !== undefined) {
+        const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
+        if (mainLiftId) sessionWeights[mainLiftId] = testWeekWorkingWeight;
+      }
       if (Object.keys(sessionWeights).length > 0) {
         updateLastLoggedWeights(sessionWeights);
       }
@@ -2463,6 +2505,7 @@ export default function SessionScreen() {
       hadAches: hasAches,
       painRegion,
       ...(painRegions && painRegions.length > 0 ? { painRegions } : {}),
+      ...(painSeverity ? { painSeverity } : {}),
       energy,
       timeAvailable,
       exerciseCount: exercises.length,
@@ -2548,7 +2591,7 @@ export default function SessionScreen() {
         ? {
             inSessionFeedback: Object.fromEntries(
               Object.entries(inSessionFeedback).filter(([, v]) => v != null)
-            ) as Record<string, 'easy' | 'hard'>,
+            ) as Record<string, FeedbackRating>,
           }
         : {}),
     });
@@ -4210,13 +4253,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       textAlign: 'center',
     },
+    barFeedbackGrid: {
+      gap: 8,
+    },
     barFeedbackRow: {
       flexDirection: 'row',
       gap: 8,
     },
     barFeedbackBtn: {
       flex: 1,
-      paddingVertical: 10,
+      paddingVertical: 9,
       borderRadius: 10,
       backgroundColor: C.primarySurface,
       alignItems: 'center',
@@ -4233,7 +4279,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.categoryFinisher,
     },
     barFeedbackBtnText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryDark,
     },

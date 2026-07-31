@@ -139,6 +139,25 @@ export interface CustomTemplate {
   createdAt: string;
 }
 
+/** The four in-session feelings a user can report right after an exercise -
+ *  'very_easy' and 'easy' both loosen the next-session step size (a bigger
+ *  jump for 'very_easy'), 'hard' holds it. There's no explicit 'normal'
+ *  value here: pressing "Last rep" just dismisses without reporting
+ *  anything, since 'normal' is the derived default when no feedback fires. */
+export type FeedbackRating = 'very_easy' | 'easy' | 'hard';
+
+/** The per-exercise performance state that actually drives progression.
+ *  Derived by completeSession() from raw set-completion data, then
+ *  optionally upgraded/downgraded by in-session or post-session feedback. */
+export type ExercisePerformance = 'very_easy' | 'easy' | 'normal' | 'failed';
+
+/** How bad today's ache is, captured alongside the pain region on the
+ *  readiness screen. 'severe' triggers a confirming prompt suggesting a
+ *  region-targeted Recovery/Prehab session instead of the planned strength
+ *  session - 'mild'/'moderate' just ride along on the completed session for
+ *  future reference and don't change routing. */
+export type PainSeverity = 'mild' | 'moderate' | 'severe';
+
 export interface SetLog {
   setNumber: number;
   weight: number;
@@ -176,7 +195,7 @@ export interface ActiveSession {
   /** Whether the user has already dismissed the pain-adaptation banner. Persisted so it stays gone on session resume. */
   painBannerDismissed?: boolean;
   /** Per-exercise in-session feedback captured so far; restored on resume. */
-  inSessionFeedback?: Record<string, 'easy' | 'hard'>;
+  inSessionFeedback?: Record<string, FeedbackRating>;
 }
 
 export interface ExerciseLog {
@@ -185,7 +204,7 @@ export interface ExerciseLog {
   sets: SetLog[];
   note?: string;
   /** How the user felt about this exercise during the session. Drives next-session load adjustments. */
-  feedbackRating?: 'easy' | 'hard';
+  feedbackRating?: FeedbackRating;
   /** Populated for cardio exercises (Custom session type: 'cardio'). */
   cardioData?: CardioLogData;
 }
@@ -207,6 +226,8 @@ export interface CompletedSession {
   painRegion?: PainRegion;
   /** All pain regions selected at session start (multi-select). Supersedes the single painRegion field. */
   painRegions?: PainRegion[];
+  /** How bad the ache was reported to be, when hadAches is true. */
+  painSeverity?: PainSeverity;
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
   exerciseCount: number;
@@ -353,15 +374,26 @@ interface AppState {
    */
   exerciseNormalStreak: Record<string, number>;
   /**
+   * Tracks how many consecutive sessions each exercise has come back 'failed'
+   * (incomplete sets or a tough/thumbs-down rating) with no successful
+   * session breaking the run. Incremented by `completeSession`; reset to 0
+   * the moment that exercise comes back anything other than 'failed'. Drives
+   * the plateau nudge on the session-summary Progress tab at streak ≥ 3 -
+   * unlike exerciseNormalStreak, this never changes the suggested weight
+   * itself, only whether the user is told they might be stuck.
+   */
+  exerciseStuckStreak: Record<string, number>;
+  /**
    * Records how each exercise performed in the most recent session it appeared in.
    * Set by `completeSession` based on actual set completion data, then updated
-   * by post-session thumbs/tooEasy feedback. The workout engine uses this as the
-   * primary signal for per-exercise progressive overload decisions:
-   *   'easy'   → +5 kg next session
-   *   'normal' → +2.5 kg next session (or +5 kg after a 3-session no-feedback streak)
-   *   'failed' → hold at same weight next session
+   * by in-session or post-session thumbs/tooEasy feedback. The workout engine
+   * uses this as the primary signal for per-exercise progressive overload decisions:
+   *   'very_easy' → +7.5 kg next session
+   *   'easy'      → +5 kg next session
+   *   'normal'    → +2.5 kg next session (or +5 kg after a 3-session no-feedback streak)
+   *   'failed'    → hold at same weight next session
    */
-  lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>;
+  lastSessionPerformance: Record<string, ExercisePerformance>;
 
   setOnboardingComplete: (complete: boolean) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
@@ -497,6 +529,7 @@ export const useAppStore = create<AppState>()(
       themePreference: 'dark',
       profilePhotoUri: null,
       exerciseNormalStreak: {},
+      exerciseStuckStreak: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
       savedTemplates: [],
@@ -645,7 +678,7 @@ export const useAppStore = create<AppState>()(
           //   'normal'  - all sets were completed (or skipped) successfully
           // Post-session feedback (thumbs/tooEasy) can upgrade 'normal' → 'easy'
           // or downgrade 'normal' → 'failed' via setExerciseFeedback.
-          const newPerformance: Record<string, 'easy' | 'normal' | 'failed'> = {
+          const newPerformance: Record<string, ExercisePerformance> = {
             ...state.lastSessionPerformance,
           };
           // Track consecutive sessions each exercise appeared with a 'normal'
@@ -653,6 +686,10 @@ export const useAppStore = create<AppState>()(
           // We look at what `lastSessionPerformance` was BEFORE this session to
           // decide whether to increment (was 'normal') or reset (was 'easy'/'failed').
           const newStreak = { ...state.exerciseNormalStreak };
+          // Mirror image of newStreak: counts consecutive 'failed' sessions
+          // instead of consecutive 'normal' ones, so a genuinely stuck lift can
+          // be told apart from one that just had a single off day.
+          const newStuckStreak = { ...state.exerciseStuckStreak };
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
             // If every set was skipped the user didn't perform the exercise at all -
@@ -661,12 +698,14 @@ export const useAppStore = create<AppState>()(
             if (allSkipped) continue;
             const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
             const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
-            // Apply in-session feedback override: 'easy' upgrades to easy (more load next
-            // session), 'hard' downgrades to failed (hold load next session).
-            // This is equivalent to what setExerciseFeedback does post-session, but applied
-            // inline so the data is available immediately without a separate action call.
-            let perfWithFeedback: 'easy' | 'normal' | 'failed' = thisPerf;
-            if (log.feedbackRating === 'easy') perfWithFeedback = 'easy';
+            // Apply in-session feedback override: 'very_easy'/'easy' upgrade to more
+            // load next session (a bigger jump for 'very_easy'), 'hard' downgrades to
+            // failed (hold load next session). This is equivalent to what
+            // setExerciseFeedback does post-session, but applied inline so the data
+            // is available immediately without a separate action call.
+            let perfWithFeedback: ExercisePerformance = thisPerf;
+            if (log.feedbackRating === 'very_easy') perfWithFeedback = 'very_easy';
+            else if (log.feedbackRating === 'easy') perfWithFeedback = 'easy';
             else if (log.feedbackRating === 'hard') perfWithFeedback = 'failed';
             newPerformance[log.exerciseId] = perfWithFeedback;
             // Streak counts consecutive 'normal' sessions for this exercise (no feedback,
@@ -684,6 +723,15 @@ export const useAppStore = create<AppState>()(
               // perfWithFeedback === 'normal' but prev was 'easy', 'failed', or first appearance.
               newStreak[log.exerciseId] = 1;
             }
+            // Stuck streak: consecutive 'failed' sessions, same shape as the
+            // normal streak above but for the opposite outcome.
+            if (perfWithFeedback !== 'failed') {
+              newStuckStreak[log.exerciseId] = 0;
+            } else if (prevPerf === 'failed') {
+              newStuckStreak[log.exerciseId] = (state.exerciseStuckStreak[log.exerciseId] ?? 1) + 1;
+            } else {
+              newStuckStreak[log.exerciseId] = 1;
+            }
           }
 
           return {
@@ -691,6 +739,7 @@ export const useAppStore = create<AppState>()(
             completedSessions: [{ ...session, id }, ...state.completedSessions],
             lastSessionPerformance: newPerformance,
             exerciseNormalStreak: newStreak,
+            exerciseStuckStreak: newStuckStreak,
             // A genuine test-week session clears any postponement — the thing
             // it was standing in for has now actually happened.
             ...(session.isTestWeek ? { testWeekDeferred: false } : {}),
@@ -917,6 +966,7 @@ export const useAppStore = create<AppState>()(
           lastLoggedWeights: s.lastLoggedWeights,
           lastSessionPerformance: s.lastSessionPerformance,
           exerciseNormalStreak: s.exerciseNormalStreak,
+          exerciseStuckStreak: s.exerciseStuckStreak,
           savedTemplates: s.savedTemplates,
         };
       },
@@ -994,6 +1044,7 @@ export const useAppStore = create<AppState>()(
             lastSessionPerformance:
               (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
             exerciseNormalStreak: data.exerciseNormalStreak ?? s.exerciseNormalStreak,
+            exerciseStuckStreak: data.exerciseStuckStreak ?? s.exerciseStuckStreak,
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
             completedCount: data.completedSessions?.length ?? s.completedCount,
           });
@@ -1063,6 +1114,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!persistedState.exerciseNormalStreak) {
           persistedState.exerciseNormalStreak = {};
+        }
+        if (!persistedState.exerciseStuckStreak) {
+          persistedState.exerciseStuckStreak = {};
         }
         if (!persistedState.lastSessionPerformance) {
           persistedState.lastSessionPerformance = {};
