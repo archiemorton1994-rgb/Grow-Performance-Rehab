@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import { storage } from './storage';
 import { pool } from './db';
+import { resolveReviewAccount, isReviewAccountActive } from './review-account';
 
 const JWT_SECRET = process.env.SESSION_SECRET;
 if (!JWT_SECRET) {
@@ -115,6 +116,28 @@ const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+// Optional App Store review account — see server/review-account.ts. Resolved
+// once at startup so a malformed config warns once rather than on every
+// request; the expiry is re-checked per request via isReviewAccountActive.
+const { account: REVIEW_ACCOUNT, warnings: reviewWarnings } = resolveReviewAccount(process.env);
+for (const warning of reviewWarnings) {
+  console.warn(`[Review] ${warning}`);
+}
+if (REVIEW_ACCOUNT) {
+  console.warn(
+    `[Review] Review account ENABLED for ${REVIEW_ACCOUNT.email}` +
+      (REVIEW_ACCOUNT.expiresAt !== null
+        ? ` until ${new Date(REVIEW_ACCOUNT.expiresAt).toISOString().slice(0, 10)}.`
+        : '.')
+  );
+}
+
+function isReviewAccount(normalisedEmail: string): boolean {
+  return (
+    isReviewAccountActive(REVIEW_ACCOUNT, Date.now()) && REVIEW_ACCOUNT!.email === normalisedEmail
+  );
+}
+
 function signToken(userId: string, email: string): string {
   return jwt.sign({ userId, email }, JWT_SECRET!, { expiresIn: JWT_EXPIRY });
 }
@@ -193,6 +216,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ message: 'Too many attempts. Please wait 10 minutes before trying again.' });
     }
 
+    // Review account: the code is fixed and already known to the reviewer, so
+    // there is nothing to generate or send. Deliberately placed *after* the
+    // rate-limit check above so this address gets no more attempts than any
+    // other, and returns the same shape as the normal path so the response
+    // cannot be used to probe for which address is the review account.
+    if (isReviewAccount(normalised)) {
+      console.warn(`[Review] Fixed-code sign-in requested for ${normalised}; no email sent.`);
+      return res.json({ message: 'Code sent.' });
+    }
+
     const code = generateOtp();
     await storage.setOtp(normalised, code, OTP_TTL_MS);
 
@@ -222,6 +255,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (isRateLimited(verifyRateLimitStore, VERIFY_RATE_LIMIT_MAX, normalised)) {
       return res.status(429).json({
         message: 'Too many verification attempts. Please wait a few minutes and try again.',
+      });
+    }
+
+    // Review account: compare against the fixed code instead of a stored OTP.
+    // Placed *after* the verify rate-limit check above, so the fixed code is
+    // protected by the same VERIFY_RATE_LIMIT_MAX ceiling as every other
+    // account and cannot be brute-forced any faster.
+    if (isReviewAccount(normalised)) {
+      if (code.trim() !== REVIEW_ACCOUNT!.code) {
+        return res.status(401).json({ message: 'Incorrect code. Please try again.' });
+      }
+      console.warn(`[Review] Review account signed in: ${normalised}`);
+      const reviewUser = await storage.upsertUser(normalised);
+      return res.json({
+        token: signToken(reviewUser.id, reviewUser.email),
+        user: { id: reviewUser.id, email: reviewUser.email },
       });
     }
 
