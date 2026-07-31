@@ -928,6 +928,8 @@ export function BodyDiagram({
             style={({ pressed }) => [styles.cyclerBtn, pressed && { opacity: 0.7 }]}
             hitSlop={16}
             testID="body-diagram-cycle"
+            accessibilityLabel="Cycle to next region"
+            accessibilityRole="button"
           >
             <View
               style={[

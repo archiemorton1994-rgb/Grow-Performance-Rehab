@@ -574,6 +574,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/profile')}
               style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
               testID="home-profile-avatar"
+              accessibilityLabel="Open profile"
+              accessibilityRole="button"
             >
               {profilePhotoUri ? (
                 <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
@@ -619,6 +621,8 @@ export default function HomeScreen() {
                 onPress={() => setDeloadDismissed(true)}
                 hitSlop={10}
                 testID="deload-banner-dismiss"
+                accessibilityLabel="Dismiss"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={14} color={C.textTertiary} />
               </Pressable>
@@ -899,6 +903,8 @@ export default function HomeScreen() {
                 hitSlop={10}
                 style={styles.resumeDiscardBtn}
                 testID="discard-active-session"
+                accessibilityLabel="Discard session"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={16} color={C.textTertiary} />
               </Pressable>
@@ -922,6 +928,8 @@ export default function HomeScreen() {
                 hitSlop={10}
                 style={styles.resumeDiscardBtn}
                 testID="calibration-banner-dismiss"
+                accessibilityLabel="Dismiss"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={16} color={C.textTertiary} />
               </Pressable>
@@ -1006,6 +1014,8 @@ export default function HomeScreen() {
                 hitSlop={10}
                 style={styles.weightReminderDismiss}
                 testID="weight-reminder-dismiss"
+                accessibilityLabel="Snooze reminder"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={16} color={C.textTertiary} />
               </Pressable>
@@ -1028,7 +1038,12 @@ export default function HomeScreen() {
             <Text style={styles.milestoneToastTitle}>{milestoneHit} sessions completed</Text>
             <Text style={styles.milestoneToastSub}>That&apos;s a real milestone. Nice work.</Text>
           </View>
-          <Pressable onPress={() => setMilestoneToastDismissed(true)} hitSlop={12}>
+          <Pressable
+            onPress={() => setMilestoneToastDismissed(true)}
+            hitSlop={12}
+            accessibilityLabel="Dismiss"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={16} color={C.textTertiary} />
           </Pressable>
         </Animated.View>

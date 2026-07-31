@@ -318,7 +318,12 @@ function RestTimer({
               <Text style={styles.restTimerPillState}>{isRunning ? 'resting' : 'paused'}</Text>
             </View>
             <View style={styles.restTimerPillActions}>
-              <Pressable onPress={togglePause} style={styles.restTimerIconBtn}>
+              <Pressable
+                onPress={togglePause}
+                style={styles.restTimerIconBtn}
+                accessibilityLabel={isRunning ? 'Pause rest timer' : 'Resume rest timer'}
+                accessibilityRole="button"
+              >
                 <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={C.primary} />
               </Pressable>
               <Pressable
@@ -331,7 +336,12 @@ function RestTimer({
               <Pressable onPress={skip} style={styles.restTimerPillSkip}>
                 <Text style={styles.restTimerPillSkipText}>Skip rest</Text>
               </Pressable>
-              <Pressable onPress={reset} style={styles.restTimerIconBtn}>
+              <Pressable
+                onPress={reset}
+                style={styles.restTimerIconBtn}
+                accessibilityLabel="Reset rest timer"
+                accessibilityRole="button"
+              >
                 <Ionicons name="refresh-outline" size={14} color={C.textTertiary} />
               </Pressable>
             </View>
@@ -350,7 +360,12 @@ function RestTimer({
           Rest timer · {mm}:{ss}
         </Text>
       </View>
-      <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+      <Pressable
+        onPress={reset}
+        style={styles.restTimerResetBtn}
+        accessibilityLabel="Reset timer"
+        accessibilityRole="button"
+      >
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
     </View>
@@ -416,7 +431,12 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
           {isRunning ? `Warm-up - ${mm}:${ss}` : `Cardio timer - ${mm}:${ss}`}
         </Text>
       </Pressable>
-      <Pressable onPress={reset} style={styles.restTimerResetBtn}>
+      <Pressable
+        onPress={reset}
+        style={styles.restTimerResetBtn}
+        accessibilityLabel="Reset timer"
+        accessibilityRole="button"
+      >
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
       </Pressable>
     </View>
@@ -663,6 +683,8 @@ export function SessionActiveBar({
             hitSlop={10}
             style={styles.barBackBtn}
             testID="session-bar-back"
+            accessibilityLabel="Previous exercise"
+            accessibilityRole="button"
           >
             <Ionicons name="chevron-back" size={18} color={C.textSecondary} />
           </Pressable>
@@ -750,6 +772,8 @@ export function SessionActiveBar({
             disabled={isCompleteBlocked}
             style={[styles.barCompleteBtn, isCompleteBlocked && styles.barCompleteBtnDisabled]}
             testID={`set-${activeSetIndex + 1}-check`}
+            accessibilityLabel="Complete set"
+            accessibilityRole="button"
           >
             <Ionicons
               name="checkmark-circle"
@@ -1187,6 +1211,8 @@ export function ExerciseCard({
                   onPress={onVideoPress}
                   style={styles.iconActionBtn}
                   testID={`video-${index}`}
+                  accessibilityLabel="Watch exercise video"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="logo-youtube" size={20} color="#CC0000" />
                 </Pressable>
@@ -1199,6 +1225,8 @@ export function ExerciseCard({
                       setData.swapCount > 0 && styles.iconActionBtnActive,
                     ]}
                     testID={`swap-${index}`}
+                    accessibilityLabel="Swap exercise"
+                    accessibilityRole="button"
                   >
                     <Ionicons
                       name="swap-horizontal-outline"
@@ -1211,6 +1239,8 @@ export function ExerciseCard({
                   onPress={onToggleNote}
                   style={[styles.iconActionBtn, noteVisible && styles.iconActionBtnActive]}
                   testID={`note-toggle-${index}`}
+                  accessibilityLabel={noteVisible ? 'Hide note' : 'Add note'}
+                  accessibilityRole="button"
                 >
                   <Ionicons
                     name={noteVisible ? 'pencil' : 'pencil-outline'}
@@ -1459,6 +1489,8 @@ export function PainAdaptBanner({
         onPress={onDismiss}
         style={{ padding: 4, alignItems: 'center', justifyContent: 'center' }}
         testID="pain-banner-dismiss"
+        accessibilityLabel="Dismiss"
+        accessibilityRole="button"
       >
         <Ionicons name="close" size={16} color={C.warning} />
       </Pressable>
@@ -2609,7 +2641,13 @@ export default function SessionScreen() {
       keyboardVerticalOffset={insets.top + webTopInset}
     >
       <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
-        <Pressable onPress={handleExit} style={styles.closeButton} testID="session-exit">
+        <Pressable
+          onPress={handleExit}
+          style={styles.closeButton}
+          testID="session-exit"
+          accessibilityLabel="Exit session"
+          accessibilityRole="button"
+        >
           <Ionicons name="close" size={24} color={C.text} />
         </Pressable>
         <View style={styles.sessionInfo}>

@@ -218,6 +218,8 @@ export default function ProgramScreen() {
           hitSlop={12}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
           testID="program-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>

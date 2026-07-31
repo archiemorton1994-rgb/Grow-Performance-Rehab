@@ -1216,6 +1216,8 @@ export default function SessionSummaryScreen() {
                         },
                       ]}
                       testID={`thumb-up-${log.exerciseId}`}
+                      accessibilityLabel="Rate this exercise good"
+                      accessibilityRole="button"
                     >
                       <Ionicons
                         name="thumbs-up"
@@ -1238,6 +1240,8 @@ export default function SessionSummaryScreen() {
                         },
                       ]}
                       testID={`thumb-down-${log.exerciseId}`}
+                      accessibilityLabel="Rate this exercise tough"
+                      accessibilityRole="button"
                     >
                       <Ionicons
                         name="thumbs-down"

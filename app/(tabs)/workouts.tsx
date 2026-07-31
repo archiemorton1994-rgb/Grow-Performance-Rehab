@@ -539,7 +539,13 @@ function MuscleProgressPanel({
               </View>
             )}
           </View>
-          <Pressable onPress={() => setInsightRegion(null)} hitSlop={8} style={{ paddingTop: 2 }}>
+          <Pressable
+            onPress={() => setInsightRegion(null)}
+            hitSlop={8}
+            style={{ paddingTop: 2 }}
+            accessibilityLabel="Close"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={16} color={C.textTertiary} />
           </Pressable>
         </Animated.View>
@@ -938,6 +944,8 @@ function MonthCalendar({
               borderRadius: 8,
               backgroundColor: pressed ? C.primaryMuted : 'transparent',
             })}
+            accessibilityLabel="Previous month"
+            accessibilityRole="button"
           >
             <Ionicons name="chevron-back" size={16} color={C.primary} />
           </Pressable>
@@ -956,6 +964,8 @@ function MonthCalendar({
             onPress={nextMonth}
             disabled={isCurrentMonth}
             hitSlop={8}
+            accessibilityLabel="Next month"
+            accessibilityRole="button"
             style={({ pressed }) => ({
               padding: 6,
               borderRadius: 8,
@@ -3338,6 +3348,8 @@ function ExerciseDetailSheet({
             onPress={onClose}
             style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.7 }]}
             testID="progress-detail-close"
+            accessibilityLabel="Close"
+            accessibilityRole="button"
           >
             <Ionicons name="close" size={20} color={C.text} />
           </Pressable>
@@ -4542,6 +4554,8 @@ export default function StatsScreen() {
             <Pressable
               onPress={() => setShowCalculator(false)}
               style={({ pressed }) => [styles.modalClose, pressed && { opacity: 0.7 }]}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
             >
               <Ionicons name="close" size={20} color={C.text} />
             </Pressable>
@@ -4574,7 +4588,13 @@ export default function StatsScreen() {
         <View style={[styles.modalContainer, { paddingTop: insets.top + 16 }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Training Calendar</Text>
-            <Pressable onPress={() => setShowCalendar(false)} style={styles.modalClose} hitSlop={8}>
+            <Pressable
+              onPress={() => setShowCalendar(false)}
+              style={styles.modalClose}
+              hitSlop={8}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            >
               <Ionicons name="close" size={18} color={C.text} />
             </Pressable>
           </View>

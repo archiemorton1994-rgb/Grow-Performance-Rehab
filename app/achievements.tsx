@@ -320,6 +320,8 @@ export default function AchievementsScreen() {
           hitSlop={12}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
           testID="achievements-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>

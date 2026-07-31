@@ -1062,7 +1062,13 @@ export default function ReadinessScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       <View style={styles.topBar}>
-        <Pressable onPress={goBack} style={styles.backButton} testID="readiness-back">
+        <Pressable
+          onPress={goBack}
+          style={styles.backButton}
+          testID="readiness-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
+        >
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>
         <View style={styles.sessionInfo}>

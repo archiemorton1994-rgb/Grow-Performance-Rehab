@@ -869,6 +869,8 @@ export default function CustomSessionScreen() {
                   hitSlop={8}
                   style={styles.templateActionBtn}
                   testID={`template-rename-${tmpl.id}`}
+                  accessibilityLabel="Rename template"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="pencil-outline" size={13} color={C.textTertiary} />
                 </Pressable>
@@ -877,6 +879,8 @@ export default function CustomSessionScreen() {
                   hitSlop={8}
                   style={styles.templateActionBtn}
                   testID={`template-delete-${tmpl.id}`}
+                  accessibilityLabel="Delete template"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="trash-outline" size={13} color={C.textTertiary} />
                 </Pressable>
@@ -897,6 +901,8 @@ export default function CustomSessionScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           testID="custom-session-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
         >
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>
@@ -1344,6 +1350,8 @@ export default function CustomSessionScreen() {
                         onPress={() => removeFromTray(s.template.id)}
                         hitSlop={8}
                         style={styles.trayChipRemove}
+                        accessibilityLabel="Remove exercise"
+                        accessibilityRole="button"
                       >
                         <Ionicons name="close" size={13} color={C.textSecondary} />
                       </Pressable>
@@ -1365,6 +1373,8 @@ export default function CustomSessionScreen() {
                     onPress={() => setSelectedCardio((prev) => prev.filter((x) => x.id !== c.id))}
                     hitSlop={8}
                     style={styles.trayChipRemove}
+                    accessibilityLabel="Remove cardio exercise"
+                    accessibilityRole="button"
                   >
                     <Ionicons name="close" size={13} color={C.textSecondary} />
                   </Pressable>
@@ -1416,6 +1426,8 @@ export default function CustomSessionScreen() {
                 <Pressable
                   onPress={() => setEditSets((v) => Math.max(1, v - 1))}
                   style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
+                  accessibilityLabel="Decrease sets"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="remove" size={20} color={C.text} />
                 </Pressable>
@@ -1423,6 +1435,8 @@ export default function CustomSessionScreen() {
                 <Pressable
                   onPress={() => setEditSets((v) => Math.min(5, v + 1))}
                   style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
+                  accessibilityLabel="Increase sets"
+                  accessibilityRole="button"
                 >
                   <Ionicons name="add" size={20} color={C.text} />
                 </Pressable>
@@ -1565,7 +1579,13 @@ export default function CustomSessionScreen() {
           >
             <Text style={styles.undoBtnText}>Undo</Text>
           </Pressable>
-          <Pressable onPress={dismissUndoToast} hitSlop={10} style={styles.undoDismissBtn}>
+          <Pressable
+            onPress={dismissUndoToast}
+            hitSlop={10}
+            style={styles.undoDismissBtn}
+            accessibilityLabel="Dismiss"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
           </Pressable>
         </Animated.View>

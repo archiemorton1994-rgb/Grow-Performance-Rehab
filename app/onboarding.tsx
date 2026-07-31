@@ -439,7 +439,13 @@ export default function OnboardingScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: topPad + 10, paddingHorizontal: 20 }]}>
           {showBack ? (
-            <Pressable onPress={handleBack} style={styles.backBtn} testID="onboarding-back">
+            <Pressable
+              onPress={handleBack}
+              style={styles.backBtn}
+              testID="onboarding-back"
+              accessibilityLabel="Back"
+              accessibilityRole="button"
+            >
               <Ionicons name="chevron-back" size={24} color={C.text} />
             </Pressable>
           ) : (

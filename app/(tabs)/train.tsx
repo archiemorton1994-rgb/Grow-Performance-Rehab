@@ -433,6 +433,8 @@ export default function TrainScreen() {
                 hitSlop={8}
                 style={styles.equipmentDismissBtn}
                 testID="train-equipment-dismiss"
+                accessibilityLabel="Clear equipment override"
+                accessibilityRole="button"
               >
                 <Ionicons name="close-circle" size={18} color={C.textTertiary} />
               </Pressable>

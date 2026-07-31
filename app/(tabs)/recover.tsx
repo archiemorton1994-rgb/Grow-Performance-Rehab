@@ -577,6 +577,8 @@ export default function RecoverScreen() {
             onPress={() => clearSessionEquipmentOverride()}
             style={({ pressed }) => [styles.equipmentDismissBtn, pressed && { opacity: 0.6 }]}
             testID="recover-equipment-dismiss"
+            accessibilityLabel="Clear equipment override"
+            accessibilityRole="button"
           >
             <Ionicons name="close" size={14} color={C.textSecondary} />
           </Pressable>
@@ -647,6 +649,8 @@ export default function RecoverScreen() {
                 onPress={closeModal}
                 style={styles.closeBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Close"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={20} color={C.textSecondary} />
               </Pressable>
@@ -748,6 +752,8 @@ export default function RecoverScreen() {
                 onPress={closeModal}
                 style={styles.closeBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Close"
+                accessibilityRole="button"
               >
                 <Ionicons name="close" size={20} color={C.textSecondary} />
               </Pressable>

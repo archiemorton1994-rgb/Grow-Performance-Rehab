@@ -765,7 +765,13 @@ export default function ProfileScreen() {
         <View ref={headerRef} collapsable={false}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroSection}>
           <Text style={styles.heroName}>{displayName}</Text>
-          <Pressable style={styles.avatarWrap} onPress={handlePickPhoto} testID="profile-avatar">
+          <Pressable
+            style={styles.avatarWrap}
+            onPress={handlePickPhoto}
+            testID="profile-avatar"
+            accessibilityLabel="Change profile photo"
+            accessibilityRole="button"
+          >
             <View style={styles.avatar}>
               {profilePhotoUri ? (
                 <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
@@ -1315,7 +1321,12 @@ export default function ProfileScreen() {
             <View style={styles.sheetHandle} />
             <View style={styles.bwHistoryHeader}>
               <Text style={styles.sheetTitle}>Weight History</Text>
-              <Pressable onPress={() => setActiveModal(null)} style={styles.bwHistoryClose}>
+              <Pressable
+                onPress={() => setActiveModal(null)}
+                style={styles.bwHistoryClose}
+                accessibilityLabel="Close"
+                accessibilityRole="button"
+              >
                 <Ionicons name="close" size={22} color={C.textSecondary} />
               </Pressable>
             </View>
@@ -1349,6 +1360,8 @@ export default function ProfileScreen() {
                           }}
                           style={styles.bwHistoryDelete}
                           testID={`delete-bw-${entry.date}`}
+                          accessibilityLabel="Delete entry"
+                          accessibilityRole="button"
                         >
                           <Ionicons name="trash-outline" size={18} color={C.destructive} />
                         </Pressable>
