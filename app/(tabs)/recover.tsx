@@ -482,7 +482,6 @@ export default function RecoverScreen() {
   const [tutStep, setTutStep] = useState<number | null>(null);
   const navRefs = useRef<Record<string, View | null>>({});
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
 
   useEffect(() => {
     if (tourActiveTab === 3) {
@@ -494,7 +493,6 @@ export default function RecoverScreen() {
 
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
     if (tutStep === null) return;
     const key = RESTORE_TUTORIAL[tutStep].spotlightRef;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -502,7 +500,6 @@ export default function RecoverScreen() {
       navRefs.current[key]?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
-          setTutArrowX(x + w / 2);
         }
       });
     }, 420);
@@ -905,7 +902,6 @@ export default function RecoverScreen() {
         onNext={advanceRestoreTut}
         onSkip={skipRestoreTut}
         bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
-        upArrowScreenX={tutArrowX ?? undefined}
         iconName={RESTORE_TUTORIAL[tutStep].iconName}
         iconLabel={RESTORE_TUTORIAL[tutStep].iconLabel}
         spotlightRect={tutSpotlight ?? undefined}

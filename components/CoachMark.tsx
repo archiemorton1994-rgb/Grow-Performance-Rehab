@@ -16,12 +16,33 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 
-const ARROW_H = 10;
-const ARROW_W = 9;
 const CARD_MARGIN = 16;
+// Gap kept between the card and the spotlighted target, whichever side it lands on.
+const SPOTLIGHT_GAP = 20;
+// Minimum clearance from the top of the screen when the card flips above the target.
+const SAFE_TOP = 56;
+// Generous upper-bound estimate of the card's rendered height (icon row + title +
+// up to ~3 lines of body + actions + padding). Used only to decide which side of
+// the target has room, not to actually size anything, so overestimating is safe.
+const ESTIMATED_CARD_HEIGHT = 280;
+
+// Fixed brand palette for the coach-mark card itself - deliberately NOT theme-
+// driven (no useColors()). A white/surface card reads as a generic system
+// tooltip and clashes hard with the light theme; a solid green/lime treatment
+// reads as "Grow" in both themes and stays legible over the dimmed backdrop.
+const COACH = {
+  bg: '#2f6b46',
+  border: '#1e4a30',
+  text: '#ffffff',
+  textSecondary: '#dcefe2',
+  textTertiary: '#a8cdb6',
+  iconBadgeBg: 'rgba(255,255,255,0.16)',
+  dotInactive: 'rgba(255,255,255,0.28)',
+  accent: '#4ade80',
+  accentText: '#0f2818',
+};
 
 export type SpotlightRect = {
   top: number;
@@ -43,22 +64,11 @@ interface CoachMarkProps {
   onSkip: () => void;
   /** Called when user swipes left on the card (tab tour advancement). */
   onSwipeLeft?: () => void;
-  /** Pixels from screen bottom to card bottom edge. */
+  /** Pixels from screen bottom to card bottom edge when the card sits below the
+   *  spotlighted target (the common case). When the target sits too low on
+   *  screen for that to fit without covering it, the card automatically flips
+   *  to sit above the target instead — see the cardAbove logic below. */
   bottomOffset?: number;
-  /** Horizontal position (0–1) for down-pointing tab-bar arrow. */
-  tabArrowFraction?: number;
-  /** Absolute screen-space X for a down-pointing arrow at a measured target
-   *  below the card (e.g. a pinned bottom bar). Takes precedence over
-   *  tabArrowFraction when provided — prefer this for any target whose
-   *  position isn't a fixed fraction of screen width. */
-  downArrowScreenX?: number;
-  /** Absolute screen-space X (same coordinate space as spotlightRect / measureInWindow)
-   *  to point the up-arrow at — e.g. the measured center of a specific button.
-   *  Takes precedence over upArrowFraction when provided. */
-  upArrowScreenX?: number;
-  /** Horizontal position (0–1) for up-pointing element anchor arrow. Fallback for
-   *  callers that don't have a specific measured target — prefer upArrowScreenX. */
-  upArrowFraction?: number;
   iconName?: string;
   iconLabel?: string;
   /** When provided, renders a spotlight (dim overlay) around the described rect. */
@@ -77,17 +87,11 @@ export default function CoachMark({
   onSkip,
   onSwipeLeft,
   bottomOffset = 0,
-  tabArrowFraction,
-  downArrowScreenX,
-  upArrowScreenX,
-  upArrowFraction,
   iconName,
   iconLabel,
   spotlightRect,
 }: CoachMarkProps) {
-  const C = useColors();
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const CARD_W = SCREEN_WIDTH - CARD_MARGIN * 2;
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
 
   // ── Spotlight dim + pulse animation ──────────────────────────────────────
   // Hooks must be called unconditionally (before any early return).
@@ -131,36 +135,6 @@ export default function CoachMark({
 
   const ctaLabel = nextLabel ?? (step >= total ? "Let's go!" : 'Next →');
 
-  // Down arrow (tab tour / any target below the card) — positioned in the
-  // overlay between card and target. Prefer a real measured screen position
-  // (downArrowScreenX) over a guessed fraction-of-screen-width, same reasoning
-  // as the up arrow above.
-  const hasDownArrow = downArrowScreenX !== undefined || tabArrowFraction !== undefined;
-  const rawDownArrowLeft =
-    downArrowScreenX !== undefined
-      ? downArrowScreenX - ARROW_W
-      : tabArrowFraction !== undefined
-        ? tabArrowFraction * SCREEN_WIDTH - ARROW_W
-        : 0;
-  const downArrowLeft = hasDownArrow
-    ? Math.max(CARD_MARGIN, Math.min(SCREEN_WIDTH - CARD_MARGIN - ARROW_W * 2, rawDownArrowLeft))
-    : 0;
-
-  // Up arrow (readiness/session) — appears at the top edge of the card positioner.
-  // Prefer a real measured screen position (upArrowScreenX) over a guessed
-  // fraction-of-card-width — the target's actual layout doesn't scale
-  // proportionally with screen width the way a fraction assumes it does.
-  const hasUpArrow = upArrowScreenX !== undefined || upArrowFraction !== undefined;
-  const rawUpArrowLeft =
-    upArrowScreenX !== undefined
-      ? upArrowScreenX - CARD_MARGIN - ARROW_W
-      : upArrowFraction !== undefined
-        ? upArrowFraction * CARD_W - ARROW_W
-        : 0;
-  const upArrowLeft = hasUpArrow
-    ? Math.max(0, Math.min(CARD_W - ARROW_W * 2, rawUpArrowLeft))
-    : 0;
-
   const sr = spotlightRect;
   // True pill/circle, always: half of the shorter side. A roughly-square icon
   // target comes out as a full circle; a wide or tall region (a whole card)
@@ -170,6 +144,19 @@ export default function CoachMark({
   // what produced the "still square" look: it under-rounded anything whose
   // shorter side was already below the cap.
   const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height) / 2) : 12;
+
+  // Decide which side of the target the card renders on. Default is below
+  // (anchored bottomOffset from the screen bottom, as before) — but when the
+  // target sits low enough on screen that the card would land on top of it,
+  // flip above instead, as long as there's actually more room up there. This
+  // replaces the old fixed-position card with one that moves out of the way
+  // of whatever it's currently describing.
+  const spaceBelow = sr
+    ? SCREEN_HEIGHT - (sr.top + sr.height) - bottomOffset - SPOTLIGHT_GAP
+    : Infinity;
+  const spaceAbove = sr ? sr.top - SAFE_TOP - SPOTLIGHT_GAP : 0;
+  const cardAbove = !!sr && spaceBelow < ESTIMATED_CARD_HEIGHT && spaceAbove > spaceBelow;
+  const positionerBottom = cardAbove ? SCREEN_HEIGHT - sr!.top + SPOTLIGHT_GAP : bottomOffset;
 
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so the
@@ -244,64 +231,26 @@ export default function CoachMark({
         </>
       )}
 
-      {/* Down-pointing arrow — between card bottom and tab bar */}
-      {hasDownArrow && (
-        <>
-          <View
-            style={[
-              styles.arrowDown,
-              {
-                bottom: bottomOffset - ARROW_H,
-                left: downArrowLeft,
-                borderTopColor: C.primary,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.arrowDownInner,
-              {
-                bottom: bottomOffset - ARROW_H + 1,
-                left: downArrowLeft + 1,
-                borderTopColor: C.surface,
-              },
-            ]}
-          />
-        </>
-      )}
-
       {/* Card positioner — pointerEvents 'box-none' so the gap above the card
-          passes touches through to the screen content beneath. */}
-      <View style={[styles.positioner, { bottom: bottomOffset, pointerEvents: 'box-none' }]}>
-        {/* Up-pointing arrow at the top of the positioner — visually anchors the
-            card to the specific UI element being explained (readiness / session).
-            pointerEvents: 'none' is in the style (not the deprecated prop) so it
-            works correctly on iOS with RN 0.71+. */}
-        {hasUpArrow && (
-          <View style={styles.upArrowRow}>
-            <View style={{ width: upArrowLeft }} />
-            <View style={[styles.arrowUp, { borderBottomColor: C.primary }]} />
-            <View
-              style={[
-                styles.arrowUpInner,
-                { position: 'absolute', left: upArrowLeft + 1, borderBottomColor: C.surface },
-              ]}
-            />
-          </View>
-        )}
-
+          passes touches through to the screen content beneath. Anchored from
+          the bottom in both placements: below the target it's bottomOffset
+          from the screen bottom as before; above the target its bottom edge
+          sits just above the spotlight and the card grows upward from there. */}
+      <View
+        style={[styles.positioner, { bottom: positionerBottom, pointerEvents: 'box-none' }]}
+      >
         {/* Card — captures all touches for Next / Skip buttons and swipe gesture */}
         <Animated.View
           key={`coach-${step}`}
           entering={FadeInDown.duration(260)}
-          style={[styles.card, { backgroundColor: C.surface, borderColor: C.primary }]}
+          style={[styles.card, { backgroundColor: COACH.bg, borderColor: COACH.border }]}
           {...panRef.current.panHandlers}
         >
           {/* Header row: icon badge + step dots + label */}
           <View style={styles.headerRow}>
             {iconName ? (
-              <View style={[styles.iconBadge, { backgroundColor: C.primarySurface }]}>
-                <Ionicons name={iconName as any} size={16} color={C.primary} />
+              <View style={[styles.iconBadge, { backgroundColor: COACH.iconBadgeBg }]}>
+                <Ionicons name={iconName as any} size={16} color={COACH.text} />
               </View>
             ) : null}
             <View style={styles.dotsRow}>
@@ -311,7 +260,7 @@ export default function CoachMark({
                   style={[
                     styles.dot,
                     {
-                      backgroundColor: i + 1 === step ? C.primary : C.surfaceTertiary,
+                      backgroundColor: i + 1 === step ? COACH.accent : COACH.dotInactive,
                       width: i + 1 === step ? 20 : 6,
                     },
                   ]}
@@ -319,26 +268,26 @@ export default function CoachMark({
               ))}
             </View>
             {iconLabel ? (
-              <Text style={[styles.iconLabel, { color: C.textTertiary }]}>{iconLabel}</Text>
+              <Text style={[styles.iconLabel, { color: COACH.textTertiary }]}>{iconLabel}</Text>
             ) : null}
           </View>
 
-          <Text style={[styles.title, { color: C.text }]}>{title}</Text>
-          <Text style={[styles.body, { color: C.textSecondary }]}>{body}</Text>
+          <Text style={[styles.title, { color: COACH.text }]}>{title}</Text>
+          <Text style={[styles.body, { color: COACH.textSecondary }]}>{body}</Text>
 
           <View style={styles.actions}>
             <Pressable onPress={onSkip} hitSlop={12}>
-              <Text style={[styles.skipText, { color: C.textTertiary }]}>{skipLabel}</Text>
+              <Text style={[styles.skipText, { color: COACH.textTertiary }]}>{skipLabel}</Text>
             </Pressable>
             <Pressable
               onPress={onNext}
               style={({ pressed }) => [
                 styles.nextBtn,
-                { backgroundColor: C.primary },
+                { backgroundColor: COACH.accent },
                 pressed && { opacity: 0.85 },
               ]}
             >
-              <Text style={[styles.nextText, { color: C.textInverse }]}>{ctaLabel}</Text>
+              <Text style={[styles.nextText, { color: COACH.accentText }]}>{ctaLabel}</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -433,56 +382,5 @@ const styles = StyleSheet.create({
   nextText: {
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
-  },
-  // Down-pointing arrow (tab tour) — sits between card and tab bar.
-  // pointerEvents: 'none' keeps this decorative element invisible to touch.
-  arrowDown: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    borderLeftWidth: ARROW_W,
-    borderRightWidth: ARROW_W,
-    borderTopWidth: ARROW_H,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    pointerEvents: 'none',
-  },
-  arrowDownInner: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    borderLeftWidth: ARROW_W - 1,
-    borderRightWidth: ARROW_W - 1,
-    borderTopWidth: ARROW_H - 1,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    pointerEvents: 'none',
-  },
-  // Up-pointing arrow (readiness / session) — sits at top of card positioner.
-  // pointerEvents: 'none' is in style (not the deprecated prop API) for iOS compat.
-  upArrowRow: {
-    flexDirection: 'row',
-    height: ARROW_H,
-    overflow: 'visible',
-    pointerEvents: 'none',
-  },
-  arrowUp: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: ARROW_W,
-    borderRightWidth: ARROW_W,
-    borderBottomWidth: ARROW_H,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-  },
-  arrowUpInner: {
-    width: 0,
-    height: 0,
-    top: 1,
-    borderLeftWidth: ARROW_W - 1,
-    borderRightWidth: ARROW_W - 1,
-    borderBottomWidth: ARROW_H - 1,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
   },
 });

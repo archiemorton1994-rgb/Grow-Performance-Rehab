@@ -13,7 +13,6 @@ import {
   Keyboard,
   AppState,
   AppStateStatus,
-  useWindowDimensions,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
@@ -899,7 +898,7 @@ export function ExerciseCard({
   onToggleNote,
   onCardioLog,
   showPbFlash = false,
-  videoBtnRef,
+  headerRef,
   swapBtnRef,
 }: {
   exercise: Exercise;
@@ -927,9 +926,10 @@ export function ExerciseCard({
   onToggleNote?: () => void;
   onCardioLog?: (data: CardioLogData) => void;
   showPbFlash?: boolean;
-  /** Only passed for the first card, so the in-session tutorial can point its
-   *  arrow at these specific icons rather than guessing their position. */
-  videoBtnRef?: React.RefObject<View | null>;
+  /** Only passed for the first card. headerRef wraps the name-through-icon-row
+   *  header so the in-session tutorial can spotlight just that region; swapBtnRef
+   *  gives the "swap" step a tight spotlight on just that one icon. */
+  headerRef?: React.RefObject<View | null>;
   swapBtnRef?: React.RefObject<View | null>;
 }) {
   const C = useColors();
@@ -1059,6 +1059,7 @@ export function ExerciseCard({
         {isActive && (
           <Animated.View entering={FadeIn.duration(320)}>
             <Animated.View style={scaleStyle}>
+              <View ref={headerRef} collapsable={false}>
               <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
                 <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
                   {allDone && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
@@ -1164,7 +1165,6 @@ export function ExerciseCard({
 
               <View style={styles.actionRow}>
                 <Pressable
-                  ref={videoBtnRef}
                   onPress={onVideoPress}
                   style={styles.iconActionBtn}
                   testID={`video-${index}`}
@@ -1199,6 +1199,7 @@ export function ExerciseCard({
                     color={noteVisible ? C.primary : C.textSecondary}
                   />
                 </Pressable>
+              </View>
               </View>
 
               {exercise.badge === 'comfort' && comfortRegionLabel && (
@@ -1518,23 +1519,17 @@ interface TutorialStep {
   /** Override the default 190px card-to-bottom offset for steps that spotlight elements near the bottom bar. */
   bottomOffset?: number;
   /** Which UI ref to spotlight for this step. */
-  spotlightRef: 'firstCard' | 'sessionBar' | 'progressBar';
-  /** Which specific measured sub-element within the spotlight the arrow should
-   *  point at (e.g. a specific icon button). When omitted, the arrow points at
-   *  the horizontal center of the spotlighted rect itself. */
-  arrowTarget?: 'video' | 'swap';
-  /** When true (requires arrowTarget), the spotlight cutout tightly hugs the
-   *  arrowTarget element itself instead of the whole spotlightRef region —
-   *  use when the step is only about one icon, not the card in general. */
-  spotlightArrowTargetOnly?: true;
+  spotlightRef: 'firstCardHeader' | 'sessionBar' | 'progressBar';
+  /** Which specific measured sub-element within the spotlight this step is
+   *  really about (e.g. a specific icon button). Only meaningful together with
+   *  tightSpotlight. */
+  spotlightTarget?: 'swap';
+  /** When true (requires spotlightTarget), the spotlight cutout tightly hugs
+   *  the spotlightTarget element itself instead of the whole spotlightRef
+   *  region — use when the step is only about one icon, not the card in general. */
+  tightSpotlight?: true;
   /** If true, this step is skipped for session types that don't use weight logging (prehab, flexibility). */
   requiresWeightLogging?: true;
-  /** 'up' (default) means the spotlighted element sits above the card, so the
-   *  card is anchored near the bottom of the screen with an up-pointing arrow.
-   *  'down' means the target is a bottom-pinned bar BELOW the card (e.g.
-   *  sessionBar) — the card anchors above the target's measured position with
-   *  a down-pointing arrow instead. */
-  arrowDirection?: 'up' | 'down';
   /** Demo mode only: force the session bar into its post-set feedback UI
    *  (Too Easy / OK / Hard) for the duration of this step, regardless of
    *  whether the user actually tapped the demo's log-set button — the demo
@@ -1545,8 +1540,7 @@ interface TutorialStep {
 
 const SESSION_TUTORIAL: readonly TutorialStep[] = [
   {
-    spotlightRef: 'firstCard',
-    arrowTarget: 'video',
+    spotlightRef: 'firstCardHeader',
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
     title: 'Your first exercise',
@@ -1559,7 +1553,6 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconLabel: 'Log sets',
     title: 'Log every set',
     body: 'Type the weight and reps, then tap the green button to save the set. The app remembers your weights and auto-suggests next time.',
-    arrowDirection: 'down',
   },
   {
     spotlightRef: 'sessionBar',
@@ -1568,13 +1561,12 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
     body: 'After each set rate it Too Easy, OK or Hard. This drives the automatic weight progression. Check the Progress tab after your session to see exactly what changed.',
-    arrowDirection: 'down',
     demoForceFeedback: true,
   },
   {
-    spotlightRef: 'firstCard',
-    arrowTarget: 'swap',
-    spotlightArrowTargetOnly: true,
+    spotlightRef: 'firstCardHeader',
+    spotlightTarget: 'swap',
+    tightSpotlight: true,
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
     title: 'Swap any exercise',
@@ -1851,72 +1843,36 @@ export default function SessionScreen() {
   // ── Spotlight refs for session tutorial ─────────────────────────────────
   const progressBarRef = useRef<View>(null);
   const sessionBarRef = useRef<View>(null);
-  const firstCardRef = useRef<View>(null);
-  // Only needed to give the tutorial's arrow a real target for the two steps
-  // that point at a specific icon (video / swap) rather than the whole card.
-  const videoBtnRef = useRef<View>(null);
+  // Name-through-icon-row header of the first exercise card, spotlighted on
+  // its own (not the whole card) for the "Your first exercise" step so the
+  // tip/rest-timer content further down stays visible instead of getting
+  // boxed in too.
+  const firstCardHeaderRef = useRef<View>(null);
+  // Only needed to give the "swap" step a tight spotlight on just that icon.
   const swapBtnRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
-  // Only set for arrowDirection: 'down' steps — derived from the target's
-  // measured top so the card sits flush above it regardless of how tall the
-  // target actually is (sessionBar's height varies with its content).
-  const [tutBottomOffset, setTutBottomOffset] = useState<number | null>(null);
-  const { height: SCREEN_H } = useWindowDimensions();
 
   // Measure the spotlighted element whenever the tutorial step changes.
   // Clear the spotlight immediately on step change to avoid showing a stale rect
   // from the previous step while the new measurement is pending (fast-tap safety).
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
-    setTutBottomOffset(null);
     if (tutStep === null) return;
     const refLookup = {
-      firstCard: firstCardRef,
+      firstCardHeader: firstCardHeaderRef,
       sessionBar: sessionBarRef,
       progressBar: progressBarRef,
     };
-    const arrowTargetRefLookup = { video: videoBtnRef, swap: swapBtnRef };
     const step = effectiveTutorial[tutStep];
-    const target = step ? refLookup[step.spotlightRef] : null;
-    const arrowTargetRef = step?.arrowTarget ? arrowTargetRefLookup[step.arrowTarget] : null;
-    const tightIconSpotlight = step?.spotlightArrowTargetOnly && arrowTargetRef;
+    const tightTarget =
+      step?.tightSpotlight && step.spotlightTarget === 'swap' ? swapBtnRef : null;
+    const target = tightTarget ?? (step ? refLookup[step.spotlightRef] : null);
+    const pad = tightTarget ? 8 : 4;
     const timer = setTimeout(() => {
-      if (tightIconSpotlight) {
-        // This step is only about one icon — spotlight it tightly instead of
-        // the whole card, and skip the separate whole-region measurement below.
-        arrowTargetRef.current?.measureInWindow((x, y, w, h) => {
-          if (w > 0 && h > 0) {
-            setTutSpotlight({ top: y - 8, left: x - 8, width: w + 16, height: h + 16 });
-            setTutArrowX(x + w / 2);
-          }
-        });
-        return;
-      }
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
-          setTutSpotlight({
-            top: y - 4,
-            left: x - 4,
-            width: w + 8,
-            height: h + 8,
-          });
-          // Default: center the arrow on the spotlighted rect itself.
-          setTutArrowX(x + w / 2);
-          // Down-arrow steps: anchor the card to the target's real top edge
-          // instead of a fixed guess, so it tracks sessionBar's actual height.
-          if (step?.arrowDirection === 'down') {
-            setTutBottomOffset(SCREEN_H - y + 12);
-          }
+          setTutSpotlight({ top: y - pad, left: x - pad, width: w + pad * 2, height: h + pad * 2 });
         }
-      });
-      // If this step points at a specific icon, measure it too and use its
-      // real center instead of the spotlight's center — the icon's position
-      // doesn't scale proportionally with screen width, so a fixed fraction
-      // of the card's width can land nowhere near it.
-      arrowTargetRef?.current?.measureInWindow((x, _y, w) => {
-        if (w > 0) setTutArrowX(x + w / 2);
       });
     }, 120);
     return () => clearTimeout(timer);
@@ -2753,18 +2709,10 @@ export default function SessionScreen() {
               noteVisible={notesVisible[index] ?? false}
               onToggleNote={isDemo ? () => {} : () => toggleNoteVisible(index)}
               showPbFlash={pbFlashIndex === index}
-              videoBtnRef={index === 0 ? videoBtnRef : undefined}
+              headerRef={index === 0 ? firstCardHeaderRef : undefined}
               swapBtnRef={index === 0 ? swapBtnRef : undefined}
             />
           );
-          // Wrap the first card with a ref so the tutorial can spotlight it.
-          if (index === 0) {
-            return (
-              <View key={exercise.id + index} ref={firstCardRef}>
-                {card}
-              </View>
-            );
-          }
           return card;
         })}
       </KeyboardAwareScrollViewCompat>
@@ -3071,18 +3019,9 @@ export default function SessionScreen() {
           onNext={advanceTut}
           onSkip={skipTut}
           bottomOffset={
-            effectiveTutorial[tutStep].arrowDirection === 'down'
-              ? (tutBottomOffset ??
-                insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 190)
-              : insets.bottom +
-                (Platform.OS === 'web' ? 34 : 0) +
-                (effectiveTutorial[tutStep].bottomOffset ?? 190)
-          }
-          upArrowScreenX={
-            effectiveTutorial[tutStep].arrowDirection === 'down' ? undefined : (tutArrowX ?? undefined)
-          }
-          downArrowScreenX={
-            effectiveTutorial[tutStep].arrowDirection === 'down' ? (tutArrowX ?? undefined) : undefined
+            insets.bottom +
+            (Platform.OS === 'web' ? 34 : 0) +
+            (effectiveTutorial[tutStep].bottomOffset ?? 190)
           }
           iconName={effectiveTutorial[tutStep].iconName}
           iconLabel={effectiveTutorial[tutStep].iconLabel}

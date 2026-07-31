@@ -3509,7 +3509,6 @@ export default function StatsScreen() {
   const tabsRowRef = useRef<View>(null);
   const statPillsRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
 
   useEffect(() => {
     if (tourActiveTab === 4) {
@@ -3522,7 +3521,6 @@ export default function StatsScreen() {
 
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
     if (tutStep === null) return;
     const refLookup = { tabs: tabsRowRef, stats: statPillsRef };
     const target = refLookup[STATS_TUTORIAL[tutStep].spotlightRef];
@@ -3530,7 +3528,6 @@ export default function StatsScreen() {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
-          setTutArrowX(x + w / 2);
         }
       });
     }, 420);
@@ -4644,7 +4641,6 @@ export default function StatsScreen() {
           onNext={advanceStatsTut}
           onSkip={skipStatsTut}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
-          upArrowScreenX={tutArrowX ?? undefined}
           iconName={STATS_TUTORIAL[tutStep].iconName}
           iconLabel={STATS_TUTORIAL[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}

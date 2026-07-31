@@ -48,6 +48,7 @@ const EXEMPT_FILES = new Set([
   'components/WorkoutShareCard.tsx', // shareable image card — brand palette baked in
   'app/session-summary.tsx', // shareable image card — brand palette baked in
   'app/achievements.tsx', // badge-type → hue map (30+ intentionally distinct colours)
+  'components/CoachMark.tsx', // fixed green/lime brand card — deliberately not theme-driven, see COACH const
 ]);
 
 // ─── 2. Values always allowed regardless of file ──────────────────────────────

@@ -132,7 +132,17 @@ export default function TrainScreen() {
   const kpiRef = useRef<View>(null);
   const additionalRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
+  // Each section's distance from the top of the ScrollView's content, captured
+  // via onLayout as they render. Lets the tutorial scroll a section into view
+  // before measuring it — "Additional Sessions" sits below the fold on most
+  // screens, so without this the tutorial would spotlight whatever happened
+  // to already be on screen instead of actually scrolling to it.
+  const sectionScrollY = useRef<{ equipment: number; kpi: number; additional: number }>({
+    equipment: 0,
+    kpi: 0,
+    additional: 0,
+  });
+  const SCROLL_TOP_PADDING = 90;
 
   useEffect(() => {
     if (tourActiveTab === 2) {
@@ -144,18 +154,22 @@ export default function TrainScreen() {
 
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
     if (tutStep === null) return;
     const refLookup = { equipment: equipmentRef, kpi: kpiRef, additional: additionalRef };
-    const target = refLookup[TRAIN_TUTORIAL[tutStep].spotlightRef];
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    const stepKey = TRAIN_TUTORIAL[tutStep].spotlightRef;
+    const target = refLookup[stepKey];
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, sectionScrollY.current[stepKey] - SCROLL_TOP_PADDING),
+      animated: true,
+    });
     const timer = setTimeout(() => {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
-          setTutArrowX(x + w / 2);
         }
       });
+      // Long enough for the scrollTo animation above to actually settle —
+      // measuring mid-scroll would capture a transient, wrong position.
     }, 420);
     return () => clearTimeout(timer);
   }, [tutStep]);
@@ -372,7 +386,14 @@ export default function TrainScreen() {
           {!activeSession && <Text style={styles.subtitle}>Choose a session to start</Text>}
 
           {/* Equipment chip */}
-          <View ref={equipmentRef} collapsable={false} style={styles.equipmentChipRow}>
+          <View
+            ref={equipmentRef}
+            collapsable={false}
+            style={styles.equipmentChipRow}
+            onLayout={(e) => {
+              sectionScrollY.current.equipment = e.nativeEvent.layout.y;
+            }}
+          >
             <Pressable
               onPress={openEquipmentSheet}
               style={({ pressed }) => [
@@ -446,7 +467,13 @@ export default function TrainScreen() {
           )}
 
           {/* KPI Sessions */}
-          <View ref={kpiRef} collapsable={false}>
+          <View
+            ref={kpiRef}
+            collapsable={false}
+            onLayout={(e) => {
+              sectionScrollY.current.kpi = e.nativeEvent.layout.y;
+            }}
+          >
           <GlossaryTerm
             term="KPI Sessions"
             definition="Key Performance Indicator lifts: Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
@@ -501,7 +528,13 @@ export default function TrainScreen() {
           )}
 
           {/* Additional Sessions */}
-          <View ref={additionalRef} collapsable={false}>
+          <View
+            ref={additionalRef}
+            collapsable={false}
+            onLayout={(e) => {
+              sectionScrollY.current.additional = e.nativeEvent.layout.y;
+            }}
+          >
           <Text
             style={[
               styles.sectionHeading,
@@ -673,7 +706,6 @@ export default function TrainScreen() {
           onNext={advanceTrainTut}
           onSkip={skipTrainTut}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
-          upArrowScreenX={tutArrowX ?? undefined}
           iconName={TRAIN_TUTORIAL[tutStep].iconName}
           iconLabel={TRAIN_TUTORIAL[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}

@@ -704,7 +704,6 @@ export default function ProfileScreen() {
   const strengthRef = useRef<View>(null);
   const settingsRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
 
   useEffect(() => {
     if (tourActiveTab === 1) {
@@ -716,7 +715,6 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
     if (tutStep === null) return;
     const refLookup = {
       header: headerRef,
@@ -730,7 +728,6 @@ export default function ProfileScreen() {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
-          setTutArrowX(x + w / 2);
         }
       });
     }, 420);
@@ -1957,7 +1954,6 @@ export default function ProfileScreen() {
           onNext={advanceProfileTut}
           onSkip={skipProfileTut}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
-          upArrowScreenX={tutArrowX ?? undefined}
           iconName={PROFILE_TUTORIAL[tutStep].iconName}
           iconLabel={PROFILE_TUTORIAL[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}

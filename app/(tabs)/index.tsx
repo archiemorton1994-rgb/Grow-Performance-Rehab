@@ -490,7 +490,6 @@ export default function HomeScreen() {
   const programTileRef = useRef<View>(null);
   const achievementsTileRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
-  const [tutArrowX, setTutArrowX] = useState<number | null>(null);
 
   useEffect(() => {
     if (tourActiveTab === 0) {
@@ -502,7 +501,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     setTutSpotlight(null);
-    setTutArrowX(null);
     if (tutStep === null || homeEffectiveTutorial[tutStep] == null) return;
     const refLookup = {
       session: sessionCardRef,
@@ -517,7 +515,6 @@ export default function HomeScreen() {
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
-          setTutArrowX(x + w / 2);
         }
       });
     }, 420);
@@ -1204,7 +1201,6 @@ export default function HomeScreen() {
           onNext={advanceHomeTut}
           onSkip={skipHomeTut}
           bottomOffset={(Platform.OS === 'web' ? 84 : tabBarHeight) + 16}
-          upArrowScreenX={tutArrowX ?? undefined}
           iconName={homeEffectiveTutorial[tutStep].iconName}
           iconLabel={homeEffectiveTutorial[tutStep].iconLabel}
           spotlightRect={tutSpotlight ?? undefined}

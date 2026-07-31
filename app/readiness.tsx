@@ -151,7 +151,6 @@ export default function ReadinessScreen() {
   const energyRef = useRef<View>(null);
   const timeRef = useRef<View>(null);
   const [readinessSpotlight, setReadinessSpotlight] = useState<SpotlightRect | null>(null);
-  const [coachArrowX, setCoachArrowX] = useState<number | null>(null);
   // 'main' step's ScrollView + each section's distance from its top, captured
   // via onLayout as sections render. Lets the tutorial scroll a section into
   // view before measuring it — Energy/Time/Pain sit below Equipment on the
@@ -170,7 +169,6 @@ export default function ReadinessScreen() {
   // from the previous step while the new measurement is pending (fast-tap safety).
   useEffect(() => {
     setReadinessSpotlight(null);
-    setCoachArrowX(null);
     if (coachStep === null) return;
     const stepKeys = ['pain', 'energy', 'time'] as const;
     const refs = [painRef, energyRef, timeRef];
@@ -189,9 +187,6 @@ export default function ReadinessScreen() {
             width: w + 16,
             height: h + 16,
           });
-          // Point the arrow at the real center of the measured section rather
-          // than a guessed fraction of the card's width.
-          setCoachArrowX(x + w / 2);
         }
       });
       // Long enough for the scrollTo animation above to actually settle —
@@ -956,7 +951,6 @@ export default function ReadinessScreen() {
           onNext={advanceCoach}
           onSkip={skipCoach}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
-          upArrowScreenX={coachArrowX ?? undefined}
           iconName={READINESS_TUTORIAL[coachStep].iconName}
           iconLabel={READINESS_TUTORIAL[coachStep].iconLabel}
           spotlightRect={readinessSpotlight ?? undefined}
