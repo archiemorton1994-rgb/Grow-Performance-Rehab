@@ -273,3 +273,6 @@ timeoutMs = 60000
 [userenv.production]
 EXPO_PUBLIC_DOMAIN = "grow-performance-rehab.replit.app"
 EXPO_PUBLIC_REVENUECAT_API_KEY = "appl_ilJIJJRfMXJvKPykaYebIuYblXC"
+REVIEW_ACCOUNT_CODE = "582704"
+REVIEW_ACCOUNT_EMAIL = "appstore.review@growperformanceandrehab.com"
+REVIEW_ACCOUNT_EXPIRES = "2026-10-30"
