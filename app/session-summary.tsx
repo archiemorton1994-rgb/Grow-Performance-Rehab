@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColors, DarkColors } from '@/constants/colors';
+import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
   SetLog,
@@ -47,8 +48,8 @@ const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
 // Two fixed palettes (independent of device theme, and of each other) so
-// each tab reads as its own moment instead of blending into the same near-
-// black card. Ember for the Certificate (a win worth showing off), Cobalt
+// each tab reads as its own moment. Sage for the Certificate - green on
+// ecru, matching the Grow logo's own mark-on-parchment colouring - Cobalt
 // for Progress (the analytical "here's why" read).
 interface CardPalette {
   outerBg: string;
@@ -62,16 +63,16 @@ interface CardPalette {
   badgeBg: string;
 }
 
-const EMBER: CardPalette = {
-  outerBg: '#140705',
-  cardGradient: ['#8a2a1f', '#3d1210', '#1c0908'],
-  pillBg: 'rgba(255,138,76,0.07)',
-  text: '#fff2ea',
-  muted: '#d6a291',
-  faint: '#a8776a',
-  hairline: 'rgba(255,170,120,0.18)',
-  accent: '#ff8a4c',
-  badgeBg: 'rgba(255,138,76,0.18)',
+const SAGE: CardPalette = {
+  outerBg: '#e6d9b8',
+  cardGradient: ['#fdf9ee', '#f5e9c9', '#ecdbaa'],
+  pillBg: 'rgba(47,107,70,0.08)',
+  text: '#173a26',
+  muted: '#3f6350',
+  faint: '#5f7768',
+  hairline: 'rgba(47,107,70,0.22)',
+  accent: '#2f6b46',
+  badgeBg: 'rgba(47,107,70,0.16)',
 };
 
 const COBALT: CardPalette = {
@@ -722,7 +723,7 @@ export default function SessionSummaryScreen() {
     <View
       style={[
         styles.container,
-        { backgroundColor: activeTab === 'summary' ? EMBER.outerBg : COBALT.outerBg },
+        { backgroundColor: activeTab === 'summary' ? SAGE.outerBg : COBALT.outerBg },
       ]}
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -794,7 +795,7 @@ export default function SessionSummaryScreen() {
           <Animated.View entering={FadeIn.duration(450)}>
             <View ref={certRef} collapsable={false} style={styles.card}>
               <LinearGradient
-                colors={EMBER.cardGradient}
+                colors={SAGE.cardGradient}
                 style={StyleSheet.absoluteFillObject}
                 pointerEvents="none"
               />
@@ -820,7 +821,7 @@ export default function SessionSummaryScreen() {
               >
                 {heroBadgeLabel && (
                   <View style={styles.heroBadge}>
-                    <Ionicons name="trophy" size={11} color={EMBER.accent} />
+                    <Ionicons name="trophy" size={11} color={SAGE.accent} />
                     <Text style={styles.heroBadgeText}>{heroBadgeLabel.toUpperCase()}</Text>
                   </View>
                 )}
@@ -902,7 +903,7 @@ export default function SessionSummaryScreen() {
               <View style={styles.cardFooter}>
                 {streakDays >= 1 ? (
                   <View style={styles.footerStreak}>
-                    <Ionicons name="flame" size={13} color={EMBER.accent} />
+                    <Ionicons name="flame" size={13} color={SAGE.accent} />
                     <Text style={styles.footerStreakText}>
                       {streakDays} day{streakDays > 1 ? 's' : ''} streak
                     </Text>
@@ -926,7 +927,7 @@ export default function SessionSummaryScreen() {
             style={styles.actionBtn}
             testID="open-rate-modal"
           >
-            <Ionicons name="thumbs-up-outline" size={18} color={EMBER.text} />
+            <Ionicons name="thumbs-up-outline" size={18} color={SAGE.text} />
             <Text style={styles.actionBtnText}>Rate</Text>
           </Pressable>
           <Pressable
@@ -938,7 +939,7 @@ export default function SessionSummaryScreen() {
             <Ionicons
               name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
               size={18}
-              color={EMBER.text}
+              color={SAGE.text}
             />
             <Text style={styles.actionBtnText}>
               {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
@@ -950,7 +951,7 @@ export default function SessionSummaryScreen() {
             style={[styles.actionBtnPrimary, isSharing && { opacity: 0.5 }]}
             testID="share-workout"
           >
-            <Ionicons name="share-outline" size={18} color={EMBER.outerBg} />
+            <Ionicons name="share-outline" size={18} color={SAGE.cardGradient[0]} />
             <Text style={styles.actionBtnPrimaryText}>{isSharing ? '…' : 'Share'}</Text>
           </Pressable>
         </Animated.View>
@@ -1153,6 +1154,10 @@ const styles = StyleSheet.create({
   cardWrap: {
     flex: 1,
     justifyContent: 'center',
+    // card itself clips to its rounded corners (overflow: hidden, for the
+    // gradient fill), so the drop shadow that separates it from the ecru
+    // surround has to live on this unclipped wrapper instead.
+    ...elevatedShadow(SAGE.text),
   },
   card: {
     borderRadius: 24,
@@ -1161,7 +1166,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
     borderWidth: 1,
-    borderColor: EMBER.hairline,
+    borderColor: SAGE.hairline,
     gap: 14,
   },
   cardHeader: {
@@ -1189,22 +1194,22 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 13,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.muted,
+    color: SAGE.muted,
     letterSpacing: 2.5,
   },
   dateText: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    color: EMBER.faint,
+    color: SAGE.faint,
     fontVariant: ['tabular-nums'],
   },
 
   // Hero - the single biggest thing that happened this session
   heroPanel: {
-    backgroundColor: EMBER.pillBg,
+    backgroundColor: SAGE.pillBg,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: EMBER.hairline,
+    borderColor: SAGE.hairline,
     paddingVertical: 22,
     paddingHorizontal: 18,
     alignItems: 'center',
@@ -1213,9 +1218,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: EMBER.badgeBg,
+    backgroundColor: SAGE.badgeBg,
     borderWidth: 1,
-    borderColor: EMBER.hairline,
+    borderColor: SAGE.hairline,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1224,7 +1229,7 @@ const styles = StyleSheet.create({
   heroBadgeText: {
     fontSize: 10,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.accent,
+    color: SAGE.accent,
     letterSpacing: 1,
   },
   heroNumberRow: {
@@ -1236,19 +1241,19 @@ const styles = StyleSheet.create({
     fontSize: 56,
     lineHeight: 58,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.text,
+    color: SAGE.text,
     fontVariant: ['tabular-nums'],
   },
   heroUnit: {
     fontSize: 18,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.muted,
+    color: SAGE.muted,
     paddingBottom: 8,
   },
   heroCaption: {
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
-    color: EMBER.muted,
+    color: SAGE.muted,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
@@ -1256,7 +1261,7 @@ const styles = StyleSheet.create({
   heroExtra: {
     fontSize: 11.5,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.accent,
+    color: SAGE.accent,
     marginTop: 4,
   },
   heroSessionRow: {
@@ -1268,21 +1273,21 @@ const styles = StyleSheet.create({
   heroSessionName: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.text,
+    color: SAGE.text,
   },
   heroDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: EMBER.faint,
+    backgroundColor: SAGE.faint,
   },
   heroSessionNum: {
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
-    color: EMBER.faint,
+    color: SAGE.faint,
   },
   testPill: {
-    backgroundColor: EMBER.badgeBg,
+    backgroundColor: SAGE.badgeBg,
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1291,7 +1296,7 @@ const styles = StyleSheet.create({
   testPillText: {
     fontSize: 8,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.accent,
+    color: SAGE.accent,
     letterSpacing: 0.8,
   },
 
@@ -1302,10 +1307,10 @@ const styles = StyleSheet.create({
   },
   statTile: {
     flex: 1,
-    backgroundColor: EMBER.pillBg,
+    backgroundColor: SAGE.pillBg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: EMBER.hairline,
+    borderColor: SAGE.hairline,
     paddingVertical: 11,
     paddingHorizontal: 8,
     alignItems: 'center',
@@ -1314,22 +1319,22 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.faint,
+    color: SAGE.faint,
     letterSpacing: 0.6,
   },
   statValue: {
     fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.text,
+    color: SAGE.text,
     fontVariant: ['tabular-nums'],
   },
 
   // Body diagram panel
   mapPanel: {
-    backgroundColor: EMBER.pillBg,
+    backgroundColor: SAGE.pillBg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: EMBER.hairline,
+    borderColor: SAGE.hairline,
     paddingVertical: 14,
   },
   diagramRow: {
@@ -1344,7 +1349,7 @@ const styles = StyleSheet.create({
   diagramLabel: {
     fontSize: 9,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.faint,
+    color: SAGE.faint,
     letterSpacing: 1.5,
     marginTop: 2,
   },
@@ -1364,12 +1369,12 @@ const styles = StyleSheet.create({
   footerStreakText: {
     fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.muted,
+    color: SAGE.muted,
   },
   footerBrand: {
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
-    color: EMBER.faint,
+    color: SAGE.faint,
   },
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -1387,13 +1392,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: EMBER.pillBg,
-    borderColor: EMBER.hairline,
+    backgroundColor: SAGE.pillBg,
+    borderColor: SAGE.hairline,
   },
   actionBtnText: {
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-    color: EMBER.text,
+    color: SAGE.text,
   },
   actionBtnPrimary: {
     flex: 1,
@@ -1403,12 +1408,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: EMBER.accent,
+    backgroundColor: SAGE.accent,
   },
   actionBtnPrimaryText: {
     fontSize: 15,
     fontFamily: 'Inter_700Bold',
-    color: EMBER.outerBg,
+    color: SAGE.cardGradient[0],
   },
 
   // ── Done ────────────────────────────────────────────────────────────────────
