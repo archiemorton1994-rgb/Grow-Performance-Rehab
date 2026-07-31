@@ -27,6 +27,7 @@ import { useColors, DarkColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
+  CompletedSession,
   SetLog,
   ExerciseCategory,
   ExerciseFeedback,
@@ -47,10 +48,10 @@ import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
 
-// Two fixed palettes (independent of device theme, and of each other) so
-// each tab reads as its own moment. Sage for the Certificate - green on
-// ecru, matching the Grow logo's own mark-on-parchment colouring - Cobalt
-// for Progress (the analytical "here's why" read).
+// Fixed palette (independent of device theme) shared by both tabs, so the
+// whole screen reads as one continuous moment instead of switching brand
+// identity when you swipe between Certificate and Progress. Green on ecru,
+// matching the Grow logo's own mark-on-parchment colouring.
 interface CardPalette {
   outerBg: string;
   cardGradient: readonly [string, string, string];
@@ -75,22 +76,15 @@ const SAGE: CardPalette = {
   badgeBg: 'rgba(47,107,70,0.16)',
 };
 
-const COBALT: CardPalette = {
-  outerBg: '#070b1c',
-  cardGradient: ['#26418f', '#101c42', '#080e26'],
-  pillBg: 'rgba(94,161,255,0.07)',
-  text: '#eef3ff',
-  muted: '#93a6d6',
-  faint: '#6f81ab',
-  hairline: 'rgba(140,190,255,0.16)',
-  accent: '#5ea1ff',
-  badgeBg: 'rgba(94,161,255,0.18)',
-};
-
-// Semantic tone colours for progress rows - separate from either palette's
-// accent, these mean "up/down/neutral" regardless of which tab they sit on.
-const TONE_UP = '#4ade80';
-const TONE_DOWN = '#fb923c';
+// Semantic tone colours for progress rows - separate from the palette's own
+// accent, these mean "up/down/neutral" regardless of what else is on screen.
+// Deliberately not traffic-light red/green: a dip is still real progress
+// logged, not a failure, so TONE_DOWN is a warm rust rather than an alarm
+// colour. Both are darkened well past their original values (this pair was
+// first picked for the old near-black Cobalt card) since a light-on-light
+// pairing on the new ecru background was down at ~1.5:1 contrast.
+const TONE_UP = '#166534';
+const TONE_DOWN = '#9a3412';
 
 type BadgeKind = 'gain-weight' | 'gain-reps' | 'drop' | 'first' | 'matched' | 'none';
 
@@ -117,6 +111,28 @@ const SESSION_TYPE_FALLBACK_REGIONS: Partial<Record<string, PainRegion[]>> = {
   flexibility: [],
   custom: [],
 };
+
+/** Same aggregation the main summary useMemo does for the current session,
+ *  factored out so it can also run against a past session for comparison
+ *  without duplicating (and risking drift from) that logic. */
+function computeSessionTotals(session: CompletedSession): {
+  totalSets: number;
+  totalReps: number;
+  totalVolumeKg: number;
+} {
+  let totalSets = 0;
+  let totalReps = 0;
+  let totalVolumeKg = 0;
+  for (const log of session.exerciseLogs) {
+    const completedSets = log.sets.filter((s) => s.completed && !s.skipped);
+    totalSets += completedSets.length;
+    for (const s of completedSets) {
+      totalReps += s.reps || 0;
+      if (s.weight > 0 && s.reps > 0) totalVolumeKg += s.weight * s.reps;
+    }
+  }
+  return { totalSets, totalReps, totalVolumeKg };
+}
 
 function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | null {
   const valid = sets.filter((s) => s.completed && !s.skipped && s.weight > 0);
@@ -188,6 +204,57 @@ function getNextHint(
   return `Next time: up to ${formatWeight(bestWeightKg + 2.5, weightUnit)}. Clean session.`;
 }
 
+/** One "proud fact" stat with an optional vs-last-time delta line below it.
+ *  delta is the raw signed number driving the tone (undefined = nothing to
+ *  compare against yet, so the delta line is omitted entirely rather than
+ *  showing a misleading "same as last time"). */
+function StatDeltaTile({
+  P,
+  label,
+  value,
+  delta,
+  deltaLabel,
+}: {
+  P: CardPalette;
+  label: string;
+  value: string;
+  delta?: number;
+  deltaLabel?: string;
+}) {
+  const tone = delta === undefined ? null : delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral';
+  const toneColor = tone === 'up' ? TONE_UP : tone === 'down' ? TONE_DOWN : P.muted;
+  const icon = tone === 'up' ? 'trending-up' : tone === 'down' ? 'trending-down' : 'remove';
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: P.pillBg,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: P.hairline,
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+        gap: 3,
+      }}
+    >
+      <Text
+        style={{ fontSize: 10, fontFamily: 'Inter_700Bold', color: P.faint, letterSpacing: 0.6 }}
+      >
+        {label.toUpperCase()}
+      </Text>
+      <Text style={{ fontSize: 19, fontFamily: 'Inter_700Bold', color: P.text }}>{value}</Text>
+      {tone && deltaLabel ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <Ionicons name={icon as any} size={11} color={toneColor} />
+          <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: toneColor }}>
+            {deltaLabel}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /**
  * "What's driving your numbers" view - makes the progression engine's real
  * decision visible instead of invisible. The badge/delta here already
@@ -199,6 +266,9 @@ function ProgressTab({
   rows,
   sessionType,
   hasWeighted,
+  totalVolumeKg,
+  totalReps,
+  previousTotals,
   isLatestSession,
   lastSessionPerformance,
   exerciseNormalStreak,
@@ -209,6 +279,12 @@ function ProgressTab({
   rows: ExerciseRow[];
   sessionType: SessionType;
   hasWeighted: boolean;
+  totalVolumeKg: number;
+  totalReps: number;
+  /** The previous completed session of the same sessionType, aggregated the
+   *  same way - null when this is the first time this session type has ever
+   *  been logged, in which case there's nothing to compare against. */
+  previousTotals: { totalVolumeKg: number; totalReps: number } | null;
   isLatestSession: boolean;
   lastSessionPerformance: Record<string, 'easy' | 'normal' | 'failed'>;
   exerciseNormalStreak: Record<string, number>;
@@ -216,7 +292,7 @@ function ProgressTab({
   weightUnit: WeightUnit;
   onOpenRating: () => void;
 }) {
-  const P = COBALT;
+  const P = SAGE;
   const weighted = rows.filter((r) => r.isWeighted);
   const toneColor: Record<'up' | 'down' | 'neutral' | 'first', string> = {
     up: TONE_UP,
@@ -225,6 +301,24 @@ function ProgressTab({
     first: P.accent,
   };
   const isRecoverySession = sessionType === 'prehab' || sessionType === 'flexibility';
+
+  const volumeDeltaKg = previousTotals ? totalVolumeKg - previousTotals.totalVolumeKg : 0;
+  const volumeDeltaLabel = !previousTotals
+    ? undefined
+    : volumeDeltaKg > 0
+      ? `+${formatWeight(volumeDeltaKg, weightUnit)} vs last time`
+      : volumeDeltaKg < 0
+        ? `${formatWeight(-volumeDeltaKg, weightUnit)} less than last time`
+        : 'Same as last time';
+
+  const repsDelta = previousTotals ? totalReps - previousTotals.totalReps : 0;
+  const repsDeltaLabel = !previousTotals
+    ? undefined
+    : repsDelta > 0
+      ? `+${repsDelta} vs last time`
+      : repsDelta < 0
+        ? `${-repsDelta} fewer than last time`
+        : 'Same as last time';
 
   return (
     <Animated.View entering={FadeIn.duration(350)}>
@@ -244,6 +338,27 @@ function ProgressTab({
             bigger jump.
           </Text>
         </View>
+
+        {totalReps > 0 && (
+          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingBottom: 16 }}>
+            {hasWeighted && (
+              <StatDeltaTile
+                P={P}
+                label="Total volume"
+                value={`${Math.round(kgToDisplayUnit(totalVolumeKg, weightUnit)).toLocaleString()} ${weightUnit}`}
+                delta={previousTotals ? volumeDeltaKg : undefined}
+                deltaLabel={volumeDeltaLabel}
+              />
+            )}
+            <StatDeltaTile
+              P={P}
+              label="Total reps"
+              value={`${totalReps}`}
+              delta={previousTotals ? repsDelta : undefined}
+              deltaLabel={repsDeltaLabel}
+            />
+          </View>
+        )}
 
         {!hasWeighted ? (
           <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
@@ -486,6 +601,18 @@ export default function SessionSummaryScreen() {
     return { totalSets, totalReps, totalVolumeKg, rows, hasWeighted };
   }, [session, getExerciseHistory, categoryMap]);
 
+  // The previous completed session of this same sessionType, aggregated the
+  // same way, purely so the Progress tab can show "vs last time" on the
+  // session-level volume/rep totals - null the first time this session type
+  // has ever been logged, since there's nothing yet to compare against.
+  const previousTotals = useMemo(() => {
+    if (!session) return null;
+    const prev = completedSessions.find(
+      (s) => s.sessionType === session.sessionType && s.id !== session.id
+    );
+    return prev ? computeSessionTotals(prev) : null;
+  }, [session, completedSessions]);
+
   const sessionNumber = useMemo(() => {
     if (!session) return 0;
     const idx = completedSessions.findIndex((s) => s.id === session.id);
@@ -720,12 +847,7 @@ export default function SessionSummaryScreen() {
   ];
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: activeTab === 'summary' ? SAGE.outerBg : COBALT.outerBg },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: SAGE.outerBg }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAwareScrollView
@@ -778,6 +900,9 @@ export default function SessionSummaryScreen() {
             rows={summary.rows}
             sessionType={session.sessionType}
             hasWeighted={summary.hasWeighted}
+            totalVolumeKg={summary.totalVolumeKg}
+            totalReps={summary.totalReps}
+            previousTotals={previousTotals}
             isLatestSession={isLatestSession}
             lastSessionPerformance={lastSessionPerformance}
             exerciseNormalStreak={exerciseNormalStreak}
