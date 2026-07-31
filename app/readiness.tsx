@@ -12,6 +12,7 @@ import {
   EquipmentTier,
   EnergyLevel,
   PainRegion,
+  PainSeverity,
   SessionType,
   TimeAvailable,
   TIER_ORDER,
@@ -22,10 +23,17 @@ import {
   getSessionSubtitle,
   getEquipmentLabel,
   getEffectiveTier,
+  getPainRegionLabel,
 } from '@/lib/workout-engine';
 import { BodyDiagram } from '@/components/BodyDiagram';
 
-type Step = 'main' | 'painRegion' | 'prehabFocus';
+type Step = 'main' | 'painRegion' | 'severeConfirm' | 'prehabFocus';
+
+const PAIN_SEVERITY_OPTIONS: { value: PainSeverity; label: string }[] = [
+  { value: 'mild', label: 'Mild' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'severe', label: 'Severe' },
+];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment',
@@ -142,6 +150,7 @@ export default function ReadinessScreen() {
       prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
     );
   };
+  const [painSeverity, setPainSeverity] = useState<PainSeverity>('moderate');
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
   const [coachStep, setCoachStep] = useState<number | null>(null);
@@ -286,6 +295,7 @@ export default function ReadinessScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (hasAches) {
       setDiagramPainRegions([]);
+      setPainSeverity('moderate');
       setStep('painRegion');
     } else {
       setLastReadiness(energy, timeAvailable);
@@ -321,12 +331,17 @@ export default function ReadinessScreen() {
 
   // region is null for "general soreness, no specific area" — the fallback
   // when a user says they're sore but doesn't tap a region on the diagram.
-  const handlePainRegion = (region: PainRegion | PainRegion[] | null) => {
+  // severity is only passed from the primary "Start Session" CTA, where the
+  // user has actually picked a value on the severity picker - the "same as
+  // last time"/"not sure" fallbacks skip severity entirely rather than
+  // guessing on the user's behalf.
+  const handlePainRegion = (region: PainRegion | PainRegion[] | null, severity?: PainSeverity) => {
     hapticTap();
     const primary = Array.isArray(region) ? region[0] : (region ?? undefined);
     const regionParam = Array.isArray(region) ? region.join(',') : (region ?? '');
     setPainRegion(primary);
     setLastReadiness(energy, timeAvailable, primary);
+    const severityParam = severity ? { painSeverity: severity } : {};
     if (effectiveTestWeek) {
       router.push({
         pathname: '/session',
@@ -338,6 +353,7 @@ export default function ReadinessScreen() {
           timeAvailable: '60',
           isTestWeek: 'true',
           equipment: getEffectiveTier(selectedEquipments),
+          ...severityParam,
         },
       });
     } else {
@@ -351,8 +367,21 @@ export default function ReadinessScreen() {
           timeAvailable,
           isTestWeek: 'false',
           equipment: getEffectiveTier(selectedEquipments),
+          ...severityParam,
         },
       });
+    }
+  };
+
+  // Severe pain routes through a confirming prompt before committing to the
+  // strength session, offering a region-targeted Recovery/Prehab session as
+  // the safer default instead.
+  const confirmPainRegion = () => {
+    if (painSeverity === 'severe') {
+      hapticTap();
+      setStep('severeConfirm');
+    } else {
+      handlePainRegion(diagramPainRegions, painSeverity);
     }
   };
 
@@ -384,6 +413,9 @@ export default function ReadinessScreen() {
         break;
       case 'painRegion':
         setStep('main');
+        break;
+      case 'severeConfirm':
+        setStep('painRegion');
         break;
     }
   };
@@ -846,10 +878,45 @@ export default function ReadinessScreen() {
             />
           </View>
         </View>
+        {diagramPainRegions.length > 0 && (
+          <View style={{ width: '100%', marginBottom: 10 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Inter_600SemiBold',
+                color: C.textTertiary,
+                marginBottom: 6,
+                textAlign: 'center',
+              }}
+            >
+              How bad is it?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+              {PAIN_SEVERITY_OPTIONS.map((opt) => {
+                const active = painSeverity === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => {
+                      hapticTap();
+                      setPainSeverity(opt.value);
+                    }}
+                    style={[styles.pill, styles.pillAches, active && styles.pillAchesActive]}
+                    testID={`pain-severity-${opt.value}`}
+                  >
+                    <Text style={[styles.pillText, active && styles.pillTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
         <View style={{ width: '100%', minHeight: 52, justifyContent: 'flex-end' }}>
           {diagramPainRegions.length > 0 ? (
             <Pressable
-              onPress={() => handlePainRegion(diagramPainRegions)}
+              onPress={confirmPainRegion}
               style={({ pressed }) => [
                 styles.startButton,
                 { width: '100%' },
@@ -910,7 +977,87 @@ export default function ReadinessScreen() {
     </Animated.View>
   );
 
-  const isPainStep = step === 'painRegion';
+  // Shown only when painSeverity === 'severe' - a confirming prompt before
+  // committing to the planned strength session, since a genuinely severe
+  // ache is better served by a Recovery/Prehab session targeting the same
+  // region than by pushing through the original plan.
+  const renderSevereConfirm = () => {
+    const primaryRegion = diagramPainRegions[0];
+    return (
+      <Animated.View key="severeConfirm" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: 24,
+            paddingTop: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <View
+            style={[
+              styles.questionIcon,
+              {
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                marginBottom: 14,
+                backgroundColor: C.errorLight,
+              },
+            ]}
+          >
+            <Ionicons name="alert-circle-outline" size={26} color={C.error} />
+          </View>
+          <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 8 }]}>
+            That sounds like more than a minor ache
+          </Text>
+          <Text
+            style={[
+              styles.questionSub,
+              { textAlign: 'center', marginBottom: 28, lineHeight: 20 },
+            ]}
+          >
+            {primaryRegion
+              ? `A Recovery session targeting your ${getPainRegionLabel(primaryRegion).toLowerCase()} might serve you better today than ${getSessionLabel(sessionType)}.`
+              : `A Recovery session might serve you better today than ${getSessionLabel(sessionType)}.`}
+          </Text>
+          <Pressable
+            onPress={() => handlePrehabFocus(primaryRegion ?? 'fullbody')}
+            style={({ pressed }) => [
+              styles.startButton,
+              { width: '100%' },
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
+            testID="severe-switch-recovery"
+          >
+            <Ionicons name="heart-outline" size={18} color={C.textInverse} />
+            <Text style={styles.startButtonText}>Switch to Recovery Session</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handlePainRegion(diagramPainRegions, 'severe')}
+            style={({ pressed }) => [
+              styles.startButton,
+              {
+                width: '100%',
+                marginTop: 10,
+                backgroundColor: C.surfaceTertiary,
+                borderWidth: 1,
+                borderColor: C.border,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+            testID="severe-continue-anyway"
+          >
+            <Text style={[styles.startButtonText, { color: C.textSecondary }]}>
+              Continue with {getSessionLabel(sessionType)} anyway
+            </Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    );
+  };
+
+  const isPainStep = step === 'painRegion' || step === 'severeConfirm';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -941,6 +1088,7 @@ export default function ReadinessScreen() {
       {step === 'main' && renderMain()}
       {step === 'prehabFocus' && renderPrehabFocus()}
       {step === 'painRegion' && renderPainRegion()}
+      {step === 'severeConfirm' && renderSevereConfirm()}
       {coachStep !== null && step === 'main' && (
         <CoachMark
           visible
