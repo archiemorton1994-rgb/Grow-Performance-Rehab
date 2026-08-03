@@ -72,24 +72,49 @@ export const MUSCLE_SET = new Set<PainRegion>([
 
 export const BODY_DIAGRAM_LABELS: Record<PainRegion, string> = {
   neck: 'Neck',
+  // Front/rear kept here because pain lists elsewhere show these side by side
+  // and need to tell them apart. The diagram itself says just "Shoulder" — see
+  // getDiagramLabel below, where the view already tells you which one it is.
   front_shoulder: 'Front Shoulder',
   rear_shoulder: 'Rear Shoulder',
   elbow_wrist: 'Elbow / Wrist',
-  upper_back: 'Upper Back',
+  // The highlighted area is the trapezius, not the upper back generally.
+  upper_back: 'Traps',
   lower_back: 'Lower Back',
-  core_ribs: 'Core / Ribs',
-  hip_groin: 'Hip / Groin',
+  core_ribs: 'Core',
+  hip_groin: 'Hip',
   knee: 'Knee',
   calf_shin: 'Calf / Shin',
-  ankle_achilles: 'Ankle / Achilles',
+  ankle_achilles: 'Ankle',
   chest: 'Chest',
   bicep: 'Biceps',
   tricep: 'Triceps',
   quads: 'Quads',
   hamstrings: 'Hamstrings',
   glutes: 'Glutes',
-  lat_mid_back: 'Lats / Mid Back',
+  // The shape highlighted is the lats, not the mid back as a whole.
+  lat_mid_back: 'Lats',
 };
+
+/**
+ * Labels for the diagram's own caption, where the current view already supplies
+ * context that a flat list cannot.
+ *
+ *  - Shoulder: "Front Shoulder" / "Rear Shoulder" are not joint names. The joint
+ *    is the shoulder; which side you are looking at says the rest.
+ *  - Calf / shin: these are different muscles on different faces of the leg —
+ *    tibialis anterior at the front, the calf complex at the back — so one
+ *    combined label is wrong whichever view you are on.
+ */
+const DIAGRAM_LABEL_BY_VIEW: Partial<Record<PainRegion, Partial<Record<BodyView, string>>>> = {
+  front_shoulder: { front: 'Shoulder', back: 'Shoulder' },
+  rear_shoulder: { front: 'Shoulder', back: 'Shoulder' },
+  calf_shin: { front: 'Tib Ant', back: 'Calves' },
+};
+
+export function getDiagramLabel(region: PainRegion, view: BodyView): string {
+  return DIAGRAM_LABEL_BY_VIEW[region]?.[view] ?? BODY_DIAGRAM_LABELS[region];
+}
 
 // ── Cycle-through order: body-order top → bottom, per view ───────────────────
 // Used by the cycle-through arrow button to step through selectable regions.
@@ -673,9 +698,9 @@ export function BodyDiagram({
   };
 
   const label = selected
-    ? BODY_DIAGRAM_LABELS[selected]
+    ? getDiagramLabel(selected, view)
     : selectedRegions?.length
-      ? selectedRegions.map((r) => BODY_DIAGRAM_LABELS[r]).join(' · ')
+      ? selectedRegions.map((r) => getDiagramLabel(r, view)).join(' · ')
       : null;
 
   // defaultFill: body silhouette — warm dark ink on light bg, white on dark panel/compact, themed otherwise
