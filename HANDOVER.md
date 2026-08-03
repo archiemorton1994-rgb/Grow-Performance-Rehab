@@ -15,6 +15,48 @@ cd Grow-Performance-Rehab
 npm install
 ```
 
+### Windows prerequisites
+
+Verified on a bare Windows 11 machine on 2026-08-03. Three things bite before
+`npm run check` will go green, none of them obvious from the error messages:
+
+- **Node** is not present by default. `winget install OpenJS.NodeJS.LTS` now
+  installs the Node **24** line. Node 24 works fine with this repo. The
+  installer needs an admin prompt, and the new `node.exe` will not be on the
+  PATH of an already-open terminal — open a fresh one.
+- **The Microsoft Visual C++ Redistributable** is required and is missing on a
+  clean Windows install: `winget install Microsoft.VCRedist.2015+.x64`. Without
+  it, every native Node addon fails to load. The symptom is misleading —
+  `eslint-import-resolver-typescript` reports *"Cannot find native binding. npm
+  has a bug related to optional dependencies"* and points at a GitHub issue
+  about optional deps, which is a red herring. The `.node` binary is present
+  and intact; it is the C++ runtime underneath that is absent.
+- **`expo lint` caches per-file results** in `.expo/cache/eslint/`. If a lint
+  run fails for an environmental reason, fixing the environment is not enough —
+  the stale failures replay verbatim on every subsequent run. Delete that cache
+  directory after fixing anything toolchain-level, or you will chase a problem
+  you have already solved.
+
+Installing under a OneDrive-synced folder also produces a burst of
+`npm warn tar TAR_ENTRY_ERROR` lines during `npm install`. They appear to be
+harmless here — the install completed and `check` passes — but if packages
+behave strangely, OneDrive contention during extraction is the first suspect.
+
+### Dependency versions are not pinned
+
+`package-lock.json` is **gitignored** (`.gitignore` line 5), so nothing locks
+dependency versions. Every fresh `npm install` resolves whatever satisfies the
+semver ranges *that day*, which means a new machine can differ from Replit even
+though the code is identical.
+
+This is not theoretical: it cost a typecheck failure on 2026-08-03. `@types/node`
+is not even a declared dependency — it arrives transitively — and resolved to
+26.x, which types `process.env` values as `any`. That made an inferred callback
+parameter in `server/index.ts` an implicit `any` and broke `tsc --noEmit` under
+`strict`. Replit stayed green because its existing `node_modules` held an older
+copy. Worth considering committing a lockfile; until then, expect a fresh clone
+to surface type errors that Replit never shows.
+
 `npm install` runs `patch-package` via `postinstall`. Two patches must apply —
 if either fails, stop and fix it rather than continuing:
 
