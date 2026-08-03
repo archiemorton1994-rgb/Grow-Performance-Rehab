@@ -529,6 +529,7 @@ export default function SessionSummaryScreen() {
   const exerciseNormalStreak = useAppStore((s) => s.exerciseNormalStreak);
   const exerciseStuckStreak = useAppStore((s) => s.exerciseStuckStreak);
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
+  const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
 
   const certRef = useRef<View>(null);
 
@@ -863,15 +864,35 @@ export default function SessionSummaryScreen() {
   const bestPbRow = summary.rows
     .filter((r) => r.badge === 'gain-weight')
     .sort((a, b) => b.deltaWeight - a.deltaWeight)[0];
-  const heroKind: 'pb' | 'milestone' | 'default' = isMilestone
-    ? 'milestone'
-    : bestPbRow
-      ? 'pb'
-      : 'default';
+  // ── Test week: the tested max IS the story ─────────────────────────────────
+  // Twelve sessions of work land on this one number, so it outranks everything
+  // else on the hero — a routine PB or a session-count milestone must not bump
+  // it. oneRepMaxes is newest-first, so [0] is the result just recorded and [1]
+  // is the previous test of the same lift.
+  const liftOrms = session.isTestWeek
+    ? oneRepMaxes.filter((o) => o.lift === session.sessionType)
+    : [];
+  const testedOrm = liftOrms[0];
+  const previousOrm = liftOrms[1];
+  const testDeltaKg = testedOrm && previousOrm ? testedOrm.weight - previousOrm.weight : null;
+  const liftName = getSessionLabel(session.sessionType).replace(/\s*Session$/i, '');
+  const liftSessionCount = completedSessions.filter(
+    (s) => s.sessionType === session.sessionType
+  ).length;
+
+  const heroKind: 'test' | 'pb' | 'milestone' | 'default' = testedOrm
+    ? 'test'
+    : isMilestone
+      ? 'milestone'
+      : bestPbRow
+        ? 'pb'
+        : 'default';
 
   const heroNumber =
-    heroKind === 'pb' && bestPbRow
-      ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
+    heroKind === 'test' && testedOrm
+      ? kgToDisplayUnit(testedOrm.weight, weightUnit)
+      : heroKind === 'pb' && bestPbRow
+        ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
       : heroKind === 'milestone'
         ? sessionNumber
         : topWeightKg > 0
@@ -880,23 +901,56 @@ export default function SessionSummaryScreen() {
   const heroUnit =
     heroKind === 'milestone' ? '' : heroKind === 'default' && topWeightKg === 0 ? 'sets' : weightUnit;
   const heroBadgeLabel =
-    heroKind === 'pb' ? 'New personal best' : heroKind === 'milestone' ? 'Milestone session' : null;
+    heroKind === 'test'
+      ? `${liftName} one-rep max`
+      : heroKind === 'pb'
+        ? 'New personal best'
+        : heroKind === 'milestone'
+          ? 'Milestone session'
+          : null;
   const heroCaption =
-    heroKind === 'pb' && bestPbRow
-      ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
-      : heroKind === 'milestone'
-        ? bestPbRow
-          ? `${sessionNumber} sessions — and a new best on ${bestPbRow.exerciseName}`
-          : `${sessionNumber} sessions and counting`
-        : streakDays >= 1
-          ? `${streakDays} day streak. Keep it going.`
-          : 'Nice work today.';
+    heroKind === 'test'
+      ? testDeltaKg === null
+        ? `Your first tested ${liftName.toLowerCase()} max. This is the number everything else is measured against.`
+        : testDeltaKg > 0
+          ? `Up ${formatWeight(testDeltaKg, weightUnit)} on your last test. That is ${liftSessionCount} sessions of work showing up.`
+          : testDeltaKg === 0
+            ? `Level with your last test. Holding a max is its own result.`
+            : `Down ${formatWeight(Math.abs(testDeltaKg), weightUnit)} on your last test. One number on one day — it happens.`
+      : heroKind === 'pb' && bestPbRow
+        ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
+        : heroKind === 'milestone'
+          ? bestPbRow
+            ? `${sessionNumber} sessions — and a new best on ${bestPbRow.exerciseName}`
+            : `${sessionNumber} sessions and counting`
+          : streakDays >= 1
+            ? `${streakDays} day streak. Keep it going.`
+            : 'Nice work today.';
 
-  const stats: { label: string; value: string; accent?: boolean }[] = [
-    { label: 'Duration', value: durationLabel },
-    { label: 'Sets', value: String(summary.totalSets) },
-    { label: 'Muscles', value: String(musclesHit) },
-  ];
+  // On a test the rail carries the story of this lift rather than today's
+  // duration and set count, which are beside the point on a two-exercise test.
+  const stats: { label: string; value: string; accent?: boolean }[] =
+    heroKind === 'test' && testedOrm
+      ? [
+          {
+            label: 'Previous',
+            value: previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '—',
+          },
+          {
+            label: 'Change',
+            value:
+              testDeltaKg === null
+                ? 'First'
+                : `${testDeltaKg >= 0 ? '+' : '−'}${formatWeight(Math.abs(testDeltaKg), weightUnit)}`,
+            accent: testDeltaKg !== null && testDeltaKg > 0,
+          },
+          { label: `${liftName} sessions`, value: String(liftSessionCount) },
+        ]
+      : [
+          { label: 'Duration', value: durationLabel },
+          { label: 'Sets', value: String(summary.totalSets) },
+          { label: 'Muscles', value: String(musclesHit) },
+        ];
 
   return (
     <View style={[styles.container, { backgroundColor: SAGE.outerBg }]}>
