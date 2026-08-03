@@ -107,6 +107,14 @@ const SESSION_TYPE_FALLBACK_REGIONS: Partial<Record<string, PainRegion[]>> = {
   squat: ['quads', 'glutes', 'hamstrings', 'knee', 'hip_groin'],
   bench: ['chest', 'tricep', 'front_shoulder'],
   deadlift: ['lower_back', 'hamstrings', 'glutes', 'lat_mid_back'],
+  // The weekly sessions were missing entirely, so an upper-body session whose
+  // exercises had no per-exercise region data fell through to an empty
+  // fallback — the body map then showed only whichever exercises happened to
+  // carry data, which is why chest could go unlit after a bench session while
+  // an incidental core movement did light up.
+  upper_body: ['chest', 'lat_mid_back', 'upper_back', 'tricep', 'bicep'],
+  lower_body: ['quads', 'glutes', 'hamstrings', 'calf_shin'],
+  full_body: ['quads', 'glutes', 'chest', 'lat_mid_back', 'core_ribs'],
   conditioning: ['core_ribs', 'quads', 'hamstrings'],
   prehab: ['hip_groin', 'lower_back', 'core_ribs'],
   flexibility: [],
