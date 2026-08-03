@@ -915,6 +915,7 @@ export function ExerciseCard({
   index,
   setData,
   onSetChange,
+  onEditSet,
   onVideoPress,
   onSwapPress,
   onSkipExercise,
@@ -943,6 +944,8 @@ export function ExerciseCard({
   index: number;
   setData: ExerciseSetData;
   onSetChange: (setIndex: number, updated: SetLog) => void;
+  /** Reopen an already-logged set so its weight/reps can be corrected. */
+  onEditSet?: (setIndex: number) => void;
   onVideoPress: () => void;
   onSwapPress: () => void;
   onSkipExercise?: () => void;
@@ -1322,9 +1325,12 @@ export function ExerciseCard({
                           : setData.sets.findIndex((s) => !s.completed));
                       // Use slice(0, activeSetIndex) but also verify each set is truly completed
                       // - defensive for restored legacy data with irregular completion order
+                      // Keep each set's real index: the chips are tappable to reopen a set for
+                      // correction, and the filter above means chip order is not a safe proxy.
                       const completedSets = setData.sets
                         .slice(0, activeSetIndex)
-                        .filter((s) => s.completed);
+                        .map((s, realIndex) => ({ set: s, realIndex }))
+                        .filter(({ set }) => set.completed);
                       const prevSetWeight =
                         activeSetIndex > 0
                           ? setData.sets[activeSetIndex - 1].weight
@@ -1340,7 +1346,7 @@ export function ExerciseCard({
                               style={styles.doneChipsScroll}
                               contentContainerStyle={styles.doneChipsContent}
                             >
-                              {completedSets.map((s, i) => {
+                              {completedSets.map(({ set: s, realIndex }, i) => {
                                 let chipLabel = '';
                                 if (isTimeExercise) {
                                   chipLabel = 'done';
@@ -1350,13 +1356,31 @@ export function ExerciseCard({
                                   const w = kgToDisplayUnit(s.weight, weightUnit);
                                   chipLabel = `${w}${weightUnit} × ${s.reps}`;
                                 }
+                                // Tap to reopen for correction. A mistyped weight used to be
+                                // permanent — it set a false PB and drove every later load
+                                // suggestion, with no way back once the set was logged.
                                 return (
-                                  <View key={i} style={styles.doneChip}>
+                                  <Pressable
+                                    key={realIndex}
+                                    onPress={() => onEditSet?.(realIndex)}
+                                    disabled={!onEditSet}
+                                    style={({ pressed }) => [
+                                      styles.doneChip,
+                                      pressed && { opacity: 0.7 },
+                                    ]}
+                                    testID={`edit-logged-set-${realIndex + 1}`}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Edit set ${i + 1}, ${chipLabel}`}
+                                  >
                                     <Text style={styles.doneChipText}>
                                       S{i + 1} · {chipLabel}
                                     </Text>
-                                    <Ionicons name="checkmark" size={10} color={C.primary} />
-                                  </View>
+                                    <Ionicons
+                                      name={onEditSet ? 'pencil' : 'checkmark'}
+                                      size={10}
+                                      color={C.primary}
+                                    />
+                                  </Pressable>
                                 );
                               })}
                             </ScrollView>
@@ -2327,6 +2351,31 @@ export default function SessionScreen() {
     []
   );
 
+  /**
+   * Reopen an already-logged set for correction.
+   *
+   * Marking it uncompleted is all that is needed: handleSetChange derives
+   * activeSetIndex as "first uncompleted set", so the logging bar rewinds to
+   * this set and repopulates from its stored weight/reps. The user edits and
+   * re-logs it exactly as they did the first time.
+   *
+   * Nothing is double-counted — the set is overwritten in place, and totals are
+   * computed from the sets array at completion rather than accumulated per tap.
+   */
+  const handleEditSet = useCallback((exerciseIndex: number, setIndex: number) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExerciseData((prev) => {
+      const next = [...prev];
+      const ex = { ...next[exerciseIndex], sets: [...next[exerciseIndex].sets] };
+      const target = ex.sets[setIndex];
+      if (!target) return prev;
+      ex.sets[setIndex] = { ...target, completed: false };
+      ex.activeSetIndex = setIndex;
+      next[exerciseIndex] = ex;
+      return next;
+    });
+  }, []);
+
   const handleCardioLog = useCallback((exerciseIndex: number, data: CardioLogData) => {
     setExerciseData((prev) => {
       const next = [...prev];
@@ -2744,6 +2793,7 @@ export default function SessionScreen() {
               index={index}
               setData={data}
               onSetChange={isDemo ? () => {} : (si, u) => handleSetChange(index, si, u)}
+              onEditSet={isDemo ? undefined : (si) => handleEditSet(index, si)}
               onVideoPress={() => openYouTube(displayExercise.name)}
               onSwapPress={
                 isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
