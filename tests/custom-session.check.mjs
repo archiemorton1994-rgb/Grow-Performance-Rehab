@@ -121,6 +121,61 @@ check(
   'PREHAB_BY_REGION not referenced — prehab exercises missing from custom picker'
 );
 
+// ─── 2b. Pool breadth — every collection must stay in the walk ────────────────
+// The picker originally read only the three collections above, for a single
+// equipment tier. That left 247 of 461 exercise names unreachable by any user
+// and hid every dumbbell movement from Full Gym users. These assertions exist
+// so the pool cannot be silently narrowed back down.
+console.log('\n[2b] Pool breadth — every exercise collection is walked');
+
+const REQUIRED_COLLECTIONS = [
+  'CARDIO_WARMUPS',
+  'PREP',
+  'MECHANICAL',
+  'NEURO',
+  'POWER_MECHANICAL',
+  'POWER_NEURO',
+  'PREHAB',
+  'FINISHERS',
+  'COOLDOWN',
+  'CONDITIONING_WORKOUTS',
+  'GOAL_CONDITIONING_BLOCKS',
+  'STANDALONE_PREHAB',
+  'STANDALONE_FLEXIBILITY',
+  'WEEKLY_LOWER_BODY',
+  'WEEKLY_UPPER_BODY',
+  'WEEKLY_FULL_BODY',
+];
+
+for (const name of REQUIRED_COLLECTIONS) {
+  check(
+    `pool walks ${name}`,
+    new RegExp(`\\b${name}\\b`).test(poolFnBody),
+    `${name} dropped from the walk — those exercises become unreachable in the custom picker`
+  );
+}
+
+check(
+  'pool does NOT include ORM_TEST',
+  !/\bORM_TEST\b/.test(poolFnBody),
+  'ORM_TEST is a 1RM testing protocol driven by test week, not a movement to add to a session'
+);
+
+// The old signature took a tier and returned only that tier's exercises, which
+// is what hid dumbbell work from Full Gym users. It must stay tier-agnostic,
+// with equipment applied as a filter in the UI instead.
+check(
+  'getAllPickableExercises takes no tier argument',
+  /export function getAllPickableExercises\(\s*\)/.test(dbSrc),
+  'a tier parameter means the pool is being narrowed at source again — filter by equipment in the picker instead'
+);
+
+check(
+  'pickable entries carry their equipment tiers',
+  poolFnBody.includes('tiers'),
+  'without per-exercise tiers the picker cannot offer an equipment filter'
+);
+
 // ─── 3. MAIN_LIFTS tiers — all internal tiers exist per session type ──────────
 console.log(
   '\n[3] MAIN_LIFTS tiers — bodyweight / dumbbells / fullgym present for each session type'

@@ -22,7 +22,13 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
-import { getAllPickableExercises, ExerciseTemplate, ExerciseCategory } from '@/lib/exercise-db';
+import {
+  getAllPickableExercises,
+  toInternalTier,
+  ExerciseTemplate,
+  ExerciseCategory,
+  InternalTier,
+} from '@/lib/exercise-db';
 import { daysSince } from '@/lib/utils';
 
 // An exercise logged within this many days is considered "recently done".
@@ -137,7 +143,27 @@ export default function CustomSessionScreen() {
   } = useAppStore();
   const tier = getEffectiveTier();
 
-  const allExercises = useMemo(() => getAllPickableExercises(tier), [tier]);
+  const pickable = useMemo(() => getAllPickableExercises(), []);
+  const allExercises = useMemo(() => pickable.map((p) => p.template), [pickable]);
+  const tiersByName = useMemo(
+    () => new Map(pickable.map((p) => [p.template.name, p.tiers])),
+    [pickable]
+  );
+
+  // Equipment tiers are cumulative: a Full Gym user owns dumbbells and their own
+  // bodyweight too. Defaulting to everything at or below their tier is what
+  // makes dumbbell work visible to a Full Gym user — previously their tier
+  // collapsed to `fullgym` alone and those exercises were unreachable.
+  const ownedTiers = useMemo(() => {
+    const rank: Record<InternalTier, number> = { bodyweight: 0, dumbbells: 1, fullgym: 2 };
+    const own = rank[toInternalTier(tier)];
+    return (['bodyweight', 'dumbbells', 'fullgym'] as InternalTier[]).filter(
+      (t) => rank[t] <= own
+    );
+  }, [tier]);
+
+  // Empty set = no narrowing, i.e. everything the user owns.
+  const [equipmentFilters, setEquipmentFilters] = useState<Set<InternalTier>>(new Set());
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -253,7 +279,13 @@ export default function CustomSessionScreen() {
   const attrFiltersActive = patternFilters.size > 0 || difficultyFilters.size > 0;
 
   const filtered = useMemo(() => {
-    let list = allExercises;
+    // Equipment gate first: never offer a movement the user has no kit for.
+    const active = equipmentFilters.size > 0 ? equipmentFilters : new Set(ownedTiers);
+    let list = allExercises.filter((e) => {
+      const t = tiersByName.get(e.name);
+      // No tier recorded means the movement needs no equipment — always allow.
+      return !t || t.length === 0 || t.some((x) => active.has(x));
+    });
     if (categoryFilter !== 'all') {
       list = list.filter((e) => e.category === categoryFilter);
     }
@@ -268,7 +300,16 @@ export default function CustomSessionScreen() {
       list = list.filter((e) => e.name.toLowerCase().includes(q));
     }
     return list;
-  }, [allExercises, categoryFilter, patternFilters, difficultyFilters, search]);
+  }, [
+    allExercises,
+    tiersByName,
+    ownedTiers,
+    equipmentFilters,
+    categoryFilter,
+    patternFilters,
+    difficultyFilters,
+    search,
+  ]);
 
   // Most-recent completion date per exercise, keyed by both id and name (either can match).
   // completedSessions is stored newest-first, so the first occurrence seen is the most recent.

@@ -6,7 +6,8 @@ type MainSessionType = Exclude<
   SessionType,
   'conditioning' | 'prehab' | 'flexibility' | 'custom' | 'upper_body' | 'lower_body' | 'full_body'
 >;
-type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
+export type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
+const INTERNAL_TIERS: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
 
 export function toInternalTier(tier: EquipmentTier): InternalTier {
   if (tier === 'bands' || tier === 'bodyweight') return 'bodyweight';
@@ -16305,45 +16306,127 @@ export function getWeeklyFullBodyExercises(tier: EquipmentTier): ExerciseTemplat
   return WEEKLY_FULL_BODY[toInternalTier(tier)];
 }
 
-export function getAllPickableExercises(tier: EquipmentTier): ExerciseTemplate[] {
-  const internalTier = toInternalTier(tier);
-  const seen = new Set<string>();
-  const results: ExerciseTemplate[] = [];
+export interface PickableExercise {
+  template: ExerciseTemplate;
+  /**
+   * Equipment tiers this exercise appears under. An exercise found outside any
+   * tier-keyed collection (cooldowns, standalone mobility) needs no equipment
+   * and is marked as available in all tiers.
+   */
+  tiers: InternalTier[];
+}
 
-  const add = (t: ExerciseTemplate) => {
-    if (!seen.has(t.name)) {
-      seen.add(t.name);
-      results.push(t);
+/** Ordering for the picker: what you build a session around comes first. */
+const PICKER_CATEGORY_ORDER: Record<string, number> = {
+  main: 0,
+  accessory: 1,
+  mechanical: 2,
+  neuro: 3,
+  prep: 4,
+  finisher: 5,
+  cardio: 6,
+  prehab: 7,
+  cooldown: 8,
+};
+
+let _pickableCache: PickableExercise[] | null = null;
+
+/**
+ * Every exercise a user can put in a custom session.
+ *
+ * This used to take a single EquipmentTier, collapse it through
+ * toInternalTier(), and read only MAIN_LIFTS / ACCESSORIES / PREHAB_BY_REGION
+ * for that one tier. Two things fell out of that:
+ *
+ *   - A Full Gym user saw only fullgym variants — no dumbbell or bodyweight
+ *     movements at all, even though they can obviously do them. 41 dumbbell
+ *     and 44 bodyweight exercises were unreachable.
+ *   - Whole collections were never walked: conditioning, mobility, cooldowns,
+ *     warm-ups, finishers and the weekly-session pools. Of 461 exercise names
+ *     in the database only 130 could be reached, and 247 could not be reached
+ *     by any user on any tier.
+ *
+ * It now deep-walks every collection and reports the tiers each exercise
+ * belongs to, so the picker can show everything and filter by equipment rather
+ * than silently hiding most of the database.
+ *
+ * ORM_TEST is deliberately excluded — those are 1RM testing protocols driven by
+ * the test-week flow, not movements to drop into a session.
+ */
+export function getAllPickableExercises(): PickableExercise[] {
+  if (_pickableCache) return _pickableCache;
+
+  const byName = new Map<string, PickableExercise>();
+
+  const add = (t: ExerciseTemplate, tier: InternalTier | null) => {
+    const existing = byName.get(t.name);
+    if (existing) {
+      // Same movement offered under another tier — widen its availability
+      // rather than listing it twice.
+      if (tier && !existing.tiers.includes(tier)) existing.tiers.push(tier);
+      return;
     }
+    byName.set(t.name, { template: t, tiers: tier ? [tier] : [...INTERNAL_TIERS] });
   };
 
-  const mainTypes: MainSessionType[] = ['squat', 'bench', 'deadlift'];
-
-  for (const s of mainTypes) {
-    add(MAIN_LIFTS[s][internalTier]);
-  }
-
-  for (const s of mainTypes) {
-    for (const t of ACCESSORIES[s][internalTier]) {
-      add(t);
+  const walk = (node: unknown, tier: InternalTier | null) => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const child of node) walk(child, tier);
+      return;
     }
-  }
-
-  const regions = Object.values(PREHAB_BY_REGION) as ExerciseTemplate[][];
-  for (const regionExercises of regions) {
-    for (const t of regionExercises) {
-      add(t);
+    const obj = node as Record<string, unknown>;
+    if (
+      typeof obj.id === 'string' &&
+      typeof obj.name === 'string' &&
+      typeof obj.category === 'string'
+    ) {
+      add(obj as unknown as ExerciseTemplate, tier);
+      return;
     }
-  }
+    // The collections nest tier-keyed records at varying depths. Detect one and
+    // carry its tier down, so an exercise is tagged with the equipment it was
+    // filed under regardless of how deeply it sits.
+    const keys = Object.keys(obj);
+    const isTierMap =
+      keys.length > 0 && keys.every((k) => (INTERNAL_TIERS as string[]).includes(k));
+    for (const k of keys) walk(obj[k], isTierMap ? (k as InternalTier) : tier);
+  };
 
-  const categoryOrder: Record<string, number> = { main: 0, accessory: 1, prehab: 2 };
+  walk(
+    [
+      MAIN_LIFTS,
+      ACCESSORIES,
+      PREHAB_BY_REGION,
+      CARDIO_WARMUPS,
+      PREP,
+      MECHANICAL,
+      NEURO,
+      POWER_MECHANICAL,
+      POWER_NEURO,
+      PREHAB,
+      FINISHERS,
+      COOLDOWN,
+      CONDITIONING_WORKOUTS,
+      GOAL_CONDITIONING_BLOCKS,
+      STANDALONE_PREHAB,
+      STANDALONE_FLEXIBILITY,
+      WEEKLY_LOWER_BODY,
+      WEEKLY_UPPER_BODY,
+      WEEKLY_FULL_BODY,
+    ],
+    null
+  );
+
+  const results = [...byName.values()];
   results.sort((a, b) => {
-    const oa = categoryOrder[a.category] ?? 99;
-    const ob = categoryOrder[b.category] ?? 99;
+    const oa = PICKER_CATEGORY_ORDER[a.template.category] ?? 99;
+    const ob = PICKER_CATEGORY_ORDER[b.template.category] ?? 99;
     if (oa !== ob) return oa - ob;
-    return a.name.localeCompare(b.name);
+    return a.template.name.localeCompare(b.template.name);
   });
 
+  _pickableCache = results;
   return results;
 }
 
