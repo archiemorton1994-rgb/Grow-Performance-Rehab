@@ -15516,6 +15516,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Prisoner Squat',
+        cue: 'Hands laced behind your head, elbows wide. Same squat, but the arm position forces your chest to stay tall.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wlb-bw-hinge',
@@ -15532,6 +15537,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Single-Leg Hip Hinge',
+        cue: 'Stand on one leg, hinge forward and let the free leg travel back as a counterweight. Keep hips square to the floor.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wlb-bw-split',
@@ -15548,6 +15558,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hip flexors'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'Reverse Lunge',
+        cue: 'Step back and drop the rear knee toward the floor. Easier on the front knee than the elevated version.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wlb-bw-glute-bridge',
@@ -15564,6 +15579,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Hamstrings', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Single-Leg Glute Bridge',
+        cue: 'One foot planted, other knee hugged to your chest. Drive through the planted heel and keep hips level.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wlb-bw-lateral-lunge',
@@ -15580,6 +15600,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Adductors'],
       difficulty: 'beginner',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'Curtsy Lunge',
+        cue: 'Step one leg diagonally behind the other and sink. Hits the glute from a different angle to the side step.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
   ],
   dumbbells: [
@@ -15598,6 +15623,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Front Squat',
+        cue: 'A dumbbell racked on each shoulder instead of one at the chest. Keep elbows high so the torso stays upright.',
+        suggestedLoad: '10-18 kg (each hand)',
+      },
     },
     {
       id: 'wlb-db-rdl',
@@ -15614,6 +15644,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Sumo Deadlift',
+        cue: 'Wide stance, one dumbbell between the feet. More hip and inner thigh, less hamstring stretch.',
+        suggestedLoad: '20-32 kg',
+      },
     },
     {
       id: 'wlb-db-split',
@@ -15630,6 +15665,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Reverse Lunge',
+        cue: 'Step back rather than elevating the rear foot. Same load, less balance demand.',
+        suggestedLoad: '10-20 kg (each hand)',
+      },
     },
     {
       id: 'wlb-db-stepup',
@@ -15646,6 +15686,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Walking Lunge',
+        cue: 'Lunge forward and walk through. Keeps the single-leg work without needing a box.',
+        suggestedLoad: '10-20 kg (each hand)',
+      },
     },
     {
       id: 'wlb-db-single-rdl',
@@ -15662,6 +15707,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'DB B-Stance RDL',
+        cue: 'Back toe lightly touching for balance, most of the weight through the front leg. Easier to control than fully single-leg.',
+        suggestedLoad: '12-20 kg (each hand)',
+      },
     },
   ],
   fullgym: [
@@ -15680,6 +15730,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core', 'Upper back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Barbell Front Squat',
+        cue: 'Bar racked across the front delts, elbows high. More quad and upright torso, less lower-back load.',
+        suggestedLoad: '40-80 kg',
+      },
     },
     {
       id: 'wlb-fg-rdl',
@@ -15696,6 +15751,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Barbell Good Morning',
+        cue: 'Bar on the back, hinge forward with soft knees. Same hinge, more hamstring stretch at lighter load.',
+        suggestedLoad: '30-60 kg',
+      },
     },
     {
       id: 'wlb-fg-split',
@@ -15712,6 +15772,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'advanced',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'Barbell Reverse Lunge',
+        cue: 'Bar on the back, step back and drop the rear knee. Less balance demand than the elevated version.',
+        suggestedLoad: '30-60 kg',
+      },
     },
     {
       id: 'wlb-fg-legpress',
@@ -15728,6 +15793,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Hack Squat',
+        cue: 'Machine squat pattern with the back supported. Heavier quad loading with no balance element.',
+        suggestedLoad: '60-120 kg',
+      },
     },
     {
       id: 'wlb-fg-legcurl',
@@ -15744,6 +15814,11 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Seated Leg Curl',
+        cue: 'Same curl from a seated position. The hip angle biases the lower hamstring slightly differently.',
+        suggestedLoad: '30-60 kg',
+      },
     },
   ],
 };
@@ -15765,6 +15840,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Front delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Incline Push-Up',
+        cue: 'Hands on a bench or step. Same movement at a fraction of the load - use it to keep reps clean.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wub-bw-inverted-row',
@@ -15781,6 +15861,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Feet-Elevated Inverted Row',
+        cue: 'Same row with the feet up on a box. Steeper angle, more of your bodyweight on the pull.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wub-bw-pike-pushup',
@@ -15797,6 +15882,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper chest'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Elevated Pike Push-Up',
+        cue: 'Feet on a box so the torso is closer to vertical. More shoulder, less chest.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wub-bw-chin-up',
@@ -15813,6 +15903,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Neutral-Grip Pull-Up',
+        cue: 'Palms facing each other. Usually the kindest grip on the elbows and shoulders.',
+        suggestedLoad: 'Bodyweight (pull-up bar)',
+      },
     },
     {
       id: 'wub-bw-diamond-pushup',
@@ -15829,6 +15924,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Front delts'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Bench Dip',
+        cue: 'Hands behind you on a bench, lower until the elbows hit 90 degrees. Triceps without the wrist position.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
   ],
   dumbbells: [
@@ -15847,6 +15947,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Floor Press',
+        cue: 'Same press lying on the floor. The upper arms stop at the ground, which spares the shoulder.',
+        suggestedLoad: '15-25 kg (each hand)',
+      },
     },
     {
       id: 'wub-db-row',
@@ -15863,6 +15968,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Chest-Supported Row',
+        cue: 'Chest on an incline bench. Takes the lower back out entirely so the lats do the work.',
+        suggestedLoad: '12-22 kg (each hand)',
+      },
     },
     {
       id: 'wub-db-shoulder-press',
@@ -15879,6 +15989,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Arnold Press',
+        cue: 'Start palms-in and rotate out as you press. More front delt through a longer range.',
+        suggestedLoad: '10-18 kg (each hand)',
+      },
     },
     {
       id: 'wub-db-pullover',
@@ -15895,6 +16010,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Single-Arm Row',
+        cue: 'One hand and knee on a bench, row the dumbbell to the hip. More direct lat work.',
+        suggestedLoad: '15-25 kg',
+      },
     },
     {
       id: 'wub-db-lateral-raise',
@@ -15911,6 +16031,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Upper traps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Front Raise',
+        cue: 'Raise to the front rather than the side. Shifts the work to the front delt.',
+        suggestedLoad: '6-12 kg (each hand)',
+      },
     },
   ],
   fullgym: [
@@ -15929,6 +16054,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Incline Barbell Bench Press',
+        cue: 'Bench set to 30 degrees. Biases the upper chest and is often easier on the shoulder.',
+        suggestedLoad: '40-80 kg',
+      },
     },
     {
       id: 'wub-fg-row',
@@ -15945,6 +16075,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Pendlay Row',
+        cue: 'Bar returns to the floor between reps. Strict, no momentum, heavier on the mid-back.',
+        suggestedLoad: '40-70 kg',
+      },
     },
     {
       id: 'wub-fg-ohp',
@@ -15961,6 +16096,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Push Press',
+        cue: 'A small leg drive to start the bar moving. Lets you handle more than a strict press.',
+        suggestedLoad: '45-80 kg',
+      },
     },
     {
       id: 'wub-fg-pulldown',
@@ -15977,6 +16117,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Seated Cable Row',
+        cue: 'Horizontal pull instead of vertical. More mid-back and rear delt.',
+        suggestedLoad: '50-80 kg',
+      },
     },
     {
       id: 'wub-fg-pallof',
@@ -15993,6 +16138,11 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Obliques', 'Glutes'],
       difficulty: 'beginner',
       isUnilateral: true,
+      swapAlternative: {
+        name: 'Cable Woodchop',
+        cue: 'Same anti-rotation demand, but moving through the range rather than holding.',
+        suggestedLoad: '10-20 kg',
+      },
     },
   ],
 };
@@ -16014,6 +16164,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Prisoner Squat',
+        cue: 'Hands laced behind your head, elbows wide. Forces the chest to stay tall through the squat.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wfb-bw-hinge',
@@ -16030,6 +16185,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Bodyweight Hip Hinge',
+        cue: 'Hands on the hips instead of behind the head. Same hinge with less demand on the upper back.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wfb-bw-pushup',
@@ -16046,6 +16206,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Front delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Incline Push-Up',
+        cue: 'Hands on a bench or step. Same movement at a fraction of the load.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wfb-bw-inv-row',
@@ -16062,6 +16227,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Feet-Elevated Inverted Row',
+        cue: 'Same row with the feet up on a box. Steeper angle, harder pull.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wfb-bw-pike-push',
@@ -16078,6 +16248,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Elevated Pike Push-Up',
+        cue: 'Feet on a box so the torso sits closer to vertical. More shoulder.',
+        suggestedLoad: 'Bodyweight',
+      },
     },
     {
       id: 'wfb-bw-chin-up',
@@ -16094,6 +16269,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Neutral-Grip Pull-Up',
+        cue: 'Palms facing each other - usually the kindest grip on elbows and shoulders.',
+        suggestedLoad: 'Bodyweight (pull-up bar)',
+      },
     },
   ],
   dumbbells: [
@@ -16112,6 +16292,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Front Squat',
+        cue: 'A dumbbell on each shoulder rather than one at the chest. Elbows high, torso upright.',
+        suggestedLoad: '10-18 kg (each hand)',
+      },
     },
     {
       id: 'wfb-db-rdl',
@@ -16128,6 +16313,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Sumo Deadlift',
+        cue: 'Wide stance with one dumbbell between the feet. More hip, less hamstring stretch.',
+        suggestedLoad: '20-32 kg',
+      },
     },
     {
       id: 'wfb-db-bench',
@@ -16144,6 +16334,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Floor Press',
+        cue: 'Press from the floor so the upper arms stop at the ground. Easier on the shoulder.',
+        suggestedLoad: '15-25 kg (each hand)',
+      },
     },
     {
       id: 'wfb-db-row',
@@ -16160,6 +16355,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Chest-Supported Row',
+        cue: 'Chest on an incline bench, taking the lower back out of it.',
+        suggestedLoad: '12-22 kg (each hand)',
+      },
     },
     {
       id: 'wfb-db-ohp',
@@ -16176,6 +16376,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Arnold Press',
+        cue: 'Start palms-in and rotate out as you press. Longer range through the front delt.',
+        suggestedLoad: '10-18 kg (each hand)',
+      },
     },
     {
       id: 'wfb-db-pullover',
@@ -16192,6 +16397,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Single-Arm Row',
+        cue: 'One hand and knee on a bench, row to the hip. More direct lat work.',
+        suggestedLoad: '15-25 kg',
+      },
     },
   ],
   fullgym: [
@@ -16210,6 +16420,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core', 'Upper back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Barbell Front Squat',
+        cue: 'Bar across the front delts, elbows high. More quad, less lower-back load.',
+        suggestedLoad: '40-80 kg',
+      },
     },
     {
       id: 'wfb-fg-deadlift',
@@ -16226,6 +16441,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Lats', 'Traps', 'Core'],
       difficulty: 'advanced',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Trap Bar Deadlift',
+        cue: 'Neutral handles with the load in line with you. Friendlier to the lower back than a straight bar.',
+        suggestedLoad: '70-120 kg',
+      },
     },
     {
       id: 'wfb-fg-bench',
@@ -16242,6 +16462,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Incline Barbell Bench Press',
+        cue: 'Bench at 30 degrees. Biases upper chest, often easier on the shoulder.',
+        suggestedLoad: '40-80 kg',
+      },
     },
     {
       id: 'wfb-fg-row',
@@ -16258,6 +16483,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Pendlay Row',
+        cue: 'Bar returns to the floor between reps. Strict and heavier on the mid-back.',
+        suggestedLoad: '40-70 kg',
+      },
     },
     {
       id: 'wfb-fg-ohp',
@@ -16274,6 +16504,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Push Press',
+        cue: 'A small leg drive to start the bar. Lets you handle more than a strict press.',
+        suggestedLoad: '45-80 kg',
+      },
     },
     {
       id: 'wfb-fg-pulldown',
@@ -16290,6 +16525,11 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      swapAlternative: {
+        name: 'Seated Cable Row',
+        cue: 'Horizontal pull rather than vertical. More mid-back and rear delt.',
+        suggestedLoad: '50-80 kg',
+      },
     },
   ],
 };

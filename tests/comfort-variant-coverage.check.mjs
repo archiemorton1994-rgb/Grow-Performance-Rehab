@@ -187,10 +187,25 @@ check(
   'function not found — pain-region swap path may be broken'
 );
 
+// Matched against the function body rather than one exact expression. The old
+// assertion pinned the literal `comfortVariant.triggerRegions.includes(painRegion)`,
+// which stopped matching when the function was widened to accept an array of
+// regions — so this test failed against correct code, and was quietly left out
+// of `npm run check` rather than updated.
+const comfortFnStart = engineSrc.indexOf('function shouldSwapForComfort');
+const comfortFnBody =
+  comfortFnStart === -1 ? '' : engineSrc.slice(comfortFnStart, comfortFnStart + 600);
+
 check(
   'shouldSwapForComfort checks comfortVariant.triggerRegions',
-  engineSrc.includes('comfortVariant.triggerRegions.includes(painRegion)'),
+  /comfortVariant!?\.triggerRegions\.includes\(/.test(comfortFnBody),
   'triggerRegions check missing — swap logic may never fire'
+);
+
+check(
+  'shouldSwapForComfort handles multiple flagged regions',
+  /Array\.isArray\(painRegion\)/.test(comfortFnBody) && /\.some\(/.test(comfortFnBody),
+  'readiness lets a user flag several regions at once — a single-region check would silently ignore all but one'
 );
 
 check(
