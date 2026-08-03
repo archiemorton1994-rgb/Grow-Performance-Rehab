@@ -907,7 +907,9 @@ export default function SessionSummaryScreen() {
         contentContainerStyle={{
           paddingTop: topPad + 10,
           paddingHorizontal: 16,
-          paddingBottom: bottomPad + 12,
+          // The pinned Done footer below owns the safe-area inset now, so this
+          // only needs a small gap above it.
+          paddingBottom: 12,
         }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={24}
@@ -1177,7 +1179,13 @@ export default function SessionSummaryScreen() {
           />
         </View>
 
-        {/* Done */}
+      </KeyboardAwareScrollView>
+
+      {/* Pinned footer — Done sits outside the scroll view so it is always on
+          screen. It used to be the last child after the notes field, which
+          buried it below the fold and left people scrolling to leave. Same
+          pattern as the Recover tab's footer. */}
+      <View style={[styles.doneFooter, { paddingBottom: bottomPad + 12 }]}>
         <Pressable
           onPress={goHome}
           style={[styles.doneButton, { backgroundColor: C.primary }]}
@@ -1185,7 +1193,7 @@ export default function SessionSummaryScreen() {
         >
           <Text style={[styles.doneButtonText, { color: C.textInverse }]}>Done</Text>
         </Pressable>
-      </KeyboardAwareScrollView>
+      </View>
 
       {/* Rate Exercises Modal */}
       <Modal
@@ -1599,6 +1607,13 @@ const styles = StyleSheet.create({
   },
 
   // ── Done ────────────────────────────────────────────────────────────────────
+  // Footer is a flex sibling of the scroll view, not an overlay, so content
+  // never scrolls underneath it. Bottom padding is applied inline from the
+  // safe-area inset.
+  doneFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
   doneButton: {
     marginTop: 10,
     paddingVertical: 16,

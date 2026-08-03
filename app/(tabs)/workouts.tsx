@@ -4498,7 +4498,6 @@ export default function StatsScreen() {
                     onSelect={(r) => setPainRegionFilter((prev) => togglePainFilter(prev, r))}
                     heatmapCounts={painRegionCounts}
                     legendLabels={['Occasional', 'Regular', 'Frequent']}
-                    maxWidth={150}
                   />
                 </View>
               )}

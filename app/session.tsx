@@ -537,7 +537,6 @@ export function SessionActiveBar({
     return r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? '');
   });
   const [showFeedback, setShowFeedback] = useState(false);
-  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
   useEffect(() => {
@@ -594,14 +593,16 @@ export function SessionActiveBar({
     if (isNewRecord) onNewPb?.();
     onSetCompleted();
     if (!isDemo) {
+      // Deliberately no auto-dismiss. This prompt replaces the logging bar, so
+      // it stays put until one of the four buttons is tapped. The old 3s timer
+      // meant a slower reader lost the chance to answer, and every set that
+      // goes unrated is a load adjustment the engine never gets to make.
+      // '✓ Last rep' is the zero-cost neutral answer, so answering is one tap.
       setShowFeedback(true);
-      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-      feedbackTimerRef.current = setTimeout(() => setShowFeedback(false), 3000);
     }
   };
 
   const handleFeedback = (f: FeedbackRating) => {
-    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
     if (exercise) onFeedback(exercise.id, f);
     setShowFeedback(false);
   };
@@ -664,9 +665,11 @@ export function SessionActiveBar({
               onPress={() => handleFeedback('hard')}
               style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
             >
-              <Text style={[styles.barFeedbackBtnText, { color: C.categoryFinisherText }]}>
-                😓 Missed reps
-              </Text>
+              {/* C.error, not categoryFinisherText — that token is white in light
+                  mode because it is designed to sit on the solid red category
+                  fill. On this pale surfaceTertiary button it rendered at
+                  1.06:1 and was effectively invisible. */}
+              <Text style={[styles.barFeedbackBtnText, { color: C.error }]}>😓 Missed reps</Text>
             </Pressable>
           </View>
         </View>

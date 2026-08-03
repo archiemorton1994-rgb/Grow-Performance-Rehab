@@ -38,6 +38,19 @@ const JOINT_CLR = '#4a7e9b';
 // the same panel colour around their own layout instead of guessing a value.
 export const PANEL_BG = '#0d0d0d';
 
+// ─── Figure sizing ───────────────────────────────────────────────────────────
+// The rendered figure is 2.4x taller than it is wide, so on a phone it is
+// almost always height that runs out first, not width. Sizing is therefore
+// driven by a share of the viewport height, with the screen width and the
+// caller's `maxWidth` acting as ceilings on top of that.
+export const DIAGRAM_ASPECT = 2.4;
+/** Upper bound on figure width — stops the body ballooning on tablets. */
+export const DIAGRAM_MAX_WIDTH = 240;
+/** Floor, so small regions (wrist, ankle) stay big enough to tap accurately. */
+export const DIAGRAM_MIN_WIDTH = 140;
+/** Share of viewport height the figure may occupy when otherwise unconstrained. */
+const DIAGRAM_HEIGHT_SHARE = 0.58;
+
 // ─── Region categorisation ────────────────────────────────────────────────────
 export const MUSCLE_SET = new Set<PainRegion>([
   'chest',
@@ -283,9 +296,18 @@ interface BodyDiagramProps {
   accentColorLight?: string;
   defaultView?: BodyView;
   maxWidth?: number;
+  /**
+   * Hard ceiling on the rendered figure height, in px. Use when the diagram
+   * sits in a fixed-height container (a bottom sheet, a card) and must not
+   * overflow it. When omitted the figure sizes itself from the viewport.
+   */
+  maxHeight?: number;
   /** When provided, activates heatmap mode: zones are coloured by frequency */
   heatmapCounts?: Partial<Record<PainRegion, number>>;
-  /** Set false to opt out of the dark panel container (rare) */
+  /**
+   * Opt back in to the dark `PANEL_BG` container. Off by default — the diagram
+   * renders transparent so it inherits whatever screen it is placed on.
+   */
   darkPanel?: boolean;
   /**
    * Compact mode: renders just the body SVG with no toggles, label, legend,
@@ -314,9 +336,10 @@ export function BodyDiagram({
   accentColor,
   accentColorLight,
   defaultView = 'front',
-  maxWidth = 200,
+  maxWidth = DIAGRAM_MAX_WIDTH,
+  maxHeight,
   heatmapCounts,
-  darkPanel = true,
+  darkPanel = false,
   compact = false,
   lightBg = false,
   legendLabels = ['Worked', 'Secondary', 'High load'],
@@ -326,12 +349,20 @@ export function BodyDiagram({
   const C = useColors();
   const sex = useAppStore((s) => s.userProfile.sex);
   const gender = sex === 'female' ? 'female' : 'male';
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const accent = accentColor ?? C.warning;
   const accentBg = accentColorLight ?? C.warningLight;
 
-  const svgWidth = Math.min(screenWidth - 80, maxWidth);
+  // Whichever constraint binds first wins: the caller's width cap, the screen
+  // width, or the height budget. The old `screenWidth - 80` allowance existed
+  // to clear the dark panel's padding; with that panel gone the figure can run
+  // wider, and height is what actually limits it on a phone.
+  const heightBudget = maxHeight ?? screenHeight * DIAGRAM_HEIGHT_SHARE;
+  const svgWidth = Math.max(
+    DIAGRAM_MIN_WIDTH,
+    Math.min(screenWidth - 40, maxWidth, Math.round(heightBudget / DIAGRAM_ASPECT))
+  );
   const scale = svgWidth / 200;
 
   // ─── Affordance pulse animation — runs indefinitely until first tap ───────
@@ -928,7 +959,9 @@ export function BodyDiagram({
         {!compact && !heatmapCounts && <View style={styles.cyclerSpacer} />}
 
         <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
-          <View style={{ position: 'relative', width: svgWidth, height: svgWidth * 2.4 }}>
+          <View
+            style={{ position: 'relative', width: svgWidth, height: svgWidth * DIAGRAM_ASPECT }}
+          >
             <Body
               data={bodyData}
               gender={gender}
@@ -939,7 +972,7 @@ export function BodyDiagram({
             />
             <Svg
               width={svgWidth}
-              height={svgWidth * 2.4}
+              height={svgWidth * DIAGRAM_ASPECT}
               viewBox="0 0 200 480"
               style={StyleSheet.absoluteFillObject}
             >

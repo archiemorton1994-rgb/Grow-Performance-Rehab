@@ -591,10 +591,24 @@ console.log('\n[9] Container–viewBox–scaleY three-way consistency');
 // ── [9a] Extract the container height multiplier ──────────────────────────────
 // Matches both: `height: svgWidth * 2.4`  (style object)
 //          and: `height={svgWidth * 2.4}`  (JSX prop)
-const containerMultiplierMatch = src.match(/height[={:\s]+svgWidth\s*\*\s*([\d.]+)/);
-const containerMultiplier = containerMultiplierMatch
-  ? parseFloat(containerMultiplierMatch[1])
-  : null;
+//
+// The multiplier may also be written as a named constant (`svgWidth *
+// DIAGRAM_ASPECT`). In that case resolve the identifier to the literal it is
+// declared with, so the three-way consistency check below still verifies a real
+// number. Changing DIAGRAM_ASPECT without updating viewBox height / scaleY
+// therefore still fails here, which is the whole point of this section.
+function extractContainerMultiplier(source) {
+  const literal = source.match(/height[={:\s]+svgWidth\s*\*\s*([\d.]+)/);
+  if (literal) return parseFloat(literal[1]);
+
+  const ident = source.match(/height[={:\s]+svgWidth\s*\*\s*([A-Za-z_$][\w$]*)/);
+  if (!ident) return null;
+
+  const decl = source.match(new RegExp(`const\\s+${ident[1]}\\s*=\\s*([\\d.]+)`));
+  return decl ? parseFloat(decl[1]) : null;
+}
+
+const containerMultiplier = extractContainerMultiplier(src);
 
 check(
   'container height multiplier (svgWidth * N) found in BodyDiagram.tsx',
