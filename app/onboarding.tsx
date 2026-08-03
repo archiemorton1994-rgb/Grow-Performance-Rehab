@@ -128,22 +128,27 @@ const EQUIPMENT_IMAGES: Record<string, any> = {
   fullgym: require('@/assets/images/equipment/fullgym.png'),
 };
 
-const WELCOME_GROUPS = [
+/**
+ * Three pillars rather than seven bullets under three headings. The list
+ * carried the same information but as ten stacked text elements at nearly one
+ * weight, which reads as a wall on a phone. One line each, an icon to anchor
+ * it, and the detail moved into a single supporting sentence.
+ */
+const WELCOME_PILLARS = [
   {
-    heading: 'Personalise',
-    items: [
-      'Adapts to your equipment, energy & pain',
-      'Personalised loads every session',
-      'Always know exactly what to do next',
-    ],
+    icon: 'options-outline' as const,
+    title: 'Built around you',
+    body: 'Adapts to your equipment, energy and pain — with the right load every session.',
   },
   {
-    heading: 'Train',
-    items: ['Strength, conditioning & custom sessions', 'Recovery, mobility & flexibility'],
+    icon: 'barbell-outline' as const,
+    title: 'Train and recover',
+    body: 'Strength, conditioning, mobility and rehab, all in one plan.',
   },
   {
-    heading: 'Track',
-    items: ['Strength progress & 1RM trends', 'Achievements & detailed stats'],
+    icon: 'trending-up-outline' as const,
+    title: 'See it add up',
+    body: '1RM trends, personal records and detailed stats over time.',
   },
 ];
 
@@ -477,20 +482,22 @@ export default function OnboardingScreen() {
                 style={styles.welcomeLogoImage}
                 resizeMode="cover"
               />
-              <View style={styles.welcomeDivider} />
-              <Text style={styles.welcomeSubtitle}>
-                Build your training profile.{'\n'}Takes less than 2 minutes.
-              </Text>
+              <Text style={styles.welcomeHeadline}>Build your training profile</Text>
+              <View style={styles.welcomeMetaRow}>
+                <Ionicons name="time-outline" size={13} color={C.textSecondary} />
+                <Text style={styles.welcomeMetaText}>Takes less than 2 minutes</Text>
+              </View>
+
               <View style={styles.welcomeFeatureList}>
-                {WELCOME_GROUPS.map((group) => (
-                  <View key={group.heading} style={styles.welcomeGroup}>
-                    <Text style={styles.welcomeGroupHeading}>{group.heading}</Text>
-                    {group.items.map((item) => (
-                      <View key={item} style={styles.welcomeFeatureItem}>
-                        <Ionicons name="checkmark-circle" size={16} color={C.primaryDark} />
-                        <Text style={styles.welcomeFeatureText}>{item}</Text>
-                      </View>
-                    ))}
+                {WELCOME_PILLARS.map((pillar) => (
+                  <View key={pillar.title} style={styles.welcomePillar}>
+                    <View style={styles.welcomePillarIcon}>
+                      <Ionicons name={pillar.icon} size={18} color={C.primary} />
+                    </View>
+                    <View style={styles.welcomePillarText}>
+                      <Text style={styles.welcomePillarTitle}>{pillar.title}</Text>
+                      <Text style={styles.welcomePillarBody}>{pillar.body}</Text>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -1314,61 +1321,65 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
     welcomeLogoImage: {
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      marginBottom: 28,
+      // Smaller than before: the headline now carries the top of the screen, so
+      // the logo does not need to compete with it for attention.
+      width: 118,
+      height: 118,
+      borderRadius: 59,
+      marginBottom: 22,
     },
-    welcomeTagline: {
-      fontSize: 15,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      letterSpacing: 1.2,
-      marginTop: 4,
-      marginBottom: 24,
-    },
-    welcomeDivider: {
-      width: 40,
-      height: 3,
-      backgroundColor: C.primaryMuted,
-      borderRadius: 2,
-      marginBottom: 24,
-    },
-    welcomeSubtitle: {
-      fontSize: 17,
-      fontFamily: 'Inter_500Medium',
+    welcomeHeadline: {
+      fontSize: 26,
+      lineHeight: 32,
+      fontFamily: 'Inter_700Bold',
       color: C.text,
       textAlign: 'center',
-      lineHeight: 26,
-      marginBottom: 28,
+      letterSpacing: -0.4,
+      marginBottom: 8,
+    },
+    welcomeMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginBottom: 30,
+    },
+    welcomeMetaText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
     },
     welcomeFeatureList: {
       alignSelf: 'stretch',
-      paddingHorizontal: 36,
-      gap: 16,
-      marginTop: 4,
+      paddingHorizontal: 26,
+      gap: 20,
     },
-    welcomeGroup: {
-      gap: 8,
-    },
-    welcomeGroupHeading: {
-      fontSize: 10,
-      fontFamily: 'Inter_700Bold',
-      color: C.textSecondary,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.8,
-      marginBottom: 2,
-    },
-    welcomeFeatureItem: {
+    welcomePillar: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
+      alignItems: 'flex-start',
+      gap: 14,
     },
-    welcomeFeatureText: {
-      fontSize: 14,
-      fontFamily: 'Inter_500Medium',
-      color: C.text,
+    welcomePillarIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    welcomePillarText: {
       flex: 1,
+      gap: 3,
+    },
+    welcomePillarTitle: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+    },
+    welcomePillarBody: {
+      fontSize: 13,
+      lineHeight: 19,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
     },
   });
 }
