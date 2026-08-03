@@ -33,7 +33,12 @@ import { shadowStyle } from '@/constants/shadows';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
-import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
+import {
+  SESSION_META,
+  SESSION_SHORT_LABELS,
+  getSessionColors,
+  SessionMeta,
+} from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
@@ -102,7 +107,7 @@ export default function HomeScreen() {
     getStreakDays,
     getThisWeekCount,
     weeklyStreakGoal,
-    isTestWeekDue,
+    getTestWeekProgress,
     isWeightReminderVisible,
     userProfile,
     setUserProfile,
@@ -177,7 +182,8 @@ export default function HomeScreen() {
   const suggestedSession = getCurrentSessionType();
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
-  const testWeek = isTestWeekDue();
+  const testWeekProgress = getTestWeekProgress();
+  const testWeek = testWeekProgress.active;
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
   const greeting = getTimeOfDayGreeting();
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
@@ -558,7 +564,9 @@ export default function HomeScreen() {
             {testWeek && (
               <View style={styles.testWeekPill}>
                 <Ionicons name="trophy" size={13} color={C.categoryPrehabText} />
-                <Text style={styles.testWeekPillText}>Test Week</Text>
+                <Text style={styles.testWeekPillText}>
+                  Test Week · {testWeekProgress.completed + 1} of {testWeekProgress.total}
+                </Text>
               </View>
             )}
             <Pressable
@@ -748,7 +756,9 @@ export default function HomeScreen() {
                 >
                   <Ionicons name="flash" size={18} color={C.primaryDarkText} />
                   <Text style={styles.startBtnText}>
-                    {testWeek ? 'Start Strength Test' : 'Start Session'}
+                    {testWeek
+                      ? `Test ${SESSION_SHORT_LABELS[suggestedSession] ?? 'Strength'} 1RM`
+                      : 'Start Session'}
                   </Text>
                 </Pressable>
               </Animated.View>

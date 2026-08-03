@@ -477,6 +477,19 @@ interface AppState {
   setCalibrationBannerDismissed: (dismissed: boolean) => void;
 
   getCurrentSessionType: () => SessionType;
+  /**
+   * Where you are in a test week: all three main lifts, one test per session,
+   * in SESSION_ORDER. `active` is true from the moment one comes due until the
+   * third test is logged. Derived from session history — see the implementation.
+   */
+  getTestWeekProgress: () => {
+    active: boolean;
+    /** Tests already logged in this block, 0–3. */
+    completed: number;
+    total: number;
+    /** The lift the next test session should use. */
+    nextLift: SessionType;
+  };
   isTestWeekDue: () => boolean;
   getStreakDays: () => number;
   getThisWeekCount: () => number;
@@ -861,6 +874,10 @@ export const useAppStore = create<AppState>()(
 
       getCurrentSessionType: () => {
         const { completedSessions, cycleStartOffset } = get();
+        // During a test week the lift is dictated by how far through the three
+        // tests you are, not by the normal rotation.
+        const progress = get().getTestWeekProgress();
+        if (progress.active) return progress.nextLift;
         // Cycle rotation only advances on squat/bench/deadlift sessions.
         // Conditioning, prehab, flexibility, and custom sessions do not shift the rotation.
         const strengthCount = completedSessions.filter((s) =>
@@ -869,20 +886,71 @@ export const useAppStore = create<AppState>()(
         return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
       },
 
-      isTestWeekDue: () => {
+      /**
+       * A test week is all three main lifts, tested one per session, in
+       * SESSION_ORDER (squat → bench → deadlift).
+       *
+       * WHY THIS IS DERIVED, NOT A FLAG
+       * ───────────────────────────────
+       * How far through you are is read back off the session history: count the
+       * most recent consecutive strength sessions that were tests. That survives
+       * a reinstall, a device switch, and mergeServerData, none of which a
+       * separate in-progress counter would.
+       *
+       * THE BUG THIS REPLACES
+       * ─────────────────────
+       * A test used to be a single session, fired when strengthCount hit a
+       * multiple of testWeekFrequency. Both frequency options (12 and 18) divide
+       * exactly by 3, so the rotation was always sitting on the same lift when a
+       * test came due — the same lift was tested every time, forever, and the
+       * other two never were. Replaying 40 sessions produced squat, squat, squat
+       * and never once bench or deadlift.
+       */
+      getTestWeekProgress: () => {
         const { completedSessions, testWeekFrequency, testWeekDeferred } = get();
-        // A postponed test stays due regardless of count until it's actually
-        // taken — otherwise the next strength session would consume the
-        // "due" count and push the real test a full testWeekFrequency-session
-        // cycle away instead of just to the next session.
-        if (testWeekDeferred) return true;
-        // Test week is based on strength session count only.
-        const strengthCount = completedSessions.filter((s) =>
+        const strength = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)
-        ).length;
-        if (strengthCount === 0) return false;
-        return strengthCount % testWeekFrequency === 0;
+        );
+
+        // completedSessions is newest-first, so this walks backwards in time.
+        let completed = 0;
+        for (const s of strength) {
+          if (!s.isTestWeek) break;
+          completed++;
+          if (completed === SESSION_ORDER.length) break;
+        }
+
+        const idle = {
+          active: false,
+          completed: 0,
+          total: SESSION_ORDER.length,
+          nextLift: SESSION_ORDER[0],
+        };
+
+        // Part-way through: finish the remaining lifts before anything else.
+        if (completed > 0 && completed < SESSION_ORDER.length) {
+          return {
+            active: true,
+            completed,
+            total: SESSION_ORDER.length,
+            nextLift: SESSION_ORDER[completed],
+          };
+        }
+        // All three done — the block is over.
+        if (completed >= SESSION_ORDER.length) return idle;
+
+        // Not started. A postponed test stays due regardless of count until it
+        // is actually taken, otherwise the next strength session would consume
+        // the "due" count and push the real test a whole block away.
+        const due =
+          testWeekDeferred ||
+          (strength.length > 0 && strength.length % testWeekFrequency === 0);
+        return due
+          ? { active: true, completed: 0, total: SESSION_ORDER.length, nextLift: SESSION_ORDER[0] }
+          : idle;
       },
+
+      isTestWeekDue: () => get().getTestWeekProgress().active,
 
       getStreakDays: () => {
         const { completedSessions, weeklyStreakGoal } = get();
