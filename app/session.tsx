@@ -1856,7 +1856,17 @@ export default function SessionScreen() {
       }));
     }
     if (isTestWeek) {
-      return generate1RMWorkout(sessionType, equipmentTier, strengthCount);
+      // Base the test load on what this lift is actually being trained at, so
+      // the ramp-up and the test set arrive with real numbers instead of
+      // "Ramp up" and "~90% of working weight". Falls back to the working
+      // weight implied by their best recorded 1RM, then to generic copy.
+      const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
+      const lastKg = mainLiftId ? lastLoggedWeights?.[mainLiftId] : undefined;
+      const bestForLift = getBestORM(sessionType);
+      const fromOrm = bestForLift
+        ? workingWeightFromOrm(bestForLift.weight, userProfile)
+        : undefined;
+      return generate1RMWorkout(sessionType, equipmentTier, strengthCount, lastKg || fromOrm);
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;

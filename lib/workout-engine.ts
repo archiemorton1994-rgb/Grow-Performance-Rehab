@@ -1119,14 +1119,79 @@ function generateConditioningWorkout(
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 }
 
+/** Share of the ramp-up's top set each warm-up set should use, by set count. */
+const RAMP_FRACTIONS: Record<number, number[]> = {
+  1: [0.6],
+  2: [0.5, 0.75],
+  3: [0.5, 0.7, 0.85],
+  4: [0.4, 0.6, 0.75, 0.85],
+  5: [0.4, 0.55, 0.7, 0.8, 0.9],
+};
+
+/**
+ * The 1RM test protocol, with loads worked out from what the user has actually
+ * been lifting.
+ *
+ * Previously this just mapped templates straight through, so the ramp-up said
+ * "Ramp up" and the test set said "~90% of working weight" — no numbers
+ * anywhere. Every weight had to be worked out and typed by hand, in the middle
+ * of the session that matters most, and the guide that did appear was garbage
+ * (see the percent-stripping note in getWeightGuideKg).
+ *
+ * `workingKg` should be what the lift is currently being trained at. The test
+ * set is 90% of it, held for max reps, which is what the Epley estimate below
+ * expects. Passing nothing keeps the old generic copy, which is the right
+ * fallback for someone with no history on the lift.
+ */
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
-  _strengthSessionCount: number = 0
+  _strengthSessionCount: number = 0,
+  workingKg?: number
 ): Exercise[] {
   if (sessionType === 'conditioning' || sessionType === 'custom') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
-  const exercises = protocol.map((t) => templateToExercise(t));
+  let exercises = protocol.map((t) => templateToExercise(t));
+
+  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const bodyweightTier = equipmentTier === 'bodyweight' || equipmentTier === 'bands';
+
+  // Plain language first, for every tier. "AMRAP @ 90%" is gym shorthand that
+  // meant nothing to the person actually taking the test.
+  exercises = exercises.map((e) => {
+    if (e.category !== 'main') return e;
+    const base = e.name.replace(/\s*AMRAP(\s*@\s*\d+\s*%)?/i, '').trim();
+    const eachSide = /each side/i.test(e.reps);
+    return {
+      ...e,
+      name: `${base} — Max Reps Test`,
+      reps: eachSide ? 'Max clean reps each side' : 'Max clean reps',
+    };
+  });
+
+  if (workingKg && workingKg > 0 && !bodyweightTier) {
+    const testKg = roundTo2_5(workingKg * 0.9);
+    exercises = exercises.map((e) => {
+      if (e.category === 'main') {
+        return {
+          ...e,
+          suggestedLoad: `${testKg} kg`,
+          cue: `Load ${testKg} kg and do as many clean reps as you can. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
+        };
+      }
+      if (e.category === 'prep') {
+        const fractions = RAMP_FRACTIONS[e.sets] ?? RAMP_FRACTIONS[4];
+        const ladder = fractions.map((f) => roundTo2_5(testKg * f));
+        return {
+          ...e,
+          suggestedLoad: `${ladder.join(' / ')} kg`,
+          cue: `Work up to the test weight: ${ladder.join(' kg, ')} kg. These are warm-ups, not work sets — stop each one well short of hard.`,
+        };
+      }
+      return e;
+    });
+  }
+
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(exercises) : exercises;
 }
 
@@ -1280,17 +1345,36 @@ export function getWeightGuideKg(
   suggestedLoad?: string
 ): number[] {
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
-  let targetKg: number | null = null;
-  if (suggestedLoad) {
-    const numMatch = suggestedLoad.match(/(\d+(?:\.\d+)?)/);
-    if (numMatch) targetKg = parseFloat(numMatch[1]);
+
+  // A percentage is not a weight. "~90% of working weight" used to parse as
+  // 90 kg and then get halved by the ramp below, so the 1RM test set offered a
+  // 45 kg guide that came from a percent sign. Strip those tokens first.
+  const loadText = suggestedLoad?.replace(/\d+(?:\.\d+)?\s*%/g, '') ?? '';
+
+  // An explicit per-set list ("40 / 55 / 70 / 80 kg") beats any heuristic — the
+  // protocol has already stated what each set should be. Used by ramp-ups.
+  if (loadText.includes('/')) {
+    const parts = loadText
+      .split('/')
+      .map((p) => p.match(/(\d+(?:\.\d+)?)/)?.[1])
+      .filter((n): n is string => n !== undefined)
+      .map(Number);
+    if (parts.length === sets) return parts;
   }
+
+  let targetKg: number | null = null;
+  const numMatch = loadText.match(/(\d+(?:\.\d+)?)/);
+  if (numMatch) targetKg = parseFloat(numMatch[1]);
   if (targetKg === null) return Array(sets).fill(0);
 
   const w = (pct: number) => roundTo2_5(targetKg! * pct);
 
   if (category === 'main') {
-    if (sets <= 3) return [w(0.5), w(0.7), targetKg];
+    // Return exactly `sets` entries. This used to hand back three regardless,
+    // so a single-set exercise took entry [0] — half the target weight.
+    if (sets === 1) return [targetKg];
+    if (sets === 2) return [w(0.7), targetKg];
+    if (sets === 3) return [w(0.5), w(0.7), targetKg];
     if (sets === 4) return [w(0.5), w(0.65), w(0.875), targetKg];
     const result: number[] = [w(0.4), w(0.55)];
     const middleCount = sets - 4;
