@@ -359,10 +359,12 @@ export function BodyDiagram({
   // to clear the dark panel's padding; with that panel gone the figure can run
   // wider, and height is what actually limits it on a phone.
   const heightBudget = maxHeight ?? screenHeight * DIAGRAM_HEIGHT_SHARE;
-  const svgWidth = Math.max(
-    DIAGRAM_MIN_WIDTH,
-    Math.min(screenWidth - 40, maxWidth, Math.round(heightBudget / DIAGRAM_ASPECT))
-  );
+  // The floor applies only to the viewport-derived size — it must never
+  // override an explicit `maxWidth`. Callers that ask for a deliberately tiny
+  // figure (the summary certificate's 58–84px front/back pair, the 120px Stats
+  // cards) are sizing to a fixed container and would overflow it otherwise.
+  const fromHeight = Math.max(DIAGRAM_MIN_WIDTH, Math.round(heightBudget / DIAGRAM_ASPECT));
+  const svgWidth = Math.min(screenWidth - 40, maxWidth, fromHeight);
   const scale = svgWidth / 200;
 
   // ─── Affordance pulse animation — runs indefinitely until first tap ───────
