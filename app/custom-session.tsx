@@ -46,15 +46,49 @@ function recentLabel(iso: string): string | null {
 const CATEGORY_LABELS: Record<string, string> = {
   main: 'Main Lift',
   accessory: 'Accessory',
+  mechanical: 'Mechanical',
+  neuro: 'Speed & Power',
+  prep: 'Warm-Up',
+  finisher: 'Finisher',
   prehab: 'Prehab',
+  cooldown: 'Cool-Down',
+  cardio: 'Cardio',
 };
 
-const CATEGORY_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'main', label: 'Main Lifts' },
-  { key: 'accessory', label: 'Accessories' },
-  { key: 'prehab', label: 'Prehab' },
-  { key: 'cardio', label: 'Cardio' },
+/**
+ * Catalogue sections. Labels are curated for readability; which ones appear
+ * is driven by what is actually in the pool (see catalogueSections below),
+ * so widening the exercise pool cannot leave a category unreachable — which
+ * is what happened when mechanical/neuro/prep/finisher/cooldown became
+ * pickable but this list still named only five.
+ */
+const CATEGORY_SECTION_LABELS: Record<string, string> = {
+  main: 'Main Lifts',
+  accessory: 'Accessories',
+  mechanical: 'Mechanical',
+  neuro: 'Speed & Power',
+  prep: 'Warm-Up',
+  finisher: 'Finishers',
+  prehab: 'Prehab',
+  cooldown: 'Cool-Down',
+};
+
+/** Order the rail lists sections in; anything unknown falls to the end. */
+const CATEGORY_ORDER = [
+  'main',
+  'accessory',
+  'mechanical',
+  'neuro',
+  'prep',
+  'finisher',
+  'prehab',
+  'cooldown',
+];
+
+const EQUIPMENT_FILTER_OPTIONS: { key: InternalTier; label: string }[] = [
+  { key: 'bodyweight', label: 'Bodyweight' },
+  { key: 'dumbbells', label: 'Dumbbells' },
+  { key: 'fullgym', label: 'Gym' },
 ];
 
 interface CardioOption {
@@ -166,6 +200,9 @@ export default function CustomSessionScreen() {
   const [equipmentFilters, setEquipmentFilters] = useState<Set<InternalTier>>(new Set());
 
   const [search, setSearch] = useState('');
+  // Named sessions land in history under this label instead of a generic
+  // "Custom Session" — the session screen already accepts displayLabel.
+  const [sessionName, setSessionName] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   // Multi-select movement-pattern / difficulty filters. Local state only — must NOT persist between sessions.
   const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set());
@@ -277,6 +314,19 @@ export default function CustomSessionScreen() {
   }, [allExercises]);
 
   const attrFiltersActive = patternFilters.size > 0 || difficultyFilters.size > 0;
+
+  // Built from the pool, so a category can never become unreachable just
+  // because a hardcoded list was not updated alongside it.
+  const catalogueSections = useMemo(() => {
+    const present = new Set(allExercises.map((e) => e.category as string));
+    const ordered = CATEGORY_ORDER.filter((c) => present.has(c));
+    const extras = [...present].filter((c) => !CATEGORY_ORDER.includes(c)).sort();
+    return [
+      { key: 'all', label: 'All' },
+      ...[...ordered, ...extras].map((c) => ({ key: c, label: CATEGORY_SECTION_LABELS[c] ?? c })),
+      { key: 'cardio', label: 'Cardio' },
+    ];
+  }, [allExercises]);
 
   const filtered = useMemo(() => {
     // Equipment gate first: never offer a movement the user has no kit for.
@@ -552,15 +602,16 @@ export default function CustomSessionScreen() {
         timeAvailable: '60',
         isTestWeek: 'false',
         equipment: tier,
+        ...(sessionName.trim() ? { displayLabel: sessionName.trim() } : {}),
       },
     });
-  }, [selected, selectedCardio, setPendingCustomExercises, tier]);
+  }, [selected, selectedCardio, setPendingCustomExercises, tier, sessionName]);
 
   const openSaveModal = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTemplateName('');
+    setTemplateName(sessionName.trim());
     setSaveModalVisible(true);
-  }, []);
+  }, [sessionName]);
 
   const closeSaveModal = useCallback(() => {
     setSaveModalVisible(false);
@@ -954,6 +1005,20 @@ export default function CustomSessionScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      <View style={styles.nameRow}>
+        <Ionicons name="create-outline" size={16} color={C.textTertiary} />
+        <TextInput
+          style={styles.nameInput}
+          placeholder="Name this session (optional)"
+          placeholderTextColor={C.textTertiary}
+          value={sessionName}
+          onChangeText={setSessionName}
+          returnKeyType="done"
+          maxLength={40}
+          testID="custom-session-name"
+        />
+      </View>
+
       <View style={styles.searchRow}>
         <Ionicons
           name="search-outline"
@@ -974,33 +1039,37 @@ export default function CustomSessionScreen() {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexShrink: 0 }}
-        contentContainerStyle={styles.filterRow}
-      >
-        {CATEGORY_FILTERS.map((f) => (
-          <Pressable
-            key={f.key}
-            onPress={() => setCategoryFilter(f.key)}
-            style={({ pressed }) => [
-              styles.filterChip,
-              categoryFilter === f.key && styles.filterChipActive,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                categoryFilter === f.key && styles.filterChipTextActive,
+      {/* Equipment toggle — narrows the pool to what you actually have to hand. */}
+      <View style={styles.equipRow}>
+        <Text style={styles.equipLabel}>Equipment</Text>
+        {EQUIPMENT_FILTER_OPTIONS.filter((o) => ownedTiers.includes(o.key)).map((o) => {
+          const active = equipmentFilters.has(o.key);
+          return (
+            <Pressable
+              key={o.key}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setEquipmentFilters((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(o.key)) next.delete(o.key);
+                  else next.add(o.key);
+                  return next;
+                });
+              }}
+              style={({ pressed }) => [
+                styles.equipChip,
+                active && styles.equipChipActive,
+                pressed && { opacity: 0.8 },
               ]}
+              testID={`custom-equip-${o.key}`}
             >
-              {f.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+              <Text style={[styles.equipChipText, active && styles.equipChipTextActive]}>
+                {o.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {(availablePatterns.length > 0 || availableDifficulties.length > 0) && (
         <ScrollView
@@ -1096,6 +1165,42 @@ export default function CustomSessionScreen() {
         </ScrollView>
       )}
 
+      <View style={styles.browseRow}>
+        {/* Catalogue rail — replaces the horizontal chip row, which pushed the
+            list down and truncated section names on narrow screens. */}
+        <ScrollView
+          style={styles.rail}
+          contentContainerStyle={styles.railContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {catalogueSections.map((sec) => {
+            const active = categoryFilter === sec.key;
+            return (
+              <Pressable
+                key={sec.key}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  setCategoryFilter(sec.key);
+                }}
+                style={({ pressed }) => [
+                  styles.railItem,
+                  active && styles.railItemActive,
+                  pressed && { opacity: 0.75 },
+                ]}
+                testID={`custom-cat-${sec.key}`}
+              >
+                <Text
+                  style={[styles.railItemText, active && styles.railItemTextActive]}
+                  numberOfLines={2}
+                >
+                  {sec.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.browsePane}>
       {categoryFilter === 'cardio' && (
         <ScrollView
           style={{ flex: 1 }}
@@ -1283,6 +1388,8 @@ export default function CustomSessionScreen() {
           }
         />
       )}
+        </View>
+      </View>
 
       {emptiedToastVisible && selected.length === 0 && selectedCardio.length === 0 && (
         <Animated.View
@@ -1704,6 +1811,99 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 1,
     },
 
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 16,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    nameInput: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
+      padding: 0,
+    },
+    equipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginHorizontal: 16,
+      marginBottom: 10,
+      flexShrink: 0,
+    },
+    equipLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginRight: 2,
+    },
+    equipChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
+    equipChipActive: {
+      backgroundColor: C.primaryMuted,
+      borderColor: C.primary,
+    },
+    equipChipText: {
+      fontSize: 11.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    equipChipTextActive: {
+      color: C.primary,
+      fontFamily: 'Inter_700Bold',
+    },
+    browseRow: {
+      flex: 1,
+      flexDirection: 'row',
+    },
+    browsePane: {
+      flex: 1,
+    },
+    rail: {
+      width: 104,
+      flexGrow: 0,
+      borderRightWidth: 1,
+      borderRightColor: C.borderLight,
+    },
+    railContent: {
+      paddingLeft: 12,
+      paddingRight: 8,
+      paddingBottom: 24,
+      gap: 2,
+    },
+    railItem: {
+      paddingVertical: 9,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+    },
+    railItemActive: {
+      backgroundColor: C.primaryMuted,
+    },
+    railItemText: {
+      fontSize: 12.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    railItemTextActive: {
+      color: C.primary,
+      fontFamily: 'Inter_700Bold',
+    },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
