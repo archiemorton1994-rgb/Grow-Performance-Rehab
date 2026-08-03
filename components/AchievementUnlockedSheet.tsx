@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, Platform, Image } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -55,15 +55,38 @@ export default function AchievementUnlockedSheet({
     opacity: backdropOpacity.value,
   }));
 
+  // Whether the sheet has definitely reached its on-screen position. The
+  // full-screen Pressable below must not swallow touches before this is true:
+  // it is the only thing between the user and the app, and it exists from the
+  // first frame while the sheet itself starts translated off-screen with a
+  // fully transparent backdrop.
+  const [presented, setPresented] = useState(false);
+
   useEffect(() => {
     backdropOpacity.value = withTiming(1, { duration: ENTER_MS });
     translateY.value = withSpring(0, { damping: 22, stiffness: 200 });
+
+    // Failsafe. This Modal mounts at root level, often while a navigation
+    // transition is still in flight (finishing a session unlocks badges, then
+    // immediately replaces the route). If the entering animation gets dropped
+    // in that window the sheet stays parked at SLIDE_START behind a
+    // zero-opacity backdrop — invisible, but its Pressable keeps eating every
+    // tap, so the whole app reads as frozen until it is force-quit.
+    // Snap to the presented state unconditionally rather than trusting the
+    // animation to have run.
+    const settle = setTimeout(() => {
+      backdropOpacity.value = 1;
+      translateY.value = 0;
+      setPresented(true);
+    }, ENTER_MS + 120);
+
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 180);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 360);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 520);
     }
+    return () => clearTimeout(settle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,8 +126,14 @@ export default function AchievementUnlockedSheet({
         pointerEvents="none"
       />
 
-      {/* Outer Pressable: tap outside sheet to dismiss */}
-      <Pressable style={styles.container} onPress={dismiss}>
+      {/* Outer Pressable: tap outside sheet to dismiss. pointerEvents is gated
+          on `presented` so this can never block the app while the sheet is
+          still invisible — see the failsafe in the mount effect above. */}
+      <Pressable
+        style={styles.container}
+        onPress={dismiss}
+        pointerEvents={presented ? 'auto' : 'box-none'}
+      >
         {/* Animated sheet wrapper */}
         <Animated.View style={sheetStyle}>
           {/* Inner Pressable: stop-propagation so tapping inside does not dismiss */}
