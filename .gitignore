@@ -41,3 +41,9 @@ yarn-error.*
 .vercel
 
 .env
+
+# Claude Code — machine-local only. launch.json IS committed: the preview/dev-server
+# tooling needs it, and it describes the project, not the machine.
+.claude/settings.local.json
+.claude/worktrees/
+.claude/*.lock
