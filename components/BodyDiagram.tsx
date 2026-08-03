@@ -77,7 +77,8 @@ export const BODY_DIAGRAM_LABELS: Record<PainRegion, string> = {
   // getDiagramLabel below, where the view already tells you which one it is.
   front_shoulder: 'Front Shoulder',
   rear_shoulder: 'Rear Shoulder',
-  elbow_wrist: 'Elbow / Wrist',
+  elbow: 'Elbow',
+  wrist: 'Wrist',
   // The highlighted area is the trapezius, not the upper back generally.
   upper_back: 'Traps',
   lower_back: 'Lower Back',
@@ -123,7 +124,8 @@ const FRONT_CYCLE_ORDER: PainRegion[] = [
   'front_shoulder',
   'chest',
   'bicep',
-  'elbow_wrist',
+  'elbow',
+  'wrist',
   'upper_back',
   'core_ribs',
   'hip_groin',
@@ -138,7 +140,8 @@ const BACK_CYCLE_ORDER: PainRegion[] = [
   'upper_back',
   'lat_mid_back',
   'tricep',
-  'elbow_wrist',
+  'elbow',
+  'wrist',
   'lower_back',
   'glutes',
   'hamstrings',
@@ -152,7 +155,8 @@ const BACK_CYCLE_ORDER: PainRegion[] = [
 const FRONT_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
   neck: ['neck'],
   front_shoulder: ['deltoids'],
-  elbow_wrist: ['forearm'],
+  elbow: ['forearm'],
+  wrist: ['hands'],
   upper_back: ['trapezius'],
   core_ribs: ['abs', 'obliques'],
   hip_groin: ['adductors'],
@@ -168,7 +172,8 @@ const FRONT_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
 const BACK_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
   neck: ['neck'],
   rear_shoulder: ['deltoids'],
-  elbow_wrist: ['forearm'],
+  elbow: ['forearm'],
+  wrist: ['hands'],
   upper_back: ['trapezius'],
   lower_back: ['lower-back'],
   lat_mid_back: ['upper-back'],
@@ -184,7 +189,8 @@ const BACK_REGION_SLUGS: Partial<Record<PainRegion, Slug[]>> = {
 const FRONT_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
   neck: 'neck',
   deltoids: 'front_shoulder',
-  forearm: 'elbow_wrist',
+  forearm: 'elbow',
+  hands: 'wrist',
   trapezius: 'upper_back',
   abs: 'core_ribs',
   obliques: 'core_ribs',
@@ -201,7 +207,8 @@ const FRONT_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
 const BACK_SLUG_TO_REGION: Partial<Record<Slug, PainRegion>> = {
   neck: 'neck',
   deltoids: 'rear_shoulder',
-  forearm: 'elbow_wrist',
+  forearm: 'elbow',
+  hands: 'wrist',
   trapezius: 'upper_back',
   'lower-back': 'lower_back',
   'upper-back': 'lat_mid_back',
@@ -252,7 +259,8 @@ const REGION_ANCHOR: Record<PainRegion, { x: number; y: number }> = {
   chest: { x: 100, y: 81 },
   bicep: { x: 100, y: 102 },
   tricep: { x: 100, y: 102 },
-  elbow_wrist: { x: 100, y: 158 },
+  elbow: { x: 100, y: 172 },
+  wrist: { x: 100, y: 212 },
   upper_back: { x: 100, y: 57 },
   core_ribs: { x: 100, y: 123 },
   lower_back: { x: 100, y: 135 },
@@ -476,14 +484,22 @@ export function BodyDiagram({
         d="M 200,88 C 200,104 198,120 194,134 C 190,146 182,154 170,152 C 158,150 150,140 150,126 C 150,110 156,96 164,90 C 174,84 190,82 200,88 Z"
         {...h('bicep')}
       />
-      {/* Forearm / Elbow+Wrist */}
+      {/* Forearm: elbow (upper) and wrist (lower) as separate joints */}
       <Path
-        d="M 8,154 C 4,168 2,184 2,200 C 2,212 4,222 10,228 C 16,234 24,234 30,228 C 36,222 38,210 38,196 C 38,182 36,168 32,156 C 24,150 12,150 8,154 Z"
-        {...h('elbow_wrist')}
+        d="M 8,154 C 5,166 3,180 3,196 L 37,196 C 37,182 35,168 32,156 C 24,150 12,150 8,154 Z"
+        {...h('elbow')}
       />
       <Path
-        d="M 192,154 C 196,168 198,184 198,200 C 198,212 196,222 190,228 C 184,234 176,234 170,228 C 164,222 162,210 162,196 C 162,182 164,168 168,156 C 176,150 188,150 192,154 Z"
-        {...h('elbow_wrist')}
+        d="M 3,196 C 3,212 5,222 10,228 C 16,234 24,234 30,228 C 35,222 37,210 37,196 Z"
+        {...h('wrist')}
+      />
+      <Path
+        d="M 192,154 C 195,166 197,180 197,196 L 163,196 C 163,182 165,168 168,156 C 176,150 188,150 192,154 Z"
+        {...h('elbow')}
+      />
+      <Path
+        d="M 197,196 C 197,212 195,222 190,228 C 184,234 176,234 170,228 C 165,222 163,210 163,196 Z"
+        {...h('wrist')}
       />
       {/* Core / Ribs */}
       <Path
@@ -570,14 +586,22 @@ export function BodyDiagram({
         d="M 200,90 C 200,108 198,124 194,138 C 190,150 180,158 168,156 C 156,154 148,142 148,128 C 148,112 154,98 162,92 C 172,86 190,84 200,90 Z"
         {...h('tricep')}
       />
-      {/* Forearm / Elbow+Wrist */}
+      {/* Forearm: elbow (upper) and wrist (lower) as separate joints */}
       <Path
-        d="M 8,154 C 4,168 2,184 2,200 C 2,212 4,222 10,228 C 16,234 24,234 30,228 C 36,222 38,210 38,196 C 38,182 36,168 32,156 C 24,150 12,150 8,154 Z"
-        {...h('elbow_wrist')}
+        d="M 8,154 C 5,166 3,180 3,196 L 37,196 C 37,182 35,168 32,156 C 24,150 12,150 8,154 Z"
+        {...h('elbow')}
       />
       <Path
-        d="M 192,154 C 196,168 198,184 198,200 C 198,212 196,222 190,228 C 184,234 176,234 170,228 C 164,222 162,210 162,196 C 162,182 164,168 168,156 C 176,150 188,150 192,154 Z"
-        {...h('elbow_wrist')}
+        d="M 3,196 C 3,212 5,222 10,228 C 16,234 24,234 30,228 C 35,222 37,210 37,196 Z"
+        {...h('wrist')}
+      />
+      <Path
+        d="M 192,154 C 195,166 197,180 197,196 L 163,196 C 163,182 165,168 168,156 C 176,150 188,150 192,154 Z"
+        {...h('elbow')}
+      />
+      <Path
+        d="M 197,196 C 197,212 195,222 190,228 C 184,234 176,234 170,228 C 165,222 163,210 163,196 Z"
+        {...h('wrist')}
       />
       {/* Upper back */}
       <Path

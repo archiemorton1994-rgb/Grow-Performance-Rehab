@@ -74,7 +74,13 @@ let ALL_REGIONS = [];
 if (typeStart !== -1) {
   const eqPos = storeSrc.indexOf('=', typeStart);
   const semi = storeSrc.indexOf(';', eqPos);
-  const typeBlock = storeSrc.slice(eqPos, semi + 1);
+  // Strip // comments first: the union is documented inline, and a comment
+  // naming a retired region would otherwise be read as a live member.
+  const typeBlock = storeSrc
+    .slice(eqPos, semi + 1)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\/\/.*$/, ''))
+    .join('\n');
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
   ALL_REGIONS = regionMatches.map((m) => m[1]);
@@ -98,7 +104,8 @@ const EXPECTED_LABELS = {
   neck: 'Neck',
   front_shoulder: 'Front Shoulder',
   rear_shoulder: 'Rear Shoulder',
-  elbow_wrist: 'Elbow / Wrist',
+  elbow: 'Elbow',
+  wrist: 'Wrist',
   upper_back: 'Traps',
   lower_back: 'Lower Back',
   core_ribs: 'Core',
@@ -234,7 +241,8 @@ const EXPECTED_VIEW = {
   // Bilateral — intentionally present in both views
   front_shoulder: 'both',
   neck: 'both',
-  elbow_wrist: 'both',
+  elbow: 'both',
+  wrist: 'both',
   knee: 'both',
   calf_shin: 'both',
   ankle_achilles: 'both',
@@ -482,7 +490,11 @@ if (frontFnIdx !== -1 && backFnIdx !== -1 && afterBackIdx !== -1) {
     chest: [45, 120],
     bicep: [55, 145],
     tricep: [55, 150],
-    elbow_wrist: [110, 215],
+    // The forearm hotspot was split at raw y=196: elbow above, wrist below.
+    // Visual Y is raw x 5/6, so elbow lands ~125-163 and wrist ~163-195; the
+    // bands stay loose to tolerate minor shape edits.
+    elbow: [110, 175],
+    wrist: [150, 215],
     upper_back: [35, 135],
     core_ribs: [85, 175],
     lower_back: [95, 180],

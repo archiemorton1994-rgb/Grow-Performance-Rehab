@@ -1430,7 +1430,8 @@ export function getPainRegionLabel(region: PainRegion): string {
   const labels: Record<PainRegion, string> = {
     front_shoulder: 'Front Shoulder',
     rear_shoulder: 'Rear Shoulder',
-    elbow_wrist: 'Elbow / Wrist',
+    elbow: 'Elbow',
+    wrist: 'Wrist',
     neck: 'Neck',
     lower_back: 'Lower Back',
     upper_back: 'Upper Back',

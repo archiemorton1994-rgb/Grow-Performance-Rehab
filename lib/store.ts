@@ -47,7 +47,11 @@ export type WeightUnit = 'kg' | 'lbs';
 export type PainRegion =
   | 'front_shoulder'
   | 'rear_shoulder'
-  | 'elbow_wrist'
+  // Split from a single 'elbow_wrist' region: they are different joints with
+  // different aggravating movements and different rehab work. Persisted data
+  // still containing 'elbow_wrist' is migrated to both — see migrate() below.
+  | 'elbow'
+  | 'wrist'
   | 'neck'
   | 'lower_back'
   | 'upper_back'
@@ -70,7 +74,8 @@ export const PAIN_CATEGORIES = {
     regions: [
       { id: 'front_shoulder' as PainRegion, label: 'Front Shoulder' },
       { id: 'rear_shoulder' as PainRegion, label: 'Rear Shoulder' },
-      { id: 'elbow_wrist' as PainRegion, label: 'Elbow / Wrist' },
+      { id: 'elbow' as PainRegion, label: 'Elbow' },
+      { id: 'wrist' as PainRegion, label: 'Wrist' },
       { id: 'neck' as PainRegion, label: 'Neck' },
     ],
   },
@@ -79,15 +84,15 @@ export const PAIN_CATEGORIES = {
     regions: [
       { id: 'lower_back' as PainRegion, label: 'Lower Back' },
       { id: 'upper_back' as PainRegion, label: 'Upper Back / Thoracic' },
-      { id: 'core_ribs' as PainRegion, label: 'Core / Ribs' },
+      { id: 'core_ribs' as PainRegion, label: 'Core' },
     ],
   },
   lower: {
     label: 'Lower Body',
     regions: [
       { id: 'knee' as PainRegion, label: 'Knee' },
-      { id: 'hip_groin' as PainRegion, label: 'Hip / Groin' },
-      { id: 'ankle_achilles' as PainRegion, label: 'Ankle / Achilles' },
+      { id: 'hip_groin' as PainRegion, label: 'Hip' },
+      { id: 'ankle_achilles' as PainRegion, label: 'Ankle' },
       { id: 'calf_shin' as PainRegion, label: 'Calf / Shin' },
     ],
   },
@@ -105,7 +110,7 @@ export const PAIN_CATEGORIES = {
       { id: 'quads' as PainRegion, label: 'Quads (Front Thigh)' },
       { id: 'hamstrings' as PainRegion, label: 'Hamstrings (Back Thigh)' },
       { id: 'glutes' as PainRegion, label: 'Glutes' },
-      { id: 'lat_mid_back' as PainRegion, label: 'Lat / Mid Back' },
+      { id: 'lat_mid_back' as PainRegion, label: 'Lats' },
     ],
   },
 };
@@ -1068,6 +1073,40 @@ export const useAppStore = create<AppState>()(
         if (state) state.setHasHydrated(true);
       },
       migrate: (persistedState: any, version: number) => {
+        // 'elbow_wrist' was split into separate 'elbow' and 'wrist' regions.
+        // Anything stored under the old key becomes both: we cannot know which
+        // joint the user actually meant, and dropping one would silently lose
+        // pain history. Applied to every field that can hold a PainRegion.
+        if (persistedState) {
+          const splitRegion = (r: string): string[] =>
+            r === 'elbow_wrist' ? ['elbow', 'wrist'] : [r];
+          const migrateList = (list: unknown): unknown => {
+            if (!Array.isArray(list)) return list;
+            const out: string[] = [];
+            for (const r of list) {
+              if (typeof r !== 'string') continue;
+              for (const next of splitRegion(r)) if (!out.includes(next)) out.push(next);
+            }
+            return out;
+          };
+
+          if (persistedState.lastPainRegion === 'elbow_wrist') {
+            // Single-valued field, so it has to pick one. Wrist: every prehab
+            // exercise filed under the old combined region was wrist work.
+            persistedState.lastPainRegion = 'wrist';
+          }
+          if (Array.isArray(persistedState.completedSessions)) {
+            for (const s of persistedState.completedSessions) {
+              if (!s || typeof s !== 'object') continue;
+              if (s.painRegion === 'elbow_wrist') s.painRegion = 'wrist';
+              if (s.painRegions) s.painRegions = migrateList(s.painRegions);
+            }
+          }
+          if (persistedState.activeSession?.painRegion === 'elbow_wrist') {
+            persistedState.activeSession.painRegion = 'wrist';
+          }
+        }
+
         if (persistedState && persistedState.equipmentTier && !persistedState.equipmentTiers) {
           persistedState.equipmentTiers = [persistedState.equipmentTier as EquipmentTier];
         }
@@ -1231,7 +1270,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 26,
+      version: 27,
     }
   )
 );

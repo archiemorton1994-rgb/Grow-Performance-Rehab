@@ -91,7 +91,13 @@ let painRegions = [];
 if (typeStart !== -1) {
   const eqPos = storeSrc.indexOf('=', typeStart);
   const semi = storeSrc.indexOf(';', eqPos);
-  const typeBlock = storeSrc.slice(eqPos, semi + 1);
+  // Strip // comments first: the union is documented inline, and a comment
+  // naming a retired region would otherwise be read as a live member.
+  const typeBlock = storeSrc
+    .slice(eqPos, semi + 1)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\/\/.*$/, ''))
+    .join('\n');
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
   painRegions = regionMatches.map((m) => m[1]);

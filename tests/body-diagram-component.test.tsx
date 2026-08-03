@@ -151,7 +151,9 @@ describe('[1] Source-code static guards', () => {
       'neck',
       'front_shoulder',
       'rear_shoulder',
-      'elbow_wrist',
+      'elbow',
+
+      'wrist',
       'upper_back',
       'lower_back',
       'core_ribs',
@@ -198,7 +200,8 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   const frontRegions: [PainRegion, string][] = [
     ['neck', 'Neck'],
     ['front_shoulder', 'Front Shoulder'],
-    ['elbow_wrist', 'Elbow / Wrist'],
+    ['elbow', 'Elbow'],
+    ['wrist', 'Wrist'],
     ['core_ribs', 'Core / Ribs'],
     ['hip_groin', 'Hip / Groin'],
     ['knee', 'Knee'],
@@ -345,7 +348,8 @@ describe('[3] Readiness screen — pain-region step', () => {
   const frontRegions: [PainRegion, string][] = [
     ['neck', 'Neck'],
     ['front_shoulder', 'Front Shoulder'],
-    ['elbow_wrist', 'Elbow / Wrist'],
+    ['elbow', 'Elbow'],
+    ['wrist', 'Wrist'],
     ['core_ribs', 'Core / Ribs'],
     ['hip_groin', 'Hip / Groin'],
     ['knee', 'Knee'],
@@ -511,7 +515,9 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
     const frontRegions: PainRegion[] = [
       'neck',
       'front_shoulder',
-      'elbow_wrist',
+      'elbow',
+
+      'wrist',
       'core_ribs',
       'hip_groin',
       'knee',
@@ -538,7 +544,9 @@ describe('[4] Stats heatmap mode — Pain Patterns card', () => {
       'rear_shoulder',
       'upper_back',
       'lower_back',
-      'elbow_wrist',
+      'elbow',
+
+      'wrist',
       'lat_mid_back',
       'glutes',
       'hamstrings',
@@ -788,7 +796,7 @@ describe('[5] Stats — Pain Insight Sheet', () => {
     act(() => {
       root = renderer.create(
         <PainInsightSheet
-          region="elbow_wrist"
+          region="elbow"
           sessionCount={5}
           onStartPrehab={jest.fn()}
           onViewHistory={jest.fn()}

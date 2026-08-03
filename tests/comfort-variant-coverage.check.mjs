@@ -64,7 +64,15 @@ if (typeStart !== -1) {
   // Extract that slice then pull all single-quoted identifiers.
   const eqPos = storeSrc.indexOf('=', typeStart);
   const semi = storeSrc.indexOf(';', eqPos);
-  const typeBlock = storeSrc.slice(eqPos, semi + 1);
+  // Strip // comments before pulling identifiers. The union is documented
+  // inline, and a comment naming a retired region (e.g. explaining that
+  // 'elbow_wrist' was split) would otherwise be read as a live member and
+  // reported as having no comfortVariant coverage.
+  const typeBlock = storeSrc
+    .slice(eqPos, semi + 1)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\/\/.*$/, ''))
+    .join('\n');
 
   const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
   painRegions = regionMatches.map((m) => m[1]);
