@@ -6,21 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, AppColors } from '@/constants/colors';
 import { useAppStore, CompletedSession } from '@/lib/store';
+import { getSessionImage } from '@/lib/session-images';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { formatDate, formatWeight } from '@/lib/utils';
-
-const SESSION_IMAGES: Record<string, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-  conditioning: require('@/assets/images/sessions/conditioning.png'),
-  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
-  flexibility: require('@/assets/images/sessions/mobility.png'),
-  custom: require('@/assets/images/sessions/custom.png'),
-  lower_body: require('@/assets/images/sessions/lower-body.png'),
-  upper_body: require('@/assets/images/sessions/upper-body.png'),
-  full_body: require('@/assets/images/sessions/full-body.png'),
-};
 
 const WEB_TOP_INSET = 67;
 const WEB_BOTTOM_INSET = 34;
@@ -49,6 +37,7 @@ export default function PastSessionsScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
   const completedSessions = useAppStore((s) => s.completedSessions);
   const weightUnit = useAppStore((s) => s.weightUnit);
+  const sex = useAppStore((s) => s.userProfile?.sex);
   const topPad = Platform.OS === 'web' ? WEB_TOP_INSET : insets.top;
   const bottomPad = Platform.OS === 'web' ? WEB_BOTTOM_INSET : insets.bottom;
   const total = completedSessions.length;
@@ -71,7 +60,7 @@ export default function PastSessionsScreen() {
       >
         <View style={styles.iconBadge}>
           <Image
-            source={SESSION_IMAGES[item.sessionType]}
+            source={getSessionImage(item.sessionType, sex)}
             style={styles.iconBadgeImage}
             resizeMode="contain"
           />

@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { glowShadow } from '@/constants/shadows';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
+import { getRecoverImage } from '@/lib/session-images';
 import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
@@ -91,12 +92,6 @@ export const REGION_BACK = new Set<PainRegion>([
   'calf_shin',
   'ankle_achilles',
 ]);
-
-const RECOVER_IMAGES: Record<string, any> = {
-  recovery: require('@/assets/images/sessions/recovery.png'),
-  mobility: require('@/assets/images/sessions/mobility.png'),
-  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
-};
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -602,9 +597,9 @@ export default function RecoverScreen() {
             testID={`recover-row-${row.key}`}
           >
             <View style={styles.navIcon}>
-              {RECOVER_IMAGES[row.key] ? (
+              {getRecoverImage(row.key, userProfile?.sex) ? (
                 <Image
-                  source={RECOVER_IMAGES[row.key]}
+                  source={getRecoverImage(row.key, userProfile?.sex)}
                   style={styles.navIconImage}
                   resizeMode="contain"
                 />
@@ -688,7 +683,7 @@ export default function RecoverScreen() {
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetIconWrap, { backgroundColor: activeInfo.iconBg }]}>
                     <Image
-                      source={RECOVER_IMAGES['mobility']}
+                      source={getRecoverImage('mobility', userProfile?.sex)}
                       style={styles.sheetIconImage}
                       resizeMode="contain"
                     />

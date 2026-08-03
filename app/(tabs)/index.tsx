@@ -31,6 +31,7 @@ import Animated, {
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import { getSessionImage } from '@/lib/session-images';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
 import { SESSION_META, getSessionColors, SessionMeta } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
@@ -90,16 +91,6 @@ const HOME_ICONS = {
   totalWorkouts: require('@/assets/images/home/total-workouts.png'),
   achievements: require('@/assets/images/home/achievements.png'),
 } as const;
-
-const SESSION_IMAGES: Record<string, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-  conditioning: require('@/assets/images/sessions/conditioning.png'),
-  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
-  flexibility: require('@/assets/images/sessions/mobility.png'),
-  custom: require('@/assets/images/sessions/custom.png'),
-};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -675,7 +666,7 @@ export default function HomeScreen() {
                   >
                     <View style={styles.firstChoiceIcon}>
                       <Image
-                        source={SESSION_IMAGES[type]}
+                        source={getSessionImage(type, userProfile?.sex)}
                         style={styles.firstChoiceImage}
                         resizeMode="contain"
                       />
@@ -704,7 +695,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.todayIcon}>
                     <Image
-                      source={SESSION_IMAGES[suggestedSession]}
+                      source={getSessionImage(suggestedSession, userProfile?.sex)}
                       style={styles.todayIconImage}
                       resizeMode="contain"
                     />

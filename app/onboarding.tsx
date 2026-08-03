@@ -36,6 +36,7 @@ import {
   TIER_ORDER,
   useAppStore,
 } from '@/lib/store';
+import { getSessionImage } from '@/lib/session-images';
 import { requestNotificationPermission, scheduleBodyweightReminder } from '@/lib/notifications';
 
 const EXPERIENCE_OPTIONS: {
@@ -819,6 +820,7 @@ export default function OnboardingScreen() {
                   onChangeText={setOrmSquat}
                   testID="orm-squat"
                   sessionType="squat"
+                  sex={sex}
                 />
                 <LiftInput
                   label="Bench Press"
@@ -826,6 +828,7 @@ export default function OnboardingScreen() {
                   onChangeText={setOrmBench}
                   testID="orm-bench"
                   sessionType="bench"
+                  sex={sex}
                 />
                 <LiftInput
                   label="Deadlift"
@@ -833,6 +836,7 @@ export default function OnboardingScreen() {
                   onChangeText={setOrmDeadlift}
                   testID="orm-deadlift"
                   sessionType="deadlift"
+                  sex={sex}
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
@@ -988,24 +992,25 @@ export default function OnboardingScreen() {
   );
 }
 
-const SESSION_LIFT_IMAGES: Record<string, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-};
-
 function LiftInput({
   label,
   value,
   onChangeText,
   testID,
   sessionType,
+  sex,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   testID?: string;
   sessionType?: 'squat' | 'bench' | 'deadlift';
+  /**
+   * The in-progress onboarding selection, not the saved profile — the profile
+   * is only written at the end of onboarding, so reading it here would show the
+   * default artwork to someone who has already picked "female" two steps back.
+   */
+  sex?: Sex | null;
 }) {
   const C = useColors();
   const liftStyles = useMemo(() => makeLiftStyles(C), [C]);
@@ -1014,7 +1019,7 @@ function LiftInput({
       <View style={liftStyles.iconWrap}>
         {sessionType ? (
           <Image
-            source={SESSION_LIFT_IMAGES[sessionType]}
+            source={getSessionImage(sessionType, sex ?? undefined)}
             style={{ width: 40, height: 40, borderRadius: 8 }}
             resizeMode="contain"
           />

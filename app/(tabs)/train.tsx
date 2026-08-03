@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
+import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META as SESSION_META_LABELS, getSessionColors } from '@/lib/session-meta';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -65,19 +66,6 @@ const WEEKLY_SESSION_TYPES_UI: SessionType[] = [
   'full_body',
   'conditioning',
 ];
-
-const SESSION_IMAGES: Record<SessionType, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-  conditioning: require('@/assets/images/sessions/conditioning.png'),
-  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
-  flexibility: require('@/assets/images/sessions/mobility.png'),
-  custom: require('@/assets/images/sessions/custom.png'),
-  lower_body: require('@/assets/images/sessions/lower-body.png'),
-  upper_body: require('@/assets/images/sessions/upper-body.png'),
-  full_body: require('@/assets/images/sessions/full-body.png'),
-};
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -496,7 +484,7 @@ export default function TrainScreen() {
                 >
                   <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
                     <Image
-                      source={SESSION_IMAGES[type]}
+                      source={getSessionImage(type, userProfile?.sex)}
                       style={styles.sessionCardImage}
                       resizeMode="contain"
                     />
@@ -560,7 +548,7 @@ export default function TrainScreen() {
                 >
                   <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
                     <Image
-                      source={SESSION_IMAGES[type]}
+                      source={getSessionImage(type, userProfile?.sex)}
                       style={styles.sessionCardImage}
                       resizeMode="contain"
                     />
