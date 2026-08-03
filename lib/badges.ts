@@ -680,7 +680,9 @@ const goalsBadges: Badge[] = [
   },
   {
     id: 'goal_rehab_50',
-    name: 'Body Mechanic',
+    // Was also 'Body Mechanic', clashing with exercise_recovery_10. That one is
+    // the 10-session entry point, so this 50-session badge reads as its senior.
+    name: 'Master Mechanic',
     description: 'Complete 50 prehab sessions',
     category: 'goals',
     criteriaType: 'goal_progress',
@@ -761,7 +763,10 @@ const goalsBadges: Badge[] = [
 // tour with EXACTLY ONE earned badge. Do NOT add profile-setup badges.
 const onboardingBadge: Badge = {
   id: 'onboarding_complete',
-  name: 'First Steps',
+  // Was 'First Steps', one letter from the 'First Step' milestone awarded for
+  // completing your first session — two different badges, side by side in the
+  // same grid, effectively indistinguishable.
+  name: 'Welcome Aboard',
   description: 'You made it through the full guided tour, start to finish.',
   category: 'milestone',
   criteriaType: 'profile_action',
@@ -1019,7 +1024,10 @@ const varietyBadges: Badge[] = [
   },
   {
     id: 'variety_5_in_week',
-    name: 'Full Spectrum',
+    // Was also 'Full Spectrum', clashing with exercise_full_spectrum. That one
+    // is the all-time "every type" badge and has the better claim to the name;
+    // this is the one-week version.
+    name: 'Variety Pack',
     description: 'Complete 5 different session types in one week',
     category: 'variety',
     criteriaType: 'variety',
