@@ -156,7 +156,16 @@ export default function CoachMark({
     : Infinity;
   const spaceAbove = sr ? sr.top - SAFE_TOP - SPOTLIGHT_GAP : 0;
   const cardAbove = !!sr && spaceBelow < ESTIMATED_CARD_HEIGHT && spaceAbove > spaceBelow;
-  const positionerBottom = cardAbove ? SCREEN_HEIGHT - sr!.top + SPOTLIGHT_GAP : bottomOffset;
+  // Clamped to bottomOffset. When a target measures below the fold — a section
+  // further down a scroll view that never got scrolled into range — sr.top
+  // exceeds SCREEN_HEIGHT and the "above" maths yields a value at or below
+  // zero, sliding the card off the bottom of the screen and under the tab bar
+  // with its buttons unreachable. Sitting at the normal resting position is
+  // always preferable to sitting off-screen: bottomOffset is the caller's
+  // measured clearance for the tab bar, so this can never be too low.
+  const positionerBottom = cardAbove
+    ? Math.max(bottomOffset, SCREEN_HEIGHT - sr!.top + SPOTLIGHT_GAP)
+    : bottomOffset;
 
   return (
     // Outer overlay: absoluteFill, pointerEvents 'box-none' in style so the

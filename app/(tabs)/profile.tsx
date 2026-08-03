@@ -705,6 +705,15 @@ export default function ProfileScreen() {
   const settingsRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
+  // Live scroll offset, tracked from onScroll rather than cached per-section via
+  // onLayout: on react-native-web onLayout is backed by ResizeObserver, which
+  // fires on size changes only. These wrappers never resize, so their layout y
+  // would stay 0 forever and every step would scroll to the top.
+  const scrollOffsetY = useRef(0);
+  // Where a spotlit section should sit once scrolled into view — clear of the
+  // header, high enough that the coach card has room beneath it.
+  const SPOTLIGHT_TARGET_TOP = 150;
+
   useEffect(() => {
     if (tourActiveTab === 1) {
       const t = setTimeout(() => setTutStep(0), 300);
@@ -722,16 +731,47 @@ export default function ProfileScreen() {
       strength: strengthRef,
       settings: settingsRef,
     };
-    const target = refLookup[PROFILE_TUTORIAL[tutStep].spotlightRef];
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
-    const timer = setTimeout(() => {
+    const stepKey = PROFILE_TUTORIAL[tutStep].spotlightRef;
+    const target = refLookup[stepKey];
+
+    // Bring the step's own section into view before spotlighting it, rather
+    // than always jumping to the top. Settings sits below the fold on a
+    // populated profile: scrolling to 0 left it unmeasurable, so the spotlight
+    // never appeared and the coach card was positioned against a target below
+    // the bottom of the screen — which slid the card under the tab bar.
+    //
+    // Measure where the target currently is, then scroll by the difference.
+    // This needs no cached layout offsets, so it behaves the same on native
+    // and web.
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const spotlight = () =>
       target?.current?.measureInWindow((x, y, w, h) => {
         if (w > 0 && h > 0) {
           setTutSpotlight({ top: y - 6, left: x - 6, width: w + 12, height: h + 12 });
         }
       });
-    }, 420);
-    return () => clearTimeout(timer);
+
+    target?.current?.measureInWindow((_x, y, _w, h) => {
+      if (h <= 0) return;
+      const delta = y - SPOTLIGHT_TARGET_TOP;
+      // Only scroll when the section genuinely sits outside a comfortable band;
+      // nudging by a few pixels on every step just looks twitchy.
+      if (Math.abs(delta) > 24) {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, scrollOffsetY.current + delta),
+          animated: true,
+        });
+        // Long enough for the scroll animation to settle — measuring mid-scroll
+        // captures a transient position and the spotlight lands wrong.
+        settleTimer = setTimeout(spotlight, 420);
+      } else {
+        spotlight();
+      }
+    });
+
+    return () => {
+      if (settleTimer) clearTimeout(settleTimer);
+    };
   }, [tutStep]);
 
   const advanceProfileTut = useCallback(() => {
@@ -761,6 +801,10 @@ export default function ProfileScreen() {
           { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 24 },
         ]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+        }}
       >
         <View ref={headerRef} collapsable={false}>
         <Animated.View entering={FadeInDown.delay(0).duration(400)} style={styles.heroSection}>
