@@ -853,16 +853,20 @@ export default function SessionSummaryScreen() {
   const heatmap = (workedRegions ?? {}) as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
 
   // Lead with the one biggest thing that happened, not three equal stats.
-  // Priority: a genuine PB beats hitting a milestone session beats an
-  // ordinary day's top weight (or, for a recovery session with nothing
-  // weighted, the set count).
+  //
+  // Milestones outrank PBs. Under progressive overload a PB is close to routine
+  // — early on you set one most sessions — whereas session 100 happens once.
+  // The old order put PB first, so hitting a milestone *and* a PB in the same
+  // session silently dropped the milestone from the hero entirely. When both
+  // land, the milestone leads and the caption carries the PB rather than one
+  // erasing the other.
   const bestPbRow = summary.rows
     .filter((r) => r.badge === 'gain-weight')
     .sort((a, b) => b.deltaWeight - a.deltaWeight)[0];
-  const heroKind: 'pb' | 'milestone' | 'default' = bestPbRow
-    ? 'pb'
-    : isMilestone
-      ? 'milestone'
+  const heroKind: 'pb' | 'milestone' | 'default' = isMilestone
+    ? 'milestone'
+    : bestPbRow
+      ? 'pb'
       : 'default';
 
   const heroNumber =
@@ -881,7 +885,9 @@ export default function SessionSummaryScreen() {
     heroKind === 'pb' && bestPbRow
       ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
       : heroKind === 'milestone'
-        ? `${sessionNumber} sessions and counting`
+        ? bestPbRow
+          ? `${sessionNumber} sessions — and a new best on ${bestPbRow.exerciseName}`
+          : `${sessionNumber} sessions and counting`
         : streakDays >= 1
           ? `${streakDays} day streak. Keep it going.`
           : 'Nice work today.';

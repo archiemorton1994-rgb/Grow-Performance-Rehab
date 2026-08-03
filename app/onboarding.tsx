@@ -148,7 +148,7 @@ const WELCOME_PILLARS = [
   {
     icon: 'trending-up-outline' as const,
     title: 'See it add up',
-    body: '1RM trends, personal records and detailed stats over time.',
+    body: '1RM trends, personal bests and detailed stats over time.',
   },
 ];
 

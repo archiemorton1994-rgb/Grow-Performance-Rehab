@@ -294,6 +294,22 @@ export default function AchievementsScreen() {
 
   const totalEarned = earnedBadges.length;
   const totalBadges = BADGE_CATALOG.length;
+
+  // With nothing earned, the screen was a wall of locked tiles and a 0/N count
+  // — no encouragement and no next action, unlike every other list in the app.
+  // Name the badge that unlocks first instead, so there is something to aim at.
+  // Skip profile_action badges (the guided tour). Those are not something you
+  // train towards, so naming one as "first up" gives no reason to open the app.
+  const firstMilestone = useMemo(
+    () =>
+      BADGE_CATALOG.find(
+        (b) =>
+          b.category === 'milestone' &&
+          b.criteriaType !== 'profile_action' &&
+          !earnedSet.has(b.id)
+      ),
+    [earnedSet]
+  );
   const detailColor = detailBadge
     ? (CATEGORY_COLORS[detailBadge.category] ?? detailBadge.color)
     : '';
@@ -364,6 +380,27 @@ export default function AchievementsScreen() {
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
+        ListHeaderComponent={
+          totalEarned === 0 ? (
+            <View style={styles.nextUpCard}>
+              <View style={styles.nextUpIcon}>
+                <Ionicons name="trophy-outline" size={22} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.nextUpTitle}>Nothing unlocked yet</Text>
+                <Text style={styles.nextUpBody}>
+                  {firstMilestone
+                    ? // Descriptions are inconsistently punctuated, so trim any
+                      // trailing stop before adding our own.
+                      `${firstMilestone.name} is first up — ${firstMilestone.description
+                        .replace(/\.\s*$/, '')
+                        .toLowerCase()}.`
+                    : 'Finish a session and your first badge lands on the summary screen.'}
+                </Text>
+              </View>
+            </View>
+          ) : null
+        }
         renderSectionHeader={({ section }) => (
           <View style={[styles.sectionHeader, { backgroundColor: C.background }]}>
             <Text style={styles.sectionTitle}>
@@ -615,6 +652,40 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
     },
 
+    nextUpCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      backgroundColor: C.primarySurface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      padding: 14,
+      marginBottom: 16,
+    },
+    nextUpIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nextUpTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      marginBottom: 2,
+    },
+    nextUpBody: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontFamily: 'Inter_400Regular',
+      // C.text, not textSecondary: the tinted card surface is darker than the
+      // page, which pulled textSecondary to 4.38:1 here — just under AA. The
+      // bold title and icon carry the hierarchy without needing a lighter body.
+      color: C.text,
+    },
     listContent: {
       paddingHorizontal: 16,
       paddingTop: 4,

@@ -469,7 +469,9 @@ const goalsBadges: Badge[] = [
   },
   {
     id: 'goal_strength_pb',
-    name: 'Personal Record',
+    // Was 'Personal Record' while its own id and description both said "pb" /
+    // "personal best", and the rest of the app says PB throughout.
+    name: 'Personal Best',
     description: 'Set a new 1RM personal best',
     category: 'goals',
     criteriaType: 'goal_progress',

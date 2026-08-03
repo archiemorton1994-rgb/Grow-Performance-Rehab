@@ -51,7 +51,7 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
   {
     icon: 'trending-up-outline',
     title: 'Progress you can see',
-    body: '1RM trends, personal records and your full training history.',
+    body: '1RM trends, personal bests and your full training history.',
   },
   {
     icon: 'play-skip-forward-outline',
