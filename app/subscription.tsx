@@ -9,6 +9,7 @@ import {
   Image,
   Linking,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,13 +30,34 @@ const STATS = [
   { value: `${PAIN_ADAPTATION_REGION_COUNT}`, label: 'pain zones' },
 ];
 
-const BULLETS: { icon: 'checkmark-circle' | 'checkmark-circle-outline'; text: string }[] = [
-  { icon: 'checkmark-circle', text: 'Smart session programming' },
-  { icon: 'checkmark-circle', text: 'Automatic weight progression' },
-  { icon: 'checkmark-circle', text: `${PAIN_ADAPTATION_REGION_COUNT}-region pain adaptation` },
-  { icon: 'checkmark-circle', text: 'Milestone achievements' },
-  { icon: 'checkmark-circle', text: 'Strength 1RM tracking' },
-  { icon: 'checkmark-circle', text: 'Session resume' },
+/**
+ * Four benefits, not six features. The previous list was six feature names in a
+ * two-column grid behind six identical checkmarks — nothing to distinguish one
+ * line from the next, and phrased as capabilities ("Session resume") rather
+ * than what the user gets. Each row now says what it does for you, with its own
+ * icon so the list can be scanned rather than read.
+ */
+const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
+  {
+    icon: 'sparkles-outline',
+    title: 'Every session, planned',
+    body: 'Exercises, sets and weights picked from what you actually lifted last time.',
+  },
+  {
+    icon: 'medkit-outline',
+    title: 'Trains around pain',
+    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session adapts — or swaps to recovery.`,
+  },
+  {
+    icon: 'trending-up-outline',
+    title: 'Progress you can see',
+    body: '1RM trends, personal records and your full training history.',
+  },
+  {
+    icon: 'play-skip-forward-outline',
+    title: 'Never lose a session',
+    body: 'Stop mid-workout and pick up exactly where you left off.',
+  },
 ];
 
 function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: string; sub: string } {
@@ -200,14 +222,21 @@ export default function SubscriptionScreen() {
   const trialText = getTrialText(offering);
 
   return (
-    <View
-      style={[
-        styles.container,
+    // Scrollable rather than a fixed flex column. The auto-renew notice and the
+    // Restore / Terms / Privacy links are the last things on the page and App
+    // Store review expects them to be reachable; on a 667pt screen they sat
+    // over 100px below the fold with no way to get to them.
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.containerContent,
         {
           paddingTop: insets.top + webTop + 16,
           paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16),
         },
       ]}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
     >
       {/* Header — logo + wordmark + tagline */}
       <View style={styles.header}>
@@ -223,7 +252,7 @@ export default function SubscriptionScreen() {
       </View>
 
       {/* Headline */}
-      <Text style={styles.headline}>Everything you need{'\n'}to train smarter</Text>
+      <Text style={styles.headline}>A training plan that{'\n'}keeps up with you</Text>
 
       {/* Stat chips */}
       <View style={styles.statsRow}>
@@ -235,12 +264,17 @@ export default function SubscriptionScreen() {
         ))}
       </View>
 
-      {/* Feature bullets — 2-column grid */}
-      <View style={styles.bulletsGrid}>
-        {BULLETS.map((b) => (
-          <View key={b.text} style={styles.bulletRow}>
-            <Ionicons name={b.icon} size={15} color={C.primary} style={styles.bulletIcon} />
-            <Text style={styles.bulletText}>{b.text}</Text>
+      {/* Benefits */}
+      <View style={styles.benefitsList}>
+        {BENEFITS.map((b) => (
+          <View key={b.title} style={styles.benefitRow}>
+            <View style={styles.benefitIcon}>
+              <Ionicons name={b.icon} size={16} color={C.primary} />
+            </View>
+            <View style={styles.benefitText}>
+              <Text style={styles.benefitTitle}>{b.title}</Text>
+              <Text style={styles.benefitBody}>{b.body}</Text>
+            </View>
           </View>
         ))}
       </View>
@@ -336,7 +370,7 @@ export default function SubscriptionScreen() {
           ? `Renews at ${priceString}/month unless cancelled 24 hrs before period end.`
           : 'Auto-renews monthly unless cancelled at least 24 hours before period end.'}
       </Text>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -345,7 +379,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     container: {
       flex: 1,
       backgroundColor: C.background,
+    },
+    containerContent: {
       paddingHorizontal: 24,
+      // Fills the screen on tall devices so the layout still reaches the bottom
+      // as it did before, while allowing overflow to scroll on short ones.
+      flexGrow: 1,
     },
 
     // Header
@@ -410,34 +449,39 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       opacity: 0.8,
     },
 
-    // Bullets
-    bulletsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 0,
+    // Benefits — full-width rows so each line has room to say something,
+    // rather than two cramped columns of feature names.
+    benefitsList: {
       marginBottom: 16,
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      rowGap: 10,
-      columnGap: 4,
+      gap: 13,
     },
-    bulletRow: {
-      width: '50%',
+    benefitRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingRight: 8,
+      alignItems: 'flex-start',
+      gap: 12,
     },
-    bulletIcon: { flexShrink: 0 },
-    bulletText: {
-      fontSize: 12,
-      fontFamily: 'Inter_500Medium',
-      color: C.text,
+    benefitIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      backgroundColor: C.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    benefitText: {
       flex: 1,
+      gap: 2,
+    },
+    benefitTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+    },
+    benefitBody: {
+      fontSize: 12.5,
+      lineHeight: 17,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
     },
 
     // Pricing card
@@ -522,11 +566,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textTertiary,
     },
     legalSmall: {
-      fontSize: 10,
+      // 11px on textSecondary rather than 10px on textTertiary: this is the
+      // auto-renew disclosure App Store review looks for, and textTertiary put
+      // it at 2.4:1 in the light theme — below AA, on the one line that most
+      // needs to be readable.
+      fontSize: 11,
       fontFamily: 'Inter_400Regular',
-      color: C.textTertiary,
+      color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 14,
+      lineHeight: 15,
     },
   });
 }
