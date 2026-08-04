@@ -481,11 +481,33 @@ export const TIER_METALS: Record<BadgeTier, Metal> = {
   },
 };
 
-/** Locked badges are struck in the same die, in a dead metal. */
+/**
+ * Locked badges: an unstruck blank, not a pale medal.
+ *
+ * The first attempt made locked a light cool grey, which put it right next to
+ * Silver on the same axis — at grid size the two were hard to tell apart, which
+ * defeats the point of the tier reading at a glance. Locked is now clearly
+ * darker and, crucially, MATTE: components/BadgeMedallion.tsx skips the rim
+ * highlight and the face sheen when locked, so it has none of the shine that
+ * makes the earned tiers look like metal. Plus a padlock, so it is unambiguous
+ * rather than merely different.
+ */
+/**
+ * The padlock struck onto a locked medal. These live here with the metals
+ * rather than in constants/colors.ts because a medal is a physical object with
+ * its own palette — it does not restyle with the app theme, any more than the
+ * bronze rim does.
+ */
+export const PADLOCK_COLORS = {
+  well: '#2E3439',
+  wellRim: '#9AA1A7',
+  shackle: '#E4E8EB',
+} as const;
+
 export const LOCKED_METAL: Metal = {
-  light: '#E9ECEE',
-  base: '#CBD1D5',
-  dark: '#A2AAB0',
-  glyph: '#A7AFB5',
-  face: ['#F8F9FA', '#E6E9EB'],
+  light: '#7C838A',
+  base: '#5C6369',
+  dark: '#3A4046',
+  glyph: '#454B51',
+  face: ['#9AA1A7', '#848B91'],
 };

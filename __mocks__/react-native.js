@@ -90,6 +90,21 @@ const StyleSheet = {
   create: (s) => s,
   flatten: (s) => s || {},
   hairlineWidth: 1,
+  // BodyDiagram spreads this onto the hotspot <Svg> overlay. Leaving it
+  // undefined is harmless today (style props are dropped by these mocks) but
+  // would break the moment a test asserts on an absolute-fill style.
+  absoluteFillObject: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+};
+
+// session.tsx and onboarding.tsx call Keyboard.dismiss — both as an event
+// handler and directly. Without this export the whole SessionActiveBar render
+// threw "Cannot read properties of undefined (reading 'dismiss')", which took
+// out every test in tests/session-bar-kav.test.tsx.
+const Keyboard = {
+  dismiss: jest.fn(),
+  addListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeAllListeners: jest.fn(),
+  scheduleLayoutAnimation: jest.fn(),
 };
 
 const useWindowDimensions = () => ({ width: 400, height: 720, scale: 1, fontScale: 1 });
@@ -111,6 +126,7 @@ module.exports = {
   Linking,
   AppState,
   StyleSheet,
+  Keyboard,
   useWindowDimensions,
   Dimensions,
   Platform,

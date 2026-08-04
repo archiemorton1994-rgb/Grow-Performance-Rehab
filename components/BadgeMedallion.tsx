@@ -1,6 +1,13 @@
 import React from 'react';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { ArtShape, glyphFor, LOCKED_METAL, Metal, TIER_METALS } from '@/lib/badge-art';
+import {
+  ArtShape,
+  glyphFor,
+  LOCKED_METAL,
+  Metal,
+  PADLOCK_COLORS,
+  TIER_METALS,
+} from '@/lib/badge-art';
 import type { BadgeCategory, BadgeTier } from '@/lib/badges';
 
 /**
@@ -73,6 +80,34 @@ function Laurel({ metal }: { metal: Metal }) {
     }
   }
   return <>{leaves}</>;
+}
+
+/** Sits on the lower-right of a locked medal. Darker metal and no shine already
+ *  separate locked from Silver; this makes it unambiguous rather than merely
+ *  different, which is what a grid of 277 mostly-locked badges needs. */
+function Padlock() {
+  return (
+    <G>
+      <Circle cx="74" cy="76" r="17" fill={PADLOCK_COLORS.well} />
+      <Circle
+        cx="74"
+        cy="76"
+        r="17"
+        fill="none"
+        stroke={PADLOCK_COLORS.wellRim}
+        strokeWidth="2"
+        opacity={0.5}
+      />
+      <Path
+        d="M68 71 v-4 a6 6 0 0 1 12 0 v4"
+        stroke={PADLOCK_COLORS.shackle}
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Rect x="65.5" y="71" width="17" height="13.5" rx="3" fill={PADLOCK_COLORS.shackle} />
+    </G>
+  );
 }
 
 function Glyph({ shapes, metal }: { shapes: ArtShape[]; metal: Metal }) {
@@ -154,15 +189,19 @@ function BadgeMedallionImpl({
 
       {/* Rim */}
       <Circle cx="50" cy="50" r={RIM_R} fill={`url(#${uid}-rim)`} />
-      {/* Light catching the upper-left of the rim */}
-      <Path
-        d={`M50 ${50 - RIM_R} A ${RIM_R} ${RIM_R} 0 0 0 ${50 - RIM_R} 50`}
-        stroke="#FFFFFF"
-        strokeOpacity={0.42}
-        strokeWidth={2.6}
-        strokeLinecap="round"
-        fill="none"
-      />
+      {/* Light catching the upper-left of the rim. Earned only — the shine is
+          most of what makes these read as metal, so a locked badge goes without
+          it and looks like an unstruck blank instead of a paler tier. */}
+      {!locked && (
+        <Path
+          d={`M50 ${50 - RIM_R} A ${RIM_R} ${RIM_R} 0 0 0 ${50 - RIM_R} 50`}
+          stroke="#FFFFFF"
+          strokeOpacity={0.42}
+          strokeWidth={2.6}
+          strokeLinecap="round"
+          fill="none"
+        />
+      )}
 
       {detail && (tier === 'gold' || tier === 'grow') && !locked && <Beading metal={metal} />}
       {detail && tier === 'grow' && !locked && <Laurel metal={metal} />}
@@ -178,10 +217,12 @@ function BadgeMedallionImpl({
         strokeOpacity={0.4}
         strokeWidth={1.6}
       />
-      {/* Sheen across the top of the face */}
-      <Ellipse cx="50" cy="30" rx="26" ry="14" fill={`url(#${uid}-gloss)`} />
+      {/* Sheen across the top of the face — earned only, as above. */}
+      {!locked && <Ellipse cx="50" cy="30" rx="26" ry="14" fill={`url(#${uid}-gloss)`} />}
 
       <Glyph shapes={shapes} metal={metal} />
+
+      {locked && <Padlock />}
     </Svg>
   );
 }

@@ -65,11 +65,17 @@ const __clearStoreOverride = () => {
 
 const STRENGTH_SESSION_TYPES = ['squat', 'bench', 'deadlift'];
 
+// Mirrors TIER_ORDER in lib/store.ts. session.tsx and readiness.tsx both import
+// it as a value and call .includes() on it during render, so omitting it here
+// made every SessionScreen / ReadinessScreen render throw.
+const TIER_ORDER = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+
 module.exports = {
   __esModule: true,
   useAppStore,
   useStore,
   STRENGTH_SESSION_TYPES,
+  TIER_ORDER,
   __setStoreOverride,
   __clearStoreOverride,
 };

@@ -47,7 +47,10 @@ const EXEMPT_FILES = new Set([
   'components/BodyDiagram.tsx', // SVG semantic vocabulary: worked / attention / overloaded
   'components/WorkoutShareCard.tsx', // shareable image card — brand palette baked in
   'app/session-summary.tsx', // shareable image card — brand palette baked in
-  'app/achievements.tsx', // badge-type → hue map (30+ intentionally distinct colours)
+  // 'app/achievements.tsx' was exempt for a "badge-type → hue map (30+
+  // intentionally distinct colours)" that no longer exists — colour there is
+  // now the four rarity tiers, which live in lib/badge-art.ts. The exemption
+  // outlived its reason, so the screen is scanned again.
   'components/CoachMark.tsx', // fixed green/lime brand card — deliberately not theme-driven, see COACH const
 ]);
 

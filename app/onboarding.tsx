@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { GrowIcon } from '@/components/GrowIcon';
+import type { GrowIconName } from '@/lib/icon-art';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -43,49 +45,49 @@ const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
   label: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GrowIconName;
 }[] = [
   {
     value: 'beginner',
     label: 'Just getting started',
     description: 'New to structured training',
-    icon: 'leaf-outline',
+    icon: 'leaf',
   },
   {
     value: 'intermediate',
     label: '1-3 years training',
     description: 'Comfortable with the basics',
-    icon: 'barbell-outline',
+    icon: 'dumbbell',
   },
   {
     value: 'advanced',
     label: '3+ years, know my numbers',
     description: 'Experienced lifter',
-    icon: 'trophy-outline',
+    icon: 'trophy',
   },
 ];
 
 const SEX_OPTIONS: {
   value: Sex;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GrowIconName;
 }[] = [
-  { value: 'male', label: 'Male', icon: 'male-outline' },
-  { value: 'female', label: 'Female', icon: 'female-outline' },
-  { value: 'other', label: 'Prefer not to say', icon: 'person-outline' },
+  { value: 'male', label: 'Male', icon: 'male' },
+  { value: 'female', label: 'Female', icon: 'female' },
+  { value: 'other', label: 'Prefer not to say', icon: 'person' },
 ];
 
 const GOAL_OPTIONS: {
   value: FitnessGoal;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GrowIconName;
 }[] = [
-  { value: 'strength', label: 'Build Strength', icon: 'barbell-outline' },
-  { value: 'muscle', label: 'Build Muscle', icon: 'body-outline' },
-  { value: 'power', label: 'Power & Speed', icon: 'flash-outline' },
-  { value: 'fat_loss', label: 'Lose Fat', icon: 'flame-outline' },
-  { value: 'fitness', label: 'General Fitness', icon: 'heart-outline' },
-  { value: 'rehab', label: 'Rehabilitation', icon: 'medical-outline' },
+  { value: 'strength', label: 'Build Strength', icon: 'dumbbell' },
+  { value: 'muscle', label: 'Build Muscle', icon: 'muscle' },
+  { value: 'power', label: 'Power & Speed', icon: 'bolt' },
+  { value: 'fat_loss', label: 'Lose Fat', icon: 'flame' },
+  { value: 'fitness', label: 'General Fitness', icon: 'heart' },
+  { value: 'rehab', label: 'Rehabilitation', icon: 'rehab' },
 ];
 
 const EQUIPMENT_OPTIONS: {
@@ -136,17 +138,17 @@ const EQUIPMENT_IMAGES: Record<string, any> = {
  */
 const WELCOME_PILLARS = [
   {
-    icon: 'options-outline' as const,
+    icon: 'sliders' as const,
     title: 'Built around you',
     body: 'Adapts to your equipment, energy and pain — with the right load every session.',
   },
   {
-    icon: 'barbell-outline' as const,
+    icon: 'dumbbell' as const,
     title: 'Train and recover',
     body: 'Strength, conditioning, mobility and rehab, all in one plan.',
   },
   {
-    icon: 'trending-up-outline' as const,
+    icon: 'trend' as const,
     title: 'See it add up',
     body: '1RM trends, personal bests and detailed stats over time.',
   },
@@ -484,7 +486,7 @@ export default function OnboardingScreen() {
               />
               <Text style={styles.welcomeHeadline}>Build your training profile</Text>
               <View style={styles.welcomeMetaRow}>
-                <Ionicons name="time-outline" size={13} color={C.textSecondary} />
+                <GrowIcon name="clock" size={13} color={C.textSecondary} />
                 <Text style={styles.welcomeMetaText}>Takes less than 2 minutes</Text>
               </View>
 
@@ -492,7 +494,7 @@ export default function OnboardingScreen() {
                 {WELCOME_PILLARS.map((pillar) => (
                   <View key={pillar.title} style={styles.welcomePillar}>
                     <View style={styles.welcomePillarIcon}>
-                      <Ionicons name={pillar.icon} size={18} color={C.primary} />
+                      <GrowIcon name={pillar.icon} size={18} color={C.primary} />
                     </View>
                     <View style={styles.welcomePillarText}>
                       <Text style={styles.welcomePillarTitle}>{pillar.title}</Text>
@@ -508,7 +510,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="person-circle-outline" size={56} color={C.primary} />
+                <GrowIcon name="profile" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>What should we call you?</Text>
               <Text style={styles.hint}>Personalises your experience</Text>
@@ -534,7 +536,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="stats-chart-outline" size={56} color={C.primary} />
+                <GrowIcon name="chart" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your biological sex</Text>
               <Text style={styles.hint}>Helps us calibrate your lifting loads</Text>
@@ -556,7 +558,7 @@ export default function OnboardingScreen() {
                       testID={`sex-${opt.value}`}
                     >
                       <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <Ionicons
+                        <GrowIcon
                           name={opt.icon}
                           size={22}
                           color={selected ? C.textInverse : C.primary}
@@ -585,7 +587,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="barbell-outline" size={56} color={C.primary} />
+                <GrowIcon name="dumbbell" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>How long have you been training?</Text>
               <Text style={styles.hint}>Sets the right starting weights</Text>
@@ -607,7 +609,7 @@ export default function OnboardingScreen() {
                       testID={`experience-${opt.value}`}
                     >
                       <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <Ionicons
+                        <GrowIcon
                           name={opt.icon}
                           size={22}
                           color={selected ? C.textInverse : C.primary}
@@ -640,7 +642,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <Ionicons name="scale-outline" size={56} color={C.primary} />
+                <GrowIcon name="scale" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
               <Text style={styles.hint}>Used to personalise your lifting loads</Text>
@@ -680,7 +682,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="flag-outline" size={56} color={C.primary} />
+                <GrowIcon name="flag" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>What are you training for?</Text>
               <Text style={styles.hint}>Select all that apply</Text>
@@ -694,7 +696,7 @@ export default function OnboardingScreen() {
                       style={[styles.chip, selected && styles.chipSelected]}
                       testID={`goal-${opt.value}`}
                     >
-                      <Ionicons
+                      <GrowIcon
                         name={opt.icon}
                         size={16}
                         color={selected ? C.primary : C.textSecondary}
@@ -713,7 +715,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.equipScreenContent]}>
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
-                <Ionicons name="barbell-outline" size={24} color={C.primary} />
+                <GrowIcon name="dumbbell" size={24} color={C.primary} />
               </View>
               <Text style={[styles.question, styles.questionCompact]}>
                 What do you have access to?
@@ -814,7 +816,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <Ionicons name="podium-outline" size={56} color={C.primary} />
+                <GrowIcon name="podium" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
               <Text style={styles.hint}>
@@ -856,7 +858,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <Ionicons name="color-palette-outline" size={56} color={C.primary} />
+                <GrowIcon name="palette" size={56} color={C.primary} />
               </View>
               <Text style={styles.question}>Choose your look</Text>
               <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
@@ -866,13 +868,13 @@ export default function OnboardingScreen() {
                     {
                       value: 'dark',
                       label: 'Dark',
-                      icon: 'moon-outline' as const,
+                      icon: 'moon' as const,
                       desc: 'Dark background, easy on the eyes',
                     },
                     {
                       value: 'light',
                       label: 'Light',
-                      icon: 'sunny-outline' as const,
+                      icon: 'sun' as const,
                       desc: 'Light background, clean and bright',
                     },
                   ] as const
@@ -900,7 +902,7 @@ export default function OnboardingScreen() {
                           },
                         ]}
                       >
-                        <Ionicons
+                        <GrowIcon
                           name={icon}
                           size={28}
                           color={selected ? C.primary : C.textSecondary}
@@ -928,7 +930,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
-                <Ionicons name="checkmark-circle" size={120} color={C.primaryDark} />
+                <GrowIcon name="check" size={120} color={C.primaryDark} />
               </Animated.View>
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
                 Profile Ready!
@@ -939,9 +941,9 @@ export default function OnboardingScreen() {
                   : 'The first 14 days are on us'}
               </Animated.Text>
               <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
-                <CelebSummaryPill icon="barbell-outline" label={experienceLabel(experience)} />
-                <CelebSummaryPill icon="flag-outline" label={goalLabel(goals[0] ?? null)} />
-                <CelebSummaryPill icon="barbell-outline" label={equipmentLabel(equipment)} />
+                <CelebSummaryPill icon="dumbbell" label={experienceLabel(experience)} />
+                <CelebSummaryPill icon="flag" label={goalLabel(goals[0] ?? null)} />
+                <CelebSummaryPill icon="dumbbell" label={equipmentLabel(equipment)} />
               </Animated.View>
               <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
                 <Pressable
@@ -1031,7 +1033,7 @@ function LiftInput({
             resizeMode="contain"
           />
         ) : (
-          <Ionicons name="barbell-outline" size={20} color={C.primary} />
+          <GrowIcon name="dumbbell" size={20} color={C.primary} />
         )}
       </View>
       <Text style={liftStyles.label}>{label}</Text>
@@ -1056,7 +1058,7 @@ function CelebSummaryPill({
   icon,
   label,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GrowIconName;
   label: string;
 }) {
   const C = useColors();
@@ -1064,7 +1066,7 @@ function CelebSummaryPill({
   if (!label) return null;
   return (
     <View style={celebStyles.pill}>
-      <Ionicons name={icon} size={14} color={C.primary} />
+      <GrowIcon name={icon} size={14} color={C.primary} />
       <Text style={celebStyles.pillText}>{label}</Text>
     </View>
   );

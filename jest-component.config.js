@@ -1,39 +1,13 @@
-module.exports = {
-  testEnvironment: 'node',
-  transform: {
-    '^.+\\.[jt]sx?$': ['babel-jest', { configFile: './babel.config.js' }],
-  },
-  transformIgnorePatterns: ['/node_modules/'],
-  moduleNameMapper: {
-    '^react-native$': '<rootDir>/__mocks__/react-native.js',
-    '^react-native/(.*)$': '<rootDir>/__mocks__/react-native.js',
-    '^react-native-svg$': '<rootDir>/__mocks__/react-native-svg.js',
-    '^expo-haptics$': '<rootDir>/__mocks__/expo-haptics.js',
-    '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
-    '^react-native-body-highlighter$': '<rootDir>/__mocks__/react-native-body-highlighter.js',
-    '^@expo/vector-icons$': '<rootDir>/__mocks__/expo-vector-icons.js',
-    '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
-    '^react-native-keyboard-controller$': '<rootDir>/__mocks__/react-native-keyboard-controller.js',
-    '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
-    '^expo-notifications$': '<rootDir>/__mocks__/expo-notifications.js',
-    '^expo-store-review$': '<rootDir>/__mocks__/expo-store-review.js',
-    '^@/lib/store$': '<rootDir>/__mocks__/store.js',
-    '^@/lib/sync$': '<rootDir>/__mocks__/lib-sync.js',
-    '^@/lib/notifications$': '<rootDir>/__mocks__/lib-notifications.js',
-    '^@/lib/workout-engine$': '<rootDir>/__mocks__/lib-workout-engine.js',
-    '^@/lib/utils$': '<rootDir>/__mocks__/lib-utils.js',
-    '\\.(png|jpg|jpeg|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.js',
-    '^@/(.*)$': '<rootDir>/$1',
-  },
-  testMatch: [
-    '<rootDir>/tests/body-diagram-component.test.tsx',
-    '<rootDir>/tests/badge-animation.test.tsx',
-    '<rootDir>/tests/session-pain-adaptation.test.tsx',
-    '<rootDir>/tests/session-bar-kav.test.tsx',
-  ],
-  modulePathIgnorePatterns: ['<rootDir>/.cache/'],
-  testTimeout: 15000,
-  globals: {
-    IS_REACT_ACT_ENVIRONMENT: true,
-  },
-};
+/**
+ * DEPRECATED — kept only so `npx jest -c jest-component.config.js` still works.
+ *
+ * This used to be a second, richer jest config that the component suites were
+ * written against, while `npm test` used jest.config.js. Nothing in package.json
+ * ever ran it, so the two drifted: two component suites could not even load
+ * under `npm test`, and its testMatch still listed tests/badge-animation.test.tsx,
+ * a file that no longer exists.
+ *
+ * Everything it provided now lives in jest.config.js. Re-exporting instead of
+ * duplicating means the two configs can never disagree again.
+ */
+module.exports = require('./jest.config.js');

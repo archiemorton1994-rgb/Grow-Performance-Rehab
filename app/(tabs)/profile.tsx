@@ -822,11 +822,11 @@ export default function ProfileScreen() {
               ) : userProfile.name ? (
                 <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
               ) : (
-                <Ionicons name="person" size={38} color={C.primary} />
+                <Ionicons name="person" size={38} color={C.primaryDark} />
               )}
             </View>
             <View style={styles.avatarEditBadge}>
-              <Ionicons name="camera" size={13} color="#fff" />
+              <Ionicons name="camera" size={13} color={C.textInverse} />
             </View>
           </Pressable>
           <View style={styles.heroTags}>
@@ -946,12 +946,12 @@ export default function ProfileScreen() {
                   width: 44,
                   height: 44,
                   borderRadius: 12,
-                  backgroundColor: C.primarySurface,
+                  backgroundColor: C.primaryMuted,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Ionicons name="barbell-outline" size={22} color={C.primary} />
+                <Ionicons name="barbell-outline" size={22} color={C.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ratioCardTitle}>STRENGTH PROGRESS</Text>
@@ -1407,7 +1407,7 @@ export default function ProfileScreen() {
                           accessibilityLabel="Delete entry"
                           accessibilityRole="button"
                         >
-                          <Ionicons name="trash-outline" size={18} color={C.destructive} />
+                          <Ionicons name="trash-outline" size={18} color={C.error} />
                         </Pressable>
                       </View>
                     </View>
@@ -1481,7 +1481,7 @@ export default function ProfileScreen() {
                 testID="open-edit-details"
               >
                 <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="person-outline" size={20} color={C.primary} />
+                  <Ionicons name="person-outline" size={20} color={C.primaryDark} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Edit Details</Text>
@@ -1494,8 +1494,8 @@ export default function ProfileScreen() {
                 onPress={() => openFromSettings('equipment')}
                 style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
               >
-                <View style={[styles.navIcon, { backgroundColor: C.categoryMechanical }]}>
-                  <EquipmentIcon tier={effectiveTier} size={20} color={C.categoryMechanicalText} />
+                <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
+                  <EquipmentIcon tier={effectiveTier} size={20} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Equipment</Text>
@@ -1510,7 +1510,7 @@ export default function ProfileScreen() {
                 testID="open-bodyweight"
               >
                 <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="scale-outline" size={20} color={C.primary} />
+                  <Ionicons name="scale-outline" size={20} color={C.primaryDark} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Body Weight</Text>
@@ -1871,7 +1871,7 @@ export default function ProfileScreen() {
                   testID="settings-manage-subscription"
                 >
                   <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                    <Ionicons name="card-outline" size={20} color={C.primary} />
+                    <Ionicons name="card-outline" size={20} color={C.primaryDark} />
                   </View>
                   <View style={styles.navBtnText}>
                     <Text style={styles.navLabel}>Manage Subscription</Text>
@@ -1893,7 +1893,7 @@ export default function ProfileScreen() {
                   testID="settings-subscribe"
                 >
                   <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                    <Ionicons name="card-outline" size={20} color={C.primary} />
+                    <Ionicons name="card-outline" size={20} color={C.primaryDark} />
                   </View>
                   <View style={styles.navBtnText}>
                     <Text style={styles.navLabel}>Subscribe to Grow</Text>
@@ -1919,7 +1919,7 @@ export default function ProfileScreen() {
                     testID="replay-tour"
                   >
                     <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                      <Ionicons name="map-outline" size={20} color={C.primary} />
+                      <Ionicons name="map-outline" size={20} color={C.primaryDark} />
                     </View>
                     <View style={styles.navBtnText}>
                       <Text style={styles.navLabel}>Replay Guided Tour</Text>
@@ -1936,7 +1936,7 @@ export default function ProfileScreen() {
                 testID="rate-app"
               >
                 <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="star-outline" size={20} color={C.primary} />
+                  <Ionicons name="star-outline" size={20} color={C.primaryDark} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Rate Grow</Text>
@@ -1964,7 +1964,7 @@ export default function ProfileScreen() {
                 testID="settings-terms"
               >
                 <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="document-text-outline" size={20} color={C.primary} />
+                  <Ionicons name="document-text-outline" size={20} color={C.primaryDark} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Terms of Service</Text>
@@ -1978,7 +1978,7 @@ export default function ProfileScreen() {
                 testID="settings-privacy"
               >
                 <View style={[styles.navIcon, { backgroundColor: C.primaryMuted }]}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color={C.primary} />
+                  <Ionicons name="shield-checkmark-outline" size={20} color={C.primaryDark} />
                 </View>
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Privacy Policy</Text>
@@ -2044,7 +2044,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
     },
     avatarPhoto: { width: 100, height: 100, borderRadius: 50 },
-    avatarInitial: { fontSize: 40, fontFamily: 'Inter_700Bold', color: C.primary },
+    avatarInitial: { fontSize: 40, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     avatarEditBadge: {
       position: 'absolute',
       bottom: 2,

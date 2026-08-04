@@ -38,6 +38,34 @@ import { PainInsightSheet } from '../components/PainInsightSheet';
 // router is mapped to __mocks__/expo-router.js by moduleNameMapper
 import { router } from 'expo-router';
 
+/**
+ * Every value in the PainRegion union (lib/store.ts). Declared once so the
+ * coverage and completeness guards below can never disagree about how many
+ * regions there are — the old hard-coded count of 18 went stale the moment
+ * lat_mid_back was added.
+ */
+const ALL_PAIN_REGIONS: PainRegion[] = [
+  'neck',
+  'front_shoulder',
+  'rear_shoulder',
+  'elbow',
+  'wrist',
+  'upper_back',
+  'lower_back',
+  'core_ribs',
+  'hip_groin',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
+  'chest',
+  'bicep',
+  'tricep',
+  'quads',
+  'hamstrings',
+  'glutes',
+  'lat_mid_back',
+];
+
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
 type TreeNode = {
@@ -146,36 +174,17 @@ describe('[1] Source-code static guards', () => {
     expect(src).toContain('testID: `body-diagram-region-${r}`');
   });
 
-  test('h() coverage: all 18 PainRegion values appear as h() calls', () => {
-    const regions: PainRegion[] = [
-      'neck',
-      'front_shoulder',
-      'rear_shoulder',
-      'elbow',
-
-      'wrist',
-      'upper_back',
-      'lower_back',
-      'core_ribs',
-      'hip_groin',
-      'knee',
-      'calf_shin',
-      'ankle_achilles',
-      'chest',
-      'bicep',
-      'tricep',
-      'quads',
-      'hamstrings',
-      'glutes',
-      'lat_mid_back',
-    ];
-    for (const r of regions) {
+  test('h() coverage: every PainRegion value appears as an h() call', () => {
+    for (const r of ALL_PAIN_REGIONS) {
       expect(src).toContain(`h('${r}')`);
     }
   });
 
-  test('label completeness: BODY_DIAGRAM_LABELS has entries for all 18 regions', () => {
-    expect(Object.keys(BODY_DIAGRAM_LABELS).length).toBe(18);
+  test('label completeness: BODY_DIAGRAM_LABELS has an entry for every region', () => {
+    for (const r of ALL_PAIN_REGIONS) {
+      expect(BODY_DIAGRAM_LABELS[r]).toBeTruthy();
+    }
+    expect(Object.keys(BODY_DIAGRAM_LABELS).length).toBe(ALL_PAIN_REGIONS.length);
   });
 
   test('toggle testIDs: body-diagram-front and body-diagram-back present', () => {
@@ -197,16 +206,21 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
   });
 
   // ── Front-view region taps ──
+  // Expected strings are the DIAGRAM caption (getDiagramLabel), which is not
+  // always BODY_DIAGRAM_LABELS. The diagram drops the qualifiers a flat pain
+  // list needs, because the Front/Back view already supplies them:
+  //   front_shoulder / rear_shoulder → "Shoulder"
+  //   calf_shin                      → "Tib Ant" (front) / "Calves" (back)
   const frontRegions: [PainRegion, string][] = [
     ['neck', 'Neck'],
-    ['front_shoulder', 'Front Shoulder'],
+    ['front_shoulder', 'Shoulder'],
     ['elbow', 'Elbow'],
     ['wrist', 'Wrist'],
-    ['core_ribs', 'Core / Ribs'],
-    ['hip_groin', 'Hip / Groin'],
+    ['core_ribs', 'Core'],
+    ['hip_groin', 'Hip'],
     ['knee', 'Knee'],
-    ['calf_shin', 'Calf / Shin'],
-    ['ankle_achilles', 'Ankle / Achilles'],
+    ['calf_shin', 'Tib Ant'],
+    ['ankle_achilles', 'Ankle'],
     ['chest', 'Chest'],
     ['bicep', 'Biceps'],
     ['quads', 'Quads'],
@@ -243,11 +257,11 @@ describe('[2] Flex tab — Targeted Prehab modal', () => {
 
   // ── Back-view region taps ──
   const backRegions: [PainRegion, string][] = [
-    ['rear_shoulder', 'Rear Shoulder'],
-    ['upper_back', 'Upper Back'],
+    ['rear_shoulder', 'Shoulder'],
+    ['upper_back', 'Traps'],
     ['lower_back', 'Lower Back'],
     ['tricep', 'Triceps'],
-    ['lat_mid_back', 'Lats / Mid Back'],
+    ['lat_mid_back', 'Lats'],
     ['glutes', 'Glutes'],
     ['hamstrings', 'Hamstrings'],
   ];
@@ -344,17 +358,17 @@ describe('[3] Readiness screen — pain-region step', () => {
     expect(hasTestId(root, 'body-diagram-back')).toBe(true);
   });
 
-  // ── Front-view region taps ──
+  // ── Front-view region taps ── (diagram caption copy — see [2] above)
   const frontRegions: [PainRegion, string][] = [
     ['neck', 'Neck'],
-    ['front_shoulder', 'Front Shoulder'],
+    ['front_shoulder', 'Shoulder'],
     ['elbow', 'Elbow'],
     ['wrist', 'Wrist'],
-    ['core_ribs', 'Core / Ribs'],
-    ['hip_groin', 'Hip / Groin'],
+    ['core_ribs', 'Core'],
+    ['hip_groin', 'Hip'],
     ['knee', 'Knee'],
-    ['calf_shin', 'Calf / Shin'],
-    ['ankle_achilles', 'Ankle / Achilles'],
+    ['calf_shin', 'Tib Ant'],
+    ['ankle_achilles', 'Ankle'],
   ];
 
   for (const [region, label] of frontRegions) {
@@ -386,8 +400,8 @@ describe('[3] Readiness screen — pain-region step', () => {
 
   // ── Back-view region taps ──
   const backRegions: [PainRegion, string][] = [
-    ['rear_shoulder', 'Rear Shoulder'],
-    ['upper_back', 'Upper Back'],
+    ['rear_shoulder', 'Shoulder'],
+    ['upper_back', 'Traps'],
     ['lower_back', 'Lower Back'],
   ];
 
