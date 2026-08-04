@@ -37,6 +37,7 @@ describe('BadgeMedallion', () => {
               <BadgeMedallion
                 category={badge.category}
                 tier={badge.tier}
+                badgeId={badge.id}
                 locked={locked}
                 size={size}
               />
@@ -60,6 +61,19 @@ describe('BadgeMedallion', () => {
       expect(() => {
         renderer.create(<BadgeMedallion category={category} tier="gold" size={62} />).unmount();
       }).not.toThrow();
+    }
+  });
+
+  it('gives every Exercise Milestone its own drawing, not the family rosette', () => {
+    const { BADGE_ID_GLYPHS, glyphFor } = require('@/lib/badge-art');
+    const family = glyphFor('exercise_milestone');
+    const exercises = BADGE_CATALOG.filter((b) => b.category === 'exercise_milestone');
+    const own = exercises.filter((b) => BADGE_ID_GLYPHS[b.id]);
+    // ex_ghd_10_sessions is the same movement as ex_ghd_first at a deeper rung,
+    // so it shares the GHD drawing by design — everything else is its own.
+    expect(own.length).toBe(exercises.length - 1);
+    for (const b of own) {
+      expect(glyphFor(b.category, b.id)).not.toEqual(family);
     }
   });
 

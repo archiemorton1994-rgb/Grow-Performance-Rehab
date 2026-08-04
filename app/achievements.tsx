@@ -287,6 +287,7 @@ function BadgeShelf({
               <BadgeMedallion
                 category={item.category}
                 tier={item.tier}
+                badgeId={item.id}
                 locked={!isEarned}
                 size={SHELF_MEDAL}
               />
@@ -444,6 +445,7 @@ export default function AchievementsScreen() {
                     <BadgeMedallion
                       category={heroBadge.category}
                       tier={heroBadge.tier}
+                      badgeId={heroBadge.id}
                       locked={!heroEarned}
                       size={HERO_MEDAL}
                     />
@@ -573,6 +575,7 @@ export default function AchievementsScreen() {
                 <BadgeMedallion
                   category={detailBadge.category}
                   tier={detailBadge.tier}
+                  badgeId={detailBadge.id}
                   locked={!detailEarned}
                   size={DETAIL_MEDAL}
                 />

@@ -284,6 +284,157 @@ export const BADGE_GLYPHS: Record<BadgeCategory, ArtShape[]> = {
 };
 
 /**
+ * Per-badge artwork, keyed by badge id, overriding the family drawing.
+ *
+ * Reusing one drawing across a family is right almost everywhere: thirteen
+ * Prehab badges are one achievement at thirteen depths. Exercise Milestones are
+ * the exception, and the only one — each badge is a DIFFERENT exercise, not a
+ * deeper rung of the same one, so a single rosette on all of them threw away the
+ * only thing that distinguished them.
+ *
+ * These are drawn in profile or head-on, whichever makes the movement legible at
+ * grid size, in the same geometric style as the family glyphs.
+ */
+export const BADGE_ID_GLYPHS: Record<string, ArtShape[]> = {
+  // Chin over the bar, elbows driving out.
+  ex_pull_up_first: [
+    { k: 'path', d: 'M6 8 L42 8', stroke: 'glyph', sw: 3.6 },
+    { k: 'path', d: 'M18 9 L13.5 16 L20 20.5', stroke: 'glyph', sw: 3.4 },
+    { k: 'path', d: 'M30 9 L34.5 16 L28 20.5', stroke: 'glyph', sw: 3.4 },
+    { k: 'circle', cx: 24, cy: 15, r: 4.4, fill: 'glyph' },
+    { k: 'rect', x: 20.5, y: 20, w: 7, h: 12, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M22 32 L20 43', stroke: 'glyph', sw: 4 },
+    { k: 'path', d: 'M26 32 L28 43', stroke: 'glyph', sw: 4 },
+  ],
+
+  // A dead hang is a grip test, so it is drawn as the grip rather than as
+  // another whole body on a bar — which is also what keeps it from reading as
+  // the pull-up above.
+  ex_dead_hang_first: [
+    { k: 'path', d: 'M6 7 L42 7', stroke: 'glyph', sw: 3.6 },
+    { k: 'circle', cx: 18, cy: 8, r: 3, fill: 'glyph' },
+    { k: 'circle', cx: 30, cy: 8, r: 3, fill: 'glyph' },
+    { k: 'path', d: 'M18 10 L19 21', stroke: 'glyph', sw: 3.4 },
+    { k: 'path', d: 'M30 10 L29 21', stroke: 'glyph', sw: 3.4 },
+    { k: 'circle', cx: 24, cy: 17, r: 4.2, fill: 'glyph' },
+    { k: 'rect', x: 20.5, y: 22, w: 7, h: 13, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M22.5 35 L22 44', stroke: 'glyph', sw: 3.8 },
+    { k: 'path', d: 'M25.5 35 L26 44', stroke: 'glyph', sw: 3.8 },
+  ],
+
+  // Shoulders on the bench, bar across the hips, everything bridged.
+  ex_hip_thrust_first: [
+    { k: 'rect', x: 2.5, y: 27, w: 13, h: 5, rx: 2, fill: 'glyph', o: 0.5 },
+    { k: 'circle', cx: 8, cy: 21, r: 4, fill: 'glyph' },
+    { k: 'path', d: 'M12 26 C18 14 30 13 34 29', stroke: 'glyph', sw: 5.5 },
+    { k: 'rect', x: 16, y: 9.5, w: 18, h: 6, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M34 29 L36 41', stroke: 'glyph', sw: 4.5 },
+  ],
+
+  // Ankles pinned, body lowering under control.
+  ex_nordic_first: [
+    { k: 'path', d: 'M6 42 L42 42', stroke: 'glyph', sw: 2.6, o: 0.4 },
+    { k: 'rect', x: 5, y: 32, w: 8, h: 7, rx: 2.5, fill: 'glyph', o: 0.6 },
+    { k: 'path', d: 'M10 37.5 L22 37.5', stroke: 'glyph', sw: 5 },
+    { k: 'path', d: 'M22 37.5 L33 22', stroke: 'glyph', sw: 6 },
+    { k: 'circle', cx: 36.5, cy: 18.5, r: 4.5, fill: 'glyph' },
+    { k: 'path', d: 'M29 27.5 L35 32', stroke: 'glyph', sw: 3.4 },
+  ],
+
+  // Loaded in both hands, walking.
+  ex_farmers_carry_first: [
+    { k: 'circle', cx: 24, cy: 8, r: 4.6, fill: 'glyph' },
+    { k: 'rect', x: 20.5, y: 14, w: 7, h: 13, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M19.5 17 L12 27', stroke: 'glyph', sw: 3.4 },
+    { k: 'path', d: 'M28.5 17 L36 27', stroke: 'glyph', sw: 3.4 },
+    { k: 'rect', x: 6, y: 28, w: 10, h: 12, rx: 3, fill: 'glyph' },
+    { k: 'rect', x: 32, y: 28, w: 10, h: 12, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M22.5 27 L21 41', stroke: 'glyph', sw: 3.8 },
+    { k: 'path', d: 'M25.5 27 L27 41', stroke: 'glyph', sw: 3.8 },
+  ],
+
+  // Quadruped, opposite arm and leg reaching.
+  ex_bird_dog_first: [
+    { k: 'path', d: 'M16 24 L30 24', stroke: 'glyph', sw: 6 },
+    { k: 'circle', cx: 34, cy: 21.5, r: 4, fill: 'glyph' },
+    { k: 'path', d: 'M20 26 L18.5 38', stroke: 'glyph', sw: 3.6 },
+    { k: 'path', d: 'M28 26 L29.5 38', stroke: 'glyph', sw: 3.6 },
+    { k: 'path', d: 'M18 22 L6 15.5', stroke: 'glyph', sw: 4 },
+    { k: 'path', d: 'M30 22 L42 15.5', stroke: 'glyph', sw: 4 },
+  ],
+
+  // Hips on the pad, torso arcing up off it.
+  // The machine is what tells this apart from the Nordic above — same movement,
+  // different apparatus — so the frame is drawn as deliberately as the body.
+  ex_ghd_first: [
+    { k: 'rect', x: 6, y: 37.5, w: 34, h: 5, rx: 2, fill: 'glyph', o: 0.5 },
+    { k: 'rect', x: 30, y: 20, w: 6, h: 18, rx: 2, fill: 'glyph', o: 0.6 },
+    { k: 'rect', x: 14, y: 24, w: 14, h: 6, rx: 3, fill: 'glyph' },
+    { k: 'path', d: 'M16 26 C9 24 7 18 8 13.5', stroke: 'glyph', sw: 5 },
+    { k: 'circle', cx: 8, cy: 9.5, r: 4, fill: 'glyph' },
+    { k: 'path', d: 'M28 27 L32 25', stroke: 'glyph', sw: 4.5 },
+  ],
+
+  // Chest supported on the bench, rowing the bar underneath it.
+  ex_seal_row_first: [
+    { k: 'rect', x: 7, y: 21, w: 32, h: 5, rx: 2.5, fill: 'glyph', o: 0.5 },
+    { k: 'path', d: 'M13 17 L32 17', stroke: 'glyph', sw: 5.5 },
+    { k: 'circle', cx: 36, cy: 15.5, r: 3.8, fill: 'glyph' },
+    { k: 'path', d: 'M22 21 L22 31', stroke: 'glyph', sw: 3.4 },
+    { k: 'path', d: 'M11 33 L37 33', stroke: 'glyph', sw: 3.6 },
+    { k: 'circle', cx: 10, cy: 33, r: 3.2, fill: 'glyph' },
+    { k: 'circle', cx: 38, cy: 33, r: 3.2, fill: 'glyph' },
+  ],
+
+  // The front rack is the distinction from the back squat in the Lower Body
+  // family: bar across the front of the shoulders, forearms vertical, elbows
+  // high. That pair of uprights flanking the head is the whole silhouette.
+  ex_front_squat_first: [
+    { k: 'path', d: 'M7 16 L41 16', stroke: 'glyph', sw: 4 },
+    { k: 'circle', cx: 11, cy: 16, r: 3.4, fill: 'glyph' },
+    { k: 'circle', cx: 37, cy: 16, r: 3.4, fill: 'glyph' },
+    { k: 'path', d: 'M18 16 L18 7.5', stroke: 'glyph', sw: 3.2 },
+    { k: 'path', d: 'M30 16 L30 7.5', stroke: 'glyph', sw: 3.2 },
+    { k: 'circle', cx: 24, cy: 10.5, r: 4, fill: 'glyph' },
+    { k: 'rect', x: 20, y: 19, w: 8, h: 11, rx: 3.5, fill: 'glyph' },
+    { k: 'path', d: 'M21 30 L14.5 36 L18 44', stroke: 'glyph', sw: 4.4 },
+    { k: 'path', d: 'M27 30 L33.5 36 L30 44', stroke: 'glyph', sw: 4.4 },
+  ],
+
+  // One end pinned to the floor, the other loaded.
+  ex_landmine_first: [
+    { k: 'path', d: 'M5 42 L43 42', stroke: 'glyph', sw: 2.6, o: 0.4 },
+    { k: 'rect', x: 5, y: 35, w: 10, h: 5, rx: 2, fill: 'glyph' },
+    { k: 'path', d: 'M10 37 L34 17', stroke: 'glyph', sw: 4 },
+    { k: 'circle', cx: 36, cy: 14, r: 6.5, stroke: 'glyph', sw: 3.5 },
+  ],
+
+  // The wheel, and the arc it rolls out through.
+  ex_ab_wheel_first: [
+    { k: 'path', d: 'M11 13 C18 8 30 8 37 13', stroke: 'glyph', sw: 2.6, o: 0.45 },
+    { k: 'circle', cx: 24, cy: 28, r: 11, stroke: 'glyph', sw: 4 },
+    { k: 'circle', cx: 24, cy: 28, r: 3, fill: 'glyph' },
+    { k: 'rect', x: 4, y: 25, w: 11, h: 6, rx: 3, fill: 'glyph' },
+    { k: 'rect', x: 33, y: 25, w: 11, h: 6, rx: 3, fill: 'glyph' },
+  ],
+};
+
+/**
+ * The drawing for a badge: its own if it has one, otherwise its family's.
+ *
+ * ex_ghd_10_sessions deliberately has no entry — it is the same movement as
+ * ex_ghd_first, ten sessions deeper, which is exactly the case the family
+ * drawing exists for.
+ */
+export function glyphFor(category: BadgeCategory, badgeId?: string): ArtShape[] {
+  if (badgeId) {
+    const own = BADGE_ID_GLYPHS[badgeId];
+    if (own) return own;
+  }
+  return BADGE_GLYPHS[category] ?? [];
+}
+
+/**
  * The metal each tier is struck in.
  *
  * `glyph` is deliberately darker than `base`: the glyph sits on the silver face,

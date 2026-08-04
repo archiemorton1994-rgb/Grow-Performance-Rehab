@@ -34,7 +34,9 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const { BADGE_GLYPHS, TIER_METALS, LOCKED_METAL } = await import('../lib/badge-art.ts');
+const { BADGE_GLYPHS, BADGE_ID_GLYPHS, TIER_METALS, LOCKED_METAL } = await import(
+  '../lib/badge-art.ts'
+);
 const { BADGE_CATEGORY_LABELS, BADGE_TIER_COLORS, BADGE_CATALOG } = await import('../lib/badges.ts');
 
 let failures = 0;
@@ -91,6 +93,32 @@ check(
   'every family has its own drawing',
   shared.length === 0,
   shared.length ? shared.map((l) => l.join(' = ')).join('; ') : ''
+);
+
+// Per-badge drawings exist to tell badges within one family apart. Two of them
+// being identical defeats the entire point of overriding the family glyph.
+const byOwnShape = new Map();
+for (const [id, shapes] of Object.entries(BADGE_ID_GLYPHS)) {
+  const key = JSON.stringify(shapes);
+  const list = byOwnShape.get(key) ?? [];
+  list.push(id);
+  byOwnShape.set(key, list);
+}
+const sharedOwn = [...byOwnShape.values()].filter((l) => l.length > 1);
+check(
+  `all ${Object.keys(BADGE_ID_GLYPHS).length} per-badge drawings are distinct`,
+  sharedOwn.length === 0,
+  sharedOwn.length ? sharedOwn.map((l) => l.join(' = ')).join('; ') : ''
+);
+
+// A per-badge drawing keyed to an id that no longer exists is dead art, and —
+// worse — silently means the badge it was meant for shows the family glyph.
+const catalogIds = new Set(BADGE_CATALOG.map((b) => b.id));
+const danglingIds = Object.keys(BADGE_ID_GLYPHS).filter((id) => !catalogIds.has(id));
+check(
+  'every per-badge drawing maps to a badge that exists',
+  danglingIds.length === 0,
+  danglingIds.length ? `no such badge: ${danglingIds.join(', ')}` : ''
 );
 
 // ─── 3. Fit ───────────────────────────────────────────────────────────────────
@@ -159,10 +187,13 @@ function shapeRadius(s) {
 }
 
 const overflowing = [];
-for (const [cat, shapes] of Object.entries(BADGE_GLYPHS)) {
+for (const [name, shapes] of [
+  ...Object.entries(BADGE_GLYPHS),
+  ...Object.entries(BADGE_ID_GLYPHS),
+]) {
   let worst = 0;
   for (const s of shapes) worst = Math.max(worst, shapeRadius(s));
-  if (worst > MAX_R) overflowing.push(`${cat} reaches ${worst.toFixed(1)} of ${MAX_R.toFixed(1)}`);
+  if (worst > MAX_R) overflowing.push(`${name} reaches ${worst.toFixed(1)} of ${MAX_R.toFixed(1)}`);
 }
 check(
   `all artwork fits inside the ${FACE_R}-unit medal face`,

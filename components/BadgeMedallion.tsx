@@ -1,6 +1,6 @@
 import React from 'react';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { ArtShape, BADGE_GLYPHS, LOCKED_METAL, Metal, TIER_METALS } from '@/lib/badge-art';
+import { ArtShape, glyphFor, LOCKED_METAL, Metal, TIER_METALS } from '@/lib/badge-art';
 import type { BadgeCategory, BadgeTier } from '@/lib/badges';
 
 /**
@@ -102,6 +102,9 @@ function Glyph({ shapes, metal }: { shapes: ArtShape[]; metal: Metal }) {
 export interface BadgeMedallionProps {
   category: BadgeCategory;
   tier: BadgeTier;
+  /** Lets a badge carry its own drawing instead of its family's. Only Exercise
+   *  Milestones use this — every badge there is a different exercise. */
+  badgeId?: string;
   /** Locked badges are struck in the same die in a dead grey metal. There is no
    *  padlock: a grey medal beside a coloured one already says it, and a lock
    *  chip on every locked tile is what made the old grid look like a form. */
@@ -109,14 +112,20 @@ export interface BadgeMedallionProps {
   size: number;
 }
 
-function BadgeMedallionImpl({ category, tier, locked = false, size }: BadgeMedallionProps) {
+function BadgeMedallionImpl({
+  category,
+  tier,
+  badgeId,
+  locked = false,
+  size,
+}: BadgeMedallionProps) {
   // Fall back rather than dereference undefined. tests/badge-glyph-coverage
   // proves every current badge resolves today, but TIER_METALS and BADGE_GLYPHS
   // are plain object lookups: adding a BadgeCategory without artwork would
   // return undefined and throw on the next line. A blank medal is a far better
   // failure than taking the screen down.
   const metal = (locked ? LOCKED_METAL : TIER_METALS[tier]) ?? LOCKED_METAL;
-  const shapes = BADGE_GLYPHS[category] ?? [];
+  const shapes = glyphFor(category, badgeId);
   const detail = size >= DETAIL_MIN_SIZE;
 
   // Gradient ids are shared by every medallion of the same appearance. On web
