@@ -21,7 +21,7 @@
  * axes: the renderer insets it into the medallion face, and anything nearer the
  * corners than that will foul the rim.
  */
-import type { BadgeCategory } from '@/lib/badges';
+import type { BadgeCategory, BadgeTier } from '@/lib/badges';
 
 /**
  * Which of the medallion's two colours a shape is painted in.
@@ -299,7 +299,7 @@ export interface Metal {
   face: [string, string];
 }
 
-export const TIER_METALS: Record<string, Metal> = {
+export const TIER_METALS: Record<BadgeTier, Metal> = {
   bronze: {
     light: '#E2A574',
     base: '#B0764A',

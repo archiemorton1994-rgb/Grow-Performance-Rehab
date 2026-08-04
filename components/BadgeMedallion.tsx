@@ -110,8 +110,13 @@ export interface BadgeMedallionProps {
 }
 
 function BadgeMedallionImpl({ category, tier, locked = false, size }: BadgeMedallionProps) {
-  const metal = locked ? LOCKED_METAL : TIER_METALS[tier];
-  const shapes = BADGE_GLYPHS[category];
+  // Fall back rather than dereference undefined. tests/badge-glyph-coverage
+  // proves every current badge resolves today, but TIER_METALS and BADGE_GLYPHS
+  // are plain object lookups: adding a BadgeCategory without artwork would
+  // return undefined and throw on the next line. A blank medal is a far better
+  // failure than taking the screen down.
+  const metal = (locked ? LOCKED_METAL : TIER_METALS[tier]) ?? LOCKED_METAL;
+  const shapes = BADGE_GLYPHS[category] ?? [];
   const detail = size >= DETAIL_MIN_SIZE;
 
   // Gradient ids are shared by every medallion of the same appearance. On web

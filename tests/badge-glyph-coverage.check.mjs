@@ -211,17 +211,21 @@ check('glyph ink is legible on every face', weak.length === 0, weak.join('; '));
 // ─── 5. No Ionicons left on a badge ───────────────────────────────────────────
 console.log('\n[5] Regression — badges are not rendered with UI icons again');
 
-const screens = ['../app/achievements.tsx', '../components/AchievementUnlockedSheet.tsx'];
-const leftovers = [];
-for (const rel of screens) {
-  const src = readFileSync(join(__dir, rel), 'utf8');
-  // `badge.icon` / `b.icon` / `detailBadge.icon` fed to an Ionicons name prop.
-  if (/name=\{[A-Za-z]*[Bb]adge?\.icon/.test(src)) leftovers.push(rel);
-}
+// Scoped to the achievements screen only, deliberately.
+//
+// components/AchievementUnlockedSheet.tsx is NOT covered. It renders as a
+// root-level Modal over the home screen, and after commit 6e0df77 put a
+// medallion in it the app froze on Home for the user with no reproduction and
+// no crash log — so it was reverted to the artwork it shipped with while that
+// is still unexplained. Asserting "no Ionicons" there would force the risky
+// version back in. Do not widen this list without a device reproduction.
+const src = readFileSync(join(__dir, '../app/achievements.tsx'), 'utf8');
+// `badge.icon` / `detailBadge.icon` fed to an Ionicons name prop.
+const leftover = /name=\{[A-Za-z]*[Bb]adge?\.icon/.test(src);
 check(
-  'no badge is drawn with an Ionicons glyph',
-  leftovers.length === 0,
-  leftovers.length ? `still using badge.icon: ${leftovers.join(', ')}` : ''
+  'the achievements screen draws no badge with an Ionicons glyph',
+  !leftover,
+  leftover ? 'app/achievements.tsx is still using badge.icon' : ''
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

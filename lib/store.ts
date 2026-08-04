@@ -1133,12 +1133,28 @@ export const useAppStore = create<AppState>()(
           tourJustCompleted: _tourJustCompleted,
           tourActiveTab: _tourActiveTab,
           tourSkipNonce: _tourSkipNonce,
+          // newlyUnlockedBadges is a queue of pop-ups still to show, not a
+          // record of anything. What the user actually owns is `earnedBadges`,
+          // which is persisted. Storing the queue meant any failure to present
+          // or dismiss the achievement sheet became PERMANENT: the sheet is a
+          // root-level Modal, the queue only clears once the user dismisses it,
+          // and it came straight back on the next cold start. A bug in one
+          // pop-up could brick the whole app past a reboot, with no way out but
+          // wiping app data. Worst case now is a celebration nobody sees; the
+          // badge itself is never at risk.
+          newlyUnlockedBadges: _pendingToasts,
           ...persisted
         } = state;
         return persisted as typeof state;
       },
       onRehydrateStorage: () => (state) => {
-        if (state) state.setHasHydrated(true);
+        if (state) {
+          // Drop any queue written by a build that still persisted it, before
+          // anything can render it. Without this the stale value is merged back
+          // in on first load and the trap survives the fix.
+          if (state.newlyUnlockedBadges.length > 0) state.clearNewlyUnlockedBadges();
+          state.setHasHydrated(true);
+        }
       },
       migrate: (persistedState: any, version: number) => {
         // 'elbow_wrist' was split into separate 'elbow' and 'wrist' regions.
