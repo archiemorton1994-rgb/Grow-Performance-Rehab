@@ -209,8 +209,7 @@ function getNextHint(
   }
   const streak = exerciseNormalStreak[exerciseId] ?? 0;
   if (perf === 'easy' || streak >= 3) {
-    const why =
-      perf === 'easy' ? 'You rated this easy' : `${streak} clean sessions in a row`;
+    const why = perf === 'easy' ? 'You rated this easy' : `${streak} clean sessions in a row`;
     return `Next time: up to ${formatWeight(bestWeightKg + 5, weightUnit)}. ${why}.`;
   }
   return `Next time: up to ${formatWeight(bestWeightKg + 2.5, weightUnit)}. Clean session.`;
@@ -348,8 +347,8 @@ function ProgressTab({
             style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: P.muted, lineHeight: 19 }}
           >
             Your next weight comes from what you actually lifted, not the suggestion. A clean
-            session nudges it up, a tough one holds it, and a run of clean sessions earns a
-            bigger jump.
+            session nudges it up, a tough one holds it, and a run of clean sessions earns a bigger
+            jump.
           </Text>
         </View>
 
@@ -880,7 +879,31 @@ export default function SessionSummaryScreen() {
     (s) => s.sessionType === session.sessionType
   ).length;
 
-  const heroKind: 'test' | 'pb' | 'milestone' | 'default' = testedOrm
+  // Bodyweight and band tests log reps against a zero weight, so the 1RM path
+  // above never fires for them — those users used to finish a whole test week
+  // with nothing recorded and a summary that looked like any other session.
+  // For them the rep count IS the result, and it is already in the session log.
+  // The test protocol is always [ramp-up, test set], so the test set is last.
+  const testMainLog = session.isTestWeek
+    ? session.exerciseLogs[session.exerciseLogs.length - 1]
+    : undefined;
+  const testRepsSet = testMainLog?.sets.find((s) => s.completed && s.reps > 0);
+  const testedReps = !testedOrm && testRepsSet?.weight === 0 ? testRepsSet.reps : null;
+
+  // completedSessions is newest-first and already contains this session, so
+  // skipping by id finds the previous test of the same lift.
+  const previousTestSession = completedSessions.find(
+    (s) => s.id !== session.id && s.isTestWeek && s.sessionType === session.sessionType
+  );
+  const previousTestReps =
+    previousTestSession?.exerciseLogs[previousTestSession.exerciseLogs.length - 1]?.sets.find(
+      (s) => s.completed && s.reps > 0
+    )?.reps ?? null;
+  const testDeltaReps =
+    testedReps !== null && previousTestReps !== null ? testedReps - previousTestReps : null;
+
+  const isTestHero = Boolean(testedOrm) || testedReps !== null;
+  const heroKind: 'test' | 'pb' | 'milestone' | 'default' = isTestHero
     ? 'test'
     : isMilestone
       ? 'milestone'
@@ -891,32 +914,59 @@ export default function SessionSummaryScreen() {
   const heroNumber =
     heroKind === 'test' && testedOrm
       ? kgToDisplayUnit(testedOrm.weight, weightUnit)
-      : heroKind === 'pb' && bestPbRow
-        ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
-      : heroKind === 'milestone'
-        ? sessionNumber
-        : topWeightKg > 0
-          ? kgToDisplayUnit(topWeightKg, weightUnit)
-          : summary.totalSets;
+      : heroKind === 'test' && testedReps !== null
+        ? testedReps
+        : heroKind === 'pb' && bestPbRow
+          ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
+          : heroKind === 'milestone'
+            ? sessionNumber
+            : topWeightKg > 0
+              ? kgToDisplayUnit(topWeightKg, weightUnit)
+              : summary.totalSets;
   const heroUnit =
-    heroKind === 'milestone' ? '' : heroKind === 'default' && topWeightKg === 0 ? 'sets' : weightUnit;
+    heroKind === 'test' && testedReps !== null
+      ? testedReps === 1
+        ? 'rep'
+        : 'reps'
+      : heroKind === 'milestone'
+        ? ''
+        : heroKind === 'default' && topWeightKg === 0
+          ? 'sets'
+          : weightUnit;
   const heroBadgeLabel =
     heroKind === 'test'
-      ? `${liftName} one-rep max`
+      ? testedReps !== null
+        ? `${liftName} max reps`
+        : `${liftName} one-rep max`
       : heroKind === 'pb'
         ? 'New personal best'
         : heroKind === 'milestone'
           ? 'Milestone session'
           : null;
+  const repsWord = (n: number) => `${n} rep${n === 1 ? '' : 's'}`;
+
+  /**
+   * Caption for a test result, in whichever unit that lift is measured in —
+   * kilos for a weighted test, reps for a bodyweight one. Covers a drop
+   * honestly: plenty of real test weeks go backwards, and saying so is better
+   * than the app pretending it did not happen.
+   */
+  const testCaption = (delta: number | null, format: (n: number) => string): string => {
+    if (delta === null) {
+      return `Your first tested ${liftName.toLowerCase()} max. This is the number everything else is measured against.`;
+    }
+    if (delta > 0) {
+      return `Up ${format(delta)} on your last test. That is ${liftSessionCount} sessions of work showing up.`;
+    }
+    if (delta === 0) return 'Level with your last test. Holding a max is its own result.';
+    return `Down ${format(Math.abs(delta))} on your last test. One number on one day — it happens.`;
+  };
+
   const heroCaption =
     heroKind === 'test'
-      ? testDeltaKg === null
-        ? `Your first tested ${liftName.toLowerCase()} max. This is the number everything else is measured against.`
-        : testDeltaKg > 0
-          ? `Up ${formatWeight(testDeltaKg, weightUnit)} on your last test. That is ${liftSessionCount} sessions of work showing up.`
-          : testDeltaKg === 0
-            ? `Level with your last test. Holding a max is its own result.`
-            : `Down ${formatWeight(Math.abs(testDeltaKg), weightUnit)} on your last test. One number on one day — it happens.`
+      ? testedReps !== null
+        ? testCaption(testDeltaReps, repsWord)
+        : testCaption(testDeltaKg, (n) => formatWeight(n, weightUnit))
       : heroKind === 'pb' && bestPbRow
         ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
         : heroKind === 'milestone'
@@ -929,28 +979,38 @@ export default function SessionSummaryScreen() {
 
   // On a test the rail carries the story of this lift rather than today's
   // duration and set count, which are beside the point on a two-exercise test.
+  const testRail = (
+    previous: string,
+    delta: number | null,
+    format: (n: number) => string
+  ): { label: string; value: string; accent?: boolean }[] => [
+    { label: 'Previous', value: previous },
+    {
+      label: 'Change',
+      value: delta === null ? 'First' : `${delta >= 0 ? '+' : '−'}${format(Math.abs(delta))}`,
+      accent: delta !== null && delta > 0,
+    },
+    { label: `${liftName} sessions`, value: String(liftSessionCount) },
+  ];
+
   const stats: { label: string; value: string; accent?: boolean }[] =
-    heroKind === 'test' && testedOrm
-      ? [
-          {
-            label: 'Previous',
-            value: previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '—',
-          },
-          {
-            label: 'Change',
-            value:
-              testDeltaKg === null
-                ? 'First'
-                : `${testDeltaKg >= 0 ? '+' : '−'}${formatWeight(Math.abs(testDeltaKg), weightUnit)}`,
-            accent: testDeltaKg !== null && testDeltaKg > 0,
-          },
-          { label: `${liftName} sessions`, value: String(liftSessionCount) },
-        ]
-      : [
-          { label: 'Duration', value: durationLabel },
-          { label: 'Sets', value: String(summary.totalSets) },
-          { label: 'Muscles', value: String(musclesHit) },
-        ];
+    heroKind === 'test' && testedReps !== null
+      ? testRail(
+          previousTestReps !== null ? repsWord(previousTestReps) : '—',
+          testDeltaReps,
+          repsWord
+        )
+      : heroKind === 'test' && testedOrm
+        ? testRail(
+            previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '—',
+            testDeltaKg,
+            (n) => formatWeight(n, weightUnit)
+          )
+        : [
+            { label: 'Duration', value: durationLabel },
+            { label: 'Sets', value: String(summary.totalSets) },
+            { label: 'Muscles', value: String(musclesHit) },
+          ];
 
   return (
     <View style={[styles.container, { backgroundColor: SAGE.outerBg }]}>
@@ -1023,173 +1083,173 @@ export default function SessionSummaryScreen() {
             }}
           />
         ) : (
-        <>
-        <View style={styles.cardWrap}>
-          {/* Certificate card (this View is captured for sharing) */}
-          <Animated.View entering={FadeIn.duration(450)}>
-            <View ref={certRef} collapsable={false} style={styles.card}>
-              <LinearGradient
-                colors={SAGE.cardGradient}
-                style={StyleSheet.absoluteFillObject}
-                pointerEvents="none"
-              />
-              {/* Top line: brand + date */}
-              <View style={styles.cardHeader}>
-                <View style={styles.brandRow}>
-                  <View style={styles.logoCircle}>
-                    <Image
-                      source={require('@/assets/images/logo.png')}
-                      style={styles.logoImg}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <Text style={styles.brandText}>GROW</Text>
-                </View>
-                <Text style={styles.dateText}>{formatDate(session.date)}</Text>
-              </View>
-
-              {/* Hero: the single biggest thing that happened this session */}
-              <Animated.View
-                entering={FadeInDown.duration(500).delay(80)}
-                style={styles.heroPanel}
-              >
-                {heroBadgeLabel && (
-                  <View style={styles.heroBadge}>
-                    <Ionicons name="trophy" size={11} color={SAGE.accent} />
-                    <Text style={styles.heroBadgeText}>{heroBadgeLabel.toUpperCase()}</Text>
-                  </View>
-                )}
-                <View style={styles.heroNumberRow}>
-                  <Text style={styles.heroNumber} numberOfLines={1} adjustsFontSizeToFit>
-                    {heroNumber}
-                  </Text>
-                  {heroUnit ? <Text style={styles.heroUnit}>{heroUnit}</Text> : null}
-                </View>
-                <Text style={styles.heroCaption} numberOfLines={2}>
-                  {heroCaption}
-                </Text>
-                {pbCount > 1 && (
-                  <Text style={styles.heroExtra} testID="pb-count-row">
-                    +{pbCount - 1} more personal best{pbCount > 2 ? 's' : ''} this session
-                  </Text>
-                )}
-                <View style={styles.heroSessionRow}>
-                  <Text style={styles.heroSessionName} numberOfLines={1}>
-                    {session.displayLabel ?? getSessionLabel(session.sessionType)}
-                  </Text>
-                  <View style={styles.heroDot} />
-                  <Text style={styles.heroSessionNum}>Session {sessionNumber}</Text>
-                  {session.isTestWeek && (
-                    <View style={styles.testPill}>
-                      <Text style={styles.testPillText}>TEST WEEK</Text>
+          <>
+            <View style={styles.cardWrap}>
+              {/* Certificate card (this View is captured for sharing) */}
+              <Animated.View entering={FadeIn.duration(450)}>
+                <View ref={certRef} collapsable={false} style={styles.card}>
+                  <LinearGradient
+                    colors={SAGE.cardGradient}
+                    style={StyleSheet.absoluteFillObject}
+                    pointerEvents="none"
+                  />
+                  {/* Top line: brand + date */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.brandRow}>
+                      <View style={styles.logoCircle}>
+                        <Image
+                          source={require('@/assets/images/logo.png')}
+                          style={styles.logoImg}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <Text style={styles.brandText}>GROW</Text>
                     </View>
-                  )}
+                    <Text style={styles.dateText}>{formatDate(session.date)}</Text>
+                  </View>
+
+                  {/* Hero: the single biggest thing that happened this session */}
+                  <Animated.View
+                    entering={FadeInDown.duration(500).delay(80)}
+                    style={styles.heroPanel}
+                  >
+                    {heroBadgeLabel && (
+                      <View style={styles.heroBadge}>
+                        <Ionicons name="trophy" size={11} color={SAGE.accent} />
+                        <Text style={styles.heroBadgeText}>{heroBadgeLabel.toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={styles.heroNumberRow}>
+                      <Text style={styles.heroNumber} numberOfLines={1} adjustsFontSizeToFit>
+                        {heroNumber}
+                      </Text>
+                      {heroUnit ? <Text style={styles.heroUnit}>{heroUnit}</Text> : null}
+                    </View>
+                    <Text style={styles.heroCaption} numberOfLines={2}>
+                      {heroCaption}
+                    </Text>
+                    {pbCount > 1 && (
+                      <Text style={styles.heroExtra} testID="pb-count-row">
+                        +{pbCount - 1} more personal best{pbCount > 2 ? 's' : ''} this session
+                      </Text>
+                    )}
+                    <View style={styles.heroSessionRow}>
+                      <Text style={styles.heroSessionName} numberOfLines={1}>
+                        {session.displayLabel ?? getSessionLabel(session.sessionType)}
+                      </Text>
+                      <View style={styles.heroDot} />
+                      <Text style={styles.heroSessionNum}>Session {sessionNumber}</Text>
+                      {session.isTestWeek && (
+                        <View style={styles.testPill}>
+                          <Text style={styles.testPillText}>TEST WEEK</Text>
+                        </View>
+                      )}
+                    </View>
+                  </Animated.View>
+
+                  {/* Stat rail */}
+                  <Animated.View
+                    entering={FadeInDown.duration(450).delay(160)}
+                    style={styles.statRail}
+                  >
+                    {stats.map((s) => (
+                      <View key={s.label} style={styles.statTile}>
+                        <Text style={styles.statLabel} numberOfLines={1}>
+                          {s.label.toUpperCase()}
+                        </Text>
+                        <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+                          {s.value}
+                        </Text>
+                      </View>
+                    ))}
+                  </Animated.View>
+
+                  {/* Body diagram */}
+                  <Animated.View
+                    entering={FadeInDown.duration(450).delay(220)}
+                    style={styles.mapPanel}
+                  >
+                    <View style={styles.diagramRow}>
+                      <View style={styles.diagramCol}>
+                        <BodyDiagram
+                          compact
+                          defaultView="front"
+                          heatmapCounts={heatmap}
+                          maxWidth={bodyMaxWidth}
+                          onSelect={() => {}}
+                        />
+                        <Text style={styles.diagramLabel}>FRONT</Text>
+                      </View>
+                      <View style={styles.diagramCol}>
+                        <BodyDiagram
+                          compact
+                          defaultView="back"
+                          heatmapCounts={heatmap}
+                          maxWidth={bodyMaxWidth}
+                          onSelect={() => {}}
+                        />
+                        <Text style={styles.diagramLabel}>BACK</Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+
+                  {/* Footer */}
+                  <View style={styles.cardFooter}>
+                    {streakDays >= 1 ? (
+                      <View style={styles.footerStreak}>
+                        <Ionicons name="flame" size={13} color={SAGE.accent} />
+                        <Text style={styles.footerStreakText}>
+                          {streakDays} day{streakDays > 1 ? 's' : ''} streak
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.footerStreakText}>Keep it going</Text>
+                    )}
+                    <Text style={styles.footerBrand}>growperformanceandrehab.com</Text>
+                  </View>
                 </View>
               </Animated.View>
-
-              {/* Stat rail */}
-              <Animated.View
-                entering={FadeInDown.duration(450).delay(160)}
-                style={styles.statRail}
-              >
-                {stats.map((s) => (
-                  <View key={s.label} style={styles.statTile}>
-                    <Text style={styles.statLabel} numberOfLines={1}>
-                      {s.label.toUpperCase()}
-                    </Text>
-                    <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
-                      {s.value}
-                    </Text>
-                  </View>
-                ))}
-              </Animated.View>
-
-              {/* Body diagram */}
-              <Animated.View
-                entering={FadeInDown.duration(450).delay(220)}
-                style={styles.mapPanel}
-              >
-                <View style={styles.diagramRow}>
-                  <View style={styles.diagramCol}>
-                    <BodyDiagram
-                      compact
-                      defaultView="front"
-                      heatmapCounts={heatmap}
-                      maxWidth={bodyMaxWidth}
-                      onSelect={() => {}}
-                    />
-                    <Text style={styles.diagramLabel}>FRONT</Text>
-                  </View>
-                  <View style={styles.diagramCol}>
-                    <BodyDiagram
-                      compact
-                      defaultView="back"
-                      heatmapCounts={heatmap}
-                      maxWidth={bodyMaxWidth}
-                      onSelect={() => {}}
-                    />
-                    <Text style={styles.diagramLabel}>BACK</Text>
-                  </View>
-                </View>
-              </Animated.View>
-
-              {/* Footer */}
-              <View style={styles.cardFooter}>
-                {streakDays >= 1 ? (
-                  <View style={styles.footerStreak}>
-                    <Ionicons name="flame" size={13} color={SAGE.accent} />
-                    <Text style={styles.footerStreakText}>
-                      {streakDays} day{streakDays > 1 ? 's' : ''} streak
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={styles.footerStreakText}>Keep it going</Text>
-                )}
-                <Text style={styles.footerBrand}>growperformanceandrehab.com</Text>
-              </View>
             </View>
-          </Animated.View>
-        </View>
 
-        {/* Actions (not captured) */}
-        <Animated.View entering={FadeInDown.delay(280).duration(420)} style={styles.actionRow}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowRatingModal(true);
-            }}
-            style={styles.actionBtn}
-            testID="open-rate-modal"
-          >
-            <Ionicons name="thumbs-up-outline" size={18} color={SAGE.text} />
-            <Text style={styles.actionBtnText}>Rate</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleSave}
-            disabled={isSaving}
-            style={[styles.actionBtn, isSaving && { opacity: 0.5 }]}
-            testID="save-workout"
-          >
-            <Ionicons
-              name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
-              size={18}
-              color={SAGE.text}
-            />
-            <Text style={styles.actionBtnText}>
-              {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={handleShare}
-            disabled={isSharing}
-            style={[styles.actionBtnPrimary, isSharing && { opacity: 0.5 }]}
-            testID="share-workout"
-          >
-            <Ionicons name="share-outline" size={18} color={SAGE.cardGradient[0]} />
-            <Text style={styles.actionBtnPrimaryText}>{isSharing ? '…' : 'Share'}</Text>
-          </Pressable>
-        </Animated.View>
-        </>
+            {/* Actions (not captured) */}
+            <Animated.View entering={FadeInDown.delay(280).duration(420)} style={styles.actionRow}>
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowRatingModal(true);
+                }}
+                style={styles.actionBtn}
+                testID="open-rate-modal"
+              >
+                <Ionicons name="thumbs-up-outline" size={18} color={SAGE.text} />
+                <Text style={styles.actionBtnText}>Rate</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSave}
+                disabled={isSaving}
+                style={[styles.actionBtn, isSaving && { opacity: 0.5 }]}
+                testID="save-workout"
+              >
+                <Ionicons
+                  name={saveConfirmed ? 'checkmark-circle-outline' : 'download-outline'}
+                  size={18}
+                  color={SAGE.text}
+                />
+                <Text style={styles.actionBtnText}>
+                  {isSaving ? '…' : saveConfirmed ? 'Saved!' : 'Save'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleShare}
+                disabled={isSharing}
+                style={[styles.actionBtnPrimary, isSharing && { opacity: 0.5 }]}
+                testID="share-workout"
+              >
+                <Ionicons name="share-outline" size={18} color={SAGE.cardGradient[0]} />
+                <Text style={styles.actionBtnPrimaryText}>{isSharing ? '…' : 'Share'}</Text>
+              </Pressable>
+            </Animated.View>
+          </>
         )}
 
         {/* Session notes */}
@@ -1232,7 +1292,6 @@ export default function SessionSummaryScreen() {
             blurOnSubmit
           />
         </View>
-
       </KeyboardAwareScrollView>
 
       {/* Pinned footer — Done sits outside the scroll view so it is always on
