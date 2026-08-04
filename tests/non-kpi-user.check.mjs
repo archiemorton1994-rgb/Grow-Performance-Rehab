@@ -96,30 +96,93 @@ check(
 console.log('\n[3] The home suggestion follows what you actually train');
 
 check(
-  'a non-KPI rotation exists',
-  /export const NON_KPI_ROTATION: SessionType\[\]/.test(store),
+  'the decision is made on a recent window, not an all-time count',
+  /export const RECENT_WINDOW = ([2-9]|\d\d)/.test(store) &&
+    /const recent = completedSessions\.slice\(0, RECENT_WINDOW\)/.test(store),
+  'an all-time count means one squat two years ago pins someone to the barbell rotation forever'
+);
+check(
+  'a recent lift keeps the strength rotation exactly as it was',
+  /if \(liftsRecently \|\| completedSessions\.length < NON_KPI_EVIDENCE\) \{\s*\n\s*return SESSION_ORDER/.test(
+    store
+  ),
   ''
-);
-check(
-  'it contains no KPI lift',
-  !/NON_KPI_ROTATION[\s\S]{0,200}?'(squat|bench|deadlift)'/.test(store),
-  'the whole point is that it suggests something else'
-);
-check(
-  'getCurrentSessionType can return a non-KPI type',
-  /if \(completedSessions\.length >= NON_KPI_EVIDENCE\) \{\s*\n\s*return NON_KPI_ROTATION/.test(store),
-  ''
-);
-check(
-  'it only diverts when there is zero barbell history',
-  /if \(strengthCount > 0\) return SESSION_ORDER/.test(store),
-  'anyone who does lift must keep the strength rotation exactly as it was'
 );
 check(
   'the divert needs more than one session of evidence',
   /export const NON_KPI_EVIDENCE = ([2-9]|\d\d)/.test(store),
   'switching on the first non-strength session would be too twitchy'
 );
+check(
+  'the suggestion comes from the types they have actually trained',
+  /const vocabulary: SessionType\[\] = \[\];/.test(store),
+  'a fixed fallback rotation would just be a different arbitrary default'
+);
+check(
+  "'custom' is never suggested",
+  /if \(s\.sessionType === 'custom'\) continue;/.test(store),
+  'generateWorkout returns [] for custom, so suggesting it hands the user an empty workout'
+);
+
+// ─── 3b. Behaviour, run against the real constants ───────────────────────────
+console.log('\n[3b] The suggestion, simulated');
+
+// Read the constants out of the source rather than importing it: lib/store.ts
+// pulls in '@/lib/...' as runtime values and plain node cannot resolve the
+// alias. Extraction is asserted below, so a rename fails loudly here instead of
+// silently simulating against stale defaults.
+const grab = (re, label) => {
+  const m = store.match(re);
+  check(`read ${label} from lib/store.ts`, m != null, 'constant renamed or removed?');
+  return m;
+};
+const SESSION_ORDER = (
+  grab(/export const SESSION_ORDER: SessionType\[\] = \[([^\]]+)\]/, 'SESSION_ORDER')?.[1] ?? ''
+)
+  .split(',')
+  .map((s) => s.trim().replace(/'/g, ''))
+  .filter(Boolean);
+const RECENT_WINDOW = Number(
+  grab(/export const RECENT_WINDOW = (\d+)/, 'RECENT_WINDOW')?.[1] ?? NaN
+);
+const NON_KPI_EVIDENCE = Number(
+  grab(/export const NON_KPI_EVIDENCE = (\d+)/, 'NON_KPI_EVIDENCE')?.[1] ?? NaN
+);
+const NON_KPI_FALLBACK =
+  grab(/export const NON_KPI_FALLBACK: SessionType = '([a-z_]+)'/, 'NON_KPI_FALLBACK')?.[1] ?? '';
+
+// Mirror of getCurrentSessionType's non-test-week path. History is newest-first,
+// as completedSessions is.
+function suggest(history, cycleStartOffset = 0) {
+  const sessions = history.map((t) => ({ sessionType: t }));
+  const strengthCount = sessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).length;
+  const recent = sessions.slice(0, RECENT_WINDOW);
+  const liftsRecently = recent.some((s) => SESSION_ORDER.includes(s.sessionType));
+  if (liftsRecently || sessions.length < NON_KPI_EVIDENCE) {
+    return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
+  }
+  const vocabulary = [];
+  for (const s of sessions) {
+    if (SESSION_ORDER.includes(s.sessionType)) continue;
+    if (s.sessionType === 'custom') continue;
+    if (!vocabulary.includes(s.sessionType)) vocabulary.push(s.sessionType);
+  }
+  return vocabulary.length > 0 ? vocabulary[vocabulary.length - 1] : NON_KPI_FALLBACK;
+}
+
+const scenarios = [
+  ['four conditioning sessions is answered with conditioning', ['conditioning', 'conditioning', 'conditioning', 'conditioning'], 'conditioning'],
+  ['eight rehab sessions is answered with rehab', Array(8).fill('prehab'), 'prehab'],
+  ['a lifter mid-cycle keeps the rotation', ['bench', 'squat', 'deadlift', 'bench', 'squat'], 'deadlift'],
+  ['a lifter who spent six sessions rehabbing is offered rehab', ['prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'deadlift', 'bench', 'squat'], 'prehab'],
+  ['and one squat restores the rotation where it left off', ['squat', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'deadlift', 'bench', 'squat'], 'bench'],
+  ['a custom-only user is never handed an empty custom session', ['custom', 'custom', 'custom', 'custom'], NON_KPI_FALLBACK],
+  ['custom plus conditioning suggests the conditioning', ['custom', 'conditioning', 'custom', 'conditioning'], 'conditioning'],
+];
+for (const [label, history, expected] of scenarios) {
+  const got = suggest(history);
+  check(label, got === expected, `got "${got}", expected "${expected}"`);
+}
 
 // ─── 4. The countdown is hidden when there is nothing to count to ────────────
 console.log('\n[4] Home does not count down to an event that will not happen');

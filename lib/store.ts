@@ -525,22 +525,21 @@ interface AppState {
 export const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
 /**
- * What the home screen suggests to someone who does not lift the big three.
+ * How many recent sessions the home suggestion looks at to decide whether
+ * someone is training the barbell lifts.
  *
- * A balanced spread of the session types that exist outside the KPI rotation,
- * so the suggestion moves with them instead of insisting on a barbell lift they
- * have never touched. See getCurrentSessionType.
+ * A window rather than an all-time count, so it corrects in BOTH directions: a
+ * lifter who spends a month rehabbing stops being told to squat, and the first
+ * squat they log brings the strength rotation straight back.
  */
-export const NON_KPI_ROTATION: SessionType[] = [
-  'full_body',
-  'conditioning',
-  'upper_body',
-  'lower_body',
-];
+export const RECENT_WINDOW = 6;
 
-/** How many sessions with zero barbell work before the home screen stops
- *  suggesting barbell work. Enough to be a pattern, not a one-off. */
+/** Sessions needed before the home screen will diverge from the default
+ *  suggestion at all. Enough to be a pattern, not a one-off. */
 export const NON_KPI_EVIDENCE = 3;
+
+/** Last-resort suggestion for someone with a history of nothing we can read. */
+export const NON_KPI_FALLBACK: SessionType = 'full_body';
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -935,29 +934,47 @@ export const useAppStore = create<AppState>()(
         const strengthCount = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)
         ).length;
-        if (strengthCount > 0) return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
 
         // Nobody has to lift the big three.
         //
         // This used to fall straight through to SESSION_ORDER[offset % 3] with
-        // strengthCount pinned at 0, so someone who trains conditioning,
+        // strengthCount pinned at 0, because the rotation filters non-strength
+        // sessions out before it counts. So someone who trains conditioning,
         // mobility or their own custom sessions was told "Today: Squat Session"
-        // on the home screen every single day, forever, no matter what they
-        // actually did. The rotation filters non-strength sessions out before
-        // it counts, so nothing they logged could ever move it.
+        // every single day, forever, and nothing they logged could move it.
         //
-        // After a few sessions with no barbell work at all, suggest from what
-        // they actually do instead. Deliberately conservative:
-        //   - it needs real evidence (NON_KPI_EVIDENCE sessions, none of them
-        //     strength) rather than switching on the first conditioning session
-        //   - the moment a KPI lift IS logged, strengthCount > 0 above takes
-        //     over again and the strength rotation resumes untouched
-        //   - Home is only a suggestion; every session type stays one tap away
-        //     on the Train tab regardless
-        if (completedSessions.length >= NON_KPI_EVIDENCE) {
-          return NON_KPI_ROTATION[completedSessions.length % NON_KPI_ROTATION.length];
+        // The decision is made on the RECENT window, not an all-time count, so
+        // it corrects both ways — a lifter who spends a month rehabbing stops
+        // being told to squat, and their first squat back restores the strength
+        // rotation exactly where it was (strengthCount is still all-time, so
+        // the cycle position is never lost).
+        const recent = completedSessions.slice(0, RECENT_WINDOW);
+        const liftsRecently = recent.some((s) => SESSION_ORDER.includes(s.sessionType));
+        if (liftsRecently || completedSessions.length < NON_KPI_EVIDENCE) {
+          return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
         }
-        return SESSION_ORDER[cycleStartOffset % 3];
+
+        // Suggest from the kinds of session they ACTUALLY do — the one they
+        // have trained least recently. Someone who only does conditioning is
+        // only ever offered conditioning; someone who mixes conditioning and
+        // mobility gets them alternately. It can never suggest a type they have
+        // never chosen, which is the whole point.
+        //
+        // 'custom' is excluded on purpose: generateWorkout returns [] for it
+        // (lib/workout-engine.ts), because a custom session is assembled by the
+        // user in the builder rather than generated. Suggesting it from the home
+        // card would hand them an empty workout. A custom-only user therefore
+        // falls through to NON_KPI_FALLBACK — pointing the home card at the
+        // builder instead is a separate piece of work.
+        const vocabulary: SessionType[] = [];
+        for (const s of completedSessions) {
+          if (SESSION_ORDER.includes(s.sessionType)) continue;
+          if (s.sessionType === 'custom') continue;
+          if (!vocabulary.includes(s.sessionType)) vocabulary.push(s.sessionType);
+        }
+        // completedSessions is newest-first, so the LAST entry gathered above is
+        // the one trained least recently.
+        return vocabulary.length > 0 ? vocabulary[vocabulary.length - 1] : NON_KPI_FALLBACK;
       },
 
       /**

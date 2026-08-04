@@ -35,6 +35,7 @@ import {
   FitnessGoal,
   Sex,
   SessionType,
+  TestWeekFrequency,
   TIER_ORDER,
   useAppStore,
 } from '@/lib/store';
@@ -195,6 +196,7 @@ export default function OnboardingScreen() {
     completedSessions,
     themePreference,
     setThemePreference,
+    setTestWeekFrequency,
   } = useAppStore();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -208,6 +210,8 @@ export default function OnboardingScreen() {
   const [ormSquat, setOrmSquat] = useState('');
   const [ormBench, setOrmBench] = useState('');
   const [ormDeadlift, setOrmDeadlift] = useState('');
+  // Default to the app's existing behaviour so doing nothing keeps test weeks on.
+  const [testFrequency, setTestFrequency] = useState<TestWeekFrequency>(12);
 
   const nameInputRef = useRef<TextInput>(null);
   const bwInputRef = useRef<TextInput>(null);
@@ -336,7 +340,19 @@ export default function OnboardingScreen() {
       bodyweightKg: parseFloat(bodyweight) || 75,
     });
     setEquipmentTiers(equipment);
-  }, [name, sex, experience, bodyweight, goals, equipment, setUserProfile, setEquipmentTiers]);
+    setTestWeekFrequency(testFrequency);
+  }, [
+    name,
+    sex,
+    experience,
+    bodyweight,
+    goals,
+    equipment,
+    testFrequency,
+    setUserProfile,
+    setEquipmentTiers,
+    setTestWeekFrequency,
+  ]);
 
   const handleNext = useCallback(() => {
     if (!canContinue()) return;
@@ -851,6 +867,48 @@ export default function OnboardingScreen() {
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
                 <Text style={styles.skipText}>{"I don't know my best lifts"}</Text>
               </Pressable>
+
+              {/* Asked here rather than on a screen of its own — this is already
+                  the one place the three lifts are named to the user, so it is
+                  where "and do you want to be tested on them" belongs. Two
+                  chips, a sensible default, and it is changeable in Settings, so
+                  nobody has to think hard about it now. */}
+              <View style={styles.testOptDivider} />
+              <Text style={styles.testOptTitle}>Test your strength periodically?</Text>
+              <Text style={styles.testOptHint}>
+                Every 12 sessions we&apos;d max out these three lifts to re-set your working
+                weights. Skip it if they&apos;re not part of your training.
+              </Text>
+              <View style={styles.testOptRow}>
+                {(
+                  [
+                    { value: 12 as const, label: 'Yes, test me' },
+                    { value: 'never' as const, label: 'No thanks' },
+                  ] as const
+                ).map((opt) => {
+                  const selected = testFrequency === opt.value;
+                  return (
+                    <Pressable
+                      key={String(opt.value)}
+                      onPress={() => {
+                        haptic();
+                        setTestFrequency(opt.value);
+                      }}
+                      style={[styles.testOptChip, selected && styles.testOptChipSelected]}
+                      testID={`onboarding-test-${opt.value}`}
+                    >
+                      <Text
+                        style={[
+                          styles.testOptChipText,
+                          selected && styles.testOptChipTextSelected,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </ScrollView>
           </View>
 
@@ -1281,6 +1339,56 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 14,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
+    },
+    testOptDivider: {
+      height: 1,
+      backgroundColor: C.borderLight,
+      alignSelf: 'stretch',
+      marginTop: 18,
+      marginBottom: 18,
+    },
+    testOptTitle: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center',
+    },
+    testOptHint: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      marginTop: 5,
+      paddingHorizontal: 6,
+    },
+    testOptRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 14,
+      alignSelf: 'stretch',
+    },
+    testOptChip: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    testOptChipSelected: {
+      backgroundColor: C.primaryMuted,
+      borderColor: C.primary,
+    },
+    testOptChipText: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
+    testOptChipTextSelected: {
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryDark,
     },
     footer: { paddingTop: 12 },
     continueBtn: {
