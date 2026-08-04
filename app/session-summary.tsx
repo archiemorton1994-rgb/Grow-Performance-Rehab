@@ -28,6 +28,7 @@ import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
   CompletedSession,
+  SESSION_ORDER,
   SetLog,
   ExerciseCategory,
   ExerciseFeedback,
@@ -902,6 +903,64 @@ export default function SessionSummaryScreen() {
   const testDeltaReps =
     testedReps !== null && previousTestReps !== null ? testedReps - previousTestReps : null;
 
+  // ── Cycle results: the payoff for the whole block ──────────────────────────
+  // Three lifts are tested across a test week and nothing joined them up, so
+  // finishing the third one felt like finishing any other session. On that last
+  // test we show all three together — the actual milestone.
+  //
+  // Results are recomputed from each session's own log rather than read out of
+  // oneRepMaxes, so a lift is matched to its test by the session it came from
+  // instead of by hoping the dates line up.
+  const testResultOf = (s: CompletedSession): { kg: number | null; reps: number | null } => {
+    const log = s.exerciseLogs[s.exerciseLogs.length - 1];
+    const set = log?.sets.find((x) => x.completed && x.reps > 0);
+    if (!set) return { kg: null, reps: null };
+    // Epley, matching the estimate the completion path records.
+    if (set.weight > 0) return { kg: Math.round(set.weight * (1 + set.reps / 30)), reps: set.reps };
+    return { kg: null, reps: set.reps };
+  };
+
+  // The most recent unbroken run of test sessions — this block.
+  const blockTests: CompletedSession[] = [];
+  for (const s of completedSessions) {
+    if (!SESSION_ORDER.includes(s.sessionType)) continue;
+    if (!s.isTestWeek) break;
+    blockTests.push(s);
+    if (blockTests.length === SESSION_ORDER.length) break;
+  }
+  const cycleComplete =
+    Boolean(session.isTestWeek) &&
+    blockTests.length === SESSION_ORDER.length &&
+    blockTests.some((s) => s.id === session.id);
+
+  const cycleRows = cycleComplete
+    ? blockTests
+        .slice()
+        .reverse() // squat, bench, deadlift — the order they were tested in
+        .map((s) => {
+          const now = testResultOf(s);
+          // The same lift's previous test, from before this block.
+          const prior = completedSessions.find(
+            (p) =>
+              p.sessionType === s.sessionType &&
+              p.isTestWeek &&
+              !blockTests.some((b) => b.id === p.id)
+          );
+          const was = prior ? testResultOf(prior) : null;
+          const isReps = now.kg === null;
+          const value = isReps ? now.reps : now.kg;
+          const previous = was ? (isReps ? was.reps : was.kg) : null;
+          return {
+            lift: getSessionLabel(s.sessionType).replace(/\s*Session$/i, ''),
+            value,
+            previous,
+            delta: value !== null && previous !== null ? value - previous : null,
+            isReps,
+          };
+        })
+        .filter((r) => r.value !== null)
+    : [];
+
   const isTestHero = Boolean(testedOrm) || testedReps !== null;
   const heroKind: 'test' | 'pb' | 'milestone' | 'default' = isTestHero
     ? 'test'
@@ -1146,6 +1205,44 @@ export default function SessionSummaryScreen() {
                       )}
                     </View>
                   </Animated.View>
+
+                  {/* Cycle results — only on the last test of a block */}
+                  {cycleRows.length > 0 && (
+                    <Animated.View
+                      entering={FadeInDown.duration(500).delay(130)}
+                      style={styles.cyclePanel}
+                    >
+                      <Text style={styles.cycleTitle}>TEST WEEK COMPLETE</Text>
+                      {cycleRows.map((r) => (
+                        <View key={r.lift} style={styles.cycleRow}>
+                          <Text style={styles.cycleLift} numberOfLines={1}>
+                            {r.lift}
+                          </Text>
+                          <Text style={styles.cycleValue}>
+                            {r.isReps
+                              ? `${r.value} ${r.value === 1 ? 'rep' : 'reps'}`
+                              : formatWeight(r.value as number, weightUnit)}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.cycleDelta,
+                              r.delta !== null && r.delta > 0 && { color: SAGE.accent },
+                            ]}
+                          >
+                            {r.delta === null
+                              ? 'first'
+                              : r.delta === 0
+                                ? 'level'
+                                : `${r.delta > 0 ? '+' : '−'}${
+                                    r.isReps
+                                      ? Math.abs(r.delta)
+                                      : formatWeight(Math.abs(r.delta), weightUnit)
+                                  }`}
+                          </Text>
+                        </View>
+                      ))}
+                    </Animated.View>
+                  )}
 
                   {/* Stat rail */}
                   <Animated.View
@@ -1601,6 +1698,48 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: SAGE.accent,
     letterSpacing: 0.8,
+  },
+
+  // Cycle results — all three tested lifts, shown on the last test of a block
+  cyclePanel: {
+    backgroundColor: SAGE.pillBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: SAGE.hairline,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    gap: 8,
+  },
+  cycleTitle: {
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+    color: SAGE.faint,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  cycleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cycleLift: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: SAGE.muted,
+  },
+  cycleValue: {
+    fontSize: 15,
+    fontFamily: 'Inter_700Bold',
+    color: SAGE.text,
+  },
+  cycleDelta: {
+    minWidth: 54,
+    textAlign: 'right',
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: SAGE.faint,
   },
 
   // Stat rail
