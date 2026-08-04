@@ -697,9 +697,19 @@ function WeeklyVolumeChart({
       weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
+      // Any session, not just the three KPI lifts.
+      //
+      // This filtered to STRENGTH_SESSION_TYPES on the reasoning that
+      // conditioning/prehab/flexibility "never have weighted sets" — but it
+      // also excluded Upper, Lower, Full Body and Custom, which certainly do.
+      // A weekly-session or custom-only user saw eight empty bars while the
+      // total-volume figure on the SAME screen counted everything, so the two
+      // numbers openly disagreed. The set-level `weight > 0` test below already
+      // excludes anything unweighted, which is the correct filter and makes the
+      // session-type one redundant.
       const weekSessions = sessions.filter((s) => {
         const d = new Date(s.date);
-        return d >= weekStart && d < weekEnd && STRENGTH_SESSION_TYPES.includes(s.sessionType);
+        return d >= weekStart && d < weekEnd;
       });
       let volKg = 0;
       for (const s of weekSessions) {
@@ -2698,10 +2708,18 @@ function OneRMCalculator({
   );
 }
 
+// Every session type, because the grouping below FILTERS by this list — a type
+// missing here is not merely unsorted, its exercises vanish from the Progress
+// tab entirely. Upper/Lower/Full Body were omitted, so anyone training the
+// weekly balanced sessions logged real weight for weeks and was told
+// "No weighted exercises yet".
 const PROGRESS_GROUP_ORDER: SessionType[] = [
   'squat',
   'bench',
   'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
   'conditioning',
   'prehab',
   'flexibility',

@@ -39,7 +39,17 @@ export interface CardioLogData {
   distanceKm?: number;
 }
 export type TimeAvailable = '30' | '45' | '60';
-export type TestWeekFrequency = 12 | 18;
+/**
+ * How often a strength test week comes due — or 'never'.
+ *
+ * 'never' exists because plenty of people do not train the three barbell lifts
+ * at all: custom-session-only users, people who follow the conditioning and
+ * mobility work in their own pattern, people doing weeks of rehab. Before this,
+ * the only options were every 12 or every 18 sessions and there was no way to
+ * decline, so a max-effort barbell test was imposed on everyone who ever
+ * touched a KPI lift.
+ */
+export type TestWeekFrequency = 12 | 18 | 'never';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab' | 'power';
 export type WeightUnit = 'kg' | 'lbs';
@@ -514,6 +524,24 @@ interface AppState {
 
 export const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
 
+/**
+ * What the home screen suggests to someone who does not lift the big three.
+ *
+ * A balanced spread of the session types that exist outside the KPI rotation,
+ * so the suggestion moves with them instead of insisting on a barbell lift they
+ * have never touched. See getCurrentSessionType.
+ */
+export const NON_KPI_ROTATION: SessionType[] = [
+  'full_body',
+  'conditioning',
+  'upper_body',
+  'lower_body',
+];
+
+/** How many sessions with zero barbell work before the home screen stops
+ *  suggesting barbell work. Enough to be a pattern, not a one-off. */
+export const NON_KPI_EVIDENCE = 3;
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -907,7 +935,29 @@ export const useAppStore = create<AppState>()(
         const strengthCount = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)
         ).length;
-        return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
+        if (strengthCount > 0) return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
+
+        // Nobody has to lift the big three.
+        //
+        // This used to fall straight through to SESSION_ORDER[offset % 3] with
+        // strengthCount pinned at 0, so someone who trains conditioning,
+        // mobility or their own custom sessions was told "Today: Squat Session"
+        // on the home screen every single day, forever, no matter what they
+        // actually did. The rotation filters non-strength sessions out before
+        // it counts, so nothing they logged could ever move it.
+        //
+        // After a few sessions with no barbell work at all, suggest from what
+        // they actually do instead. Deliberately conservative:
+        //   - it needs real evidence (NON_KPI_EVIDENCE sessions, none of them
+        //     strength) rather than switching on the first conditioning session
+        //   - the moment a KPI lift IS logged, strengthCount > 0 above takes
+        //     over again and the strength rotation resumes untouched
+        //   - Home is only a suggestion; every session type stays one tap away
+        //     on the Train tab regardless
+        if (completedSessions.length >= NON_KPI_EVIDENCE) {
+          return NON_KPI_ROTATION[completedSessions.length % NON_KPI_ROTATION.length];
+        }
+        return SESSION_ORDER[cycleStartOffset % 3];
       },
 
       /**
@@ -932,6 +982,18 @@ export const useAppStore = create<AppState>()(
        */
       getTestWeekProgress: () => {
         const { completedSessions, testWeekFrequency, testWeekDeferred } = get();
+        const idleOff = {
+          active: false,
+          completed: 0,
+          total: SESSION_ORDER.length,
+          nextLift: SESSION_ORDER[0],
+        };
+        // Turned off entirely. Checked before the resume branch below on
+        // purpose: someone who switches test weeks off part-way through a block
+        // is asking not to be tested, and "you still owe us two more" is not an
+        // answer to that.
+        if (testWeekFrequency === 'never') return idleOff;
+
         const strength = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)
         );

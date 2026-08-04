@@ -110,6 +110,7 @@ export default function ReadinessScreen() {
     readinessTutorialShown,
     setReadinessTutorialShown,
     deferTestWeek,
+    setTestWeekFrequency,
     completedSessions,
   } = useAppStore();
   // Once a due test is postponed, treat the rest of this screen as a normal
@@ -128,6 +129,18 @@ export default function ReadinessScreen() {
   const handlePostponeTest = () => {
     hapticTap();
     deferTestWeek();
+    setTestPostponed(true);
+  };
+
+  // Turning tests off in the moment they are being imposed, rather than only in
+  // a settings sheet the user has no reason to be looking at. Not deferring —
+  // deferring keeps the test due until it is taken, which is the opposite of
+  // what "I don't train these lifts" means. Reversible from Profile > Settings.
+  const [testsDisabled, setTestsDisabled] = useState(false);
+  const handleDisableTests = () => {
+    hapticTap();
+    setTestWeekFrequency('never');
+    setTestsDisabled(true);
     setTestPostponed(true);
   };
 
@@ -478,26 +491,39 @@ export default function ReadinessScreen() {
             </View>
           </View>
         )}
-        {effectiveTestWeek &&
-          TIER_ORDER.indexOf(effectiveTier) < TIER_ORDER.indexOf('dumbbells') && (
-            <View style={styles.testDeferBanner}>
-              <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.testDeferText}>
-                  {getEquipmentLabel(effectiveTier)} won&apos;t give a number you can trust for a
-                  real 1RM test.
+        {/* Declining a test is available to everyone.
+            This banner used to render only when the day's equipment was below
+            dumbbells, so it read as an equipment caveat — which meant anyone on
+            dumbbells or above had no way to decline a max-effort barbell test
+            anywhere in the app. The equipment warning is still shown when it
+            applies, but the way out no longer depends on it. */}
+        {effectiveTestWeek && (
+          <View style={styles.testDeferBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.testDeferText}>
+                {TIER_ORDER.indexOf(effectiveTier) < TIER_ORDER.indexOf('dumbbells')
+                  ? `${getEquipmentLabel(effectiveTier)} won't give a number you can trust for a real 1RM test.`
+                  : 'A test week maxes out Squat, Bench and Deadlift to re-baseline your weights.'}
+              </Text>
+              <Pressable onPress={handlePostponeTest} hitSlop={6} testID="postpone-test-week">
+                <Text style={styles.testDeferLink}>Postpone the test to next session →</Text>
+              </Pressable>
+              <Pressable onPress={handleDisableTests} hitSlop={6} testID="disable-test-weeks">
+                <Text style={styles.testDeferLink}>
+                  I don&apos;t train these lifts — turn test weeks off →
                 </Text>
-                <Pressable onPress={handlePostponeTest} hitSlop={6} testID="postpone-test-week">
-                  <Text style={styles.testDeferLink}>Postpone the test to next session →</Text>
-                </Pressable>
-              </View>
+              </Pressable>
             </View>
-          )}
+          </View>
+        )}
         {testPostponed && (
           <View style={styles.testDeferConfirm}>
             <Ionicons name="checkmark-circle-outline" size={16} color={C.primary} />
             <Text style={styles.testDeferConfirmText}>
-              Test postponed. We&apos;ll ask again next session, today&apos;s a normal one.
+              {testsDisabled
+                ? "Test weeks are off. Today's a normal session — you can turn them back on in Profile › Settings."
+                : "Test postponed. We'll ask again next session, today's a normal one."}
             </Text>
           </View>
         )}

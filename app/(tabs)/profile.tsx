@@ -1759,19 +1759,22 @@ export default function ProfileScreen() {
 
               <View style={styles.settingDivider} />
 
-              <Text style={styles.settingItemLabel}>Test Week Frequency</Text>
-              <Text style={styles.settingItemSub}>How often to trigger a strength test week</Text>
+              <Text style={styles.settingItemLabel}>Strength Test Weeks</Text>
+              <Text style={styles.settingItemSub}>
+                Maxing out Squat, Bench and Deadlift to re-baseline your weights. Turn it off if
+                those lifts aren&apos;t part of your training.
+              </Text>
               <View style={styles.freqRow}>
-                {([12, 18] as const).map((freq) => (
+                {([12, 18, 'never'] as const).map((freq) => (
                   <Pressable
-                    key={freq}
+                    key={String(freq)}
                     onPress={() => {
                       setTestWeekFrequency(freq);
                       if (Platform.OS !== 'web')
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
                     style={[styles.freqBtn, testWeekFrequency === freq && styles.freqBtnActive]}
-                    testID="test-freq-toggle"
+                    testID={freq === 'never' ? 'test-freq-never' : 'test-freq-toggle'}
                   >
                     <Text
                       style={[
@@ -1779,7 +1782,7 @@ export default function ProfileScreen() {
                         testWeekFrequency === freq && styles.freqBtnTextActive,
                       ]}
                     >
-                      Every {freq} sessions
+                      {freq === 'never' ? 'Never' : `Every ${freq}`}
                     </Text>
                   </Pressable>
                 ))}

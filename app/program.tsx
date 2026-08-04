@@ -99,15 +99,20 @@ export default function ProgramScreen() {
   const todayEffectiveTier = getEffectiveTier(todayTiers);
 
   const progCycleNumber = Math.floor(strengthCount / 3) + 1;
-  const progCyclePos = strengthCount % testWeekFrequency;
-  const progCycleLength = testWeekFrequency;
+  // With test weeks off there is no cycle to be part-way through, so fall back
+  // to the default block length purely so the dots have something to draw.
+  // (The whole of this screen is still the three-lift rotation by construction
+  // — making it speak a non-KPI plan is the next piece of work, not this one.)
+  const cycleLength = testWeekFrequency === 'never' ? 12 : testWeekFrequency;
+  const progCyclePos = strengthCount % cycleLength;
+  const progCycleLength = cycleLength;
   const progSessToTest =
-    strengthCount > 0 ? testWeekFrequency - (strengthCount % testWeekFrequency) : testWeekFrequency;
+    strengthCount > 0 ? cycleLength - (strengthCount % cycleLength) : cycleLength;
 
-  const contextMsg = getContextMessage(strengthCount, testWeekFrequency, testWeek);
+  const contextMsg = getContextMessage(strengthCount, cycleLength, testWeek);
 
   const timeline = useMemo(() => {
-    const tlLen = Math.min(testWeekFrequency, 9);
+    const tlLen = Math.min(cycleLength, 9);
     const posInCycle = strengthCount % tlLen;
     const items: {
       sessionType: SessionType;
@@ -119,7 +124,7 @@ export default function ProgramScreen() {
       const status: 'completed' | 'current' | 'upcoming' =
         i < posInCycle ? 'completed' : i === posInCycle ? 'current' : 'upcoming';
       const sessionNumber = strengthCount - posInCycle + i + 1;
-      const isTestMarker = sessionNumber % testWeekFrequency === 0;
+      const isTestMarker = testWeekFrequency !== 'never' && sessionNumber % cycleLength === 0;
       items.push({ sessionType, status, isTestMarker });
     }
     return items;

@@ -268,10 +268,15 @@ export default function HomeScreen() {
     [completedSessions]
   );
 
+  // With test weeks off there is nothing to count down to, so the whole block
+  // bar is hidden rather than left ticking toward an event that will never
+  // arrive. cycleLength keeps the arithmetic below numeric either way.
+  const testsOn = testWeekFrequency !== 'never';
+  const cycleLength = testWeekFrequency === 'never' ? 12 : testWeekFrequency;
   const sessionsInBlock =
-    !testWeek && strengthCount > 0 ? strengthCount % testWeekFrequency || testWeekFrequency : 0;
-  const sessionsUntilTest = testWeekFrequency - sessionsInBlock;
-  const showBlockProgress = strengthCount >= 1 && !testWeek;
+    !testWeek && strengthCount > 0 ? strengthCount % cycleLength || cycleLength : 0;
+  const sessionsUntilTest = cycleLength - sessionsInBlock;
+  const showBlockProgress = testsOn && strengthCount >= 1 && !testWeek;
   // How many full test-week blocks they've already been through, counted from
   // actual completed test weeks (not derived from strengthCount / frequency)
   // so it stays correct even if testWeekFrequency is changed mid-program or a
@@ -775,7 +780,7 @@ export default function HomeScreen() {
                   <View
                     style={[
                       styles.blockBarFill,
-                      { width: `${Math.round((sessionsInBlock / testWeekFrequency) * 100)}%` as any },
+                      { width: `${Math.round((sessionsInBlock / cycleLength) * 100)}%` as any },
                     ]}
                   />
                 </View>
@@ -785,7 +790,7 @@ export default function HomeScreen() {
                 >
                   {sessionsUntilTest <= 2
                     ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                    : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${testWeekFrequency}`}
+                    : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${cycleLength}`}
                 </Text>
               </Animated.View>
             </View>

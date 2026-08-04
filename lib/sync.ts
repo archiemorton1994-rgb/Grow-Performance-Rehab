@@ -13,7 +13,10 @@ export interface SyncPayload {
   oneRepMaxes: any[];
   exerciseFeedback: Record<string, any>;
   weightUnit: string;
-  testWeekFrequency: number;
+  /** 12 | 18 | 'never' — see TestWeekFrequency in lib/store.ts. Widened when
+   *  'never' was added; a device switch must not silently turn test weeks back
+   *  on for someone who declined them. */
+  testWeekFrequency: number | string;
   testWeekDeferred: boolean;
   cycleStartOffset: number;
   lastLoggedWeights: Record<string, number>;
