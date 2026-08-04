@@ -470,7 +470,12 @@ interface AppState {
   /** Whether the "You're all set" calibration-complete banner has been dismissed. Once true, the banner never shows again. */
   calibrationBannerDismissed: boolean;
   /** Evaluate all badge criteria against current state and append newly earned badges to `earnedBadges` and `newlyUnlockedBadges`. */
-  awardNewBadges: () => void;
+  /** Evaluate criteria and record anything newly earned. Pass `{ silent: true }`
+   *  to record without queueing a celebration — see the note on the action. */
+  awardNewBadges: (opts?: { silent?: boolean }) => void;
+  /** Record everything the current history already qualifies for, without
+   *  celebrating any of it. Run once per launch. */
+  reconcileBadgesSilently: () => void;
   /** Clear the `newlyUnlockedBadges` queue after the user has seen the pop-ups. */
   clearNewlyUnlockedBadges: () => void;
   /** Permanently dismiss the calibration-complete banner. */
@@ -847,7 +852,23 @@ export const useAppStore = create<AppState>()(
           };
         }),
 
-      awardNewBadges: () => {
+      /**
+       * `silent` records a badge as earned WITHOUT queueing a celebration.
+       *
+       * Badges are evaluated against your whole history, not against the moment.
+       * That is right — it means a badge you deserve is never missed — but it
+       * has a consequence: any time `earnedBadges` is empty while the history is
+       * not, EVERYTHING you already deserve is "newly unlocked" at once. That
+       * happens on a reinstall, on a new device, and every time the server
+       * restore in mergeServerData brings back sessions the local store had
+       * lost. The user hit it repeatedly on a test account: "it insta awards
+       * about 40 that I've already earned previously."
+       *
+       * A celebration should fire for something you just did. Backfilling
+       * history is not that, so those paths record silently and the badges
+       * simply appear in the collection, already earned.
+       */
+      awardNewBadges: (opts) => {
         const state = get();
         const allEarned = evaluateBadges({
           completedSessions: state.completedSessions,
@@ -861,13 +882,16 @@ export const useAppStore = create<AppState>()(
           weeklyStreakGoal: state.weeklyStreakGoal ?? 2,
         });
         const newlyUnlocked = allEarned.filter((id) => !state.earnedBadges.includes(id));
-        if (newlyUnlocked.length > 0) {
-          set((s) => ({
-            earnedBadges: [...new Set([...s.earnedBadges, ...newlyUnlocked])],
-            newlyUnlockedBadges: [...s.newlyUnlockedBadges, ...newlyUnlocked],
-          }));
-        }
+        if (newlyUnlocked.length === 0) return;
+        set((s) => ({
+          earnedBadges: [...new Set([...s.earnedBadges, ...newlyUnlocked])],
+          newlyUnlockedBadges: opts?.silent
+            ? s.newlyUnlockedBadges
+            : [...s.newlyUnlockedBadges, ...newlyUnlocked],
+        }));
       },
+
+      reconcileBadgesSilently: () => get().awardNewBadges({ silent: true }),
 
       clearNewlyUnlockedBadges: () => set({ newlyUnlockedBadges: [] }),
       setCalibrationBannerDismissed: (dismissed) => set({ calibrationBannerDismissed: dismissed }),
@@ -1121,6 +1145,10 @@ export const useAppStore = create<AppState>()(
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
             completedCount: data.completedSessions?.length ?? s.completedCount,
           });
+          // The server just handed back sessions this device did not have, so
+          // everything they earned is about to look brand new. Record it
+          // silently — restoring a backup is not an achievement.
+          get().awardNewBadges({ silent: true });
         }
       },
     }),
@@ -1153,6 +1181,11 @@ export const useAppStore = create<AppState>()(
           // anything can render it. Without this the stale value is merged back
           // in on first load and the trap survives the fix.
           if (state.newlyUnlockedBadges.length > 0) state.clearNewlyUnlockedBadges();
+          // Bring earnedBadges up to date with whatever history was just loaded,
+          // without celebrating any of it. Nothing can be *earned* between
+          // launches — badges only come from actions taken inside the app — so
+          // anything this finds is by definition a backfill, not a moment.
+          state.reconcileBadgesSilently();
           state.setHasHydrated(true);
         }
       },

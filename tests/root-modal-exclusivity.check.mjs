@@ -128,5 +128,39 @@ check(
   'the failsafe and a user tap can both fire; onDismiss must not run twice'
 );
 
+console.log('\n[6] The session-summary celebration is a banner, not a second modal');
+
+// Comments in these files talk *about* Modals at length, so strip them first —
+// otherwise the assertion is satisfied or broken by prose rather than by code.
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+const banner = stripComments(read('components/AchievementBanner.tsx'));
+const summary = read('app/session-summary.tsx');
+
+check(
+  'AchievementBanner renders no <Modal>',
+  !/<Modal[\s/>]/.test(banner) && !/from 'react-native'[\s\S]{0,200}Modal/.test(banner),
+  'the whole point is that it renders inside the screen; a Modal here recreates the freeze'
+);
+check(
+  'it is absolutely positioned inside its parent',
+  /position: 'absolute'/.test(banner),
+  'expected an in-tree overlay'
+);
+check(
+  'it leaves on its own timer',
+  /setTimeout\(\s*\(\)\s*=>\s*\{[\s\S]{0,200}?leave\(\)/.test(banner) || /leave\(\)/.test(banner),
+  'a celebration the user cannot dismiss must still go away by itself'
+);
+check(
+  'session-summary claims the unlock queue so the root sheet cannot double-fire',
+  /clearNewlyUnlockedBadges\(\)/.test(summary),
+  'expected the summary to clear newlyUnlockedBadges once it has snapshotted them'
+);
+check(
+  'the banner is rendered after the Modal so it paints on top',
+  summary.lastIndexOf('<AchievementBanner') > summary.lastIndexOf('</Modal>'),
+  'an earlier sibling renders underneath the scroll view'
+);
+
 console.log(`\nroot-modal-exclusivity: ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

@@ -43,7 +43,8 @@ import {
   getExerciseTargetRegionsMap,
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
-import { MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
+import { Badge, BADGE_MAP, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
+import { AchievementBanner } from '@/components/AchievementBanner';
 import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
@@ -624,6 +625,28 @@ export default function SessionSummaryScreen() {
   const exerciseStuckStreak = useAppStore((s) => s.exerciseStuckStreak);
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
   const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
+  const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
+  const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
+
+  // Badges earned by the session you just finished, celebrated here rather than
+  // waiting until you happen to open a tab.
+  //
+  // The queue is claimed ONCE on mount and cleared, so the root-level unlock
+  // sheet in app/_layout.tsx does not also fire for the same badges when the
+  // user gets back to the tabs. Snapshotted into local state because clearing
+  // the store queue would otherwise empty the banner mid-animation.
+  const [sessionBadges, setSessionBadges] = useState<Badge[]>([]);
+  const claimedRef = useRef(false);
+  useEffect(() => {
+    if (claimedRef.current || newlyUnlockedBadges.length === 0) return;
+    claimedRef.current = true;
+    const resolved = newlyUnlockedBadges.flatMap((id) => {
+      const b = BADGE_MAP.get(id);
+      return b ? [b] : [];
+    });
+    if (resolved.length > 0) setSessionBadges(resolved);
+    clearNewlyUnlockedBadges();
+  }, [newlyUnlockedBadges, clearNewlyUnlockedBadges]);
 
   const certRef = useRef<View>(null);
 
@@ -1641,6 +1664,22 @@ export default function SessionSummaryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Celebrate what this session earned, here, where it was earned.
+          Rendered inside this screen rather than as a root <Modal> — see the
+          note in components/AchievementBanner.tsx; a Modal here would be a
+          second native modal over this screen's own fullScreenModal
+          presentation, which is what froze the app after a session.
+          Rendered LAST so it paints above the scroll view rather than under it.
+          Tapping pushes /achievements onto the stack, so its back button
+          returns straight here. */}
+      {sessionBadges.length > 0 && (
+        <AchievementBanner
+          badges={sessionBadges}
+          onPress={() => router.push('/achievements')}
+          onDone={() => setSessionBadges([])}
+        />
+      )}
     </View>
   );
 }
