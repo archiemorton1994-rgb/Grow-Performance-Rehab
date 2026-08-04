@@ -477,6 +477,13 @@ interface SessionActiveBarProps {
    *  to the feedback-buttons UI on tap — the tutorial's spotlight is measured
    *  once per step and doesn't re-measure if the bar's own content changes. */
   isDemo?: boolean;
+  /**
+   * Suppresses the "how did it feel?" prompt. A 1RM test set is taken to
+   * failure by definition, so there is no "5+ more left" to report and nothing
+   * for the answer to adjust — the next session's load comes from the tested
+   * max, not from an RPE guess.
+   */
+  suppressFeedback?: boolean;
   /** Demo mode only: show the feedback UI unconditionally, driven by which
    *  tutorial step is active rather than by a real tap (the demo doesn't
    *  process taps) — see TutorialStep.demoForceFeedback. */
@@ -513,6 +520,7 @@ export function SessionActiveBar({
   onGoBack,
   bottomInset,
   isDemo = false,
+  suppressFeedback = false,
   demoForceFeedback = false,
 }: SessionActiveBarProps) {
   const C = useColors();
@@ -593,7 +601,7 @@ export function SessionActiveBar({
     });
     if (isNewRecord) onNewPb?.();
     onSetCompleted();
-    if (!isDemo) {
+    if (!isDemo && !suppressFeedback) {
       // Deliberately no auto-dismiss. This prompt replaces the logging bar, so
       // it stays put until one of the four buttons is tapped. The old 3s timer
       // meant a slower reader lost the chance to answer, and every set that
@@ -1867,12 +1875,21 @@ export default function SessionScreen() {
       // "Ramp up" and "~90% of working weight". Falls back to the working
       // weight implied by their best recorded 1RM, then to generic copy.
       const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
-      const lastKg = mainLiftId ? lastLoggedWeights?.[mainLiftId] : undefined;
+      const lastKg = mainLiftId ? (lastLoggedWeights?.[mainLiftId] ?? 0) : 0;
       const bestForLift = getBestORM(sessionType);
-      const fromOrm = bestForLift
-        ? workingWeightFromOrm(bestForLift.weight, userProfile)
-        : undefined;
-      return generate1RMWorkout(sessionType, equipmentTier, strengthCount, lastKg || fromOrm);
+      const fromOrm = bestForLift ? workingWeightFromOrm(bestForLift.weight, userProfile) : 0;
+      // Take the better of the two rather than preferring the most recent log.
+      // A test set that is too light is the worse error: the estimate comes from
+      // weight x reps, and the formula loses accuracy fast beyond ~10 reps, so
+      // an under-loaded bar produces a wildly inflated max. One light session —
+      // a deload, an off day, a skipped entry — should not drag the test down.
+      const workingKg = Math.max(lastKg, fromOrm);
+      return generate1RMWorkout(
+        sessionType,
+        equipmentTier,
+        strengthCount,
+        workingKg > 0 ? workingKg : undefined
+      );
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
@@ -2915,6 +2932,7 @@ export default function SessionScreen() {
               onFeedback={isDemo ? () => {} : handleBarFeedback}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
+              suppressFeedback={isTestWeek}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
               demoForceFeedback={
