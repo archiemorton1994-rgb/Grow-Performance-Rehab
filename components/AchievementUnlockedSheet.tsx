@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
+import { BadgeMedallion } from '@/components/BadgeMedallion';
 import { Badge, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,11 +30,11 @@ const SLIDE_START = 460;
 interface AchievementUnlockedSheetProps {
   badgeCount: number;
   badgeName?: string;
-  badgeIcon?: string;
   badgeColor?: string;
   sessionCount?: number;
-  /** Resolved Badge objects — provided for the 2–4 simultaneous case so we
-   *  can render individual icons + names instead of a generic subtitle. */
+  /** Resolved Badge objects. For a single unlock this is the one badge, so the
+   *  sheet can show the medal actually won rather than a generic trophy; for
+   *  2–9 at once it is all of them, rendered as a row. */
   badges?: Badge[];
   onDismiss: () => void;
 }
@@ -41,7 +42,6 @@ interface AchievementUnlockedSheetProps {
 export default function AchievementUnlockedSheet({
   badgeCount,
   badgeName,
-  badgeIcon,
   badgeColor,
   sessionCount,
   badges,
@@ -103,6 +103,9 @@ export default function AchievementUnlockedSheet({
   // clears several "first of category" thresholds at once, and that's the
   // moment this needs to feel like something, not just say "9".
   const isSmallBatch = !isSingle && badgeCount <= 9 && !!badges?.length;
+  // Show the medal actually won. The generic trophy logo stays for a multi-badge
+  // haul, where the individual medallions appear in the row below it.
+  const singleBadge = isSingle ? (badges?.[0] ?? null) : null;
   const accent = isSingle ? (badgeColor ?? C.primary) : C.achievementGold;
   const title = isSingle ? 'Achievement Unlocked!' : `${badgeCount} Achievements Unlocked!`;
   const subtitle = isSingle && badgeName ? badgeName : 'Tap to view your new badges';
@@ -159,14 +162,24 @@ export default function AchievementUnlockedSheet({
               bounces={false}
             >
             {/* Large icon */}
-            <View
-              style={[
-                styles.iconRing,
-                { backgroundColor: accent + '18', borderColor: accent + '44' },
-              ]}
-            >
-              <Image source={ACHIEVEMENT_LOGO} style={styles.iconImage} resizeMode="contain" />
-            </View>
+            {singleBadge ? (
+              <View style={styles.heroMedal}>
+                <BadgeMedallion
+                  category={singleBadge.category}
+                  tier={singleBadge.tier}
+                  size={104}
+                />
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.iconRing,
+                  { backgroundColor: accent + '18', borderColor: accent + '44' },
+                ]}
+              >
+                <Image source={ACHIEVEMENT_LOGO} style={styles.iconImage} resizeMode="contain" />
+              </View>
+            )}
 
             {/* Heading */}
             <Text style={[styles.title, { color: C.text }]}>{title}</Text>
@@ -176,13 +189,8 @@ export default function AchievementUnlockedSheet({
               <View style={styles.badgeRow}>
                 {badges!.map((b) => (
                   <View key={b.id} style={styles.badgeRowItem}>
-                    <View
-                      style={[
-                        styles.badgeRowRing,
-                        { backgroundColor: b.color + '18', borderColor: b.color + '44' },
-                      ]}
-                    >
-                      <Ionicons name={b.icon as any} size={22} color={b.color} />
+                    <View style={styles.badgeRowMedal}>
+                      <BadgeMedallion category={b.category} tier={b.tier} size={52} />
                     </View>
                     <Text
                       style={[styles.badgeRowName, { color: C.textSecondary }]}
@@ -279,6 +287,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
   },
+  heroMedal: {
+    marginBottom: 8,
+    ...shadowStyle('#000000', 0.22, 16, 6, 6),
+  },
   title: {
     fontSize: 22,
     fontFamily: 'Inter_700Bold',
@@ -333,14 +345,7 @@ const styles = StyleSheet.create({
     gap: 6,
     width: 78,
   },
-  badgeRowRing: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  badgeRowMedal: shadowStyle('#000000', 0.16, 8, 3, 3),
   badgeRowName: {
     fontSize: 11,
     fontFamily: 'Inter_500Medium',

@@ -4,10 +4,11 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  SectionList,
+  FlatList,
   Modal,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
+import { EmptyState } from '@/components/EmptyState';
+import { BadgeMedallion } from '@/components/BadgeMedallion';
 import { useAppStore } from '@/lib/store';
 import {
   BADGE_CATALOG,
   BADGE_CATEGORY_LABELS,
   BADGE_CATEGORY_ORDER,
+  BADGE_MAP,
   Badge,
   BadgeCategory,
   BadgeCriteriaType,
@@ -50,13 +54,15 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   exercise_specific: 'Log this specific exercise in one of your sessions.',
 };
 
-const COLS = 4;
-
-// Badge colour comes from the badge itself now — see BadgeTier in lib/badges.ts.
-// This screen used to override it with a twenty-two-colour category palette
-// (fuchsia, rose, indigo, steel…) which, on top of the sixteen colours the
-// catalogue already carried, meant thirty-eight hues that signalled nothing and
-// belonged to no part of the app's identity. Colour now means rarity only.
+// A cabinet, not a spreadsheet. The previous layout put 277 badges into a
+// four-across grid of 48px tiles with 9pt captions, which meant ~70 rows of
+// vertical scroll and no badge ever shown large enough to look like anything.
+// Each family now gets a shelf you scroll sideways, so a medallion can be big
+// enough to read and the whole collection is ~22 rows deep instead of 70.
+const SHELF_MEDAL = 62;
+const SHELF_ITEM_W = 78;
+const HERO_MEDAL = 92;
+const DETAIL_MEDAL = 124;
 
 // ─── Tour overlay callout ──────────────────────────────────────────────────────
 
@@ -119,16 +125,16 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
 
         {/* Body */}
         <Text style={[tourStyles.calloutBody, { color: C.textSecondary }]}>
-          Earned badges glow with colour - locked ones show exactly what you need to do to unlock
-          them. Tap any badge to see its description.
+          Every badge is struck in one of four metals, and the metal tells you how rare it is.
+          Locked ones stay grey until you earn them.
         </Text>
 
         {/* Tips */}
         <View style={{ gap: 7 }}>
           {[
-            'Over 400 badges across milestones, streaks, strength, and more',
-            'Tap any badge to see its unlock criteria',
-            'New badges appear as toasts above the tab bar',
+            `${BADGE_CATALOG.length} badges across milestones, streaks, strength, and more`,
+            'Swipe a shelf sideways to see the rest of that family',
+            'Tap any badge to see exactly what unlocks it',
           ].map((tip, i) => (
             <View key={i} style={tourStyles.tipRow}>
               <Ionicons name="checkmark-circle" size={15} color={C.primary} />
@@ -224,6 +230,80 @@ const tourStyles = StyleSheet.create({
   },
 });
 
+// ─── One family's shelf ────────────────────────────────────────────────────────
+
+interface Shelf {
+  category: BadgeCategory;
+  data: Badge[];
+  earnedCount: number;
+  totalCount: number;
+}
+
+function BadgeShelf({
+  shelf,
+  earnedSet,
+  onPress,
+  styles,
+}: {
+  shelf: Shelf;
+  earnedSet: Set<string>;
+  onPress: (b: Badge) => void;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={styles.shelf}>
+      <View style={styles.shelfHeader}>
+        <Text style={styles.shelfTitle}>{BADGE_CATEGORY_LABELS[shelf.category]}</Text>
+        <Text style={styles.shelfCount}>
+          {shelf.earnedCount}/{shelf.totalCount}
+        </Text>
+      </View>
+      <FlatList
+        data={shelf.data}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(b) => b.id}
+        contentContainerStyle={styles.shelfRow}
+        initialNumToRender={6}
+        windowSize={3}
+        getItemLayout={(_, index) => ({
+          length: SHELF_ITEM_W,
+          offset: SHELF_ITEM_W * index,
+          index,
+        })}
+        renderItem={({ item }) => {
+          const isEarned = earnedSet.has(item.id);
+          return (
+            <Pressable
+              onPress={() => onPress(item)}
+              style={({ pressed }) => [styles.shelfItem, pressed && { opacity: 0.7 }]}
+              testID={`badge-${item.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}, ${isEarned ? 'earned' : 'locked'}`}
+            >
+              {/* No cast shadow on shelf medals. The medallion carries its own
+                  rim and gloss shading, and an elevation on a transparent view
+                  wrapping an SVG behaves differently on every platform. */}
+              <BadgeMedallion
+                category={item.category}
+                tier={item.tier}
+                locked={!isEarned}
+                size={SHELF_MEDAL}
+              />
+              <Text
+                style={[styles.shelfItemName, !isEarned && styles.shelfItemNameLocked]}
+                numberOfLines={2}
+              >
+                {item.name}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function AchievementsScreen() {
@@ -246,8 +326,9 @@ export default function AchievementsScreen() {
     router.back();
   };
 
-  // Build sections grouped by category, filtered by earned state
-  const sections = useMemo(() => {
+  // One shelf per family, in the catalogue's own order (which is difficulty
+  // order, so the left of every shelf is the easiest badge in it).
+  const shelves = useMemo<Shelf[]>(() => {
     const byCategory = new Map<BadgeCategory, Badge[]>();
     for (const b of BADGE_CATALOG) {
       const list = byCategory.get(b.category) ?? [];
@@ -257,14 +338,18 @@ export default function AchievementsScreen() {
     return BADGE_CATEGORY_ORDER.filter((cat) => byCategory.has(cat))
       .map((cat) => {
         const all = byCategory.get(cat)!;
-        const filtered =
+        const data =
           activeFilter === 'all'
             ? all
             : activeFilter === 'earned'
               ? all.filter((b) => earnedSet.has(b.id))
               : all.filter((b) => !earnedSet.has(b.id));
-        const earnedCount = all.filter((b) => earnedSet.has(b.id)).length;
-        return { title: cat, data: filtered, earnedCount, totalCount: all.length };
+        return {
+          category: cat,
+          data,
+          earnedCount: all.filter((b) => earnedSet.has(b.id)).length,
+          totalCount: all.length,
+        };
       })
       .filter((s) => s.data.length > 0);
   }, [activeFilter, earnedSet]);
@@ -272,27 +357,20 @@ export default function AchievementsScreen() {
   const totalEarned = earnedBadges.length;
   const totalBadges = BADGE_CATALOG.length;
 
-  // Collection summary by rarity. A bare "12/277" says almost nothing — 12
-  // could be twelve first-timers or twelve of the hardest badges in the app.
-  // Split by tier it reads as a collection: what you have, and what is still
-  // out of reach.
-  const tierStats = useMemo(() => {
-    const order: BadgeTier[] = ['bronze', 'silver', 'gold', 'grow'];
-    return order.map((tier) => {
-      const all = BADGE_CATALOG.filter((b) => b.tier === tier);
-      return {
-        tier,
-        earned: all.filter((b) => earnedSet.has(b.id)).length,
-        total: all.length,
-      };
-    });
-  }, [earnedSet]);
+  // The showcase. earnedBadges is appended to in unlock order, so the last id
+  // still present in the catalogue is the most recent thing won.
+  const latest = useMemo(() => {
+    for (let i = earnedBadges.length - 1; i >= 0; i--) {
+      const b = BADGE_MAP.get(earnedBadges[i]);
+      if (b) return b;
+    }
+    return null;
+  }, [earnedBadges]);
 
-  // With nothing earned, the screen was a wall of locked tiles and a 0/N count
-  // — no encouragement and no next action, unlike every other list in the app.
-  // Name the badge that unlocks first instead, so there is something to aim at.
-  // Skip profile_action badges (the guided tour). Those are not something you
-  // train towards, so naming one as "first up" gives no reason to open the app.
+  // With nothing earned there is no showcase, so name the badge that unlocks
+  // first instead — otherwise the screen opens on a wall of grey with no reason
+  // to come back. Skip profile_action badges (the guided tour): those are not
+  // something you train towards.
   const firstMilestone = useMemo(
     () =>
       BADGE_CATALOG.find(
@@ -301,7 +379,16 @@ export default function AchievementsScreen() {
       ),
     [earnedSet]
   );
-  const detailColor = detailBadge ? detailBadge.color : '';
+
+  // Rarity breakdown. "12/277" alone says almost nothing — twelve could be
+  // twelve first-timers or twelve of the hardest badges in the app.
+  const tierStats = useMemo(() => {
+    const order: BadgeTier[] = ['bronze', 'silver', 'gold', 'grow'];
+    return order.map((tier) => {
+      const all = BADGE_CATALOG.filter((b) => b.tier === tier);
+      return { tier, earned: all.filter((b) => earnedSet.has(b.id)).length, total: all.length };
+    });
+  }, [earnedSet]);
 
   const handleBadgePress = (badge: Badge) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -315,6 +402,13 @@ export default function AchievementsScreen() {
     { key: 'earned', label: 'Earned' },
     { key: 'locked', label: 'Locked' },
   ];
+
+  const heroBadge = latest ?? firstMilestone ?? null;
+  const heroEarned = latest != null;
+  const progress = totalBadges > 0 ? totalEarned / totalBadges : 0;
+
+  const detailEarned = detailBadge ? earnedSet.has(detailBadge.id) : false;
+  const detailColor = detailBadge ? detailBadge.color : '';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
@@ -330,174 +424,125 @@ export default function AchievementsScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Achievements</Text>
-        </View>
-        <View style={styles.countPill}>
-          <Text style={styles.countPillText}>
-            {totalEarned}/{totalBadges}
-          </Text>
-        </View>
+        <Text style={styles.headerTitle}>Achievements</Text>
       </View>
 
-      {/* Filter tabs: All / Earned / Locked */}
-      <View style={styles.filterBar}>
-        {filterTabs.map((tab) => {
-          const active = activeFilter === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setActiveFilter(tab.key);
-              }}
-              style={[styles.filterTab, active && styles.filterTabActive]}
-              testID={`achievements-filter-${tab.key}`}
-            >
-              <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Badge sections */}
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
+      <FlatList
+        data={shelves}
+        keyExtractor={(s) => s.category}
         showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
+        initialNumToRender={5}
+        windowSize={5}
         ListHeaderComponent={
           <>
-            {/* Collection summary — what you hold, by rarity */}
-            <View style={styles.tierStrip}>
-              {tierStats.map(({ tier, earned, total }) => {
-                const colour = BADGE_TIER_COLORS[tier];
-                const complete = earned === total && total > 0;
-                return (
-                  <View
-                    key={tier}
-                    style={[
-                      styles.tierTile,
-                      { borderColor: earned > 0 ? colour + '55' : C.borderLight },
-                      earned > 0 && { backgroundColor: colour + '12' },
-                    ]}
-                  >
-                    <View style={[styles.tierDot, { backgroundColor: colour }]} />
-                    <Text style={[styles.tierCount, earned > 0 && { color: colour }]}>
-                      {earned}
-                      <Text style={styles.tierTotal}>/{total}</Text>
-                    </Text>
-                    <Text style={styles.tierLabel} numberOfLines={1}>
-                      {BADGE_TIER_LABELS[tier]}
-                    </Text>
-                    {complete && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={11}
-                        color={colour}
-                        style={styles.tierComplete}
-                      />
-                    )}
+            {/* Showcase: the last thing won, at a size worth looking at */}
+            {heroBadge && (
+              <View style={styles.hero}>
+                <View style={styles.heroTop}>
+                  <View style={heroEarned ? styles.heroMedalGlow : undefined}>
+                    <BadgeMedallion
+                      category={heroBadge.category}
+                      tier={heroBadge.tier}
+                      locked={!heroEarned}
+                      size={HERO_MEDAL}
+                    />
                   </View>
-                );
-              })}
-            </View>
-            {totalEarned === 0 ? (
-              <View style={styles.nextUpCard}>
-                <View style={styles.nextUpIcon}>
-                  <Ionicons name="trophy-outline" size={22} color={C.primary} />
+                  <View style={styles.heroText}>
+                    <Text style={styles.heroLabel}>
+                      {heroEarned ? 'Latest unlock' : 'First up'}
+                    </Text>
+                    <Text style={styles.heroName} numberOfLines={2}>
+                      {heroBadge.name}
+                    </Text>
+                    <Text style={styles.heroMeta} numberOfLines={2}>
+                      {heroEarned
+                        ? `${BADGE_TIER_LABELS[heroBadge.tier]} · ${BADGE_CATEGORY_LABELS[heroBadge.category]}`
+                        : heroBadge.description}
+                    </Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.nextUpTitle}>Nothing unlocked yet</Text>
-                  <Text style={styles.nextUpBody}>
-                    {firstMilestone
-                      ? // Descriptions are inconsistently punctuated, so trim any
-                        // trailing stop before adding our own.
-                        `${firstMilestone.name} is first up — ${firstMilestone.description
-                          .replace(/\.\s*$/, '')
-                          .toLowerCase()}.`
-                      : 'Finish a session and your first badge lands on the summary screen.'}
+
+                {/* Overall progress */}
+                <View style={styles.progressRow}>
+                  <Text style={styles.progressCount}>
+                    {totalEarned}
+                    <Text style={styles.progressTotal}> of {totalBadges} earned</Text>
                   </Text>
                 </View>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.max(progress * 100, progress > 0 ? 2 : 0)}%` },
+                    ]}
+                  />
+                </View>
+
+                {/* Rarity breakdown — quiet supporting detail, not a dashboard */}
+                <View style={styles.rarityRow}>
+                  {tierStats.map(({ tier, earned, total }) => (
+                    <View key={tier} style={styles.rarityItem}>
+                      <View
+                        style={[styles.rarityDot, { backgroundColor: BADGE_TIER_COLORS[tier] }]}
+                      />
+                      <Text style={styles.rarityCount}>
+                        {earned}
+                        <Text style={styles.rarityTotal}>/{total}</Text>
+                      </Text>
+                      <Text style={styles.rarityLabel}>{BADGE_TIER_LABELS[tier]}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            ) : null}
-          </>
-        }
-        renderSectionHeader={({ section }) => (
-          <View style={[styles.sectionHeader, { backgroundColor: C.background }]}>
-            <Text style={styles.sectionTitle}>
-              {BADGE_CATEGORY_LABELS[section.title as BadgeCategory]}
-            </Text>
-            <Text style={styles.sectionCount}>
-              {section.earnedCount}/{section.totalCount}
-            </Text>
-          </View>
-        )}
-        renderItem={({ item, index, section }) => {
-          const sectionData = section.data as Badge[];
-          const isRowStart = index % COLS === 0;
-          if (!isRowStart) return null;
+            )}
 
-          const rowItems = sectionData.slice(index, index + COLS);
-
-          return (
-            <View style={styles.badgeRow}>
-              {rowItems.map((badge) => {
-                const isEarned = earnedSet.has(badge.id);
-                const badgeColor = badge.color;
+            {/* Filter */}
+            <View style={styles.filterBar}>
+              {filterTabs.map((tab) => {
+                const active = activeFilter === tab.key;
                 return (
                   <Pressable
-                    key={badge.id}
-                    onPress={() => handleBadgePress(badge)}
-                    style={({ pressed }) => [styles.badgeCell, pressed && { opacity: 0.72 }]}
-                    testID={`badge-${badge.id}`}
+                    key={tab.key}
+                    onPress={() => {
+                      if (Platform.OS !== 'web')
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setActiveFilter(tab.key);
+                    }}
+                    style={[styles.filterTab, active && styles.filterTabActive]}
+                    testID={`achievements-filter-${tab.key}`}
                   >
-                    <View
-                      style={[
-                        styles.badgeIconWrap,
-                        isEarned
-                          ? {
-                              backgroundColor: badgeColor + '26',
-                              borderColor: badgeColor + '80',
-                              ...shadowStyle(badgeColor, 0.5, 8, 0, 6),
-                            }
-                          : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
-                        !isEarned && styles.badgeIconLocked,
-                      ]}
-                    >
-                      <Ionicons
-                        name={badge.icon as any}
-                        size={20}
-                        color={isEarned ? badgeColor : C.textTertiary}
-                      />
-                      {!isEarned && (
-                        <View style={styles.lockOverlay}>
-                          <Ionicons name="lock-closed" size={9} color={C.textTertiary} />
-                        </View>
-                      )}
-                    </View>
-                    <Text
-                      style={[styles.badgeName, !isEarned && styles.badgeNameLocked]}
-                      numberOfLines={2}
-                    >
-                      {badge.name}
+                    <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
+                      {tab.label}
                     </Text>
-                    {isEarned && (
-                      <View style={[styles.earnedDot, { backgroundColor: badgeColor }]} />
-                    )}
                   </Pressable>
                 );
               })}
-              {rowItems.length < COLS &&
-                Array.from({ length: COLS - rowItems.length }).map((_, i) => (
-                  <View key={`pad-${i}`} style={styles.badgeCell} />
-                ))}
             </View>
-          );
-        }}
+          </>
+        }
+        ListEmptyComponent={
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <EmptyState
+              icon="trophy-outline"
+              title={activeFilter === 'earned' ? 'Nothing unlocked yet' : 'Everything unlocked'}
+              subtitle={
+                activeFilter === 'earned'
+                  ? 'Finish a session and your first badge lands on the summary screen.'
+                  : 'There is nothing left to earn. Every badge in the app is yours.'
+              }
+              testID="achievements-empty"
+            />
+          </View>
+        }
+        renderItem={({ item }) => (
+          <BadgeShelf
+            shelf={item}
+            earnedSet={earnedSet}
+            onPress={handleBadgePress}
+            styles={styles}
+          />
+        )}
       />
 
       {/* Tour overlay — shown when navigated from the guided tour */}
@@ -519,69 +564,69 @@ export default function AchievementsScreen() {
             ]}
           >
             <View style={[styles.sheetHandle, { backgroundColor: C.border }]} />
-            <View style={styles.detailContent}>
-              {/* Large icon */}
-              <View
-                style={[
-                  styles.detailIconWrap,
-                  earnedSet.has(detailBadge.id)
-                    ? {
-                        backgroundColor: detailColor + '26',
-                        borderColor: detailColor + '80',
-                        ...shadowStyle(detailColor, 0.5, 14, 0, 8),
-                      }
-                    : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
-                ]}
-              >
-                <Ionicons
-                  name={detailBadge.icon as any}
-                  size={40}
-                  color={earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary}
+            <ScrollView
+              contentContainerStyle={styles.detailContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <View style={detailEarned ? styles.detailMedalGlow : undefined}>
+                <BadgeMedallion
+                  category={detailBadge.category}
+                  tier={detailBadge.tier}
+                  locked={!detailEarned}
+                  size={DETAIL_MEDAL}
                 />
-                {!earnedSet.has(detailBadge.id) && (
-                  <View style={styles.detailLockOverlay}>
-                    <Ionicons name="lock-closed" size={14} color={C.textTertiary} />
-                  </View>
-                )}
               </View>
 
-              {/* Name */}
               <Text style={[styles.detailName, { color: C.text }]}>{detailBadge.name}</Text>
 
-              {/* Earned / Locked status pill */}
-              <View
-                style={[
-                  styles.detailStatusPill,
-                  earnedSet.has(detailBadge.id)
-                    ? {
-                        backgroundColor: detailColor + '22',
-                        borderColor: detailColor + '55',
-                      }
-                    : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
-                ]}
-              >
-                <Ionicons
-                  name={earnedSet.has(detailBadge.id) ? 'checkmark-circle' : 'lock-closed-outline'}
-                  size={13}
-                  color={earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary}
-                />
-                <Text
+              {/* Earned / Locked status, and what metal it is struck in */}
+              <View style={styles.detailPillRow}>
+                <View
                   style={[
-                    styles.detailStatusText,
-                    { color: earnedSet.has(detailBadge.id) ? detailColor : C.textTertiary },
+                    styles.detailStatusPill,
+                    detailEarned
+                      ? { backgroundColor: detailColor + '22', borderColor: detailColor + '55' }
+                      : { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                   ]}
                 >
-                  {earnedSet.has(detailBadge.id) ? 'Earned' : 'Locked'}
-                </Text>
+                  <Ionicons
+                    name={detailEarned ? 'checkmark-circle' : 'lock-closed-outline'}
+                    size={13}
+                    color={detailEarned ? detailColor : C.textTertiary}
+                  />
+                  <Text
+                    style={[
+                      styles.detailStatusText,
+                      { color: detailEarned ? detailColor : C.textTertiary },
+                    ]}
+                  >
+                    {detailEarned ? 'Earned' : 'Locked'}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.detailStatusPill,
+                    { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.rarityDot,
+                      { backgroundColor: BADGE_TIER_COLORS[detailBadge.tier] },
+                    ]}
+                  />
+                  <Text style={[styles.detailStatusText, { color: C.textSecondary }]}>
+                    {BADGE_TIER_LABELS[detailBadge.tier]}
+                  </Text>
+                </View>
               </View>
 
-              {/* Description */}
               <Text style={[styles.detailDesc, { color: C.textSecondary }]}>
                 {detailBadge.description}
               </Text>
 
-              {/* Locked hint */}
-              {!earnedSet.has(detailBadge.id) && (
+              {!detailEarned && (
                 <View
                   style={[
                     styles.hintBox,
@@ -595,11 +640,10 @@ export default function AchievementsScreen() {
                 </View>
               )}
 
-              {/* Category */}
               <Text style={[styles.detailCategory, { color: C.textTertiary }]}>
                 {BADGE_CATEGORY_LABELS[detailBadge.category]}
               </Text>
-            </View>
+            </ScrollView>
             <Pressable
               onPress={() => setDetailBadge(null)}
               style={({ pressed }) => [
@@ -626,7 +670,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingBottom: 14,
+      paddingBottom: 10,
       gap: 12,
     },
     backBtn: {
@@ -638,20 +682,80 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surfaceSecondary,
     },
     headerTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text },
-    countPill: {
-      backgroundColor: C.primaryMuted,
-      borderRadius: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderWidth: 1,
-      borderColor: C.primary + '40',
-    },
-    countPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
 
+    // ── Showcase ────────────────────────────────────────────────────────────
+    hero: {
+      marginHorizontal: 16,
+      marginTop: 6,
+      marginBottom: 18,
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      padding: 18,
+      ...shadowStyle('#000000', 0.06, 14, 4, 2),
+    },
+    heroTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    heroMedalGlow: shadowStyle('#000000', 0.18, 12, 5, 5),
+    heroText: { flex: 1 },
+    heroLabel: {
+      fontSize: 10.5,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    heroName: {
+      fontSize: 19,
+      lineHeight: 24,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      marginTop: 3,
+    },
+    heroMeta: {
+      fontSize: 12.5,
+      lineHeight: 17,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 3,
+    },
+
+    progressRow: { marginTop: 18, marginBottom: 7 },
+    progressCount: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    progressTotal: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    progressTrack: {
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: C.surfaceTertiary,
+      overflow: 'hidden',
+    },
+    progressFill: { height: '100%', borderRadius: 4, backgroundColor: C.primary },
+
+    rarityRow: {
+      flexDirection: 'row',
+      marginTop: 14,
+    },
+    rarityItem: { flex: 1, alignItems: 'flex-start', gap: 2 },
+    rarityDot: { width: 7, height: 7, borderRadius: 3.5 },
+    rarityCount: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: C.text },
+    rarityTotal: { fontSize: 10.5, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    rarityLabel: {
+      fontSize: 9,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+
+    // ── Filter ──────────────────────────────────────────────────────────────
     filterBar: {
       flexDirection: 'row',
-      paddingHorizontal: 20,
-      paddingBottom: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 4,
       gap: 8,
     },
     filterTab: {
@@ -667,218 +771,65 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primaryMuted,
       borderColor: C.primary + '55',
     },
-    filterTabText: {
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-    },
-    filterTabTextActive: {
-      color: C.primary,
-      fontFamily: 'Inter_700Bold',
-    },
+    filterTabText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    filterTabTextActive: { color: C.primary, fontFamily: 'Inter_700Bold' },
 
-    // ── Collection summary by rarity ────────────────────────────────────────
-    tierStrip: {
-      flexDirection: 'row',
-      gap: 8,
-      marginBottom: 14,
-    },
-    tierTile: {
-      flex: 1,
-      borderRadius: 14,
-      borderWidth: 1,
-      backgroundColor: C.surfaceSecondary,
-      paddingVertical: 10,
-      paddingHorizontal: 6,
-      alignItems: 'center',
-      gap: 3,
-    },
-    tierDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-      marginBottom: 1,
-    },
-    tierCount: {
-      fontSize: 15,
-      fontFamily: 'Inter_700Bold',
-      color: C.textSecondary,
-    },
-    tierTotal: {
-      fontSize: 11,
-      fontFamily: 'Inter_500Medium',
-      color: C.textTertiary,
-    },
-    tierLabel: {
-      fontSize: 10,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    tierComplete: {
-      position: 'absolute',
-      top: 5,
-      right: 5,
-    },
-    nextUpCard: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      backgroundColor: C.primarySurface,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: C.primaryMuted,
-      padding: 14,
-      marginBottom: 16,
-    },
-    nextUpIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: 12,
-      backgroundColor: C.primaryMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    nextUpTitle: {
-      fontSize: 14,
-      fontFamily: 'Inter_700Bold',
-      color: C.text,
-      marginBottom: 2,
-    },
-    nextUpBody: {
-      fontSize: 12.5,
-      lineHeight: 18,
-      fontFamily: 'Inter_400Regular',
-      // C.text, not textSecondary: the tinted card surface is darker than the
-      // page, which pulled textSecondary to 4.38:1 here — just under AA. The
-      // bold title and icon carry the hierarchy without needing a lighter body.
-      color: C.text,
-    },
-    listContent: {
-      paddingHorizontal: 16,
-      paddingTop: 4,
-    },
-
-    sectionHeader: {
+    // ── Shelves ─────────────────────────────────────────────────────────────
+    shelf: { paddingTop: 18 },
+    shelfHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingTop: 16,
+      paddingHorizontal: 20,
       paddingBottom: 8,
-      paddingHorizontal: 4,
     },
-    sectionTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.text,
-    },
-    sectionCount: {
-      fontSize: 11,
-      fontFamily: 'Inter_500Medium',
-      color: C.textTertiary,
-    },
-
-    badgeRow: {
-      flexDirection: 'row',
-      marginBottom: 2,
-    },
-    badgeCell: {
-      flex: 1,
+    shelfTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    shelfCount: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    shelfRow: { paddingHorizontal: 14 },
+    shelfItem: {
+      width: SHELF_ITEM_W,
       alignItems: 'center',
-      paddingVertical: 6,
-      paddingHorizontal: 2,
+      paddingVertical: 4,
     },
-    badgeIconWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1.5,
-      marginBottom: 5,
-      position: 'relative',
-    },
-    badgeIconLocked: {
-      opacity: 0.3,
-    },
-    lockOverlay: {
-      position: 'absolute',
-      bottom: -2,
-      right: -2,
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeName: {
-      fontSize: 9,
+    shelfItemName: {
+      fontSize: 9.5,
+      lineHeight: 12,
       fontFamily: 'Inter_500Medium',
       color: C.text,
       textAlign: 'center',
-      lineHeight: 12,
+      marginTop: 6,
     },
-    badgeNameLocked: {
-      color: C.textTertiary,
-    },
-    earnedDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 2.5,
-      marginTop: 3,
-    },
+    shelfItemNameLocked: { color: C.textTertiary },
 
+    // ── Detail sheet ────────────────────────────────────────────────────────
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
     detailSheet: {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 12,
       paddingHorizontal: 24,
+      maxHeight: '86%',
     },
     sheetHandle: {
       width: 36,
       height: 4,
       borderRadius: 2,
       alignSelf: 'center',
-      marginBottom: 24,
+      marginBottom: 20,
     },
     detailContent: {
       alignItems: 'center',
       gap: 10,
       paddingBottom: 8,
     },
-    detailIconWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      marginBottom: 4,
-      position: 'relative',
-    },
-    detailLockOverlay: {
-      position: 'absolute',
-      bottom: -4,
-      right: -4,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: C.surface,
-      borderWidth: 1.5,
-      borderColor: C.borderLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    detailMedalGlow: shadowStyle('#000000', 0.2, 16, 6, 6),
     detailName: {
       fontSize: 22,
       fontFamily: 'Inter_700Bold',
       textAlign: 'center',
+      marginTop: 6,
     },
+    detailPillRow: { flexDirection: 'row', gap: 8 },
     detailStatusPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -888,10 +839,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 5,
       borderWidth: 1,
     },
-    detailStatusText: {
-      fontSize: 12,
-      fontFamily: 'Inter_600SemiBold',
-    },
+    detailStatusText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
     detailDesc: {
       fontSize: 15,
       fontFamily: 'Inter_400Regular',
@@ -908,12 +856,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       alignSelf: 'stretch',
     },
-    hintText: {
-      flex: 1,
-      fontSize: 13,
-      fontFamily: 'Inter_400Regular',
-      lineHeight: 19,
-    },
+    hintText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19 },
     detailCategory: {
       fontSize: 11,
       fontFamily: 'Inter_500Medium',
@@ -927,9 +870,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       marginTop: 20,
     },
-    detailCloseBtnText: {
-      fontSize: 16,
-      fontFamily: 'Inter_700Bold',
-    },
+    detailCloseBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   });
 }
