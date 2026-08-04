@@ -1,11 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, Platform, Image } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-} from 'react-native-reanimated';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Modal,
+  Platform,
+  Image,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -16,8 +21,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
 
-const ENTER_MS = 300;
 const EXIT_MS = 210;
+/** How far the sheet slides down on the way out. Exit only — see the note on
+ *  translateY: the sheet is never positioned by an entering animation. */
 const SLIDE_START = 460;
 
 interface AchievementUnlockedSheetProps {
@@ -43,9 +49,25 @@ export default function AchievementUnlockedSheet({
 }: AchievementUnlockedSheetProps) {
   const C = useColors();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
-  const translateY = useSharedValue(SLIDE_START);
-  const backdropOpacity = useSharedValue(0);
+  // The sheet is laid out AT REST, not animated into place.
+  //
+  // It used to start translated SLIDE_START px down with a transparent
+  // backdrop and rely on a mount animation to bring it in. When that animation
+  // did not run — reproduced here, the sheet sat permanently at
+  // `transform: translateY(460px)` — it stayed pushed down the screen while
+  // still covering the whole display. Its "View all badges" and "Not now"
+  // buttons rendered below the bottom edge, and because the sheet covered
+  // everything there was no backdrop left to tap either. An undismissable
+  // full-screen modal, indistinguishable from the app freezing, clearable only
+  // by force-quitting.
+  //
+  // A failsafe that snapped the values back after a timeout did not fix it, so
+  // correct placement no longer depends on an animation running at all. The
+  // Modal's own presentation provides the transition.
+  const translateY = useSharedValue(0);
+  const backdropOpacity = useSharedValue(1);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -55,39 +77,13 @@ export default function AchievementUnlockedSheet({
     opacity: backdropOpacity.value,
   }));
 
-  // Whether the sheet has definitely reached its on-screen position. The
-  // full-screen Pressable below must not swallow touches before this is true:
-  // it is the only thing between the user and the app, and it exists from the
-  // first frame while the sheet itself starts translated off-screen with a
-  // fully transparent backdrop.
-  const [presented, setPresented] = useState(false);
-
   useEffect(() => {
-    backdropOpacity.value = withTiming(1, { duration: ENTER_MS });
-    translateY.value = withSpring(0, { damping: 22, stiffness: 200 });
-
-    // Failsafe. This Modal mounts at root level, often while a navigation
-    // transition is still in flight (finishing a session unlocks badges, then
-    // immediately replaces the route). If the entering animation gets dropped
-    // in that window the sheet stays parked at SLIDE_START behind a
-    // zero-opacity backdrop — invisible, but its Pressable keeps eating every
-    // tap, so the whole app reads as frozen until it is force-quit.
-    // Snap to the presented state unconditionally rather than trusting the
-    // animation to have run.
-    const settle = setTimeout(() => {
-      backdropOpacity.value = 1;
-      translateY.value = 0;
-      setPresented(true);
-    }, ENTER_MS + 120);
-
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 180);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 360);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 520);
     }
-    return () => clearTimeout(settle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismiss = () => {
@@ -126,14 +122,8 @@ export default function AchievementUnlockedSheet({
         pointerEvents="none"
       />
 
-      {/* Outer Pressable: tap outside sheet to dismiss. pointerEvents is gated
-          on `presented` so this can never block the app while the sheet is
-          still invisible — see the failsafe in the mount effect above. */}
-      <Pressable
-        style={styles.container}
-        onPress={dismiss}
-        pointerEvents={presented ? 'auto' : 'box-none'}
-      >
+      {/* Outer Pressable: tap outside the sheet to dismiss. */}
+      <Pressable style={styles.container} onPress={dismiss}>
         {/* Animated sheet wrapper */}
         <Animated.View style={sheetStyle}>
           {/* Inner Pressable: stop-propagation so tapping inside does not dismiss */}
@@ -145,12 +135,29 @@ export default function AchievementUnlockedSheet({
                 backgroundColor: C.surface,
                 borderColor: C.borderLight,
                 paddingBottom: insets.bottom + 28,
+                // Never taller than the screen. A first real session can clear
+                // nine "first of category" thresholds at once, and an unbounded
+                // sheet then grew past the viewport: it covered the display
+                // completely, so there was no backdrop left to tap, and both
+                // its buttons rendered below the bottom edge where they could
+                // not be reached. The result was an undismissable full-screen
+                // modal — indistinguishable from the app having frozen, and
+                // only clearable by force-quitting.
+                maxHeight: windowHeight * 0.88,
               },
             ]}
           >
             {/* Handle bar */}
             <View style={[styles.handle, { backgroundColor: C.border }]} />
 
+            {/* Everything above the buttons scrolls, so however many badges
+                land at once the actions below stay on screen and reachable. */}
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
             {/* Large icon */}
             <View
               style={[
@@ -198,6 +205,7 @@ export default function AchievementUnlockedSheet({
                   : `${sessionsToGo} sessions to your next badge`}
               </Text>
             )}
+            </ScrollView>
 
             {/* Primary CTA */}
             <Pressable
@@ -248,6 +256,10 @@ const styles = StyleSheet.create({
     gap: 10,
     ...shadowStyle('#000', 0.1, 20, -4, 16),
   },
+  // flexShrink lets the scroll area give up height when the sheet hits its cap,
+  // so the buttons below it are never pushed off the bottom of the screen.
+  scrollArea: { alignSelf: 'stretch', flexShrink: 1 },
+  scrollContent: { alignItems: 'center', gap: 10 },
   handle: {
     width: 36,
     height: 4,
