@@ -44,6 +44,26 @@ export interface Exercise {
   reps: string;
   cue: string;
   suggestedLoad: string;
+  /**
+   * The weight(s) the engine computed for this exercise, in kg — either a
+   * single working weight or an explicit per-set ladder. Canonical unit; the
+   * UI converts for display.
+   *
+   * `suggestedLoad` is display text and nothing more. Whenever a weight has
+   * actually been calculated it is recorded here, and callers pass this through
+   * `expandSetTargets` rather than pattern-matching the sentence. Rewording a
+   * load can therefore never change what the app tells you to lift.
+   *
+   * Deliberately NOT stored pre-expanded per set: `sets` is adjusted after
+   * generation (neuro sets are raised, accessory sets flex with time and
+   * energy), so a fixed-length array would go stale. Expanding at the point of
+   * use keeps it correct whatever the set count ends up being.
+   *
+   * Absent when no weight applies (bodyweight, bands, timed work) or when the
+   * load came verbatim from the exercise database, in which case callers fall
+   * back to `getWeightGuideKg`.
+   */
+  loadKg?: number[];
   category: ExerciseCategory;
   badge?: 'comfort' | 'volume';
   videoId: string;
@@ -227,6 +247,16 @@ export function workingWeightFromOrm(ormKg: number, profile: UserProfile): numbe
  * Exercises with non-numeric loads (Bodyweight, Band, Machine, Cardio) are returned unchanged.
  * Numeric values are rounded to the nearest 2.5 kg with a minimum of 2.5 kg.
  */
+/**
+ * A prescribed load: the words shown to the user, and the weights behind them.
+ * `kg` is null when there is no weight to speak of (bodyweight, bands, timed
+ * work) or when the text came verbatim from the exercise database.
+ */
+interface PersonalisedLoad {
+  text: string;
+  kg: number[] | null;
+}
+
 function personalizeLoad(
   rawLoad: string,
   profile: UserProfile,
@@ -240,8 +270,13 @@ function personalizeLoad(
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>
-): string {
-  if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return rawLoad;
+): PersonalisedLoad {
+  /** Load text the engine did not compute — no structured weight to attach. */
+  const verbatim = (text: string): PersonalisedLoad => ({ text, kg: null });
+  /** A weight this function worked out. `kg` is what the UI will actually use. */
+  const computed = (kg: number): PersonalisedLoad => ({ text: `${kg} kg`, kg: [kg] });
+
+  if (!profile.bodyweightKg || profile.bodyweightKg <= 0) return verbatim(rawLoad);
 
   const lower = rawLoad.toLowerCase();
   if (
@@ -260,7 +295,7 @@ function personalizeLoad(
     lower.includes('effort') ||
     !/\d/.test(rawLoad)
   ) {
-    return rawLoad;
+    return verbatim(rawLoad);
   }
 
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
@@ -324,7 +359,7 @@ function personalizeLoad(
           `[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed)`
         );
       }
-      return `${lastKg} kg`;
+      return computed(lastKg);
     }
     // No-feedback streak: consecutive sessions this exercise was logged without
     // any explicit feedback (thumbs / tooEasy). Maintained per-exercise in the
@@ -342,7 +377,7 @@ function personalizeLoad(
         `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} → ${progressedKg}kg`
       );
     }
-    return `${progressedKg} kg`;
+    return computed(progressedKg);
   }
 
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
@@ -359,7 +394,7 @@ function personalizeLoad(
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
     const targetKg = roundTo2_5(workingWeightFromOrm(ormKg, profile) * combinedMult);
-    return `${targetKg} kg`;
+    return computed(targetKg);
   }
 
   // ── Heuristic scaling (fallback when no 1RM is available) ───────────────
@@ -390,11 +425,18 @@ function personalizeLoad(
 
   const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.7) * avgGoalFactor * sexFactor;
 
-  return rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
+  // Scales every weight in the string, so a ladder like "8 / 14 / 20 kg" stays
+  // a ladder. The scaled values are collected as we go rather than re-parsed
+  // out of the result — that round trip is exactly what this removes.
+  const scaled: number[] = [];
+  const text = rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
     if (num <= 0) return match;
-    return String(roundTo2_5(num * scale * combinedMult));
+    const kg = roundTo2_5(num * scale * combinedMult);
+    scaled.push(kg);
+    return String(kg);
   });
+  return { text, kg: scaled.length > 0 ? scaled : null };
 }
 
 function shouldSwapForComfort(
@@ -583,10 +625,9 @@ function applyPersonalization(
     }
   }
 
-  return {
-    ...ex,
-    suggestedLoad: personalizeLoad(
-      ex.suggestedLoad,
+  const personalise = (raw: string) =>
+    personalizeLoad(
+      raw,
       profile,
       isUpperBody,
       ex.id,
@@ -597,22 +638,18 @@ function applyPersonalization(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance
-    ),
-    swapLoad: ex.swapLoad
-      ? personalizeLoad(
-          ex.swapLoad,
-          profile,
-          isUpperBody,
-          ex.id,
-          exerciseFeedback,
-          ormKg,
-          isMainLift,
-          strengthSessionCount,
-          lastLoggedWeights,
-          exerciseNormalStreak,
-          lastSessionPerformance
-        )
-      : ex.swapLoad,
+    );
+
+  const main = personalise(ex.suggestedLoad);
+  const swap = ex.swapLoad ? personalise(ex.swapLoad) : null;
+
+  return {
+    ...ex,
+    suggestedLoad: main.text,
+    // Structured weights travel with the exercise so the UI never has to read
+    // them back out of the sentence above.
+    loadKg: main.kg ?? undefined,
+    swapLoad: swap ? swap.text : ex.swapLoad,
     progressionNote,
     progressionDirection,
   };
@@ -1176,6 +1213,7 @@ export function generate1RMWorkout(
         return {
           ...e,
           suggestedLoad: `${testKg} kg`,
+          loadKg: [testKg],
           cue: `Load ${testKg} kg and do as many clean reps as you can. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
         };
       }
@@ -1185,6 +1223,7 @@ export function generate1RMWorkout(
         return {
           ...e,
           suggestedLoad: `${ladder.join(' / ')} kg`,
+          loadKg: ladder,
           cue: `Work up to the test weight: ${ladder.join(' kg, ')} kg. These are warm-ups, not work sets — stop each one well short of hard.`,
         };
       }
@@ -1344,30 +1383,50 @@ export function getWeightGuideKg(
   sets: number,
   suggestedLoad?: string
 ): number[] {
+  return expandSetTargets(category, sets, parseLoadKg(suggestedLoad));
+}
+
+/**
+ * Every weight expressed in a load string, in order, in kg.
+ *
+ * This is the ONLY place a prescribed weight is recovered from prose, and it
+ * exists purely as a fallback for loads that come straight from the exercise
+ * database. Anything the engine computes carries `Exercise.targetKg` instead,
+ * so its numbers never round-trip through English.
+ *
+ * Percentages are stripped first. "~90% of working weight" used to parse as
+ * 90 kg and then get halved by the ramp, so the 1RM test set offered a 45 kg
+ * guide that came from a percent sign.
+ */
+export function parseLoadKg(suggestedLoad?: string): number[] {
+  const text = suggestedLoad?.replace(/\d+(?:\.\d+)?\s*%/g, '') ?? '';
+  return (text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number).filter((n) => n > 0);
+}
+
+/**
+ * Turn the prescribed weight(s) for an exercise into one target per set.
+ *
+ * `numbers` is either an explicit per-set ladder (a ramp-up naming each set) or
+ * a working weight the ramp is derived from. Categories that carry no barbell
+ * load get zeros, which the UI reads as "no guide".
+ */
+export function expandSetTargets(
+  category: ExerciseCategory,
+  sets: number,
+  numbers: number[]
+): number[] {
   const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
 
-  // A percentage is not a weight. "~90% of working weight" used to parse as
-  // 90 kg and then get halved by the ramp below, so the 1RM test set offered a
-  // 45 kg guide that came from a percent sign. Strip those tokens first.
-  const loadText = suggestedLoad?.replace(/\d+(?:\.\d+)?\s*%/g, '') ?? '';
+  // An explicit ladder wins: the protocol has already stated each set.
+  if (numbers.length === sets && sets > 1) return numbers;
+  if (numbers.length === 0) return Array(sets).fill(0);
 
-  // An explicit per-set list ("40 / 55 / 70 / 80 kg") beats any heuristic — the
-  // protocol has already stated what each set should be. Used by ramp-ups.
-  if (loadText.includes('/')) {
-    const parts = loadText
-      .split('/')
-      .map((p) => p.match(/(\d+(?:\.\d+)?)/)?.[1])
-      .filter((n): n is string => n !== undefined)
-      .map(Number);
-    if (parts.length === sets) return parts;
-  }
-
-  let targetKg: number | null = null;
-  const numMatch = loadText.match(/(\d+(?:\.\d+)?)/);
-  if (numMatch) targetKg = parseFloat(numMatch[1]);
-  if (targetKg === null) return Array(sets).fill(0);
-
-  const w = (pct: number) => roundTo2_5(targetKg! * pct);
+  // Otherwise the first value is the working weight. Deliberately not the
+  // highest: 229 database loads are ranges ("8-12 kg per hand", "40-60 kg"),
+  // and the app has always prescribed the bottom of the range. Taking the top
+  // would quietly add load to a third of the catalogue.
+  const targetKg = numbers[0];
+  const w = (pct: number) => roundTo2_5(targetKg * pct);
 
   if (category === 'main') {
     // Return exactly `sets` entries. This used to hand back three regardless,

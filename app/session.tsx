@@ -69,6 +69,7 @@ import {
   getSessionLabel,
   getPainRegionLabel,
   getWeightGuideKg,
+  expandSetTargets,
   getMainLiftExerciseId,
   workingWeightFromOrm,
   REST_PERIOD_SECONDS,
@@ -978,7 +979,12 @@ export function ExerciseCard({
   const [expanded, setExpanded] = useState(true);
   const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
-  const weightGuidesKg = getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
+  // Prefer the weights the engine computed, expanded against the CURRENT set
+  // count. getWeightGuideKg is the fallback for loads that came verbatim from
+  // the exercise database, where the string is the only source there has been.
+  const weightGuidesKg = exercise.loadKg
+    ? expandSetTargets(exercise.category, exercise.sets, exercise.loadKg)
+    : getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
 
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
   const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
@@ -2445,12 +2451,17 @@ export default function SessionScreen() {
 
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
     const swapCount = data.swapCount ?? 0;
+    // A swap is a different movement with its own load, so the structured
+    // weights computed for the original no longer describe it. Dropping
+    // loadKg falls the guide back to reading the swap's own load text —
+    // which is the only thing that has ever described a swap.
     if (swapCount === 1 && exercise.swapName) {
       return {
         ...exercise,
         name: exercise.swapName,
         cue: exercise.swapCue ?? exercise.cue,
         suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
+        loadKg: exercise.swapLoad ? undefined : exercise.loadKg,
         hasSwap: true,
         badge: undefined,
       };
@@ -2461,6 +2472,7 @@ export default function SessionScreen() {
         name: exercise.swap2Name,
         cue: exercise.swap2Cue ?? exercise.cue,
         suggestedLoad: exercise.swap2Load ?? exercise.suggestedLoad,
+        loadKg: exercise.swap2Load ? undefined : exercise.loadKg,
         hasSwap: true,
         badge: undefined,
       };
@@ -2874,9 +2886,11 @@ export default function SessionScreen() {
             Math.max(activeSetIdx, 0),
             (activeData?.sets.length ?? 1) - 1
           );
-          const weightGuidesForBar = displayEx
-            ? getWeightGuideKg(displayEx.category, displayEx.sets, displayEx.suggestedLoad)
-            : [];
+          const weightGuidesForBar = !displayEx
+            ? []
+            : displayEx.loadKg
+              ? expandSetTargets(displayEx.category, displayEx.sets, displayEx.loadKg)
+              : getWeightGuideKg(displayEx.category, displayEx.sets, displayEx.suggestedLoad);
           const isBandEx = displayEx ? isLoadBandOrBodyweight(displayEx.suggestedLoad) : false;
           const isTimeEx = displayEx ? isRepsTimeBased(displayEx.reps, sessionType) : false;
           return (
