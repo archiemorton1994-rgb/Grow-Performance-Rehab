@@ -23,6 +23,9 @@ import {
   Badge,
   BadgeCategory,
   BadgeCriteriaType,
+  BadgeTier,
+  BADGE_TIER_COLORS,
+  BADGE_TIER_LABELS,
 } from '@/lib/badges';
 
 type FilterTab = 'all' | 'earned' | 'locked';
@@ -49,37 +52,11 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
 
 const COLS = 4;
 
-// Category-specific accent colours give each badge family its own identity.
-// Earned badges render in full colour with a soft glow; locked badges are shown
-// as a desaturated silhouette (see makeStyles.badgeIconLocked).
-// `milestone` uses the theme's achievementGold token (passed in) since amber needs
-// different light/dark values for contrast — every other category is a fixed hex.
-function getCategoryColors(achievementGold: string): Record<BadgeCategory, string> {
-  return {
-    milestone: achievementGold, // amber / gold
-    streak: '#3b82f6', // blue
-    strength_progress: '#dc2626', // crimson
-    session_lower: '#8b5cf6', // violet
-    session_upper: '#0ea5e9', // sky
-    session_full: '#ef4444', // red
-    session_conditioning: '#f97316', // orange
-    session_prehab: '#10b981', // emerald
-    session_flex: '#06b6d4', // cyan
-    session_custom: '#64748b', // slate
-    consistency: '#22c55e', // green
-    goals: '#a855f7', // purple
-    equipment: '#94a3b8', // steel
-    test_week: '#6366f1', // indigo
-    time_of_day: '#eab308', // yellow
-    variety: '#d946ef', // fuchsia
-    recovery: '#14b8a6', // teal
-    duration: '#0891b2', // deep cyan
-    comeback: '#ec4899', // pink
-    pain_warrior: '#e11d48', // rose
-    endurance: '#fb923c', // light orange
-    exercise_milestone: '#7c3aed', // deep violet
-  };
-}
+// Badge colour comes from the badge itself now — see BadgeTier in lib/badges.ts.
+// This screen used to override it with a twenty-two-colour category palette
+// (fuchsia, rose, indigo, steel…) which, on top of the sixteen colours the
+// catalogue already carried, meant thirty-eight hues that signalled nothing and
+// belonged to no part of the app's identity. Colour now means rarity only.
 
 // ─── Tour overlay callout ──────────────────────────────────────────────────────
 
@@ -252,7 +229,7 @@ const tourStyles = StyleSheet.create({
 export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
-  const CATEGORY_COLORS = getCategoryColors(C.achievementGold);
+
   const { earnedBadges } = useAppStore();
   const earnedSet = useMemo(() => new Set(earnedBadges), [earnedBadges]);
   const params = useLocalSearchParams<{ tour?: string }>();
@@ -295,6 +272,22 @@ export default function AchievementsScreen() {
   const totalEarned = earnedBadges.length;
   const totalBadges = BADGE_CATALOG.length;
 
+  // Collection summary by rarity. A bare "12/277" says almost nothing — 12
+  // could be twelve first-timers or twelve of the hardest badges in the app.
+  // Split by tier it reads as a collection: what you have, and what is still
+  // out of reach.
+  const tierStats = useMemo(() => {
+    const order: BadgeTier[] = ['bronze', 'silver', 'gold', 'grow'];
+    return order.map((tier) => {
+      const all = BADGE_CATALOG.filter((b) => b.tier === tier);
+      return {
+        tier,
+        earned: all.filter((b) => earnedSet.has(b.id)).length,
+        total: all.length,
+      };
+    });
+  }, [earnedSet]);
+
   // With nothing earned, the screen was a wall of locked tiles and a 0/N count
   // — no encouragement and no next action, unlike every other list in the app.
   // Name the badge that unlocks first instead, so there is something to aim at.
@@ -304,15 +297,11 @@ export default function AchievementsScreen() {
     () =>
       BADGE_CATALOG.find(
         (b) =>
-          b.category === 'milestone' &&
-          b.criteriaType !== 'profile_action' &&
-          !earnedSet.has(b.id)
+          b.category === 'milestone' && b.criteriaType !== 'profile_action' && !earnedSet.has(b.id)
       ),
     [earnedSet]
   );
-  const detailColor = detailBadge
-    ? (CATEGORY_COLORS[detailBadge.category] ?? detailBadge.color)
-    : '';
+  const detailColor = detailBadge ? detailBadge.color : '';
 
   const handleBadgePress = (badge: Badge) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -381,25 +370,61 @@ export default function AchievementsScreen() {
         stickySectionHeadersEnabled
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
         ListHeaderComponent={
-          totalEarned === 0 ? (
-            <View style={styles.nextUpCard}>
-              <View style={styles.nextUpIcon}>
-                <Ionicons name="trophy-outline" size={22} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.nextUpTitle}>Nothing unlocked yet</Text>
-                <Text style={styles.nextUpBody}>
-                  {firstMilestone
-                    ? // Descriptions are inconsistently punctuated, so trim any
-                      // trailing stop before adding our own.
-                      `${firstMilestone.name} is first up — ${firstMilestone.description
-                        .replace(/\.\s*$/, '')
-                        .toLowerCase()}.`
-                    : 'Finish a session and your first badge lands on the summary screen.'}
-                </Text>
-              </View>
+          <>
+            {/* Collection summary — what you hold, by rarity */}
+            <View style={styles.tierStrip}>
+              {tierStats.map(({ tier, earned, total }) => {
+                const colour = BADGE_TIER_COLORS[tier];
+                const complete = earned === total && total > 0;
+                return (
+                  <View
+                    key={tier}
+                    style={[
+                      styles.tierTile,
+                      { borderColor: earned > 0 ? colour + '55' : C.borderLight },
+                      earned > 0 && { backgroundColor: colour + '12' },
+                    ]}
+                  >
+                    <View style={[styles.tierDot, { backgroundColor: colour }]} />
+                    <Text style={[styles.tierCount, earned > 0 && { color: colour }]}>
+                      {earned}
+                      <Text style={styles.tierTotal}>/{total}</Text>
+                    </Text>
+                    <Text style={styles.tierLabel} numberOfLines={1}>
+                      {BADGE_TIER_LABELS[tier]}
+                    </Text>
+                    {complete && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={11}
+                        color={colour}
+                        style={styles.tierComplete}
+                      />
+                    )}
+                  </View>
+                );
+              })}
             </View>
-          ) : null
+            {totalEarned === 0 ? (
+              <View style={styles.nextUpCard}>
+                <View style={styles.nextUpIcon}>
+                  <Ionicons name="trophy-outline" size={22} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.nextUpTitle}>Nothing unlocked yet</Text>
+                  <Text style={styles.nextUpBody}>
+                    {firstMilestone
+                      ? // Descriptions are inconsistently punctuated, so trim any
+                        // trailing stop before adding our own.
+                        `${firstMilestone.name} is first up — ${firstMilestone.description
+                          .replace(/\.\s*$/, '')
+                          .toLowerCase()}.`
+                      : 'Finish a session and your first badge lands on the summary screen.'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </>
         }
         renderSectionHeader={({ section }) => (
           <View style={[styles.sectionHeader, { backgroundColor: C.background }]}>
@@ -422,7 +447,7 @@ export default function AchievementsScreen() {
             <View style={styles.badgeRow}>
               {rowItems.map((badge) => {
                 const isEarned = earnedSet.has(badge.id);
-                const badgeColor = CATEGORY_COLORS[badge.category] ?? badge.color;
+                const badgeColor = badge.color;
                 return (
                   <Pressable
                     key={badge.id}
@@ -652,6 +677,50 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
     },
 
+    // ── Collection summary by rarity ────────────────────────────────────────
+    tierStrip: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 14,
+    },
+    tierTile: {
+      flex: 1,
+      borderRadius: 14,
+      borderWidth: 1,
+      backgroundColor: C.surfaceSecondary,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+      alignItems: 'center',
+      gap: 3,
+    },
+    tierDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      marginBottom: 1,
+    },
+    tierCount: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+    },
+    tierTotal: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+    },
+    tierLabel: {
+      fontSize: 10,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    tierComplete: {
+      position: 'absolute',
+      top: 5,
+      right: 5,
+    },
     nextUpCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',

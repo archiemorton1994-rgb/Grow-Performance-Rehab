@@ -54,6 +54,38 @@ export type BadgeCriteriaType =
   | 'low_energy' // sessions completed when energy was reported low
   | 'exercise_specific'; // specific named exercise logged for the first time
 
+/**
+ * How rare a badge is within its family. This is the ONLY thing badge colour
+ * encodes.
+ *
+ * It replaces two competing palettes — sixteen colours assigned per badge here,
+ * overridden by a different twenty-two-colour category palette in the
+ * achievements screen. Thirty-eight hues between them, none of which meant
+ * anything: colour signalled neither difficulty nor progress, and none of it
+ * belonged to the app's own green. Nobody was ever going to learn that fuchsia
+ * meant "variety".
+ *
+ * Rarity is legible without being taught, and it makes the grid readable at a
+ * glance: mostly bronze means you are early, gold means you have put the work
+ * in. The rarest tier is the brand green, so the hardest badges look like this
+ * app rather than a stock icon pack.
+ */
+export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'grow';
+
+export const BADGE_TIER_COLORS: Record<BadgeTier, string> = {
+  bronze: '#B0764A',
+  silver: '#9BA6AE',
+  gold: '#C9A227',
+  grow: '#2F6B46',
+};
+
+export const BADGE_TIER_LABELS: Record<BadgeTier, string> = {
+  bronze: 'Bronze',
+  silver: 'Silver',
+  gold: 'Gold',
+  grow: 'Grow',
+};
+
 export interface Badge {
   id: string;
   name: string;
@@ -62,7 +94,8 @@ export interface Badge {
   /** Classification of the underlying data used to evaluate this badge. */
   criteriaType: BadgeCriteriaType;
   icon: string; // Ionicons glyph map key
-  color: string; // hex
+  color: string; // hex — always the tier colour; see BadgeTier
+  tier: BadgeTier;
 }
 
 // ─── Color palette ───────────────────────────────────────────────────────────
@@ -123,7 +156,7 @@ const MILESTONE_DATA: [number, string, string][] = [
  *  AchievementUnlockedSheet and session-summary to detect/celebrate milestones
  *  and compute "N sessions to go," so they can't drift from the real badges. */
 export const MILESTONE_SESSION_THRESHOLDS = MILESTONE_DATA.map(([n]) => n);
-const milestoneBadges: Badge[] = MILESTONE_DATA.map(([n, name, description]) => ({
+const milestoneBadges: BadgeSeed[] = MILESTONE_DATA.map(([n, name, description]) => ({
   id: `milestone_${n}`,
   name,
   description,
@@ -149,7 +182,7 @@ const STREAK_DATA: [number, string][] = [
   [78, 'Eighteen Months'],
   [104, 'Two Year Legend'],
 ];
-const streakBadges: Badge[] = STREAK_DATA.map(([n, name]) => ({
+const streakBadges: BadgeSeed[] = STREAK_DATA.map(([n, name]) => ({
   id: `streak_${n}wk`,
   name,
   description: `Train at least 2× per week for ${n} consecutive weeks`,
@@ -177,16 +210,17 @@ const PROGRESS_TIERS: [number, string, string][] = [
   [50, 'Transformed', '50% stronger - a completely different athlete'],
 ];
 
-const strengthProgressBadges: Badge[] = (['squat', 'bench', 'deadlift'] as const).flatMap((lift) =>
-  PROGRESS_TIERS.map(([pct, name, descSuffix]) => ({
-    id: `progress_${lift}_${pct}pct`,
-    name: `${LIFT_META[lift].label} ${name}`,
-    description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% - ${descSuffix}`,
-    category: 'strength_progress' as BadgeCategory,
-    criteriaType: 'strength_improvement' as BadgeCriteriaType,
-    icon: LIFT_META[lift].icon,
-    color: LIFT_META[lift].color,
-  }))
+const strengthProgressBadges: BadgeSeed[] = (['squat', 'bench', 'deadlift'] as const).flatMap(
+  (lift) =>
+    PROGRESS_TIERS.map(([pct, name, descSuffix]) => ({
+      id: `progress_${lift}_${pct}pct`,
+      name: `${LIFT_META[lift].label} ${name}`,
+      description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% - ${descSuffix}`,
+      category: 'strength_progress' as BadgeCategory,
+      criteriaType: 'strength_improvement' as BadgeCriteriaType,
+      icon: LIFT_META[lift].icon,
+      color: LIFT_META[lift].color,
+    }))
 );
 
 // ─── 7–13. Session Type Count Badges ─────────────────────────────────────────
@@ -266,7 +300,7 @@ const SESSION_COUNT_NAMES: Record<number, (type: string) => string> = {
 };
 
 const SESSION_COUNTS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 150, 200];
-const sessionTypeBadges: Badge[] = SESSION_TYPE_CONFIGS.flatMap(
+const sessionTypeBadges: BadgeSeed[] = SESSION_TYPE_CONFIGS.flatMap(
   ({ prefix, category, icon, color, typeName }) =>
     SESSION_COUNTS.map((n) => ({
       id: `${prefix}_session_${n}`,
@@ -281,7 +315,7 @@ const sessionTypeBadges: Badge[] = SESSION_TYPE_CONFIGS.flatMap(
 );
 
 // ─── 14. Consistency Badges ───────────────────────────────────────────────────
-const consistencyBadges: Badge[] = [
+const consistencyBadges: BadgeSeed[] = [
   {
     id: 'consistent_2x_4wk',
     name: 'Twice a Week',
@@ -420,7 +454,7 @@ const consistencyBadges: Badge[] = [
 ];
 
 // ─── 15. Goal-Specific Badges ─────────────────────────────────────────────────
-const goalsBadges: Badge[] = [
+const goalsBadges: BadgeSeed[] = [
   // Strength
   {
     id: 'goal_strength_1rm',
@@ -763,7 +797,7 @@ const goalsBadges: Badge[] = [
 // session) — not when they skip or exit it early. Every other badge is a
 // training reward (see lib/badge-engine.ts), so a brand-new user finishes the
 // tour with EXACTLY ONE earned badge. Do NOT add profile-setup badges.
-const onboardingBadge: Badge = {
+const onboardingBadge: BadgeSeed = {
   id: 'onboarding_complete',
   // Was 'First Steps', one letter from the 'First Step' milestone awarded for
   // completing your first session — two different badges, side by side in the
@@ -777,7 +811,7 @@ const onboardingBadge: Badge = {
 };
 
 // ─── 17. Equipment Badges ─────────────────────────────────────────────────────
-const equipmentBadges: Badge[] = [
+const equipmentBadges: BadgeSeed[] = [
   {
     id: 'equip_bodyweight',
     name: 'Bodyweight Boss',
@@ -844,7 +878,7 @@ const equipmentBadges: Badge[] = [
 ];
 
 // ─── 18. Test Week Badges ─────────────────────────────────────────────────────
-const testWeekBadges: Badge[] = [
+const testWeekBadges: BadgeSeed[] = [
   {
     id: 'test_1',
     name: 'First Test',
@@ -893,7 +927,7 @@ const testWeekBadges: Badge[] = [
 ];
 
 // ─── 19. Time of Day Badges ───────────────────────────────────────────────────
-const timeOfDayBadges: Badge[] = [
+const timeOfDayBadges: BadgeSeed[] = [
   {
     id: 'time_5am',
     name: '5am Club',
@@ -987,7 +1021,7 @@ const timeOfDayBadges: Badge[] = [
 ];
 
 // ─── 20. Variety Badges ───────────────────────────────────────────────────────
-const varietyBadges: Badge[] = [
+const varietyBadges: BadgeSeed[] = [
   {
     id: 'variety_3_types',
     name: 'Well Rounded',
@@ -1084,7 +1118,7 @@ const varietyBadges: Badge[] = [
 ];
 
 // ─── 21. Recovery Badges ─────────────────────────────────────────────────────
-const recoveryBadges: Badge[] = [
+const recoveryBadges: BadgeSeed[] = [
   {
     id: 'recovery_5',
     name: 'Recovery Starter',
@@ -1142,7 +1176,7 @@ const recoveryBadges: Badge[] = [
 ];
 
 // ─── 22. Duration Badges ─────────────────────────────────────────────────────
-const durationBadges: Badge[] = [
+const durationBadges: BadgeSeed[] = [
   {
     id: 'duration_60min_1',
     name: 'Full Hour',
@@ -1218,7 +1252,7 @@ const durationBadges: Badge[] = [
 ];
 
 // ─── 23. Comeback Badges ─────────────────────────────────────────────────────
-const comebackBadges: Badge[] = [
+const comebackBadges: BadgeSeed[] = [
   {
     id: 'comeback_7d',
     name: 'Back in Action',
@@ -1267,7 +1301,7 @@ const comebackBadges: Badge[] = [
 ];
 
 // ─── 24. Pain Warrior Badges ─────────────────────────────────────────────────
-const painWarriorBadges: Badge[] = [
+const painWarriorBadges: BadgeSeed[] = [
   {
     id: 'pain_warrior_1',
     name: 'Adapts & Overcomes',
@@ -1316,7 +1350,7 @@ const painWarriorBadges: Badge[] = [
 ];
 
 // ─── 27. Endurance (Low-Energy) Badges ────────────────────────────────────────
-const enduranceBadges: Badge[] = [
+const enduranceBadges: BadgeSeed[] = [
   {
     id: 'endurance_1',
     name: 'No Excuses',
@@ -1358,7 +1392,7 @@ const enduranceBadges: Badge[] = [
 // ─── Exercise-Milestone Badges ────────────────────────────────────────────────
 // Celebrate first-time (or repeated) logging of specific signature exercises.
 // Evaluated by name-matching in exerciseLogs across completedSessions.
-const exerciseMilestoneBadges: Badge[] = [
+const exerciseMilestoneBadges: BadgeSeed[] = [
   // Movement-variety badges (kept here, variety/recovery criteria)
   {
     id: 'exercise_all_three_lifts',
@@ -1552,9 +1586,90 @@ const exerciseMilestoneBadges: Badge[] = [
   },
 ];
 
+// ─── Visual system ────────────────────────────────────────────────────────────
+
+/**
+ * A badge before its visuals are decided. Families below declare what a badge
+ * *is*; icon, tier and colour are applied uniformly at assembly so they cannot
+ * drift badge by badge — which is precisely how the catalogue ended up with
+ * `trophy-outline` on thirty-seven badges spread across nine unrelated families,
+ * so a Recovery badge, a Test Week badge and a Duration badge were
+ * indistinguishable.
+ */
+type BadgeSeed = Omit<Badge, 'tier'>;
+
+/**
+ * One glyph per family, chosen to describe the thing being rewarded.
+ *
+ * Reusing an icon *within* a family is deliberate — thirteen Prehab badges are
+ * one idea at thirteen depths, and giving each its own symbol would be noise.
+ * Reusing one *across* families is what made the old set feel like placeholder
+ * art.
+ */
+const CATEGORY_ICON: Record<BadgeCategory, string> = {
+  milestone: 'footsteps-outline', // sessions accumulated, one after another
+  streak: 'flame-outline', // an unbroken run
+  strength_progress: 'trending-up-outline', // a lift going up over time
+  session_lower: 'walk-outline',
+  session_upper: 'barbell-outline',
+  session_full: 'body-outline',
+  session_conditioning: 'pulse-outline', // heart rate, not fire
+  session_prehab: 'shield-checkmark-outline', // protective work
+  session_flex: 'accessibility-outline', // range of motion
+  session_custom: 'construct-outline', // something you built
+  consistency: 'calendar-outline',
+  goals: 'flag-outline', // a target you set
+  equipment: 'cube-outline', // kit
+  test_week: 'speedometer-outline', // measuring yourself
+  time_of_day: 'time-outline',
+  variety: 'shuffle-outline', // breadth, mixing it up
+  recovery: 'leaf-outline',
+  duration: 'hourglass-outline', // length of a session
+  comeback: 'refresh-outline', // returning
+  pain_warrior: 'bandage-outline', // training around an injury
+  endurance: 'battery-charging-outline', // showing up on empty
+  exercise_milestone: 'ribbon-outline', // a specific lift, first time
+};
+
+/**
+ * Tier by position within the family. Families are declared in ascending order
+ * of difficulty, so the last badge of a family is always its hardest.
+ *
+ * Split into quarters rather than fixed thresholds: families range from four
+ * badges to thirty-six, and any absolute cut-off would make small families all
+ * one tier and large ones lopsided. Quarters mean "the top quarter of this
+ * family" is Grow-tier whether that is one badge or nine.
+ */
+function tierForPosition(index: number, total: number): BadgeTier {
+  if (total <= 1) return 'gold';
+  const q = (index + 1) / total;
+  if (q <= 0.25) return 'bronze';
+  if (q <= 0.5) return 'silver';
+  if (q <= 0.75) return 'gold';
+  return 'grow';
+}
+
+function applyVisualSystem(seeds: BadgeSeed[]): Badge[] {
+  const seen = new Map<BadgeCategory, number>();
+  const totals = new Map<BadgeCategory, number>();
+  for (const s of seeds) totals.set(s.category, (totals.get(s.category) ?? 0) + 1);
+
+  return seeds.map((s) => {
+    const index = seen.get(s.category) ?? 0;
+    seen.set(s.category, index + 1);
+    const tier = tierForPosition(index, totals.get(s.category) ?? 1);
+    return {
+      ...s,
+      icon: CATEGORY_ICON[s.category],
+      tier,
+      color: BADGE_TIER_COLORS[tier],
+    };
+  });
+}
+
 // ─── Final catalog assembly ───────────────────────────────────────────────────
 
-export const BADGE_CATALOG: Badge[] = [
+export const BADGE_CATALOG: Badge[] = applyVisualSystem([
   onboardingBadge,
   ...milestoneBadges,
   ...streakBadges,
@@ -1572,7 +1687,7 @@ export const BADGE_CATALOG: Badge[] = [
   ...comebackBadges,
   ...painWarriorBadges,
   ...enduranceBadges,
-];
+]);
 
 /** Quick O(1) lookup by ID. Computed once at module load. */
 export const BADGE_MAP: ReadonlyMap<string, Badge> = new Map(BADGE_CATALOG.map((b) => [b.id, b]));
