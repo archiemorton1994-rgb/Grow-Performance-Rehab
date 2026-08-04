@@ -165,6 +165,55 @@ function diversifyByMovementPattern<T extends { movementPattern?: MovementPatter
  * true, a rotated selection is far less likely to stack two same-pattern
  * exercises back to back — e.g. two 'push' accessories in the same session.
  */
+/**
+ * Do two exercise names describe effectively the same movement?
+ *
+ * Exact-name dedupe is not enough once the accessory pool is wide: a session
+ * came out with "Incline Barbell Bench Press" as the main and "Incline Barbell
+ * Press" as an accessory, which are the same exercise typed twice.
+ *
+ * Equipment and stance words carry no movement information, so they are dropped
+ * before comparing. A match needs the smaller name to be a subset of the larger
+ * AND to have at least two words left — otherwise "Barbell Row" would swallow
+ * every other row in the database and cost more variety than it saves.
+ */
+const NAME_NOISE = new Set([
+  'barbell',
+  'dumbbell',
+  'db',
+  'kb',
+  'kettlebell',
+  'cable',
+  'machine',
+  'seated',
+  'standing',
+  'the',
+  'with',
+  'a',
+]);
+function movementTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .split(/[\s-]+/)
+      .filter((w) => w.length > 1 && !NAME_NOISE.has(w))
+  );
+}
+function isSameMovement(a: string, b: string): boolean {
+  const ta = movementTokens(a);
+  const tb = movementTokens(b);
+  if (ta.size === 0 || tb.size === 0) return a.toLowerCase().trim() === b.toLowerCase().trim();
+  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
+  if (small.size < 2) return small.size === large.size && [...small].every((w) => large.has(w));
+  return [...small].every((w) => large.has(w));
+}
+
+/** How often a weekly session's MAIN movement is served by its alternative
+ *  instead. Rare on purpose — the main lift is what you are progressing, and
+ *  progression needs the same movement most of the time. */
+const MAIN_VARIATION_EVERY = 4;
+
 /** How many rotating general joint-health movements a targeted rehab session
  *  picks up alongside its region-specific core. Keeps the total in line with the
  *  seven the standalone prehab session already prescribes. */
@@ -1052,11 +1101,40 @@ function generateWeeklyWorkout(
         ? Math.max(baseCount - 1, minRequired)
         : baseCount;
 
-  // Always include required-pattern exercises first; shuffle only the bonus extras
+  // Required patterns first — coverage is guaranteed and the curated choices are
+  // respected. What fills the OPTIONAL slots is where variety comes from.
+  //
+  // Those slots used to be filled from the leftovers of the same 5-exercise
+  // weekly list, which is why an upper body session was the same five movements
+  // every time: with 4 required patterns out of a pool of 5 there was one
+  // leftover, and often none at all. Meanwhile the KPI sessions have been
+  // drawing accessories from a pool of 14-18 all along.
+  //
+  // The optional slots now come from that same accessory pool, mapped by
+  // session type exactly as the prehab and finisher blocks below already do.
+  // Coverage, curation and set structure are untouched; only the extras rotate.
   const requiredExercises = allMainExercises.slice(0, minRequired);
-  const optionalExercises = allMainExercises.slice(minRequired);
   const optionalCount = Math.max(0, mainCount - minRequired);
-  const shuffledOptional = seededShuffleDiverse(optionalExercises, sessionSeed);
+  const accessorySource: MainSessionType =
+    sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
+
+  // The main movement is resolved BEFORE the accessory pool is filtered, so an
+  // accessory can never duplicate whichever variant the main ended up as.
+  const mainTemplate = allMainExercises[0];
+  const rotateMain =
+    mainTemplate?.swapAlternative != null &&
+    MAIN_VARIATION_EVERY > 0 &&
+    sessionSeed % MAIN_VARIATION_EVERY === 0;
+  const resolvedMainName = rotateMain
+    ? (mainTemplate.swapAlternative?.name ?? mainTemplate.name)
+    : (mainTemplate?.name ?? '');
+
+  const takenNames = [...requiredExercises.map((t) => t.name), resolvedMainName].filter(Boolean);
+  const accessoryPool = [
+    ...allMainExercises.slice(minRequired),
+    ...getAccessories(accessorySource, equipmentTier),
+  ].filter((t) => !takenNames.some((n) => isSameMovement(n, t.name)));
+  const shuffledOptional = seededShuffleDiverse(accessoryPool, sessionSeed);
   const selectedMain = [...requiredExercises, ...shuffledOptional.slice(0, optionalCount)];
 
   // Scale full_body sets to fit the time budget (never drop movements):
@@ -1065,7 +1143,18 @@ function generateWeeklyWorkout(
     sessionType === 'full_body' && (timeAvailable !== '60' || energy === 'low') ? 2 : 0;
 
   for (let i = 0; i < selectedMain.length; i++) {
-    const t = selectedMain[i];
+    // Occasional main-lift variation: every MAIN_VARIATION_EVERY sessions the
+    // session's first movement is served by its curated alternative instead —
+    // barbell bench becoming an incline or dumbbell press, say. Deliberately
+    // rare rather than a shuffle: the main lift is the thing you are trying to
+    // progress, and progression needs the same movement most of the time. The
+    // alternative is the one already declared on the template, so it is a
+    // choice someone made rather than a pattern match.
+    const base = selectedMain[i];
+    const t =
+      i === 0 && rotateMain && base.swapAlternative
+        ? { ...base, ...base.swapAlternative, id: base.id }
+        : base;
     const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);
     // Only the first movement is the session's KPI lift; the rest are accessories
     const withCategory = i === 0 ? ex : { ...ex, category: 'accessory' as const };
