@@ -2718,8 +2718,8 @@ export default function SessionScreen() {
           </Text>
           {isTestWeek ? (
             <GlossaryTerm
-              term="AMRAP @ 90%"
-              definition="As Many Reps As Possible: you'll lift 90% of your estimated max for as many clean reps as you can manage."
+              term="Max reps test"
+              definition="Warm up, then do one all-out set: as many clean reps as you can manage at the weight shown. Your one-rep max is worked out from that weight and how many reps you got."
               textStyle={styles.sessionSub}
             />
           ) : null}

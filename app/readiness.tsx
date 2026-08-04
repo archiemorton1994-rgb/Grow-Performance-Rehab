@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, Image, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  Pressable,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  Modal,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -101,11 +110,21 @@ export default function ReadinessScreen() {
     readinessTutorialShown,
     setReadinessTutorialShown,
     deferTestWeek,
+    completedSessions,
   } = useAppStore();
   // Once a due test is postponed, treat the rest of this screen as a normal
   // session for good — the user still needs a plan for today.
   const [testPostponed, setTestPostponed] = useState(false);
+
+  // First-ever test week gets one explainer before it starts. Derived from
+  // history rather than a stored "seen" flag: once any test is completed this
+  // is false forever, so tests two and three of the same block never repeat it,
+  // and nothing new needs persisting or migrating. Someone who backs out of
+  // their very first test does see it again, which is the right outcome.
+  const hasTestedBefore = completedSessions.some((s) => s.isTestWeek);
+  const [introDismissed, setIntroDismissed] = useState(false);
   const effectiveTestWeek = isTestWeek && !testPostponed;
+  const showTestIntro = effectiveTestWeek && !hasTestedBefore && !introDismissed;
   const handlePostponeTest = () => {
     hapticTap();
     deferTestWeek();
@@ -453,8 +472,8 @@ export default function ReadinessScreen() {
                 Test
               </Text>
               <Text style={styles.testWeekBannerSub}>
-                1RM = max weight you can lift for one rep.{'\n'}AMRAP @ 90%: go all out. Your
-                numbers don&apos;t lie.
+                Warm up, then one all-out set.{'\n'}How many clean reps you manage sets your
+                number.
               </Text>
             </View>
           </View>
@@ -1110,6 +1129,63 @@ export default function ReadinessScreen() {
           spotlightRect={readinessSpotlight ?? undefined}
         />
       )}
+
+      {/* First-ever test week: one explainer, before anything else on the
+          screen can be touched. Deliberately not the multi-step spotlight tour
+          used elsewhere — a test session is two exercises, so a tour would be
+          four taps of chrome around one idea. */}
+      <Modal visible={showTestIntro} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.introOverlay}>
+          <View style={styles.introCard}>
+            <View style={styles.introIconRing}>
+              <Ionicons name="trophy" size={26} color={C.trophy} />
+            </View>
+            <Text style={styles.introTitle}>Your first test week</Text>
+            <Text style={styles.introBody}>
+              You&apos;ve earned this. Over the next three sessions you&apos;ll test each of your
+              main lifts once — squat, then bench, then deadlift.
+            </Text>
+
+            <View style={styles.introSteps}>
+              <View style={styles.introStep}>
+                <Text style={styles.introStepNum}>1</Text>
+                <Text style={styles.introStepText}>
+                  Warm up through a few building sets. The weights are worked out for you.
+                </Text>
+              </View>
+              <View style={styles.introStep}>
+                <Text style={styles.introStepNum}>2</Text>
+                <Text style={styles.introStepText}>
+                  Then one all-out set: as many clean reps as you can manage.
+                </Text>
+              </View>
+              <View style={styles.introStep}>
+                <Text style={styles.introStepNum}>3</Text>
+                <Text style={styles.introStepText}>
+                  The weight and your reps give us your one-rep max — the most you could lift for
+                  a single rep.
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.introWarn}>
+              Stop the moment your form slips. A scruffy rep doesn&apos;t count towards your
+              number, and it&apos;s where people get hurt.
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                hapticTap();
+                setIntroDismissed(true);
+              }}
+              style={styles.introBtn}
+              testID="test-week-intro-dismiss"
+            >
+              <Text style={styles.introBtnText}>Let&apos;s go</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1117,6 +1193,94 @@ export default function ReadinessScreen() {
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
+
+    // ── First test week explainer ──────────────────────────────────────────
+    introOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+    },
+    introCard: {
+      width: '100%',
+      backgroundColor: C.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      paddingHorizontal: 22,
+      paddingTop: 22,
+      paddingBottom: 18,
+      alignItems: 'center',
+    },
+    introIconRing: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: C.trophyBg,
+      borderWidth: 1,
+      borderColor: C.trophyBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    introTitle: {
+      fontSize: 21,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center',
+    },
+    introBody: {
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginTop: 8,
+    },
+    introSteps: { alignSelf: 'stretch', gap: 12, marginTop: 18 },
+    introStep: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+    introStepNum: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: C.primaryMuted,
+      color: C.primary,
+      fontSize: 12,
+      fontFamily: 'Inter_700Bold',
+      textAlign: 'center',
+      lineHeight: 22,
+      overflow: 'hidden',
+    },
+    introStepText: {
+      flex: 1,
+      fontSize: 13.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.text,
+      lineHeight: 19,
+    },
+    introWarn: {
+      alignSelf: 'stretch',
+      marginTop: 16,
+      backgroundColor: C.warningLight,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 12.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.warning,
+      lineHeight: 18,
+    },
+    introBtn: {
+      alignSelf: 'stretch',
+      marginTop: 18,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center',
+    },
+    introBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
