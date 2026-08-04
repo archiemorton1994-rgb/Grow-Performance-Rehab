@@ -165,6 +165,11 @@ function diversifyByMovementPattern<T extends { movementPattern?: MovementPatter
  * true, a rotated selection is far less likely to stack two same-pattern
  * exercises back to back — e.g. two 'push' accessories in the same session.
  */
+/** How many rotating general joint-health movements a targeted rehab session
+ *  picks up alongside its region-specific core. Keeps the total in line with the
+ *  seven the standalone prehab session already prescribes. */
+const REHAB_SUPPLEMENT = 2;
+
 function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
   arr: T[],
   seed: number,
@@ -685,7 +690,32 @@ export function generateWorkout(
       const primaryRegion = Array.isArray(readiness.painRegion)
         ? readiness.painRegion[0]
         : readiness.painRegion;
-      return getRegionPrehabWorkout(primaryRegion).map((t) => templateToExercise(t));
+
+      // Targeted rehab used to return the same fixed seven exercises, in the
+      // same order, every single time — so six weeks of knee rehab was the
+      // identical session forty times over. Nobody sticks with that.
+      //
+      // The region-specific work is kept in full and kept first: it is chosen
+      // for that joint and is the point of the session. What varies is the
+      // order it is worked in, and a couple of general joint-health movements
+      // rotated in from the standalone prehab pool — the same supplement the
+      // standalone session already draws on, at the same dosage it already
+      // uses.
+      const regionPlan = getRegionPrehabWorkout(primaryRegion);
+      const warmup = regionPlan.filter((e) => e.category === 'prep');
+      const core = regionPlan.filter((e) => e.category === 'prehab');
+      const cooldown = regionPlan.filter((e) => e.category === 'cooldown');
+
+      const seed = (strengthSessionCount ?? 0) + getLocalDayIndex();
+      const rotatedCore = seededShuffleDiverse(core, seed);
+      const supplementPool = getStandalonePrehabWorkout()
+        .filter((e) => e.category === 'prehab')
+        .filter((e) => !core.some((c) => c.name === e.name));
+      const supplement = seededShuffleDiverse(supplementPool, seed).slice(0, REHAB_SUPPLEMENT);
+
+      return [...warmup, ...rotatedCore, ...supplement, ...cooldown].map((t) =>
+        templateToExercise(t)
+      );
     }
     // Standalone prehab: rotate the middle exercise pool so users see
     // fresh joint-health work across sessions rather than the same 7 each time.

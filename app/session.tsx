@@ -2594,24 +2594,42 @@ export default function SessionScreen() {
       }
     }
 
-    const exerciseLogs: ExerciseLog[] = isPrehabOrFlex
-      ? []
-      : exercises.map((ex, i) => {
-          const rating = inSessionFeedback[ex.id];
-          const cardio = exerciseData[i]?.cardioData ?? undefined;
-          return {
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            sets: exerciseData[i].sets,
-            note: exerciseNotes[i] || undefined,
-            ...(rating != null ? { feedbackRating: rating } : {}),
-            ...(cardio != null ? { cardioData: cardio } : {}),
-          };
-        });
+    // Rehab and mobility sessions record what was done, same as anything else.
+    //
+    // These used to save with an empty list. The reasoning was presumably that
+    // there is no weight to record — but the consequence was that weeks of
+    // rehab produced a session count and a date and NOTHING else: no exercise
+    // history, no muscle map, no progress, and a summary screen that said
+    // "Recovery sessions don't load exercises, so there's nothing to compare
+    // here". For anyone training that way, which is a lot of people, the app
+    // simply had no memory of what they did.
+    //
+    // Nothing downstream needs the sets to be weighted. Volume already filters
+    // on `weight > 0`, so unweighted work contributes zero volume without being
+    // erased, and the muscle map and exercise history key off the exercise, not
+    // the load.
+    const exerciseLogs: ExerciseLog[] = exercises.map((ex, i) => {
+      const rating = inSessionFeedback[ex.id];
+      const cardio = exerciseData[i]?.cardioData ?? undefined;
+      return {
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        sets: exerciseData[i].sets,
+        note: exerciseNotes[i] || undefined,
+        ...(rating != null ? { feedbackRating: rating } : {}),
+        ...(cardio != null ? { cardioData: cardio } : {}),
+      };
+    });
 
     // Extract per-exercise max weight from this session and persist to store.
     // These are used by the workout engine on the NEXT session to apply a
     // deterministic +2.5 kg micro-increment per exercise (progressive overload).
+    //
+    // Rehab and mobility are deliberately still excluded here, even though they
+    // now record their exercises above. Recording what someone did is not the
+    // same as automatically adding load to it every session — rehab work is
+    // prescribed at a load for a reason, and creeping it upward on a timer is
+    // the wrong default. History yes, progressive overload no.
     if (!isPrehabOrFlex && exerciseLogs.length > 0) {
       const sessionWeights: Record<string, number> = {};
       for (const log of exerciseLogs) {

@@ -3496,6 +3496,29 @@ export default function StatsScreen() {
   const historyFilter = historyTypeFilter;
   const setHistoryFilter = setHistoryTypeFilter;
 
+  // The Strength tab is built entirely around squat/bench/deadlift 1RMs. With
+  // none of those it is four empty states in a row, which is what a
+  // conditioning, custom-session or rehab user sees forever. These two derive a
+  // useful substitute from what they HAVE logged.
+  const noKpiData = oneRepMaxes.length === 0;
+  const heaviestLifts = useMemo(() => {
+    if (!noKpiData) return [];
+    const best = new Map<string, number>();
+    for (const session of completedSessions) {
+      for (const log of session.exerciseLogs) {
+        for (const set of log.sets) {
+          if (!set.completed || set.skipped || set.weight <= 0) continue;
+          const current = best.get(log.exerciseName) ?? 0;
+          if (set.weight > current) best.set(log.exerciseName, set.weight);
+        }
+      }
+    }
+    return [...best.entries()]
+      .map(([name, kg]) => ({ name, kg }))
+      .sort((a, b) => b.kg - a.kg)
+      .slice(0, 6);
+  }, [noKpiData, completedSessions]);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>(
     'overview'
   );
@@ -3933,6 +3956,31 @@ export default function StatsScreen() {
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
           >
+            {/* Someone who does not train the three barbell lifts used to get
+                four empty states here and nothing else: three dashes, three
+                "No data yet" charts, and an empty Personal Bests list. The 1RM
+                machinery genuinely does only cover those lifts — but everyone
+                who logs a weighted set has a heaviest lift, whatever session it
+                came from, so show that instead of a blank page. */}
+            {noKpiData && heaviestLifts.length > 0 && (
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionTitle}>Your heaviest lifts</Text>
+                <Text style={styles.sectionSub}>
+                  Best weight recorded for each exercise, from any session
+                </Text>
+                {heaviestLifts.map((row) => (
+                  <View key={row.name} style={styles.heaviestRow}>
+                    <Text style={styles.heaviestName} numberOfLines={1}>
+                      {row.name}
+                    </Text>
+                    <Text style={styles.heaviestValue}>
+                      {Math.round(kgToDisplayUnit(row.kg, weightUnit))} {weightUnit}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {/* Best lift summary — top glance card */}
             <View style={styles.statRow}>
               {LIFT_TYPES.map((lift, i) => {
@@ -4748,6 +4796,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 12,
+    },
+    heaviestRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: C.borderLight,
+    },
+    heaviestName: {
+      flex: 1,
+      fontSize: 13.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+    },
+    heaviestValue: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryDark,
     },
 
     drillDownCard: {
