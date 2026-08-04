@@ -274,6 +274,86 @@ function StatDeltaTile({
  * exercise; getNextHint above adds the forward-looking half - not just what
  * changed, but what happens next session and why.
  */
+/**
+ * This lift's top set across the block that led to a test, as a simple bar
+ * chart. Deliberately plain Views rather than a charting dependency — five to
+ * twelve bars needs no library, and this has to survive being captured by
+ * react-native-view-shot for the shareable card.
+ */
+function BlockProgressChart({
+  points,
+  weightUnit,
+  liftName,
+}: {
+  points: { kg: number; date: string }[];
+  weightUnit: WeightUnit;
+  liftName: string;
+}) {
+  const P = SAGE;
+  const values = points.map((p) => p.kg);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const gained = values[values.length - 1] - values[0];
+  // Scale bars between min and max rather than from zero: the interesting range
+  // is the top of the lift, and a zero baseline flattens every bar into a
+  // near-identical block.
+  const span = max - min || 1;
+  const heightFor = (kg: number) => 26 + ((kg - min) / span) * 54;
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingBottom: 18, gap: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.text }}>
+          {liftName} through this block
+        </Text>
+        <Text style={{ fontSize: 12, fontFamily: 'Inter_500Medium', color: P.muted }}>
+          {points.length} sessions
+        </Text>
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 80 }}>
+        {points.map((p, i) => {
+          const isLast = i === points.length - 1;
+          return (
+            <View key={`${p.date}-${i}`} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+              <View
+                style={{
+                  width: '100%',
+                  height: heightFor(p.kg),
+                  borderRadius: 5,
+                  backgroundColor: isLast ? P.accent : P.badgeBg,
+                }}
+              />
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: P.faint }}>
+          {formatWeight(values[0], weightUnit)}
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_700Bold',
+            color: gained > 0 ? P.accent : P.muted,
+          }}
+        >
+          {gained > 0
+            ? `+${formatWeight(gained, weightUnit)} over the block`
+            : gained < 0
+              ? `${formatWeight(Math.abs(gained), weightUnit)} down over the block`
+              : 'Held steady over the block'}
+        </Text>
+        <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: P.faint }}>
+          {formatWeight(values[values.length - 1], weightUnit)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function ProgressTab({
   rows,
   sessionType,
@@ -287,6 +367,8 @@ function ProgressTab({
   exerciseStuckStreak,
   exerciseFeedback,
   weightUnit,
+  testBlockSeries,
+  liftName,
   onOpenRating,
 }: {
   rows: ExerciseRow[];
@@ -304,10 +386,14 @@ function ProgressTab({
   exerciseStuckStreak: Record<string, number>;
   exerciseFeedback: Record<string, ExerciseFeedback>;
   weightUnit: WeightUnit;
+  /** Set on a test session: this lift's top set across the block leading here. */
+  testBlockSeries?: { kg: number; date: string }[] | null;
+  liftName?: string;
   onOpenRating: () => void;
 }) {
   const P = SAGE;
   const weighted = rows.filter((r) => r.isWeighted);
+  const isTest = Boolean(testBlockSeries);
   const toneColor: Record<'up' | 'down' | 'neutral' | 'first', string> = {
     up: TONE_UP,
     down: TONE_DOWN,
@@ -347,13 +433,21 @@ function ProgressTab({
           <Text
             style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: P.muted, lineHeight: 19 }}
           >
-            Your next weight comes from what you actually lifted, not the suggestion. A clean
-            session nudges it up, a tough one holds it, and a run of clean sessions earns a bigger
-            jump.
+            {isTest
+              ? 'A test is two exercises, so today’s volume says nothing. This is the block of work that got you here.'
+              : 'Your next weight comes from what you actually lifted, not the suggestion. A clean session nudges it up, a tough one holds it, and a run of clean sessions earns a bigger jump.'}
           </Text>
         </View>
 
-        {totalReps > 0 && (
+        {testBlockSeries && (
+          <BlockProgressChart
+            points={testBlockSeries}
+            weightUnit={weightUnit}
+            liftName={liftName ?? 'This lift'}
+          />
+        )}
+
+        {!isTest && totalReps > 0 && (
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingBottom: 16 }}>
             {hasWeighted && (
               <StatDeltaTile
@@ -961,6 +1055,41 @@ export default function SessionSummaryScreen() {
         .filter((r) => r.value !== null)
     : [];
 
+  // ── The run-up to this test ────────────────────────────────────────────────
+  // On a test, today's volume and rep count are meaningless — a two-exercise
+  // test is always lighter than a training session, so both tiles read as a
+  // decline. What actually matters is the block of work that led here, so the
+  // Progress tab shows this lift's top set across every session since the last
+  // test of it.
+  const heaviestSetOf = (s: CompletedSession): number => {
+    let top = 0;
+    for (const log of s.exerciseLogs) {
+      for (const set of log.sets) {
+        if (set.completed && set.weight > top) top = set.weight;
+      }
+    }
+    return top;
+  };
+
+  const testBlockSeries = (() => {
+    if (!session.isTestWeek) return null;
+    const sameLift = completedSessions.filter((s) => s.sessionType === session.sessionType);
+    const here = sameLift.findIndex((s) => s.id === session.id);
+    if (here === -1) return null;
+    // completedSessions is newest-first, so walking forward goes back in time.
+    // Stop at the previous test: that is where this block began.
+    const block: CompletedSession[] = [];
+    for (let i = here + 1; i < sameLift.length; i++) {
+      if (sameLift[i].isTestWeek) break;
+      block.push(sameLift[i]);
+    }
+    const points = block
+      .reverse() // oldest first, so the chart reads left to right
+      .map((s) => ({ kg: heaviestSetOf(s), date: s.date }))
+      .filter((p) => p.kg > 0);
+    return points.length >= 2 ? points : null;
+  })();
+
   const isTestHero = Boolean(testedOrm) || testedReps !== null;
   const heroKind: 'test' | 'pb' | 'milestone' | 'default' = isTestHero
     ? 'test'
@@ -1136,6 +1265,8 @@ export default function SessionSummaryScreen() {
             exerciseStuckStreak={exerciseStuckStreak}
             exerciseFeedback={exerciseFeedback}
             weightUnit={weightUnit}
+            testBlockSeries={testBlockSeries}
+            liftName={liftName}
             onOpenRating={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowRatingModal(true);
