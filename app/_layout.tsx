@@ -103,7 +103,17 @@ if (Platform.OS !== 'web') {
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-function WeeklyWeightPrompt() {
+/**
+ * `deferred` holds this modal back while another root-level Modal is on screen.
+ *
+ * Two native Modals presented at once break touch routing on BOTH of them and
+ * the whole app reads as frozen — see the same note in (tabs)/_layout.tsx,
+ * which already guards the tour intro against the achievement toast. This
+ * prompt was the unguarded third: its effect keys off completedSessions.length,
+ * so it re-arms on every session completion, which is exactly when a badge
+ * toast is most likely to be up.
+ */
+function WeeklyWeightPrompt({ deferred = false }: { deferred?: boolean }) {
   const C = useColors();
   const {
     hasHydrated,
@@ -173,7 +183,9 @@ function WeeklyWeightPrompt() {
 
   return (
     <Modal
-      visible={showPrompt}
+      // Gated on `deferred` rather than on showPrompt alone, so the prompt
+      // stays armed and simply presents once the other modal has gone.
+      visible={showPrompt && !deferred}
       transparent
       animationType="fade"
       onRequestClose={neverSetWeight ? undefined : dismiss}
@@ -570,7 +582,8 @@ function RootLayoutNav() {
         <Stack.Screen name="program" options={{ headerShown: false }} />
         <Stack.Screen name="past-sessions" options={{ headerShown: false }} />
       </Stack>
-      <WeeklyWeightPrompt />
+      {/* Only one root-level Modal may be presented at a time. */}
+      <WeeklyWeightPrompt deferred={currentToast !== null} />
       {currentToast &&
         (isSummaryToast(currentToast) ? (
           <AchievementUnlockedSheet
