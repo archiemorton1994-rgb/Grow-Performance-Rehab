@@ -363,13 +363,31 @@ function RootLayoutNav() {
   // and are delivered as a single moment when the user first reaches the tabs.
   const inMainApp = !isLoading && onboardingComplete && isAuthenticated && hasActiveSubscription;
   // Extra guard: also confirm the router has actually landed somewhere safe to
-  // show a toast — inside (tabs), or on session-summary right after a session
-  // ends (so a badge earned by that session celebrates there and then, instead
-  // of silently queuing until the next time the user happens to open Home) —
-  // so the toast never fires on top of gate screens (auth, subscription, etc.)
-  // even when hasActiveSubscription briefly becomes true before navigation.
-  const canShowBadgeToast =
-    segments[0] === '(tabs)' || segments.some((s) => s === 'session-summary');
+  // show a toast, so it never fires on top of a gate screen (auth,
+  // subscription) even when hasActiveSubscription briefly becomes true before
+  // navigation.
+  //
+  // (tabs) ONLY — deliberately NOT session-summary.
+  //
+  // session-summary is declared with presentation: 'fullScreenModal' (see the
+  // Stack below), which on iOS is a real native modal presentation, not just a
+  // styled screen. The achievement sheet is a native <Modal> too. Presenting
+  // one over the other is two native modals at once, which breaks touch routing
+  // on BOTH: the screen paints perfectly and nothing responds to taps, with no
+  // crash and no error screen. That is the "app is frozen after finishing a
+  // session" report, and it is the third time this same collision has bitten —
+  // see tests/root-modal-exclusivity.check.mjs for the other two.
+  //
+  // It hid for so long because it only fires when a session actually unlocks a
+  // badge. On an established account most sessions unlock nothing, so the flow
+  // tested clean; a fresh account's first session unlocks five at once and
+  // hits it every time.
+  //
+  // The cost is that the celebration lands a moment later, when the user
+  // returns to the tabs, instead of on the summary screen. The queue is drained
+  // in order and nothing is lost. That is the same deferral already used for
+  // the weekly weight prompt.
+  const canShowBadgeToast = segments[0] === '(tabs)';
 
   useEffect(() => {
     if (newlyUnlockedBadges.length === 0) return;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
 
 const EXIT_MS = 210;
+/** How long the sheet stays up if the user never dismisses it. See the failsafe
+ *  effect — this is an escape hatch from a frozen app, not a UX timer. */
+const FAILSAFE_MS = 25000;
 /** How far the sheet slides down on the way out. Exit only — see the note on
  *  translateY: the sheet is never positioned by an entering animation. */
 const SLIDE_START = 460;
@@ -86,11 +89,32 @@ export default function AchievementUnlockedSheet({
     }
   }, []);
 
-  const dismiss = () => {
+  const dismissedRef = useRef(false);
+
+  const dismiss = useCallback(() => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
     backdropOpacity.value = withTiming(0, { duration: EXIT_MS });
     translateY.value = withTiming(SLIDE_START, { duration: EXIT_MS });
     setTimeout(onDismiss, EXIT_MS);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onDismiss]);
+
+  // Failsafe: this sheet goes away on its own whether or not it can be tapped.
+  //
+  // It is a root-level modal, so if anything stops it receiving touches the
+  // user is not looking at a broken pop-up — they are looking at an app that
+  // has frozen, with no way out but force-quitting. That has now happened three
+  // times, from three different causes. Every specific cause has been fixed;
+  // this exists so that the NEXT one, whatever it is, costs a celebration
+  // instead of the whole app.
+  //
+  // Long enough to read and tap through at leisure — this is a backstop, not a
+  // timer on the moment.
+  useEffect(() => {
+    const t = setTimeout(dismiss, FAILSAFE_MS);
+    return () => clearTimeout(t);
+  }, [dismiss]);
 
   const handleViewBadges = () => {
     dismiss();
