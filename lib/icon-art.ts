@@ -52,7 +52,27 @@ export type GrowIconName =
   | 'trend'
   | 'clock'
   | 'moon'
-  | 'sun';
+  | 'sun'
+  // ── Set feedback: how hard was that set ──
+  | 'effort1'
+  | 'effort2'
+  | 'effort3'
+  | 'effort4';
+
+/** Four ascending bars, `filled` of them solid. See the effort* entries. */
+function effortMeter(filled: number): ArtShape[] {
+  const heights = [11, 18, 25, 32];
+  return heights.map((h, i) => ({
+    k: 'rect' as const,
+    x: 6 + i * 10,
+    y: 40 - h,
+    w: 7,
+    h,
+    rx: 2.5,
+    fill: 'glyph' as const,
+    o: i < filled ? 1 : 0.22,
+  }));
+}
 
 export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
   // ── Experience ─────────────────────────────────────────────────────────────
@@ -217,6 +237,17 @@ export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
     { k: 'circle', cx: 36, cy: 11, r: 2.4, fill: 'glyph', o: 0.4 },
     { k: 'circle', cx: 41, cy: 18, r: 1.6, fill: 'glyph', o: 0.4 },
   ],
+  // ── Set feedback ───────────────────────────────────────────────────────────
+  // A four-step effort meter. The four answers to "how did that feel" are a
+  // scale, so they get one picture at four levels rather than four unrelated
+  // emoji — which is what made that prompt look like a different app.
+  // Unfilled steps stay visible at low opacity so the position on the scale is
+  // legible, not just the height.
+  effort1: effortMeter(1),
+  effort2: effortMeter(2),
+  effort3: effortMeter(3),
+  effort4: effortMeter(4),
+
   sun: [
     { k: 'circle', cx: 24, cy: 24, r: 10, fill: 'glyph' },
     { k: 'path', d: 'M24 3 L24 9', stroke: 'glyph', sw: 3.4, o: 0.7 },

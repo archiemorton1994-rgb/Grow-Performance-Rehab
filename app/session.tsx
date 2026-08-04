@@ -19,6 +19,7 @@ import * as StoreReview from 'expo-store-review';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { GrowIcon } from '@/components/GrowIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -651,15 +652,32 @@ export function SessionActiveBar({
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <Text style={styles.barFeedbackPrompt}>
-          Set {activeSetIndex + 1} logged · How did it feel?
+          Set {activeSetIndex + 1} logged · how many reps were left in the tank?
         </Text>
+        {/* Four answers on one scale, so they are drawn as one scale: an effort
+            meter at four levels, ordered easiest to hardest. The emoji version
+            (💪 👍 ✓ 😓) read as four unrelated pictures and did not look like
+            the rest of the app. C.error on the last one, not
+            categoryFinisherText — that token is white in light mode because it
+            is designed to sit on a solid red fill, and on this pale button it
+            rendered at 1.06:1. */}
         <View style={styles.barFeedbackGrid}>
           <View style={styles.barFeedbackRow}>
-            <Pressable onPress={() => handleFeedback('very_easy')} style={styles.barFeedbackBtn}>
-              <Text style={styles.barFeedbackBtnText}>💪 5+ more left</Text>
+            <Pressable
+              onPress={() => handleFeedback('very_easy')}
+              style={styles.barFeedbackBtn}
+              testID="feedback-very-easy"
+            >
+              <GrowIcon name="effort1" size={17} color={C.primaryDark} />
+              <Text style={styles.barFeedbackBtnText}>5+ left</Text>
             </Pressable>
-            <Pressable onPress={() => handleFeedback('easy')} style={styles.barFeedbackBtn}>
-              <Text style={styles.barFeedbackBtnText}>👍 2-3 more left</Text>
+            <Pressable
+              onPress={() => handleFeedback('easy')}
+              style={styles.barFeedbackBtn}
+              testID="feedback-easy"
+            >
+              <GrowIcon name="effort2" size={17} color={C.primaryDark} />
+              <Text style={styles.barFeedbackBtnText}>2-3 left</Text>
             </Pressable>
           </View>
           <View style={styles.barFeedbackRow}>
@@ -668,17 +686,16 @@ export function SessionActiveBar({
               style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
               testID="feedback-good"
             >
-              <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>✓ Last rep</Text>
+              <GrowIcon name="effort3" size={17} color={C.text} />
+              <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>Last rep</Text>
             </Pressable>
             <Pressable
               onPress={() => handleFeedback('hard')}
               style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
+              testID="feedback-hard"
             >
-              {/* C.error, not categoryFinisherText — that token is white in light
-                  mode because it is designed to sit on the solid red category
-                  fill. On this pale surfaceTertiary button it rendered at
-                  1.06:1 and was effectively invisible. */}
-              <Text style={[styles.barFeedbackBtnText, { color: C.error }]}>😓 Missed reps</Text>
+              <GrowIcon name="effort4" size={17} color={C.error} />
+              <Text style={[styles.barFeedbackBtnText, { color: C.error }]}>Missed reps</Text>
             </Pressable>
           </View>
         </View>
@@ -4395,8 +4412,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     barFeedbackBtn: {
       flex: 1,
-      paddingVertical: 9,
-      borderRadius: 10,
+      flexDirection: 'row',
+      gap: 8,
+      paddingVertical: 11,
+      borderRadius: 12,
       backgroundColor: C.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',

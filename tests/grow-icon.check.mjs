@@ -48,7 +48,7 @@ console.log('\n[1] Coverage — every declared name has geometry');
 // The union in lib/icon-art.ts is the contract; the object must match it.
 const src = readFileSync(join(__dir, '../lib/icon-art.ts'), 'utf8');
 const unionBlock = src.slice(src.indexOf('export type GrowIconName'), src.indexOf('export const GROW_ICONS'));
-const declared = [...unionBlock.matchAll(/\|\s*'([a-z]+)'/g)].map((m) => m[1]);
+const declared = [...unionBlock.matchAll(/\|\s*'([a-z][a-z0-9]*)'/gi)].map((m) => m[1]);
 
 check(`the union declares ${declared.length} icons`, declared.length > 10, `only ${declared.length} parsed`);
 const missing = declared.filter((n) => !GROW_ICONS[n] || GROW_ICONS[n].length === 0);

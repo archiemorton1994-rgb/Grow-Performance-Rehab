@@ -211,10 +211,12 @@ function getNextHint(
   }
   const streak = exerciseNormalStreak[exerciseId] ?? 0;
   if (perf === 'easy' || streak >= 3) {
-    const why = perf === 'easy' ? 'You rated this easy' : `${streak} clean sessions in a row`;
+    const why =
+      perf === 'easy' ? 'You said 2-3 reps were left' : `${streak} sessions completed in full`;
     return `Next time: up to ${formatWeight(bestWeightKg + 5, weightUnit)}. ${why}.`;
   }
-  return `Next time: up to ${formatWeight(bestWeightKg + 2.5, weightUnit)}. Clean session.`;
+  // "Clean session" was jargon the UI never defined — see ProgressionRules.
+  return `Next time: up to ${formatWeight(bestWeightKg + 2.5, weightUnit)}. Every set completed.`;
 }
 
 /** One "proud fact" stat with an optional vs-last-time delta line below it.
@@ -275,6 +277,91 @@ function StatDeltaTile({
  * exercise; getNextHint above adds the forward-looking half - not just what
  * changed, but what happens next session and why.
  */
+/**
+ * The actual rules the load engine follows, in three lines.
+ *
+ * This replaces a paragraph that was both long and wrong. It said "a clean
+ * session nudges it up, a tough one holds it, and a run of clean sessions earns
+ * a bigger jump" — which never mentioned the set ratings at all, and so read as
+ * though rating an exercise did nothing. It is the opposite: the rating is the
+ * strongest lever there is, and it overrides everything else.
+ *
+ * Transcribed from lib/store.ts (completeSession, where performance is
+ * classified) and getNextHint above. Keep the two in step:
+ *
+ *   rated "5+ left"                  → +7.5 kg
+ *   rated "2-3 left"                 → +5 kg
+ *   rated "Missed reps", or any set
+ *     left incomplete                → hold
+ *   all sets done, no rating         → +2.5 kg   ("clean")
+ *   3 clean sessions in a row        → +5 kg
+ *
+ * "Clean" was never defined anywhere in the UI, which is the other half of the
+ * complaint, so it is spelled out rather than used as jargon.
+ */
+function ProgressionRules({ P }: { P: CardPalette }) {
+  const rows: { badge: string; tone: 'up' | 'hold'; text: string }[] = [
+    { badge: '↑', tone: 'up', text: 'You said reps were left — the biggest jump, 5 to 7.5 kg.' },
+    { badge: '↑', tone: 'up', text: 'Every set completed, no rating — a steady 2.5 kg. Three of those in a row earns 5 kg.' },
+    { badge: '=', tone: 'hold', text: 'You missed reps, or left a set incomplete — the weight holds until you clear it.' },
+  ];
+  return (
+    <View style={{ gap: 10, marginTop: 2 }}>
+      <Text
+        style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: P.muted, lineHeight: 19 }}
+      >
+        Each exercise moves on its own, from what you actually lifted and how you rated it:
+      </Text>
+      <View style={{ gap: 7 }}>
+        {rows.map((r) => (
+          <View key={r.text} style={{ flexDirection: 'row', gap: 9, alignItems: 'flex-start' }}>
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 6,
+                backgroundColor: r.tone === 'up' ? P.pillBg : 'transparent',
+                borderWidth: 1,
+                borderColor: P.hairline,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Inter_700Bold',
+                  color: r.tone === 'up' ? TONE_UP : P.faint,
+                }}
+              >
+                {r.badge}
+              </Text>
+            </View>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                fontFamily: 'Inter_400Regular',
+                color: P.text,
+                lineHeight: 18,
+              }}
+            >
+              {r.text}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Text
+        style={{ fontSize: 11.5, fontFamily: 'Inter_400Regular', color: P.faint, lineHeight: 17 }}
+      >
+        The session around those weights is built fresh each time from your equipment, the energy
+        you logged and any pain you flagged.
+      </Text>
+    </View>
+  );
+}
+
 /**
  * This lift's top set across the block that led to a test, as a simple bar
  * chart. Deliberately plain Views rather than a charting dependency — five to
@@ -431,13 +518,21 @@ function ProgressTab({
           <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: P.text }}>
             What&apos;s driving your numbers
           </Text>
-          <Text
-            style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: P.muted, lineHeight: 19 }}
-          >
-            {isTest
-              ? 'A test is two exercises, so today’s volume says nothing. This is the block of work that got you here.'
-              : 'Your next weight comes from what you actually lifted, not the suggestion. A clean session nudges it up, a tough one holds it, and a run of clean sessions earns a bigger jump.'}
-          </Text>
+          {isTest ? (
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Inter_400Regular',
+                color: P.muted,
+                lineHeight: 19,
+              }}
+            >
+              A test is two exercises, so today&apos;s volume says nothing. This is the block of
+              work that got you here.
+            </Text>
+          ) : (
+            <ProgressionRules P={P} />
+          )}
         </View>
 
         {testBlockSeries && (

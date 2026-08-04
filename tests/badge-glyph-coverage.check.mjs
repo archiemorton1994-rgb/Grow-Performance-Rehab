@@ -242,21 +242,27 @@ check('glyph ink is legible on every face', weak.length === 0, weak.join('; '));
 // ─── 5. No Ionicons left on a badge ───────────────────────────────────────────
 console.log('\n[5] Regression — badges are not rendered with UI icons again');
 
-// Scoped to the achievements screen only, deliberately.
+// The unlock sheet is back in scope.
 //
-// components/AchievementUnlockedSheet.tsx is NOT covered. It renders as a
-// root-level Modal over the home screen, and after commit 6e0df77 put a
-// medallion in it the app froze on Home for the user with no reproduction and
-// no crash log — so it was reverted to the artwork it shipped with while that
-// is still unexplained. Asserting "no Ionicons" there would force the risky
-// version back in. Do not widen this list without a device reproduction.
-const src = readFileSync(join(__dir, '../app/achievements.tsx'), 'utf8');
-// `badge.icon` / `detailBadge.icon` fed to an Ionicons name prop.
-const leftover = /name=\{[A-Za-z]*[Bb]adge?\.icon/.test(src);
+// It was scoped out while the post-session freeze was unexplained: 6e0df77 had
+// put a medallion in it and the app froze, so the sheet was reverted to its old
+// artwork as a precaution. c5f4bf0 found the real cause — the sheet was
+// presenting as a native Modal over session-summary's own fullScreenModal
+// presentation — and the sheet at that point was byte-identical to the build
+// the user had confirmed working, which proved the medallion was never it. The
+// user then hit the sheet with the old icons still in it and reported exactly
+// that. Medallions are back, and this covers both surfaces again.
+const screens = ['../app/achievements.tsx', '../components/AchievementUnlockedSheet.tsx'];
+const leftovers = [];
+for (const rel of screens) {
+  const src = readFileSync(join(__dir, rel), 'utf8');
+  // `badge.icon` / `b.icon` / `detailBadge.icon` fed to an Ionicons name prop.
+  if (/name=\{[A-Za-z]*[Bb]adge?\.icon/.test(src)) leftovers.push(rel);
+}
 check(
-  'the achievements screen draws no badge with an Ionicons glyph',
-  !leftover,
-  leftover ? 'app/achievements.tsx is still using badge.icon' : ''
+  'no badge is drawn with an Ionicons glyph',
+  leftovers.length === 0,
+  leftovers.length ? `still using badge.icon: ${leftovers.join(', ')}` : ''
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
