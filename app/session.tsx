@@ -2378,8 +2378,26 @@ export default function SessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseData, exerciseNotes, activeIndex, painBannerDismissed]);
 
-  const openYouTube = (exerciseName: string) => {
-    const query = encodeURIComponent(exerciseName + ' exercise proper form tutorial');
+  /**
+   * Open the demo for an exercise.
+   *
+   * Prefers the exercise's own `videoId` and falls back to a YouTube search on
+   * its name. Every videoId in lib/exercise-db.ts is currently an empty string,
+   * so today this is always the search — which is why the app has worked
+   * perfectly well without any footage. As real recordings are made, filling in
+   * a videoId is the only change needed: no code, no release, just data.
+   *
+   * A grip variant inherits its base's videoId deliberately. That was one of the
+   * conditions a variant had to pass to be accepted at all (see
+   * lib/grip-variants.ts) — the base footage has to show the movement well
+   * enough that only the cue needs to change.
+   */
+  const openExerciseVideo = (exercise: { name: string; videoId?: string }) => {
+    if (exercise.videoId) {
+      Linking.openURL(`https://www.youtube.com/watch?v=${exercise.videoId}`);
+      return;
+    }
+    const query = encodeURIComponent(exercise.name + ' exercise proper form tutorial');
     Linking.openURL('https://www.youtube.com/results?search_query=' + query);
   };
   const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
@@ -2868,7 +2886,7 @@ export default function SessionScreen() {
               setData={data}
               onSetChange={isDemo ? () => {} : (si, u) => handleSetChange(index, si, u)}
               onEditSet={isDemo ? undefined : (si) => handleEditSet(index, si)}
-              onVideoPress={() => openYouTube(displayExercise.name)}
+              onVideoPress={() => openExerciseVideo(displayExercise)}
               onSwapPress={
                 isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
               }
