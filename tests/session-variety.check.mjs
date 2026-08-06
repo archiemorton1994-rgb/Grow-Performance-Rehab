@@ -50,11 +50,16 @@ function check(label, condition, detail) {
 console.log('\n[1] Weekly sessions draw on the real accessory pool');
 
 check(
-  'the optional slots come from getAccessories',
-  /const accessoryPool = \[[\s\S]{0,160}?getAccessories\(accessorySource, equipmentTier\)/.test(
+  'the wide pool is built from getAccessories',
+  /const widePool = \[[\s\S]{0,160}?getAccessories\(accessorySource, equipmentTier\),?\s*\]/.test(
     engineSrc
   ),
-  'they used to be leftovers of the same five-exercise weekly list'
+  'the optional slots used to be leftovers of the same five-exercise weekly list'
+);
+check(
+  'the optional slots draw from that wide pool',
+  /const accessoryPool = widePool\.filter\(/.test(engineSrc),
+  ''
 );
 check(
   'the main movement is resolved before the pool is filtered',
@@ -129,29 +134,49 @@ const REQUIRED = { upper_body: 4, lower_body: 3, full_body: 6 };
 const { GRIP_VARIANTS } = await import('../lib/grip-variants.ts');
 const acceptableNames = (base) => [base, ...(GRIP_VARIANTS[base] ?? []).map((v) => v.name)];
 
+// Coverage is about MOVEMENTS, not exercise names.
+//
+// A required slot may legitimately be filled by a different exercise now — a
+// barbell row by a bent-over row, an overhead press by a landmine press — and
+// the main lift may appear as its own alternative. Asserting exact names would
+// fail on exactly the behaviour this file exists to encourage. What must hold is
+// that each required movement pattern is still present.
+const { getAllPickableExercises: pickables } = await import('../lib/exercise-db.ts');
+const templateByName = new Map(pickables().map((e) => [e.template.name, e.template]));
+// A grip variant is not in the database under its variant name, so map it back.
+const variantToBase = new Map();
+for (const [base, vs] of Object.entries(GRIP_VARIANTS)) {
+  for (const v of vs) variantToBase.set(v.name, base);
+}
+const patternOf = (name) =>
+  templateByName.get(name)?.movementPattern ??
+  templateByName.get(variantToBase.get(name))?.movementPattern;
+
 let coverageOk = true;
 const coverageDetail = [];
 for (const [type, getter] of Object.entries(CURATED)) {
   for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-    const required = getter(tier)
-      .slice(0, REQUIRED[type])
-      .map((e) => e.name);
+    // Slot 0 is the main lift, which has its own alternative and is checked by
+    // the "main stays put" assertion above.
+    const requiredPatterns = getter(tier)
+      .slice(1, REQUIRED[type])
+      .map((e) => e.movementPattern)
+      .filter(Boolean);
     for (let n = 0; n < 4; n++) {
-      const names = gen(type, tier, '60', n).map((e) => e.name);
-      // The main may legitimately appear as its alternative, so the first
-      // required exercise is allowed to be missing by name.
-      const missing = required
-        .slice(1)
-        .filter((r) => !acceptableNames(r).some((ok) => names.includes(ok)));
+      const present = gen(type, tier, '60', n)
+        .filter((e) => e.category === 'main' || e.category === 'accessory')
+        .map((e) => patternOf(e.name))
+        .filter(Boolean);
+      const missing = requiredPatterns.filter((p) => !present.includes(p));
       if (missing.length > 0) {
         coverageOk = false;
-        coverageDetail.push(`${type}/${tier}#${n}: missing ${missing.join(', ')}`);
+        coverageDetail.push(`${type}/${tier}#${n}: no ${missing.join(', ')}`);
       }
     }
   }
 }
 check(
-  'required movement patterns are still covered in every session',
+  'every required movement pattern is present in every session',
   coverageOk,
   coverageDetail.slice(0, 3).join(' | ')
 );
@@ -215,6 +240,63 @@ check(
   'the wider pool introduces no duplicated movements',
   introduced === 0,
   `${introduced} pair(s) where an accessory repeats another exercise in the same session`
+);
+
+// ─── 3. Required slots substitute like for like ──────────────────────────────
+console.log('\n[3] Required-slot substitutes are equivalent, not merely same-pattern');
+
+check(
+  'substitutes must share the movement pattern',
+  /a\.movementPattern === t\.movementPattern &&/.test(engineSrc),
+  ''
+);
+check(
+  'and the muscle family',
+  /sameMuscleFamily\(a\.primaryMuscle, t\.primaryMuscle\)/.test(engineSrc),
+  'pattern alone lets a tricep pushdown fill the vertical-press slot'
+);
+check(
+  'and be compound enough to hold a required slot',
+  /\(a\.secondaryMuscles\?\.length \?\? 0\) >= MIN_COMPOUND_SECONDARIES/.test(engineSrc),
+  'muscle family alone lets a cable front raise replace an overhead press, leaving no vertical pressing'
+);
+check(
+  'required rotation is staggered per slot, not session-wide',
+  /\(sessionSeed \+ i\) % REQUIRED_VARIATION_EVERY !== 0/.test(engineSrc),
+  'switching every required slot at once is a different workout, not a variation'
+);
+check(
+  'the main lift is excluded from required rotation',
+  /if \(i === 0 \|\| REQUIRED_VARIATION_EVERY <= 0\) return t;/.test(engineSrc),
+  'it has its own, rarer, rotation'
+);
+
+// Behaviour: no isolation movement may occupy a required slot.
+const { getAllPickableExercises } = await import('../lib/exercise-db.ts');
+const byName = new Map(getAllPickableExercises().map((e) => [e.template.name, e.template]));
+const isolationInRequired = [];
+for (const [type, getter] of Object.entries(CURATED)) {
+  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
+    for (let n = 0; n < 8; n++) {
+      const w = gen(type, tier, '60', n);
+      // Required slots are the first REQUIRED[type] main/accessory entries.
+      const core = w
+        .filter((e) => e.category === 'main' || e.category === 'accessory')
+        .slice(0, REQUIRED[type]);
+      for (const e of core) {
+        const t = byName.get(e.name);
+        if (!t) continue; // a grip variant or comfort swap — not a substitution
+        if ((t.secondaryMuscles?.length ?? 0) < 2 && !getter(tier).some((c) => c.name === e.name)) {
+          isolationInRequired.push(`${type}/${tier}#${n}: ${e.name}`);
+        }
+      }
+    }
+  }
+}
+check(
+  'no isolation movement ever fills a required slot',
+  isolationInRequired.length === 0,
+  isolationInRequired.slice(0, 4).join(' | ')
 );
 
 console.log('');

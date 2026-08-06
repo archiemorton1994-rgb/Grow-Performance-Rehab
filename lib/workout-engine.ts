@@ -215,6 +215,54 @@ function isSameMovement(a: string, b: string): boolean {
  *  progression needs the same movement most of the time. */
 const MAIN_VARIATION_EVERY = 4;
 
+/** How often each REQUIRED slot swaps to a different exercise of the same
+ *  movement pattern. Staggered per slot, so this is the period for one slot,
+ *  not for the session — a typical session has one of them varied. */
+const REQUIRED_VARIATION_EVERY = 3;
+
+/** Minimum secondary muscles for an exercise to count as compound enough to
+ *  fill a required movement slot. See the filter that uses it. */
+const MIN_COMPOUND_SECONDARIES = 2;
+
+/**
+ * Muscle families, used to decide whether one exercise can stand in for another
+ * in a required slot.
+ *
+ * movementPattern alone is far too coarse for this. It has one value, 'push',
+ * covering both an overhead press and a cable tricep pushdown, and one value,
+ * 'pull', covering both a barbell row and a bicep curl. Substituting on pattern
+ * alone produced exactly that: a session whose vertical-press slot was filled by
+ * a triceps isolation, and whose horizontal-pull slot was filled by a curl. The
+ * movement coverage the required slots exist to guarantee was silently gone.
+ *
+ * primaryMuscle is the finer signal — every one of the 447 pickable exercises
+ * has it — but an exact match is too strict in the other direction: a Barbell
+ * Row is 'Mid back' and a T-Bar Row is 'Rhomboids', and swapping those is
+ * precisely what is wanted. Grouping them fixes both ends.
+ *
+ * Anything not listed falls back to requiring an exact primaryMuscle match,
+ * which is conservative — an unknown muscle simply will not be substituted.
+ */
+const MUSCLE_FAMILIES: string[][] = [
+  ['chest', 'pectorals', 'upper pectorals', 'lower pectorals'],
+  ['anterior deltoid', 'lateral deltoid', 'deltoids', 'rear deltoid'],
+  ['triceps'],
+  ['latissimus dorsi', 'lats', 'mid back', 'rhomboids', 'trapezius', 'upper back'],
+  ['biceps', 'brachialis'],
+  ['quadriceps'],
+  ['glutes', 'glute medius'],
+  ['hamstrings', 'posterior chain', 'erector spinae'],
+  ['adductors'],
+];
+
+function sameMuscleFamily(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  const x = a.toLowerCase().trim();
+  const y = b.toLowerCase().trim();
+  if (x === y) return true;
+  return MUSCLE_FAMILIES.some((fam) => fam.includes(x) && fam.includes(y));
+}
+
 /** How many rotating general joint-health movements a targeted rehab session
  *  picks up alongside its region-specific core. Keeps the total in line with the
  *  seven the standalone prehab session already prescribes. */
@@ -1114,13 +1162,17 @@ function generateWeeklyWorkout(
   // The optional slots now come from that same accessory pool, mapped by
   // session type exactly as the prehab and finisher blocks below already do.
   // Coverage, curation and set structure are untouched; only the extras rotate.
-  const requiredExercises = allMainExercises.slice(0, minRequired);
+  const curatedRequired = allMainExercises.slice(0, minRequired);
   const optionalCount = Math.max(0, mainCount - minRequired);
   const accessorySource: MainSessionType =
     sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
+  const widePool = [
+    ...allMainExercises.slice(minRequired),
+    ...getAccessories(accessorySource, equipmentTier),
+  ];
 
-  // The main movement is resolved BEFORE the accessory pool is filtered, so an
-  // accessory can never duplicate whichever variant the main ended up as.
+  // The main movement is resolved BEFORE anything is filtered, so nothing else
+  // in the session can duplicate whichever variant it ended up as.
   const mainTemplate = allMainExercises[0];
   const rotateMain =
     mainTemplate?.swapAlternative != null &&
@@ -1130,11 +1182,53 @@ function generateWeeklyWorkout(
     ? (mainTemplate.swapAlternative?.name ?? mainTemplate.name)
     : (mainTemplate?.name ?? '');
 
+  // The REQUIRED slots rotate too, one at a time.
+  //
+  // Making the optional slots draw on the wide pool fixed half the problem: the
+  // extras varied, but an upper body session still opened with the same bench,
+  // row, press and pulldown every single time, because the required slots were
+  // always positions 0..N of a hand-picked list of five.
+  //
+  // Each required slot now occasionally takes a different exercise OF THE SAME
+  // MOVEMENT PATTERN from the wide pool — a barbell row becoming a T-bar row or
+  // a seated cable row. Coverage is untouched: the substitute is only ever
+  // accepted if it declares the same pattern, so the session still contains
+  // exactly the movements it is supposed to.
+  //
+  // Staggered by slot (sessionSeed + i) rather than switching them together, so
+  // a typical session has one slot varied rather than all of them — a coach
+  // changing one thing at a time, not a different workout every week. Slot 0 is
+  // excluded because the main lift has its own, rarer, rotation above.
+  const requiredExercises = curatedRequired.map((t, i) => {
+    if (i === 0 || REQUIRED_VARIATION_EVERY <= 0) return t;
+    if ((sessionSeed + i) % REQUIRED_VARIATION_EVERY !== 0) return t;
+    if (!t.movementPattern) return t;
+    const sameMovementAlternatives = widePool.filter(
+      (a) =>
+        a.movementPattern === t.movementPattern &&
+        // The pattern alone would let a tricep pushdown stand in for an
+        // overhead press — see MUSCLE_FAMILIES.
+        sameMuscleFamily(a.primaryMuscle, t.primaryMuscle) &&
+        // ...and the muscle family alone still allows an isolation to take a
+        // required slot: a cable front raise shares the deltoid family with an
+        // overhead press, but filling the vertical-press slot with it means the
+        // session contains no vertical pressing at all. secondaryMuscles
+        // separates the two cleanly — compounds carry two or more (overhead
+        // press 3, landmine press 3, barbell row 2), isolations carry none or
+        // one (front raise 1, leg extension 0, tricep pushdown 0).
+        (a.secondaryMuscles?.length ?? 0) >= MIN_COMPOUND_SECONDARIES &&
+        !isSameMovement(a.name, t.name) &&
+        !isSameMovement(a.name, resolvedMainName) &&
+        !curatedRequired.some((r) => isSameMovement(a.name, r.name))
+    );
+    if (sameMovementAlternatives.length === 0) return t;
+    return seededShuffleDiverse(sameMovementAlternatives, sessionSeed + i)[0];
+  });
+
   const takenNames = [...requiredExercises.map((t) => t.name), resolvedMainName].filter(Boolean);
-  const accessoryPool = [
-    ...allMainExercises.slice(minRequired),
-    ...getAccessories(accessorySource, equipmentTier),
-  ].filter((t) => !takenNames.some((n) => isSameMovement(n, t.name)));
+  const accessoryPool = widePool.filter(
+    (t) => !takenNames.some((n) => isSameMovement(n, t.name))
+  );
   const shuffledOptional = seededShuffleDiverse(accessoryPool, sessionSeed);
   const selectedMain = [...requiredExercises, ...shuffledOptional.slice(0, optionalCount)];
 

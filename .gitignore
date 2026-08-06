@@ -2,8 +2,18 @@
 
 # dependencies
 node_modules/
-package-lock.json
 _package-lock.json
+
+# package-lock.json is deliberately NOT ignored.
+#
+# It was, and that meant nothing pinned the dependency tree: this machine
+# installs with npm, Replit installs fresh, and the two were free to resolve
+# different versions of the same caret range. Every dependency in package.json
+# that starts with ^ or ~ is a version this app has never been tested against
+# waiting to be installed. That kind of drift surfaces as a bug that reproduces
+# on one machine and not the other, which is the most expensive kind to chase —
+# and this project has already lost days to failures that could not be
+# reproduced locally.
 
 # Expo
 .expo/
