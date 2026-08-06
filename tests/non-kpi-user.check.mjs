@@ -98,14 +98,20 @@ console.log('\n[3] The home suggestion follows what you actually train');
 check(
   'the decision is made on a recent window, not an all-time count',
   /export const RECENT_WINDOW = ([2-9]|\d\d)/.test(store) &&
-    /const recent = completedSessions\.slice\(0, RECENT_WINDOW\)/.test(store),
+    /\.slice\(0, RECENT_WINDOW\)\s*\n?\s*\.some\(\(s\) => SESSION_ORDER\.includes/.test(store),
   'an all-time count means one squat two years ago pins someone to the barbell rotation forever'
 );
 check(
   'a recent lift keeps the strength rotation exactly as it was',
-  /if \(liftsRecently \|\| completedSessions\.length < NON_KPI_EVIDENCE\) \{\s*\n\s*return SESSION_ORDER/.test(
-    store
-  ),
+  /if \(get\(\)\.isOnStrengthProgramme\(\)\) \{\s*\n\s*return SESSION_ORDER/.test(store),
+  ''
+);
+// The home card and the Your Program screen must not answer "which programme is
+// this person on" separately — they would drift, and Home would suggest
+// conditioning while Program drew a barbell timeline.
+check(
+  'the decision lives in one shared selector',
+  /isOnStrengthProgramme: \(\) => \{/.test(store),
   ''
 );
 check(
@@ -183,6 +189,55 @@ for (const [label, history, expected] of scenarios) {
   const got = suggest(history);
   check(label, got === expected, `got "${got}", expected "${expected}"`);
 }
+
+// ─── 3c. "Your Program" shows the programme they are actually on ─────────────
+console.log('\n[3c] The Your Program screen stops drawing a barbell cycle');
+
+const program = read('../app/program.tsx');
+
+check(
+  'it asks the same question the home card does',
+  /const onStrengthProgramme = isOnStrengthProgramme\(\);/.test(program),
+  'answering it separately would let Home suggest conditioning while this screen drew a squat timeline'
+);
+check(
+  'the non-barbell timeline is built from real history',
+  /if \(!onStrengthProgramme\) \{[\s\S]{0,400}?completedSessions\.slice\(0, NON_KPI_TIMELINE\)/.test(
+    program
+  ),
+  'it used to build every timeline from SESSION_ORDER[i % 3] regardless'
+);
+check(
+  'it ends on whatever the home card suggests next',
+  /items\.push\(\{ sessionType: suggestedNext, status: 'current'/.test(program),
+  ''
+);
+check(
+  'the cycle badge is hidden off the barbell programme',
+  /\{onStrengthProgramme && \(\s*\n?\s*<View style=\{styles\.cycleBadge\}>/.test(program),
+  'a cycle number means nothing to someone not running cycles'
+);
+check(
+  'the cycle-position dots are hidden too',
+  /\{onStrengthProgramme && \(\s*\n?\s*<View style=\{styles\.arcCard\}>/.test(program),
+  ''
+);
+check(
+  '"until test" is replaced rather than left counting down',
+  /onStrengthProgramme \? 'until test' : 'week streak'/.test(program),
+  ''
+);
+check(
+  'the subtitle is no longer unconditionally the three lifts',
+  !/^\s*Squat · Bench · Deadlift · \{getEquipmentLabel/m.test(program) &&
+    /trainingMix/.test(program),
+  'it read "Squat · Bench · Deadlift" to everyone'
+);
+check(
+  'there is copy that does not mention cycles or tests',
+  /function getNonStrengthMessage\(/.test(program),
+  'getContextMessage talks of little else'
+);
 
 // ─── 4. The countdown is hidden when there is nothing to count to ────────────
 console.log('\n[4] Home does not count down to an event that will not happen');

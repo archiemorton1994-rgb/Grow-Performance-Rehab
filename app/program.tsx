@@ -30,6 +30,10 @@ import {
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 
+/** How many completed sessions the non-barbell timeline looks back over. Enough
+ *  to show a rhythm, short enough to still fit on a phone above the next one. */
+const NON_KPI_TIMELINE = 4;
+
 // ─── Session PNG images ───────────────────────────────────────────────────────
 const SESSION_IMAGES: Partial<Record<string, any>> = {
   squat: require('@/assets/images/sessions/squat.png'),
@@ -57,6 +61,20 @@ function getContextMessage(
   return 'Momentum is building. Every session moves the needle.';
 }
 
+/**
+ * Copy for someone who is not running the barbell rotation.
+ *
+ * Deliberately says nothing about cycles, blocks or strength tests — none of
+ * which are happening to them. getContextMessage above talks of little else,
+ * which is why it needed a counterpart rather than a tweak.
+ */
+function getNonStrengthMessage(sessionCount: number, mix: string): string {
+  if (sessionCount === 0) return "Welcome to your program. Let's build something lasting.";
+  if (sessionCount === 1) return 'First session in the books. The habit has begun.';
+  if (sessionCount < 6) return `Early days — ${mix.toLowerCase()} is taking shape.`;
+  return `This is your program: ${mix.toLowerCase()}. Built from what you actually train.`;
+}
+
 function getLastTrainedLabel(
   completedSessions: CompletedSession[],
   sessionType: SessionType
@@ -80,6 +98,10 @@ export default function ProgramScreen() {
     completedSessions,
     testWeekFrequency,
     isTestWeekDue,
+    isOnStrengthProgramme,
+    getCurrentSessionType,
+    getThisWeekCount,
+    getStreakDays,
     equipmentTiers,
     sessionEquipmentOverride,
     activeSession,
@@ -87,6 +109,8 @@ export default function ProgramScreen() {
   } = useAppStore();
 
   const testWeek = isTestWeekDue();
+  const onStrengthProgramme = isOnStrengthProgramme();
+  const suggestedNext = getCurrentSessionType();
 
   const strengthCount = useMemo(
     () => completedSessions.filter((s) => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
@@ -109,16 +133,55 @@ export default function ProgramScreen() {
   const progSessToTest =
     strengthCount > 0 ? cycleLength - (strengthCount % cycleLength) : cycleLength;
 
-  const contextMsg = getContextMessage(strengthCount, cycleLength, testWeek);
+  // What this person actually trains, most-used first — used in place of the
+  // hardcoded "Squat · Bench · Deadlift" subtitle.
+  const trainingMix = useMemo(() => {
+    const counts = new Map<SessionType, number>();
+    for (const s of completedSessions) {
+      counts.set(s.sessionType, (counts.get(s.sessionType) ?? 0) + 1);
+    }
+    const top = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([t]) => SESSION_DISPLAY_NAMES[t]);
+    return top.length > 0 ? top.join(' · ') : 'Your own mix';
+  }, [completedSessions]);
+
+  const contextMsg = onStrengthProgramme
+    ? getContextMessage(strengthCount, cycleLength, testWeek)
+    : getNonStrengthMessage(completedSessions.length, trainingMix);
 
   const timeline = useMemo(() => {
-    const tlLen = Math.min(cycleLength, 9);
-    const posInCycle = strengthCount % tlLen;
     const items: {
       sessionType: SessionType;
       status: 'completed' | 'current' | 'upcoming';
       isTestMarker: boolean;
     }[] = [];
+
+    // Not on the barbell rotation? Then do not draw one.
+    //
+    // This screen used to build its timeline from SESSION_ORDER[i % 3]
+    // unconditionally, so someone who has never lifted a barbell opened "Your
+    // Program" and was shown a nine-row squat/bench/deadlift cycle with "Not
+    // done yet" beside every one of them. The rest of the app had already been
+    // taught not to assume that; this screen had not, which made it the loudest
+    // remaining contradiction in the app.
+    //
+    // Their programme is what they actually do, so it is drawn from history:
+    // the last few sessions completed, then whatever the home card is
+    // suggesting next. Same decision function as the home card, so the two can
+    // never disagree about which programme someone is on.
+    if (!onStrengthProgramme) {
+      const recent = completedSessions.slice(0, NON_KPI_TIMELINE).reverse();
+      for (const s of recent) {
+        items.push({ sessionType: s.sessionType, status: 'completed', isTestMarker: false });
+      }
+      items.push({ sessionType: suggestedNext, status: 'current', isTestMarker: false });
+      return items;
+    }
+
+    const tlLen = Math.min(cycleLength, 9);
+    const posInCycle = strengthCount % tlLen;
     for (let i = 0; i < tlLen; i++) {
       const sessionType = SESSION_ORDER[i % 3];
       const status: 'completed' | 'current' | 'upcoming' =
@@ -128,7 +191,8 @@ export default function ProgramScreen() {
       items.push({ sessionType, status, isTestMarker });
     }
     return items;
-  }, [strengthCount, testWeekFrequency]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strengthCount, testWeekFrequency, onStrengthProgramme, completedSessions, suggestedNext]);
 
   const lastTrained = useMemo(() => {
     const result = {} as Record<SessionType, string>;
@@ -231,9 +295,11 @@ export default function ProgramScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Your Program</Text>
         </View>
-        <View style={styles.cycleBadge}>
-          <Text style={styles.cycleBadgeText}>Cycle {progCycleNumber}</Text>
-        </View>
+        {onStrengthProgramme && (
+          <View style={styles.cycleBadge}>
+            <Text style={styles.cycleBadgeText}>Cycle {progCycleNumber}</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -243,14 +309,24 @@ export default function ProgramScreen() {
       >
         {/* Subtitle */}
         <Text style={styles.subtitle}>
-          Squat · Bench · Deadlift · {getEquipmentLabel(todayEffectiveTier)}
+          {onStrengthProgramme
+            ? `Squat · Bench · Deadlift · ${getEquipmentLabel(todayEffectiveTier)}`
+            : `${trainingMix} · ${getEquipmentLabel(todayEffectiveTier)}`}
         </Text>
 
-        {/* Cycle stats row */}
+        {/* Stats row. "Until test" is meaningless to someone who is not being
+            tested, so it is replaced rather than left showing a countdown to an
+            event that will never arrive. */}
         <View style={styles.cycleInfo}>
           <View style={styles.cycleCard}>
-            <Text style={styles.cycleValue}>Cycle {progCycleNumber}</Text>
-            <Text style={styles.cycleLabel}>of your program</Text>
+            {onStrengthProgramme ? (
+              <Text style={styles.cycleValue}>Cycle {progCycleNumber}</Text>
+            ) : (
+              <Text style={styles.cycleNumber}>{getThisWeekCount()}</Text>
+            )}
+            <Text style={styles.cycleLabel}>
+              {onStrengthProgramme ? 'of your program' : 'this week'}
+            </Text>
           </View>
           <View style={styles.cycleDivider} />
           <View style={styles.cycleCard}>
@@ -259,12 +335,17 @@ export default function ProgramScreen() {
           </View>
           <View style={styles.cycleDivider} />
           <View style={styles.cycleCard}>
-            <Text style={styles.cycleNumber}>{progSessToTest}</Text>
-            <Text style={styles.cycleLabel}>until test</Text>
+            <Text style={styles.cycleNumber}>
+              {onStrengthProgramme ? progSessToTest : getStreakDays()}
+            </Text>
+            <Text style={styles.cycleLabel}>
+              {onStrengthProgramme ? 'until test' : 'week streak'}
+            </Text>
           </View>
         </View>
 
-        {/* Arc dots */}
+        {/* Arc dots — position within a cycle, so only meaningful on one. */}
+        {onStrengthProgramme && (
         <View style={styles.arcCard}>
           <View style={styles.arcHeader}>
             <Text style={styles.arcLabel}>
@@ -289,6 +370,7 @@ export default function ProgramScreen() {
             })}
           </View>
         </View>
+        )}
 
         {/* Context message */}
         <View style={styles.contextRow}>

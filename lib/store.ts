@@ -491,6 +491,10 @@ interface AppState {
   /** Permanently dismiss the calibration-complete banner. */
   setCalibrationBannerDismissed: (dismissed: boolean) => void;
 
+  /** True when the barbell rotation is what this person is actually doing.
+   *  Shared by the home card and the Your Program screen so they cannot
+   *  disagree about which programme someone is on. */
+  isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
    * Where you are in a test week: all three main lifts, one test per session,
@@ -923,6 +927,28 @@ export const useAppStore = create<AppState>()(
       clearNewlyUnlockedBadges: () => set({ newlyUnlockedBadges: [] }),
       setCalibrationBannerDismissed: (dismissed) => set({ calibrationBannerDismissed: dismissed }),
 
+      /**
+       * Is this person actually running the barbell strength rotation?
+       *
+       * Shared by the home card and the Your Program screen ON PURPOSE. Both
+       * have to answer the same question — "what programme is this person on" —
+       * and if they answered it separately they would eventually disagree, so
+       * Home would suggest conditioning while Program drew a squat/bench/
+       * deadlift timeline. One implementation, one answer.
+       *
+       * Judged on the RECENT window rather than an all-time count, so it
+       * corrects in both directions: a lifter who spends a month rehabbing
+       * stops being shown a strength cycle, and their first session back
+       * restores it exactly where it left off.
+       */
+      isOnStrengthProgramme: () => {
+        const { completedSessions } = get();
+        if (completedSessions.length < NON_KPI_EVIDENCE) return true;
+        return completedSessions
+          .slice(0, RECENT_WINDOW)
+          .some((s) => SESSION_ORDER.includes(s.sessionType));
+      },
+
       getCurrentSessionType: () => {
         const { completedSessions, cycleStartOffset } = get();
         // During a test week the lift is dictated by how far through the three
@@ -948,9 +974,7 @@ export const useAppStore = create<AppState>()(
         // being told to squat, and their first squat back restores the strength
         // rotation exactly where it was (strengthCount is still all-time, so
         // the cycle position is never lost).
-        const recent = completedSessions.slice(0, RECENT_WINDOW);
-        const liftsRecently = recent.some((s) => SESSION_ORDER.includes(s.sessionType));
-        if (liftsRecently || completedSessions.length < NON_KPI_EVIDENCE) {
+        if (get().isOnStrengthProgramme()) {
           return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
         }
 
