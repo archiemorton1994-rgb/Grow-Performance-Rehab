@@ -36,6 +36,7 @@ import {
   getWeeklyUpperBodyExercises,
   getWeeklyFullBodyExercises,
 } from './exercise-db';
+import { applyGripVariant } from './grip-variants';
 
 export interface Exercise {
   id: string;
@@ -1152,9 +1153,16 @@ function generateWeeklyWorkout(
     // choice someone made rather than a pattern match.
     const base = selectedMain[i];
     const t =
-      i === 0 && rotateMain && base.swapAlternative
-        ? { ...base, ...base.swapAlternative, id: base.id }
-        : base;
+      i === 0
+        ? rotateMain && base.swapAlternative
+          ? { ...base, ...base.swapAlternative, id: base.id }
+          : base
+        : // Accessories additionally rotate their grip or stance where a
+          // curated variant exists — see lib/grip-variants.ts. The id is kept,
+          // so a wide-grip inverted row continues the base's progression rather
+          // than starting a new one. Offset by the slot so two accessories in
+          // the same session do not flip in lockstep.
+          applyGripVariant(base, sessionSeed + i);
     const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);
     // Only the first movement is the session's KPI lift; the rest are accessories
     const withCategory = i === 0 ? ex : { ...ex, category: 'accessory' as const };

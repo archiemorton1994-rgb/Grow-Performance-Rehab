@@ -122,6 +122,13 @@ const CURATED = {
   full_body: getWeeklyFullBodyExercises,
 };
 const REQUIRED = { upper_body: 4, lower_body: 3, full_body: 6 };
+// A required exercise satisfies coverage whether it appears as itself or as one
+// of its curated grip variants — a Wide-Grip Inverted Row is still the pull that
+// slot exists to guarantee. Checking by bare name would fail the moment the
+// variant fires, which is a test problem, not a coverage problem.
+const { GRIP_VARIANTS } = await import('../lib/grip-variants.ts');
+const acceptableNames = (base) => [base, ...(GRIP_VARIANTS[base] ?? []).map((v) => v.name)];
+
 let coverageOk = true;
 const coverageDetail = [];
 for (const [type, getter] of Object.entries(CURATED)) {
@@ -133,7 +140,9 @@ for (const [type, getter] of Object.entries(CURATED)) {
       const names = gen(type, tier, '60', n).map((e) => e.name);
       // The main may legitimately appear as its alternative, so the first
       // required exercise is allowed to be missing by name.
-      const missing = required.slice(1).filter((r) => !names.includes(r));
+      const missing = required
+        .slice(1)
+        .filter((r) => !acceptableNames(r).some((ok) => names.includes(ok)));
       if (missing.length > 0) {
         coverageOk = false;
         coverageDetail.push(`${type}/${tier}#${n}: missing ${missing.join(', ')}`);
