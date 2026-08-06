@@ -155,6 +155,18 @@ const WELCOME_PILLARS = [
   },
 ];
 
+/**
+ * Screen indices for the pager.
+ *
+ * Named because they are referenced from four places that must agree — the
+ * canContinue switch, the handleNext boundaries, the index-keyed effects, and
+ * the progress bar — and inserting the test-week screen meant shifting every
+ * one of them. Bare numbers made that a hunt.
+ */
+const TEST_WEEK_INDEX = 8;
+const THEME_INDEX = 9;
+const CELEBRATION_INDEX = 10;
+
 function experienceLabel(e: ExperienceLevel | null): string {
   switch (e) {
     case 'beginner':
@@ -259,7 +271,7 @@ export default function OnboardingScreen() {
       setTimeout(() => nameInputRef.current?.focus(), 350);
     } else if (currentIndex === 4) {
       setTimeout(() => bwInputRef.current?.focus(), 350);
-    } else if (currentIndex === 9) {
+    } else if (currentIndex === CELEBRATION_INDEX) {
       checkScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 180 }));
       checkOpacity.value = withDelay(200, withTiming(1, { duration: 250 }));
       celebTitleOpacity.value = withDelay(600, withTiming(1, { duration: 400 }));
@@ -324,7 +336,9 @@ export default function OnboardingScreen() {
         return equipment.length > 0;
       case 7:
         return true;
-      case 8:
+      case TEST_WEEK_INDEX:
+        return true;
+      case THEME_INDEX:
         return true;
       default:
         return false;
@@ -358,13 +372,16 @@ export default function OnboardingScreen() {
     if (!canContinue()) return;
     hapticMedium();
     Keyboard.dismiss();
-    if (currentIndex < 7) {
+    if (currentIndex < TEST_WEEK_INDEX) {
       goTo(currentIndex + 1);
-    } else if (currentIndex === 7) {
+    } else if (currentIndex === TEST_WEEK_INDEX) {
+      // Save here, not at the best-lifts step as before: testFrequency is only
+      // chosen on this screen, so saving earlier wrote the default whatever the
+      // user picked.
       saveAndComplete();
-      goTo(8);
-    } else if (currentIndex === 8) {
-      goTo(9);
+      goTo(THEME_INDEX);
+    } else if (currentIndex === THEME_INDEX) {
+      goTo(CELEBRATION_INDEX);
     }
   }, [canContinue, hapticMedium, currentIndex, goTo, saveAndComplete]);
 
@@ -413,9 +430,10 @@ export default function OnboardingScreen() {
   const handleSkipLifts = useCallback(() => {
     haptic();
     Keyboard.dismiss();
-    saveAndComplete();
-    goTo(8);
-  }, [haptic, saveAndComplete, goTo]);
+    // Skipping the lifts must still land on the test-week question, not jump
+    // past it — and the save now happens there, once the answer exists.
+    goTo(TEST_WEEK_INDEX);
+  }, [haptic, goTo]);
 
   const toggleGoal = useCallback(
     (goal: FitnessGoal) => {
@@ -445,7 +463,7 @@ export default function OnboardingScreen() {
 
   const available = experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER;
   const showProgress = currentIndex >= 1;
-  const progressFraction = showProgress ? Math.min(currentIndex / 9, 1) : 0;
+  const progressFraction = showProgress ? Math.min(currentIndex / CELEBRATION_INDEX, 1) : 0;
   const showBack = currentIndex > 0;
   const showContinue = currentIndex < 9;
   const canGo = canContinue();
@@ -867,23 +885,41 @@ export default function OnboardingScreen() {
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
                 <Text style={styles.skipText}>{"I don't know my best lifts"}</Text>
               </Pressable>
+            </ScrollView>
+          </View>
 
-              {/* Asked here rather than on a screen of its own — this is already
-                  the one place the three lifts are named to the user, so it is
-                  where "and do you want to be tested on them" belongs. Two
-                  chips, a sensible default, and it is changeable in Settings, so
-                  nobody has to think hard about it now. */}
-              <View style={styles.testOptDivider} />
-              <Text style={styles.testOptTitle}>Test your strength periodically?</Text>
-              <Text style={styles.testOptHint}>
-                Every 12 sessions we&apos;d max out these three lifts to re-set your working
-                weights. Skip it if they&apos;re not part of your training.
+          {/* Screen 8: Strength test weeks.
+              Its own screen, not a block appended to the best-lifts step. Put
+              there, it fell below the fold behind three inputs and a skip link
+              — the question was invisible unless you scrolled, which for a
+              decision that shapes the whole programme is worse than not asking.
+              Asked immediately after the lifts are named, so the "these three
+              lifts" it refers to are still on screen behind you. */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <GrowIcon name="podium" size={56} color={C.primary} />
+              </View>
+              <Text style={styles.question}>Test your strength?</Text>
+              <Text style={styles.hint}>
+                Every 12 sessions we&apos;d max out Squat, Bench and Deadlift to re-set your
+                working weights
               </Text>
-              <View style={styles.testOptRow}>
+              <View style={[styles.optionList, { marginTop: 4 }]}>
                 {(
                   [
-                    { value: 12 as const, label: 'Yes, test me' },
-                    { value: 'never' as const, label: 'No thanks' },
+                    {
+                      value: 12 as const,
+                      label: 'Yes, test me',
+                      desc: 'Keeps your weights accurate as you get stronger',
+                      icon: 'trophy' as const,
+                    },
+                    {
+                      value: 'never' as const,
+                      label: 'No thanks',
+                      desc: "These lifts aren't part of my training",
+                      icon: 'leaf' as const,
+                    },
                   ] as const
                 ).map((opt) => {
                   const selected = testFrequency === opt.value;
@@ -894,25 +930,34 @@ export default function OnboardingScreen() {
                         haptic();
                         setTestFrequency(opt.value);
                       }}
-                      style={[styles.testOptChip, selected && styles.testOptChipSelected]}
+                      style={[styles.optionCard, selected && styles.optionCardSelected]}
                       testID={`onboarding-test-${opt.value}`}
                     >
-                      <Text
-                        style={[
-                          styles.testOptChipText,
-                          selected && styles.testOptChipTextSelected,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
+                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
+                        <GrowIcon
+                          name={opt.icon}
+                          size={22}
+                          color={selected ? C.textInverse : C.primary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                          {opt.label}
+                        </Text>
+                        <Text style={styles.optionDesc}>{opt.desc}</Text>
+                      </View>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
                     </Pressable>
                   );
                 })}
               </View>
-            </ScrollView>
+              <Text style={styles.testOptHint}>You can change this anytime in settings</Text>
+            </View>
           </View>
 
-          {/* Screen 8: Theme */}
+          {/* Screen 9: Theme */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -1040,9 +1085,12 @@ export default function OnboardingScreen() {
               <Text style={[styles.continueBtnText, !canGo && styles.continueBtnTextDisabled]}>
                 {currentIndex === 0
                   ? 'Get Started'
-                  : currentIndex === 7
+                  : // "Save & Continue" belongs on the screen where the profile
+                    // is actually written, which moved from best-lifts to the
+                    // test-week question when the save moved.
+                    currentIndex === TEST_WEEK_INDEX
                     ? 'Save & Continue'
-                    : currentIndex === 8
+                    : currentIndex === THEME_INDEX
                       ? 'Looks good'
                       : 'Continue'}
               </Text>
