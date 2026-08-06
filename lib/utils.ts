@@ -60,6 +60,35 @@ export function daysSince(dateStr: string): number {
  *  Shared by lib/badge-engine.ts and lib/store.ts so the week a session
  *  counts toward for streak display and for badge eligibility can never
  *  silently disagree. */
+/**
+ * Midnight on the Monday of the week containing `date`, in local time.
+ *
+ * THE ONE DEFINITION OF "THIS WEEK". There were three, all in the Stats tab:
+ * the "This Week" pill counted from Monday (UTC), the "This wk" bar directly
+ * below it counted from Sunday (local), and the History date filter used a
+ * third. Mid-week the bar included Sunday's sessions and the pill did not; on a
+ * Sunday the pill covered Mon–Sun while the bar covered that day alone, so two
+ * numbers sitting on the same screen openly disagreed. Nothing surfaces a bug
+ * like that — the stats simply look wrong and stop being trusted.
+ *
+ * Monday, to match getStreakDays, the badge engine's isoWeek below, and the
+ * calendar grid, all of which were already Monday-based.
+ */
+export function startOfWeek(date: Date = new Date()): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay() || 7; // 1 = Mon … 7 = Sun
+  d.setDate(d.getDate() - (dow - 1));
+  return d;
+}
+
+/** Midnight on the Monday `weeksAgo` weeks before the week containing `date`. */
+export function startOfWeeksAgo(weeksAgo: number, date: Date = new Date()): Date {
+  const d = startOfWeek(date);
+  d.setDate(d.getDate() - weeksAgo * 7);
+  return d;
+}
+
 export function isoWeek(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dow = d.getUTCDay() || 7; // 1=Mon … 7=Sun

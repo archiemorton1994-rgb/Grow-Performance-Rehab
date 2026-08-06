@@ -40,7 +40,14 @@ import {
 import { PainInsightSheet } from '@/components/PainInsightSheet';
 import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
-import { formatDate, formatWeight, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
+import {
+  formatDate,
+  formatWeight,
+  kgToDisplayUnit,
+  displayUnitToKg,
+  startOfWeek,
+  startOfWeeksAgo,
+} from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
 import { togglePainFilter } from '@/lib/filter-utils';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -567,9 +574,10 @@ function WeeklyBarChart({
     const now = new Date();
     const result: { label: string; count: number }[] = [];
     for (let i = 7; i >= 0; i--) {
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay() - i * 7);
-      weekStart.setHours(0, 0, 0, 0);
+      // Monday-start, shared with the This Week pill and the History filter —
+      // see startOfWeek in lib/utils. This used to start weeks on Sunday, so
+      // the last bar and the pill directly above it counted different sessions.
+      const weekStart = startOfWeeksAgo(i);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
       const count = sessions.filter((s) => {
@@ -692,9 +700,10 @@ function WeeklyVolumeChart({
     // weekly bars down. Test Week strength sessions still use these same types
     // and are included naturally.
     for (let i = 7; i >= 0; i--) {
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay() - i * 7);
-      weekStart.setHours(0, 0, 0, 0);
+      // Monday-start, shared with the This Week pill and the History filter —
+      // see startOfWeek in lib/utils. This used to start weeks on Sunday, so
+      // the last bar and the pill directly above it counted different sessions.
+      const weekStart = startOfWeeksAgo(i);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
       // Any session, not just the three KPI lifts.
@@ -3697,9 +3706,7 @@ export default function StatsScreen() {
     const now = new Date();
     let cutoff: Date | null = null;
     if (dateFilter === 'this_week') {
-      cutoff = new Date(now);
-      cutoff.setDate(now.getDate() - now.getDay());
-      cutoff.setHours(0, 0, 0, 0);
+      cutoff = startOfWeek(now);
     } else if (dateFilter === 'this_month') {
       cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
     }
@@ -3830,7 +3837,7 @@ export default function StatsScreen() {
             <View style={styles.statDiv} />
             <View style={styles.statCell}>
               <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
+              <Text style={styles.statLabel}>Week Streak</Text>
             </View>
             <View style={styles.statDiv} />
             <View style={styles.statCell}>
@@ -3889,7 +3896,7 @@ export default function StatsScreen() {
               <View style={styles.statDiv} />
               <View style={styles.statCell}>
                 <Text style={styles.statValue}>{streak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
+                <Text style={styles.statLabel}>Week Streak</Text>
               </View>
               <View style={styles.statDiv} />
               <View style={styles.statCell}>
