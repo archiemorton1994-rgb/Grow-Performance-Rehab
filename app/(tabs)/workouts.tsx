@@ -21,6 +21,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors, DarkColors } from '@/constants/colors';
 import { xsShadow } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
+import { StatStrip } from '@/components/StatStrip';
 import {
   CompletedSession,
   EnergyLevel,
@@ -232,75 +233,6 @@ const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; mess
     message: 'Trained on 5+ days this week. Allow some recovery time.',
   },
 };
-
-/**
- * The three-figure summary card, in one place.
- *
- * This existed four times over — twice verbatim on Overview (the empty state
- * and the populated state each built their own), once on Strength, and once
- * inside the exercise-progress list with every style written inline at 22px
- * where the others used 26px. Four copies of one card is four places to change
- * when it changes, and the odd size out was not a decision anyone made.
- *
- * Values carry an optional `hint` — a unit or qualifier that belongs with the
- * number but must not compete with it. Previously the Strength tab glued the
- * unit onto the LABEL ("Squat kg"), which reads as a different statistic.
- */
-function StatStrip({
-  items,
-  C,
-  innerRef,
-}: {
-  items: { value: string; label: string; hint?: string }[];
-  C: ReturnType<typeof useColors>;
-  innerRef?: React.RefObject<View | null>;
-}) {
-  return (
-    <View
-      ref={innerRef}
-      collapsable={false}
-      style={{
-        flexDirection: 'row',
-        backgroundColor: C.surface,
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: C.borderLight,
-        alignItems: 'center',
-      }}
-    >
-      {items.map((item, i) => (
-        <React.Fragment key={item.label}>
-          {i > 0 && <View style={{ width: 1, height: 32, backgroundColor: C.border }} />}
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-              <Text style={{ fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary }}>
-                {item.value}
-              </Text>
-              {item.hint ? (
-                <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
-                  {item.hint}
-                </Text>
-              ) : null}
-            </View>
-            <Text
-              style={{
-                fontSize: 11,
-                fontFamily: 'Inter_500Medium',
-                color: C.textSecondary,
-                marginTop: 2,
-                textAlign: 'center',
-              }}
-              numberOfLines={1}
-            >
-              {item.label}
-            </Text>
-          </View>
-        </React.Fragment>
-      ))}
-    </View>
-  );
-}
 
 function MuscleProgressPanel({
   completedSessions,

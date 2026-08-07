@@ -65,10 +65,13 @@ for (const [style, label] of [['drillDownCard', 'the drill-down cards']]) {
 // ─── 1b. The three-figure summary card exists once ───────────────────────────
 console.log('\n[1b] The stat strip is one component, not four copies');
 
+// It lives in components/ now, because the Profile screen had a fifth copy of
+// the same card and a component only one screen can reach is not shared.
+const strip = readFileSync(join(__dir, '../components/StatStrip.tsx'), 'utf8');
 check(
-  'there is a StatStrip component',
-  /function StatStrip\(/.test(src),
-  'it was hand-built four times — twice verbatim on Overview, once on Strength, and once inline'
+  'there is a shared StatStrip component',
+  /export function StatStrip\(/.test(strip) && /from '@\/components\/StatStrip'/.test(src),
+  'it was hand-built five times — twice verbatim on Overview, once on Strength, once inline, once on Profile'
 );
 check(
   'nothing hand-builds a stat cell any more',
@@ -78,9 +81,8 @@ check(
 // The inline copy used 22px where the two style-sheet copies used 26px. Nobody
 // decided that; it happened because the card was written more than once. Scoped
 // to the component so it measures the card, not every bold number on the tab.
-const stripBody = src.slice(src.indexOf('function StatStrip('), src.indexOf('function MuscleProgressPanel('));
 const bigNumbers = new Set(
-  [...stripBody.matchAll(/fontSize: (\d+), fontFamily: 'Inter_700Bold'/g)].map((m) => Number(m[1]))
+  [...strip.matchAll(/fontSize: (\d+), fontFamily: 'Inter_700Bold'/g)].map((m) => Number(m[1]))
 );
 check(
   `the summary number has one size (found ${[...bigNumbers].join(', ') || 'none'})`,
@@ -89,7 +91,7 @@ check(
 );
 check(
   'the unit sits beside the number rather than in the label',
-  /hint\?: string/.test(stripBody),
+  /hint\?: string/.test(strip),
   '"Squat kg" as a label reads as a different statistic from "Squat"'
 );
 

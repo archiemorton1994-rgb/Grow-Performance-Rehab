@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
+import { StatStrip } from '@/components/StatStrip';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -95,6 +96,28 @@ const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ioni
   ];
 
 type ActiveModal = 'edit' | 'equipment' | 'settings' | 'bodyweight' | 'bw-history' | null;
+
+/**
+ * The sections inside the settings sheet, surfaced as rows on the profile
+ * screen so they can be seen and reached directly.
+ *
+ * `section` must match the section heading rendered inside the sheet exactly —
+ * that string is the key the scroll-to-section lookup is built from, so a typo
+ * here means the sheet opens at the top instead of at the section, silently.
+ * settings-sections.check.mjs asserts the two lists agree.
+ */
+const SETTINGS_DESTINATIONS: {
+  section: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  blurb: string;
+}[] = [
+  { section: 'Profile', icon: 'person-outline', blurb: 'Name, bodyweight, goals, equipment' },
+  { section: 'Preferences', icon: 'options-outline', blurb: 'Units, appearance, reminders' },
+  { section: 'Subscription', icon: 'card-outline', blurb: 'Plan and billing' },
+  { section: 'Account', icon: 'mail-outline', blurb: 'Email and sign-out' },
+  { section: 'App', icon: 'information-circle-outline', blurb: 'Version, tutorial, support' },
+  { section: 'Legal', icon: 'document-text-outline', blurb: 'Terms and privacy' },
+];
 
 interface ProfileTutorialStep {
   spotlightRef: 'header' | 'stats' | 'strength' | 'settings';
@@ -190,11 +213,9 @@ function BodyweightSparkline({
       >
         <Text
           style={{
-            fontSize: 12,
+            fontSize: 13,
             fontFamily: 'Inter_600SemiBold',
             color: C.textSecondary,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
             marginBottom: 10,
           }}
         >
@@ -267,11 +288,9 @@ function BodyweightSparkline({
       >
         <Text
           style={{
-            fontSize: 12,
+            fontSize: 13,
             fontFamily: 'Inter_600SemiBold',
             color: C.textSecondary,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
           }}
         >
           Bodyweight Trend
@@ -397,6 +416,33 @@ export default function ProfileScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+
+  /**
+   * Opening the settings sheet at a particular section.
+   *
+   * The y of each section heading is recorded on layout; when the sheet opens
+   * with a pending target, it scrolls there. The delay exists because layout
+   * has not run when the modal first mounts — scrolling immediately scrolls a
+   * list whose sections are all still at y=0.
+   */
+  const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null);
+  const settingsScrollRef = useRef<ScrollView>(null);
+  const settingsSectionY = useRef<Record<string, number>>({});
+  useEffect(() => {
+    if (activeModal !== 'settings' || !pendingSettingsSection) return;
+    const target = pendingSettingsSection;
+    const timer = setTimeout(() => {
+      const y = settingsSectionY.current[target];
+      // No entry means the section heading never laid out under that exact
+      // name. Staying at the top is the right failure: it is where the sheet
+      // would have opened anyway.
+      if (y !== undefined) {
+        settingsScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: false });
+      }
+      setPendingSettingsSection(null);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [activeModal, pendingSettingsSection]);
   const [returnToSettings, setReturnToSettings] = useState(false);
 
   const [bwText, setBwText] = useState('');
@@ -862,44 +908,29 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
+        {/* Everything below the hero is one flat stack of unrelated cards —
+            your numbers, your subscription, your settings — separated only by
+            equal margins, so nothing groups and the eye has no way in. Two
+            headings turn it into two sections. Same sectionHead pattern the
+            Stats tab uses, so the two screens read as the same app. */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Your training</Text>
+        </View>
+
         <View ref={statsRef} collapsable={false}>
-        <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.statsCard}>
-          <View style={styles.stat}>
-            <View style={styles.statNumRow}>
-              <Text style={styles.statVal}>{completedSessions.length}</Text>
-              <Ionicons
-                name="barbell-outline"
-                size={15}
-                color={C.primaryDark}
-                style={styles.statIcon}
-              />
-            </View>
-            <Text style={styles.statLbl}>Sessions</Text>
-          </View>
-          <View style={styles.stat}>
-            <View style={styles.statNumRow}>
-              <Text style={styles.statVal}>{streak}</Text>
-              <Ionicons
-                name="calendar-outline"
-                size={15}
-                color={C.primaryDark}
-                style={styles.statIcon}
-              />
-            </View>
-            <Text style={styles.statLbl}>Week Streak</Text>
-          </View>
-          <View style={styles.stat}>
-            <View style={styles.statNumRow}>
-              <Text style={styles.statVal}>{weekCount}</Text>
-              <Ionicons
-                name="calendar-outline"
-                size={15}
-                color={C.primaryDark}
-                style={styles.statIcon}
-              />
-            </View>
-            <Text style={styles.statLbl}>This Week</Text>
-          </View>
+        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+          {/* Was a fifth hand-built copy of this card, with its own five style
+              objects and an icon beside every number — three icons that carried
+              no information the label did not already give, competing with the
+              figure they sat next to. */}
+          <StatStrip
+            C={C}
+            items={[
+              { value: String(completedSessions.length), label: 'Sessions' },
+              { value: String(streak), label: 'Week Streak' },
+              { value: String(weekCount), label: 'This Week' },
+            ]}
+          />
         </Animated.View>
         </View>
 
@@ -915,7 +946,7 @@ export default function ProfileScreen() {
             const bwDisplay = kgToDisplayUnit(userProfile.bodyweightKg, weightUnit);
             return (
               <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioCard}>
-                <Text style={styles.ratioCardTitle}>YOUR STRENGTH PROGRESS</Text>
+                <Text style={styles.ratioCardTitle}>Your strength progress</Text>
                 <Text style={styles.ratioCardSub}>Bodyweight Multipliers</Text>
                 <View style={styles.ratioItemsRow}>
                   {lifts.map(({ lift, orm }) => {
@@ -954,7 +985,7 @@ export default function ProfileScreen() {
                 <Ionicons name="barbell-outline" size={22} color={C.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.ratioCardTitle}>STRENGTH PROGRESS</Text>
+                <Text style={styles.ratioCardTitle}>Strength progress</Text>
                 <Text style={styles.ratioCardSub}>
                   Log a{' '}
                   <GlossaryTerm
@@ -989,7 +1020,7 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoCardTitle}>
-                  {isOnTrial ? 'FREE TRIAL ACTIVE' : 'GROW MONTHLY'}
+                  {isOnTrial ? 'Free trial active' : 'Grow Monthly'}
                 </Text>
                 <Text style={styles.infoCardSub}>
                   {isOnTrial && expiryDate
@@ -1019,7 +1050,7 @@ export default function ProfileScreen() {
                 <Ionicons name="lock-closed-outline" size={22} color={C.textSecondary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.infoCardTitle}>SUBSCRIBE TO GROW</Text>
+                <Text style={styles.infoCardTitle}>Subscribe to Grow</Text>
                 <Text style={styles.infoCardSub}>£4.99/month · cancel anytime</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
@@ -1027,31 +1058,47 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
-        {/* Single Settings entry - everything else lives behind here */}
+        {/* SETTINGS USED TO BE ONE ROW.
+            Six destinations — Account, Profile, Preferences, Subscription, App,
+            Legal — behind a single tap, named only in a bullet list crammed
+            into the row's subtitle, at 12px, ending in "• Account" with no way
+            to reach any one of them. Roughly everything configurable in the app
+            was one undifferentiated door.
+
+            They are rows now, and each one opens the sheet AT its own section
+            rather than at the top, so "Reminders" gets you to reminders. The
+            sheet is unchanged — this is a way in, not a rewrite of what is
+            behind it. */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+        </View>
         <View ref={settingsRef} collapsable={false}>
-        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActiveModal('settings');
-            }}
-            style={({ pressed }) => [
-              styles.infoCard,
-              pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
-            ]}
-            testID="open-settings"
-          >
-            <View style={styles.infoCardIconWrap}>
-              <Ionicons name="settings-outline" size={22} color={C.textSecondary} />
-            </View>
-            <View style={styles.navBtnText}>
-              <Text style={styles.infoCardTitle}>SETTINGS</Text>
-              <Text style={styles.infoCardSub}>
-                Profile • Equipment • Reminders • Units • Appearance • Account
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-          </Pressable>
+        <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.settingsList}>
+          {SETTINGS_DESTINATIONS.map((dest, i) => (
+            <Pressable
+              key={dest.section}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setPendingSettingsSection(dest.section);
+                setActiveModal('settings');
+              }}
+              style={({ pressed }) => [
+                styles.settingsRow,
+                i > 0 && styles.settingsRowDivided,
+                pressed && { opacity: 0.7 },
+              ]}
+              testID={i === 0 ? 'open-settings' : `open-settings-${dest.section.toLowerCase()}`}
+            >
+              <View style={styles.infoCardIconWrap}>
+                <Ionicons name={dest.icon} size={20} color={C.textSecondary} />
+              </View>
+              <View style={styles.navBtnText}>
+                <Text style={styles.settingsRowTitle}>{dest.section}</Text>
+                <Text style={styles.infoCardSub}>{dest.blurb}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+            </Pressable>
+          ))}
         </Animated.View>
         </View>
       </ScrollView>
@@ -1255,7 +1302,7 @@ export default function ProfileScreen() {
                     style={{
                       width: 44,
                       height: 44,
-                      borderRadius: 10,
+                      borderRadius: 8,
                       overflow: 'hidden',
                       backgroundColor: C.surfaceTertiary,
                       opacity: isLocked ? 0.4 : 1,
@@ -1444,12 +1491,20 @@ export default function ProfileScreen() {
             <Text style={styles.sheetTitle}>Settings</Text>
 
             <ScrollView
+              ref={settingsScrollRef}
               showsVerticalScrollIndicator={false}
               style={{ flexShrink: 1 }}
               contentContainerStyle={{ paddingBottom: 8 }}
             >
               {/* Account */}
-              <Text style={styles.settingSectionLabel}>Account</Text>
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['Account'] = e.nativeEvent.layout.y;
+                }}
+              >
+                Account
+              </Text>
               <View style={styles.accountRow}>
                 <View style={styles.accountIcon}>
                   <Ionicons name="mail-outline" size={18} color={C.primary} />
@@ -1474,7 +1529,14 @@ export default function ProfileScreen() {
               <View style={styles.settingDivider} />
 
               {/* Profile rows - open the existing modals via the returnToSettings flag */}
-              <Text style={styles.settingSectionLabel}>Profile</Text>
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['Profile'] = e.nativeEvent.layout.y;
+                }}
+              >
+                Profile
+              </Text>
               <Pressable
                 onPress={() => openFromSettings('edit')}
                 style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
@@ -1526,7 +1588,14 @@ export default function ProfileScreen() {
 
               <View style={styles.settingDivider} />
 
-              <Text style={styles.settingSectionLabel}>Preferences</Text>
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['Preferences'] = e.nativeEvent.layout.y;
+                }}
+              >
+                Preferences
+              </Text>
               <Text style={styles.settingItemLabel}>Workout Reminders</Text>
               <Text style={styles.settingItemSub}>
                 Get a daily nudge to keep your training on track
@@ -1860,7 +1929,14 @@ export default function ProfileScreen() {
 
               <View style={styles.settingDivider} />
 
-              <Text style={styles.settingSectionLabel}>Subscription</Text>
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['Subscription'] = e.nativeEvent.layout.y;
+                }}
+              >
+                Subscription
+              </Text>
               {hasActiveSubscription ? (
                 <Pressable
                   onPress={() => {
@@ -1906,11 +1982,26 @@ export default function ProfileScreen() {
                 </Pressable>
               )}
 
+              {/* The divider and heading sit OUTSIDE the tour guard, and only
+                  the replay row is inside it. They were all guarded together,
+                  which meant that until the tour had been completed once, "Rate
+                  Grow" and "Version" rendered under no heading at all — and,
+                  once the settings rows on the profile screen started jumping
+                  to sections, an "App" row that jumped nowhere because the
+                  heading whose position it needed had never rendered. */}
+              <View style={styles.settingDivider} />
+
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['App'] = e.nativeEvent.layout.y;
+                }}
+              >
+                App
+              </Text>
+
               {tourComplete && (
                 <>
-                  <View style={styles.settingDivider} />
-
-                  <Text style={styles.settingSectionLabel}>App</Text>
                   <Pressable
                     onPress={() => {
                       if (Platform.OS !== 'web')
@@ -1960,7 +2051,14 @@ export default function ProfileScreen() {
 
               <View style={styles.settingDivider} />
 
-              <Text style={styles.settingSectionLabel}>Legal</Text>
+              <Text
+                style={styles.settingSectionLabel}
+                onLayout={(e) => {
+                  settingsSectionY.current['Legal'] = e.nativeEvent.layout.y;
+                }}
+              >
+                Legal
+              </Text>
               <Pressable
                 onPress={() => Linking.openURL(termsUrl)}
                 style={({ pressed }) => [styles.settingsLinkRow, pressed && { opacity: 0.7 }]}
@@ -2054,6 +2152,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       right: 2,
       width: 26,
       height: 26,
+      // Half the size — a circle, not a step on the radius scale.
       borderRadius: 13,
       backgroundColor: C.primary,
       alignItems: 'center',
@@ -2097,34 +2196,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_500Medium',
       color: C.text,
     },
-    statsCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-    },
-    stat: { flex: 1, alignItems: 'center' },
-    statNumRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    statVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark },
-    statIcon: { marginTop: 3 },
-    statLbl: {
-      fontSize: 11,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
-      marginTop: 4,
-      textAlign: 'center',
-    },
     navGrid: { gap: 8, marginBottom: 16 },
     navBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
@@ -2147,19 +2225,34 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    sectionTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+    // Matches the Stats tab's heading level exactly. The two screens are the
+    // same app and had no shared idea of what a section heading looks like.
+    sectionHead: { marginTop: 8, marginBottom: 2 },
+    sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
+    settingsList: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      overflow: 'hidden',
       marginBottom: 12,
     },
+    settingsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+    },
+    // A hairline between rows, not a gap: six separate cards would read as six
+    // unrelated things rather than one list of places to go.
+    settingsRowDivided: { borderTopWidth: 1, borderTopColor: C.borderLight },
+    settingsRowTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     accountRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     accountIcon: {
       width: 34,
       height: 34,
-      borderRadius: 10,
+      borderRadius: 8,
       backgroundColor: C.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
@@ -2192,7 +2285,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: C.primary,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 18,
     },
     subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
@@ -2246,7 +2339,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     input: {
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 10,
+      borderRadius: 8,
       paddingHorizontal: 14,
       paddingVertical: 12,
       fontSize: 15,
@@ -2322,7 +2415,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 14,
       paddingVertical: 12,
       paddingHorizontal: 4,
-      borderRadius: 10,
+      borderRadius: 8,
       borderBottomWidth: 1,
       borderBottomColor: C.borderLight,
     },
@@ -2334,6 +2427,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     equipCheckbox: {
       width: 22,
       height: 22,
+      // Half the size — a circle, not a step on the radius scale.
       borderRadius: 11,
       borderWidth: 2,
       borderColor: C.border,
@@ -2353,12 +2447,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
       gap: 4,
     },
+    // Sentence case, not caps. Every card on this screen shouted its title in
+    // tracked-out capitals at 13-14px, which reads as a form field label rather
+    // than a heading — and made the SUBTITLE the most readable line in the card.
     ratioCardTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_700Bold',
       color: C.text,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.8,
     },
     ratioCardSub: {
       fontSize: 12,
@@ -2394,12 +2489,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surfaceTertiary,
     },
     infoCardTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_700Bold',
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
       color: C.text,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.6,
-      marginBottom: 3,
+      marginBottom: 2,
     },
     infoCardSub: {
       fontSize: 12,
@@ -2416,13 +2509,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 12,
     },
     settingsLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10 },
-    staleWeightDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.warning },
+    staleWeightDot: { width: 8, height: 8, borderRadius: 8, backgroundColor: C.warning },
     subStripActive: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
@@ -2430,7 +2523,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     subStripIcon: {
       width: 36,
       height: 36,
-      borderRadius: 10,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: C.primaryMuted,
@@ -2447,7 +2540,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.primary,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 16,
     },
     subStripCtaTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
@@ -2474,7 +2567,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     freqBtn: {
       flex: 1,
       paddingVertical: 10,
-      borderRadius: 10,
+      borderRadius: 8,
       alignItems: 'center',
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,

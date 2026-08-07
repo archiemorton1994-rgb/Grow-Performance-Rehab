@@ -74,8 +74,33 @@ const layoutSrc = readFile('app/(tabs)/_layout.tsx');
 const tourCompleteGuardIdx = profileSrc.indexOf('{tourComplete && (');
 const setTourCompleteFalseIdx = profileSrc.indexOf('setTourComplete(false)');
 
+/**
+ * The guard block, found by matching braces rather than by taking a fixed
+ * number of characters.
+ *
+ * This used to slice 500 characters from the opening `{tourComplete && (` and
+ * look for the call inside them. That is a measure of DISTANCE, not of
+ * structure: adding a few lines anywhere in the block pushed the call past the
+ * window and failed a test about something that had not changed. It happened —
+ * an onLayout handler added to the section heading did exactly that. Worse,
+ * the reverse is also possible: a call could sit outside the guard and still
+ * land inside a 500-character window, passing a check it should fail.
+ */
+function guardBlockFrom(src, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i++) {
+    const c = src[i];
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) return src.slice(openIdx, i + 1);
+    }
+  }
+  return src.slice(openIdx);
+}
+
 if (tourCompleteGuardIdx !== -1 && setTourCompleteFalseIdx !== -1) {
-  const guardedBlock = profileSrc.slice(tourCompleteGuardIdx, tourCompleteGuardIdx + 500);
+  const guardedBlock = guardBlockFrom(profileSrc, tourCompleteGuardIdx);
   if (guardedBlock.includes('setTourComplete(false)')) {
     ok('replay row is wrapped in {tourComplete && (...)} visibility guard');
   } else {
