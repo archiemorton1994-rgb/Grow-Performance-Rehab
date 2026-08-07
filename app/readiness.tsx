@@ -176,11 +176,19 @@ export default function ReadinessScreen() {
   const [energy, setEnergy] = useState<EnergyLevel>(lastReadinessEnergy);
   const [timeAvailable, setTimeAvailable] = useState<TimeAvailable>(lastReadinessTime);
   const [diagramPainRegions, setDiagramPainRegions] = useState<PainRegion[]>([]);
+  /**
+   * Off by default: one problem is the common case, and it is the one where a
+   * mis-tap is most annoying. With multi-select off, tapping a new region
+   * REPLACES the current one rather than adding to it — so correcting yourself
+   * is one tap instead of two.
+   */
+  const [multiSelect, setMultiSelect] = useState(false);
   const togglePainRegion = (r: PainRegion | undefined) => {
     if (!r) return;
-    setDiagramPainRegions((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
-    );
+    setDiagramPainRegions((prev) => {
+      if (prev.includes(r)) return prev.filter((x) => x !== r);
+      return multiSelect ? [...prev, r] : [r];
+    });
   };
   const [painSeverity, setPainSeverity] = useState<PainSeverity>('moderate');
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
@@ -863,10 +871,14 @@ export default function ReadinessScreen() {
   // derived from the available height so the whole step (diagram + Continue)
   // always fits on screen. Vertical overhead inside BodyDiagram (panel padding,
   // toggles, label row) is ~175pt; the SVG itself is width * 2.4 tall.
+  // The icon medallion and the explanatory subtitle above the figure are gone,
+  // which is ~90pt of height handed straight to the diagram. The ceiling goes
+  // up with it: 200 was capping the figure well below what the space allowed
+  // even before that, so on a tall phone it stayed small for no reason.
   const painDiagramMaxWidth =
     painDiagramAreaH > 0
-      ? Math.max(100, Math.min(200, Math.floor((painDiagramAreaH - 175) / 2.4)))
-      : 200;
+      ? Math.max(140, Math.min(300, Math.floor((painDiagramAreaH - 150) / 2.4)))
+      : 260;
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
@@ -879,36 +891,61 @@ export default function ReadinessScreen() {
           alignItems: 'center',
         }}
       >
-        <View
-          style={[
-            styles.questionIcon,
-            {
-              alignSelf: 'center',
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              marginBottom: 8,
-              backgroundColor: C.warningLight,
-            },
-          ]}
-        >
-          <Ionicons name="locate-outline" size={22} color={C.warning} />
-        </View>
-        <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>
+        {/* THE FIGURE IS THE CONTENT, so everything else here earns its space.
+            Reported: "the body map is way too small". It was, and the cause was
+            not the diagram — it was ~90pt of chrome above it. The icon medallion
+            said nothing the heading did not, and the subtitle explained an
+            interaction the multi-select toggle below now states outright. Both
+            gone; that height goes to the figure. */}
+        <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 2 }]}>
           Which area is affected?
         </Text>
-        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 2 }]}>
-          {"Tap one or more regions and we'll adjust your exercises"}
-        </Text>
-        <Pressable
-          onPress={() => setStep('main')}
-          hitSlop={8}
-          style={{ alignSelf: 'center', marginTop: 4, marginBottom: 2 }}
-        >
-          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-            ← Not sore after all
-          </Text>
-        </Pressable>
+        <View style={styles.multiRow}>
+          <Pressable
+            onPress={() => setStep('main')}
+            hitSlop={8}
+            style={{ paddingVertical: 2 }}
+            testID="pain-not-sore"
+          >
+            <Text style={styles.notSoreText}>← Not sore</Text>
+          </Pressable>
+          {/* MULTI-SELECT IS EXPLICIT, not inferred.
+              Before, tapping a second region always added it, so there was no
+              way to know whether the app thought you had one problem or two —
+              and no way to switch cleanly from one to another without
+              deselecting. Off means one region: picking a new one replaces the
+              old. */}
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMultiSelect((v) => {
+                // Turning it OFF collapses to a single region rather than
+                // leaving several selected under a control that says one.
+                if (v && diagramPainRegions.length > 1) {
+                  setDiagramPainRegions(diagramPainRegions.slice(0, 1));
+                }
+                return !v;
+              });
+            }}
+            style={({ pressed }) => [
+              styles.multiToggle,
+              multiSelect && styles.multiToggleOn,
+              pressed && { opacity: 0.8 },
+            ]}
+            testID="pain-multi-select"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: multiSelect }}
+          >
+            <Ionicons
+              name={multiSelect ? 'checkbox' : 'square-outline'}
+              size={14}
+              color={multiSelect ? C.primary : C.textTertiary}
+            />
+            <Text style={[styles.multiToggleText, multiSelect && { color: C.primary }]}>
+              More than one area
+            </Text>
+          </Pressable>
+        </View>
         <View
           style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
           onLayout={(e) => setPainDiagramAreaH(e.nativeEvent.layout.height)}
@@ -1094,7 +1131,7 @@ export default function ReadinessScreen() {
             testID="severe-continue-anyway"
           >
             <Text style={[styles.startButtonText, { color: C.textSecondary }]}>
-              Continue with {getSessionLabel(sessionType)} anyway
+              Train around it
             </Text>
           </Pressable>
         </View>
@@ -1490,6 +1527,27 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // on the screen background — the diagram's own panel stays dark regardless
     // of theme, so without this frame it has nothing to visually separate it
     // from a dark-mode background of the same colour.
+    multiRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: 2,
+      marginBottom: 4,
+    },
+    notSoreText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    multiToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    multiToggleOn: { borderColor: C.primary, backgroundColor: C.primarySurface },
+    multiToggleText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textTertiary },
     diagramCard: {
       backgroundColor: C.surface,
       borderRadius: 20,

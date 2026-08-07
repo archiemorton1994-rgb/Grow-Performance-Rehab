@@ -230,6 +230,96 @@ export const DROPPABLE_CATEGORIES: ExerciseCategory[] = [
   'cardio',
 ];
 
+/**
+ * Which half of the body a movement belongs to.
+ *
+ * WHY THE SCREEN NEEDS THIS
+ * ─────────────────────────
+ * Substitutions used to be chosen by CATEGORY alone — a main lift is replaced
+ * by a main lift, an accessory by an accessory. Measured on a lower-body
+ * session with a sore quad, that produced:
+ *
+ *     main       Barbell Bench Press   (swapped from Barbell Front Squat)
+ *     accessory  Band Face Pull        (swapped from Bodyweight Reverse Lunge)
+ *
+ * Both are perfectly safe for a quad. Neither is a leg exercise. The screen was
+ * quietly turning leg day into a half-upper-body session and saying nothing
+ * about it, which is worse than either training around the injury properly or
+ * admitting the session cannot be built.
+ *
+ * 'other' covers full-body, cardio and anything unclassifiable — those are
+ * allowed to stand in for either half, because they genuinely do.
+ */
+export type BodyRegion = 'upper' | 'lower' | 'core' | 'other';
+
+const LOWER_MUSCLES =
+  /glute|quad|hamstring|calf|calves|gastrocnemius|adductor|abductor|hip flexor|hip external|soleus|tibialis|posterior chain/i;
+const UPPER_MUSCLES =
+  /pectoral|chest|deltoid|latissimus|\blats?\b|tricep|bicep|rhomboid|trapezius|rotator cuff|infraspinatus|forearm|grip|brachialis|wrist|serratus|mid back|neck|pronator|elbow/i;
+const CORE_MUSCLES =
+  /\bcore\b|abdomin|oblique|erector spinae|thoracic extensor|transversus|diaphragm/i;
+
+export function bodyRegionOf(primaryMuscle?: string): BodyRegion {
+  if (!primaryMuscle) return 'other';
+  if (LOWER_MUSCLES.test(primaryMuscle)) return 'lower';
+  if (UPPER_MUSCLES.test(primaryMuscle)) return 'upper';
+  if (CORE_MUSCLES.test(primaryMuscle)) return 'core';
+  return 'other';
+}
+
+/**
+ * Can `candidate` stand in for something from `region`?
+ *
+ * Same region, or unclassified. Deliberately NOT "any safe exercise": a bench
+ * press is a safe substitute for a squat in the sense that it will not hurt
+ * your quad, and a useless one in the sense that you came to train legs.
+ */
+export function canSubstituteFor(region: BodyRegion, candidateMuscle?: string): boolean {
+  if (region === 'other') return true;
+  const c = bodyRegionOf(candidateMuscle);
+  return c === region || c === 'other';
+}
+
+/**
+ * The blocks where body region matters.
+ *
+ * A main lift and its accessories ARE the session — swap a leg press for a
+ * bench press and you are no longer doing legs. A warm-up, a finisher or a
+ * cooldown is general conditioning that happens to sit alongside; an upper-body
+ * finisher on a squat day is a normal thing a coach would program, not a
+ * mistake, so holding those to the same rule would reject good substitutes for
+ * no reason.
+ */
+export const REGION_BOUND_CATEGORIES: ExerciseCategory[] = ['main', 'accessory'];
+
+/**
+ * How hard to screen, by how bad it is.
+ *
+ * Severity used to affect NOTHING. It was read in exactly two places: the
+ * readiness screen, to decide whether to show a confirming prompt for 'severe',
+ * and the session screen, to copy it onto the completed-session record. No code
+ * anywhere read it back. "Mild" and "Moderate" were the same button.
+ *
+ * Now it decides how much of the session survives:
+ *
+ *   mild      – swap what loads the sore area, leave the rest alone
+ *   moderate  – the same, and drop the explosive and finisher blocks, which are
+ *               where an irritated joint gets aggravated fastest
+ *   severe    – the same as moderate, and this is the level that already
+ *               offers a rehab session instead
+ *
+ * These are session-shaping rules, not medical ones. They are here as data so
+ * they can be argued with.
+ */
+export const SEVERITY_DROPS_INTENSITY: Record<string, boolean> = {
+  mild: false,
+  moderate: true,
+  severe: true,
+};
+
+/** Blocks removed entirely at moderate and above. */
+export const HIGH_INTENSITY_CATEGORIES: ExerciseCategory[] = ['neuro', 'finisher'];
+
 /** The sentence shown on a card that was changed for safety. */
 export function substitutionNote(originalName: string, regionLabel: string): string {
   return `Swapped from ${originalName} to protect your ${regionLabel.toLowerCase()}`;

@@ -192,7 +192,7 @@ export default function HomeScreen() {
   const testWeek = testWeekProgress.active;
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
   const greeting = getTimeOfDayGreeting();
-  const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
+  const greetingText = firstName ? `${greeting} ${firstName}` : greeting;
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
   const daysSinceLast = useMemo(() => {
@@ -636,7 +636,12 @@ export default function HomeScreen() {
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.greetingText} numberOfLines={1}>
+              <Text
+                style={styles.greetingText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+              >
                 {greetingText}
               </Text>
             </View>

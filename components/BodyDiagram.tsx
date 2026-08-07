@@ -46,6 +46,16 @@ export const PANEL_BG = '#0d0d0d';
 export const DIAGRAM_ASPECT = 2.4;
 /** Upper bound on figure width — stops the body ballooning on tablets. */
 export const DIAGRAM_MAX_WIDTH = 240;
+
+/**
+ * Extra tappable margin around every region, in viewBox units.
+ *
+ * The figure is 200 units wide, so at a 200pt render one unit is one point.
+ * 9 units grows each zone by ~4.5pt on every side — enough to make a calf or a
+ * wrist reliably hittable, small enough that neighbouring regions do not start
+ * stealing each other's taps. Applied as a stroke; see h() below.
+ */
+export const HIT_PADDING = 9;
 /** Floor, so small regions (wrist, ankle) stay big enough to tap accurately. */
 export const DIAGRAM_MIN_WIDTH = 140;
 /** Share of viewport height the figure may occupy when otherwise unconstrained. */
@@ -469,8 +479,19 @@ export function BodyDiagram({
     }
     return {
       fill: 'rgba(0,0,0,0.001)',
-      stroke: 'transparent',
-      strokeWidth: 0,
+      // A near-invisible STROKE, not a transparent one.
+      //
+      // Reported: "on the body map throughout the app it's still difficult to
+      // easily tap the regions". The hit area was exactly the painted path, and
+      // at the sizes this renders at — a 200pt-wide figure means a calf is
+      // about 12pt across — that is well under the ~44pt minimum a fingertip
+      // needs. A stroke is part of the hit region in react-native-svg, so
+      // painting one at near-zero opacity grows every zone outwards without
+      // changing how anything looks. It must be rgba rather than 'transparent'
+      // for the same reason the fill must: fully transparent paint does not
+      // receive touches on iOS or Android.
+      stroke: 'rgba(0,0,0,0.001)',
+      strokeWidth: HIT_PADDING,
       onPress: () => {
         stopPulse();
         tap();

@@ -41,6 +41,11 @@ import {
 import { applyGripVariant } from './grip-variants';
 import {
   DROPPABLE_CATEGORIES,
+  HIGH_INTENSITY_CATEGORIES,
+  REGION_BOUND_CATEGORIES,
+  SEVERITY_DROPS_INTENSITY,
+  bodyRegionOf,
+  canSubstituteFor,
   SCREEN_EXEMPT_CATEGORIES,
   SCREEN_EXEMPT_SESSION_TYPES,
   restrictedTagsFor,
@@ -101,11 +106,26 @@ export interface Exercise {
    * visible rather than mysterious.
    */
   safetyNote?: string;
+  /**
+   * The muscle the movement is FOR, copied from the template.
+   *
+   * Carried on the exercise rather than looked up when needed, because the
+   * lookup is unreliable: a session's main lift can arrive as a variation
+   * whose name is not in the catalogue, and every metadata comparison then
+   * silently matches nothing. That is how a knee-safe front squat came back
+   * as a deadlift, and then — after the first fix — how a quad-safe front
+   * squat came back as a BENCH PRESS despite a body-region filter being in
+   * place. Data that travels with the object cannot go missing.
+   */
+  primaryMuscle?: string;
 }
 
 interface ReadinessCheck {
   hasAches: boolean;
   painRegion?: PainRegion | PainRegion[];
+  /** How bad it is. Until now this was recorded and never read — see
+   *  SEVERITY_DROPS_INTENSITY in lib/exercise-safety.ts. */
+  painSeverity?: 'mild' | 'moderate' | 'severe';
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
 }
@@ -323,6 +343,7 @@ function templateToExercise(
     swap2Cue: swap2?.cue,
     swap2Load: swap2?.suggestedLoad,
     isDumbbellExercise: isDumbbell,
+    primaryMuscle: t.primaryMuscle,
   };
 }
 
@@ -593,6 +614,10 @@ function applyComfortOrBadge(
       videoId: template.videoId,
       hasSwap: false,
       isDumbbellExercise: isDumbbell,
+      // A comfort variant is the same movement made kinder, so it trains the
+      // same muscle. Dropping this made the exercise region-less, and a
+      // region-less exercise can be replaced by anything at all.
+      primaryMuscle: template.primaryMuscle,
     };
   }
   const ex = templateToExercise(template, undefined, isDumbbell);
@@ -873,6 +898,13 @@ function rankedAlternatives(
 
   const isClean = (t: ExerciseTemplate) =>
     restrictedTagsOn(t.name, banned, t.movementPattern).length === 0;
+  // A stand-in has to train the same half of the body. Without this, a
+  // lower-body session with a sore quad had its main lift replaced by a BENCH
+  // PRESS and an accessory by a FACE PULL — both safe for the quad, neither a
+  // leg exercise. See bodyRegionOf.
+  const region = REGION_BOUND_CATEGORIES.includes(original.category)
+    ? bodyRegionOf(original.primaryMuscle ?? source?.primaryMuscle)
+    : 'other';
   // Anything at the user's tier OR BELOW. Someone with a full gym can obviously
   // do a goblet squat; restricting substitutes to exact-tier matches meant a
   // full-gym user with a sore back had every squat variation ruled out (all the
@@ -882,6 +914,7 @@ function rankedAlternatives(
   const isUsable = (p: (typeof pickable)[number]) =>
     p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
     !usedNames.has(p.template.name.toLowerCase()) &&
+    canSubstituteFor(region, p.template.primaryMuscle) &&
     isClean(p.template);
 
   const ranked: ExerciseTemplate[] = [];
@@ -936,7 +969,13 @@ function rankedAlternatives(
   for (const group of tiers) {
     // Sorted before it is walked so the order does not depend on catalogue
     // order, which is an accident of how the database file grew.
-    for (const p of [...group].sort((a, b) => a.template.name.localeCompare(b.template.name))) {
+    const closeness = (p: (typeof pickable)[number]) =>
+      -Math.max(...p.tiers.map((t) => TIER_RANK.indexOf(t)));
+    for (const p of [...group].sort(
+      // Closest equipment tier first, then alphabetically so the choice never
+      // depends on catalogue order.
+      (a, b) => closeness(a) - closeness(b) || a.template.name.localeCompare(b.template.name)
+    )) {
       push(p.template);
     }
   }
@@ -959,12 +998,21 @@ function findSafeReplacement(
   }
 
   const pickable = getAllPickableExercises();
+  const byName = new Map(pickable.map((p) => [p.template.name.toLowerCase(), p]));
+  const sourceRegion = REGION_BOUND_CATEGORIES.includes(original.category)
+    ? bodyRegionOf(
+        original.primaryMuscle ?? byName.get(original.name.toLowerCase())?.template.primaryMuscle
+      )
+    : 'other';
   const isClean = (t: ExerciseTemplate) =>
-    restrictedTagsOn(t.name, banned, t.movementPattern).length === 0;
+    restrictedTagsOn(t.name, banned, t.movementPattern).length === 0 &&
+    canSubstituteFor(sourceRegion, t.primaryMuscle);
 
   // A main lift must not simply vanish, so widen past the equipment tier before
   // giving up — a bodyweight alternative is a worse session than the barbell
-  // one, and a better session than no main lift at all.
+  // one, and a better session than no main lift at all. It still has to be the
+  // right half of the body: no main lift is better than the wrong one, because
+  // the wrong one silently changes what session you are doing.
   if (original.category === 'main') {
     const anyTier = pickable.filter(
       (p) =>
@@ -1110,10 +1158,16 @@ export function applyInjurySafety(
   const usedNames = new Set(exercises.map((e) => e.name.toLowerCase()));
   const screened: Exercise[] = [];
 
+  // Moderate and above also lose the explosive and finisher blocks. Those are
+  // where an already-irritated joint gets aggravated fastest, and they are the
+  // parts of a session nobody needs on a bad day.
+  const dropIntensity = SEVERITY_DROPS_INTENSITY[readiness?.painSeverity ?? 'mild'] === true;
+
   exercises.forEach((ex, i) => {
     const hits = SCREEN_EXEMPT_CATEGORIES.includes(ex.category)
       ? []
       : restrictedTagsOn(ex.name, banned);
+    if (dropIntensity && HIGH_INTENSITY_CATEGORIES.includes(ex.category)) return;
     if (hits.length === 0) {
       screened.push(ex);
       return;
@@ -1345,6 +1399,7 @@ function generateWorkoutUnscreened(
       videoId: mainTemplate.videoId,
       hasSwap: false,
       isDumbbellExercise: isDumbbellTier(equipmentTier),
+      primaryMuscle: mainTemplate.primaryMuscle,
     });
   } else {
     const badge = energy !== 'normal' ? ('volume' as const) : undefined;
