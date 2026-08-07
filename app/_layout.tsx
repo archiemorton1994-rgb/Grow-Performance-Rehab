@@ -29,6 +29,7 @@ import * as Notifications from 'expo-notifications';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/lib/store';
+import { playAchievementSound } from '@/lib/sounds';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useColors, DarkColors } from '@/constants/colors';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -341,7 +342,8 @@ function RootLayoutNav() {
   const isOnTransientScreen = segments.some((s) => TRANSIENT_SCREENS.has(s));
 
   // ─── Badge toast queue (root-level so it floats above all screens) ────────
-  const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
+  const { newlyUnlockedBadges, clearNewlyUnlockedBadges, achievementSoundEnabled } =
+    useAppStore();
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
   const [currentToast, setCurrentToast] = useState<ToastItem | null>(null);
   // Dedup guard for which ids have already been turned into a toastQueue entry.
@@ -418,7 +420,13 @@ function RootLayoutNav() {
     const [next, ...rest] = toastQueue;
     setToastQueue(rest);
     setCurrentToast(next);
-  }, [inMainApp, canShowBadgeToast, currentToast, toastQueue]);
+    // The chime rides on the moment the celebration APPEARS, not on the moment
+    // the badge is awarded — awarding happens on a screen the user may not be
+    // looking at, and can happen in a silent backfill. One sound per
+    // celebration, batched unlocks included, which is why it is here and not in
+    // the enqueue effect above.
+    if (achievementSoundEnabled) playAchievementSound();
+  }, [inMainApp, canShowBadgeToast, currentToast, toastQueue, achievementSoundEnabled]);
 
   useEffect(() => {
     if (currentToast !== null || toastQueue.length > 0) return;

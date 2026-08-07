@@ -8,6 +8,8 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { BadgeMedallion } from '@/components/BadgeMedallion';
 import { BADGE_TIER_COLORS, BADGE_TIER_LABELS, Badge } from '@/lib/badges';
+import { useAppStore } from '@/lib/store';
+import { playAchievementSound } from '@/lib/sounds';
 
 /**
  * "Achievement Unlocked" — a banner that drops in from the top of the screen it
@@ -43,6 +45,7 @@ export interface AchievementBannerProps {
 
 export function AchievementBanner({ badges, onPress, onDone }: AchievementBannerProps) {
   const C = useColors();
+  const soundEnabled = useAppStore((st) => st.achievementSoundEnabled);
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
   const translateY = useSharedValue(-220);
@@ -68,6 +71,9 @@ export function AchievementBanner({ badges, onPress, onDone }: AchievementBanner
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    // Once per drop-in, not once per badge: this banner steps through a run of
+    // unlocks on a 3.2s timer, and a chime every 3.2 seconds is an alarm.
+    if (soundEnabled) playAchievementSound();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [badges.length]);
 

@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
 import { StatStrip } from '@/components/StatStrip';
+import { playAchievementSound } from '@/lib/sounds';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -388,6 +389,8 @@ export default function ProfileScreen() {
     streakProtectionTime,
     setStreakProtectionTime,
     bodyweightReminderEnabled,
+    achievementSoundEnabled,
+    setAchievementSoundEnabled,
     setBodyweightReminderEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
@@ -1751,6 +1754,32 @@ export default function ProfileScreen() {
                       ))}
                     </ScrollView>
                   )}
+
+                  <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>
+                    Achievement Sound
+                  </Text>
+                  <Text style={styles.settingItemSub}>
+                    A short chime when you unlock a badge
+                  </Text>
+                  <View style={styles.reminderToggleRow}>
+                    <Text style={styles.reminderToggleLabel}>
+                      {achievementSoundEnabled ? 'On' : 'Off'}
+                    </Text>
+                    <Switch
+                      value={achievementSoundEnabled}
+                      onValueChange={(value) => {
+                        setAchievementSoundEnabled(value);
+                        // Play it on the way ON so the setting demonstrates
+                        // itself — a sound toggle you cannot hear is a guess.
+                        if (value) playAchievementSound();
+                        if (Platform.OS !== 'web')
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      trackColor={{ false: C.border, true: C.primaryMuted }}
+                      thumbColor={achievementSoundEnabled ? C.primary : C.textTertiary}
+                      testID="achievement-sound-toggle"
+                    />
+                  </View>
 
                   <Text style={[styles.settingItemLabel, { marginTop: 14 }]}>
                     Bodyweight Reminder
