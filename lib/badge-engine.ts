@@ -17,7 +17,6 @@ import type {
   OneRepMax,
   UserProfile,
   EquipmentTier,
-  SessionType,
 } from '@/lib/store';
 import { isoWeek } from '@/lib/utils';
 
@@ -267,9 +266,6 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   const earned: string[] = [];
   const s = computeStats(state);
 
-  function award(id: string) {
-    earned.push(id);
-  }
   function awardIf(condition: boolean, id: string) {
     if (condition) earned.push(id);
   }

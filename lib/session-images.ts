@@ -58,16 +58,19 @@ const RECOVER_FEMALE: Record<string, any> = {
  * gendered figure for someone who declined to specify would be a worse guess
  * than the neutral default the app already ships.
  */
-function useFemaleArt(sex: Sex | undefined): boolean {
+// Named `prefers`, not `use`: the `use` prefix is reserved for React hooks
+// and the rules-of-hooks lint treats anything starting with it as one. This
+// is a plain predicate over a string.
+function prefersFemaleArt(sex: Sex | undefined): boolean {
   return sex === 'female';
 }
 
 export function getSessionImage(type: SessionType, sex: Sex | undefined): any {
-  if (useFemaleArt(sex)) return FEMALE[type] ?? MALE[type];
+  if (prefersFemaleArt(sex)) return FEMALE[type] ?? MALE[type];
   return MALE[type];
 }
 
 export function getRecoverImage(key: string, sex: Sex | undefined): any {
-  if (useFemaleArt(sex)) return RECOVER_FEMALE[key] ?? RECOVER_MALE[key];
+  if (prefersFemaleArt(sex)) return RECOVER_FEMALE[key] ?? RECOVER_MALE[key];
   return RECOVER_MALE[key];
 }
