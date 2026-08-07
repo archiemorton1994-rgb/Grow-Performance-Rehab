@@ -59,13 +59,28 @@ console.log('\n[2] The copy credits the set ratings');
 
 check(
   'the explainer says the rating moves the weight',
-  /rated it|you rated|reps were left|said reps/i.test(rules),
+  /rated it|you rated|rated a set/i.test(rules),
   'the panel must not imply that only completing sets matters — the rating overrides it'
 );
 check(
   'the hold case names both causes',
-  /missed reps/i.test(rules) && /incomplete/i.test(rules),
-  'a hold comes from EITHER a missed-reps rating OR an unfinished set (lib/store.ts) — both must be stated'
+  /too hard/i.test(rules) && /incomplete/i.test(rules),
+  'a hold comes from EITHER a Too Hard rating OR an unfinished set (lib/store.ts) — both must be stated'
+);
+// The buttons are the user's whole vocabulary for this. If the panel explains
+// progression in words that are not on any button, it is describing a different
+// app than the one they just used.
+for (const label of ['Easy', 'Too Hard']) {
+  check(
+    `the explainer uses the button's own word "${label}"`,
+    rules.includes(label),
+    'the copy must name the actual buttons, not a paraphrase of them'
+  );
+}
+check(
+  'no leftover rep-counting language',
+  !/reps were left|5\+ left|2-3 left|missed reps/i.test(rules),
+  'those were the old four-button labels and no longer exist in the session UI'
 );
 
 // ─── 3. "Clean session" is not used as undefined jargon ──────────────────────

@@ -156,15 +156,31 @@ const WELCOME_PILLARS = [
 ];
 
 /**
- * Screen indices for the pager.
+ * Screen indices for the pager, in order.
  *
- * Named because they are referenced from four places that must agree — the
- * canContinue switch, the handleNext boundaries, the index-keyed effects, and
- * the progress bar — and inserting the test-week screen meant shifting every
- * one of them. Bare numbers made that a hunt.
+ * Every one of them is named, because the index is referenced from five places
+ * that must agree — the canContinue switch, the handleNext boundaries, the
+ * index-keyed focus/animation effects, the footer's visibility and label, and
+ * the progress bar. Moving one screen means moving all of them, and the
+ * failures are silent: a step whose Continue button never enables, a text field
+ * that stops autofocusing, or a button that stops rendering entirely.
+ *
+ * Theme sits at 1, immediately after the welcome and before anything is asked.
+ * It is the only question whose answer changes how every screen after it LOOKS,
+ * so answering it first means the rest of onboarding is already in the user's
+ * own theme rather than switching appearance at the very end. It is also a
+ * no-wrong-answer question, which is a gentler opener than personal details.
  */
-const TEST_WEEK_INDEX = 8;
-const THEME_INDEX = 9;
+const WELCOME_INDEX = 0;
+const THEME_INDEX = 1;
+const NAME_INDEX = 2;
+const SEX_INDEX = 3;
+const EXPERIENCE_INDEX = 4;
+const BODYWEIGHT_INDEX = 5;
+const GOALS_INDEX = 6;
+const EQUIPMENT_INDEX = 7;
+const LIFTS_INDEX = 8;
+const TEST_WEEK_INDEX = 9;
 const CELEBRATION_INDEX = 10;
 
 function experienceLabel(e: ExperienceLevel | null): string {
@@ -267,9 +283,9 @@ export default function OnboardingScreen() {
   }, [experience]);
 
   useEffect(() => {
-    if (currentIndex === 1) {
+    if (currentIndex === NAME_INDEX) {
       setTimeout(() => nameInputRef.current?.focus(), 350);
-    } else if (currentIndex === 4) {
+    } else if (currentIndex === BODYWEIGHT_INDEX) {
       setTimeout(() => bwInputRef.current?.focus(), 350);
     } else if (currentIndex === CELEBRATION_INDEX) {
       checkScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 180 }));
@@ -320,25 +336,25 @@ export default function OnboardingScreen() {
 
   const canContinue = useCallback((): boolean => {
     switch (currentIndex) {
-      case 0:
-        return true;
-      case 1:
-        return name.trim().length > 0;
-      case 2:
-        return sex !== null;
-      case 3:
-        return experience !== null;
-      case 4:
-        return parseFloat(bodyweight) > 0;
-      case 5:
-        return goals.length > 0;
-      case 6:
-        return equipment.length > 0;
-      case 7:
-        return true;
-      case TEST_WEEK_INDEX:
+      case WELCOME_INDEX:
         return true;
       case THEME_INDEX:
+        return true;
+      case NAME_INDEX:
+        return name.trim().length > 0;
+      case SEX_INDEX:
+        return sex !== null;
+      case EXPERIENCE_INDEX:
+        return experience !== null;
+      case BODYWEIGHT_INDEX:
+        return parseFloat(bodyweight) > 0;
+      case GOALS_INDEX:
+        return goals.length > 0;
+      case EQUIPMENT_INDEX:
+        return equipment.length > 0;
+      case LIFTS_INDEX:
+        return true;
+      case TEST_WEEK_INDEX:
         return true;
       default:
         return false;
@@ -375,12 +391,11 @@ export default function OnboardingScreen() {
     if (currentIndex < TEST_WEEK_INDEX) {
       goTo(currentIndex + 1);
     } else if (currentIndex === TEST_WEEK_INDEX) {
-      // Save here, not at the best-lifts step as before: testFrequency is only
-      // chosen on this screen, so saving earlier wrote the default whatever the
-      // user picked.
+      // The last question, so the profile is written here. It must not be
+      // written earlier: an answer given after the save is an answer that gets
+      // ignored, which is exactly what happened when the save sat on the
+      // best-lifts step and the test-week choice came after it.
       saveAndComplete();
-      goTo(THEME_INDEX);
-    } else if (currentIndex === THEME_INDEX) {
       goTo(CELEBRATION_INDEX);
     }
   }, [canContinue, hapticMedium, currentIndex, goTo, saveAndComplete]);
@@ -543,7 +558,82 @@ export default function OnboardingScreen() {
             </Animated.View>
           </View>
 
-          {/* Screen 1: Name */}
+          {/* Screen 1: Theme. First question asked, because it is the only one
+              whose answer changes how every screen after it looks — answered
+              here, the rest of onboarding runs in the user's own theme instead
+              of changing appearance on the last step before the finish. */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <GrowIcon name="palette" size={56} color={C.primary} />
+              </View>
+              <Text style={styles.question}>Choose your look</Text>
+              <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
+              <View style={[styles.optionList, { marginTop: 4 }]}>
+                {(
+                  [
+                    {
+                      value: 'dark',
+                      label: 'Dark',
+                      icon: 'moon' as const,
+                      desc: 'Dark background, easy on the eyes',
+                    },
+                    {
+                      value: 'light',
+                      label: 'Light',
+                      icon: 'sun' as const,
+                      desc: 'Light background, clean and bright',
+                    },
+                  ] as const
+                ).map(({ value, label, icon, desc }) => {
+                  const selected = themePreference === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        haptic();
+                        setThemePreference(value);
+                      }}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        pressed && styles.optionCardPressed,
+                      ]}
+                      testID={`theme-${value}`}
+                    >
+                      <View
+                        style={[
+                          styles.optionIcon,
+                          {
+                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
+                          },
+                        ]}
+                      >
+                        <GrowIcon
+                          name={icon}
+                          size={28}
+                          color={selected ? C.primary : C.textSecondary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
+                          {desc}
+                        </Text>
+                      </View>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* Screen 2: Name */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -569,7 +659,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 2: Biological Sex */}
+          {/* Screen 3: Biological Sex */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -620,7 +710,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 3: Experience */}
+          {/* Screen 4: Experience */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -670,7 +760,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 4: Bodyweight */}
+          {/* Screen 5: Bodyweight */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -715,7 +805,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
 
-          {/* Screen 5: Goals */}
+          {/* Screen 6: Goals */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -748,7 +838,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 6: Equipment — compact, no-scroll layout so every tile + Continue fit on screen */}
+          {/* Screen 7: Equipment — compact, no-scroll layout so every tile + Continue fit on screen */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.equipScreenContent]}>
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
@@ -844,7 +934,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 7: Key Lifts (optional) */}
+          {/* Screen 8: Key Lifts (optional) */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -891,7 +981,7 @@ export default function OnboardingScreen() {
             </ScrollView>
           </View>
 
-          {/* Screen 8: Strength test weeks.
+          {/* Screen 9: Strength test weeks.
               Its own screen, not a block appended to the best-lifts step. Put
               there, it fell below the fold behind three inputs and a skip link
               — the question was invisible unless you scrolled, which for a
@@ -960,79 +1050,7 @@ export default function OnboardingScreen() {
             </View>
           </View>
 
-          {/* Screen 9: Theme */}
-          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
-            <View style={styles.screenContent}>
-              <View style={styles.iconCircle}>
-                <GrowIcon name="palette" size={56} color={C.primary} />
-              </View>
-              <Text style={styles.question}>Choose your look</Text>
-              <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
-              <View style={[styles.optionList, { marginTop: 4 }]}>
-                {(
-                  [
-                    {
-                      value: 'dark',
-                      label: 'Dark',
-                      icon: 'moon' as const,
-                      desc: 'Dark background, easy on the eyes',
-                    },
-                    {
-                      value: 'light',
-                      label: 'Light',
-                      icon: 'sun' as const,
-                      desc: 'Light background, clean and bright',
-                    },
-                  ] as const
-                ).map(({ value, label, icon, desc }) => {
-                  const selected = themePreference === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      onPress={() => {
-                        haptic();
-                        setThemePreference(value);
-                      }}
-                      style={({ pressed }) => [
-                        styles.optionCard,
-                        selected && styles.optionCardSelected,
-                        pressed && styles.optionCardPressed,
-                      ]}
-                      testID={`theme-${value}`}
-                    >
-                      <View
-                        style={[
-                          styles.optionIcon,
-                          {
-                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
-                          },
-                        ]}
-                      >
-                        <GrowIcon
-                          name={icon}
-                          size={28}
-                          color={selected ? C.primary : C.textSecondary}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                          {label}
-                        </Text>
-                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
-                          {desc}
-                        </Text>
-                      </View>
-                      <View style={[styles.radio, selected && styles.radioSelected]}>
-                        {selected && <View style={styles.radioDot} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          {/* Screen 9: Profile Built! */}
+          {/* Screen 10: Profile Built! */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
@@ -1083,14 +1101,13 @@ export default function OnboardingScreen() {
                 !canGo && styles.continueBtnDisabled,
                 pressed && canGo && styles.continueBtnPressed,
               ]}
-              testID={currentIndex === 0 ? 'get-started-btn' : 'continue-btn'}
+              testID={currentIndex === WELCOME_INDEX ? 'get-started-btn' : 'continue-btn'}
             >
               <Text style={[styles.continueBtnText, !canGo && styles.continueBtnTextDisabled]}>
-                {currentIndex === 0
+                {currentIndex === WELCOME_INDEX
                   ? 'Get Started'
                   : // "Save & Continue" belongs on the screen where the profile
-                    // is actually written, which moved from best-lifts to the
-                    // test-week question when the save moved.
+                    // is actually written — the last question, whichever that is.
                     currentIndex === TEST_WEEK_INDEX
                     ? 'Save & Continue'
                     : currentIndex === THEME_INDEX
@@ -1098,7 +1115,7 @@ export default function OnboardingScreen() {
                       : 'Continue'}
               </Text>
               <Ionicons
-                name={currentIndex === 0 ? 'chevron-forward' : 'arrow-forward'}
+                name={currentIndex === WELCOME_INDEX ? 'chevron-forward' : 'arrow-forward'}
                 size={20}
                 color={canGo ? C.textInverse : C.textTertiary}
               />

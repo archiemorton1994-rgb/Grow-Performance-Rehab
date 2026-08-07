@@ -48,19 +48,45 @@ function check(label, condition, detail) {
 // ─── 1. Indices are named, and the screen count matches ──────────────────────
 console.log('\n[1] The pager has as many screens as it thinks');
 
-const idx = (name) => {
-  const m = src.match(new RegExp(`const ${name} = (\\d+);`));
-  return m ? Number(m[1]) : null;
-};
+// Read every declared screen index rather than three named ones, so this test
+// survives the screens being REORDERED and not merely added to. The theme
+// question moved from second-to-last to second, which the previous version of
+// this file could not express.
+const INDEX_DECL = /const ([A-Z_]+)_INDEX = (\d+);/g;
+const indices = Object.fromEntries(
+  [...src.matchAll(INDEX_DECL)].map((m) => [`${m[1]}_INDEX`, Number(m[2])])
+);
+const idx = (name) => indices[name] ?? null;
 const TEST_WEEK_INDEX = idx('TEST_WEEK_INDEX');
 const THEME_INDEX = idx('THEME_INDEX');
 const CELEBRATION_INDEX = idx('CELEBRATION_INDEX');
+const values = Object.values(indices).sort((a, b) => a - b);
 
-check('the indices are named constants', TEST_WEEK_INDEX != null && CELEBRATION_INDEX != null, '');
 check(
-  'they are consecutive',
-  THEME_INDEX === TEST_WEEK_INDEX + 1 && CELEBRATION_INDEX === THEME_INDEX + 1,
-  `${TEST_WEEK_INDEX} / ${THEME_INDEX} / ${CELEBRATION_INDEX}`
+  'every screen has a named index',
+  TEST_WEEK_INDEX != null && THEME_INDEX != null && CELEBRATION_INDEX != null,
+  ''
+);
+check(
+  `the indices run 0..${values.length - 1} with no gaps or duplicates`,
+  values.length > 0 && values.every((v, i) => v === i),
+  Object.entries(indices)
+    .sort((a, b) => a[1] - b[1])
+    .map(([k, v]) => `${v}:${k.replace('_INDEX', '')}`)
+    .join(' ')
+);
+check(
+  'the celebration is last',
+  CELEBRATION_INDEX === values[values.length - 1],
+  'the finish screen has to be the finish'
+);
+// Theme changes how every LATER screen looks, so asking it late means the flow
+// changes appearance right before the finish. Asking it early is the point of
+// having moved it, and this is the assertion that says so.
+check(
+  'the theme question comes before the profile questions',
+  THEME_INDEX < TEST_WEEK_INDEX && THEME_INDEX <= 2,
+  `theme is at ${THEME_INDEX}; it should be near the start so the rest of onboarding renders in the chosen theme`
 );
 
 const screenCount = (src.match(/styles\.screen, \{ width: SCREEN_WIDTH \}/g) ?? []).length;
@@ -76,8 +102,11 @@ console.log('\n[2] No screen has a Continue button that can never enable');
 const switchBlock = src.slice(src.indexOf('const canContinue'), src.indexOf('const saveAndComplete'));
 const covered = new Set();
 for (const m of switchBlock.matchAll(/case (\d+):/g)) covered.add(Number(m[1]));
-for (const name of ['TEST_WEEK_INDEX', 'THEME_INDEX']) {
-  if (new RegExp(`case ${name}:`).test(switchBlock)) covered.add(idx(name));
+// Resolve every named case, not a hand-listed pair — the whole switch is
+// written in named indices now, so a hardcoded list here would silently stop
+// seeing most of it.
+for (const m of switchBlock.matchAll(/case ([A-Z_]+_INDEX):/g)) {
+  if (idx(m[1]) != null) covered.add(idx(m[1]));
 }
 const uncovered = [];
 for (let i = 0; i < CELEBRATION_INDEX; i++) if (!covered.has(i)) uncovered.push(i);
@@ -109,23 +138,21 @@ check(
 // ─── 4. The question is on its own screen ────────────────────────────────────
 console.log('\n[4] The test-week question is not buried');
 
-const liftsScreen = src.slice(
-  src.indexOf('Your best lifts'),
-  src.indexOf('Screen 8: Strength test weeks')
-);
+const TEST_WEEK_MARKER = `Screen ${TEST_WEEK_INDEX}: Strength test weeks`;
+const liftsScreen = src.slice(src.indexOf('Your best lifts'), src.indexOf(TEST_WEEK_MARKER));
 check(
   'it is no longer appended to the best-lifts screen',
-  !/Test your strength/.test(liftsScreen),
+  liftsScreen.length > 0 && !/Test your strength/.test(liftsScreen),
   'appended there it sat below three inputs and a skip link, off the bottom of the screen'
 );
 check(
-  'it has its own screen',
-  /Screen 8: Strength test weeks/.test(src) && /Test your strength\?/.test(src),
-  ''
+  'it has its own screen, numbered to match its index',
+  src.includes(TEST_WEEK_MARKER) && /Test your strength\?/.test(src),
+  `expected a "${TEST_WEEK_MARKER}" comment — screen comments drifting from the constants is how the last two index bugs got missed`
 );
 check(
   'that screen does not scroll',
-  !/Screen 8: Strength test weeks[\s\S]{0,900}?<ScrollView/.test(src),
+  !new RegExp(`${TEST_WEEK_MARKER}[\\s\\S]{0,900}?<ScrollView`).test(src),
   'the whole point was to fit without scrolling'
 );
 

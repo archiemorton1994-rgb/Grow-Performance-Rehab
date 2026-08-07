@@ -75,6 +75,13 @@ import {
   workingWeightFromOrm,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
+import {
+  feedbackRatingFor,
+  suggestSetWeight,
+  SET_FEEDBACK_LABELS,
+  type LoadPlan,
+  type SetFeedback,
+} from '@/lib/auto-regulation';
 
 interface ExerciseSetData {
   sets: SetLog[];
@@ -468,7 +475,16 @@ interface SessionActiveBarProps {
   onSetChange: (exerciseIndex: number, setIndex: number, updated: SetLog) => void;
   onSetCompleted: () => void;
   onNewPb?: () => void;
-  onFeedback: (exerciseId: string, f: FeedbackRating) => void;
+  /**
+   * The answer to "how did that set feel", carrying the set it refers to and
+   * the weight that was on the bar. Both are needed because the answer adjusts
+   * the NEXT set's load, and `activeSetIndex` has already advanced by the time
+   * the buttons are tapped.
+   */
+  onFeedback: (exerciseId: string, setIndex: number, f: SetFeedback, loggedKg: number) => void;
+  /** One short line explaining why the prefilled weight is what it is, if it
+   *  was changed by the previous set's answer. */
+  autoNote?: string | null;
   onCompleteSession: () => void;
   /** Returns to the previous exercise to fix a mis-logged set. Omitted (no
    *  button shown) for the first exercise or in the demo tutorial. */
@@ -517,6 +533,7 @@ export function SessionActiveBar({
   onSetCompleted,
   onNewPb,
   onFeedback,
+  autoNote = null,
   onCompleteSession,
   onGoBack,
   bottomInset,
@@ -546,7 +563,17 @@ export function SessionActiveBar({
     const r = setData?.sets[activeSetIndex]?.reps ?? 0;
     return r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? '');
   });
-  const [showFeedback, setShowFeedback] = useState(false);
+  /**
+   * The set the feedback buttons are asking about.
+   *
+   * Not `activeSetIndex`: completing a set marks it done, which makes the
+   * parent recompute activeSetIndex as "first uncompleted set" — so by the time
+   * this prompt renders it is already pointing at the NEXT set. The old prompt
+   * read `activeSetIndex + 1` and therefore announced the wrong set number on
+   * every set but the last (where the clamp happened to hide it). It also
+   * carries the weight, which the auto-regulation needs to adjust from.
+   */
+  const [showFeedback, setShowFeedback] = useState<{ setIndex: number; kg: number } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
   useEffect(() => {
@@ -604,17 +631,18 @@ export function SessionActiveBar({
     onSetCompleted();
     if (!isDemo && !suppressFeedback) {
       // Deliberately no auto-dismiss. This prompt replaces the logging bar, so
-      // it stays put until one of the four buttons is tapped. The old 3s timer
+      // it stays put until one of the three buttons is tapped. The old 3s timer
       // meant a slower reader lost the chance to answer, and every set that
       // goes unrated is a load adjustment the engine never gets to make.
-      // '✓ Last rep' is the zero-cost neutral answer, so answering is one tap.
-      setShowFeedback(true);
+      setShowFeedback({ setIndex: activeSetIndex, kg: effectiveWeightKg });
     }
   };
 
-  const handleFeedback = (f: FeedbackRating) => {
-    if (exercise) onFeedback(exercise.id, f);
-    setShowFeedback(false);
+  const handleFeedback = (f: SetFeedback) => {
+    if (exercise && showFeedback) {
+      onFeedback(exercise.id, showFeedback.setIndex, f, showFeedback.kg);
+    }
+    setShowFeedback(null);
   };
 
   if (isCardioExercise) {
@@ -649,55 +677,49 @@ export function SessionActiveBar({
   if (!exercise || !currentSet || activeSetIndex >= totalSets) return null;
 
   if (showFeedback || demoForceFeedback) {
+    const loggedSetNumber = (showFeedback?.setIndex ?? activeSetIndex) + 1;
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
-        <Text style={styles.barFeedbackPrompt}>
-          Set {activeSetIndex + 1} logged · how many reps were left in the tank?
-        </Text>
-        {/* Four answers on one scale, so they are drawn as one scale: an effort
-            meter at four levels, ordered easiest to hardest. The emoji version
-            (💪 👍 ✓ 😓) read as four unrelated pictures and did not look like
-            the rest of the app. C.error on the last one, not
-            categoryFinisherText — that token is white in light mode because it
-            is designed to sit on a solid red fill, and on this pale button it
-            rendered at 1.06:1. */}
-        <View style={styles.barFeedbackGrid}>
-          <View style={styles.barFeedbackRow}>
-            <Pressable
-              onPress={() => handleFeedback('very_easy')}
-              style={styles.barFeedbackBtn}
-              testID="feedback-very-easy"
-            >
-              <GrowIcon name="effort1" size={17} color={C.primaryDark} />
-              <Text style={styles.barFeedbackBtnText}>5+ left</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleFeedback('easy')}
-              style={styles.barFeedbackBtn}
-              testID="feedback-easy"
-            >
-              <GrowIcon name="effort2" size={17} color={C.primaryDark} />
-              <Text style={styles.barFeedbackBtnText}>2-3 left</Text>
-            </Pressable>
-          </View>
-          <View style={styles.barFeedbackRow}>
-            <Pressable
-              onPress={() => setShowFeedback(false)}
-              style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
-              testID="feedback-good"
-            >
-              <GrowIcon name="effort3" size={17} color={C.text} />
-              <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>Last rep</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => handleFeedback('hard')}
-              style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
-              testID="feedback-hard"
-            >
-              <GrowIcon name="effort4" size={17} color={C.error} />
-              <Text style={[styles.barFeedbackBtnText, { color: C.error }]}>Missed reps</Text>
-            </Pressable>
-          </View>
+        <Text style={styles.barFeedbackPrompt}>Set {loggedSetNumber} logged · how did it feel?</Text>
+        {/* Three answers, because the answer now has a job: it sets the weight
+            offered for the next set. "5+ reps left" and "2-3 reps left" are the
+            same instruction to the app (go up) asked two different ways, and
+            neither is a question you can answer while out of breath. Effort,
+            not rep-counting.
+
+            One row, easiest to hardest, so the buttons read as one scale.
+            C.error on the last one rather than categoryFinisherText — that
+            token is white in light mode because it is designed to sit on a
+            solid red fill, and on this pale button it rendered at 1.06:1. */}
+        <View style={styles.barFeedbackRow}>
+          <Pressable
+            onPress={() => handleFeedback('easy')}
+            style={styles.barFeedbackBtn}
+            testID="feedback-easy"
+          >
+            <GrowIcon name="effort1" size={17} color={C.primaryDark} />
+            <Text style={styles.barFeedbackBtnText}>{SET_FEEDBACK_LABELS.easy}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleFeedback('challenging')}
+            style={[styles.barFeedbackBtn, styles.barFeedbackBtnNeutral]}
+            testID="feedback-challenging"
+          >
+            <GrowIcon name="effort3" size={17} color={C.text} />
+            <Text style={[styles.barFeedbackBtnText, { color: C.text }]}>
+              {SET_FEEDBACK_LABELS.challenging}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleFeedback('too_hard')}
+            style={[styles.barFeedbackBtn, styles.barFeedbackBtnHard]}
+            testID="feedback-too-hard"
+          >
+            <GrowIcon name="effort4" size={17} color={C.error} />
+            <Text style={[styles.barFeedbackBtnText, { color: C.error }]}>
+              {SET_FEEDBACK_LABELS.too_hard}
+            </Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -811,6 +833,14 @@ export function SessionActiveBar({
             />
           </Pressable>
         </View>
+      )}
+
+      {/* Why this number changed. Shown only when the previous set's answer
+          moved it, so it never becomes wallpaper the user stops reading. */}
+      {!isTimeExercise && !isBandExercise && autoNote && (
+        <Text style={styles.barAutoNote} testID="auto-regulation-note">
+          {autoNote}
+        </Text>
       )}
 
       {!isTimeExercise && (isZeroBlocked || isImplausible) && (
@@ -1004,13 +1034,6 @@ export function ExerciseCard({
   const [expanded, setExpanded] = useState(true);
   const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
-  // Prefer the weights the engine computed, expanded against the CURRENT set
-  // count. getWeightGuideKg is the fallback for loads that came verbatim from
-  // the exercise database, where the string is the only source there has been.
-  const weightGuidesKg = exercise.loadKg
-    ? expandSetTargets(exercise.category, exercise.sets, exercise.loadKg)
-    : getWeightGuideKg(exercise.category, exercise.sets, exercise.suggestedLoad);
-
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
   const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
 
@@ -1288,13 +1311,28 @@ export function ExerciseCard({
               </View>
               </View>
 
-              {exercise.badge === 'comfort' && comfortRegionLabel && (
+              {/* The injury screen's own line wins where it exists: it names
+                  the exercise that was taken out, which the generic "adapted
+                  for your knee" cannot. Both end with the same escape hatch,
+                  because a rule applied to 447 exercises will sometimes be
+                  wrong about one of them, and the user is in the room. */}
+              {exercise.safetyNote ? (
                 <View style={styles.comfortNote}>
-                  <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
-                  <Text style={styles.comfortNoteText}>
-                    Adapted for {comfortRegionLabel}, tap Swap or skip if still uncomfortable
+                  <Ionicons name="shield-checkmark-outline" size={13} color={C.warning} />
+                  <Text style={styles.comfortNoteText} testID={`safety-note-${index}`}>
+                    {exercise.safetyNote}. Tap Swap to put it back.
                   </Text>
                 </View>
+              ) : (
+                exercise.badge === 'comfort' &&
+                comfortRegionLabel && (
+                  <View style={styles.comfortNote}>
+                    <Ionicons name="heart-circle-outline" size={13} color={C.warning} />
+                    <Text style={styles.comfortNoteText}>
+                      Adapted for {comfortRegionLabel}, tap Swap or skip if still uncomfortable
+                    </Text>
+                  </View>
+                )
               )}
 
               {expanded && (
@@ -1669,7 +1707,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
-    body: 'After each exercise, say how many more reps you had left. This drives the automatic weight progression. Check the Progress tab after your session to see exactly what changed.',
+    body: 'After each set, tap Easy, Challenging or Too Hard. The weight for your next set adjusts straight away — and it never goes up after Challenging or Too Hard.',
     demoForceFeedback: true,
   },
   {
@@ -1945,6 +1983,24 @@ export default function SessionScreen() {
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
 
+  /**
+   * Every set answer given this session, per exercise, indexed by set.
+   *
+   * Held here rather than in the bar because the bar unmounts nothing but
+   * re-derives everything from props, and because two things need this: the
+   * weight offered for the next set, and the aggregate rating that shapes the
+   * next session. Deliberately not persisted — it is scratch working for the
+   * current exercise, and what survives the session is the aggregate in
+   * `inSessionFeedback` plus the weights actually logged.
+   */
+  const [setAnswers, setSetAnswers] = useState<Record<string, (SetFeedback | null)[]>>({});
+  // Mirror, so the feedback handler can read the answers it is about to add to
+  // without nesting one state updater inside another.
+  const setAnswersRef = useRef(setAnswers);
+  useEffect(() => {
+    setAnswersRef.current = setAnswers;
+  }, [setAnswers]);
+
   const comfortCount = useMemo(
     () =>
       exercises.filter((ex, i) => ex.badge === 'comfort' && (exerciseData[i]?.swapCount ?? 0) === 0)
@@ -2087,10 +2143,30 @@ export default function SessionScreen() {
     []
   );
 
-  const handleBarFeedback = useCallback((exerciseId: string, f: FeedbackRating) => {
-    setInSessionFeedback((prev) => ({ ...prev, [exerciseId]: f }));
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
-  }, []);
+  const handleBarFeedback = useCallback(
+    (exerciseId: string, setIndex: number, f: SetFeedback, _loggedKg: number) => {
+      setSetAnswers((prev) => {
+        const answers = [...(prev[exerciseId] ?? [])];
+        answers[setIndex] = f;
+        return { ...prev, [exerciseId]: answers };
+      });
+      // The aggregate that shapes NEXT session is derived from the whole run of
+      // answers, not from the latest tap — see feedbackRatingFor. "Challenging"
+      // maps to nothing, so it must be able to CLEAR a rating an earlier answer
+      // set, otherwise one Easy on set 1 would outlive being corrected.
+      setInSessionFeedback((prev) => {
+        const answers = [...(setAnswersRef.current[exerciseId] ?? [])];
+        answers[setIndex] = f;
+        const rating = feedbackRatingFor(answers.filter((a): a is SetFeedback => a != null));
+        const next = { ...prev };
+        if (rating) next[exerciseId] = rating;
+        else delete next[exerciseId];
+        return next;
+      });
+      if (Platform.OS !== 'web') Haptics.selectionAsync();
+    },
+    []
+  );
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -2956,11 +3032,37 @@ export default function SessionScreen() {
             Math.max(activeSetIdx, 0),
             (activeData?.sets.length ?? 1) - 1
           );
-          const weightGuidesForBar = !displayEx
+          const plannedForBar = !displayEx
             ? []
             : displayEx.loadKg
               ? expandSetTargets(displayEx.category, displayEx.sets, displayEx.loadKg)
               : getWeightGuideKg(displayEx.category, displayEx.sets, displayEx.suggestedLoad);
+
+          // Auto-regulation. The prescription above is where the exercise
+          // STARTS; what the user has actually lifted and said about it decides
+          // where it goes from there. Outcomes stop at the first set that isn't
+          // finished, so an exercise reopened for correction regulates from
+          // real history rather than from gaps.
+          let autoNoteForBar: string | null = null;
+          let weightGuidesForBar = plannedForBar;
+          if (displayEx && activeData) {
+            const answers = setAnswers[displayEx.id] ?? [];
+            const outcomes: LoadPlan['outcomes'] = [];
+            for (const [i, s] of activeData.sets.entries()) {
+              if (!s.completed) break;
+              outcomes.push({ loggedKg: s.weight, feedback: answers[i] ?? null });
+            }
+            // Only the KPI/main lift arrives with a ramp to climb; everything
+            // else is a flat target that moves ±10% off what was just lifted.
+            const plan: LoadPlan = {
+              isRamped: displayEx.category === 'main',
+              plannedKg: plannedForBar,
+              outcomes,
+            };
+            const regulated = plannedForBar.map((_, i) => suggestSetWeight(plan, i));
+            weightGuidesForBar = regulated.map((r) => r.kg);
+            autoNoteForBar = regulated[clampedSetIdx]?.note ?? null;
+          }
           const isBandEx = displayEx ? isLoadBandOrBodyweight(displayEx.suggestedLoad) : false;
           const isTimeEx = displayEx ? isRepsTimeBased(displayEx.reps, sessionType) : false;
           return (
@@ -2983,6 +3085,7 @@ export default function SessionScreen() {
               onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
               onNewPb={isDemo ? undefined : handleNewPb}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
+              autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
               suppressFeedback={isTestWeek}
@@ -4439,18 +4542,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       textAlign: 'center',
     },
-    barFeedbackGrid: {
-      gap: 8,
-    },
     barFeedbackRow: {
       flexDirection: 'row',
       gap: 8,
     },
+    // Icon above label rather than beside it. Three buttons share the width now
+    // where two used to, and "Challenging" alongside a 17px icon does not fit
+    // in a third of a phone's width without wrapping.
     barFeedbackBtn: {
       flex: 1,
-      flexDirection: 'row',
-      gap: 8,
-      paddingVertical: 11,
+      gap: 4,
+      paddingVertical: 10,
       borderRadius: 12,
       backgroundColor: C.primarySurface,
       alignItems: 'center',
@@ -4470,6 +4572,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryDark,
+    },
+    barAutoNote: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      textAlign: 'center',
     },
     barZeroHint: {
       fontSize: 11,

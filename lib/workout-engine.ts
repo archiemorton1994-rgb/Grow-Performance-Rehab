@@ -12,6 +12,7 @@ import {
 import {
   ExerciseCategory,
   ExerciseTemplate,
+  type InternalTier,
   CARDIO_WARMUP,
   CARDIO_WARMUPS,
   toInternalTier,
@@ -35,8 +36,19 @@ import {
   getWeeklyLowerBodyExercises,
   getWeeklyUpperBodyExercises,
   getWeeklyFullBodyExercises,
+  getAllPickableExercises,
 } from './exercise-db';
 import { applyGripVariant } from './grip-variants';
+import {
+  DROPPABLE_CATEGORIES,
+  SCREEN_EXEMPT_CATEGORIES,
+  SCREEN_EXEMPT_SESSION_TYPES,
+  restrictedTagsFor,
+  restrictedTagsOn,
+  substitutionNote,
+  STRESS_TAG_LABELS,
+  type StressTag,
+} from './exercise-safety';
 
 export interface Exercise {
   id: string;
@@ -82,6 +94,13 @@ export interface Exercise {
   progressionDirection?: 'up' | 'hold';
   /** Marks a custom-session cardio exercise; shows duration/speed inputs instead of weight/reps. */
   type?: 'cardio';
+  /**
+   * Set when the injury screen changed or flagged this exercise — either
+   * "swapped from X to protect your knee" or, where nothing safe could replace
+   * it, a caution naming what to watch. Shown on the card so the adaptation is
+   * visible rather than mysterious.
+   */
+  safetyNote?: string;
 }
 
 interface ReadinessCheck {
@@ -758,6 +777,17 @@ function applyPersonalization(
   };
 }
 
+/**
+ * Every generation path, then the injury screen.
+ *
+ * The screen runs LAST, over the finished list, rather than being threaded
+ * through each generator. That is deliberate: there are five separate paths
+ * that build a session (KPI, weekly, conditioning, prehab, flexibility) plus
+ * comfort variants, grip variants and kettlebell renaming layered on top, and a
+ * filter applied at any one of them is a filter three others quietly skip.
+ * Screening the output is the only place where "nothing unsafe reaches the
+ * user" is a statement about the whole app rather than about one code path.
+ */
 export function generateWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
@@ -766,6 +796,229 @@ export function generateWorkout(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   bestOrmKg?: number,
   /** Count of completed STRENGTH sessions (squat/bench/deadlift) only - drives auto-progression. */
+  strengthSessionCount: number = 0,
+  lastLoggedWeights?: Record<string, number>,
+  exerciseNormalStreak?: Record<string, number>,
+  lastSessionPerformance?: Record<string, ExercisePerformance>
+): Exercise[] {
+  return applyInjurySafety(
+    generateWorkoutUnscreened(
+      sessionType,
+      equipmentTier,
+      readiness,
+      profile,
+      exerciseFeedback,
+      bestOrmKg,
+      strengthSessionCount,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      lastSessionPerformance
+    ),
+    readiness,
+    equipmentTier,
+    profile,
+    strengthSessionCount
+  );
+}
+
+/**
+ * A safe replacement for a movement the user should not be doing today.
+ *
+ * Order of preference, most specific first:
+ *
+ *   1. The template's own `injuryFriendlyAlternatives` — hand-authored, so it
+ *      is the closest thing to a considered clinical opinion in the database.
+ *   2. Its `swapAlternative` / `comfortVariant`, if those are themselves clean.
+ *   3. The wider catalogue: same category, same movement pattern, same primary
+ *      muscle where possible, carrying none of the banned tags.
+ *
+ * The pick within (3) is seeded rather than random so regenerating the same
+ * session produces the same substitution — a session that reshuffles itself on
+ * every render is not a session anyone can follow.
+ */
+/** Equipment tiers in ascending order — anything at or below the user's tier
+ *  is available to them. */
+const TIER_RANK: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
+
+function findSafeReplacement(
+  original: Exercise,
+  banned: Set<StressTag>,
+  tier: EquipmentTier,
+  usedNames: Set<string>,
+  seed: number
+): ExerciseTemplate | null {
+  const pickable = getAllPickableExercises();
+  const byName = new Map(pickable.map((p) => [p.template.name.toLowerCase(), p]));
+  const source = byName.get(original.name.toLowerCase())?.template;
+  const internal = toInternalTier(tier);
+
+  const isClean = (t: ExerciseTemplate) =>
+    restrictedTagsOn(t.name, banned, t.movementPattern).length === 0;
+  // Anything at the user's tier OR BELOW. Someone with a full gym can obviously
+  // do a goblet squat; restricting substitutes to exact-tier matches meant a
+  // full-gym user with a sore back had every squat variation ruled out (all the
+  // barbell ones are spinal loading) and got handed a leg curl as their main
+  // lift, because the dumbbell and bodyweight squats were invisible to it.
+  const tierRank = TIER_RANK.indexOf(internal);
+  const isUsable = (p: (typeof pickable)[number]) =>
+    p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
+    !usedNames.has(p.template.name.toLowerCase()) &&
+    isClean(p.template);
+
+  // (1) and (2): alternatives the database already names for this movement.
+  const named = [
+    ...(source?.injuryFriendlyAlternatives ?? []),
+    source?.swapAlternative?.name,
+    source?.comfortVariant?.name,
+  ].filter((n): n is string => !!n);
+  for (const name of named) {
+    const candidate = byName.get(name.toLowerCase());
+    if (candidate && isUsable(candidate)) return candidate.template;
+  }
+
+  // (3) the catalogue, narrowing from most-alike to least.
+  //
+  // The trailing-word tier exists because the session's names do not always
+  // exist in the catalogue: the main lift can arrive as a variation ("Barbell
+  // Front Squat") whose base template is filed elsewhere, so `source` comes
+  // back undefined and every metadata comparison below silently matches
+  // nothing. That is not theoretical — it is how a knee-safe FRONT SQUAT
+  // substitution came back as a DEADLIFT, by falling all the way through to
+  // "any main lift, alphabetically". The last word of an exercise name is
+  // almost always the movement itself (Squat, Press, Row, Curl, Deadlift), so
+  // it is a reliable last-ditch match on shape.
+  const lastWord = (n: string) =>
+    n
+      .toLowerCase()
+      .replace(/\(.*?\)/g, '')
+      .trim()
+      .split(/\s+/)
+      .pop();
+  const originalMovement = lastWord(original.name);
+  const inCategory = pickable.filter((p) => p.template.category === original.category && isUsable(p));
+  const tiers = [
+    inCategory.filter(
+      (p) =>
+        source != null &&
+        p.template.movementPattern === source.movementPattern &&
+        p.template.primaryMuscle === source.primaryMuscle
+    ),
+    inCategory.filter((p) => source != null && p.template.movementPattern === source.movementPattern),
+    inCategory.filter((p) => lastWord(p.template.name) === originalMovement),
+    inCategory.filter((p) => source != null && p.template.primaryMuscle === source.primaryMuscle),
+    inCategory,
+  ];
+  for (const group of tiers) {
+    if (group.length === 0) continue;
+    // Sorted before indexing so the choice does not depend on catalogue order.
+    const sorted = [...group].sort((a, b) => a.template.name.localeCompare(b.template.name));
+    return sorted[Math.abs(seed) % sorted.length].template;
+  }
+
+  // A main lift must not simply vanish, so widen past the equipment tier before
+  // giving up — a bodyweight alternative is a worse session than the barbell
+  // one, and a better session than no main lift at all.
+  if (original.category === 'main') {
+    const anyTier = pickable.filter(
+      (p) =>
+        p.template.category === 'main' &&
+        !usedNames.has(p.template.name.toLowerCase()) &&
+        isClean(p.template)
+    );
+    if (anyTier.length > 0) {
+      const sorted = [...anyTier].sort((a, b) => a.template.name.localeCompare(b.template.name));
+      return sorted[Math.abs(seed) % sorted.length].template;
+    }
+  }
+  return null;
+}
+
+/**
+ * Removes or replaces anything the user's reported complaint rules out.
+ *
+ * Runs over a finished session. Each exercise that carries a banned tag is
+ * replaced by the closest safe movement; where nothing safe exists and the
+ * block is optional, it is dropped rather than kept. Replacements carry the
+ * original as their swap alternative, so a user who disagrees can put it back
+ * with the swap button that is already on every card.
+ */
+export function applyInjurySafety(
+  exercises: Exercise[],
+  readiness: ReadinessCheck,
+  tier: EquipmentTier,
+  profile?: UserProfile,
+  seed: number = 0,
+  sessionType?: SessionType
+): Exercise[] {
+  if (sessionType && (SCREEN_EXEMPT_SESSION_TYPES as readonly string[]).includes(sessionType)) {
+    return exercises;
+  }
+  const regions = readiness?.painRegion
+    ? Array.isArray(readiness.painRegion)
+      ? readiness.painRegion
+      : [readiness.painRegion]
+    : [];
+  const banned = restrictedTagsFor(regions, profile?.experienceLevel);
+  if (banned.size === 0) return exercises;
+
+  const regionLabel = regions.length > 0 ? getPainRegionLabel(regions[0]) : 'injury';
+  const usedNames = new Set(exercises.map((e) => e.name.toLowerCase()));
+  const screened: Exercise[] = [];
+
+  exercises.forEach((ex, i) => {
+    const hits = SCREEN_EXEMPT_CATEGORIES.includes(ex.category)
+      ? []
+      : restrictedTagsOn(ex.name, banned);
+    if (hits.length === 0) {
+      screened.push(ex);
+      return;
+    }
+    usedNames.delete(ex.name.toLowerCase());
+    const replacement = findSafeReplacement(ex, banned, tier, usedNames, seed + i);
+    if (!replacement) {
+      // Nothing safe to put here. Optional blocks go; anything else stays, with
+      // the warning attached — silently deleting someone's main lift and saying
+      // nothing is worse than showing it with a caution on it.
+      if (DROPPABLE_CATEGORIES.includes(ex.category)) return;
+      screened.push({
+        ...ex,
+        safetyNote: `Take care with your ${regionLabel.toLowerCase()} here — this involves ${STRESS_TAG_LABELS[hits[0]]}`,
+      });
+      usedNames.add(ex.name.toLowerCase());
+      return;
+    }
+    usedNames.add(replacement.name.toLowerCase());
+    const swapped = templateToExercise(replacement, undefined, isDumbbellTier(tier));
+    screened.push({
+      ...swapped,
+      // Keep the set count the session was built with: it has already been
+      // scaled for time, energy and goals, and the replacement's own default
+      // would quietly undo that.
+      sets: ex.sets,
+      badge: 'comfort',
+      safetyNote: substitutionNote(ex.name, regionLabel),
+      // The revert. Uses the swap slot every card already has, so "put it back"
+      // costs no new UI and behaves exactly like every other swap.
+      hasSwap: true,
+      swapName: ex.name,
+      swapCue: ex.cue,
+      swapLoad: ex.suggestedLoad,
+      swap2Name: undefined,
+      swap2Cue: undefined,
+      swap2Load: undefined,
+    });
+  });
+
+  return screened;
+}
+
+function generateWorkoutUnscreened(
+  sessionType: SessionType,
+  equipmentTier: EquipmentTier,
+  readiness: ReadinessCheck,
+  profile?: UserProfile,
+  exerciseFeedback?: Record<string, ExerciseFeedback>,
+  bestOrmKg?: number,
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,

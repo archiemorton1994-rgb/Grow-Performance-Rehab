@@ -144,8 +144,10 @@ async function progressToWeightInput(page: Page): Promise<void> {
       return;
     }
 
-    // Dismiss the post-set feedback modal ("✓ Good" with testID="feedback-good").
-    const feedbackGood = page.getByTestId('feedback-good');
+    // Dismiss the post-set feedback prompt. "Challenging" is the neutral answer:
+    // it holds the weight for the next set, so walking the bar with it does not
+    // change any load and the rest of this test stays deterministic.
+    const feedbackGood = page.getByTestId('feedback-challenging');
     if (await feedbackGood.isVisible({ timeout: 600 }).catch(() => false)) {
       await feedbackGood.click();
       await page.waitForTimeout(300);

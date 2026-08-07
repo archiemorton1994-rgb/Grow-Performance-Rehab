@@ -207,12 +207,12 @@ function getNextHint(
     return `Next time: holding at ${formatWeight(bestWeightKg, weightUnit)}. ${why}.`;
   }
   if (perf === 'very_easy') {
-    return `Next time: up to ${formatWeight(bestWeightKg + 7.5, weightUnit)}. You said you had plenty left.`;
+    return `Next time: up to ${formatWeight(bestWeightKg + 7.5, weightUnit)}. You rated more than one set Easy.`;
   }
   const streak = exerciseNormalStreak[exerciseId] ?? 0;
   if (perf === 'easy' || streak >= 3) {
     const why =
-      perf === 'easy' ? 'You said 2-3 reps were left' : `${streak} sessions completed in full`;
+      perf === 'easy' ? 'You rated a set Easy' : `${streak} sessions completed in full`;
     return `Next time: up to ${formatWeight(bestWeightKg + 5, weightUnit)}. ${why}.`;
   }
   // "Clean session" was jargon the UI never defined — see ProgressionRules.
@@ -287,23 +287,27 @@ function StatDeltaTile({
  * strongest lever there is, and it overrides everything else.
  *
  * Transcribed from lib/store.ts (completeSession, where performance is
- * classified) and getNextHint above. Keep the two in step:
+ * classified), lib/auto-regulation.ts (feedbackRatingFor, which turns a run of
+ * set answers into one rating) and getNextHint above. Keep all three in step:
  *
- *   rated "5+ left"                  → +7.5 kg
- *   rated "2-3 left"                 → +5 kg
- *   rated "Missed reps", or any set
- *     left incomplete                → hold
- *   all sets done, no rating         → +2.5 kg   ("clean")
+ *   two or more sets rated "Easy"    → +7.5 kg
+ *   one set rated "Easy"             → +5 kg
+ *   any set rated "Too Hard", or any
+ *     set left incomplete            → hold
+ *   all sets done, nothing rated
+ *     Easy or Too Hard               → +2.5 kg   ("clean")
  *   3 clean sessions in a row        → +5 kg
  *
  * "Clean" was never defined anywhere in the UI, which is the other half of the
- * complaint, so it is spelled out rather than used as jargon.
+ * complaint, so it is spelled out rather than used as jargon. Note that
+ * "Challenging" appears nowhere: it means the prescription was right, which is
+ * not a reason to change it.
  */
 function ProgressionRules({ P }: { P: CardPalette }) {
   const rows: { badge: string; tone: 'up' | 'hold'; text: string }[] = [
-    { badge: '↑', tone: 'up', text: 'You said reps were left — the biggest jump, 5 to 7.5 kg.' },
+    { badge: '↑', tone: 'up', text: 'You rated a set Easy — the biggest jump, 5 to 7.5 kg.' },
     { badge: '↑', tone: 'up', text: 'Every set completed, no rating — a steady 2.5 kg. Three of those in a row earns 5 kg.' },
-    { badge: '=', tone: 'hold', text: 'You missed reps, or left a set incomplete — the weight holds until you clear it.' },
+    { badge: '=', tone: 'hold', text: 'You rated a set Too Hard, or left one incomplete — the weight holds until you clear it.' },
   ];
   return (
     <View style={{ gap: 10, marginTop: 2 }}>
