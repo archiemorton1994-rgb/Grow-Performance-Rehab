@@ -32,7 +32,7 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
-import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg, daysSince } from '@/lib/utils';
+import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   SESSION_META,
   SESSION_SHORT_LABELS,
@@ -43,6 +43,8 @@ import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { CoachButton, CoachBubble } from '@/components/CoachBubble';
+import { getCoachMessages, hasActionableAdvice, type CoachAction } from '@/lib/coach';
 
 interface HomeTutorialStep {
   spotlightRef: 'session' | 'block' | 'streak' | 'program' | 'achievements';
@@ -132,21 +134,11 @@ export default function HomeScreen() {
     tourActiveTab,
     setTourActiveTab,
     skipTour,
-    getTrainingBalanceNudge,
-    dismissBalanceNudge,
     balanceNudgeDismissedAt,
+    dismissBalanceNudge,
   } = useAppStore();
 
-  // Recomputed when the history or the dismissal changes, not on every render:
-  // the rule reads the whole session list. Date.now() is deliberately captured
-  // here rather than inside the selector so the memo has something stable to
-  // key on — the dismissal window is measured in days, so a timestamp that is
-  // a render old cannot change the answer.
-  const balanceNudge = useMemo(
-    () => getTrainingBalanceNudge(Date.now()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [completedSessions, balanceNudgeDismissedAt]
-  );
+  const [coachOpen, setCoachOpen] = useState(false);
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
@@ -243,8 +235,6 @@ export default function HomeScreen() {
   const missedStreakWarning =
     completedSessions.length >= 3 && streak > 0 && weekCount < goal && new Date().getDay() >= 3;
 
-  const [deloadDismissed, setDeloadDismissed] = useState(false);
-  const [deloadExpanded, setDeloadExpanded] = useState(false);
   const [milestoneToastDismissed, setMilestoneToastDismissed] = useState(false);
 
   const consecutiveActiveWeeks = useMemo(() => {
@@ -262,6 +252,71 @@ export default function HomeScreen() {
     }
     return count;
   }, [completedSessions]);
+
+  /**
+   * Everything the app has to say, gathered once.
+   *
+   * This replaces five separate advisory cards that each rendered themselves
+   * into the scroll — a deload banner, a streak warning, a calibration bar, a
+   * bodyweight reminder and a training-balance nudge. Any two of them at once
+   * pushed the session card off the screen. The rules moved to lib/coach.ts so
+   * they can be read and tested in one place instead of being spread across
+   * five conditions in a JSX tree.
+   */
+  const coachMessages = useMemo(() => {
+    const sessionTypes = completedSessions.map((s) => s.sessionType);
+    return getCoachMessages({
+      sessionCount: completedSessions.length,
+      weekCount,
+      weeklyGoal: goal,
+      streak,
+      consecutiveActiveWeeks,
+      daysSinceLast,
+      weekday: new Date().getDay(),
+      bodyweightStale: isWeightReminderVisible(),
+      balance: {
+        sessionTypes,
+        everTrained: sessionTypes,
+        dismissedAt: balanceNudgeDismissedAt,
+        now: Date.now(),
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    completedSessions,
+    weekCount,
+    goal,
+    streak,
+    consecutiveActiveWeeks,
+    daysSinceLast,
+    balanceNudgeDismissedAt,
+  ]);
+  const coachHasAdvice = hasActionableAdvice(coachMessages);
+
+  const handleCoachAction = useCallback(
+    (action: CoachAction) => {
+      setCoachOpen(false);
+      if (action.kind === 'log-weight') {
+        handleOpenWeightModal();
+        return;
+      }
+      if (action.kind === 'open-stats') {
+        router.push('/(tabs)/workouts');
+        return;
+      }
+      // A coach message can name a specific session (the balance nudge does);
+      // otherwise it means "the one you were going to do anyway".
+      router.push({
+        pathname: '/readiness',
+        params: {
+          sessionType: action.sessionType ?? suggestedSession,
+          isTestWeek: action.sessionType ? 'false' : testWeek ? 'true' : 'false',
+        },
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestedSession, testWeek]
+  );
 
   const SESSION_TYPE_META = useMemo(() => {
     const colors = getSessionColors(C);
@@ -308,8 +363,6 @@ export default function HomeScreen() {
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [draftWeight, setDraftWeight] = useState('');
 
-  const showWeightReminder = isWeightReminderVisible();
-
   useEffect(() => {
     if (bodyweightReminderEnabled) {
       void scheduleBodyweightReminder(bodyweightUpdatedAt, completedSessions.length > 0);
@@ -317,11 +370,6 @@ export default function HomeScreen() {
       void cancelBodyweightReminder();
     }
   }, [bodyweightUpdatedAt, completedSessions.length, bodyweightReminderEnabled]);
-
-  const daysSinceWeightUpdate = useMemo(() => {
-    if (!bodyweightUpdatedAt) return null;
-    return Math.floor((Date.now() - new Date(bodyweightUpdatedAt).getTime()) / 86400000);
-  }, [bodyweightUpdatedAt]);
 
   const handleOpenWeightModal = () => {
     const displayVal =
@@ -341,8 +389,11 @@ export default function HomeScreen() {
     setWeightModalOpen(false);
   };
 
-  const handleSnoozeReminder = () => {
+  /** Closing the weight prompt without saving means "not now" — the reminder
+   *  backs off rather than reappearing the moment the assistant is opened. */
+  const dismissWeightModal = () => {
     setWeightReminderSnoozedAt(new Date().toISOString());
+    setWeightModalOpen(false);
   };
   // ────────────────────────────────────────────────────────────────────────
 
@@ -597,6 +648,11 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+            <CoachButton
+              onPress={() => setCoachOpen((v) => !v)}
+              hasAdvice={coachHasAdvice}
+              open={coachOpen}
+            />
             <Pressable
               onPress={() => router.push('/(tabs)/profile')}
               style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
@@ -613,48 +669,6 @@ export default function HomeScreen() {
               )}
             </Pressable>
           </Animated.View>
-
-          {/* Deload week suggestion — shown after 4+ consecutive active weeks */}
-          {consecutiveActiveWeeks >= 4 && !deloadDismissed && completedSessions.length >= 4 && (
-            <Animated.View entering={FadeInDown.duration(300)} style={styles.deloadBanner}>
-              <Pressable
-                onPress={() => setDeloadExpanded((v) => !v)}
-                style={styles.deloadBannerContent}
-              >
-                <Ionicons name="moon-outline" size={18} color={C.energyBadge} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.deloadBannerTitle, { color: C.text }]}>
-                    {consecutiveActiveWeeks} weeks straight, might be time for a deload
-                  </Text>
-                  {deloadExpanded ? (
-                    <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
-                      {
-                        'Drop to 50–60% of your normal loads this week, keep the same structure. It flushes fatigue, lets joints recover, and supercompensates, so your next block starts sharper.'
-                      }
-                    </Text>
-                  ) : (
-                    <Text style={[styles.deloadBannerSub, { color: C.textSecondary }]}>
-                      A lighter week now means more progress long-term. Tap to learn more.
-                    </Text>
-                  )}
-                </View>
-                <Ionicons
-                  name={deloadExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={13}
-                  color={C.energyBadge}
-                />
-              </Pressable>
-              <Pressable
-                onPress={() => setDeloadDismissed(true)}
-                hitSlop={10}
-                testID="deload-banner-dismiss"
-                accessibilityLabel="Dismiss"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close" size={14} color={C.textTertiary} />
-              </Pressable>
-            </Animated.View>
-          )}
 
           {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
           {/* Glow wrapper: pulses green after the tab tour completes */}
@@ -982,125 +996,25 @@ export default function HomeScreen() {
             </Animated.View>
           ) : null}
 
-          {/* Calibration progress — visible after sessions 1 and 2 only (suppressed when a higher-priority banner shows) */}
-          {completedSessions.length >= 1 &&
-            completedSessions.length < 3 &&
-            !activeSession &&
-            milestoneHit === null && (
-              <Animated.View
-                entering={FadeInDown.delay(210).duration(380)}
-                style={styles.calibrationCard}
-              >
-                <View style={styles.calibrationTop}>
-                  <Ionicons name="analytics-outline" size={14} color={C.primary} />
-                  <Text style={styles.calibrationTitle}>Getting to know you</Text>
-                  <Text style={styles.calibrationCount}>{completedSessions.length} / 3</Text>
-                </View>
-                <View style={styles.calibrationTrack}>
-                  <View
-                    style={[
-                      styles.calibrationFill,
-                      { width: `${Math.round((completedSessions.length / 3) * 100)}%` as any },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.calibrationSub}>
-                  Complete your first 3 sessions to unlock fully personalised programming.
-                </Text>
-              </Animated.View>
-            )}
-
-          {/* Bodyweight reminder */}
-          {showWeightReminder && (
-            <Animated.View
-              entering={FadeInDown.delay(240).duration(380)}
-              style={styles.weightReminderCard}
-            >
-              <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
-                <Ionicons name="body-outline" size={20} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.weightReminderTitle}>Update your bodyweight</Text>
-                <Text style={styles.weightReminderSub}>
-                  {userProfile.bodyweightKg > 0
-                    ? `${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}${daysSinceWeightUpdate !== null ? ` · updated ${daysSinceWeightUpdate}d ago` : ''}`
-                    : 'Keeping this current improves load suggestions'}
-                </Text>
-              </View>
-              <Pressable
-                onPress={handleOpenWeightModal}
-                style={({ pressed }) => [
-                  styles.weightUpdateBtn,
-                  { backgroundColor: C.primary },
-                  pressed && { opacity: 0.85 },
-                ]}
-                testID="weight-reminder-update"
-              >
-                <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Update</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleSnoozeReminder}
-                hitSlop={10}
-                style={styles.weightReminderDismiss}
-                testID="weight-reminder-dismiss"
-                accessibilityLabel="Snooze reminder"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close" size={16} color={C.textTertiary} />
-              </Pressable>
-            </Animated.View>
-          )}
-
-          {/* Training balance — the app's only observation about WHAT you
-              train rather than whether you trained.
-
-              Phrased as something noticed, not something to fix, and it can be
-              dismissed for a fortnight. It will not appear for anyone whose
-              gap might be deliberate: see lib/training-balance.ts, where most
-              of the logic is about staying quiet. */}
-          {balanceNudge && (
-            <Animated.View
-              entering={FadeInDown.delay(260).duration(380)}
-              style={styles.weightReminderCard}
-              testID="balance-nudge"
-            >
-              <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
-                <Ionicons name="git-compare-outline" size={20} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.weightReminderTitle}>Your training mix</Text>
-                <Text style={styles.weightReminderSub}>{balanceNudge.message}</Text>
-              </View>
-              <Pressable
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.push({
-                    pathname: '/readiness',
-                    params: { sessionType: balanceNudge.suggestion, isTestWeek: 'false' },
-                  });
-                }}
-                style={({ pressed }) => [
-                  styles.weightUpdateBtn,
-                  { backgroundColor: C.primary },
-                  pressed && { opacity: 0.85 },
-                ]}
-                testID="balance-nudge-action"
-              >
-                <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Train it</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => dismissBalanceNudge(Date.now())}
-                hitSlop={10}
-                style={styles.weightReminderDismiss}
-                testID="balance-nudge-dismiss"
-                accessibilityLabel="Dismiss"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close" size={16} color={C.textTertiary} />
-              </Pressable>
-            </Animated.View>
-          )}
         </ScrollView>
+
+        {/* The assistant's bubble. Rendered OUTSIDE the ScrollView so it floats
+            over the page rather than adding to its height — the whole point of
+            this change was that advice must not make the home screen scroll.
+            Not a Modal; see the note in CoachBubble. */}
+        {coachOpen && (
+          <CoachBubble
+            messages={coachMessages}
+            onClose={() => setCoachOpen(false)}
+            onAction={handleCoachAction}
+            onDismiss={(id) => {
+              // Only the balance observation is dismissible; see CoachMessage.
+              if (id === 'balance') dismissBalanceNudge(Date.now());
+            }}
+            top={insets.top + (Platform.OS === 'web' ? 67 : 0) + 62}
+            tailRight={38}
+          />
+        )}
       </View>
 
       {/* Milestone toast — floats above tab bar, auto-dismisses after 3.5 s */}
@@ -1133,9 +1047,9 @@ export default function HomeScreen() {
         visible={weightModalOpen}
         transparent
         animationType="slide"
-        onRequestClose={() => setWeightModalOpen(false)}
+        onRequestClose={dismissWeightModal}
       >
-        <Pressable style={modalStyles.backdrop} onPress={() => setWeightModalOpen(false)} />
+        <Pressable style={modalStyles.backdrop} onPress={dismissWeightModal} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View
             style={[
@@ -1700,77 +1614,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       marginTop: 1,
     },
-
-    calibrationCard: {
-      backgroundColor: C.surface,
-      borderRadius: 14,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    calibrationTop: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 6,
-      marginBottom: 8,
-    },
-    calibrationTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.textSecondary,
-      flex: 1,
-    },
-    calibrationCount: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
-    calibrationTrack: {
-      height: 4,
-      backgroundColor: C.primary + '22',
-      borderRadius: 2,
-      overflow: 'hidden' as const,
-      marginBottom: 8,
-    },
-    calibrationFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
-    calibrationSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-
-    weightReminderCard: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 10,
-      backgroundColor: C.primarySurface,
-      borderRadius: 14,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-      borderWidth: 1,
-      borderColor: C.primary + '30',
-    },
-    weightReminderIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      flexShrink: 0,
-    },
-    weightReminderTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
-    weightReminderSub: {
-      fontSize: 11,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      marginTop: 1,
-    },
-    weightUpdateBtn: {
-      borderRadius: 10,
-      paddingHorizontal: 11,
-      paddingVertical: 7,
-      flexShrink: 0,
-    },
-    weightUpdateBtnText: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-    weightReminderDismiss: {
-      width: 26,
-      height: 26,
-      borderRadius: 8,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
+
+
     weightInputRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
@@ -1788,32 +1633,5 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
-    deloadBanner: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      backgroundColor: 'rgba(124,110,240,0.08)',
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: 'rgba(124,110,240,0.20)',
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      marginBottom: 10,
-      gap: 8,
-    },
-    deloadBannerContent: {
-      flex: 1,
-      flexDirection: 'row' as const,
-      alignItems: 'flex-start' as const,
-      gap: 10,
-    },
-    deloadBannerTitle: {
-      fontSize: 13,
-      fontFamily: 'Inter_600SemiBold',
-      marginBottom: 2,
-    },
-    deloadBannerSub: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-    },
   });
 }
