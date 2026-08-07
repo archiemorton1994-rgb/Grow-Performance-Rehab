@@ -20,6 +20,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
+import { PlateCalculator } from '@/components/PlateCalculator';
+import { isBarbellExercise } from '@/lib/plate-math';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -995,6 +997,8 @@ export function ExerciseCard({
   showPbFlash = false,
   headerRef,
   swapBtnRef,
+  previousNote,
+  onOpenPlates,
 }: {
   exercise: Exercise;
   index: number;
@@ -1028,6 +1032,10 @@ export function ExerciseCard({
    *  gives the "swap" step a tight spotlight on just that one icon. */
   headerRef?: React.RefObject<View | null>;
   swapBtnRef?: React.RefObject<View | null>;
+  /** The last note the user wrote about this exercise, from any past
+   *  session. Shown once, above the card, until they write a new one. */
+  previousNote?: string | null;
+  onOpenPlates?: () => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1316,6 +1324,35 @@ export function ExerciseCard({
                   for your knee" cannot. Both end with the same escape hatch,
                   because a rule applied to 447 exercises will sometimes be
                   wrong about one of them, and the user is in the room. */}
+              {/* WHAT YOU WROTE LAST TIME.
+                  Notes were being saved on every session and read back by
+                  nothing — "belt on for the top set", "left knee twinges past
+                  90" was recorded once and then only visible by scrolling
+                  through history. It belongs at the top of the exercise it is
+                  about, on the day you are about to do it again. */}
+              {previousNote && !note && (
+                <View style={styles.recalledNote}>
+                  <Ionicons name="bookmark" size={12} color={C.primary} />
+                  <Text style={styles.recalledNoteText} numberOfLines={3}>
+                    {previousNote}
+                  </Text>
+                </View>
+              )}
+
+              {/* Offered only on barbell lifts, because it only means
+                  anything there. A "plates" button on a cable fly is noise. */}
+              {onOpenPlates && isBarbellExercise(exercise.name) && (
+                <Pressable
+                  onPress={onOpenPlates}
+                  style={({ pressed }) => [styles.plateBtn, pressed && { opacity: 0.75 }]}
+                  testID={`plate-calc-${index}`}
+                  accessibilityLabel="Plate breakdown"
+                >
+                  <Ionicons name="barbell-outline" size={13} color={C.primary} />
+                  <Text style={styles.plateBtnText}>What plates?</Text>
+                </Pressable>
+              )}
+
               {exercise.safetyNote ? (
                 <View style={styles.comfortNote}>
                   <Ionicons name="shield-checkmark-outline" size={13} color={C.warning} />
@@ -1824,6 +1861,7 @@ export default function SessionScreen() {
     setTourComplete,
     setTourJustCompleted,
     markTourGenuinelyCompleted,
+    getLastExerciseNote,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -2477,6 +2515,9 @@ export default function SessionScreen() {
     Linking.openURL('https://www.youtube.com/results?search_query=' + query);
   };
   const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
+  /** The exercise whose plate breakdown is open. Holds the index so the
+   *  weight shown follows that card's own current set. */
+  const [plateModalIndex, setPlateModalIndex] = useState<number | null>(null);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const handleSetChange = useCallback(
@@ -3013,6 +3054,8 @@ export default function SessionScreen() {
               showPbFlash={pbFlashIndex === index}
               headerRef={index === 0 ? firstCardHeaderRef : undefined}
               swapBtnRef={index === 0 ? swapBtnRef : undefined}
+              previousNote={isDemo ? null : getLastExerciseNote(exercise.id, exercise.name)}
+              onOpenPlates={isDemo ? undefined : () => setPlateModalIndex(index)}
             />
           );
           return card;
@@ -3098,6 +3141,34 @@ export default function SessionScreen() {
           );
         })()}
       </View>
+
+      {/* Plate breakdown. Weight comes from the card's own current set, so
+          it answers "what do I load RIGHT NOW" rather than showing the top
+          set while you are still warming up. */}
+      {plateModalIndex !== null &&
+        (() => {
+          const ex = exercises[plateModalIndex];
+          const data = exerciseData[plateModalIndex];
+          if (!ex || !data) return null;
+          const setIdx = Math.min(
+            Math.max(data.activeSetIndex ?? 0, 0),
+            Math.max(0, data.sets.length - 1)
+          );
+          const guides = ex.loadKg
+            ? expandSetTargets(ex.category, ex.sets, ex.loadKg)
+            : getWeightGuideKg(ex.category, ex.sets, ex.suggestedLoad);
+          const logged = data.sets[setIdx]?.weight ?? 0;
+          const kg = logged > 0 ? logged : (guides[setIdx] ?? 0);
+          return (
+            <PlateCalculator
+              visible
+              onClose={() => setPlateModalIndex(null)}
+              targetKg={kg}
+              weightUnit={weightUnit}
+              exerciseName={ex.name}
+            />
+          );
+        })()}
 
       {/* Abandon Modal */}
       <Modal
@@ -4269,6 +4340,37 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     painAdaptDismiss: { padding: 4, alignItems: 'center', justifyContent: 'center' },
     // Comfort adaptation note on exercise cards
+    recalledNote: {
+      flexDirection: 'row',
+      gap: 7,
+      alignItems: 'flex-start',
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      marginTop: 8,
+    },
+    recalledNoteText: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.primaryDark,
+      lineHeight: 16,
+    },
+    plateBtn: {
+      flexDirection: 'row',
+      alignSelf: 'flex-start',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 8,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      backgroundColor: C.primarySurface,
+    },
+    plateBtnText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.primary },
     comfortNote: {
       flexDirection: 'row',
       alignItems: 'center',

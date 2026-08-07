@@ -222,5 +222,29 @@ export function useColors(): AppColors {
 /** Direct access to dark-mode tokens for non-hook contexts (e.g. pre-render crash views). */
 export { DarkColors };
 
+/**
+ * Olympic plate colours — deliberately NOT theme tokens.
+ *
+ * These are the colours of the physical objects: a 25 kg plate is red, a 20 is
+ * blue, a 15 is yellow, a 10 is green. The plate calculator only helps if the
+ * picture on screen matches the rack in front of you, so these must not shift
+ * with light or dark mode. They live here rather than inline in the component
+ * because the colour-tokens check is right that loose hex literals in a screen
+ * are usually a mistake — this is the exception, so it says so.
+ *
+ * Pounds reuse the kilo scheme by convention: 45 lb blue, 35 lb yellow.
+ */
+export const PLATE_COLORS: Record<number, string> = {
+  25: '#c0392b',
+  20: '#2255a4',
+  15: '#d4ac0d',
+  10: '#27853f',
+  5: '#e8e8e8',
+  2.5: '#8a8f8c',
+  1.25: '#8a8f8c',
+  45: '#2255a4',
+  35: '#d4ac0d',
+};
+
 const Colors = LightColors;
 export default Colors;

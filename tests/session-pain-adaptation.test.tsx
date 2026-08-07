@@ -612,6 +612,9 @@ const STORE_BASE = {
   setExerciseFeedback: () => {},
   applyTooEasyAdjustment: () => {},
   getBestORM: () => undefined,
+  // Reading a note back is what makes it persistent; the write already existed
+  // and nothing loaded one. No history in this fixture, so: nothing to recall.
+  getLastExerciseNote: () => null,
   setActiveSession: () => {},
   clearActiveSession: () => {},
   updateLastLoggedWeights: () => {},

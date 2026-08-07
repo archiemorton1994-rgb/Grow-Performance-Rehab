@@ -480,6 +480,8 @@ interface AppState {
   /** Returns true when the bodyweight reminder card should be shown on the Home tab.
    *  Encapsulates staleness (>14 days or null) + snooze (<7 days) logic in one place. */
   isWeightReminderVisible: () => boolean;
+  /** The most recent note written against an exercise, or null. */
+  getLastExerciseNote: (exerciseId: string, exerciseName: string) => string | null;
   pendingCustomExercises: CustomExercise[];
   setPendingCustomExercises: (exercises: CustomExercise[]) => void;
   clearPendingCustomExercises: () => void;
@@ -720,6 +722,31 @@ export const useAppStore = create<AppState>()(
       setReadinessTutorialShown: (shown) => set({ readinessTutorialShown: shown }),
       setSessionTutorialShown: (shown) => set({ sessionTutorialShown: shown }),
       setWeightReminderSnoozedAt: (ts) => set({ weightReminderSnoozedAt: ts }),
+      /**
+       * The last thing you wrote about this exercise.
+       *
+       * Notes were being SAVED and never read. Every session wrote
+       * ExerciseLog.note faithfully and nothing anywhere loaded one back, so
+       * "belt on for the top set" or "left knee twinges past 90" was recorded
+       * once and then only ever visible by scrolling through history.
+       *
+       * Matched on id first, then name. The id is the reliable key, but a
+       * grip variant or a comfort swap changes it while staying the same
+       * movement to the user — and a note about the movement should survive
+       * that. Sessions are newest-first, so the first hit is the latest.
+       */
+      getLastExerciseNote: (exerciseId, exerciseName) => {
+        for (const session of get().completedSessions) {
+          for (const log of session.exerciseLogs) {
+            if (!log.note || !log.note.trim()) continue;
+            if (log.exerciseId === exerciseId || log.exerciseName === exerciseName) {
+              return log.note.trim();
+            }
+          }
+        }
+        return null;
+      },
+
       isWeightReminderVisible: () => {
         const { completedSessions, bodyweightUpdatedAt, weightReminderSnoozedAt } = get();
         if (completedSessions.length === 0) return false;

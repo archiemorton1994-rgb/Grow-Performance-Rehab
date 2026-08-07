@@ -29,6 +29,15 @@ import {
   ExerciseCategory,
   InternalTier,
 } from '@/lib/exercise-db';
+import {
+  canBeMainLift,
+  patternGroupOf,
+  tierOf,
+  COMPOUND_PATTERN_ORDER,
+  PATTERN_GROUP_LABELS,
+  TIER_LABELS,
+  type PatternGroup,
+} from '@/lib/exercise-classification';
 import { daysSince } from '@/lib/utils';
 
 // An exercise logged within this many days is considered "recently done".
@@ -140,15 +149,16 @@ interface SelectedCardioExercise {
 
 // Movement-pattern & difficulty filters for the picker (multi-select).
 // Only chips whose value is present in the current equipment tier's pool are shown.
-const PATTERN_FILTERS: { key: string; label: string }[] = [
-  { key: 'squat', label: 'Squat' },
-  { key: 'hinge', label: 'Hinge' },
-  { key: 'push', label: 'Push' },
-  { key: 'pull', label: 'Pull' },
-  { key: 'lunge', label: 'Lunge' },
-  { key: 'carry', label: 'Carry' },
-  { key: 'isometric', label: 'Isometric' },
-];
+/**
+ * Movement filters, by compound PATTERN GROUP rather than by the raw
+ * `movementPattern` field. The database does not distinguish horizontal from
+ * vertical pushing or pulling — bench and overhead press are both "push" — and
+ * that is exactly the distinction someone building a Push/Pull/Legs or
+ * Upper/Lower week needs. See lib/exercise-classification.ts.
+ */
+const PATTERN_FILTERS: { key: PatternGroup; label: string }[] = COMPOUND_PATTERN_ORDER.map(
+  (k) => ({ key: k, label: PATTERN_GROUP_LABELS[k] })
+);
 
 const DIFFICULTY_FILTERS: { key: string; label: string }[] = [
   { key: 'beginner', label: 'Beginner' },
@@ -310,7 +320,7 @@ export default function CustomSessionScreen() {
     const patSet = new Set<string>();
     const diffSet = new Set<string>();
     for (const e of allExercises) {
-      if (e.movementPattern) patSet.add(e.movementPattern);
+      patSet.add(patternGroupOf(e));
       if (e.difficulty) diffSet.add(e.difficulty);
     }
     return {
@@ -338,6 +348,11 @@ export default function CustomSessionScreen() {
   // because a hardcoded list was not updated alongside it.
   const catalogueSections = useMemo(() => {
     const present = new Set(allExercises.map((e) => e.category as string));
+    // "Main Lifts" is now defined by movement rather than by template slot, so
+    // it must be offered whenever any compound is in the pool — not only when
+    // something happens to be filed under category 'main'. On a bodyweight tier
+    // that difference is the whole section.
+    if (allExercises.some((e) => canBeMainLift(e))) present.add('main');
     const ordered = CATEGORY_ORDER.filter((c) => present.has(c));
     const extras = [...present].filter((c) => !CATEGORY_ORDER.includes(c)).sort();
     return [
@@ -355,11 +370,30 @@ export default function CustomSessionScreen() {
       // No tier recorded means the movement needs no equipment — always allow.
       return !t || t.length === 0 || t.some((x) => active.has(x));
     });
-    if (categoryFilter !== 'all') {
+    if (categoryFilter === 'main') {
+      /**
+       * "Main Lifts" is a question about the MOVEMENT, not about where the
+       * template happens to be filed.
+       *
+       * `category === 'main'` covers 22 of 447 exercises — essentially the
+       * barbell big three and their closest variants. So a Goblet Squat, a Lat
+       * Pulldown and a Romanian Deadlift could never be a main lift, in any
+       * split, for anyone, which is only right if every user is a powerlifter.
+       * Filed under the same heading, 187 exercises qualify, spread across all
+       * six compound patterns. See lib/exercise-classification.ts.
+       */
+      list = list.filter((e) => canBeMainLift(e));
+    } else if (categoryFilter === 'accessory') {
+      // The other side of the same coin: an accessory section that excluded
+      // every compound would be missing most of what people actually use as
+      // accessories, so this stays a category filter and simply drops the
+      // movements now surfaced above it.
+      list = list.filter((e) => e.category === 'accessory' && !canBeMainLift(e));
+    } else if (categoryFilter !== 'all') {
       list = list.filter((e) => e.category === categoryFilter);
     }
     if (patternFilters.size > 0) {
-      list = list.filter((e) => !!e.movementPattern && patternFilters.has(e.movementPattern));
+      list = list.filter((e) => patternFilters.has(patternGroupOf(e)));
     }
     if (difficultyFilters.size > 0) {
       list = list.filter((e) => !!e.difficulty && difficultyFilters.has(e.difficulty));
@@ -880,13 +914,20 @@ export default function CustomSessionScreen() {
                   {CATEGORY_LABELS[item.category] ?? item.category}
                 </Text>
               </View>
-              {item.movementPattern && (
-                <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
-                  <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
-                    {item.movementPattern}
-                  </Text>
-                </View>
-              )}
+              {/* The pattern GROUP, not the raw field — "Push (vertical)" tells
+                  you what slot this fills; "push" does not distinguish a bench
+                  press from an overhead press. Paired with the tier, so the
+                  card says both what the movement is and how central it is. */}
+              <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
+                <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
+                  {PATTERN_GROUP_LABELS[patternGroupOf(item)]}
+                </Text>
+              </View>
+              <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
+                <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
+                  {TIER_LABELS[tierOf(item)]}
+                </Text>
+              </View>
               {item.difficulty && (
                 <View
                   style={[
