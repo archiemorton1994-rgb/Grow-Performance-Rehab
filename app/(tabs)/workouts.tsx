@@ -233,6 +233,75 @@ const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; mess
   },
 };
 
+/**
+ * The three-figure summary card, in one place.
+ *
+ * This existed four times over — twice verbatim on Overview (the empty state
+ * and the populated state each built their own), once on Strength, and once
+ * inside the exercise-progress list with every style written inline at 22px
+ * where the others used 26px. Four copies of one card is four places to change
+ * when it changes, and the odd size out was not a decision anyone made.
+ *
+ * Values carry an optional `hint` — a unit or qualifier that belongs with the
+ * number but must not compete with it. Previously the Strength tab glued the
+ * unit onto the LABEL ("Squat kg"), which reads as a different statistic.
+ */
+function StatStrip({
+  items,
+  C,
+  innerRef,
+}: {
+  items: { value: string; label: string; hint?: string }[];
+  C: ReturnType<typeof useColors>;
+  innerRef?: React.RefObject<View | null>;
+}) {
+  return (
+    <View
+      ref={innerRef}
+      collapsable={false}
+      style={{
+        flexDirection: 'row',
+        backgroundColor: C.surface,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: C.borderLight,
+        alignItems: 'center',
+      }}
+    >
+      {items.map((item, i) => (
+        <React.Fragment key={item.label}>
+          {i > 0 && <View style={{ width: 1, height: 32, backgroundColor: C.border }} />}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+              <Text style={{ fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary }}>
+                {item.value}
+              </Text>
+              {item.hint ? (
+                <Text style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                  {item.hint}
+                </Text>
+              ) : null}
+            </View>
+            <Text
+              style={{
+                fontSize: 11,
+                fontFamily: 'Inter_500Medium',
+                color: C.textSecondary,
+                marginTop: 2,
+                textAlign: 'center',
+              }}
+              numberOfLines={1}
+            >
+              {item.label}
+            </Text>
+          </View>
+        </React.Fragment>
+      ))}
+    </View>
+  );
+}
+
 function MuscleProgressPanel({
   completedSessions,
   C,
@@ -2950,70 +3019,14 @@ function ExerciseProgressList({
 
   return (
     <View>
-      {/* Quick stats */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: C.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: C.borderLight,
-          alignItems: 'center',
-        }}
-      >
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>
-            {progress.length}
-          </Text>
-          <Text
-            style={{
-              fontSize: 11,
-              fontFamily: 'Inter_500Medium',
-              color: C.textSecondary,
-              marginTop: 2,
-              textAlign: 'center',
-            }}
-          >
-            Exercises
-          </Text>
-        </View>
-        <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>
-            {totalSessions}
-          </Text>
-          <Text
-            style={{
-              fontSize: 11,
-              fontFamily: 'Inter_500Medium',
-              color: C.textSecondary,
-              marginTop: 2,
-              textAlign: 'center',
-            }}
-          >
-            Sessions
-          </Text>
-        </View>
-        <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary }}>
-            {totalVolumeDisplay.toLocaleString()}
-          </Text>
-          <Text
-            style={{
-              fontSize: 11,
-              fontFamily: 'Inter_500Medium',
-              color: C.textSecondary,
-              marginTop: 2,
-              textAlign: 'center',
-            }}
-          >
-            {weightUnit} lifted
-          </Text>
-        </View>
-      </View>
+      <StatStrip
+        C={C}
+        items={[
+          { value: String(progress.length), label: 'Exercises' },
+          { value: String(totalSessions), label: 'Sessions' },
+          { value: totalVolumeDisplay.toLocaleString(), label: `${weightUnit} lifted` },
+        ]}
+      />
 
       {(() => {
         const COLLAPSED_LIMIT = 5;
@@ -3503,8 +3516,17 @@ export default function StatsScreen() {
   // conditioning, custom-session or rehab user sees forever. These two derive a
   // useful substitute from what they HAVE logged.
   const noKpiData = oneRepMaxes.length === 0;
+  /**
+   * The heaviest weight ever recorded for each exercise, from any session.
+   *
+   * Computed for EVERYONE, not just people with no 1RM. Gating it on
+   * `noKpiData` meant the block vanished the moment a single 1RM existed — so
+   * someone who tested their squat once, and otherwise trains conditioning and
+   * accessories, went from a useful list to a tab showing one number and two
+   * empty charts. "What am I strongest at" is a question the 1RM charts only
+   * answer for three lifts; this answers it for everything else.
+   */
   const heaviestLifts = useMemo(() => {
-    if (!noKpiData) return [];
     const best = new Map<string, number>();
     for (const session of completedSessions) {
       for (const log of session.exerciseLogs) {
@@ -3519,7 +3541,14 @@ export default function StatsScreen() {
       .map(([name, kg]) => ({ name, kg }))
       .sort((a, b) => b.kg - a.kg)
       .slice(0, 6);
-  }, [noKpiData, completedSessions]);
+  }, [completedSessions]);
+
+  /** Only the lifts that have actually been tested get a progression chart —
+   *  a chart with no history is an axis and the words "no data". */
+  const testedLifts = useMemo(
+    () => LIFT_TYPES.filter((lift) => oneRepMaxes.some((o) => o.lift === lift)),
+    [oneRepMaxes]
+  );
 
   const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>(
     'overview'
@@ -3822,22 +3851,15 @@ export default function StatsScreen() {
           contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
           showsVerticalScrollIndicator={false}
         >
-          <View ref={statPillsRef} collapsable={false} style={styles.statRow}>
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{weekCount}</Text>
-              <Text style={styles.statLabel}>This Week</Text>
-            </View>
-            <View style={styles.statDiv} />
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{streak}</Text>
-              <Text style={styles.statLabel}>Week Streak</Text>
-            </View>
-            <View style={styles.statDiv} />
-            <View style={styles.statCell}>
-              <Text style={styles.statValue}>{completedSessions.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-          </View>
+          <StatStrip
+            innerRef={statPillsRef}
+            C={C}
+            items={[
+              { value: String(weekCount), label: 'This Week' },
+              { value: String(streak), label: 'Week Streak' },
+              { value: String(completedSessions.length), label: 'Total' },
+            ]}
+          />
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               icon="stats-chart-outline"
@@ -3881,22 +3903,15 @@ export default function StatsScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* 3 key stat pills */}
-            <View ref={statPillsRef} collapsable={false} style={styles.statRow}>
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{weekCount}</Text>
-                <Text style={styles.statLabel}>This Week</Text>
-              </View>
-              <View style={styles.statDiv} />
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{streak}</Text>
-                <Text style={styles.statLabel}>Week Streak</Text>
-              </View>
-              <View style={styles.statDiv} />
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{completedSessions.length}</Text>
-                <Text style={styles.statLabel}>Total</Text>
-              </View>
-            </View>
+            <StatStrip
+              innerRef={statPillsRef}
+              C={C}
+              items={[
+                { value: String(weekCount), label: 'This Week' },
+                { value: String(streak), label: 'Week Streak' },
+                { value: String(completedSessions.length), label: 'Total' },
+              ]}
+            />
 
             {/* Overview was the one sub-tab with no section headings at all,
                 so the 17px heading level that structures the other three simply
@@ -3955,13 +3970,17 @@ export default function StatsScreen() {
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Someone who does not train the three barbell lifts used to get
-                four empty states here and nothing else: three dashes, three
-                "No data yet" charts, and an empty Personal Bests list. The 1RM
-                machinery genuinely does only cover those lifts — but everyone
-                who logs a weighted set has a heaviest lift, whatever session it
-                came from, so show that instead of a blank page. */}
-            {noKpiData && heaviestLifts.length > 0 && (
+            {/* THE SHAPE OF THIS TAB IS CONDITIONAL, and it has to be.
+                Everything below the heaviest-lifts list is built on 1RMs, which
+                only exist for squat, bench and deadlift. Someone who trains
+                conditioning, rehab or their own sessions got four empty states
+                in a row — three dashes, three "no data" charts, an empty PB
+                list — forever, with nothing telling them why.
+
+                Now each block appears only when it has something to say, and
+                what everyone HAS got leads. Every logged weighted set has a
+                heaviest lift, whatever session it came from. */}
+            {heaviestLifts.length > 0 && (
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>Your heaviest lifts</Text>
@@ -3982,28 +4001,41 @@ export default function StatsScreen() {
               </View>
             )}
 
-            {/* Best lift summary — top glance card */}
-            <View style={styles.statRow}>
-              {LIFT_TYPES.map((lift, i) => {
-                const best = oneRepMaxes
-                  .filter((o) => o.lift === lift)
-                  .reduce((m, o) => Math.max(m, o.weight), 0);
-                const display =
-                  best > 0 ? String(Math.round(kgToDisplayUnit(best, weightUnit))) : '—';
-                return (
-                  <React.Fragment key={lift}>
-                    {i > 0 && <View style={styles.statDiv} />}
-                    <View style={styles.statCell}>
-                      <Text style={styles.statValue}>{display}</Text>
-                      <Text style={styles.statLabel}>
-                        {LIFT_LABELS[lift]}
-                        {best > 0 ? ` ${weightUnit}` : ''}
-                      </Text>
-                    </View>
-                  </React.Fragment>
-                );
-              })}
-            </View>
+            {/* The three-lift summary is only a summary when there is something
+                in it. With no 1RMs at all it was three em-dashes in a card. */}
+            {!noKpiData && (
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Your tested maxes</Text>
+                  <Text style={styles.sectionSub}>One-rep max for each of the three big lifts</Text>
+                </View>
+                <StatStrip
+                  C={C}
+                  items={LIFT_TYPES.map((lift) => {
+                    const best = oneRepMaxes
+                      .filter((o) => o.lift === lift)
+                      .reduce((m, o) => Math.max(m, o.weight), 0);
+                    return {
+                      // The unit belongs beside the number, not glued onto the
+                      // label — "Squat kg" reads as a different statistic.
+                      value: best > 0 ? String(Math.round(kgToDisplayUnit(best, weightUnit))) : '—',
+                      hint: best > 0 ? weightUnit : undefined,
+                      label: LIFT_LABELS[lift],
+                    };
+                  })}
+                />
+              </View>
+            )}
+
+            {noKpiData && (
+              <View style={styles.noKpiCard}>
+                <Ionicons name="barbell-outline" size={18} color={C.textSecondary} />
+                <Text style={styles.noKpiText}>
+                  One-rep max tracking covers squat, bench and deadlift. Record one in a test week
+                  or work it out below, and the progression charts appear here.
+                </Text>
+              </View>
+            )}
 
             <Pressable
               onPress={() => setShowCalculator(true)}
@@ -4014,32 +4046,39 @@ export default function StatsScreen() {
               <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
             </Pressable>
 
-            <View style={styles.sectionBlock}>
-              <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>Strength Progression</Text>
-                <Text style={styles.sectionSub}>Estimated 1RM · tap a dot for details</Text>
+            {/* One chart per lift that has been tested. Charting a lift with no
+                history draws an axis and the words "no data", three times over. */}
+            {testedLifts.length > 0 && (
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Strength Progression</Text>
+                  <Text style={styles.sectionSub}>Estimated 1RM · tap a dot for details</Text>
+                </View>
+                {testedLifts.map((lift) => (
+                  <StrengthLineChart
+                    key={lift}
+                    lift={lift}
+                    orms={oneRepMaxes}
+                    weightUnit={weightUnit}
+                    C={C}
+                  />
+                ))}
               </View>
-              {(['squat', 'bench', 'deadlift'] as SessionType[]).map((lift) => (
-                <StrengthLineChart
-                  key={lift}
-                  lift={lift}
-                  orms={oneRepMaxes}
-                  weightUnit={weightUnit}
-                  C={C}
-                />
-              ))}
-            </View>
+            )}
 
-            {/* Muscle Progress — body heatmap, moved here from Overview */}
+            {/* Muscle Progress — body heatmap, moved here from Overview. This
+                one works for everybody: it is built from sessions, not 1RMs. */}
             <MuscleProgressPanel completedSessions={completedSessions} C={C} />
 
-            <View style={styles.sectionBlock}>
-              <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>Personal Bests</Text>
-                <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+            {!noKpiData && (
+              <View style={styles.sectionBlock}>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Personal Bests</Text>
+                  <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+                </View>
+                <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
               </View>
-              <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
-            </View>
+            )}
           </ScrollView>
 
           {/* HISTORY TAB */}
@@ -4793,25 +4832,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // spacing stays even however the blocks are reordered.
     tabContent: { paddingHorizontal: 20, paddingTop: 12, gap: 16 },
 
-    statRow: {
+
+    noKpiCard: {
       flexDirection: 'row',
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      padding: 16,
+      gap: 10,
+      alignItems: 'flex-start',
+      backgroundColor: C.surfaceTertiary,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
-      alignItems: 'center',
+      padding: 14,
     },
-    statCell: { flex: 1, alignItems: 'center' },
-    statValue: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primary },
-    statLabel: {
-      fontSize: 11,
-      fontFamily: 'Inter_500Medium',
+    noKpiText: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
-      marginTop: 2,
-      textAlign: 'center',
+      lineHeight: 18,
     },
-    statDiv: { width: 1, height: 32, backgroundColor: C.border },
 
     sectionBlock: { gap: 12 },
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },

@@ -146,8 +146,19 @@ check(
 );
 check(
   'it renders only when there is something to show',
-  /\{noKpiData && heaviestLifts\.length > 0 && \(/.test(stats),
+  /\{heaviestLifts\.length > 0 && \(/.test(stats),
   'an empty "Your heaviest lifts" heading is just a fifth empty state'
+);
+// This assertion used to require `noKpiData && heaviestLifts.length > 0`, which
+// was wrong in a way that only showed up once someone had used the app for a
+// while: the block DISAPPEARED the moment a single 1RM was recorded. A
+// conditioning user who tested their squat once went from a useful list of
+// their heaviest lifts to a tab with one number and two empty charts. The
+// intent — never render an empty heading — is kept; the extra gate is not.
+check(
+  'and it is not switched off by having one 1RM',
+  !/noKpiData && heaviestLifts\.length > 0/.test(stats),
+  'gating on noKpiData deletes the fallback at exactly the point it starts being useful'
 );
 
 console.log('');

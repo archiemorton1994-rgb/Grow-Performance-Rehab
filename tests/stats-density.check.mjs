@@ -53,10 +53,7 @@ check(
   'without it every block has to invent its own bottom margin, and they disagreed'
 );
 
-for (const [style, label] of [
-  ['statRow', 'the stat pill strip'],
-  ['drillDownCard', 'the drill-down cards'],
-]) {
+for (const [style, label] of [['drillDownCard', 'the drill-down cards']]) {
   const block = src.slice(src.indexOf(`    ${style}: {`), src.indexOf(`    ${style}: {`) + 400);
   check(
     `${label} no longer sets its own bottom margin`,
@@ -64,6 +61,37 @@ for (const [style, label] of [
     'it would stack on top of the container gap'
   );
 }
+
+// ─── 1b. The three-figure summary card exists once ───────────────────────────
+console.log('\n[1b] The stat strip is one component, not four copies');
+
+check(
+  'there is a StatStrip component',
+  /function StatStrip\(/.test(src),
+  'it was hand-built four times — twice verbatim on Overview, once on Strength, and once inline'
+);
+check(
+  'nothing hand-builds a stat cell any more',
+  !/styles\.statCell|styles\.statValue|styles\.statDiv/.test(src),
+  'a leftover copy is a leftover place for the design to drift'
+);
+// The inline copy used 22px where the two style-sheet copies used 26px. Nobody
+// decided that; it happened because the card was written more than once. Scoped
+// to the component so it measures the card, not every bold number on the tab.
+const stripBody = src.slice(src.indexOf('function StatStrip('), src.indexOf('function MuscleProgressPanel('));
+const bigNumbers = new Set(
+  [...stripBody.matchAll(/fontSize: (\d+), fontFamily: 'Inter_700Bold'/g)].map((m) => Number(m[1]))
+);
+check(
+  `the summary number has one size (found ${[...bigNumbers].join(', ') || 'none'})`,
+  bigNumbers.size === 1,
+  'three implementations of one card meant three different number sizes'
+);
+check(
+  'the unit sits beside the number rather than in the label',
+  /hint\?: string/.test(stripBody),
+  '"Squat kg" as a label reads as a different statistic from "Squat"'
+);
 
 check(
   'no block card overrides the rhythm inline',
@@ -144,6 +172,39 @@ check(
   'the Muscle Progress drill-down that landed in the wrong place is gone',
   !/drillDownTitle}>Muscle Progress</.test(src),
   'it promised a heatmap and delivered a scroll-to-top on another tab'
+);
+
+// ─── 5. The Strength tab has something to say to a non-lifter ────────────────
+console.log('\n[5] No block renders itself empty');
+
+// Everything on this tab except the heaviest-lifts list is built on 1RMs, which
+// only exist for squat/bench/deadlift. Someone who trains conditioning, rehab
+// or their own sessions used to get three em-dashes, three "no data" charts and
+// an empty PB list — permanently, with nothing saying why.
+check(
+  'the heaviest-lifts list is not gated on having no 1RM',
+  !/\{noKpiData && heaviestLifts\.length > 0 && \(/.test(src),
+  'gated that way it VANISHED the moment a single 1RM existed, which is the worst possible moment'
+);
+check(
+  'heaviestLifts is computed for everyone',
+  !/const heaviestLifts = useMemo\(\(\) => \{\s*if \(!noKpiData\) return \[\];/.test(src),
+  'an early return here empties the one block that works without 1RMs'
+);
+check(
+  'only tested lifts get a progression chart',
+  /const testedLifts = useMemo\(/.test(src) && /testedLifts\.map\(\(lift\) => \(/.test(src),
+  'charting an untested lift draws an axis and the words "no data", three times over'
+);
+check(
+  'the tested-maxes card is hidden when there are no maxes',
+  /\{!noKpiData && \(/.test(src),
+  'three em-dashes in a card is not a summary'
+);
+check(
+  'and something explains the absence instead',
+  /\{noKpiData && \(/.test(src) && /noKpiCard/.test(src),
+  'an empty tab with no explanation reads as a broken tab'
 );
 
 console.log('');
