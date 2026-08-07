@@ -4,6 +4,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
+import {
+  getTrainingBalanceNudge as getBalanceNudge,
+  type BalanceNudge,
+} from '@/lib/training-balance';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -358,6 +362,10 @@ interface AppState {
   lastLoggedWeights: Record<string, number>;
   /** Whether the App Store review prompt has already been shown to this user. */
   reviewPromptShown: boolean;
+  /** When the training-balance nudge was last dismissed, ms since epoch.
+   *  Persisted, because dismissing it has to survive closing the app —
+   *  otherwise it is a snooze that pretends to be an answer. */
+  balanceNudgeDismissedAt: number | null;
   /** Whether the daily workout reminder is enabled. */
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
@@ -438,6 +446,10 @@ interface AppState {
   clearActiveSession: () => void;
   updateLastLoggedWeights: (weights: Record<string, number>) => void;
   setReviewPromptShown: (shown: boolean) => void;
+  dismissBalanceNudge: (ts: number) => void;
+  /** The one training-balance observation worth showing right now, or null.
+   *  See lib/training-balance.ts for what it will and will not say. */
+  getTrainingBalanceNudge: (now: number) => BalanceNudge | null;
   setReminderEnabled: (enabled: boolean) => void;
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
@@ -576,6 +588,7 @@ export const useAppStore = create<AppState>()(
       activeSession: null,
       lastLoggedWeights: {},
       reviewPromptShown: false,
+      balanceNudgeDismissedAt: null,
       reminderEnabled: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
@@ -648,6 +661,25 @@ export const useAppStore = create<AppState>()(
           lastLoggedWeights: { ...state.lastLoggedWeights, ...weights },
         })),
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
+      dismissBalanceNudge: (ts) => set({ balanceNudgeDismissedAt: ts }),
+
+      /**
+       * The store side of the balance nudge: gather the history, hand it to a
+       * pure function, return what it says.
+       *
+       * `now` is a parameter rather than read here so the rule stays testable
+       * without faking a clock — the same reason the module below takes it.
+       */
+      getTrainingBalanceNudge: (now) => {
+        const { completedSessions, balanceNudgeDismissedAt } = get();
+        const sessionTypes = completedSessions.map((s) => s.sessionType);
+        return getBalanceNudge({
+          sessionTypes,
+          everTrained: sessionTypes,
+          dismissedAt: balanceNudgeDismissedAt,
+          now,
+        });
+      },
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
@@ -988,21 +1020,31 @@ export const useAppStore = create<AppState>()(
         // mobility gets them alternately. It can never suggest a type they have
         // never chosen, which is the whole point.
         //
-        // 'custom' is excluded on purpose: generateWorkout returns [] for it
-        // (lib/workout-engine.ts), because a custom session is assembled by the
-        // user in the builder rather than generated. Suggesting it from the home
-        // card would hand them an empty workout. A custom-only user therefore
-        // falls through to NON_KPI_FALLBACK — pointing the home card at the
-        // builder instead is a separate piece of work.
+        // 'custom' is held back from the rotation rather than excluded from the
+        // answer. generateWorkout returns [] for it (lib/workout-engine.ts) —
+        // a custom session is assembled in the builder, not generated — so it
+        // must never be offered as one of several types to rotate through, or
+        // the home card would eventually hand someone an empty workout.
+        //
+        // But a user whose ONLY sessions are custom has no other vocabulary to
+        // draw on, and used to fall through to a generated full-body session
+        // they had never once chosen. For them the honest suggestion is their
+        // own session, and the home card routes it to the builder instead of
+        // the generator.
         const vocabulary: SessionType[] = [];
+        let hasCustom = false;
         for (const s of completedSessions) {
           if (SESSION_ORDER.includes(s.sessionType)) continue;
-          if (s.sessionType === 'custom') continue;
+          if (s.sessionType === 'custom') {
+            hasCustom = true;
+            continue;
+          }
           if (!vocabulary.includes(s.sessionType)) vocabulary.push(s.sessionType);
         }
         // completedSessions is newest-first, so the LAST entry gathered above is
         // the one trained least recently.
-        return vocabulary.length > 0 ? vocabulary[vocabulary.length - 1] : NON_KPI_FALLBACK;
+        if (vocabulary.length > 0) return vocabulary[vocabulary.length - 1];
+        return hasCustom ? 'custom' : NON_KPI_FALLBACK;
       },
 
       /**

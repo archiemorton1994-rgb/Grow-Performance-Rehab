@@ -132,7 +132,21 @@ export default function HomeScreen() {
     tourActiveTab,
     setTourActiveTab,
     skipTour,
+    getTrainingBalanceNudge,
+    dismissBalanceNudge,
+    balanceNudgeDismissedAt,
   } = useAppStore();
+
+  // Recomputed when the history or the dismissal changes, not on every render:
+  // the rule reads the whole session list. Date.now() is deliberately captured
+  // here rather than inside the selector so the memo has something stable to
+  // key on — the dismissal window is measured in days, so a timestamp that is
+  // a render old cannot change the answer.
+  const balanceNudge = useMemo(
+    () => getTrainingBalanceNudge(Date.now()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [completedSessions, balanceNudgeDismissedAt]
+  );
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
@@ -395,6 +409,15 @@ export default function HomeScreen() {
   const handleStartSuggested = () => {
     const go = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // A custom session is built, not generated — generateWorkout returns []
+      // for it. Someone whose only sessions are their own gets suggested their
+      // own, and that suggestion has to lead to the builder. Sending it through
+      // readiness would end in an empty workout, which is why the suggestion
+      // used to be a generated full-body session they had never chosen.
+      if (suggestedSession === 'custom') {
+        router.push('/custom-session');
+        return;
+      }
       const equipmentOverrideParam = sessionEquipmentOverride
         ? JSON.stringify(sessionEquipmentOverride)
         : undefined;
@@ -1021,6 +1044,56 @@ export default function HomeScreen() {
                 style={styles.weightReminderDismiss}
                 testID="weight-reminder-dismiss"
                 accessibilityLabel="Snooze reminder"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          )}
+
+          {/* Training balance — the app's only observation about WHAT you
+              train rather than whether you trained.
+
+              Phrased as something noticed, not something to fix, and it can be
+              dismissed for a fortnight. It will not appear for anyone whose
+              gap might be deliberate: see lib/training-balance.ts, where most
+              of the logic is about staying quiet. */}
+          {balanceNudge && (
+            <Animated.View
+              entering={FadeInDown.delay(260).duration(380)}
+              style={styles.weightReminderCard}
+              testID="balance-nudge"
+            >
+              <View style={[styles.weightReminderIcon, { backgroundColor: C.primarySurface }]}>
+                <Ionicons name="git-compare-outline" size={20} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.weightReminderTitle}>Your training mix</Text>
+                <Text style={styles.weightReminderSub}>{balanceNudge.message}</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push({
+                    pathname: '/readiness',
+                    params: { sessionType: balanceNudge.suggestion, isTestWeek: 'false' },
+                  });
+                }}
+                style={({ pressed }) => [
+                  styles.weightUpdateBtn,
+                  { backgroundColor: C.primary },
+                  pressed && { opacity: 0.85 },
+                ]}
+                testID="balance-nudge-action"
+              >
+                <Text style={[styles.weightUpdateBtnText, { color: C.textInverse }]}>Train it</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => dismissBalanceNudge(Date.now())}
+                hitSlop={10}
+                style={styles.weightReminderDismiss}
+                testID="balance-nudge-dismiss"
+                accessibilityLabel="Dismiss"
                 accessibilityRole="button"
               >
                 <Ionicons name="close" size={16} color={C.textTertiary} />

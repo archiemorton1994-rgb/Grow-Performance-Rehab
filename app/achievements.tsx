@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -311,7 +311,34 @@ export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
 
-  const { earnedBadges } = useAppStore();
+  const { earnedBadges, testWeekFrequency, setTestWeekFrequency } = useAppStore();
+
+  /**
+   * Twenty of the 277 badges need a barbell test week or a 1RM improvement, and
+   * five more are worded around squat/bench/deadlift. For someone who has
+   * turned test weeks OFF, those twenty-five are unreachable — and the locked
+   * hint told them to "Complete a 1RM test week to unlock this", which is the
+   * app instructing them to do the exact thing they declined.
+   *
+   * Two changes, both small and both deliberate about what they do NOT do:
+   *
+   *   - The badges stay visible. Hiding them would mean the cabinet silently
+   *     changed size when the setting changed, and someone who turns test weeks
+   *     back on should not have twenty-five badges appear from nowhere.
+   *   - The denominator excludes them, so "12 of 252" is a total that can
+   *     actually be reached. A progress bar with an unreachable maximum is a
+   *     progress bar that can never fill.
+   *
+   * And the hint becomes an offer rather than an instruction, because the
+   * honest answer to "how do I get this" is "turn test weeks on, if you want
+   * to" — not "do a test week".
+   */
+  const testsOff = testWeekFrequency === 'never';
+  const isKpiLocked = useCallback(
+    (b: Badge) =>
+      testsOff && (b.criteriaType === 'test_week' || b.criteriaType === 'strength_improvement'),
+    [testsOff]
+  );
   const earnedSet = useMemo(() => new Set(earnedBadges), [earnedBadges]);
   const params = useLocalSearchParams<{ tour?: string }>();
   const isTourMode = params.tour === '1';
@@ -356,7 +383,11 @@ export default function AchievementsScreen() {
   }, [activeFilter, earnedSet]);
 
   const totalEarned = earnedBadges.length;
-  const totalBadges = BADGE_CATALOG.length;
+  // Counts only what this user can actually get — see isKpiLocked.
+  const totalBadges = useMemo(
+    () => BADGE_CATALOG.filter((b) => !isKpiLocked(b)).length,
+    [isKpiLocked]
+  );
 
   // The showcase. earnedBadges is appended to in unlock order, so the last id
   // still present in the catalogue is the most recent thing won.
@@ -629,19 +660,52 @@ export default function AchievementsScreen() {
                 {detailBadge.description}
               </Text>
 
-              {!detailEarned && (
-                <View
-                  style={[
-                    styles.hintBox,
-                    { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
-                  ]}
-                >
-                  <Ionicons name="information-circle-outline" size={15} color={C.primary} />
-                  <Text style={[styles.hintText, { color: C.textSecondary }]}>
-                    {CRITERIA_HINTS[detailBadge.criteriaType]}
-                  </Text>
-                </View>
-              )}
+              {!detailEarned &&
+                (isKpiLocked(detailBadge) ? (
+                  /* Not "complete a 1RM test week" — this user switched test
+                     weeks off, and repeating the instruction is the app arguing
+                     with a decision it asked them to make. State the condition,
+                     offer the switch, and leave it there. */
+                  <View
+                    style={[
+                      styles.hintBox,
+                      { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
+                    ]}
+                  >
+                    <Ionicons name="lock-closed-outline" size={15} color={C.textTertiary} />
+                    <View style={{ flex: 1, gap: 8 }}>
+                      <Text style={[styles.hintText, { color: C.textSecondary }]}>
+                        This one needs strength test weeks, which you have turned off. Nothing wrong
+                        with that — it is not counted in your total.
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          if (Platform.OS !== 'web')
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setTestWeekFrequency(12);
+                        }}
+                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+                        testID="enable-test-weeks"
+                      >
+                        <Text style={[styles.hintText, { color: C.primary }]}>
+                          Turn test weeks back on →
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.hintBox,
+                      { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
+                    ]}
+                  >
+                    <Ionicons name="information-circle-outline" size={15} color={C.primary} />
+                    <Text style={[styles.hintText, { color: C.textSecondary }]}>
+                      {CRITERIA_HINTS[detailBadge.criteriaType]}
+                    </Text>
+                  </View>
+                ))}
 
               <Text style={[styles.detailCategory, { color: C.textTertiary }]}>
                 {BADGE_CATEGORY_LABELS[detailBadge.category]}

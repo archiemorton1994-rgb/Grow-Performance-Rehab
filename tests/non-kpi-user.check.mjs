@@ -34,7 +34,6 @@ const read = (rel) => readFileSync(join(__dir, rel), 'utf8');
 const store = read('../lib/store.ts');
 const readiness = read('../app/readiness.tsx');
 const profile = read('../app/(tabs)/profile.tsx');
-const home = read('../app/(tabs)/index.tsx');
 
 let failures = 0;
 let total = 0;
@@ -124,10 +123,22 @@ check(
   /const vocabulary: SessionType\[\] = \[\];/.test(store),
   'a fixed fallback rotation would just be a different arbitrary default'
 );
+// This used to read "'custom' is never suggested", which was the right rule for
+// the wrong reason. generateWorkout returns [] for custom, so it must never
+// enter the ROTATION — otherwise someone who mixes custom and conditioning
+// would eventually be handed an empty workout. But excluding it from the answer
+// entirely meant a custom-ONLY user, with no other vocabulary to draw on, was
+// offered a generated full-body session they had never once chosen. It is held
+// back from the rotation and used as the last resort instead.
 check(
-  "'custom' is never suggested",
-  /if \(s\.sessionType === 'custom'\) continue;/.test(store),
-  'generateWorkout returns [] for custom, so suggesting it hands the user an empty workout'
+  "'custom' is held out of the rotation",
+  /if \(s\.sessionType === 'custom'\) \{\s*\n\s*hasCustom = true;\s*\n\s*continue;/.test(store),
+  'mixing it into the rotation would eventually hand the user an empty workout'
+);
+check(
+  'but a custom-only user is still offered their own session',
+  /return hasCustom \? 'custom' : NON_KPI_FALLBACK;/.test(store),
+  'the fallback pointed them at a generated full-body session they never chose'
 );
 
 // ─── 3b. Behaviour, run against the real constants ───────────────────────────
@@ -168,12 +179,17 @@ function suggest(history, cycleStartOffset = 0) {
     return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
   }
   const vocabulary = [];
+  let hasCustom = false;
   for (const s of sessions) {
     if (SESSION_ORDER.includes(s.sessionType)) continue;
-    if (s.sessionType === 'custom') continue;
+    if (s.sessionType === 'custom') {
+      hasCustom = true;
+      continue;
+    }
     if (!vocabulary.includes(s.sessionType)) vocabulary.push(s.sessionType);
   }
-  return vocabulary.length > 0 ? vocabulary[vocabulary.length - 1] : NON_KPI_FALLBACK;
+  if (vocabulary.length > 0) return vocabulary[vocabulary.length - 1];
+  return hasCustom ? 'custom' : NON_KPI_FALLBACK;
 }
 
 const scenarios = [
@@ -182,13 +198,31 @@ const scenarios = [
   ['a lifter mid-cycle keeps the rotation', ['bench', 'squat', 'deadlift', 'bench', 'squat'], 'deadlift'],
   ['a lifter who spent six sessions rehabbing is offered rehab', ['prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'deadlift', 'bench', 'squat'], 'prehab'],
   ['and one squat restores the rotation where it left off', ['squat', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'prehab', 'deadlift', 'bench', 'squat'], 'bench'],
-  ['a custom-only user is never handed an empty custom session', ['custom', 'custom', 'custom', 'custom'], NON_KPI_FALLBACK],
+  ['a custom-only user is offered their own session, not a generated one', ['custom', 'custom', 'custom', 'custom'], 'custom'],
   ['custom plus conditioning suggests the conditioning', ['custom', 'conditioning', 'custom', 'conditioning'], 'conditioning'],
 ];
 for (const [label, history, expected] of scenarios) {
   const got = suggest(history);
   check(label, got === expected, `got "${got}", expected "${expected}"`);
 }
+
+// 'custom' is the one suggestion the home card cannot send through readiness:
+// generateWorkout returns [] for it, so a custom session is built rather than
+// generated. It used to be excluded from the answer entirely for that reason,
+// which meant a custom-only user was offered a generated full-body session they
+// had never once chosen. The suggestion is honest now, and it is the ROUTING
+// that has to differ.
+const home = read('../app/(tabs)/index.tsx');
+check(
+  "a suggested custom session opens the builder, not readiness",
+  /suggestedSession === 'custom'\)\s*\{[\s\S]{0,120}?router\.push\('\/custom-session'\)/.test(home),
+  'sending it to readiness would end in an empty workout, which is why it used to be suppressed'
+);
+check(
+  'and that branch returns before the readiness push',
+  /router\.push\('\/custom-session'\);[\s\S]{0,40}?return;/.test(home),
+  'without the return it would push both screens'
+);
 
 // ─── 3c. "Your Program" shows the programme they are actually on ─────────────
 console.log('\n[3c] The Your Program screen stops drawing a barbell cycle');
