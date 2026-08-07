@@ -978,8 +978,29 @@ export const useAppStore = create<AppState>()(
        * restores it exactly where it left off.
        */
       isOnStrengthProgramme: () => {
-        const { completedSessions } = get();
-        if (completedSessions.length < NON_KPI_EVIDENCE) return true;
+        const { completedSessions, testWeekFrequency } = get();
+        /**
+         * SAYING YES TO TEST WEEKS RAISES THE BAR FOR DIVERTING.
+         *
+         * Someone who chose "test my strength every 12 sessions" has told us,
+         * in as many words, that the three lifts are part of their plan. With a
+         * flat three-session threshold, three conditioning sessions in their
+         * first fortnight was enough to move them off the barbell rotation —
+         * and once off it they could never be tested either, because a test
+         * only comes due on a strength session. Opting in led to never being
+         * offered the thing they opted into.
+         *
+         * So an opted-in user keeps the rotation until a FULL recent window has
+         * gone by without a single KPI lift in it. The divert still works — a
+         * lifter who spends six sessions rehabbing stops being told to squat,
+         * and their first squat back restores the rotation exactly where it was
+         * — it just takes a clear, repeated choice rather than a quiet fortnight.
+         *
+         * Someone who declined test weeks keeps the lighter threshold: they
+         * said the opposite, and taking three sessions at their word is right.
+         */
+        const evidenceNeeded = testWeekFrequency === 'never' ? NON_KPI_EVIDENCE : RECENT_WINDOW;
+        if (completedSessions.length < evidenceNeeded) return true;
         return completedSessions
           .slice(0, RECENT_WINDOW)
           .some((s) => SESSION_ORDER.includes(s.sessionType));

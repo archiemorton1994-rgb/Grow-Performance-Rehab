@@ -1,36 +1,28 @@
 /**
- * Contract test: the pain-filter heatmap always shows all-time counts.
+ * Contract test: there is ONE pain body diagram on the Stats tab, and it does
+ * both jobs.
  *
- * WHY THIS MATTERS
+ * WHAT THIS FILE USED TO SAY
+ * ──────────────────────────
+ * It asserted that there were exactly TWO pain heatmaps and policed the
+ * difference between them: an overview diagram that respected the all-time /
+ * recent toggle, and a filter diagram that had to ignore the toggle and always
+ * show all-time counts — because filtering by a region with no recent pain
+ * would have looked broken.
+ *
+ * That was a correct rule about a design that should not have existed. The two
+ * diagrams were the same picture of the same body drawn twice, a scroll apart
+ * on a tab the owner had already called crammed, with a button on the first one
+ * whose only purpose was to do what the second one did.
+ *
+ * WHAT IT SAYS NOW
  * ────────────────
- * The Stats tab contains two pain BodyDiagram heatmaps:
- *
- *  1. OVERVIEW diagram — respects the all / recent toggle by reading
- *     `painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts`.
- *     This is intentional: the toggle lets users compare their lifetime pain
- *     pattern against recent sessions.
- *
- *  2. FILTER diagram — sits inside the session-filter panel and lets users
- *     tap a region to filter the session history. This one must ALWAYS use
- *     `painRegionCounts` (all-time), because filtering by a region that
- *     shows zero recent pain would look inactive even when many all-time
- *     sessions are logged against it — making the filter appear broken.
- *
- * If someone accidentally swaps the filter diagram over to the mode-switch
- * ternary (or to `recentPainCounts` directly), users on a pain-free run
- * would see a blank heatmap in the filter panel and might think the feature
- * is broken or their pain history is gone.
- *
- * Checks:
- *  1. SOURCE — exactly one pain-related `heatmapCounts` assignment uses the
- *              mode-switch ternary (the overview diagram)
- *  2. SOURCE — exactly one pain-related `heatmapCounts` assignment is a
- *              direct `heatmapCounts={painRegionCounts}` with no ternary
- *              (the filter diagram)
- *  3. SOURCE — the direct assignment does NOT contain `recentPainCounts`
- *              (the filter is not accidentally reading the recent variable)
- *  4. SOURCE — the filter diagram assignment appears AFTER the overview
- *              assignment (structural sanity: filter panel is below overview)
+ * One diagram, one selection. Tapping a region shows that region's numbers AND
+ * filters the session list below it. The original concern does not disappear —
+ * it changes shape: with a single diagram, an empty "recent" view must not
+ * strand the user with no way to clear a filter they can no longer see. That is
+ * what the header subtitle and the shared toggle are for, and both are asserted
+ * below.
  *
  * Run:  node tests/pain-filter-heatmap-alltime.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -45,98 +37,89 @@ const src = readFileSync(join(__dir, '../app/(tabs)/workouts.tsx'), 'utf8');
 
 let failures = 0;
 let total = 0;
-
 function check(label, condition, detail) {
   total++;
-  if (condition) {
-    console.log(`  ✓ ${label}`);
-  } else {
+  if (condition) console.log(`  ✓ ${label}`);
+  else {
     console.error(`  ✗ FAIL: ${label}${detail ? ` — ${detail}` : ''}`);
     failures++;
   }
 }
 
-// ─── Anchors ─────────────────────────────────────────────────────────────────
+const MODE_TERNARY = "painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts";
 
-// The exact ternary used by the overview diagram
-const OVERVIEW_TERNARY = "painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts";
+// ─── 1. One diagram ──────────────────────────────────────────────────────────
+console.log('\n[1] The tab draws the body once');
 
-// The exact direct prop used by the filter diagram
-const FILTER_DIRECT = 'heatmapCounts={painRegionCounts}';
-
-// ─── Locate all matches ───────────────────────────────────────────────────────
-
-// Count how many times the ternary appears as a heatmapCounts value
-const ternaryMatches = [
-  ...src.matchAll(new RegExp(OVERVIEW_TERNARY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')),
-];
-
-// Count how many times the direct assignment appears
-const directMatches = [
-  ...src.matchAll(new RegExp(FILTER_DIRECT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')),
-];
-
-const overviewIdx = ternaryMatches.length > 0 ? src.indexOf(OVERVIEW_TERNARY) : -1;
-const filterIdx = directMatches.length > 0 ? src.indexOf(FILTER_DIRECT) : -1;
-
-// ─── 1. Exactly one overview ternary ─────────────────────────────────────────
-console.log(
-  '\n[1] Source — exactly one pain heatmapCounts uses the mode-switch ternary (overview)'
+// Counts every BodyDiagram fed by pain data. The muscle-progress heatmap is a
+// different component and does not use these props.
+const painDiagrams = [...src.matchAll(/heatmapCounts=\{[^}]*[Pp]ainCounts[^}]*\}/g)];
+check(
+  `exactly one pain heatmap (found ${painDiagrams.length})`,
+  painDiagrams.length === 1,
+  painDiagrams.length > 1
+    ? 'two full body diagrams on one tab is the redundancy this merge removed'
+    : 'the pain heatmap has gone entirely'
 );
+check(
+  'and it respects the all-time / recent toggle',
+  src.includes(MODE_TERNARY),
+  'without the ternary the toggle is a no-op'
+);
+check(
+  'the standalone filter panel is gone',
+  !src.includes('{/* Pain Region Heatmap Filter */}'),
+  'it existed only to set the filter the one remaining diagram now sets directly'
+);
+
+// ─── 2. One selection ────────────────────────────────────────────────────────
+console.log('\n[2] Selecting a region and filtering by it are the same act');
 
 check(
-  `mode-switch ternary appears exactly once: "${OVERVIEW_TERNARY}"`,
-  ternaryMatches.length === 1,
-  ternaryMatches.length === 0
-    ? 'ternary not found — the overview heatmap may have lost its mode-switch, ' +
-        "making the 'recent' toggle a no-op"
-    : `found ${ternaryMatches.length} occurrences — expected exactly 1`
+  'the diagram is driven by the filter state',
+  /selected=\{painRegionFilter \?\? undefined\}/.test(src),
+  'a separate highlight variable is how the two diagrams came to disagree'
 );
-
-// ─── 2. Exactly one direct filter assignment ──────────────────────────────────
-console.log('\n[2] Source — exactly one pain heatmapCounts is a direct all-time prop (filter)');
-
 check(
-  `direct assignment appears exactly once: "${FILTER_DIRECT}"`,
-  directMatches.length === 1,
-  directMatches.length === 0
-    ? `"${FILTER_DIRECT}" not found — the filter diagram may have been changed ` +
-        'to use the mode-switch ternary or recentPainCounts, causing the filter ' +
-        'panel to show different intensities depending on recent history'
-    : `found ${directMatches.length} occurrences — expected exactly 1`
+  'tapping a zone sets the filter',
+  /onSelect=\{\(r\) => \{[\s\S]{0,200}?setPainRegionFilter\(\(prev\) => togglePainFilter\(prev, r\)\)/.test(
+    src
+  ),
+  'togglePainFilter is shared with the pain pills, so the two ways of picking a region agree'
 );
-
-// ─── 3. Filter assignment does not reference recentPainCounts ─────────────────
-console.log('\n[3] Source — the filter diagram does not reference recentPainCounts');
-
-// Grab a window around the direct assignment to inspect (200 chars is enough)
-const windowAround =
-  filterIdx !== -1
-    ? src.slice(Math.max(0, filterIdx - 20), filterIdx + FILTER_DIRECT.length + 20)
-    : null;
-
 check(
-  'filter heatmapCounts prop does not contain `recentPainCounts`',
-  windowAround !== null && !windowAround.includes('recentPainCounts'),
-  windowAround === null
-    ? 'filter assignment not found — could not inspect its value'
-    : '`recentPainCounts` detected in the filter heatmapCounts prop — the filter ' +
-        'diagram is now reading recent data instead of all-time counts'
+  'the old second selection variable is gone',
+  !/painOverviewSelected/.test(src),
+  'two variables meaning "the selected region" is two things to keep in step'
 );
 
-// ─── 4. Filter diagram appears after overview diagram ────────────────────────
-console.log(
-  '\n[4] Source — filter diagram (all-time) appears after overview diagram (mode-switch)'
-);
+// ─── 3. A filter you can always see and clear ────────────────────────────────
+console.log('\n[3] An active filter is never invisible');
 
+// This is the original concern in its new form. With one diagram, switching to
+// "recent" can leave the selected zone unshaded — so the panel header has to
+// state the active filter in words, and it has to do so even when collapsed.
 check(
-  'overview ternary index < filter direct assignment index (structural order)',
-  overviewIdx !== -1 && filterIdx !== -1 && overviewIdx < filterIdx,
-  `overviewIdx=${overviewIdx}, filterIdx=${filterIdx} — ` +
-    'expected filter panel to appear below the overview section in source'
+  'the panel header names the active region',
+  /Showing \$\{BODY_DIAGRAM_LABELS\[painRegionFilter\]\} sessions/.test(src),
+  'the header is the only part visible when the panel is collapsed'
+);
+check(
+  'and says how to clear it',
+  /tap the zone again to clear/.test(src),
+  ''
+);
+check(
+  'switching to the recent view clears the filter rather than orphaning it',
+  /setPainHeatmapMode\(mode\);\s*\n\s*setPainRegionFilter\(null\);/.test(src),
+  'a filter whose zone is unshaded in the current view is a filter the user cannot find to clear'
+);
+check(
+  'the panel is open by default',
+  /const \[painPatternsExpanded, setPainPatternsExpanded\] = useState\(true\)/.test(src),
+  'it is the filter control now, and a filter you have to go looking for is a filter nobody uses'
 );
 
-// ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
   console.error(`pain-filter-heatmap-alltime: ${failures}/${total} check(s) FAILED\n`);

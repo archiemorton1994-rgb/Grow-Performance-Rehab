@@ -44,62 +44,43 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. SOURCE — "See sessions" label exists ──────────────────────────────────
-console.log('\n[1] Source — "See sessions" Pressable exists');
+// ─── 1. Picking a region on the heatmap filters the list ─────────────────────
+console.log('\n[1] Tapping a region filters the sessions below it');
 
+// THIS SECTION USED TO CHECK A BUTTON. The pain detail strip carried a "See
+// sessions" Pressable whose onPress set the filter and switched to the History
+// tab. Both halves are now redundant: the panel already lives on History, so
+// the tab switch was a no-op that scrolled the user to the top, and tapping the
+// body sets the filter directly. The button was one tap standing in for
+// something that should never have needed one.
+//
+// The behaviour it protected still matters, so it is asserted against the
+// diagram instead of against the button.
+
+// Anchored on the diagram's own onSelect: find it, then confirm the filter
+// setter is inside that handler rather than somewhere else on the page.
+const onSelectIdx = src.indexOf('onSelect={(r) => {');
+const onSelectBody = onSelectIdx === -1 ? '' : src.slice(onSelectIdx, onSelectIdx + 240);
 check(
-  '"See sessions" text exists in workouts.tsx',
-  src.includes('See sessions'),
-  'label not found — button may have been removed or renamed'
+  'tapping a zone sets the pain filter',
+  onSelectBody.includes('setPainRegionFilter((prev) => togglePainFilter(prev, r))'),
+  'without this, selecting a region highlights it and shows nothing'
 );
-
-// ─── 2. SOURCE — handler calls setPainRegionFilter(painOverviewSelected) ──────
-console.log('\n[2] Source — onPress calls setPainRegionFilter(painOverviewSelected)');
-
 check(
-  'setPainRegionFilter(painOverviewSelected) is called',
-  src.includes('setPainRegionFilter(painOverviewSelected)'),
-  'call not found — filter will not be set when navigating from Overview'
+  'the detail strip reads from the same state the filter uses',
+  src.includes('selected={painRegionFilter ?? undefined}'),
+  'a separate highlight variable is how the two old diagrams came to disagree'
 );
-
-// ─── 3. SOURCE — handler calls setActiveTab("history") ────────────────────────
-console.log('\n[3] Source — onPress calls setActiveTab("history")');
-
 check(
-  "setActiveTab('history') is called",
-  src.includes("setActiveTab('history')"),
-  'call not found — app will not switch to the History tab'
+  'the redundant "See sessions" button is gone',
+  !src.includes('See sessions'),
+  'it set a filter that is now set by the tap itself, and switched to the tab it is already on'
 );
-
-// ─── 4. SOURCE — both calls appear together in the same handler block ──────────
-console.log('\n[4] Source — both calls are co-located in the same handler');
-
-// Find the index of the "See sessions" text, then look backwards for the
-// nearest onPress arrow-function open-brace and verify both setter calls
-// appear before the matching close-brace.
-const SEE_SESSIONS_LABEL = 'See sessions';
-const labelIdx = src.indexOf(SEE_SESSIONS_LABEL);
-
-let colocated = false;
-if (labelIdx !== -1) {
-  // Walk backwards to find the nearest `onPress={() => {` opening
-  const beforeLabel = src.slice(0, labelIdx);
-  const onPressIdx = beforeLabel.lastIndexOf('onPress={() => {');
-  if (onPressIdx !== -1) {
-    // The handler body is between onPressIdx and the first `}}` after it
-    const handlerSlice = src.slice(onPressIdx, labelIdx);
-    colocated =
-      handlerSlice.includes('setPainRegionFilter(painOverviewSelected)') &&
-      handlerSlice.includes("setActiveTab('history')");
-  }
-}
-
 check(
-  'setPainRegionFilter and setActiveTab are in the same onPress handler as "See sessions"',
-  colocated,
-  'one or both calls are outside the expected handler block — they may have drifted apart'
+  'and nothing still switches tab from inside the panel',
+  !src.includes('setPainRegionFilter(painRegionFilter)'),
+  'that call set the filter to its own current value and then switched to the tab it was already on'
 );
-
 // ─── 5. PATTERN — PainInsightSheet onViewHistory uses the same two-call pattern
 console.log(
   '\n[5] Pattern — PainInsightSheet onViewHistory uses identical two-call navigation pattern'

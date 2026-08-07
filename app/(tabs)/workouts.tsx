@@ -3578,9 +3578,10 @@ export default function StatsScreen() {
   const [painRegionFilter, setPainRegionFilter] = useState<PainRegion | null>(null);
   const [painInsightRegion, setPainInsightRegion] = useState<PainRegion | null>(null);
   const [painHeatmapMode, setPainHeatmapMode] = useState<'all' | 'recent'>('all');
-  const [painOverviewSelected, setPainOverviewSelected] = useState<PainRegion | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [painPatternsExpanded, setPainPatternsExpanded] = useState(false);
+  // Open by default: this panel is now the pain FILTER as well as the pain
+  // insight, and a filter you have to go looking for is a filter nobody uses.
+  const [painPatternsExpanded, setPainPatternsExpanded] = useState(true);
   const [specificDateFilter, setSpecificDateFilter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -4080,6 +4081,11 @@ export default function StatsScreen() {
                         >
                           Pain Patterns
                         </Text>
+                        {/* The subtitle has to say what tapping the body does,
+                            because it does two things now. When a region is
+                            active it says so instead — the header is the only
+                            part still visible once the panel is collapsed, so
+                            it must be able to explain a filtered list below. */}
                         <Text
                           style={{
                             fontSize: 12,
@@ -4087,9 +4093,9 @@ export default function StatsScreen() {
                             color: C.textSecondary,
                           }}
                         >
-                          {Object.keys(painRegionCounts).length} region
-                          {Object.keys(painRegionCounts).length !== 1 ? 's' : ''} flagged · tap to{' '}
-                          {painPatternsExpanded ? 'collapse' : 'expand'}
+                          {painRegionFilter
+                            ? `Showing ${BODY_DIAGRAM_LABELS[painRegionFilter]} sessions · tap the zone again to clear`
+                            : `${Object.keys(painRegionCounts).length} region${Object.keys(painRegionCounts).length !== 1 ? 's' : ''} flagged · tap a zone to filter`}
                         </Text>
                       </View>
                       <Ionicons
@@ -4141,7 +4147,7 @@ export default function StatsScreen() {
                                   key={mode}
                                   onPress={() => {
                                     setPainHeatmapMode(mode);
-                                    setPainOverviewSelected(null);
+                                    setPainRegionFilter(null);
                                   }}
                                   style={({ pressed }) => ({
                                     paddingHorizontal: 8,
@@ -4167,15 +4173,26 @@ export default function StatsScreen() {
                           </View>
                         </View>
 
+                        {/* ONE DIAGRAM, ONE SELECTION, BOTH JOBS.
+                            This tab used to carry two full body diagrams — the
+                            same picture, drawn twice, a scroll apart. One
+                            answered "where do I hurt and is it getting better",
+                            the other "show me only the sessions where my knee
+                            hurt". Two pictures, two pieces of state, and a
+                            button on the first one whose entire purpose was to
+                            do what the second one did.
+
+                            Tapping a region now selects it once: the strip
+                            below shows that region's numbers AND the session
+                            list below filters to it. Tap again to clear both.
+                            togglePainFilter is the shared toggle used by the
+                            pain pills in the list, so the two ways of picking a
+                            region cannot disagree. */}
                         <BodyDiagram
-                          selected={painOverviewSelected ?? undefined}
+                          selected={painRegionFilter ?? undefined}
                           onSelect={(r) => {
-                            if (r) {
-                              setPainInsightRegion(r);
-                              setPainOverviewSelected((prev) => (prev === r ? null : r));
-                            } else {
-                              setPainOverviewSelected(null);
-                            }
+                            if (r) setPainInsightRegion(r);
+                            setPainRegionFilter((prev) => togglePainFilter(prev, r));
                           }}
                           heatmapCounts={
                             painHeatmapMode === 'recent' ? recentPainCounts : painRegionCounts
@@ -4185,7 +4202,7 @@ export default function StatsScreen() {
                         />
 
                         {/* Detail strip — shown when a region is tapped */}
-                        {painOverviewSelected && (
+                        {painRegionFilter && (
                           <View
                             style={{
                               marginHorizontal: 12,
@@ -4214,8 +4231,8 @@ export default function StatsScreen() {
                                 {(() => {
                                   const activeCount =
                                     painHeatmapMode === 'recent'
-                                      ? (recentPainCounts[painOverviewSelected] ?? 0)
-                                      : (painRegionCounts[painOverviewSelected] ?? 0);
+                                      ? (recentPainCounts[painRegionFilter] ?? 0)
+                                      : (painRegionCounts[painRegionFilter] ?? 0);
                                   const bucketColor = heatmapBucketColor(activeCount);
                                   const bucketLabel =
                                     activeCount === 0
@@ -4257,7 +4274,7 @@ export default function StatsScreen() {
                                   color: C.text,
                                 }}
                               >
-                                {BODY_DIAGRAM_LABELS[painOverviewSelected]}
+                                {BODY_DIAGRAM_LABELS[painRegionFilter]}
                               </Text>
                               <Text
                                 style={{
@@ -4267,12 +4284,12 @@ export default function StatsScreen() {
                                   marginTop: 2,
                                 }}
                               >
-                                {painRegionCounts[painOverviewSelected] ?? 0} all-time ·{' '}
-                                {recentPainCounts[painOverviewSelected] ?? 0} last 4 wks
+                                {painRegionCounts[painRegionFilter] ?? 0} all-time ·{' '}
+                                {recentPainCounts[painRegionFilter] ?? 0} last 4 wks
                               </Text>
                             </View>
                             {(() => {
-                              const trend = painTrends[painOverviewSelected];
+                              const trend = painTrends[painRegionFilter];
                               if (!trend) return null;
                               const isUp = trend === '↑';
                               const isDown = trend === '↓';
@@ -4286,8 +4303,8 @@ export default function StatsScreen() {
                                 : isUp
                                   ? 'Worsening'
                                   : 'Stable';
-                              const recentVal = recentPainCounts[painOverviewSelected] ?? 0;
-                              const prevVal = previousPainCounts[painOverviewSelected] ?? 0;
+                              const recentVal = recentPainCounts[painRegionFilter] ?? 0;
+                              const prevVal = previousPainCounts[painRegionFilter] ?? 0;
                               const hasComparison = recentVal > 0 || prevVal > 0;
                               if (!hasComparison) return null;
                               return (
@@ -4321,39 +4338,13 @@ export default function StatsScreen() {
                                 </View>
                               );
                             })()}
-                            <Pressable
-                              onPress={() => {
-                                setPainRegionFilter(painOverviewSelected);
-                                setActiveTab('history');
-                              }}
-                              hitSlop={8}
-                              style={({ pressed }) => ({
-                                marginLeft: 8,
-                                backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
-                                borderRadius: 8,
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                borderWidth: 1,
-                                borderColor: C.primaryMuted,
-                              })}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  fontFamily: 'Inter_600SemiBold',
-                                  color: C.primary,
-                                }}
-                              >
-                                See sessions
-                              </Text>
-                            </Pressable>
                           </View>
                         )}
 
                         {/* Trend chips — shown in "Last 4 wks" mode for active regions */}
                         {painHeatmapMode === 'recent' &&
                           Object.keys(painTrends).length > 0 &&
-                          !painOverviewSelected && (
+                          !painRegionFilter && (
                             <View
                               style={{
                                 flexDirection: 'row',
@@ -4385,7 +4376,7 @@ export default function StatsScreen() {
                                   return (
                                     <Pressable
                                       key={region}
-                                      onPress={() => setPainOverviewSelected(region)}
+                                      onPress={() => setPainRegionFilter(region)}
                                       style={({ pressed }) => ({
                                         flexDirection: 'row',
                                         alignItems: 'center',
@@ -4464,86 +4455,6 @@ export default function StatsScreen() {
                 )}
               </View>
               <Text style={styles.sectionSub}>{historySubheading}</Text>
-              {/* Pain Region Heatmap Filter */}
-              {hasAnyPainHistory && (
-                <View
-                  style={{
-                    backgroundColor: C.surface,
-                    borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: C.borderLight,
-                    marginBottom: 12,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <View
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingTop: 14,
-                      paddingBottom: 4,
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
-                      >
-                        Body Region
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontFamily: 'Inter_400Regular',
-                          color: C.textSecondary,
-                          marginTop: 2,
-                        }}
-                      >
-                        {painRegionFilter
-                          ? `Filtering by ${BODY_DIAGRAM_LABELS[painRegionFilter]} - tap again to clear`
-                          : 'Tap a zone to filter sessions by pain area'}
-                      </Text>
-                    </View>
-                    {painRegionFilter && (
-                      <Pressable
-                        onPress={() => setPainRegionFilter(null)}
-                        hitSlop={8}
-                        style={({ pressed }) => ({
-                          marginTop: 2,
-                          backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderWidth: 1,
-                          borderColor: C.primaryMuted,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 4,
-                        })}
-                      >
-                        <Ionicons name="close-circle" size={13} color={C.primary} />
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontFamily: 'Inter_600SemiBold',
-                            color: C.primary,
-                          }}
-                        >
-                          Clear
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                  <BodyDiagram
-                    selected={painRegionFilter ?? undefined}
-                    onSelect={(r) => setPainRegionFilter((prev) => togglePainFilter(prev, r))}
-                    heatmapCounts={painRegionCounts}
-                    legendLabels={['Occasional', 'Regular', 'Frequent']}
-                  />
-                </View>
-              )}
-
               <SessionHistoryList
                 key={`${historyFilter ?? 'all'}-${dateFilter}-${painRegionFilter ?? 'none'}-${specificDateFilter ?? 'any'}`}
                 sessions={filteredSessions}

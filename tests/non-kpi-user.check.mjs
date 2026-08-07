@@ -169,13 +169,15 @@ const NON_KPI_FALLBACK =
   grab(/export const NON_KPI_FALLBACK: SessionType = '([a-z_]+)'/, 'NON_KPI_FALLBACK')?.[1] ?? '';
 
 // Mirror of getCurrentSessionType's non-test-week path. History is newest-first,
-// as completedSessions is.
-function suggest(history, cycleStartOffset = 0) {
+// as completedSessions is. `testsOn` matters: saying yes to test weeks raises
+// how much evidence is needed before the barbell rotation is abandoned.
+function suggest(history, cycleStartOffset = 0, testsOn = false) {
   const sessions = history.map((t) => ({ sessionType: t }));
   const strengthCount = sessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).length;
   const recent = sessions.slice(0, RECENT_WINDOW);
   const liftsRecently = recent.some((s) => SESSION_ORDER.includes(s.sessionType));
-  if (liftsRecently || sessions.length < NON_KPI_EVIDENCE) {
+  const evidenceNeeded = testsOn ? RECENT_WINDOW : NON_KPI_EVIDENCE;
+  if (liftsRecently || sessions.length < evidenceNeeded) {
     return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
   }
   const vocabulary = [];
@@ -205,6 +207,58 @@ for (const [label, history, expected] of scenarios) {
   const got = suggest(history);
   check(label, got === expected, `got "${got}", expected "${expected}"`);
 }
+
+// ─── 3b-ii. Opting IN must keep the barbell rotation ─────────────────────────
+console.log('\n[3b-ii] Saying yes to test weeks keeps the KPI programme');
+
+// The failure this guards against is circular and easy to miss: a flat
+// three-session threshold meant three conditioning sessions in someone's first
+// fortnight moved them off the barbell rotation — and once off it they could
+// never be tested either, because a test only comes due on a strength session.
+// Opting in led to never being offered the thing you opted into.
+check(
+  'the threshold depends on the opt-in',
+  /const evidenceNeeded = testWeekFrequency === 'never' \? NON_KPI_EVIDENCE : RECENT_WINDOW;/.test(
+    store
+  ),
+  'without this, opting in and then doing anything else for a fortnight silently cancels it'
+);
+
+const optedInScenarios = [
+  ['a brand-new opted-in user is offered a KPI lift', [], SESSION_ORDER[0]],
+  [
+    `${NON_KPI_EVIDENCE} non-KPI sessions do NOT divert an opted-in user`,
+    Array(NON_KPI_EVIDENCE).fill('conditioning'),
+    SESSION_ORDER[0],
+  ],
+  [
+    `${RECENT_WINDOW - 1} still does not`,
+    Array(RECENT_WINDOW - 1).fill('conditioning'),
+    SESSION_ORDER[0],
+  ],
+  [
+    `a full window of ${RECENT_WINDOW} finally does`,
+    Array(RECENT_WINDOW).fill('conditioning'),
+    'conditioning',
+  ],
+  [
+    'and one KPI lift brings the rotation straight back',
+    ['squat', ...Array(RECENT_WINDOW).fill('conditioning')],
+    SESSION_ORDER[1],
+  ],
+];
+for (const [label, history, expected] of optedInScenarios) {
+  const got = suggest(history, 0, true);
+  check(label, got === expected, `got "${got}", expected "${expected}"`);
+}
+
+// The opposite user must keep the lighter threshold — they said the opposite,
+// and taking three sessions at their word is the whole point.
+check(
+  `someone who declined test weeks still diverts after ${NON_KPI_EVIDENCE}`,
+  suggest(Array(NON_KPI_EVIDENCE).fill('conditioning'), 0, false) === 'conditioning',
+  'raising the bar for everyone would undo the inclusivity work'
+);
 
 // 'custom' is the one suggestion the home card cannot send through readiness:
 // generateWorkout returns [] for it, so a custom session is built rather than

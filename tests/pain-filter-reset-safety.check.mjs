@@ -162,30 +162,50 @@ function windowBefore(source, needle, nth = 1) {
   return source.slice(Math.max(0, idx - 600), idx);
 }
 
-// 4. "clear all filters" Pressable onPress (1st occurrence)
-const w1 = windowBefore(src, NULL_RESET, 1);
+/**
+ * EVERY call site, checked by shape rather than by position.
+ *
+ * This used to name the call sites by ordinal — "the 1st occurrence is the
+ * clear-all button, the 2nd is the heatmap clear, the 3rd is the calendar" —
+ * which made it a test about the ORDER of code in the file. Merging the two
+ * pain body diagrams added a reset inside the all-time/recent toggle, earlier
+ * in the source than the clear-all button, and every ordinal shifted by one.
+ * Three assertions failed and none of them was about anything that had gone
+ * wrong.
+ *
+ * The contract that actually matters is not which call is which. It is that
+ * NO reset happens outside an explicit user callback — a filter that clears
+ * itself during a render or an effect is a filter the user cannot trust. So
+ * every occurrence is checked for the same thing, however many there are and
+ * in whatever order they appear.
+ */
+const HANDLER_MARKERS = ['onPress', 'onSelect', 'onNavigateToDate', 'onChange', 'onConfirm'];
+const resetCount = (src.match(new RegExp(NULL_RESET.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? [])
+  .length;
+check(`there is at least one reset to check (${resetCount})`, resetCount > 0, '');
+
+const unguarded = [];
+for (let n = 1; n <= resetCount; n++) {
+  const w = windowBefore(src, NULL_RESET, n);
+  if (w === null || !HANDLER_MARKERS.some((m) => w.includes(m))) unguarded.push(n);
+}
 check(
-  'call site 1: setPainRegionFilter(null) is inside a "clear all filters" Pressable onPress',
-  w1 !== null && w1.includes('onPress') && w1.includes('setHistoryFilter(null)'),
-  'first null reset is not co-located with setHistoryFilter(null) in an onPress — ' +
-    'the clear-all-filters button may have regressed'
+  `every setPainRegionFilter(null) sits inside a user callback (${resetCount} call sites)`,
+  unguarded.length === 0,
+  `call site(s) ${unguarded.join(', ')} have no ${HANDLER_MARKERS.join('/')} within 600 chars — a reset outside an explicit callback can fire during render`
 );
 
-// 5. Heatmap body diagram clear button — inline onPress (2nd occurrence)
-const w2 = windowBefore(src, NULL_RESET, 2);
+// The two call sites whose absence would be a real regression, named because
+// they are the ones a user reaches deliberately.
 check(
-  'call site 2: setPainRegionFilter(null) is the sole body of an inline onPress (heatmap clear button)',
-  w2 !== null && w2.includes('onPress'),
-  'second null reset is not inside an onPress — the heatmap clear button may have moved to a side-effect'
+  'the clear-all-filters button still resets the pain filter',
+  /setHistoryFilter\(null\);[\s\S]{0,200}?setPainRegionFilter\(null\)/.test(src),
+  'clearing every other filter but leaving this one is the worst kind of half-clear'
 );
-
-// 6. MonthCalendar onNavigateToDate (3rd occurrence)
-const w3 = windowBefore(src, NULL_RESET, 3);
 check(
-  'call site 3: setPainRegionFilter(null) is inside a MonthCalendar onNavigateToDate callback',
-  w3 !== null && w3.includes('onNavigateToDate') && w3.includes('MonthCalendar'),
-  'third null reset is not inside the MonthCalendar onNavigateToDate callback — ' +
-    'the clear may have moved to an unsafe location'
+  'switching the heatmap view clears it too',
+  /setPainHeatmapMode\(mode\);\s*\n\s*setPainRegionFilter\(null\)/.test(src),
+  'the recent view can leave the selected zone unshaded, so a filter left active there is unreachable'
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
