@@ -366,8 +366,6 @@ interface AppState {
    *  Persisted, because dismissing it has to survive closing the app —
    *  otherwise it is a snooze that pretends to be an answer. */
   balanceNudgeDismissedAt: number | null;
-  /** Whether a short chime plays when a badge unlocks. Default true. */
-  achievementSoundEnabled: boolean;
   /** Whether the daily workout reminder is enabled. */
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
@@ -448,7 +446,6 @@ interface AppState {
   clearActiveSession: () => void;
   updateLastLoggedWeights: (weights: Record<string, number>) => void;
   setReviewPromptShown: (shown: boolean) => void;
-  setAchievementSoundEnabled: (enabled: boolean) => void;
   dismissBalanceNudge: (ts: number) => void;
   /** The one training-balance observation worth showing right now, or null.
    *  See lib/training-balance.ts for what it will and will not say. */
@@ -592,7 +589,6 @@ export const useAppStore = create<AppState>()(
       lastLoggedWeights: {},
       reviewPromptShown: false,
       balanceNudgeDismissedAt: null,
-      achievementSoundEnabled: true,
       reminderEnabled: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
@@ -666,7 +662,6 @@ export const useAppStore = create<AppState>()(
         })),
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
       dismissBalanceNudge: (ts) => set({ balanceNudgeDismissedAt: ts }),
-      setAchievementSoundEnabled: (enabled) => set({ achievementSoundEnabled: enabled }),
 
       /**
        * The store side of the balance nudge: gather the history, hand it to a
