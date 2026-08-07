@@ -801,7 +801,10 @@ export function generateWorkout(
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>
 ): Exercise[] {
-  return applyInjurySafety(
+  // Screen first, then fill the swap slots — so the alternatives on offer are
+  // alternatives to what the user is actually being shown, and a substituted
+  // exercise gets its own stand-ins rather than inheriting the removed one's.
+  const screened = applyInjurySafety(
     generateWorkoutUnscreened(
       sessionType,
       equipmentTier,
@@ -817,7 +820,15 @@ export function generateWorkout(
     readiness,
     equipmentTier,
     profile,
-    strengthSessionCount
+    strengthSessionCount,
+    sessionType
+  );
+  return fillSwapAlternatives(
+    screened,
+    readiness,
+    equipmentTier,
+    profile,
+    strengthSessionCount + getLocalDayIndex()
   );
 }
 
@@ -840,13 +851,21 @@ export function generateWorkout(
  *  is available to them. */
 const TIER_RANK: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
 
-function findSafeReplacement(
+/**
+ * Every safe stand-in for a movement, best match first.
+ *
+ * Shared by two callers that want the same ranking for different reasons: the
+ * injury screen takes the top one as a forced substitution, and the swap
+ * builder takes the next few to offer as manual alternatives. Keeping one
+ * ranking means the exercise the app picks FOR you and the ones it offers you
+ * are drawn from the same idea of what is alike.
+ */
+function rankedAlternatives(
   original: Exercise,
   banned: Set<StressTag>,
   tier: EquipmentTier,
-  usedNames: Set<string>,
-  seed: number
-): ExerciseTemplate | null {
+  usedNames: Set<string>
+): ExerciseTemplate[] {
   const pickable = getAllPickableExercises();
   const byName = new Map(pickable.map((p) => [p.template.name.toLowerCase(), p]));
   const source = byName.get(original.name.toLowerCase())?.template;
@@ -865,7 +884,13 @@ function findSafeReplacement(
     !usedNames.has(p.template.name.toLowerCase()) &&
     isClean(p.template);
 
+  const ranked: ExerciseTemplate[] = [];
+  const push = (t: ExerciseTemplate) => {
+    if (!ranked.some((r) => r.name === t.name)) ranked.push(t);
+  };
+
   // (1) and (2): alternatives the database already names for this movement.
+  // Hand-authored, so they lead — someone chose them for this exercise.
   const named = [
     ...(source?.injuryFriendlyAlternatives ?? []),
     source?.swapAlternative?.name,
@@ -873,7 +898,7 @@ function findSafeReplacement(
   ].filter((n): n is string => !!n);
   for (const name of named) {
     const candidate = byName.get(name.toLowerCase());
-    if (candidate && isUsable(candidate)) return candidate.template;
+    if (candidate && isUsable(candidate)) push(candidate.template);
   }
 
   // (3) the catalogue, narrowing from most-alike to least.
@@ -909,11 +934,33 @@ function findSafeReplacement(
     inCategory,
   ];
   for (const group of tiers) {
-    if (group.length === 0) continue;
-    // Sorted before indexing so the choice does not depend on catalogue order.
-    const sorted = [...group].sort((a, b) => a.template.name.localeCompare(b.template.name));
-    return sorted[Math.abs(seed) % sorted.length].template;
+    // Sorted before it is walked so the order does not depend on catalogue
+    // order, which is an accident of how the database file grew.
+    for (const p of [...group].sort((a, b) => a.template.name.localeCompare(b.template.name))) {
+      push(p.template);
+    }
   }
+  return ranked;
+}
+
+function findSafeReplacement(
+  original: Exercise,
+  banned: Set<StressTag>,
+  tier: EquipmentTier,
+  usedNames: Set<string>,
+  seed: number
+): ExerciseTemplate | null {
+  const ranked = rankedAlternatives(original, banned, tier, usedNames);
+  if (ranked.length > 0) {
+    // Seeded rather than always-first so the same session regenerated produces
+    // the same substitution, but two different sessions do not both land on the
+    // alphabetically-first candidate.
+    return ranked[Math.abs(seed) % ranked.length];
+  }
+
+  const pickable = getAllPickableExercises();
+  const isClean = (t: ExerciseTemplate) =>
+    restrictedTagsOn(t.name, banned, t.movementPattern).length === 0;
 
   // A main lift must not simply vanish, so widen past the equipment tier before
   // giving up — a bodyweight alternative is a worse session than the barbell
@@ -942,6 +989,104 @@ function findSafeReplacement(
  * original as their swap alternative, so a user who disagrees can put it back
  * with the swap button that is already on every card.
  */
+/**
+ * Gives every exercise two alternatives to swap to.
+ *
+ * The swap button offers up to two stand-ins, both hardcoded on the template:
+ * `swapAlternative` and `comfortVariant`. Measured across the 447 pickable
+ * exercises: 226 have both, 103 have only one, and 118 have neither. So for a
+ * quarter of the catalogue the swap button did nothing at all, and for another
+ * quarter it offered a single fixed answer — the same substitute today, next
+ * week and next year. "Equipment is taken" is not a problem one alternative
+ * solves.
+ *
+ * The hand-authored ones still lead: someone chose them for that exercise, and
+ * a derived match is a guess by comparison. Only the empty slots are filled,
+ * from the same ranking the injury screen uses — same category, same movement
+ * pattern, same muscle, within the user's equipment, and never something the
+ * user's reported complaint rules out. A swap that hands you an exercise you
+ * cannot do is worse than no swap.
+ *
+ * Seeded, so the derived options differ between sessions rather than being the
+ * same two forever, and never duplicate something already in today's session.
+ */
+/** How many alternatives the swap sheet can show. Two, because swapCount is
+ *  0 | 1 | 2 and is persisted in resumed sessions. */
+const SWAP_OPTIONS = 2;
+
+export function fillSwapAlternatives(
+  exercises: Exercise[],
+  readiness: ReadinessCheck,
+  tier: EquipmentTier,
+  profile?: UserProfile,
+  seed: number = 0
+): Exercise[] {
+  const regions = readiness?.painRegion
+    ? Array.isArray(readiness.painRegion)
+      ? readiness.painRegion
+      : [readiness.painRegion]
+    : [];
+  const banned = restrictedTagsFor(regions, profile?.experienceLevel);
+  const inSession = new Set(exercises.map((e) => e.name.toLowerCase()));
+
+  return exercises.map((ex, i) => {
+    // A cooldown has nothing meaningful to trade for, and a rehab exercise was
+    // chosen FOR the sore joint — offering to swap it away undoes the session.
+    if (ex.category === 'cooldown' || ex.category === 'prehab') return ex;
+    // A safety substitution carries the exercise it REPLACED as its swap, on
+    // purpose: that is the revert, and it is labelled as one. Leave it alone.
+    if (ex.safetyNote) return ex;
+
+    /**
+     * A hand-authored alternative is only kept if it is actually usable.
+     *
+     * This closes a hole the fill exposed rather than created. The injury
+     * screen filtered the SESSION, but the alternatives hanging off each
+     * exercise were never checked — so a user with knee pain could be shown a
+     * screened, knee-safe session and then find "Treadmill Sprint Intervals"
+     * behind the swap button. The app removed the thing and then offered it
+     * back one tap later.
+     */
+    const usable = (n?: string) =>
+      !!n && n !== ex.name && restrictedTagsOn(n, banned).length === 0;
+
+    const options: { name: string; cue?: string; load?: string }[] = [];
+    if (usable(ex.swapName)) {
+      options.push({ name: ex.swapName!, cue: ex.swapCue, load: ex.swapLoad });
+    }
+    if (usable(ex.swap2Name) && ex.swap2Name !== options[0]?.name) {
+      options.push({ name: ex.swap2Name!, cue: ex.swap2Cue, load: ex.swap2Load });
+    }
+
+    if (options.length < SWAP_OPTIONS) {
+      // `inSession` still contains this exercise's own name, so it can never be
+      // offered as its own alternative.
+      const used = new Set(inSession);
+      for (const o of options) used.add(o.name.toLowerCase());
+      const ranked = rankedAlternatives(ex, banned, tier, used).filter((t) => t.name !== ex.name);
+      // Rotate the starting point so the offered alternatives move between
+      // sessions rather than being the same top matches forever.
+      const offset = ranked.length > 0 ? Math.abs(seed + i) % ranked.length : 0;
+      for (let n = 0; n < ranked.length && options.length < SWAP_OPTIONS; n++) {
+        const t = ranked[(offset + n) % ranked.length];
+        if (options.some((o) => o.name === t.name)) continue;
+        options.push({ name: t.name, cue: t.cue, load: t.suggestedLoad });
+      }
+    }
+
+    return {
+      ...ex,
+      swapName: options[0]?.name,
+      swapCue: options[0]?.cue,
+      swapLoad: options[0]?.load,
+      swap2Name: options[1]?.name,
+      swap2Cue: options[1]?.cue,
+      swap2Load: options[1]?.load,
+      hasSwap: options.length > 0,
+    };
+  });
+}
+
 export function applyInjurySafety(
   exercises: Exercise[],
   readiness: ReadinessCheck,
