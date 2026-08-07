@@ -465,7 +465,10 @@ export default function OnboardingScreen() {
   const showProgress = currentIndex >= 1;
   const progressFraction = showProgress ? Math.min(currentIndex / CELEBRATION_INDEX, 1) : 0;
   const showBack = currentIndex > 0;
-  const showContinue = currentIndex < 9;
+  // Every screen except the celebration gets a footer button. Bare numbers here
+  // are how the theme screen lost its Continue button when a screen was inserted
+  // before it — this must track CELEBRATION_INDEX, not a literal.
+  const showContinue = currentIndex < CELEBRATION_INDEX;
   const canGo = canContinue();
 
   const topPad = insets.top + webTop;

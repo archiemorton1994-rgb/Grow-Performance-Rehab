@@ -143,6 +143,26 @@ check(
   'dividing by a stale count makes the bar full one screen early'
 );
 
+// This one is here because the first version of this test did NOT catch it, and
+// it dead-ended the flow: showContinue was `currentIndex < 9`, written when the
+// celebration WAS screen 9. Inserting the test-week question made 9 the theme
+// screen, so its Continue button silently stopped rendering and onboarding could
+// not be finished. Gating render on a literal is the bug; assert the derivation.
+check(
+  'the footer button is shown on every screen before the celebration',
+  /const showContinue = currentIndex < CELEBRATION_INDEX;/.test(src),
+  'a literal here hides the Continue button on whichever screen inherits that number'
+);
+
+const staleLiterals = [...src.matchAll(/currentIndex (?:===|<|>|<=|>=) (\d+)/g)]
+  .map((m) => Number(m[1]))
+  .filter((n) => n >= TEST_WEEK_INDEX);
+check(
+  'no screen-gating literal sits in the shifting range',
+  staleLiterals.length === 0,
+  `found ${staleLiterals.join(', ')} — indices at or past ${TEST_WEEK_INDEX} move when a screen is inserted, so they must be named constants`
+);
+
 console.log('');
 if (failures > 0) {
   console.error(`onboarding-pager: ${failures}/${total} check(s) FAILED\n`);
