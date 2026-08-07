@@ -45,7 +45,7 @@ import {
 } from '@/lib/exercise-db';
 import { Badge, BADGE_MAP, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { AchievementBanner } from '@/components/AchievementBanner';
-import { BodyDiagram, MUSCLE_SET } from '@/components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -1069,6 +1069,29 @@ export default function SessionSummaryScreen() {
 
   const heatmap = (workedRegions ?? {}) as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
 
+  /**
+   * The shaded regions, named.
+   *
+   * The figures already showed where the work landed; nothing said what the
+   * shading meant. Reading a highlighted outline and knowing it is "lat / mid
+   * back" is a skill, not a glance.
+   *
+   * Sorted by how much each region was worked so the heaviest reads first, and
+   * capped at six — a full body session lights up nearly everything, and a list
+   * of twelve region names is not a summary of anything.
+   */
+  // Not memoised: this sits below an early return, so a hook here would be
+  // called conditionally. It is a sort of at most nineteen entries — cheaper
+  // than the comparison that would decide whether to recompute it.
+  const WORKED_LABEL_LIMIT = 6;
+  const workedEntries = Object.entries(workedRegions ?? {})
+    .filter(([, count]) => (count as number) > 0)
+    .sort((a, b) => (b[1] as number) - (a[1] as number));
+  const workedLabels = workedEntries
+    .slice(0, WORKED_LABEL_LIMIT)
+    .map(([region]) => BODY_DIAGRAM_LABELS[region as PainRegion] ?? region);
+  const workedOverflow = Math.max(0, workedEntries.length - WORKED_LABEL_LIMIT);
+
   // Lead with the one biggest thing that happened, not three equal stats.
   //
   // Milestones outrank PBs. Under progressive overload a PB is close to routine
@@ -1541,6 +1564,30 @@ export default function SessionSummaryScreen() {
                         <Text style={styles.diagramLabel}>BACK</Text>
                       </View>
                     </View>
+
+                    {/* WHAT THE SHADING MEANS.
+                        The figures show where the work landed, and until now
+                        the only way to read them was to recognise a shaded
+                        outline — fine for the person who built the app, not for
+                        someone glancing at their own summary. Naming the
+                        regions costs one line and removes the guesswork.
+
+                        Ordered by how much each was worked, so the heaviest
+                        reads first, and capped: a full body session touches
+                        nearly everything and a list of twelve is not a summary
+                        of anything. */}
+                    {workedLabels.length > 0 && (
+                      <View style={styles.workedRow}>
+                        {workedLabels.map((label) => (
+                          <View key={label} style={styles.workedChip}>
+                            <Text style={styles.workedChipText}>{label}</Text>
+                          </View>
+                        ))}
+                        {workedOverflow > 0 && (
+                          <Text style={styles.workedMore}>+{workedOverflow} more</Text>
+                        )}
+                      </View>
+                    )}
                   </Animated.View>
 
                   {/* Footer */}
@@ -2056,6 +2103,31 @@ const styles = StyleSheet.create({
   },
   diagramCol: {
     alignItems: 'center',
+  },
+  workedRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+    paddingHorizontal: 4,
+  },
+  workedChip: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 7,
+    backgroundColor: SAGE.pillBg,
+  },
+  workedChipText: {
+    fontSize: 9.5,
+    fontFamily: 'Inter_600SemiBold',
+    color: SAGE.muted,
+  },
+  workedMore: {
+    fontSize: 9.5,
+    fontFamily: 'Inter_400Regular',
+    color: SAGE.faint,
   },
   diagramLabel: {
     fontSize: 9,

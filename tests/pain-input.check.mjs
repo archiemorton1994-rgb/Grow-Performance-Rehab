@@ -44,17 +44,6 @@ function check(label, condition, detail) {
 // ─── 1. The figure gets the space ────────────────────────────────────────────
 console.log('\n[1] The body map is the content, not a thumbnail');
 
-const cap = readiness.match(/Math\.max\((\d+), Math\.min\((\d+),/);
-check(
-  `the width ceiling is above 200 (now ${cap?.[2] ?? '?'})`,
-  Number(cap?.[2] ?? 0) >= 260,
-  '200 capped the figure below what the screen allowed even before the chrome was removed'
-);
-check(
-  `the floor is above 100 (now ${cap?.[1] ?? '?'})`,
-  Number(cap?.[1] ?? 0) >= 140,
-  'a 100pt human figure has 6pt limbs'
-);
 check(
   'the icon medallion above the question is gone',
   !/locate-outline/.test(readiness),
@@ -88,6 +77,87 @@ check(
   'out-of-category regions are still inert',
   /fill: 'rgba\(0,0,0,0\)'/.test(diagram),
   'a joint must not be tappable while the muscles view is showing'
+);
+
+// ─── 2b. Selection is resolved in JS, not by SVG hit-testing ─────────────────
+console.log('\n[2b] Overlapping paths cannot steal each other\'s taps');
+
+// Reported twice, the second time after the hit paths had already been grown:
+// "still takes a couple of taps all the time". Growing them could not have
+// worked. The figure has 47 hotspot paths and they OVERLAP; where two cover the
+// same pixel the one drawn last wins, so a tap on the knee lands on the quad.
+// Making the paths bigger makes the overlaps worse.
+check(
+  'there is a single surface that receives taps',
+  /testID="body-diagram-surface"/.test(diagram),
+  'per-path hit testing is what made a tap ambiguous in the first place'
+);
+check(
+  'it resolves the region by nearest anchor',
+  /const regionAtY = React\.useCallback\(/.test(diagram),
+  ''
+);
+check(
+  'only regions actually on screen are candidates',
+  /view === 'front' \? FRONT_REGIONS : BACK_REGIONS/.test(diagram),
+  'the back view has no chest, and the joints view has no quads'
+);
+check(
+  'and the category filter still applies',
+  /category === 'muscles' \? isMuscle : !isMuscle/.test(diagram),
+  'otherwise a joint would be selectable while the muscles view is showing'
+);
+// The front of the body has no rear shoulder on it. Listing both put two
+// regions on the same anchor, and the tie went to whichever was listed first —
+// so one of them became unselectable rather than the two being distinguished.
+check(
+  'the front list does not offer the rear shoulder',
+  !/const FRONT_REGIONS[\s\S]*?'rear_shoulder'[\s\S]*?\];/.test(
+    diagram.slice(diagram.indexOf('const FRONT_REGIONS'), diagram.indexOf('const BACK_REGIONS'))
+  ),
+  ''
+);
+check(
+  'and the back list does not offer the front shoulder',
+  !diagram
+    .slice(diagram.indexOf('const BACK_REGIONS'), diagram.indexOf('interface BodyDiagramProps'))
+    .includes("'front_shoulder'"),
+  ''
+);
+// Every region must be reachable from SOME view, or it becomes dead.
+const listBlock = diagram.slice(
+  diagram.indexOf('const FRONT_REGIONS'),
+  diagram.indexOf('interface BodyDiagramProps')
+);
+const anchorBlock = diagram.slice(
+  diagram.indexOf('const REGION_ANCHOR'),
+  diagram.indexOf('const FRONT_REGIONS')
+);
+const anchored = [...anchorBlock.matchAll(/^  ([a-z_]+): \{ x:/gm)].map((m) => m[1]);
+const listed = new Set([...listBlock.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+const unreachable = anchored.filter((r) => !listed.has(r));
+check(
+  `every region is reachable from some view (${anchored.length} regions)`,
+  anchored.length > 0 && unreachable.length === 0,
+  `${unreachable.join(', ')} — anchored but in neither list, so nothing can select them`
+);
+
+// ─── 2c. The caller's measured height wins ───────────────────────────────────
+console.log('\n[2c] A measured space beats a share of the screen');
+
+// The component budgets 58% of SCREEN height, which caps the figure at ~196pt
+// wide on a normal phone whatever the caller asks for. Raising the width
+// ceiling did nothing because this bound first — the two were fighting.
+check(
+  'the pain step passes its measured height',
+  /maxHeight=\{painDiagramMaxHeight\}/.test(readiness),
+  'passing a width the height budget then overrides is why the figure stayed small'
+);
+check(
+  'targeted prehab measures too',
+  /setPrehabDiagramAreaH\(e\.nativeEvent\.layout\.height\)/.test(readiness) &&
+    /maxHeight=\{prehabDiagramAreaH > 0/.test(readiness),
+  'this one was not measuring at all, so it took the default on every phone'
 );
 
 // ─── 3. Multi-select is a decision, not an accident ──────────────────────────

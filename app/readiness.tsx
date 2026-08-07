@@ -193,6 +193,7 @@ export default function ReadinessScreen() {
   const [painSeverity, setPainSeverity] = useState<PainSeverity>('moderate');
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
+  const [prehabDiagramAreaH, setPrehabDiagramAreaH] = useState(0);
   const [coachStep, setCoachStep] = useState<number | null>(null);
 
   // ── Spotlight refs for each readiness tutorial section ──────────────────
@@ -828,13 +829,22 @@ export default function ReadinessScreen() {
         <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>
           Tap a region - or run a full body circuit
         </Text>
-        <View style={styles.diagramCard}>
-          <BodyDiagram
-            selected={diagramPrehabRegion}
-            onSelect={setDiagramPrehabRegion}
-            accentColor={C.primary}
-            accentColorLight={C.primarySurface}
-          />
+        {/* Measured, like the pain step. This one was not measuring at all, so
+            it took the component's default budget and stayed small on every
+            phone regardless of how much room the step actually had. */}
+        <View
+          style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+          onLayout={(e) => setPrehabDiagramAreaH(e.nativeEvent.layout.height)}
+        >
+          <View style={styles.diagramCard}>
+            <BodyDiagram
+              selected={diagramPrehabRegion}
+              onSelect={setDiagramPrehabRegion}
+              accentColor={C.primary}
+              accentColorLight={C.primarySurface}
+              maxHeight={prehabDiagramAreaH > 0 ? prehabDiagramAreaH - 20 : undefined}
+            />
+          </View>
         </View>
         {diagramPrehabRegion ? (
           <Pressable
@@ -871,14 +881,13 @@ export default function ReadinessScreen() {
   // derived from the available height so the whole step (diagram + Continue)
   // always fits on screen. Vertical overhead inside BodyDiagram (panel padding,
   // toggles, label row) is ~175pt; the SVG itself is width * 2.4 tall.
-  // The icon medallion and the explanatory subtitle above the figure are gone,
-  // which is ~90pt of height handed straight to the diagram. The ceiling goes
-  // up with it: 200 was capping the figure well below what the space allowed
-  // even before that, so on a tall phone it stayed small for no reason.
-  const painDiagramMaxWidth =
-    painDiagramAreaH > 0
-      ? Math.max(140, Math.min(300, Math.floor((painDiagramAreaH - 150) / 2.4)))
-      : 260;
+  // The component applies its own budget of 58% of the SCREEN height, which on
+  // an 812pt phone caps the figure at 196pt wide whatever the caller asks for.
+  // Raising the width ceiling here did nothing because that budget bound first
+  // — the two were fighting. Passing the MEASURED height settles it: this
+  // screen knows exactly how much room the figure has, and the component does
+  // the aspect arithmetic.
+  const painDiagramMaxHeight = painDiagramAreaH > 0 ? painDiagramAreaH - 20 : undefined;
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
@@ -956,7 +965,7 @@ export default function ReadinessScreen() {
               onSelect={togglePainRegion}
               accentColor={C.warning}
               accentColorLight={C.warningLight}
-              maxWidth={painDiagramMaxWidth}
+              maxHeight={painDiagramMaxHeight}
             />
           </View>
         </View>

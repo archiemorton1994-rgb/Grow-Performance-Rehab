@@ -297,6 +297,46 @@ const REGION_ANCHOR: Record<PainRegion, { x: number; y: number }> = {
   ankle_achilles: { x: 100, y: 368 },
 };
 
+/**
+ * Which regions each view actually draws.
+ *
+ * Kept beside REGION_ANCHOR because the two are read together by regionAtY:
+ * a tap resolves to the nearest anchor AMONG THE ONES ON SCREEN, so a list
+ * that drifts from renderFrontHotspots / renderBackHotspots would let the back
+ * view select a chest. body-diagram-region-coverage.check.mjs pins the render
+ * functions; these mirror them.
+ */
+const FRONT_REGIONS: PainRegion[] = [
+  'neck',
+  'front_shoulder',
+  'chest',
+  'bicep',
+  'core_ribs',
+  'elbow',
+  'hip_groin',
+  'wrist',
+  'quads',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
+];
+
+const BACK_REGIONS: PainRegion[] = [
+  'neck',
+  'rear_shoulder',
+  'upper_back',
+  'lat_mid_back',
+  'tricep',
+  'lower_back',
+  'elbow',
+  'wrist',
+  'glutes',
+  'hamstrings',
+  'knee',
+  'calf_shin',
+  'ankle_achilles',
+];
+
 interface BodyDiagramProps {
   selected?: PainRegion | undefined;
   onSelect: (region: PainRegion | undefined) => void;
@@ -368,6 +408,17 @@ export function BodyDiagram({
   // width, or the height budget. The old `screenWidth - 80` allowance existed
   // to clear the dark panel's padding; with that panel gone the figure can run
   // wider, and height is what actually limits it on a phone.
+  /**
+   * A caller that has MEASURED its space knows better than a share of the
+   * screen height.
+   *
+   * DIAGRAM_HEIGHT_SHARE is 0.58, so on an 812pt phone the budget is 471pt and
+   * the figure is capped at 471/2.4 = 196pt wide — regardless of what the
+   * caller asked for. The pain step raised its own ceiling to 300 and nothing
+   * changed, because this line was binding first and the two were fighting.
+   *
+   * `maxHeight` was already the escape hatch; it just was not being passed.
+   */
   const heightBudget = maxHeight ?? screenHeight * DIAGRAM_HEIGHT_SHARE;
   // The floor applies only to the viewport-derived size — it must never
   // override an explicit `maxWidth`. Callers that ask for a deliberately tiny
@@ -463,6 +514,39 @@ export function BodyDiagram({
   // Out-of-category regions use rgba(0,0,0,0) (fully transparent) so native touch
   // events do not fire; onPress is a no-op so Jest tests can still call it safely.
   // Heatmap mode bypasses category filtering — all regions are always tappable.
+  /**
+   * Which region a tap at this height belongs to.
+   *
+   * `locationY` is in rendered pixels; REGION_ANCHOR is in viewBox units, and
+   * the hotspot group is compressed by 5/6 to line up with the figure the
+   * library draws. Undoing both puts the tap in anchor space.
+   *
+   * Only regions actually on screen are candidates — the back view has no
+   * chest, and the joints view has no quads — so the same tap resolves
+   * differently depending on what is being shown, which is correct.
+   */
+  const regionAtY = React.useCallback(
+    (locationY: number): PainRegion | null => {
+      const y = locationY / scale / 0.8333;
+      const visible = (view === 'front' ? FRONT_REGIONS : BACK_REGIONS).filter((r) => {
+        if (heatmapCounts) return true;
+        const isMuscle = MUSCLE_SET.has(r);
+        return category === 'muscles' ? isMuscle : !isMuscle;
+      });
+      let best: PainRegion | null = null;
+      let bestDist = Infinity;
+      for (const r of visible) {
+        const d = Math.abs(REGION_ANCHOR[r].y - y);
+        if (d < bestDist) {
+          bestDist = d;
+          best = r;
+        }
+      }
+      return best;
+    },
+    [scale, view, category, heatmapCounts]
+  );
+
   const h = (r: PainRegion) => {
     if (!heatmapCounts) {
       const isMuscle = MUSCLE_SET.has(r);
@@ -1005,6 +1089,43 @@ export function BodyDiagram({
                 {view === 'front' ? renderFrontHotspots() : renderBackHotspots()}
               </G>
             </Svg>
+            {/*
+              NEAREST-REGION OVERLAY — the thing that actually receives taps.
+
+              Reported twice: "it's still difficult to easily tap the regions,
+              currently still takes a couple of taps all the time."
+
+              Enlarging the SVG hit paths did not fix it, and could not have.
+              The problem is not that the shapes are small — it is that 47 of
+              them OVERLAP, and where two paths cover the same pixel the one
+              drawn last wins. Tap the knee, get the quad; tap again, get the
+              knee. Growing the paths makes the overlaps worse, not better.
+
+              So selection is decided in JS instead. Every region has an anchor
+              on the body's midline at a distinct height (REGION_ANCHOR), so a
+              tap resolves to whichever region's anchor is nearest vertically.
+              That gives every region a full-width band of the figure — an
+              enormous target — with no overlaps and therefore no ambiguity. It
+              is also monotonic down the body, which is how people expect a
+              body map to behave.
+
+              The SVG paths stay exactly as they are. They still carry their
+              testIDs and onPress, so every existing test keeps addressing them
+              directly; this sits on top and wins real touches.
+            */}
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={(e) => {
+                const region = regionAtY(e.nativeEvent.locationY);
+                if (!region) return;
+                stopPulse();
+                tap();
+                triggerRipple(region);
+                onSelect(region);
+              }}
+              testID="body-diagram-surface"
+              accessibilityLabel="Select a body region"
+            />
           </View>
           {/* Ripple overlay — anchored to the tapped region centre */}
           {ripplePos && (
