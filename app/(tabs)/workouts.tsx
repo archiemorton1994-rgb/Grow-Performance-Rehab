@@ -301,7 +301,6 @@ function MuscleProgressPanel({
         backgroundColor: C.surface,
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: C.borderLight,
       }}
@@ -606,7 +605,6 @@ function WeeklyBarChart({
         backgroundColor: C.surface,
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: C.borderLight,
       }}
@@ -640,7 +638,7 @@ function WeeklyBarChart({
                   x={x}
                   y={y}
                   width={bw}
-                  height={barH || 2}
+                  height={barH}
                   rx={4}
                   fill={isLast ? C.primary : C.primaryMuted}
                 />
@@ -673,7 +671,10 @@ function WeeklyBarChart({
           0
         </Text>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-          peak: {Math.max(...weeks.map((w) => w.count))} sessions
+          {/* Max over the real counts. This used to omit the ",1" floor the
+              bar scale uses, so with no sessions at all it read "peak: 0
+              sessions" — a peak of nothing is not a statistic. */}
+          peak: {Math.max(1, ...weeks.map((w) => w.count))} sessions
         </Text>
       </View>
     </View>
@@ -765,7 +766,6 @@ function WeeklyVolumeChart({
         backgroundColor: C.surface,
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: C.borderLight,
       }}
@@ -799,7 +799,7 @@ function WeeklyVolumeChart({
                   x={x}
                   y={y}
                   width={bw}
-                  height={barH || 2}
+                  height={barH}
                   rx={4}
                   fill={isLast ? C.primary : C.primaryMuted}
                 />
@@ -2178,7 +2178,6 @@ function SessionTypeBreakdown({
         backgroundColor: C.surface,
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: C.borderLight,
       }}
@@ -2259,7 +2258,6 @@ function SessionTypeBreakdown({
         </Svg>
         <View style={{ flex: 1, gap: 6 }}>
           {activeTypes.map((type) => {
-            const pct = Math.round((counts[type] / total) * 100);
             const meta = sessionTypeColors[type];
             const isSelected = activeFilter === type;
             const isDimmed = hasFilter && !isSelected;
@@ -2296,6 +2294,12 @@ function SessionTypeBreakdown({
                 >
                   {SESSION_TYPE_LABELS[type]}
                 </Text>
+                {/* Count only. Every row used to carry BOTH the count and the
+                    percentage, which with ten session types put twenty figures
+                    down the side of the donut on its own — most of the ~26
+                    numbers competing for attention on this screen. The
+                    percentage is the redundant one: the donut already shows
+                    proportion, which is the entire reason it is a donut. */}
                 <Text
                   style={{
                     fontSize: 12,
@@ -2306,17 +2310,6 @@ function SessionTypeBreakdown({
                   }}
                 >
                   {counts[type]}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'Inter_400Regular',
-                    color: C.textTertiary,
-                    minWidth: 32,
-                    textAlign: 'right',
-                  }}
-                >
-                  {pct}%
                 </Text>
               </Pressable>
             );
@@ -3905,10 +3898,20 @@ export default function StatsScreen() {
               </View>
             </View>
 
-            {/* Primary chart — training frequency */}
+            {/* Overview was the one sub-tab with no section headings at all,
+                so the 17px heading level that structures the other three simply
+                did not exist here — four cards in a row with nothing saying
+                what any group was. Two headings turn a stack into a sequence. */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>How often you train</Text>
+              <Text style={styles.sectionSub}>Sessions per week, last eight weeks</Text>
+            </View>
             <WeeklyBarChart sessions={completedSessions} C={C} />
 
-            {/* Supporting insight — session type breakdown donut */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>What you train</Text>
+              <Text style={styles.sectionSub}>Tap a type to see those sessions</Text>
+            </View>
             <SessionTypeBreakdown
               sessions={completedSessions}
               activeFilter={historyFilter}
@@ -3918,29 +3921,18 @@ export default function StatsScreen() {
               }}
               C={C}
             />
-            {/* Drill-down: Muscle Progress → Strength tab */}
-            <Pressable
-              onPress={() => setActiveTab('strength')}
-              style={({ pressed }) => [styles.drillDownCard, pressed && { opacity: 0.82 }]}
-            >
-              <View style={styles.drillDownIcon}>
-                <Ionicons name="body-outline" size={18} color={C.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.drillDownTitle}>Muscle Progress</Text>
-                <Text style={styles.drillDownSub}>Front & back muscle heatmap</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
-            </Pressable>
+            {/* The "Muscle Progress" drill-down that used to sit here is gone.
+                It promised a heatmap and delivered a tab switch: setActiveTab
+                scrolls the destination to the top, so tapping it landed the
+                user on the squat/bench/deadlift row with the heatmap three
+                blocks below. It also duplicated the segment control directly
+                above it — a whole card spent on a link to a tab that was
+                already one tap away. One fewer block, one fewer broken promise. */}
 
             {/* Drill-down: Training Calendar */}
             <Pressable
               onPress={() => setShowCalendar(true)}
-              style={({ pressed }) => [
-                styles.drillDownCard,
-                { marginBottom: 20 },
-                pressed && { opacity: 0.82 },
-              ]}
+              style={({ pressed }) => [styles.drillDownCard, pressed && { opacity: 0.82 }]}
             >
               <View style={styles.drillDownIcon}>
                 <Ionicons name="calendar-outline" size={18} color={C.primary} />
@@ -3971,10 +3963,12 @@ export default function StatsScreen() {
                 came from, so show that instead of a blank page. */}
             {noKpiData && heaviestLifts.length > 0 && (
               <View style={styles.sectionBlock}>
-                <Text style={styles.sectionTitle}>Your heaviest lifts</Text>
-                <Text style={styles.sectionSub}>
-                  Best weight recorded for each exercise, from any session
-                </Text>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Your heaviest lifts</Text>
+                  <Text style={styles.sectionSub}>
+                    Best weight recorded for each exercise, from any session
+                  </Text>
+                </View>
                 {heaviestLifts.map((row) => (
                   <View key={row.name} style={styles.heaviestRow}>
                     <Text style={styles.heaviestName} numberOfLines={1}>
@@ -4021,8 +4015,10 @@ export default function StatsScreen() {
             </Pressable>
 
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Strength Progression</Text>
-              <Text style={styles.sectionSub}>Estimated 1RM - tap a dot for details</Text>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>Strength Progression</Text>
+                <Text style={styles.sectionSub}>Estimated 1RM · tap a dot for details</Text>
+              </View>
               {(['squat', 'bench', 'deadlift'] as SessionType[]).map((lift) => (
                 <StrengthLineChart
                   key={lift}
@@ -4038,8 +4034,10 @@ export default function StatsScreen() {
             <MuscleProgressPanel completedSessions={completedSessions} C={C} />
 
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionTitle}>Personal Bests</Text>
-              <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>Personal Bests</Text>
+                <Text style={styles.sectionSub}>All-time bests highlighted with a trophy</Text>
+              </View>
               <PBHistorySection orms={oneRepMaxes} weightUnit={weightUnit} C={C} />
             </View>
           </ScrollView>
@@ -4239,7 +4237,7 @@ export default function StatsScreen() {
                                   flexDirection: 'row',
                                   alignItems: 'center',
                                   gap: 6,
-                                  marginBottom: 1,
+                                  marginBottom: 2,
                                 }}
                               >
                                 {(() => {
@@ -4596,13 +4594,22 @@ export default function StatsScreen() {
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Weekly volume chart — moved here from Overview */}
+            {/* Each group is introduced by its heading, rather than the tab's
+                largest heading turning up second, underneath a card. A page
+                whose biggest type appears halfway down has no top, which is
+                part of why this tab reads as a pile rather than a structure. */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Volume</Text>
+              <Text style={styles.sectionSub}>Total weight moved each week</Text>
+            </View>
             <WeeklyVolumeChart sessions={completedSessions} weightUnit={weightUnit} C={C} />
 
-            <Text style={styles.sectionTitle}>Exercise Progress</Text>
-            <Text style={styles.sectionSub}>
-              Every weighted lift you&apos;ve logged · tap one for full history
-            </Text>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Exercise Progress</Text>
+              <Text style={styles.sectionSub}>
+                Every weighted lift you&apos;ve logged · tap one for full history
+              </Text>
+            </View>
             <ExerciseProgressList
               weightUnit={weightUnit}
               totalSessions={completedSessions.length}
@@ -4773,14 +4780,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     segmentTabText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.primary },
 
-    tabContent: { paddingHorizontal: 20, paddingTop: 12 },
+    // ONE rhythm, owned by the scroll container.
+    //
+    // Every block used to carry its own bottom margin and they disagreed: the
+    // Overview scroll ran 20 / 16 / 16 / 12 / 20 between five consecutive
+    // blocks, and eleven distinct marginBottom values existed across the file.
+    // The eye reads no rhythm from that, which is most of what "a lot crammed
+    // into one space" is actually measuring — it is not the amount of content,
+    // it is that nothing is evenly spaced so nothing groups.
+    //
+    // Blocks no longer set their own bottom margin; this gap does it, so
+    // spacing stays even however the blocks are reordered.
+    tabContent: { paddingHorizontal: 20, paddingTop: 12, gap: 16 },
 
     statRow: {
       flexDirection: 'row',
       backgroundColor: C.surface,
       borderRadius: 16,
       padding: 16,
-      marginBottom: 20,
       borderWidth: 1,
       borderColor: C.borderLight,
       alignItems: 'center',
@@ -4796,14 +4813,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     statDiv: { width: 1, height: 32, backgroundColor: C.border },
 
-    sectionBlock: { marginBottom: 20 },
+    sectionBlock: { gap: 12 },
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
     sectionSub: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
-      marginBottom: 12,
     },
+    // A heading and its subtitle are one thing, so they travel as one block and
+    // sit closer to each other than to anything else. Previously sectionSub
+    // carried marginBottom: 12 of its own, which the container gap then added
+    // to — pushing the subtitle away from the card it introduces.
+    sectionHead: { gap: 2, marginBottom: -4 },
     heaviestRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4829,7 +4850,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surface,
       borderRadius: 16,
       padding: 14,
-      marginBottom: 12,
       borderWidth: 1,
       borderColor: C.borderLight,
       flexDirection: 'row',
