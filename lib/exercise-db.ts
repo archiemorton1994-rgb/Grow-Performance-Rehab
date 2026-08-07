@@ -3034,7 +3034,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
       },
       {
         id: 'bn-neuro-fg-4',
-        name: 'Power Clean (Light Bar)',
+        name: 'Power Clean (Light)',
         sets: 3,
         reps: '3 explosive',
         cue: 'Barbell power clean - explosive hip extension, shrug, pull bar to shoulders; load is light, speed is everything',
@@ -5148,7 +5148,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
       },
       {
         id: 'sq-acc-db-5',
-        name: 'DB Goblet Squat',
+        name: 'Goblet Squat',
         sets: 3,
         reps: '15',
         cue: 'Hold DB at chest, sit between hips, chest tall - controlled 2s descent',
@@ -5251,7 +5251,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Box Sumo Squat'],
         swapAlternative: {
-          name: 'DB Goblet Squat',
+          name: 'Goblet Squat',
           cue: 'Narrow stance, DB at chest - more quad emphasis',
           suggestedLoad: '14-24 kg',
         },
@@ -5367,7 +5367,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Box Sumo Squat'],
         swapAlternative: {
-          name: 'DB Goblet Squat',
+          name: 'Goblet Squat',
           cue: 'Standard hip-width stance - more quad emphasis',
           suggestedLoad: '14-24 kg',
         },
@@ -5995,7 +5995,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
       },
       {
         id: 'bn-acc-bw-2',
-        name: 'Inverted Row (Table/Bar)',
+        name: 'Inverted Row',
         sets: 3,
         reps: '15',
         cue: 'Pull chest to bar, squeeze back at top - body plank-straight',
@@ -7152,7 +7152,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Machine Chest Press (partial ROM)'],
         swapAlternative: {
-          name: 'DB Bench Press',
+          name: 'Dumbbell Bench Press',
           cue: 'Full ROM with dumbbells - same pressing pattern with more shoulder stability demand',
           suggestedLoad: '16-28 kg per hand',
         },
@@ -11856,7 +11856,7 @@ const CONDITIONING_WORKOUTS: Record<
       },
       {
         id: 'cond-db-e-3',
-        name: 'DB Goblet Squat',
+        name: 'Goblet Squat',
         sets: 3,
         reps: '15 - 45s rest',
         cue: 'Steady tempo, feel the burn - lighter than your strength sessions',
@@ -15684,7 +15684,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   dumbbells: [
     {
       id: 'wlb-db-goblet',
-      name: 'DB Goblet Squat',
+      name: 'Goblet Squat',
       sets: 3,
       reps: '10-12',
       cue: 'Hold one dumbbell vertically at chest height. Squat deep, elbows inside knees at the bottom. Drive through heels, stay tall.',
@@ -15791,7 +15791,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   fullgym: [
     {
       id: 'wlb-fg-squat',
-      name: 'Barbell Back Squat',
+      name: 'Back Squat',
       sets: 4,
       reps: '8-10',
       cue: 'Bar across upper traps, brace your core hard. Push knees out, sit into hips. Drive out of the hole - push the floor away.',
@@ -16008,7 +16008,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   dumbbells: [
     {
       id: 'wub-db-bench',
-      name: 'DB Bench Press',
+      name: 'Dumbbell Bench Press',
       sets: 3,
       reps: '8-12',
       cue: 'Lie flat, dumbbells at chest level. Press straight up then slightly inward at the top. Lower slowly - feel the stretch across your chest.',
@@ -16115,7 +16115,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   fullgym: [
     {
       id: 'wub-fg-bench',
-      name: 'Bench Press',
+      name: 'Barbell Bench Press',
       sets: 4,
       reps: '8-10',
       cue: 'Grip just outside shoulder width, retract shoulder blades into the bench. Lower bar to mid-chest. Drive feet into floor as you press.',
@@ -16353,7 +16353,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   dumbbells: [
     {
       id: 'wfb-db-goblet',
-      name: 'DB Goblet Squat',
+      name: 'Goblet Squat',
       sets: 3,
       reps: '10-12',
       cue: 'Hold one dumbbell at chest. Squat deep, elbows push knees out at the bottom. Drive through heels to stand.',
@@ -16395,7 +16395,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
     },
     {
       id: 'wfb-db-bench',
-      name: 'DB Bench Press',
+      name: 'Dumbbell Bench Press',
       sets: 3,
       reps: '8-12',
       cue: 'Lie flat, dumbbells at chest level. Press up and slightly inward. Lower slowly for a full chest stretch. Keep wrists stacked over elbows.',
@@ -16481,7 +16481,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   fullgym: [
     {
       id: 'wfb-fg-squat',
-      name: 'Barbell Back Squat',
+      name: 'Back Squat',
       sets: 4,
       reps: '8-10',
       cue: 'Bar on traps, brace hard. Push knees out, sit into hips, drive through heels. Keep chest up and core tight throughout the movement.',
@@ -16502,7 +16502,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
     },
     {
       id: 'wfb-fg-deadlift',
-      name: 'Conventional Deadlift',
+      name: 'Barbell Deadlift',
       sets: 3,
       reps: '6-8',
       cue: 'Bar over mid-foot, big breath and brace. Push floor away to lift, then hip hinge to lower. Lat engagement (protect armpits) is the key to keeping back safe.',
@@ -16523,7 +16523,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
     },
     {
       id: 'wfb-fg-bench',
-      name: 'Bench Press',
+      name: 'Barbell Bench Press',
       sets: 4,
       reps: '8-10',
       cue: 'Retract shoulder blades. Lower bar to mid-chest with controlled tempo. Drive feet into floor as you press to lockout.',

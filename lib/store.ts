@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
+import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import {
   getTrainingBalanceNudge as getBalanceNudge,
   type BalanceNudge,
@@ -739,7 +740,10 @@ export const useAppStore = create<AppState>()(
         for (const session of get().completedSessions) {
           for (const log of session.exerciseLogs) {
             if (!log.note || !log.note.trim()) continue;
-            if (log.exerciseId === exerciseId || log.exerciseName === exerciseName) {
+            if (
+              log.exerciseId === exerciseId ||
+              canonicalExerciseName(log.exerciseName) === canonicalExerciseName(exerciseName)
+            ) {
               return log.note.trim();
             }
           }
@@ -1291,19 +1295,34 @@ export const useAppStore = create<AppState>()(
             const bestSetWeight = workingSets.reduce((b, s) => (s.weight > b ? s.weight : b), 0);
             const avgWorkingWeight =
               workingSets.reduce((sum, s) => sum + s.weight, 0) / workingSets.length;
-            let entry = map.get(log.exerciseId);
+            /**
+             * Keyed by the CANONICAL NAME, not by the exercise id.
+             *
+             * The same movement existed in the database twice — once in the
+             * KPI-lift collection and once in the weekly-session collection —
+             * with different ids. So a bench press logged on bench day and a
+             * bench press logged on upper-body day produced two separate rows
+             * in Exercise Progress, each with half the history, and neither
+             * showing the real trend. Merging the names fixed the picker; this
+             * fixes the twelve months of data behind it.
+             *
+             * canonicalExerciseName also carries pre-rename history forward, so
+             * nobody's chart restarts because the app changed a label.
+             */
+            const key = canonicalExerciseName(log.exerciseName);
+            let entry = map.get(key);
             if (!entry) {
               entry = {
                 exerciseId: log.exerciseId,
-                exerciseName: log.exerciseName,
+                exerciseName: key,
                 sessionType: session.sessionType,
                 appearances: [],
               };
-              map.set(log.exerciseId, entry);
+              map.set(key, entry);
             }
             // Iterating oldest->newest means the last write wins, so the row shows
-            // the most recent name/session-type for an exercise that may have moved.
-            entry.exerciseName = log.exerciseName;
+            // the most recent id/session-type for an exercise that may have moved.
+            entry.exerciseId = log.exerciseId;
             entry.sessionType = session.sessionType;
             entry.appearances.push({ date: session.date, bestSetWeight, avgWorkingWeight });
           }

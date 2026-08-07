@@ -66,7 +66,8 @@ for (const name of [
   'Goblet Squat',
   'Romanian Deadlift',
   'Lat Pulldown',
-  'DB Bench Press',
+  // Renamed to its canonical form — see lib/exercise-aliases.ts.
+  'Dumbbell Bench Press',
   'Push-Up',
   'Leg Press',
 ]) {
@@ -97,9 +98,9 @@ check(
 // distinction a Push/Pull/Legs or Upper/Lower week actually needs.
 check(
   'bench press and overhead press are different patterns',
-  patternGroupOf(get('Bench Press')) === 'horizontal_push' &&
+  patternGroupOf(get('Barbell Bench Press')) === 'horizontal_push' &&
     patternGroupOf(get('Overhead Press')) === 'vertical_push',
-  `${patternGroupOf(get('Bench Press'))} vs ${patternGroupOf(get('Overhead Press'))}`
+  `${patternGroupOf(get('Barbell Bench Press'))} vs ${patternGroupOf(get('Overhead Press'))}`
 );
 check(
   'rows and pull-ups are different patterns',
@@ -209,7 +210,7 @@ console.log('\n[5] The calculator does not appear on a press-up');
 for (const n of ['Barbell Bench Press', 'Conventional Deadlift', 'Back Squat', 'Overhead Press']) {
   check(`"${n}" is a barbell lift`, isBarbellExercise(n), '');
 }
-for (const n of ['DB Bench Press', 'Push-Up', 'Cable Chest Fly', 'Band Face Pull', 'KB Swing']) {
+for (const n of ['Dumbbell Bench Press', 'Push-Up', 'Cable Chest Fly', 'Band Face Pull', 'KB Swing']) {
   check(`"${n}" is not`, !isBarbellExercise(n), '');
 }
 
