@@ -599,6 +599,13 @@ function RootLayoutNav() {
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
         <Stack.Screen name="program" options={{ headerShown: false }} />
         <Stack.Screen name="past-sessions" options={{ headerShown: false }} />
+        {/* This one was missing, and every other screen in the app declares it.
+            Without an entry the route falls back to the default navigator
+            header — which renders the raw route name, so the screen showed a
+            grey "custom-session" bar with a Back button directly above its own
+            properly-designed header. Two headers, one of them showing a file
+            path. */}
+        <Stack.Screen name="custom-session" options={{ headerShown: false }} />
       </Stack>
       {/* Only one root-level Modal may be presented at a time. */}
       <WeeklyWeightPrompt deferred={currentToast !== null} />

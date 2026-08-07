@@ -47,11 +47,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   main: 'Main Lift',
   accessory: 'Accessory',
   mechanical: 'Mechanical',
-  neuro: 'Speed & Power',
+  neuro: 'Power',
   prep: 'Warm-Up',
   finisher: 'Finisher',
   prehab: 'Prehab',
-  cooldown: 'Cool-Down',
+  cooldown: 'Cooldown',
   cardio: 'Cardio',
 };
 
@@ -66,11 +66,11 @@ const CATEGORY_SECTION_LABELS: Record<string, string> = {
   main: 'Main Lifts',
   accessory: 'Accessories',
   mechanical: 'Mechanical',
-  neuro: 'Speed & Power',
+  neuro: 'Power',
   prep: 'Warm-Up',
   finisher: 'Finishers',
   prehab: 'Prehab',
-  cooldown: 'Cool-Down',
+  cooldown: 'Cooldown',
 };
 
 /** Order the rail lists sections in; anything unknown falls to the end. */
@@ -203,6 +203,12 @@ export default function CustomSessionScreen() {
   // Named sessions land in history under this label instead of a generic
   // "Custom Session" — the session screen already accepts displayLabel.
   const [sessionName, setSessionName] = useState('');
+  /** The name field folds away — most sessions are never named, and it was
+   *  taking a full row of the screen from everyone to serve the few who do. */
+  const [nameOpen, setNameOpen] = useState(false);
+  /** Equipment, movement pattern, difficulty and fresh-first all lived in two
+   *  full-width rows above the list. They are one button and one sheet now. */
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   // Multi-select movement-pattern / difficulty filters. Local state only — must NOT persist between sessions.
   const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set());
@@ -314,6 +320,19 @@ export default function CustomSessionScreen() {
   }, [allExercises]);
 
   const attrFiltersActive = patternFilters.size > 0 || difficultyFilters.size > 0;
+
+  /**
+   * How many filters are on, for the badge on the filter button.
+   *
+   * Equipment counts only when it is NARROWER than what the user owns —
+   * everything selected is the default state, not a filter, and a button
+   * permanently reading "3" would tell nobody anything.
+   */
+  const activeFilterCount =
+    patternFilters.size +
+    difficultyFilters.size +
+    (freshFirst ? 1 : 0) +
+    (equipmentFilters.size > 0 && equipmentFilters.size < ownedTiers.length ? 1 : 0);
 
   // Built from the pool, so a category can never become unreachable just
   // because a hardcoded list was not updated alongside it.
@@ -434,6 +453,7 @@ export default function CustomSessionScreen() {
   }, []);
 
   const selectedIds = useMemo(() => new Set(selected.map((s) => s.template.id)), [selected]);
+  const totalPicked = selected.length + selectedCardio.length;
 
   const [hasEverSelected, setHasEverSelected] = useState(false);
 
@@ -988,182 +1008,115 @@ export default function CustomSessionScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          testID="custom-session-back"
-          accessibilityLabel="Back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={24} color={C.text} />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Custom Session</Text>
-          <Text style={styles.headerSub}>Pick your exercises</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+      {/* ONE HEADER BLOCK, NOT FOUR ROWS OF CHROME.
+          Before this there were four full-width control rows stacked above the
+          list — a name field, a search field, an equipment row and a horizontal
+          filter row — so roughly 200pt of the screen was spent before a single
+          exercise appeared. Two of them were identical-looking text inputs,
+          which is its own kind of confusing.
 
-      <View style={styles.nameRow}>
-        <Ionicons name="create-outline" size={16} color={C.textTertiary} />
-        <TextInput
-          style={styles.nameInput}
-          placeholder="Name this session (optional)"
-          placeholderTextColor={C.textTertiary}
-          value={sessionName}
-          onChangeText={setSessionName}
-          returnKeyType="done"
-          maxLength={40}
-          testID="custom-session-name"
-        />
-      </View>
-
-      <View style={styles.searchRow}>
-        <Ionicons
-          name="search-outline"
-          size={18}
-          color={C.textTertiary}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search exercises…"
-          placeholderTextColor={C.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          autoCorrect={false}
-          testID="custom-session-search"
-        />
-      </View>
-
-      {/* Equipment toggle — narrows the pool to what you actually have to hand. */}
-      <View style={styles.equipRow}>
-        <Text style={styles.equipLabel}>Equipment</Text>
-        {EQUIPMENT_FILTER_OPTIONS.filter((o) => ownedTiers.includes(o.key)).map((o) => {
-          const active = equipmentFilters.has(o.key);
-          return (
-            <Pressable
-              key={o.key}
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setEquipmentFilters((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(o.key)) next.delete(o.key);
-                  else next.add(o.key);
-                  return next;
-                });
-              }}
-              style={({ pressed }) => [
-                styles.equipChip,
-                active && styles.equipChipActive,
-                pressed && { opacity: 0.8 },
-              ]}
-              testID={`custom-equip-${o.key}`}
-            >
-              <Text style={[styles.equipChipText, active && styles.equipChipTextActive]}>
-                {o.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {(availablePatterns.length > 0 || availableDifficulties.length > 0) && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexShrink: 0 }}
-          contentContainerStyle={styles.attrFilterRow}
-        >
+          The header is a tinted block so this screen reads as its own place
+          rather than another card list. Search is the one control that earns
+          permanent space. The name field folds away until wanted, and every
+          other filter lives behind one button that says how many are on. */}
+      <View style={styles.hero}>
+        <View style={styles.heroTop}>
           <Pressable
-            onPress={clearAttrFilters}
-            style={({ pressed }) => [
-              styles.filterChip,
-              !attrFiltersActive && styles.filterChipActive,
-              pressed && { opacity: 0.8 },
-            ]}
-            testID="filter-attr-all"
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
+            testID="custom-session-back"
+            accessibilityLabel="Back"
+            accessibilityRole="button"
           >
-            <Text
-              style={[styles.filterChipText, !attrFiltersActive && styles.filterChipTextActive]}
-            >
-              All
-            </Text>
+            <Ionicons name="chevron-back" size={22} color={C.textInverse} />
           </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle} numberOfLines={1}>
+              {sessionName.trim() || 'Build a session'}
+            </Text>
+            <Text style={styles.heroSub}>
+              {totalPicked === 0
+                ? 'Pick the exercises you want'
+                : `${totalPicked} exercise${totalPicked === 1 ? '' : 's'} picked`}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setNameOpen((v) => !v);
+            }}
+            style={({ pressed }) => [styles.heroIconBtn, pressed && { opacity: 0.7 }]}
+            testID="custom-session-name-toggle"
+            accessibilityLabel="Name this session"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={nameOpen ? 'create' : 'create-outline'}
+              size={19}
+              color={C.textInverse}
+            />
+          </Pressable>
+        </View>
 
-          {availablePatterns.map((p) => {
-            const active = patternFilters.has(p.key);
-            return (
-              <Pressable
-                key={p.key}
-                onPress={() => togglePatternFilter(p.key)}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  active && styles.filterChipActive,
-                  pressed && { opacity: 0.8 },
-                ]}
-                testID={`filter-pattern-${p.key}`}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {p.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {nameOpen && (
+          <TextInput
+            style={styles.heroNameInput}
+            placeholder="Name this session (optional)"
+            placeholderTextColor={C.primaryMuted}
+            value={sessionName}
+            onChangeText={setSessionName}
+            returnKeyType="done"
+            maxLength={40}
+            autoFocus
+            testID="custom-session-name"
+          />
+        )}
 
-          {availablePatterns.length > 0 && availableDifficulties.length > 0 && (
-            <View style={styles.filterDivider} />
-          )}
-
-          {availableDifficulties.map((d) => {
-            const active = difficultyFilters.has(d.key);
-            return (
-              <Pressable
-                key={d.key}
-                onPress={() => toggleDifficultyFilter(d.key)}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  active && styles.filterChipActive,
-                  pressed && { opacity: 0.8 },
-                ]}
-                testID={`filter-difficulty-${d.key}`}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {d.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-
-          {hasHistory && (
-            <>
-              <View style={styles.filterDivider} />
-              <Pressable
-                onPress={toggleFreshFirst}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  styles.freshChip,
-                  freshFirst && styles.filterChipActive,
-                  pressed && { opacity: 0.8 },
-                ]}
-                testID="filter-fresh-first"
-              >
-                <Ionicons
-                  name="sparkles-outline"
-                  size={13}
-                  color={freshFirst ? C.primary : C.textSecondary}
-                />
-                <Text style={[styles.filterChipText, freshFirst && styles.filterChipTextActive]}>
-                  Fresh first
-                </Text>
-              </Pressable>
-            </>
-          )}
-        </ScrollView>
-      )}
+        <View style={styles.heroControls}>
+          <View style={styles.searchRow}>
+            <Ionicons
+              name="search"
+              size={17}
+              color={C.textTertiary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search exercises…"
+              placeholderTextColor={C.textTertiary}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              autoCorrect={false}
+              testID="custom-session-search"
+            />
+          </View>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setFiltersOpen(true);
+            }}
+            style={({ pressed }) => [
+              styles.filterBtn,
+              activeFilterCount > 0 && styles.filterBtnActive,
+              pressed && { opacity: 0.85 },
+            ]}
+            testID="custom-open-filters"
+            accessibilityLabel="Filters"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="options-outline"
+              size={18}
+              color={activeFilterCount > 0 ? C.primaryDarkText : C.text}
+            />
+            {activeFilterCount > 0 && (
+              <Text style={styles.filterBtnCount}>{activeFilterCount}</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
 
       <View style={styles.browseRow}>
         {/* Catalogue rail — replaces the horizontal chip row, which pushed the
@@ -1191,7 +1144,7 @@ export default function CustomSessionScreen() {
               >
                 <Text
                   style={[styles.railItemText, active && styles.railItemTextActive]}
-                  numberOfLines={2}
+                  numberOfLines={1}
                 >
                   {sec.label}
                 </Text>
@@ -1788,6 +1741,181 @@ export default function CustomSessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* FILTERS, IN ONE PLACE.
+          These chips used to sit in a horizontal ScrollView above the list,
+          which meant everything past the fourth one was off the right edge —
+          the difficulty filters and "Fresh first" were present but effectively
+          invisible. In a sheet they wrap, so you can see the whole set at once
+          and choose deliberately. Not shown at all until asked for. */}
+      <Modal
+        visible={filtersOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFiltersOpen(false)}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={() => setFiltersOpen(false)}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]
+            }
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeadRow}>
+              <Text style={styles.sheetTitle}>Filters</Text>
+              {activeFilterCount > 0 && (
+                <Pressable
+                  onPress={() => {
+                    clearAttrFilters();
+                    setFreshFirst(false);
+                    setEquipmentFilters(new Set(ownedTiers));
+                  }}
+                  testID="custom-clear-filters"
+                >
+                  <Text style={styles.sheetClear}>Clear all</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {ownedTiers.length > 1 && (
+              <View style={styles.sheetGroup}>
+                <Text style={styles.sheetGroupLabel}>Equipment</Text>
+                <View style={styles.sheetChipWrap}>
+                  {EQUIPMENT_FILTER_OPTIONS.filter((o) => ownedTiers.includes(o.key)).map((o) => {
+                    const active = equipmentFilters.has(o.key);
+                    return (
+                      <Pressable
+                        key={o.key}
+                        onPress={() => {
+                          if (Platform.OS !== 'web')
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setEquipmentFilters((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(o.key)) next.delete(o.key);
+                            else next.add(o.key);
+                            return next;
+                          });
+                        }}
+                        style={({ pressed }) => [
+                          styles.filterChip,
+                          active && styles.filterChipActive,
+                          pressed && { opacity: 0.8 },
+                        ]}
+                        testID={`custom-equip-${o.key}`}
+                      >
+                        <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                          {o.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {(availablePatterns.length > 0 || availableDifficulties.length > 0) && (
+              <View style={styles.sheetGroup}>
+                <Text style={styles.sheetGroupLabel}>Movement and difficulty</Text>
+                <View style={styles.sheetChipWrap}>
+          <Pressable
+            onPress={clearAttrFilters}
+            style={({ pressed }) => [
+              styles.filterChip,
+              !attrFiltersActive && styles.filterChipActive,
+              pressed && { opacity: 0.8 },
+            ]}
+            testID="filter-attr-all"
+          >
+            <Text
+              style={[styles.filterChipText, !attrFiltersActive && styles.filterChipTextActive]}
+            >
+              All
+            </Text>
+          </Pressable>
+
+          {availablePatterns.map((p) => {
+            const active = patternFilters.has(p.key);
+            return (
+              <Pressable
+                key={p.key}
+                onPress={() => togglePatternFilter(p.key)}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`filter-pattern-${p.key}`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {availablePatterns.length > 0 && availableDifficulties.length > 0 && (
+            <View style={styles.filterDivider} />
+          )}
+
+          {availableDifficulties.map((d) => {
+            const active = difficultyFilters.has(d.key);
+            return (
+              <Pressable
+                key={d.key}
+                onPress={() => toggleDifficultyFilter(d.key)}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`filter-difficulty-${d.key}`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {d.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {hasHistory && (
+            <>
+              <View style={styles.filterDivider} />
+              <Pressable
+                onPress={toggleFreshFirst}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  styles.freshChip,
+                  freshFirst && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID="filter-fresh-first"
+              >
+                <Ionicons
+                  name="sparkles-outline"
+                  size={13}
+                  color={freshFirst ? C.primary : C.textSecondary}
+                />
+                <Text style={[styles.filterChipText, freshFirst && styles.filterChipTextActive]}>
+                  Fresh first
+                </Text>
+              </Pressable>
+            </>
+          )}
+
+                </View>
+              </View>
+            )}
+
+            <Pressable
+              onPress={() => setFiltersOpen(false)}
+              style={({ pressed }) => [styles.sheetDoneBtn, pressed && { opacity: 0.9 }]}
+              testID="custom-filters-done"
+            >
+              <Text style={styles.sheetDoneText}>Show exercises</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1795,6 +1923,110 @@ export default function CustomSessionScreen() {
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
+    /**
+     * A tinted header block, not another white card.
+     *
+     * Asked for: "have its own individual UI rather than just along with the
+     * theme". Every other screen in the app is neutral cards on a neutral
+     * background, which is right for reading your own data and wrong for a
+     * workbench. Filling the top with the brand colour gives this screen a
+     * place of its own and, more usefully, marks where the controls end and
+     * the catalogue begins — which is exactly the boundary that was missing.
+     */
+    hero: {
+      backgroundColor: C.primaryDark,
+      paddingHorizontal: 14,
+      paddingBottom: 12,
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+    },
+    heroTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingBottom: 10,
+    },
+    heroTitle: { fontSize: 19, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
+    heroSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.primaryDarkText,
+      opacity: 0.75,
+      marginTop: 1,
+    },
+    heroIconBtn: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroNameInput: {
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 10,
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.primaryDarkText,
+    },
+    heroControls: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    filterBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      height: 42,
+      paddingHorizontal: 13,
+      borderRadius: 12,
+      backgroundColor: C.surface,
+    },
+    filterBtnActive: { backgroundColor: C.primary },
+    filterBtnCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
+
+    sheetOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: C.background,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+      paddingHorizontal: 18,
+      paddingTop: 10,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      alignSelf: 'center',
+      marginBottom: 14,
+    },
+    sheetHeadRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
+    sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
+    sheetClear: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    sheetGroupLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      marginBottom: 8,
+    },
+    sheetGroup: { marginBottom: 18 },
+    sheetChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    sheetDoneBtn: {
+      backgroundColor: C.primaryDark,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    sheetDoneText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1875,33 +2107,44 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     browsePane: {
       flex: 1,
     },
+    /**
+     * The category rail.
+     *
+     * It was 104pt wide with 20pt of padding, leaving ~76pt for a 12.5px label
+     * — narrower than the word "Accessories", which is why the screenshot
+     * showed "Accessorie / s" breaking mid-word. Wider, plus two labels
+     * shortened, so nothing wraps at all.
+     *
+     * It also reads as a rail now rather than a list that happens to have a
+     * line beside it: its own recessed background, and the active item a solid
+     * pill instead of a tint.
+     */
     rail: {
-      width: 104,
+      width: 118,
       flexGrow: 0,
-      borderRightWidth: 1,
-      borderRightColor: C.borderLight,
+      backgroundColor: C.surfaceTertiary,
     },
     railContent: {
-      paddingLeft: 12,
-      paddingRight: 8,
+      paddingHorizontal: 8,
+      paddingTop: 10,
       paddingBottom: 24,
-      gap: 2,
+      gap: 3,
     },
     railItem: {
-      paddingVertical: 9,
-      paddingHorizontal: 8,
-      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 10,
     },
     railItemActive: {
-      backgroundColor: C.primaryMuted,
+      backgroundColor: C.primaryDark,
     },
     railItemText: {
-      fontSize: 12.5,
+      fontSize: 13,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
     railItemTextActive: {
-      color: C.primary,
+      color: C.primaryDarkText,
       fontFamily: 'Inter_700Bold',
     },
     searchRow: {
