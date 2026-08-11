@@ -575,7 +575,21 @@ export function SessionActiveBar({
    * every set but the last (where the clamp happened to hide it). It also
    * carries the weight, which the auto-regulation needs to adjust from.
    */
-  const [showFeedback, setShowFeedback] = useState<{ setIndex: number; kg: number } | null>(null);
+  /**
+   * Which set the open prompt is asking about, captured when it was raised.
+   *
+   * Completing the last set of an exercise advances the session, so by the time
+   * the user taps an answer the bar is already showing the NEXT exercise. Read
+   * live, that saved every working-set rating against the wrong exercise — and
+   * the working set is the one that decides the load, so it has to be the id
+   * from the moment the set was logged, not the id on screen when it is
+   * answered.
+   */
+  const [showFeedback, setShowFeedback] = useState<{
+    exerciseId: string;
+    setIndex: number;
+    kg: number;
+  } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
   /**
@@ -683,13 +697,17 @@ export function SessionActiveBar({
       // it stays put until one of the three buttons is tapped. The old 3s timer
       // meant a slower reader lost the chance to answer, and every set that
       // goes unrated is a load adjustment the engine never gets to make.
-      setShowFeedback({ setIndex: activeSetIndex, kg: effectiveWeightKg });
+      setShowFeedback({
+        exerciseId: exercise.id,
+        setIndex: activeSetIndex,
+        kg: effectiveWeightKg,
+      });
     }
   };
 
   const handleFeedback = (f: SetFeedback) => {
-    if (exercise && showFeedback) {
-      onFeedback(exercise.id, showFeedback.setIndex, f, showFeedback.kg);
+    if (showFeedback) {
+      onFeedback(showFeedback.exerciseId, showFeedback.setIndex, f, showFeedback.kg);
     }
     setShowFeedback(null);
   };
@@ -705,7 +723,11 @@ export function SessionActiveBar({
     );
   }
 
-  if (sessionAllDone) {
+  // An open prompt outranks the finish button: the last set of the session is
+  // still a set, and it is usually the heaviest one. Falling straight through to
+  // "Complete Session" threw its rating away, so the exercise the user just
+  // finished was the one the engine learned nothing about.
+  if (sessionAllDone && !showFeedback) {
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <Pressable
@@ -723,7 +745,10 @@ export function SessionActiveBar({
     );
   }
 
-  if (!exercise || !currentSet || activeSetIndex >= totalSets) return null;
+  // The prompt is about a set that is already logged, so it needs nothing from
+  // the exercise now under the cursor — and on the session's last set there is
+  // no next set for these guards to find.
+  if (!showFeedback && (!exercise || !currentSet || activeSetIndex >= totalSets)) return null;
 
   if (showFeedback || demoForceFeedback) {
     const loggedSetNumber = (showFeedback?.setIndex ?? activeSetIndex) + 1;
@@ -773,6 +798,9 @@ export function SessionActiveBar({
       </View>
     );
   }
+
+  // Past the prompt, the bar is back to logging a live set and needs a real one.
+  if (!exercise || !currentSet || activeSetIndex >= totalSets) return null;
 
   return (
     <View style={[styles.barContainer, { paddingBottom: bottomInset + 8 }]}>
