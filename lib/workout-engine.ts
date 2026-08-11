@@ -1,4 +1,7 @@
-import {
+// Types only, and spelled `import type` so it stays that way. The store now
+// imports back from this module to publish when the user last trained, and a
+// type-only edge cannot close that loop into a runtime cycle.
+import type {
   EquipmentTier,
   EnergyLevel,
   ExerciseFeedback,
@@ -143,6 +146,180 @@ function getLocalDayIndex(): number {
   );
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * TIME AWAY FROM TRAINING
+ * ────────────────────────────────────────────────────────────────────────────
+ *
+ * The load calculation had no concept of elapsed time at all. Eight strong
+ * squat sessions took the working weight to 80 kg, and coming back the next
+ * day, after five weeks or after a year produced the identical prescription,
+ * to the kilogram. The app knew the gap perfectly well — the streak reset, the
+ * bodyweight reminder fired — the number simply never reached the weight.
+ *
+ * Detraining is neither linear nor symmetrical. Strength holds for the first
+ * week or two and then falls away; the tissue tolerance that keeps you from
+ * pulling something goes sooner than the strength does. So the curve holds flat
+ * through a fortnight, bends through the weeks after it, and stops mattering
+ * once the weights on record have stopped being evidence about the person.
+ *
+ * The anchors below are a cautious shape, not a model of anyone's physiology.
+ * The cost of being 10% light on the first session back is one easy session.
+ * The cost of being 20% heavy is a strain, and a strain ends the comeback.
+ */
+
+/** Days away before any of this applies. Missing a week is life happening, and
+ *  a prescription that flinches at it teaches you the app is nervous. */
+export const LAYOFF_GRACE_DAYS = 10;
+
+/** Days away after which the weights on record stop being evidence. Past this
+ *  the app prescribes as it would for someone it has never met. */
+export const LAYOFF_RESET_DAYS = 90;
+
+/** Sessions back before a max-effort test can come due again. */
+export const COMEBACK_SESSIONS = 2;
+
+/** [days away, share of the usual load]. Interpolated between. */
+const LAYOFF_CURVE: readonly (readonly [number, number])[] = [
+  [LAYOFF_GRACE_DAYS, 1],
+  [21, 0.9],
+  [35, 0.775],
+  [LAYOFF_RESET_DAYS, 0.65],
+];
+
+/** Above this share of the usual load, quoting a percentage is noise rather
+ *  than information — "eased back to 99%" reads like a rounding error even
+ *  though the bar really is one plate lighter. Copy says so in words instead. */
+const LAYOFF_SLIGHT_ABOVE = 0.95;
+
+/** Where someone is after a break: how long it was, and what it costs today. */
+export interface Layoff {
+  daysAway: number;
+  /** Share of the usual load, 0-1. */
+  factor: number;
+  /** True once the history is too old to prescribe from at all. */
+  reset: boolean;
+  /** The cut is real but too small to be worth quoting as a number. */
+  slight: boolean;
+}
+
+/**
+ * Whole days between two instants, counted local-midnight to local-midnight so
+ * "yesterday" is 1 whatever the clock said — the same calendar convention
+ * getLocalDayIndex and the home screen's "days ago" label already use.
+ */
+export function wholeDaysBetween(fromIso: string, toMs: number): number {
+  const from = new Date(fromIso);
+  const to = new Date(toMs);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.max(0, Math.floor((b - a) / 86400000));
+}
+
+/** Share of the usual load to prescribe after `daysAway` off. */
+export function layoffFactor(daysAway: number | null): number {
+  if (daysAway === null || daysAway <= LAYOFF_GRACE_DAYS) return 1;
+  const last = LAYOFF_CURVE[LAYOFF_CURVE.length - 1];
+  if (daysAway >= last[0]) return last[1];
+  for (let i = 1; i < LAYOFF_CURVE.length; i++) {
+    const [d0, f0] = LAYOFF_CURVE[i - 1];
+    const [d1, f1] = LAYOFF_CURVE[i];
+    if (daysAway <= d1) return f0 + ((f1 - f0) * (daysAway - d0)) / (d1 - d0);
+  }
+  return last[1];
+}
+
+/** The break worth acting on, or null when there is nothing to act on. */
+export function getLayoff(daysAway: number | null): Layoff | null {
+  if (daysAway === null || daysAway <= LAYOFF_GRACE_DAYS) return null;
+  const factor = layoffFactor(daysAway);
+  return {
+    daysAway,
+    factor,
+    reset: daysAway >= LAYOFF_RESET_DAYS,
+    slight: factor > LAYOFF_SLIGHT_ABOVE,
+  };
+}
+
+/** "12 days", "3 weeks", "4 months" — for copy that has to name the gap. */
+export function describeTimeAway(days: number): string {
+  if (days < 14) return `${days} days`;
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  const months = Math.round(days / 30);
+  return months === 1 ? '1 month' : `${months} months`;
+}
+
+/** How long ago the most recent of these sessions was, or null if there are none. */
+export function daysAwayFrom(datesNewestFirst: string[], now: number = Date.now()): number | null {
+  const latest = datesNewestFirst[0];
+  return latest === undefined ? null : wholeDaysBetween(latest, now);
+}
+
+/** How long the most recent break was, and how far through the comeback they are. */
+export interface ReturnWindow {
+  daysAway: number;
+  /** Qualifying sessions logged since the break ended. Zero while still away. */
+  sessionsBack: number;
+}
+
+/**
+ * Where someone is in a comeback, or null when there is no break in play.
+ *
+ * Two lists because two different questions. `allDates` measures the break —
+ * any training at all breaks it, not just barbell work. `countedDates` is the
+ * subset that counts as re-establishing a baseline; pass the same array when
+ * everything counts.
+ *
+ * `sessionsBack: 0` is a real answer, not an absent one: it means they are away
+ * right now and the next thing they log is their first session back.
+ */
+export function getReturnWindow(
+  allDatesNewestFirst: string[],
+  countedDatesNewestFirst: string[],
+  now: number = Date.now()
+): ReturnWindow | null {
+  if (allDatesNewestFirst.length === 0) return null;
+  const away = wholeDaysBetween(allDatesNewestFirst[0], now);
+  if (away > LAYOFF_GRACE_DAYS) return { daysAway: away, sessionsBack: 0 };
+  for (let i = 0; i < allDatesNewestFirst.length - 1; i++) {
+    const resumedAt = Date.parse(allDatesNewestFirst[i]);
+    if (Number.isNaN(resumedAt)) continue;
+    if (wholeDaysBetween(allDatesNewestFirst[i + 1], resumedAt) > LAYOFF_GRACE_DAYS) {
+      return {
+        daysAway: wholeDaysBetween(allDatesNewestFirst[i + 1], resumedAt),
+        sessionsBack: countedDatesNewestFirst.filter((d) => Date.parse(d) >= resumedAt).length,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * When the user last trained.
+ *
+ * WHY THIS IS HELD HERE
+ * ─────────────────────
+ * The load calculation needs the gap, and this module is deliberately free of
+ * the store: every contract test imports it directly and none of them can
+ * afford to drag persistence, zustand and AsyncStorage in behind it. So the
+ * store publishes the date to the engine instead, from one subscription, which
+ * is the only arrangement where the date cannot go stale behind a mutation path
+ * that forgot to update it.
+ *
+ * `generateWorkout` still takes the gap as an argument and only falls back to
+ * this when the caller does not supply one, so every rule above stays testable
+ * without anyone touching module state.
+ */
+let lastTrainedAt: string | null = null;
+
+export function setLastTrainedDate(iso: string | null): void {
+  lastTrainedAt = iso;
+}
+
+export function daysSinceLastTrained(now: number = Date.now()): number | null {
+  return lastTrainedAt === null ? null : wholeDaysBetween(lastTrainedAt, now);
+}
+
 type MainSessionType = Exclude<
   SessionType,
   'conditioning' | 'prehab' | 'flexibility' | 'custom' | 'upper_body' | 'lower_body' | 'full_body'
@@ -254,6 +431,10 @@ function isSameMovement(a: string, b: string): boolean {
  *  instead. Rare on purpose — the main lift is what you are progressing, and
  *  progression needs the same movement most of the time. */
 const MAIN_VARIATION_EVERY = 4;
+
+/** Appended to the base lift's id so a main-lift variation carries its own
+ *  progression rather than the base lift's. See the loop that uses it. */
+const MAIN_VARIATION_ID_SUFFIX = '-variation';
 
 /** How often each REQUIRED slot swaps to a different exercise of the same
  *  movement pattern. Staggered per slot, so this is the period for one slot,
@@ -413,7 +594,9 @@ function personalizeLoad(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  /** Time away from training, or null when there has been none worth acting on. */
+  layoff?: Layoff | null
 ): PersonalisedLoad {
   /** Load text the engine did not compute — no structured weight to attach. */
   const verbatim = (text: string): PersonalisedLoad => ({ text, kg: null });
@@ -461,6 +644,21 @@ function personalizeLoad(
   // baseline autoMult.
   const combinedMult = Math.min(1.5, feedbackMult * autoMult);
 
+  // ── Time away ────────────────────────────────────────────────────────────
+  // Two adjustments, and which applies depends on how long it has been.
+  //
+  // Under LAYOFF_RESET_DAYS the app still believes the weights on record and
+  // simply prescribes a share of them. Past it, it stops believing them: the
+  // progression and feedback earned before the break are discarded too, because
+  // a year-old "that felt easy" is not evidence about today, and what is left
+  // is the same bootstrap a brand-new user gets.
+  /** Share of the usual load the break has cost. Not applied past the reset
+   *  point, where the history it would scale is discarded outright. */
+  const layoffMult = layoff && !layoff.reset ? layoff.factor : 1;
+  /** Progression banked before the break, dropped once the break is long
+   *  enough that the app is starting over. */
+  const earnedMult = layoff?.reset ? 1 : combinedMult;
+
   // ── Per-exercise progression: lastLoggedWeight + step per session ────────
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
@@ -494,7 +692,12 @@ function personalizeLoad(
       lastKg = lastLoggedWeights?.[`${exerciseId}-comfort`] ?? 0;
     }
   }
-  if (lastKg > 0) {
+  if (lastKg > 0 && layoff && !layoff.reset) {
+    // A comeback replaces progression rather than adding to it. The step exists
+    // to answer "how did last session go", and last session was weeks ago.
+    return computed(roundTo2_5(lastKg * layoff.factor));
+  }
+  if (lastKg > 0 && !layoff?.reset) {
     const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
     if (performance === 'failed') {
       // Incomplete sets or thumbs-down - hold at same weight
@@ -524,6 +727,19 @@ function personalizeLoad(
     return computed(progressedKg);
   }
 
+  /**
+   * The most a comeback may prescribe.
+   *
+   * Past LAYOFF_RESET_DAYS the app falls back to the estimate it would give a
+   * stranger — but that estimate must never come back HEAVIER than the weight
+   * this person actually walked away from. It can: a 1RM tested eight months
+   * ago is still the best one on file, and 85% of it can exceed the last real
+   * working weight. So the lift they left, cut hard, caps every path below.
+   * Null whenever there is nothing to cap against.
+   */
+  const comebackCeilingKg =
+    layoff?.reset && lastKg > 0 ? roundTo2_5(lastKg * layoff.factor) : null;
+
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
       `[personalizeLoad] ex=${exerciseId} (heuristic) strengthSessions=${strengthSessionCount}` +
@@ -537,8 +753,8 @@ function personalizeLoad(
   // to calculate the working weight directly rather than relying on body-weight
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
-    const targetKg = roundTo2_5(workingWeightFromOrm(ormKg, profile) * combinedMult);
-    return computed(targetKg);
+    const targetKg = roundTo2_5(workingWeightFromOrm(ormKg, profile) * earnedMult * layoffMult);
+    return computed(comebackCeilingKg === null ? targetKg : Math.min(targetKg, comebackCeilingKg));
   }
 
   // ── Heuristic scaling (fallback when no 1RM is available) ───────────────
@@ -574,11 +790,25 @@ function personalizeLoad(
   // collected as we go rather than re-parsed out of the result; that round trip
   // is exactly what this removes. Only a stated ladder travels as several
   // weights, because only a ladder means one weight per set.
+  //
+  // A comeback ceiling is folded in as one more multiplier rather than clamping
+  // each number where it stands: clamping individually would squash a stated
+  // ramp into a flat line, which is a different prescription, not a lighter one.
+  const rawNumbers = (rawLoad.match(/\d+(?:\.\d+)?/g) ?? [])
+    .map((n) => parseFloat(n))
+    .filter((n) => n > 0);
+  const rawRef = statesLadder(rawLoad) ? Math.max(0, ...rawNumbers) : (rawNumbers[0] ?? 0);
+  const uncappedRefKg = rawRef * scale * earnedMult * layoffMult;
+  const ceilingScale =
+    comebackCeilingKg !== null && uncappedRefKg > comebackCeilingKg
+      ? comebackCeilingKg / uncappedRefKg
+      : 1;
+
   const scaled: number[] = [];
   const text = rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
     if (num <= 0) return match;
-    const kg = roundTo2_5(num * scale * combinedMult);
+    const kg = roundTo2_5(num * scale * earnedMult * layoffMult * ceilingScale);
     scaled.push(kg);
     return String(kg);
   });
@@ -739,7 +969,8 @@ function applyPersonalization(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  layoff?: Layoff | null
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
@@ -752,7 +983,21 @@ function applyPersonalization(
   let progressionNote: string | undefined;
   let progressionDirection: 'up' | 'hold' | undefined;
   const lastKg = ex.id ? (lastLoggedWeights?.[ex.id] ?? 0) : 0;
-  if (lastKg > 0) {
+  if (lastKg > 0 && layoff) {
+    // Silence would be the worst option here. The weight visibly went DOWN, and
+    // every other note on this card explains a step up — leaving the old copy
+    // in place would have the card claim it nudged the weight up on the exact
+    // session where it cut it. Direction stays 'hold' rather than gaining a
+    // 'down' case: the icon that reads it lives in app/session.tsx, and a dash
+    // beside "eased back" is honest where an upward arrow would not be.
+    const away = describeTimeAway(layoff.daysAway);
+    progressionNote = layoff.reset
+      ? `Starting fresh - ${away} away, so this is an estimate again`
+      : layoff.slight
+        ? `Eased back slightly - ${away} since your last session`
+        : `Eased back to ${Math.round(layoff.factor * 100)}% - ${away} since your last session`;
+    progressionDirection = 'hold';
+  } else if (lastKg > 0) {
     const performance = ex.id ? lastSessionPerformance?.[ex.id] : undefined;
     const normalStreak = ex.id ? (exerciseNormalStreak?.[ex.id] ?? 0) : 0;
     if (performance === 'failed') {
@@ -788,7 +1033,8 @@ function applyPersonalization(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     );
 
   const main = personalise(ex.suggestedLoad);
@@ -828,8 +1074,16 @@ export function generateWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  /**
+   * Whole days since the last completed session. Defaults to whatever the store
+   * last published (see setLastTrainedDate), so the one caller that builds a
+   * real session gets time-off handling without having to know about it, and a
+   * test can pass an explicit number instead of reaching into module state.
+   */
+  daysSinceLastSession: number | null = daysSinceLastTrained()
 ): Exercise[] {
+  const layoff = getLayoff(daysSinceLastSession);
   // Screen first, then fill the swap slots — so the alternatives on offer are
   // alternatives to what the user is actually being shown, and a substituted
   // exercise gets its own stand-ins rather than inheriting the removed one's.
@@ -844,7 +1098,8 @@ export function generateWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     ),
     readiness,
     equipmentTier,
@@ -1225,7 +1480,8 @@ function generateWorkoutUnscreened(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  layoff?: Layoff | null
 ): Exercise[] {
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(
@@ -1236,7 +1492,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     );
   }
   if (sessionType === 'prehab') {
@@ -1320,7 +1577,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     );
   }
 
@@ -1498,7 +1756,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     )
   );
   const kettlebelled =
@@ -1535,7 +1794,8 @@ function generateWeeklyWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  layoff?: Layoff | null
 ): Exercise[] {
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
@@ -1707,11 +1967,23 @@ function generateWeeklyWorkout(
     // progress, and progression needs the same movement most of the time. The
     // alternative is the one already declared on the template, so it is a
     // choice someone made rather than a pattern match.
+    //
+    // It trains under its OWN id, which is the part that was wrong. The
+    // variation used to keep the base lift's id so progression carried over —
+    // which sounds right and is not. An incline bench is not a flat bench:
+    // inheriting the id meant the incline was prescribed at the flat bench's
+    // working weight, and then wrote its own, necessarily lighter, result back
+    // over it. One id, two movements, and neither one's history was true.
+    //
+    // A derived id is stable across sessions, so the variation builds its own
+    // progression line and the base lift's is left exactly where it was. The
+    // first time it appears there is nothing to progress from, which is the
+    // honest answer for a movement that has never been performed.
     const base = selectedMain[i];
     const t =
       i === 0
         ? rotateMain && base.swapAlternative
-          ? { ...base, ...base.swapAlternative, id: base.id }
+          ? { ...base, ...base.swapAlternative, id: `${base.id}${MAIN_VARIATION_ID_SUFFIX}` }
           : base
         : // Accessories additionally rotate their grip or stance where a
           // curated variant exists — see lib/grip-variants.ts. The id is kept,
@@ -1752,7 +2024,12 @@ function generateWeeklyWorkout(
       sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
     const finisherPool = getFinisher(finisherSource, equipmentTier, finisherKey);
     if (finisherPool.length > 0) {
-      exercises.push(templateToExercise(finisherPool[0]));
+      // Rotated on the same seed as everything else in this session. It used to
+      // be finisherPool[0], so every 60-minute weekly session for the rest of
+      // time ended on the same exercise — while the KPI sessions, drawing from
+      // these very same pools, had been rotating theirs all along.
+      const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
+      exercises.push(templateToExercise(finisher));
     }
   }
 
@@ -1774,7 +2051,8 @@ function generateWeeklyWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     )
   );
 
@@ -1804,7 +2082,8 @@ function generateConditioningWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>
+  lastSessionPerformance?: Record<string, ExercisePerformance>,
+  layoff?: Layoff | null
 ): Exercise[] {
   const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
@@ -1820,8 +2099,31 @@ function generateConditioningWorkout(
     0,
     prepCount
   );
+  // The work block rotates, like every other session builder's does. This one
+  // took its list verbatim, which made a conditioning session byte-identical
+  // every day, forever, at every equipment tier and energy level — the only
+  // thing that ever moved was the order of the stretches spliced in above.
+  //
+  // The slots whose position carries meaning keep it: the warm-up opens, the
+  // finisher is the last hard effort, the cooldown closes. Only the circuits
+  // between them move.
+  //
+  // Worth being straight about the ceiling. The database holds exactly ONE
+  // prescribed circuit per tier and energy level, so what changes day to day is
+  // the order of two or three efforts, not which efforts they are. Rotation was
+  // the engine half of this defect; the other half is more entries in
+  // CONDITIONING_WORKOUTS, and that is lib/exercise-db.ts.
+  const rest = templates.slice(1);
+  const finisher = rest.filter((t) => t.category === 'finisher');
+  const cooldown = rest.filter((t) => t.category === 'cooldown');
+  const work = seededShuffleDiverse(
+    rest.filter((t) => t.category !== 'finisher' && t.category !== 'cooldown'),
+    sessionSeed
+  );
   const withPrep =
-    templates.length > 0 ? [templates[0], ...prepTemplates, ...templates.slice(1)] : templates;
+    templates.length > 0
+      ? [templates[0], ...prepTemplates, ...work, ...finisher, ...cooldown]
+      : templates;
 
   const personalized = withPrep.map((t) =>
     applyPersonalization(
@@ -1833,7 +2135,8 @@ function generateConditioningWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      layoff
     )
   );
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;

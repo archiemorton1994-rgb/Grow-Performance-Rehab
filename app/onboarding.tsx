@@ -546,7 +546,7 @@ export default function OnboardingScreen() {
                 {WELCOME_PILLARS.map((pillar) => (
                   <View key={pillar.title} style={styles.welcomePillar}>
                     <View style={styles.welcomePillarIcon}>
-                      <GrowIcon name={pillar.icon} size={18} color={C.primary} />
+                      <GrowIcon name={pillar.icon} size={18} color={C.primaryText} />
                     </View>
                     <View style={styles.welcomePillarText}>
                       <Text style={styles.welcomePillarTitle}>{pillar.title}</Text>
@@ -565,7 +565,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="palette" size={56} color={C.primary} />
+                <GrowIcon name="palette" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Choose your look</Text>
               <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
@@ -612,7 +612,7 @@ export default function OnboardingScreen() {
                         <GrowIcon
                           name={icon}
                           size={28}
-                          color={selected ? C.primary : C.textSecondary}
+                          color={selected ? C.primaryText : C.textSecondary}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -637,7 +637,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="profile" size={56} color={C.primary} />
+                <GrowIcon name="profile" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>What should we call you?</Text>
               <Text style={styles.hint}>Personalises your experience</Text>
@@ -663,7 +663,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="chart" size={56} color={C.primary} />
+                <GrowIcon name="chart" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Your biological sex</Text>
               <Text style={styles.hint}>Helps us calibrate your lifting loads</Text>
@@ -688,7 +688,7 @@ export default function OnboardingScreen() {
                         <GrowIcon
                           name={opt.icon}
                           size={22}
-                          color={selected ? C.textInverse : C.primary}
+                          color={selected ? C.textInverse : C.primaryText}
                         />
                       </View>
                       <Text
@@ -714,7 +714,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="dumbbell" size={56} color={C.primary} />
+                <GrowIcon name="dumbbell" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>How long have you been training?</Text>
               <Text style={styles.hint}>Sets the right starting weights</Text>
@@ -739,7 +739,7 @@ export default function OnboardingScreen() {
                         <GrowIcon
                           name={opt.icon}
                           size={22}
-                          color={selected ? C.textInverse : C.primary}
+                          color={selected ? C.textInverse : C.primaryText}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -769,7 +769,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <GrowIcon name="scale" size={56} color={C.primary} />
+                <GrowIcon name="scale" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
               <Text style={styles.hint}>Used to personalise your lifting loads</Text>
@@ -809,7 +809,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="flag" size={56} color={C.primary} />
+                <GrowIcon name="flag" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>What are you training for?</Text>
               <Text style={styles.hint}>Select all that apply</Text>
@@ -826,7 +826,7 @@ export default function OnboardingScreen() {
                       <GrowIcon
                         name={opt.icon}
                         size={16}
-                        color={selected ? C.primary : C.textSecondary}
+                        color={selected ? C.primaryText : C.textSecondary}
                       />
                       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                         {opt.label}
@@ -842,7 +842,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.equipScreenContent]}>
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
-                <GrowIcon name="dumbbell" size={24} color={C.primary} />
+                <GrowIcon name="dumbbell" size={24} color={C.primaryText} />
               </View>
               <Text style={[styles.question, styles.questionCompact]}>
                 What do you have access to?
@@ -943,7 +943,7 @@ export default function OnboardingScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <GrowIcon name="podium" size={56} color={C.primary} />
+                <GrowIcon name="podium" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
               <Text style={styles.hint}>
@@ -991,7 +991,7 @@ export default function OnboardingScreen() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="podium" size={56} color={C.primary} />
+                <GrowIcon name="podium" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Test your strength?</Text>
               <Text style={styles.hint}>
@@ -1030,7 +1030,7 @@ export default function OnboardingScreen() {
                         <GrowIcon
                           name={opt.icon}
                           size={22}
-                          color={selected ? C.textInverse : C.primary}
+                          color={selected ? C.textInverse : C.primaryText}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1159,7 +1159,7 @@ function LiftInput({
             resizeMode="contain"
           />
         ) : (
-          <GrowIcon name="dumbbell" size={20} color={C.primary} />
+          <GrowIcon name="dumbbell" size={20} color={C.primaryText} />
         )}
       </View>
       <Text style={liftStyles.label}>{label}</Text>
@@ -1192,7 +1192,7 @@ function CelebSummaryPill({
   if (!label) return null;
   return (
     <View style={celebStyles.pill}>
-      <GrowIcon name={icon} size={14} color={C.primary} />
+      <GrowIcon name={icon} size={14} color={C.primaryText} />
       <Text style={celebStyles.pillText}>{label}</Text>
     </View>
   );
@@ -1318,7 +1318,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       marginTop: 1,
     },
-    optionDescSelected: { color: C.primary },
+    optionDescSelected: { color: C.primaryText },
     radio: {
       width: 20,
       height: 20,

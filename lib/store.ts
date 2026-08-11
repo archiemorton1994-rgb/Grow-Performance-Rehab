@@ -9,6 +9,12 @@ import {
   getTrainingBalanceNudge as getBalanceNudge,
   type BalanceNudge,
 } from '@/lib/training-balance';
+import {
+  COMEBACK_SESSIONS,
+  getReturnWindow as computeReturnWindow,
+  setLastTrainedDate,
+  type ReturnWindow,
+} from '@/lib/workout-engine';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -534,8 +540,18 @@ interface AppState {
     total: number;
     /** The lift the next test session should use. */
     nextLift: SessionType;
+    /** True when a test IS due by the count but is being withheld because the
+     *  user is only just back from a break. See the implementation. */
+    held: boolean;
   };
   isTestWeekDue: () => boolean;
+  /**
+   * Where the user is in a comeback — how long their most recent break was and
+   * how many strength sessions they have logged since it ended — or null when
+   * there is no break in play. Thresholds live in lib/workout-engine.ts so the
+   * load calculation and this cannot disagree about what counts as a break.
+   */
+  getReturnWindow: () => ReturnWindow | null;
   getStreakDays: () => number;
   getThisWeekCount: () => number;
   getBestORM: (lift: SessionType) => OneRepMax | null;
@@ -800,6 +816,13 @@ export const useAppStore = create<AppState>()(
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        // Read BEFORE the session is added, because adding it is what destroys
+        // the evidence: a test held back for a comeback is due on a session
+        // count that is a multiple of testWeekFrequency, and the session about
+        // to be logged moves the count past it. Without recording the
+        // postponement here the held test would silently vanish for a whole
+        // block — which is the failure the hold exists to prevent.
+        const testHeldForComeback = get().getTestWeekProgress().held;
         set((state) => {
           // Derive per-exercise session performance from actual set completion data.
           // This is the primary input for the workout engine's progressive overload
@@ -872,7 +895,11 @@ export const useAppStore = create<AppState>()(
             exerciseStuckStreak: newStuckStreak,
             // A genuine test-week session clears any postponement — the thing
             // it was standing in for has now actually happened.
-            ...(session.isTestWeek ? { testWeekDeferred: false } : {}),
+            ...(session.isTestWeek
+              ? { testWeekDeferred: false }
+              : testHeldForComeback
+                ? { testWeekDeferred: true }
+                : {}),
           };
         });
         // Award any newly unlocked badges based on the updated state.
@@ -1135,6 +1162,7 @@ export const useAppStore = create<AppState>()(
           completed: 0,
           total: SESSION_ORDER.length,
           nextLift: SESSION_ORDER[0],
+          held: false,
         };
         // Turned off entirely. Checked before the resume branch below on
         // purpose: someone who switches test weeks off part-way through a block
@@ -1159,6 +1187,7 @@ export const useAppStore = create<AppState>()(
           completed: 0,
           total: SESSION_ORDER.length,
           nextLift: SESSION_ORDER[0],
+          held: false,
         };
 
         // Part-way through: finish the remaining lifts before anything else.
@@ -1168,6 +1197,7 @@ export const useAppStore = create<AppState>()(
             completed,
             total: SESSION_ORDER.length,
             nextLift: SESSION_ORDER[completed],
+            held: false,
           };
         }
         // All three done — the block is over.
@@ -1179,12 +1209,45 @@ export const useAppStore = create<AppState>()(
         const due =
           testWeekDeferred ||
           (strength.length > 0 && strength.length % testWeekFrequency === 0);
-        return due
-          ? { active: true, completed: 0, total: SESSION_ORDER.length, nextLift: SESSION_ORDER[0] }
-          : idle;
+        if (!due) return idle;
+
+        // Nobody walks out of a layoff into a max-effort test.
+        //
+        // Someone who stopped at session 11 and came back a month later used to
+        // be handed a one-rep max attempt on their first session, on a body that
+        // had not been under a bar since. The test waits until they have put
+        // COMEBACK_SESSIONS strength sessions back in — enough for the load
+        // calculation to have something recent to work from, and for the number
+        // the test produces to mean something.
+        //
+        // Held, not cancelled: completeSession sets testWeekDeferred while this
+        // is true, so the test comes due again the moment the baseline is back
+        // rather than disappearing for another full block.
+        const comeback = get().getReturnWindow();
+        if (comeback !== null && comeback.sessionsBack < COMEBACK_SESSIONS) {
+          return { ...idle, held: true };
+        }
+        return {
+          active: true,
+          completed: 0,
+          total: SESSION_ORDER.length,
+          nextLift: SESSION_ORDER[0],
+          held: false,
+        };
       },
 
       isTestWeekDue: () => get().getTestWeekProgress().active,
+
+      getReturnWindow: () => {
+        const { completedSessions } = get();
+        // The break is measured across ALL training — a month of conditioning is
+        // not a month off. What counts as re-establishing a baseline is narrower:
+        // only the barbell lifts, because a barbell test is what is waiting.
+        return computeReturnWindow(
+          completedSessions.map((s) => s.date),
+          completedSessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).map((s) => s.date)
+        );
+      },
 
       getStreakDays: () => {
         const { completedSessions, weeklyStreakGoal } = get();
@@ -1621,3 +1684,22 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+/**
+ * Keep the workout engine's idea of when you last trained in step with the
+ * store's.
+ *
+ * A subscription rather than a line inside each action, because
+ * `completedSessions` changes on four separate paths — completing a session,
+ * resetting progress, merging server data, and rehydrating from disk — and a
+ * date that is right on three of them is worse than no date at all: it would
+ * back the load off for someone who had been training all along.
+ *
+ * The engine is deliberately store-free (its contract tests import it directly
+ * and cannot drag persistence in behind it), so the dependency runs this way
+ * round and only this way round.
+ */
+const publishLastTrained = (state: AppState) =>
+  setLastTrainedDate(state.completedSessions[0]?.date ?? null);
+publishLastTrained(useAppStore.getState());
+useAppStore.subscribe(publishLastTrained);

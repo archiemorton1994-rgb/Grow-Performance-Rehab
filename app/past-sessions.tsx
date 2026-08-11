@@ -152,7 +152,7 @@ function makeStyles(C: AppColors) {
       minWidth: 34,
       alignItems: 'center',
     },
-    countPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    countPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

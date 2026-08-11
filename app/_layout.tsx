@@ -27,6 +27,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { GrowIcon } from '@/components/GrowIcon';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/lib/store';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
@@ -193,7 +194,7 @@ function WeeklyWeightPrompt({ deferred = false }: { deferred?: boolean }) {
       <Pressable style={styles.overlay} onPress={neverSetWeight ? undefined : dismiss}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.iconWrap}>
-            <Text style={styles.iconText}>⚖️</Text>
+            <GrowIcon name="scale" size={28} color={C.primaryText} />
           </View>
           <Text style={styles.title}>Update Your Weight</Text>
           <Text style={styles.sub}>
@@ -263,7 +264,6 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       marginBottom: 16,
     },
-    iconText: { fontSize: 28 },
     title: {
       fontSize: 20,
       fontFamily: 'Inter_700Bold',
@@ -675,7 +675,7 @@ export default function RootLayout() {
           <Text
             style={{ color: DarkColors.error, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}
           >
-            ⚠️ Previous Launch Crash
+            Previous Launch Crash
           </Text>
           <RNScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
             <Text style={{ color: DarkColors.textInverse, fontSize: 11, fontFamily: 'monospace' }}>

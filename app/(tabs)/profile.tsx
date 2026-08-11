@@ -324,6 +324,7 @@ function BodyweightSparkline({
               fill={C.textTertiary}
               textAnchor="end"
               fontSize={10}
+              fontFamily="Inter_500Medium"
             >
               {fmtW(maxW)}
             </SvgText>
@@ -333,13 +334,14 @@ function BodyweightSparkline({
               fill={C.textTertiary}
               textAnchor="end"
               fontSize={10}
+              fontFamily="Inter_500Medium"
             >
               {fmtW(minW)}
             </SvgText>
             <Polyline
               points={points}
               fill="none"
-              stroke={C.primary}
+              stroke={C.primaryText}
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -350,7 +352,7 @@ function BodyweightSparkline({
                 cx={toX(timestamps[i])}
                 cy={toY(weights[i])}
                 r={filtered.length <= 10 ? 3 : 2}
-                fill={C.primary}
+                fill={C.primaryText}
               />
             ))}
           </Svg>
@@ -1225,7 +1227,7 @@ export default function ProfileScreen() {
                     <Ionicons
                       name={opt.icon}
                       size={16}
-                      color={isActive ? C.primary : C.textTertiary}
+                      color={isActive ? C.primaryText : C.textTertiary}
                     />
                     <Text style={[styles.goalChipText, isActive && styles.goalChipTextActive]}>
                       {opt.label}
@@ -1265,7 +1267,7 @@ export default function ProfileScreen() {
             </Text>
             {userProfile.experienceLevel === 'beginner' && (
               <View style={styles.upgradeNote}>
-                <Ionicons name="information-circle-outline" size={15} color={C.primary} />
+                <Ionicons name="information-circle-outline" size={15} color={C.primaryText} />
                 <Text style={styles.upgradeNoteText}>
                   Beginner mode: No Equipment and bands only. Update your experience level in Edit
                   Details to unlock all equipment.
@@ -1276,7 +1278,7 @@ export default function ProfileScreen() {
               <View style={styles.effectiveBadge}>
                 <Text style={styles.effectiveBadgeText}>
                   Best match:{' '}
-                  <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                  <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                     {getEquipmentLabel(getEffectiveTier(editTiers))}
                   </Text>
                 </Text>
@@ -1353,7 +1355,7 @@ export default function ProfileScreen() {
         <Pressable style={styles.bwOverlay} onPress={dismissModal}>
           <Pressable style={styles.bwCard} onPress={(e) => e.stopPropagation()}>
             <View style={styles.bwIconWrap}>
-              <Ionicons name="scale-outline" size={28} color={C.primary} />
+              <Ionicons name="scale-outline" size={28} color={C.primaryText} />
             </View>
             <Text style={styles.bwTitle}>Body Weight</Text>
             <Text style={styles.bwSub}>
@@ -1507,7 +1509,7 @@ export default function ProfileScreen() {
               </Text>
               <View style={styles.accountRow}>
                 <View style={styles.accountIcon}>
-                  <Ionicons name="mail-outline" size={18} color={C.primary} />
+                  <Ionicons name="mail-outline" size={18} color={C.primaryText} />
                 </View>
                 <Text style={styles.accountEmail} numberOfLines={1}>
                   {user?.email ?? 'Not signed in'}
@@ -1917,7 +1919,7 @@ export default function ProfileScreen() {
               <View style={styles.settingDivider} />
 
               <Pressable onPress={handleSendFeedback} style={styles.feedbackBtn}>
-                <Ionicons name="mail-outline" size={18} color={C.primary} />
+                <Ionicons name="mail-outline" size={18} color={C.primaryText} />
                 <Text style={styles.feedbackText}>Send Feedback</Text>
                 <Ionicons
                   name="open-outline"
@@ -2296,7 +2298,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 3,
     },
     manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     sheetOverlay: { flex: 1, backgroundColor: C.overlayBg, justifyContent: 'flex-end' },
     sheet: {
@@ -2359,7 +2361,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     optionChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
     optionChipText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    optionChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    optionChipTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     goalGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     goalChip: {
       flexDirection: 'row',
@@ -2374,7 +2376,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     goalChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
     goalChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-    goalChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    goalChipTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     saveBtn: {
       backgroundColor: C.primary,
       borderRadius: 12,
@@ -2422,7 +2424,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     equipRowActive: {},
     equipRowLocked: { opacity: 0.5 },
     equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    equipLabelActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    equipLabelActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     equipLabelLocked: { color: C.textTertiary },
     equipCheckbox: {
       width: 22,
@@ -2575,7 +2577,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     freqBtnActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
     freqBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    freqBtnTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    freqBtnTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     reminderToggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2596,7 +2598,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     timeChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
     timeChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    timeChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    timeChipTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     reminderWebNote: {
       fontSize: 13,
       fontFamily: 'Inter_400Regular',
@@ -2609,7 +2611,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 10,
       paddingVertical: 12,
     },
-    feedbackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primary },
+    feedbackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primaryText },
     resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
     resetText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
 

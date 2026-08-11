@@ -193,7 +193,11 @@ console.log('\n[4] The three reported exercises stay out of arm sessions');
 const REPORTED = [
   'Thread the Needle (Thoracic Rotation)',
   'Band Pull-Apart',
+  // Reported as "Supine Hip 90/90 Stretch". It is a supine figure-4, not a
+  // 90/90, and now carries the name the flexibility list always used for it.
+  // Both spellings are listed so the check cannot pass by the name moving.
   'Supine Hip 90/90 Stretch',
+  'Figure-4 Glute Stretch',
 ];
 for (const region of ['elbow', 'wrist']) {
   const names = new Set(allSessions.get(region).flat().map((e) => e.name));

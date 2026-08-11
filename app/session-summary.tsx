@@ -399,7 +399,7 @@ function BlockProgressChart({
           {liftName} through this block
         </Text>
         <Text style={{ fontSize: 12, fontFamily: 'Inter_500Medium', color: P.muted }}>
-          {points.length} sessions
+          {points.length} session{points.length === 1 ? '' : 's'}
         </Text>
       </View>
 
@@ -1296,7 +1296,7 @@ export default function SessionSummaryScreen() {
       return `Your first tested ${liftName.toLowerCase()} max. This is the number everything else is measured against.`;
     }
     if (delta > 0) {
-      return `Up ${format(delta)} on your last test. That is ${liftSessionCount} sessions of work showing up.`;
+      return `Up ${format(delta)} on your last test. That is ${liftSessionCount} session${liftSessionCount === 1 ? '' : 's'} of work showing up.`;
     }
     if (delta === 0) return 'Level with your last test. Holding a max is its own result.';
     return `Down ${format(Math.abs(delta))} on your last test. One number on one day — it happens.`;
@@ -1311,8 +1311,8 @@ export default function SessionSummaryScreen() {
         ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
         : heroKind === 'milestone'
           ? bestPbRow
-            ? `${sessionNumber} sessions — and a new best on ${bestPbRow.exerciseName}`
-            : `${sessionNumber} sessions and counting`
+            ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} — and a new best on ${bestPbRow.exerciseName}`
+            : `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} and counting`
           : streakDays >= 1
             ? `${streakDays} day streak. Keep it going.`
             : 'Nice work today.';
@@ -1725,7 +1725,7 @@ export default function SessionSummaryScreen() {
           <View style={[styles.modalSheet, { backgroundColor: C.surface }]}>
             <View style={[styles.modalHeader, { borderBottomColor: C.borderLight }]}>
               <View style={[styles.modalIconWrap, { backgroundColor: C.primaryMuted }]}>
-                <Ionicons name="thumbs-up-outline" size={24} color={C.primary} />
+                <Ionicons name="thumbs-up-outline" size={24} color={C.primaryText} />
               </View>
               <View style={styles.modalHeaderText}>
                 <Text style={[styles.modalTitle, { color: C.text }]}>Rate Exercises</Text>

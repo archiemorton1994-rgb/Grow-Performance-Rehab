@@ -44,6 +44,13 @@ const defaultState = {
   lastReadinessTime: '60',
   lastPainRegion: undefined,
   setLastReadiness: jest.fn(),
+  getTestWeekProgress: jest.fn(() => ({
+    active: false,
+    completed: 0,
+    total: 3,
+    nextLift: 'squat',
+    held: false,
+  })),
 };
 
 let _storeOverride = null;

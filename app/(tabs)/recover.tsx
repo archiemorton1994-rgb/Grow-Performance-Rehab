@@ -554,7 +554,7 @@ export default function RecoverScreen() {
           <EquipmentIcon
             tier={todayEffectiveTier}
             size={13}
-            color={isOverrideActive ? C.primary : C.textSecondary}
+            color={isOverrideActive ? C.primaryText : C.textSecondary}
           />
           <Text
             style={[styles.equipmentChipText, isOverrideActive && styles.equipmentChipTextOverride]}
@@ -566,7 +566,7 @@ export default function RecoverScreen() {
           <Ionicons
             name="chevron-down"
             size={11}
-            color={isOverrideActive ? C.primary : C.textTertiary}
+            color={isOverrideActive ? C.primaryText : C.textTertiary}
           />
         </Pressable>
         {isOverrideActive && (
@@ -804,7 +804,7 @@ export default function RecoverScreen() {
             <View style={styles.bestMatchRow}>
               <Text style={styles.bestMatchText}>
                 Best match:{' '}
-                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                   {getEquipmentLabel(draftEffectiveTier)}
                 </Text>
               </Text>
@@ -813,7 +813,7 @@ export default function RecoverScreen() {
 
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
+              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
               <Text style={styles.beginnerNoteText}>
                 Bodyweight & Bands - unlock more in profile
               </Text>
@@ -850,14 +850,14 @@ export default function RecoverScreen() {
                   <EquipmentIcon
                     tier={tier}
                     size={16}
-                    color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
+                    color={isActive ? C.textInverse : isAvailable ? C.primaryText : C.textTertiary}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[
                       styles.tierLabel,
-                      isActive && { color: C.primary },
+                      isActive && { color: C.primaryText },
                       !isAvailable && { color: C.textTertiary },
                     ]}
                   >
@@ -1072,7 +1072,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
     },
     equipmentChipTextOverride: {
-      color: C.primary,
+      color: C.primaryText,
       fontFamily: 'Inter_600SemiBold',
     },
     overrideDot: {
@@ -1134,7 +1134,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     beginnerNoteText: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       flex: 1,
     },
     tierRow: {

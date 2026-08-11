@@ -450,7 +450,7 @@ export default function ProgramScreen() {
                     <Ionicons name="play" size={14} color={C.textInverse} />
                   </View>
                 )}
-                {isCompleted && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
+                {isCompleted && <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />}
                 {item.isTestMarker && !isCurrent && (
                   <View style={styles.testMarker}>
                     <Ionicons name="trophy-outline" size={12} color={C.categoryPrehabText} />
@@ -492,7 +492,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
-    cycleBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    cycleBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     content: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
 
@@ -513,8 +513,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
     },
     cycleCard: { flex: 1, alignItems: 'center' },
-    cycleValue: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary },
-    cycleNumber: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
+    cycleValue: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText },
+    cycleNumber: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primaryText },
     cycleLabel: {
       fontSize: 10,
       fontFamily: 'Inter_500Medium',

@@ -238,7 +238,7 @@ export default function AchievementUnlockedSheet({
             {sessionsToGo != null && sessionsToGo > 0 && (
               <Text style={[styles.milestoneHint, { color: C.textTertiary }]}>
                 {sessionsToGo === 1
-                  ? 'One more session to your next badge 🎯'
+                  ? 'One more session to your next badge'
                   : `${sessionsToGo} sessions to your next badge`}
               </Text>
             )}

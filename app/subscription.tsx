@@ -269,7 +269,7 @@ export default function SubscriptionScreen() {
         {BENEFITS.map((b) => (
           <View key={b.title} style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <Ionicons name={b.icon} size={16} color={C.primary} />
+              <Ionicons name={b.icon} size={16} color={C.primaryText} />
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>{b.title}</Text>
@@ -285,7 +285,7 @@ export default function SubscriptionScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.planName}>Grow Monthly</Text>
             {loadingOffering ? (
-              <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 4 }} />
+              <ActivityIndicator size="small" color={C.primaryText} style={{ marginTop: 4 }} />
             ) : offeringError ? (
               <View style={styles.retryRow}>
                 <Text style={styles.priceUnavail}>Price unavailable</Text>
@@ -403,7 +403,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     wordmark: {
       fontSize: 18,
       fontFamily: 'Inter_700Bold',
-      color: C.primary,
+      color: C.primaryText,
       letterSpacing: 2,
     },
     tagline: {
@@ -439,12 +439,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     statValue: {
       fontSize: 15,
       fontFamily: 'Inter_700Bold',
-      color: C.primary,
+      color: C.primaryText,
     },
     statLabel: {
       fontSize: 10,
       fontFamily: 'Inter_500Medium',
-      color: C.primary,
+      color: C.primaryText,
       marginTop: 1,
       opacity: 0.8,
     },
@@ -513,7 +513,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 8,
       paddingVertical: 4,
     },
-    trialBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    trialBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     planSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
 
     retryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
@@ -524,7 +524,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
-    retryBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    retryBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     // Error
     errorRow: {

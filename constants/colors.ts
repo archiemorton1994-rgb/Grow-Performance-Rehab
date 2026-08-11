@@ -7,6 +7,15 @@ const LightColors = {
   primaryDark: '#1e4a30',
   primaryMuted: '#e8f2ec',
   primarySurface: '#f0f7f3',
+  /** The brand green as *foreground ink* — accent text, icon tints, chart
+   *  strokes sitting on an ordinary background.
+   *
+   *  `primary` is the fill token: it is the colour we put *behind* white text,
+   *  so it has to stay dark in both themes. That makes it the wrong colour to
+   *  paint text *with* on a dark theme, where it lands at 1.9–3.3:1. Splitting
+   *  the two roles lets each keep the value its job needs. In this theme they
+   *  happen to coincide; in DarkColors they do not. */
+  primaryText: '#2f6b46',
 
   background: '#fafbfa',
   surface: '#ffffff',
@@ -14,7 +23,9 @@ const LightColors = {
   surfaceTertiary: '#eef0ef',
 
   text: '#1a1d1b',
-  textSecondary: '#6b7570',
+  // Was '#6b7570' - 4.17:1 on surfaceTertiary, the darkest card the app puts
+  // secondary copy on, which is under AA. Nudged just dark enough to clear it.
+  textSecondary: '#646d67',
   textTertiary: '#9ca5a0',
   textInverse: '#ffffff',
   /** Text/icon color for content placed on a `primaryDark`-filled surface.
@@ -39,8 +50,8 @@ const LightColors = {
 
   tabActive: '#2f6b46',
   // Was '#9ca5a0' - only ~2.4:1 against the near-white tab bar, hard to read.
-  // Matches textSecondary's already-vetted contrast (~4.8:1).
-  tabInactive: '#6b7570',
+  // Tracks textSecondary's already-vetted contrast.
+  tabInactive: '#646d67',
 
   destructive: '#ef4444',
   pbFlash: '#f59e0b',
@@ -86,7 +97,9 @@ const LightColors = {
   categoryMechanical: '#80cbc4',
   categoryMechanicalText: '#00695c',
   categoryNeuro: '#ce93d8',
-  categoryNeuroText: '#7b1fa2',
+  // Was '#7b1fa2' - 3.43:1 on its own tile, which made the deadlift row of the
+  // first-session chooser visibly weaker than the squat and bench rows beside it.
+  categoryNeuroText: '#5e1580',
   categoryPrehab: '#f4511e',
   categoryPrehabText: '#ffffff',
   categoryFinisher: '#e53935',
@@ -114,6 +127,10 @@ const DarkColors = {
   primaryDark: '#4ade80',
   primaryMuted: '#1a3d28',
   primarySurface: '#091510',
+  /** See the note on LightColors.primaryText. Here the two roles diverge: this
+   *  is the bright green, which clears AA on every dark surface the app uses
+   *  (6.9:1 on primaryMuted, its worst case, up to 12:1 on the background). */
+  primaryText: '#4ade80',
 
   background: '#000000',
   surface: '#111111',
@@ -140,8 +157,13 @@ const DarkColors = {
   badgeVolume: '#0d1a28',
   badgeVolumeText: '#60a5fa',
 
-  tabActive: '#3d8a5c',
-  tabInactive: '#444444',
+  // Matches primaryText so the tab bar's accent is the same green as every
+  // other accent in this theme.
+  tabActive: '#4ade80',
+  // Was '#444444' - 2.16:1 on the black tab bar, i.e. worse than the value the
+  // light theme rejected for the same reason (see the note above tabInactive
+  // there). Dimmer than tabActive so the selected tab still reads as selected.
+  tabInactive: '#8a8a8a',
 
   destructive: '#f87171',
   pbFlash: '#fbbf24',
@@ -203,9 +225,9 @@ const DarkColors = {
   light: {
     text: '#ffffff',
     background: '#000000',
-    tint: '#3d8a5c',
-    tabIconDefault: '#444444',
-    tabIconSelected: '#3d8a5c',
+    tint: '#4ade80',
+    tabIconDefault: '#8a8a8a',
+    tabIconSelected: '#4ade80',
   },
 };
 

@@ -194,7 +194,7 @@ export default function OtpAuthScreen() {
                 style={styles.backRow}
                 testID="otp-back"
               >
-                <Ionicons name="chevron-back" size={18} color={C.primary} />
+                <Ionicons name="chevron-back" size={18} color={C.primaryText} />
                 <Text style={styles.backText}>Change email</Text>
               </Pressable>
 
@@ -345,12 +345,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ctaText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 2 },
-    backText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primary },
+    backText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primaryText },
 
     resendRow: { marginTop: 20, alignItems: 'center' },
     resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     resendTextMuted: { color: C.textTertiary },
-    resendLink: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    resendLink: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
 
     devBanner: {
       backgroundColor: C.warningLight,

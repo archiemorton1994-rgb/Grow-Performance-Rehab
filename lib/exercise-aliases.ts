@@ -38,6 +38,31 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   'DB Goblet Squat': 'Goblet Squat',
   'Inverted Row (Table/Bar)': 'Inverted Row',
   'Power Clean (Light Bar)': 'Power Clean (Light)',
+
+  // ── One movement that had been entered under two names ────────────────────
+  // These are not renames of a chosen survivor; they are two spellings, or two
+  // regional names, for a single exercise. Nothing was renamed on the left-hand
+  // side — the old name is simply read as the current one so a personal best
+  // and a progress chart do not start again from zero.
+  'Dead Hangs': 'Dead Hang',
+  'Stiff Leg Deadlift': 'Stiff-Leg Deadlift',
+  'Standing Long Jump': 'Broad Jump',
+  'Australian Pull-Up': 'Inverted Row',
+  'Straight Bar Pushdowns': 'Cable Tricep Pushdown',
+  'Calf Stretch (wall)': 'Calf Stretch (Wall)',
+  'Supine Hamstring Stretch (strap)': 'Supine Hamstring Stretch (Strap)',
+
+  // "90/90" names a seated hip position. All three of these were a supine
+  // figure-4, which the flexibility list already called by its right name.
+  '90/90 Hip Stretch': 'Figure-4 Glute Stretch',
+  'Supine Hip 90/90 Stretch': 'Figure-4 Glute Stretch',
+
+  // The one genuinely ambiguous case. A barbell Good Morning and a bodyweight
+  // one are different exercises that shared a name, and the exercise picker
+  // de-dupes by name — so a bodyweight user was being shown the 30-60 kg
+  // version. Both are now qualified. Old history maps to the barbell one
+  // because that is the only one the picker ever exposed.
+  'Good Morning': 'Barbell Good Morning',
 };
 
 /**

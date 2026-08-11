@@ -1,5 +1,6 @@
 import type { SessionType } from './store';
 import { getTrainingBalanceNudge, type BalanceInput } from './training-balance';
+import { COMEBACK_SESSIONS, describeTimeAway, getLayoff } from './workout-engine';
 
 /**
  * Everything the app currently has to say to you, in one place.
@@ -84,6 +85,44 @@ export const DELOAD_WEEKS = 4;
 /** Most messages shown at once. */
 export const MAX_MESSAGES = 3;
 
+/**
+ * What the app has to say about a break in training, or null when there has not
+ * been one worth mentioning.
+ *
+ * Exported because two surfaces need to say this and they must not say it
+ * differently: the assistant panel on the home screen, and the readiness screen
+ * you pass through on the way into a session. The second one is the important
+ * one — an adjustment you find out about afterwards is indistinguishable from a
+ * bug, and the whole point of doing this was that the app should visibly know.
+ *
+ * Deliberately a statement of fact and a number, not reassurance. "Welcome
+ * back, take it easy!" tells you nothing; "about 78% of where you left off"
+ * tells you exactly what was decided on your behalf and lets you disagree.
+ */
+export function getLayoffMessage(
+  daysSinceLast: number | null,
+  opts?: { testHeld?: boolean }
+): CoachMessage | null {
+  const layoff = getLayoff(daysSinceLast);
+  if (!layoff) return null;
+  const away = describeTimeAway(layoff.daysAway);
+  const testNote = opts?.testHeld
+    ? ` Your strength test is on hold until you have ${COMEBACK_SESSIONS} sessions back in.`
+    : '';
+  return {
+    id: 'layoff',
+    icon: 'hourglass-outline',
+    title: layoff.reset ? `${away} away — starting fresh` : `${away} since your last session`,
+    body: layoff.reset
+      ? `Weights that old stop being a useful guide, so today is worked out from your profile again — the way it was on day one. A few sessions and it will be reading your own numbers.${testNote}`
+      : layoff.slight
+        ? `Today's weights come down a touch from where you left off. They climb back as soon as you are training again.${testNote}`
+        : `Today's weights are about ${Math.round(layoff.factor * 100)}% of where you left off. They climb back as soon as you are training again.${testNote}`,
+    tone: 'info',
+    action: { label: 'Ease back in', kind: 'start-session' },
+  };
+}
+
 export function getCoachMessages(input: CoachInput): CoachMessage[] {
   const messages: CoachMessage[] = [];
 
@@ -103,6 +142,13 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
       },
     ];
   }
+
+  // ── Back after a break ─────────────────────────────────────────────────────
+  // First, because it changes what every other message means. The weights have
+  // moved, and being told about a broken streak before being told why the bar
+  // is lighter is the wrong way round.
+  const layoff = getLayoffMessage(input.daysSinceLast);
+  if (layoff) messages.push(layoff);
 
   // ── Urgent: a streak about to break ────────────────────────────────────────
   // Only from Wednesday. Before that, "you have not trained this week" is not

@@ -38,6 +38,10 @@ module.exports = {
     return labels[tier] ?? tier;
   }),
   getEquipmentIcon: jest.fn(() => 'barbell-outline'),
+  // ReadinessScreen calls this during render to work out whether to show the
+  // time-away banner. Returning null (never trained) keeps the banner off,
+  // which is the right default for a component test that seeds no history.
+  daysAwayFrom: jest.fn(() => null),
   getEffectiveTier: jest.fn((tiers) => {
     if (!tiers || !tiers.length) return 'bodyweight';
     let best = 'bodyweight';

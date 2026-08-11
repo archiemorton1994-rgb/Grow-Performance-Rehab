@@ -59,7 +59,7 @@ export function CoachButton({
       <Ionicons
         name="chatbubble-ellipses"
         size={18}
-        color={open ? C.textInverse : C.primary}
+        color={open ? C.textInverse : C.primaryText}
       />
       {/* A dot, not a count. A number implies a queue to clear; this is just
           "there is something here". Suppressed while open, since you are
@@ -92,7 +92,7 @@ export function CoachBubble({
 }) {
   const C = useColors();
   const toneColor = (tone: CoachMessage['tone']) =>
-    tone === 'caution' ? C.warning : tone === 'good' ? C.primary : C.textSecondary;
+    tone === 'caution' ? C.warning : tone === 'good' ? C.primaryText : C.textSecondary;
 
   return (
     <>
@@ -163,8 +163,8 @@ export function CoachBubble({
                       ]}
                       testID={`coach-action-${m.id}`}
                     >
-                      <Text style={[styles.actionText, { color: C.primary }]}>{m.action.label}</Text>
-                      <Ionicons name="arrow-forward" size={12} color={C.primary} />
+                      <Text style={[styles.actionText, { color: C.primaryText }]}>{m.action.label}</Text>
+                      <Ionicons name="arrow-forward" size={12} color={C.primaryText} />
                     </Pressable>
                   )}
                 </View>

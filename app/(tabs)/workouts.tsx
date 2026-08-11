@@ -18,7 +18,7 @@ import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useColors, DarkColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { xsShadow } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { StatStrip } from '@/components/StatStrip';
@@ -34,6 +34,7 @@ import {
 import {
   BodyDiagram,
   BODY_DIAGRAM_LABELS,
+  DIAGRAM_LEGEND_COLORS,
   MUSCLE_SET,
   heatmapBucketColor,
   PANEL_BG,
@@ -107,7 +108,7 @@ function getSessionTypeColors(
   C: ReturnType<typeof useColors>
 ): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> {
   return {
-    squat: { bg: C.primaryMuted, icon: SHARED_SESSION_META.squat.icon, color: C.primary },
+    squat: { bg: C.primaryMuted, icon: SHARED_SESSION_META.squat.icon, color: C.primaryText },
     bench: { bg: C.badgeVolume, icon: SHARED_SESSION_META.bench.icon, color: C.badgeVolumeText },
     deadlift: {
       bg: C.categoryNeuro,
@@ -134,7 +135,11 @@ function getSessionTypeColors(
       icon: SHARED_SESSION_META.custom.icon,
       color: C.categoryFinisherText,
     },
-    lower_body: { bg: C.primaryMuted, icon: SHARED_SESSION_META.lower_body.icon, color: C.primary },
+    lower_body: {
+      bg: C.primaryMuted,
+      icon: SHARED_SESSION_META.lower_body.icon,
+      color: C.primaryText,
+    },
     upper_body: {
       bg: C.badgeVolume,
       icon: SHARED_SESSION_META.upper_body.icon,
@@ -149,10 +154,12 @@ function getSessionTypeColors(
 }
 
 function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, string> {
+  // Rendered as the pill's text, so the ramp has to climb in prominence, not
+  // just change hue — low is the quietest, high the loudest, in both themes.
   return {
     low: C.textTertiary,
-    normal: C.primary,
-    high: C.primaryLight,
+    normal: C.primaryLight,
+    high: C.primaryText,
   };
 }
 
@@ -211,28 +218,44 @@ function getMuscleProgressCounts(
   return counts;
 }
 
-const MUSCLE_INSIGHT_STATUS: Record<number, { label: string; color: string; message: string }> = {
-  0: {
-    label: 'Not Trained',
-    color: DarkColors.trendNeutral,
-    message: 'No sessions targeting this muscle in the last 2 weeks.',
-  },
-  1: {
-    label: 'Progressing',
-    color: DarkColors.primary,
-    message: 'Good training frequency - keep it up!',
-  },
-  2: {
-    label: 'Attention',
-    color: DarkColors.trendWarning,
-    message: 'Last trained 8-14 days ago - consider adding a session this week.',
-  },
-  4: {
-    label: 'High Load',
-    color: DarkColors.trendDanger,
-    message: 'Trained on 5+ days this week. Allow some recovery time.',
-  },
-};
+/**
+ * The tap-a-region callout, keyed by the same four buckets the diagram uses.
+ *
+ * `dot` is the colour that region is actually painted on the figure, so the
+ * swatch and the body agree. `text` is a theme token, because the callout sits
+ * on a normal card rather than the diagram's dark panel and the figure's
+ * colours are not all legible as type there.
+ */
+function getMuscleInsightStatus(
+  C: ReturnType<typeof useColors>
+): Record<number, { label: string; dot: string; text: string; message: string }> {
+  return {
+    0: {
+      label: 'Not Trained',
+      dot: DIAGRAM_LEGEND_COLORS.rest,
+      text: C.textSecondary,
+      message: 'No sessions targeting this muscle in the last 2 weeks.',
+    },
+    1: {
+      label: 'Progressing',
+      dot: DIAGRAM_LEGEND_COLORS.worked,
+      text: C.primaryText,
+      message: 'Good training frequency - keep it up!',
+    },
+    2: {
+      label: 'Attention',
+      dot: DIAGRAM_LEGEND_COLORS.attention,
+      text: C.trendWarning,
+      message: 'Last trained 8-14 days ago - consider adding a session this week.',
+    },
+    4: {
+      label: 'High Load',
+      dot: DIAGRAM_LEGEND_COLORS.overloaded,
+      text: C.trendDanger,
+      message: 'Trained on 5+ days this week. Allow some recovery time.',
+    },
+  };
+}
 
 function MuscleProgressPanel({
   completedSessions,
@@ -283,14 +306,15 @@ function MuscleProgressPanel({
       .slice(0, 3);
     const count = progressCounts[insightRegion] ?? 0;
     const statusKey = count === 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : 4;
-    const status = MUSCLE_INSIGHT_STATUS[statusKey] ?? MUSCLE_INSIGHT_STATUS[0];
+    const statuses = getMuscleInsightStatus(C);
+    const status = statuses[statusKey] ?? statuses[0];
     return {
       days: daySet.size,
       avgSets: daySet.size > 0 ? Math.round(totalSets / daySet.size) : 0,
       status,
       topExercises,
     };
-  }, [insightRegion, completedSessions, progressCounts]);
+  }, [insightRegion, completedSessions, progressCounts, C]);
 
   const handleSelect = useCallback((r: PainRegion | undefined) => {
     setInsightRegion((prev) => (r ? (prev === r ? null : r) : null));
@@ -401,10 +425,10 @@ function MuscleProgressPanel({
         }}
       >
         {[
-          { color: C.primary, label: 'Progressing' },
-          { color: C.trendWarning, label: 'Attention' },
-          { color: C.trendDanger, label: 'Too much' },
-          { color: C.trendInactive, label: 'Not trained', border: true },
+          { color: DIAGRAM_LEGEND_COLORS.worked, label: 'Progressing' },
+          { color: DIAGRAM_LEGEND_COLORS.attention, label: 'Attention' },
+          { color: DIAGRAM_LEGEND_COLORS.overloaded, label: 'Too much' },
+          { color: DIAGRAM_LEGEND_COLORS.rest, label: 'Not trained', border: true },
         ].map((item) => (
           <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View
@@ -444,9 +468,12 @@ function MuscleProgressPanel({
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: insightData.status.color,
+              backgroundColor: insightData.status.dot,
               flexShrink: 0,
               marginTop: 3,
+              // rest is near-black; without this the swatch vanishes on a dark card.
+              borderWidth: 1,
+              borderColor: C.border,
             }}
           />
           <View style={{ flex: 1 }}>
@@ -456,7 +483,7 @@ function MuscleProgressPanel({
               </Text>
               <View
                 style={{
-                  backgroundColor: insightData.status.color + '22',
+                  backgroundColor: insightData.status.text + '22',
                   borderRadius: 6,
                   paddingHorizontal: 6,
                   paddingVertical: 2,
@@ -466,7 +493,7 @@ function MuscleProgressPanel({
                   style={{
                     fontSize: 11,
                     fontFamily: 'Inter_600SemiBold',
-                    color: insightData.status.color,
+                    color: insightData.status.text,
                   }}
                 >
                   {insightData.status.label}
@@ -641,7 +668,7 @@ function WeeklyBarChart({
                   width={bw}
                   height={barH}
                   rx={4}
-                  fill={isLast ? C.primary : C.primaryMuted}
+                  fill={isLast ? C.primaryText : C.primaryMuted}
                 />
                 {isLast && (
                   <SvgText
@@ -650,6 +677,7 @@ function WeeklyBarChart({
                     textAnchor="middle"
                     fontSize={9}
                     fill={C.textSecondary}
+                    fontFamily="Inter_500Medium"
                   >
                     This wk
                   </SvgText>
@@ -675,7 +703,10 @@ function WeeklyBarChart({
           {/* Max over the real counts. This used to omit the ",1" floor the
               bar scale uses, so with no sessions at all it read "peak: 0
               sessions" — a peak of nothing is not a statistic. */}
-          peak: {Math.max(1, ...weeks.map((w) => w.count))} sessions
+          {(() => {
+            const peak = Math.max(1, ...weeks.map((w) => w.count));
+            return `peak: ${peak} session${peak === 1 ? '' : 's'}`;
+          })()}
         </Text>
       </View>
     </View>
@@ -802,7 +833,7 @@ function WeeklyVolumeChart({
                   width={bw}
                   height={barH}
                   rx={4}
-                  fill={isLast ? C.primary : C.primaryMuted}
+                  fill={isLast ? C.primaryText : C.primaryMuted}
                 />
                 {isLast && (
                   <SvgText
@@ -811,6 +842,7 @@ function WeeklyVolumeChart({
                     textAnchor="middle"
                     fontSize={9}
                     fill={C.textSecondary}
+                    fontFamily="Inter_500Medium"
                   >
                     This wk
                   </SvgText>
@@ -967,7 +999,7 @@ function MonthCalendar({
             accessibilityLabel="Previous month"
             accessibilityRole="button"
           >
-            <Ionicons name="chevron-back" size={16} color={C.primary} />
+            <Ionicons name="chevron-back" size={16} color={C.primaryText} />
           </Pressable>
           <Text
             style={{
@@ -993,7 +1025,7 @@ function MonthCalendar({
               opacity: isCurrentMonth ? 0.3 : 1,
             })}
           >
-            <Ionicons name="chevron-forward" size={16} color={C.primary} />
+            <Ionicons name="chevron-forward" size={16} color={C.primaryText} />
           </Pressable>
         </View>
       </View>
@@ -1034,7 +1066,7 @@ function MonthCalendar({
           const bgColor = isSelected ? C.primary : hasSession ? color : 'transparent';
           const darkBg = bgColor === C.primary || bgColor === C.primaryLight;
           const textColor =
-            isSelected || darkBg ? C.textInverse : hasSession ? C.primary : C.textTertiary;
+            isSelected || darkBg ? C.textInverse : hasSession ? C.primaryText : C.textTertiary;
 
           return (
             <Pressable
@@ -1145,8 +1177,8 @@ function MonthCalendar({
                 borderColor: C.primaryMuted,
               })}
             >
-              <Ionicons name="list-outline" size={14} color={C.primary} />
-              <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+              <Ionicons name="list-outline" size={14} color={C.primaryText} />
+              <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                 View in history
               </Text>
             </Pressable>
@@ -1193,7 +1225,7 @@ function StrengthLineChart({
   // and the home-screen `SESSION_TYPE_META` so each lift reads the same colour
   // wherever it appears.
   const LIFT_COLORS: Record<string, { line: string; fill: string }> = {
-    squat: { line: C.primary, fill: C.primaryMuted },
+    squat: { line: C.primaryText, fill: C.primaryMuted },
     bench: { line: C.badgeVolumeText, fill: C.badgeVolume },
     deadlift: { line: C.categoryNeuroText, fill: C.categoryNeuro },
   };
@@ -1206,7 +1238,7 @@ function StrengthLineChart({
   }, [lift, orms]);
 
   const liftLabel = lift.charAt(0).toUpperCase() + lift.slice(1);
-  const colors = LIFT_COLORS[lift] ?? { line: C.primary, fill: C.primaryMuted };
+  const colors = LIFT_COLORS[lift] ?? { line: C.primaryText, fill: C.primaryMuted };
 
   const handleLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
@@ -1260,7 +1292,7 @@ function StrengthLineChart({
           <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
             {liftLabel}
           </Text>
-          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primary }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
             {formatWeight(data[0].weight, weightUnit)}
           </Text>
         </View>
@@ -1333,7 +1365,7 @@ function StrengthLineChart({
           {liftLabel}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primary }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
             {formatWeight(best, weightUnit)}
           </Text>
           {isImproving && (
@@ -1347,7 +1379,7 @@ function StrengthLineChart({
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="trending-up" size={11} color={C.primary} />
+              <Ionicons name="trending-up" size={11} color={C.primaryText} />
             </View>
           )}
         </View>
@@ -1386,10 +1418,24 @@ function StrengthLineChart({
                 />
               </G>
             ))}
-            <SvgText x={4} y={h - 2} fontSize={9} fill={C.textTertiary} textAnchor="start">
+            <SvgText
+              x={4}
+              y={h - 2}
+              fontSize={9}
+              fill={C.textTertiary}
+              textAnchor="start"
+              fontFamily="Inter_500Medium"
+            >
               {formatWeight(minW, weightUnit)}
             </SvgText>
-            <SvgText x={w - 4} y={12} fontSize={9} fill={C.textTertiary} textAnchor="end">
+            <SvgText
+              x={w - 4}
+              y={12}
+              fontSize={9}
+              fill={C.textTertiary}
+              textAnchor="end"
+              fontFamily="Inter_500Medium"
+            >
               {formatWeight(maxW, weightUnit)}
             </SvgText>
           </Svg>
@@ -1596,7 +1642,7 @@ function SessionHistoryList({
                               style={{
                                 fontSize: 10,
                                 fontFamily: 'Inter_500Medium',
-                                color: isActive ? C.primary : C.textSecondary,
+                                color: isActive ? C.primaryText : C.textSecondary,
                               }}
                             >
                               {r
@@ -1741,7 +1787,7 @@ function SessionHistoryList({
                             style={{
                               fontSize: 13,
                               fontFamily: 'Inter_600SemiBold',
-                              color: C.primary,
+                              color: C.primaryText,
                             }}
                           >
                             {formatWeight(ex.weight, weightUnit)}
@@ -1876,7 +1922,7 @@ function SessionHistoryList({
                               flexShrink: 1,
                             }}
                           >
-                            <Ionicons name="timer-outline" size={13} color={C.primary} />
+                            <Ionicons name="timer-outline" size={13} color={C.primaryText} />
                             <Text
                               style={{
                                 fontSize: 13,
@@ -1893,7 +1939,7 @@ function SessionHistoryList({
                             style={{
                               fontSize: 13,
                               fontFamily: 'Inter_600SemiBold',
-                              color: C.primary,
+                              color: C.primaryText,
                             }}
                           >
                             {parts.join(' · ')}
@@ -2059,7 +2105,7 @@ function SessionHistoryList({
             borderTopColor: C.borderLight,
           }}
         >
-          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
             Show more ({sessions.length - showCount} remaining)
           </Text>
         </Pressable>
@@ -2209,8 +2255,8 @@ function SessionTypeBreakdown({
               borderColor: C.primaryMuted,
             })}
           >
-            <Ionicons name="close-circle" size={13} color={C.primary} />
-            <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+            <Ionicons name="close-circle" size={13} color={C.primaryText} />
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
               Clear
             </Text>
           </Pressable>
@@ -2248,12 +2294,19 @@ function SessionTypeBreakdown({
             y={cy - 6}
             textAnchor="middle"
             fontSize={20}
-            fontWeight="bold"
+            fontFamily="Inter_700Bold"
             fill={C.text}
           >
             {total}
           </SvgText>
-          <SvgText x={cx} y={cy + 12} textAnchor="middle" fontSize={9} fill={C.textSecondary}>
+          <SvgText
+            x={cx}
+            y={cy + 12}
+            textAnchor="middle"
+            fontSize={9}
+            fill={C.textSecondary}
+            fontFamily="Inter_500Medium"
+          >
             total
           </SvgText>
         </Svg>
@@ -2437,7 +2490,7 @@ function PBHistorySection({
                       style={{
                         fontSize: 14,
                         fontFamily: 'Inter_700Bold',
-                        color: isAllTimeBest ? C.primary : C.text,
+                        color: isAllTimeBest ? C.primaryText : C.text,
                       }}
                     >
                       {formatWeight(entry.weight, weightUnit)}
@@ -2508,7 +2561,7 @@ function OneRMCalculator({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <Ionicons name="calculator-outline" size={18} color={C.primary} />
+        <Ionicons name="calculator-outline" size={18} color={C.primaryText} />
         <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
           1RM Calculator
         </Text>
@@ -2625,7 +2678,7 @@ function OneRMCalculator({
             style={{
               fontSize: 12,
               fontFamily: 'Inter_400Regular',
-              color: C.primary,
+              color: C.primaryText,
               marginBottom: 4,
               textAlign: 'center',
             }}
@@ -2636,7 +2689,7 @@ function OneRMCalculator({
             style={{
               fontSize: 32,
               fontFamily: 'Inter_700Bold',
-              color: C.primary,
+              color: C.primaryText,
               textAlign: 'center',
             }}
           >
@@ -2699,8 +2752,8 @@ function OneRMCalculator({
                 borderColor: C.primary,
               })}
             >
-              <Ionicons name="trophy-outline" size={16} color={C.primary} />
-              <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primary }}>
+              <Ionicons name="trophy-outline" size={16} color={C.primaryText} />
+              <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
                 Save as {LIFT_LABELS[selectedLift]} PB
               </Text>
             </Pressable>
@@ -2802,7 +2855,7 @@ function TrendArrow({ trend, C }: { trend: TrendDirection; C: ReturnType<typeof 
     'up' | 'down' | 'flat',
     { icon: keyof typeof Ionicons.glyphMap; color: string }
   > = {
-    up: { icon: 'arrow-up', color: C.primary },
+    up: { icon: 'arrow-up', color: C.primaryText },
     flat: { icon: 'remove', color: C.textTertiary },
     down: { icon: 'arrow-down', color: C.warning },
   };
@@ -2858,7 +2911,7 @@ function ExerciseProgressRow({
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
               PB {formatWeight(pb, weightUnit)}
             </Text>
           </View>
@@ -2867,7 +2920,7 @@ function ExerciseProgressRow({
           </Text>
         </View>
       </View>
-      <ExerciseSparkline appearances={progress.appearances} color={C.primary} C={C} />
+      <ExerciseSparkline appearances={progress.appearances} color={C.primaryText} C={C} />
       <TrendArrow trend={trend} C={C} />
       <Ionicons name="chevron-forward" size={15} color={C.textTertiary} />
     </Pressable>
@@ -3035,8 +3088,10 @@ function ExerciseProgressList({
                   marginBottom: 8,
                 })}
               >
-                <Ionicons name="chevron-down" size={15} color={C.primary} />
-                <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                <Ionicons name="chevron-down" size={15} color={C.primaryText} />
+                <Text
+                  style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}
+                >
                   Show all ({hiddenCount} more)
                 </Text>
               </Pressable>
@@ -3169,6 +3224,7 @@ function ExerciseGraph({
                   fontSize={9}
                   fill={C.textTertiary}
                   textAnchor="end"
+                  fontFamily="Inter_500Medium"
                 >
                   {Math.round(kgToDisplayUnit(w, weightUnit))}
                 </SvgText>
@@ -3178,7 +3234,7 @@ function ExerciseGraph({
 
           <Path
             d={pathD}
-            stroke={C.primary}
+            stroke={C.primaryText}
             strokeWidth={2.5}
             fill="none"
             strokeLinecap="round"
@@ -3205,7 +3261,7 @@ function ExerciseGraph({
                   cx={p.x}
                   cy={p.y}
                   r={isSelected ? 6 : isPB ? 5.5 : 4}
-                  fill={isPB ? C.achievementGold : C.primary}
+                  fill={isPB ? C.achievementGold : C.primaryText}
                   stroke={isSelected ? C.surface : 'none'}
                   strokeWidth={isSelected ? 2 : 0}
                 />
@@ -3221,6 +3277,7 @@ function ExerciseGraph({
               fontSize={9}
               fill={C.textTertiary}
               textAnchor={idx === 0 ? 'start' : idx === appearances.length - 1 ? 'end' : 'middle'}
+              fontFamily="Inter_500Medium"
             >
               {formatShortDate(appearances[idx].date)}
             </SvgText>
@@ -3338,8 +3395,8 @@ function ExerciseDetailSheet({
           >
             <View style={{ flex: 1, alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="trophy" size={13} color={C.primary} />
-                <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primary }}>
+                <Ionicons name="trophy" size={13} color={C.primaryText} />
+                <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
                   {formatWeight(pb, weightUnit)}
                 </Text>
               </View>
@@ -3883,7 +3940,7 @@ export default function StatsScreen() {
               style={({ pressed }) => [styles.drillDownCard, pressed && { opacity: 0.82 }]}
             >
               <View style={styles.drillDownIcon}>
-                <Ionicons name="calendar-outline" size={18} color={C.primary} />
+                <Ionicons name="calendar-outline" size={18} color={C.primaryText} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.drillDownTitle}>Training Calendar</Text>
@@ -3974,7 +4031,7 @@ export default function StatsScreen() {
               onPress={() => setShowCalculator(true)}
               style={({ pressed }) => [styles.calcBtn, pressed && { opacity: 0.85 }]}
             >
-              <Ionicons name="calculator-outline" size={18} color={C.primary} />
+              <Ionicons name="calculator-outline" size={18} color={C.primaryText} />
               <Text style={styles.calcBtnText}>1RM Calculator</Text>
               <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
             </Pressable>
@@ -4294,7 +4351,7 @@ export default function StatsScreen() {
                               const isUp = trend === '↑';
                               const isDown = trend === '↓';
                               const trendColor = isDown
-                                ? C.primary
+                                ? C.primaryText
                                 : isUp
                                   ? C.trendNegativeText
                                   : C.textSecondary;
@@ -4364,7 +4421,7 @@ export default function StatsScreen() {
                                   const isUp = trend === '↑';
                                   const isDown = trend === '↓';
                                   const trendColor = isDown
-                                    ? C.primary
+                                    ? C.primaryText
                                     : isUp
                                       ? C.trendNegativeText
                                       : C.textSecondary;
@@ -4445,9 +4502,13 @@ export default function StatsScreen() {
                       borderColor: C.primaryMuted,
                     })}
                   >
-                    <Ionicons name="close-circle" size={13} color={C.primary} />
+                    <Ionicons name="close-circle" size={13} color={C.primaryText} />
                     <Text
-                      style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.primary }}
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Inter_600SemiBold',
+                        color: C.primaryText,
+                      }}
                     >
                       Clear all
                     </Text>
@@ -4660,7 +4721,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       ...xsShadow(C.shadow),
     },
     segmentTabText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.primary },
+    segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.primaryText },
 
     // ONE rhythm, owned by the scroll container.
     //
@@ -4790,7 +4851,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primaryMuted,
       marginBottom: 16,
     },
-    calcBtnText: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    calcBtnText: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     modalContainer: { flex: 1, backgroundColor: C.background },
     modalHeader: {

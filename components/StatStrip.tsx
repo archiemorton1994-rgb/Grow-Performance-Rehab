@@ -59,12 +59,12 @@ export function StatStrip({
           {i > 0 && <View style={{ width: 1, height: 32, backgroundColor: colors.border }} />}
           <View style={{ flex: 1, alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-              <Text style={{ fontSize: 26, fontFamily: 'Inter_700Bold', color: colors.primary }}>
+              <Text style={{ fontSize: 26, fontFamily: 'Inter_700Bold', color: colors.primaryText }}>
                 {item.value}
               </Text>
               {item.hint ? (
                 <Text
-                  style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: colors.primary }}
+                  style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: colors.primaryText }}
                 >
                   {item.hint}
                 </Text>

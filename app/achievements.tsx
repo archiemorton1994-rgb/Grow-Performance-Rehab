@@ -113,7 +113,7 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
         {/* Icon + heading */}
         <View style={tourStyles.calloutHeader}>
           <View style={[tourStyles.calloutIconBadge, { backgroundColor: C.primarySurface }]}>
-            <Ionicons name="trophy" size={20} color={C.primary} />
+            <Ionicons name="trophy" size={20} color={C.primaryText} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[tourStyles.calloutLabel, { color: C.textTertiary }]}>Achievements</Text>
@@ -137,7 +137,7 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
             'Tap any badge to see exactly what unlocks it',
           ].map((tip, i) => (
             <View key={i} style={tourStyles.tipRow}>
-              <Ionicons name="checkmark-circle" size={15} color={C.primary} />
+              <Ionicons name="checkmark-circle" size={15} color={C.primaryText} />
               <Text style={[tourStyles.tipText, { color: C.textSecondary }]}>{tip}</Text>
             </View>
           ))}
@@ -687,7 +687,7 @@ export default function AchievementsScreen() {
                         style={({ pressed }) => [pressed && { opacity: 0.7 }]}
                         testID="enable-test-weeks"
                       >
-                        <Text style={[styles.hintText, { color: C.primary }]}>
+                        <Text style={[styles.hintText, { color: C.primaryText }]}>
                           Turn test weeks back on →
                         </Text>
                       </Pressable>
@@ -700,7 +700,7 @@ export default function AchievementsScreen() {
                       { backgroundColor: C.surfaceSecondary, borderColor: C.borderLight },
                     ]}
                   >
-                    <Ionicons name="information-circle-outline" size={15} color={C.primary} />
+                    <Ionicons name="information-circle-outline" size={15} color={C.primaryText} />
                     <Text style={[styles.hintText, { color: C.textSecondary }]}>
                       {CRITERIA_HINTS[detailBadge.criteriaType]}
                     </Text>
@@ -839,7 +839,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary + '55',
     },
     filterTabText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    filterTabTextActive: { color: C.primary, fontFamily: 'Inter_700Bold' },
+    filterTabTextActive: { color: C.primaryText, fontFamily: 'Inter_700Bold' },
 
     // ── Shelves ─────────────────────────────────────────────────────────────
     shelf: { paddingTop: 18 },

@@ -192,7 +192,6 @@ export default function HomeScreen() {
   const testWeek = testWeekProgress.active;
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
   const greeting = getTimeOfDayGreeting();
-  const greetingText = firstName ? `${greeting} ${firstName}` : greeting;
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
 
   const daysSinceLast = useMemo(() => {
@@ -635,15 +634,24 @@ export default function HomeScreen() {
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
+            {/* Greeting and name are stacked rather than run together on one
+                line: at 24px "Good evening Archie" has to share the row with the
+                test-week pill, the coach button and the avatar, and the name is
+                what loses. adjustsFontSizeToFit is a native-only prop, so on web
+                it did not shrink — it simply cut the name off. */}
             <View style={{ flex: 1 }}>
-              <Text
-                style={styles.greetingText}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.72}
-              >
-                {greetingText}
-              </Text>
+              {firstName ? (
+                <>
+                  <Text style={styles.greetingEyebrow}>{greeting}</Text>
+                  <Text style={styles.greetingText} numberOfLines={1}>
+                    {firstName}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.greetingText} numberOfLines={1}>
+                  {greeting}
+                </Text>
+              )}
             </View>
             {testWeek && (
               <View style={styles.testWeekPill}>
@@ -670,7 +678,7 @@ export default function HomeScreen() {
               ) : firstName ? (
                 <Text style={styles.headerAvatarInitial}>{firstName[0].toUpperCase()}</Text>
               ) : (
-                <Ionicons name="person" size={18} color={C.primary} />
+                <Ionicons name="person" size={18} color={C.primaryText} />
               )}
             </Pressable>
           </Animated.View>
@@ -691,7 +699,7 @@ export default function HomeScreen() {
                       type: 'squat' as const,
                       label: SESSION_META.squat.label,
                       sub: 'Quads · Glutes · Hamstrings',
-                      color: C.primary,
+                      color: C.primaryText,
                       bg: C.primaryMuted,
                     },
                     {
@@ -775,7 +783,7 @@ export default function HomeScreen() {
                   <EquipmentIcon
                     tier={todayEffectiveTier}
                     size={13}
-                    color={sessionEquipmentOverride !== null ? C.primary : C.textSecondary}
+                    color={sessionEquipmentOverride !== null ? C.primaryText : C.textSecondary}
                   />
                   <Text
                     style={[
@@ -790,7 +798,7 @@ export default function HomeScreen() {
                   <Ionicons
                     name="chevron-down"
                     size={12}
-                    color={sessionEquipmentOverride !== null ? C.primary : C.textTertiary}
+                    color={sessionEquipmentOverride !== null ? C.primaryText : C.textTertiary}
                   />
                 </Pressable>
                 <Pressable
@@ -963,7 +971,7 @@ export default function HomeScreen() {
               style={styles.calibrationCompleteCard}
             >
               <View style={styles.calibrationCompleteIcon}>
-                <Ionicons name="checkmark-circle" size={20} color={C.primary} />
+                <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.calibrationCompleteTitle}>{"You're all set"}</Text>
@@ -1133,7 +1141,7 @@ export default function HomeScreen() {
                   { backgroundColor: C.primaryMuted, borderColor: C.primary + '40' },
                 ]}
               >
-                <Text style={[modalStyles.resetBtnText, { color: C.primary }]}>Reset</Text>
+                <Text style={[modalStyles.resetBtnText, { color: C.primaryText }]}>Reset</Text>
               </Pressable>
             )}
           </View>
@@ -1146,7 +1154,7 @@ export default function HomeScreen() {
             >
               <Text style={[modalStyles.bestMatchText, { color: C.textSecondary }]}>
                 Best match:{' '}
-                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                   {getEquipmentLabel(getEffectiveTier(sheetDraft))}
                 </Text>
               </Text>
@@ -1173,16 +1181,16 @@ export default function HomeScreen() {
                     <EquipmentIcon
                       tier={tier}
                       size={20}
-                      color={selected ? C.primary : C.textSecondary}
+                      color={selected ? C.primaryText : C.textSecondary}
                     />
                     <View style={{ flex: 1 }}>
                       <Text
-                        style={[modalStyles.tierLabel, { color: selected ? C.primary : C.text }]}
+                        style={[modalStyles.tierLabel, { color: selected ? C.primaryText : C.text }]}
                       >
                         {getEquipmentLabel(tier)}
                       </Text>
                     </View>
-                    {selected && <Ionicons name="checkmark-circle" size={20} color={C.primary} />}
+                    {selected && <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />}
                     {locked && (
                       <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
                     )}
@@ -1276,6 +1284,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     inner: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, gap: 16 },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    greetingEyebrow: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
     headerAvatar: {
       width: 38,
@@ -1287,7 +1296,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       overflow: 'hidden',
     },
     headerAvatarImg: { width: 38, height: 38, borderRadius: 19 },
-    headerAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary },
+    headerAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText },
     testWeekPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1313,7 +1322,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todayLabel: {
       fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
       marginBottom: 6,
@@ -1358,7 +1367,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary + '40',
     },
     equipmentChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    equipmentChipTextOverride: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    equipmentChipTextOverride: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     overrideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary },
 
     blockRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
@@ -1612,15 +1621,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexShrink: 0,
       backgroundColor: C.surfaceSecondary,
     },
-    calibrationCompleteTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primary },
+    calibrationCompleteTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryText },
     calibrationCompleteSub: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
     },
-
-
+
+
     weightInputRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,

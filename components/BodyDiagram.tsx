@@ -30,6 +30,26 @@ const VOCAB_ATTENTION = '#fbbf24'; // amber-400
 const VOCAB_OVERLOADED = '#f87171'; // red-400
 const VOCAB_REST = '#2a2a2a'; // dark grey (visible on dark panel)
 
+/**
+ * The same four colours, for screens that draw their own legend beside the
+ * figure.
+ *
+ * A legend is a promise that its swatch is the colour on the body. That only
+ * holds if both read from here — a legend built from theme tokens describes a
+ * figure it cannot see, and drifts the moment either side is edited. These are
+ * deliberately not theme tokens for the same reason the vocabulary above is
+ * not: the figure always sits on a dark panel, whatever the app theme is.
+ *
+ * `rest` is near-black, so a legend rendering it on a themed card needs its own
+ * hairline outline to keep the swatch perceptible in dark mode.
+ */
+export const DIAGRAM_LEGEND_COLORS = {
+  worked: VOCAB_WORKED,
+  attention: VOCAB_ATTENTION,
+  overloaded: VOCAB_OVERLOADED,
+  rest: VOCAB_REST,
+} as const;
+
 // Legacy joint colour kept for non-heatmap joint category display
 const JOINT_CLR = '#4a7e9b';
 

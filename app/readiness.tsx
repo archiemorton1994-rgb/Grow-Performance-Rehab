@@ -33,7 +33,9 @@ import {
   getEquipmentLabel,
   getEffectiveTier,
   getPainRegionLabel,
+  daysAwayFrom,
 } from '@/lib/workout-engine';
+import { getLayoffMessage } from '@/lib/coach';
 import { BodyDiagram } from '@/components/BodyDiagram';
 
 type Step = 'main' | 'painRegion' | 'severeConfirm' | 'prehabFocus';
@@ -112,7 +114,22 @@ export default function ReadinessScreen() {
     deferTestWeek,
     setTestWeekFrequency,
     completedSessions,
+    getTestWeekProgress,
   } = useAppStore();
+
+  /**
+   * Time away, said out loud on the way into the session.
+   *
+   * The load calculation now backs off after a break, and an adjustment nobody
+   * mentions is indistinguishable from a bug — you would see a lighter weight
+   * than last time and conclude the app had lost your history. This is the last
+   * screen before the weights appear, which makes it the right place: the
+   * explanation arrives before the thing it explains.
+   */
+  const layoffMessage = useMemo(() => {
+    const daysAway = daysAwayFrom(completedSessions.map((s) => s.date));
+    return getLayoffMessage(daysAway, { testHeld: getTestWeekProgress().held });
+  }, [completedSessions, getTestWeekProgress]);
   // Once a due test is postponed, treat the rest of this screen as a normal
   // session for good — the user still needs a plan for today.
   const [testPostponed, setTestPostponed] = useState(false);
@@ -474,6 +491,15 @@ export default function ReadinessScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.mainContent}
       >
+        {layoffMessage && (
+          <View style={styles.layoffBanner} testID="layoff-banner">
+            <Ionicons name={layoffMessage.icon as never} size={18} color={C.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.layoffTitle}>{layoffMessage.title}</Text>
+              <Text style={styles.layoffBody}>{layoffMessage.body}</Text>
+            </View>
+          </View>
+        )}
         {effectiveTestWeek && (
           <View style={styles.testWeekBanner}>
             <View style={styles.testWeekBannerIcon}>
@@ -1705,6 +1731,28 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.primary,
+      lineHeight: 17,
+    },
+
+    layoffBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      backgroundColor: C.primarySurface,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    layoffTitle: {
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primary,
+      marginBottom: 3,
+    },
+    layoffBody: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.text,
       lineHeight: 17,
     },
   });

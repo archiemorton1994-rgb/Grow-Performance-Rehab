@@ -12,7 +12,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { DarkColors, useColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const TOUR_TAB_ROUTES = ['/', '/profile', '/train', '/recover', '/workouts'] as const;
 const TOUR_TAB_SEGMENT = ['index', 'profile', 'train', 'recover', 'workouts'] as const;
 
-// ─── 3D PNG Tab Icons ────────────────────────────────────────────────────────
+// ─── PNG Tab Icons ───────────────────────────────────────────────────────────
 
 const TAB_ICONS = {
   home: require('@/assets/images/tabs/home.png'),
@@ -37,11 +37,19 @@ const TAB_ICONS = {
   stats: require('@/assets/images/tabs/stats.png'),
 } as const;
 
+/**
+ * The artwork is near-white ink on transparency, drawn back when this bar was
+ * hardcoded to the dark palette. Now that the bar follows the theme, untinted
+ * icons would be white-on-near-white in light mode — invisible. Tinting also
+ * makes each icon the same colour as the label under it, which the opacity
+ * trick it replaces could not do.
+ */
 function TabIcon({ source, focused, size = 28 }: { source: any; focused: boolean; size?: number }) {
+  const C = useColors();
   return (
     <Image
       source={source}
-      style={{ width: size, height: size, opacity: focused ? 1 : 0.45 }}
+      style={{ width: size, height: size, tintColor: focused ? C.tabActive : C.tabInactive }}
       resizeMode="contain"
     />
   );
@@ -166,20 +174,20 @@ function TabsInner() {
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: DarkColors.tabActive,
-          tabBarInactiveTintColor: DarkColors.tabInactive,
+          tabBarActiveTintColor: C.tabActive,
+          tabBarInactiveTintColor: C.tabInactive,
           headerShown: false,
           tabBarStyle: {
             position: 'absolute',
-            backgroundColor: DarkColors.background,
+            backgroundColor: C.background,
             borderTopWidth: 1,
-            borderTopColor: DarkColors.border,
+            borderTopColor: C.border,
             elevation: 0,
             ...(isWeb ? { height: 84 } : {}),
           },
           tabBarBackground: () =>
             isWeb ? (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: DarkColors.background }]} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: C.background }]} />
             ) : null,
         }}
       >
@@ -288,7 +296,7 @@ function TabsInner() {
         <View style={styles.introOverlay}>
           <View style={[styles.introCard, { backgroundColor: C.surface, borderColor: C.primary }]}>
             <View style={[styles.introIconRing, { backgroundColor: C.primarySurface }]}>
-              <Ionicons name="compass-outline" size={30} color={C.primary} />
+              <Ionicons name="compass-outline" size={30} color={C.primaryText} />
             </View>
             <Text style={[styles.introTitle, { color: C.text }]}>Let&apos;s take a tour!</Text>
             <Text style={[styles.introBody, { color: C.textSecondary }]}>

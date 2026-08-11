@@ -394,7 +394,7 @@ export default function TrainScreen() {
               <EquipmentIcon
                 tier={todayEffectiveTier}
                 size={13}
-                color={isOverrideActive ? C.primary : C.textSecondary}
+                color={isOverrideActive ? C.primaryText : C.textSecondary}
               />
               <Text
                 style={[
@@ -409,7 +409,7 @@ export default function TrainScreen() {
               <Ionicons
                 name="chevron-down"
                 size={12}
-                color={isOverrideActive ? C.primary : C.textTertiary}
+                color={isOverrideActive ? C.primaryText : C.textTertiary}
               />
             </Pressable>
             {isOverrideActive && (
@@ -508,12 +508,12 @@ export default function TrainScreen() {
               style={({ pressed }) => [styles.kpiCallout, pressed && { opacity: 0.7 }]}
               testID="train-kpi-equipment-callout"
             >
-              <Ionicons name="information-circle-outline" size={14} color={C.primary} />
+              <Ionicons name="information-circle-outline" size={14} color={C.primaryText} />
               <Text style={styles.kpiCalloutText}>
                 Sessions adapt to your equipment. Add Full Gym to unlock barbell lifts and 1RM
                 tracking.
               </Text>
-              <Ionicons name="chevron-forward" size={12} color={C.primary} />
+              <Ionicons name="chevron-forward" size={12} color={C.primaryText} />
             </Pressable>
           )}
 
@@ -593,7 +593,7 @@ export default function TrainScreen() {
             <View style={styles.bestMatchRow}>
               <Text style={styles.bestMatchText}>
                 Best match:{' '}
-                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                   {getEquipmentLabel(draftEffectiveTier)}
                 </Text>
               </Text>
@@ -605,7 +605,7 @@ export default function TrainScreen() {
               onPress={() => router.push('/(tabs)/profile')}
               style={({ pressed }) => [styles.beginnerNote, pressed && { opacity: 0.7 }]}
             >
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
+              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
               <Text style={styles.beginnerNoteText}>
                 Bodyweight & Bands. Unlock more in Profile →
               </Text>
@@ -642,14 +642,14 @@ export default function TrainScreen() {
                   <EquipmentIcon
                     tier={tier}
                     size={16}
-                    color={isActive ? C.textInverse : isAvailable ? C.primary : C.textTertiary}
+                    color={isActive ? C.textInverse : isAvailable ? C.primaryText : C.textTertiary}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[
                       styles.tierLabel,
-                      isActive && { color: C.primary },
+                      isActive && { color: C.primaryText },
                       !isAvailable && { color: C.textTertiary },
                     ]}
                   >
@@ -747,7 +747,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       color: C.textSecondary,
     },
     equipmentChipTextOverride: {
-      color: C.primary,
+      color: C.primaryText,
       fontFamily: 'Inter_600SemiBold',
     },
     overrideDot: {
@@ -831,7 +831,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       flex: 1,
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       lineHeight: 15,
     },
 
@@ -892,7 +892,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
-    beginnerNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primary, flex: 1 },
+    beginnerNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primaryText, flex: 1 },
     tierRow: {
       flexDirection: 'row',
       alignItems: 'center',
