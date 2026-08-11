@@ -20,7 +20,7 @@ joint. Experienced lifters keep whatever their specific complaint does not rule 
 
 Avoids: overhead work, end-range shoulder work.
 
-Blocks **30 of 447** exercises (7%).
+Blocks **30 of 440** exercises (7%).
 
 Examples of what it removes:
 
@@ -41,17 +41,17 @@ Examples of what it removes:
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ### Rear Shoulder
 
 Avoids: overhead work, end-range shoulder work.
 
-Blocks **30 of 447** exercises (7%).
+Blocks **30 of 440** exercises (7%).
 
 Examples of what it removes:
 
@@ -72,17 +72,17 @@ Examples of what it removes:
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ### Elbow
 
 Avoids: loaded elbow work, overhead work, weight through the wrists.
 
-Blocks **89 of 447** exercises (20%).
+Blocks **89 of 440** exercises (20%).
 
 Examples of what it removes:
 
@@ -103,17 +103,17 @@ Examples of what it removes:
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Assault Bike + Squat Jump Circuit
 - Assault Bike EMOM + RDL
-- Assault Bike Sprints
 
 ### Wrist
 
 Avoids: weight through the wrists, hard gripping.
 
-Blocks **81 of 447** exercises (18%).
+Blocks **79 of 440** exercises (18%).
 
 Examples of what it removes:
 
@@ -129,22 +129,22 @@ Examples of what it removes:
 - Burpee
 - Burpee Ladder
 - Burpee to Broad Jump
-- …and 69 more
+- …and 67 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Assault Bike + Squat Jump Circuit
 - Assault Bike EMOM + RDL
-- Assault Bike Sprints
 
 ### Neck
 
 Avoids: loading the neck and traps, overhead work, loading through the spine.
 
-Blocks **45 of 447** exercises (10%).
+Blocks **44 of 440** exercises (10%).
 
 Examples of what it removes:
 
@@ -152,7 +152,6 @@ Examples of what it removes:
 - Back Squat
 - Banded Glute Bridge
 - Banded Good Morning
-- Barbell Back Squat
 - Chin-Up
 - Circuit A: DB Man Maker + Thruster + Swing
 - Circuit B: DB Thruster + Renegade Row + Jump Squat
@@ -160,16 +159,17 @@ Examples of what it removes:
 - Circuit B: KB Snatch + Jump Squat + Renegade Row
 - DB Deadlift + Push Press AMRAP
 - DB Farmer Carry
-- …and 33 more
+- DB Glute Bridge (Pump)
+- …and 32 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ## Torso
 
@@ -177,11 +177,12 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: jumping and landing, loading through the spine, rounding the lower back, loaded hip hinging.
 
-Blocks **111 of 447** exercises (25%).
+Blocks **112 of 440** exercises (25%).
 
 Examples of what it removes:
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Assault Bike + Squat Jump Circuit
@@ -191,9 +192,8 @@ Examples of what it removes:
 - Back Squat
 - Banded Good Morning
 - Banded Hip Thrust
-- Barbell Back Squat
 - Barbell Deadlift
-- …and 99 more
+- …and 100 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -208,7 +208,7 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: loading through the spine, overhead work, loading the neck and traps.
 
-Blocks **45 of 447** exercises (10%).
+Blocks **44 of 440** exercises (10%).
 
 Examples of what it removes:
 
@@ -216,7 +216,6 @@ Examples of what it removes:
 - Back Squat
 - Banded Glute Bridge
 - Banded Good Morning
-- Barbell Back Squat
 - Chin-Up
 - Circuit A: DB Man Maker + Thruster + Swing
 - Circuit B: DB Thruster + Renegade Row + Jump Squat
@@ -224,22 +223,23 @@ Examples of what it removes:
 - Circuit B: KB Snatch + Jump Squat + Renegade Row
 - DB Deadlift + Push Press AMRAP
 - DB Farmer Carry
-- …and 33 more
+- DB Glute Bridge (Pump)
+- …and 32 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ### Core
 
 Avoids: rounding the lower back, loaded hip hinging.
 
-Blocks **51 of 447** exercises (11%).
+Blocks **49 of 440** exercises (11%).
 
 Examples of what it removes:
 
@@ -255,16 +255,16 @@ Examples of what it removes:
 - Circuit A: KB Swing + Goblet Squat + Push-Up
 - Circuit B: Bear Crawl + KB Swing + Box Jump
 - Circuit B: KB Snatch + Box Jump + Burpee
-- …and 39 more
+- …and 37 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
 - Assault Bike + Squat Jump Circuit
-- Assault Bike Sprints
 
 ## Lower Body
 
@@ -272,10 +272,11 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: jumping and landing, deep knee bending, loaded knee extension.
 
-Blocks **72 of 447** exercises (16%).
+Blocks **78 of 440** exercises (18%).
 
 Examples of what it removes:
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
@@ -287,8 +288,7 @@ Examples of what it removes:
 - Broad Jump
 - Bulgarian Split Squat
 - Burpee
-- Burpee Ladder
-- …and 60 more
+- …and 66 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -303,11 +303,12 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: jumping and landing, deep knee bending, loaded hip hinging.
 
-Blocks **116 of 447** exercises (26%).
+Blocks **119 of 440** exercises (27%).
 
 Examples of what it removes:
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
@@ -318,8 +319,7 @@ Examples of what it removes:
 - Banded Good Morning
 - Banded Hip Thrust
 - Barbell Bulgarian Split Squat
-- Barbell Deadlift
-- …and 104 more
+- …and 107 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -334,10 +334,11 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: jumping and landing, loading the ankle.
 
-Blocks **57 of 447** exercises (13%).
+Blocks **63 of 440** exercises (14%).
 
 Examples of what it removes:
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Assault Bike + Squat Jump Circuit
@@ -349,8 +350,7 @@ Examples of what it removes:
 - Burpee Ladder
 - Burpee to Broad Jump
 - Calf Raise
-- Circuit A: Burpee + Squat Jump + Plyo Lunge
-- …and 45 more
+- …and 51 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -365,10 +365,11 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: jumping and landing, loading the ankle.
 
-Blocks **57 of 447** exercises (13%).
+Blocks **63 of 440** exercises (14%).
 
 Examples of what it removes:
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Assault Bike + Squat Jump Circuit
@@ -380,8 +381,7 @@ Examples of what it removes:
 - Burpee Ladder
 - Burpee to Broad Jump
 - Calf Raise
-- Circuit A: Burpee + Squat Jump + Plyo Lunge
-- …and 45 more
+- …and 51 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -398,7 +398,7 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: end-range shoulder work.
 
-Blocks **8 of 447** exercises (2%).
+Blocks **8 of 440** exercises (2%).
 
 Examples of what it removes:
 
@@ -414,17 +414,17 @@ Examples of what it removes:
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ### Bicep / Front Arm
 
 Avoids: loaded elbow work, hard gripping.
 
-Blocks **65 of 447** exercises (15%).
+Blocks **63 of 440** exercises (14%).
 
 Examples of what it removes:
 
@@ -440,22 +440,22 @@ Examples of what it removes:
 - Circuit B: Bear Crawl + KB Swing + Box Jump
 - Circuit B: KB Snatch + Box Jump + Burpee
 - Circuit B: KB Snatch + Jump Squat + Renegade Row
-- …and 53 more
+- …and 51 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ### Tricep / Back Arm
 
 Avoids: loaded elbow work, overhead work.
 
-Blocks **48 of 447** exercises (11%).
+Blocks **48 of 440** exercises (11%).
 
 Examples of what it removes:
 
@@ -476,11 +476,11 @@ Examples of what it removes:
 Still allowed (loaded, but not in a way this complaint rules out):
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
-- Assault Bike + Squat Jump Circuit
 
 ## Lower Body Muscles
 
@@ -488,10 +488,11 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: deep knee bending, loaded knee extension, jumping and landing.
 
-Blocks **72 of 447** exercises (16%).
+Blocks **78 of 440** exercises (18%).
 
 Examples of what it removes:
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
@@ -503,8 +504,7 @@ Examples of what it removes:
 - Broad Jump
 - Bulgarian Split Squat
 - Burpee
-- Burpee Ladder
-- …and 60 more
+- …and 66 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -519,11 +519,12 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: loaded hip hinging, jumping and landing.
 
-Blocks **95 of 447** exercises (21%).
+Blocks **98 of 440** exercises (22%).
 
 Examples of what it removes:
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Assault Bike + Squat Jump Circuit
@@ -534,8 +535,7 @@ Examples of what it removes:
 - Banded Hip Thrust
 - Barbell Deadlift
 - Barbell Hip Thrust
-- Bear Crawl + Sprint
-- …and 83 more
+- …and 86 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -550,11 +550,12 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: loaded hip hinging, jumping and landing.
 
-Blocks **95 of 447** exercises (21%).
+Blocks **98 of 440** exercises (22%).
 
 Examples of what it removes:
 
 - 45 Degree Hyperextension
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Assault Bike + Squat Jump Circuit
@@ -565,8 +566,7 @@ Examples of what it removes:
 - Banded Hip Thrust
 - Barbell Deadlift
 - Barbell Hip Thrust
-- Bear Crawl + Sprint
-- …and 83 more
+- …and 86 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
@@ -581,7 +581,7 @@ Still allowed (loaded, but not in a way this complaint rules out):
 
 Avoids: loaded hip hinging, loading through the spine.
 
-Blocks **66 of 447** exercises (15%).
+Blocks **63 of 440** exercises (14%).
 
 Examples of what it removes:
 
@@ -591,22 +591,22 @@ Examples of what it removes:
 - Back Squat
 - Banded Good Morning
 - Banded Hip Thrust
-- Barbell Back Squat
 - Barbell Deadlift
 - Barbell Hip Thrust
 - Circuit A: DB Man Maker + Thruster + Swing
 - Circuit A: KB Swing + Goblet Squat + Push-Up
 - Circuit B: Bear Crawl + KB Swing + Box Jump
-- …and 54 more
+- Circuit B: DB Thruster + Renegade Row + Jump Squat
+- …and 51 more
 
 Still allowed (loaded, but not in a way this complaint rules out):
 
+- AMRAP Finisher
 - AMRAP: Squat Jump + Broad Jump + Burpee
 - Alternating Jump Lunge
 - Alternating Reverse Lunge
 - Archer Push-Up
 - Assault Bike + Squat Jump Circuit
-- Assault Bike Sprints
 
 ## The categories a movement can fall into
 

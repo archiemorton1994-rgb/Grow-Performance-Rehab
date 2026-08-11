@@ -15253,14 +15253,84 @@ const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
   ],
 };
 
-// Reuse the same exercise objects STANDALONE_PREHAB already defines, rather
-// than redeclaring them, so a future edit to one can't silently drift from
+/**
+ * Regions whose rehab work genuinely overlaps.
+ *
+ * Some regions have only a handful of exercises tagged for them, and topping a
+ * session up from whatever else is lying around is how elbow rehab ended up
+ * containing a thoracic rotation and a hip stretch. Every pair listed here
+ * shares a muscle or a joint complex — the forearm muscles cross both the elbow
+ * and the wrist, the calf and the Achilles are one unit, the biceps and triceps
+ * long heads cross the shoulder — so work borrowed from a neighbour still lands
+ * on the structure that hurts. Anything not listed is not a neighbour.
+ */
+export const PREHAB_RELATED_REGIONS: Record<PainRegion, PainRegion[]> = {
+  front_shoulder: ['rear_shoulder', 'chest', 'bicep'],
+  rear_shoulder: ['front_shoulder', 'upper_back', 'tricep'],
+  elbow: ['wrist', 'bicep', 'tricep'],
+  wrist: ['elbow'],
+  neck: ['upper_back'],
+  upper_back: ['neck', 'rear_shoulder', 'lat_mid_back'],
+  lat_mid_back: ['upper_back', 'lower_back'],
+  lower_back: ['core_ribs', 'glutes', 'lat_mid_back'],
+  core_ribs: ['lower_back'],
+  chest: ['front_shoulder'],
+  bicep: ['elbow', 'front_shoulder'],
+  tricep: ['elbow', 'rear_shoulder'],
+  hip_groin: ['glutes', 'quads'],
+  glutes: ['hip_groin', 'hamstrings', 'lower_back'],
+  knee: ['quads', 'hamstrings'],
+  quads: ['knee', 'hip_groin'],
+  hamstrings: ['knee', 'glutes'],
+  calf_shin: ['ankle_achilles'],
+  ankle_achilles: ['calf_shin'],
+};
+
+/**
+ * Extra work a targeted session can rotate in, still aimed at the injured area.
+ *
+ * `direct` is tagged for the region itself; `related` is tagged for one of its
+ * neighbours and exists because several regions — elbow and wrist especially —
+ * have no spare exercises of their own, and a session that never changes is one
+ * nobody finishes six weeks of. Callers take from `direct` first and only reach
+ * into `related` to fill what is left, so a region with plenty of its own work
+ * never borrows.
+ *
+ * Drawn from the whole rehab library rather than the standalone pool: that pool
+ * holds nothing whatsoever for an elbow or a wrist, which is precisely why the
+ * session used to reach for a shoulder or a hip exercise instead.
+ */
+export function getRegionPrehabSupplements(region: PainRegion): {
+  direct: ExerciseTemplate[];
+  related: ExerciseTemplate[];
+} {
+  // Cased loosely because the same movement is spelled "Calf Stretch (wall)" in
+  // one region's list and "Calf Stretch (Wall)" in another, and showing both in
+  // one session reads as a mistake.
+  const seen = new Set(
+    [...PREHAB_BY_REGION[region], PREHAB_COOLDOWN_BY_REGION[region]].map((e) =>
+      e.name.toLowerCase()
+    )
+  );
+  const direct: ExerciseTemplate[] = [];
+  const related: ExerciseTemplate[] = [];
+  for (const t of [...STANDALONE_PREHAB, ...Object.values(PREHAB_BY_REGION).flat()]) {
+    if (t.category !== 'prehab' || seen.has(t.name.toLowerCase())) continue;
+    seen.add(t.name.toLowerCase());
+    if (t.targetRegions.includes(region)) direct.push(t);
+    else if (PREHAB_RELATED_REGIONS[region].some((r) => t.targetRegions.includes(r)))
+      related.push(t);
+  }
+  return { direct, related };
+}
+
+// Reuse the same exercise object STANDALONE_PREHAB already defines, rather
+// than redeclaring it, so a future edit to one can't silently drift from
 // the other.
 const PREHAB_WARMUP: ExerciseTemplate = STANDALONE_PREHAB.find((e) => e.id === 'ph-s-1')!;
-const PREHAB_COOLDOWN: ExerciseTemplate = STANDALONE_PREHAB.find((e) => e.id === 'ph-s-9')!;
 
 export function getRegionPrehabWorkout(region: PainRegion): ExerciseTemplate[] {
-  return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN];
+  return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN_BY_REGION[region]];
 }
 
 export function getRegionPrehabExercise(region: PainRegion): ExerciseTemplate {
@@ -15299,7 +15369,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Deep lunge, back knee padded - tuck pelvis, hold for duration. Desk worker hip flexor release',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['hip_groin', 'lower_back'],
+    targetRegions: ['hip_groin', 'lower_back', 'quads'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Glutes',
@@ -15317,7 +15387,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Arm at 90°, step through doorway - breathe deeply into the pec stretch. Undo desk posture',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['front_shoulder', 'upper_back'],
+    targetRegions: ['front_shoulder', 'upper_back', 'chest'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Pectorals',
@@ -15371,7 +15441,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Lie on back, loop towel or strap around foot - straighten knee until gentle tension. No forcing',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['knee', 'lower_back'],
+    targetRegions: ['knee', 'lower_back', 'hamstrings'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Hamstrings',
@@ -15389,7 +15459,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: "From child's pose, walk hands to one side - feel the lat and QL stretch on the opposite hip",
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['lower_back', 'upper_back'],
+    targetRegions: ['lower_back', 'upper_back', 'lat_mid_back'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Core',
@@ -15443,7 +15513,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Lie on back, cross ankle over opposite knee, pull thigh toward chest - gentle outer hip and piriformis release',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['hip_groin', 'lower_back'],
+    targetRegions: ['hip_groin', 'lower_back', 'glutes'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Glutes',
@@ -15461,7 +15531,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Stand on one leg, pull heel to glute - keep knees together and stand tall. Wall for balance if needed',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['knee', 'hip_groin'],
+    targetRegions: ['knee', 'hip_groin', 'quads'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Quadriceps',
@@ -15479,7 +15549,7 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
     cue: 'Sit with legs straight, hinge from hips (not rounding the back) and reach toward feet. Breathe and settle with each exhale',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',
-    targetRegions: ['knee', 'lower_back'],
+    targetRegions: ['knee', 'lower_back', 'hamstrings'],
     videoId: '',
     movementPattern: 'mobility',
     primaryMuscle: 'Hamstrings',
@@ -15567,6 +15637,87 @@ const STANDALONE_FLEXIBILITY: ExerciseTemplate[] = [
 export function getStandaloneFlexibilityWorkout(): ExerciseTemplate[] {
   return STANDALONE_FLEXIBILITY;
 }
+
+// ─── TARGETED REHAB COOLDOWNS ─────────────────────────────────────────────────
+// Lives below the stretch pool because it reuses those objects; it is read from
+// getRegionPrehabWorkout() above, which only runs once the module is loaded.
+
+// The stretch pool has nothing for a forearm or an upper arm, so a targeted
+// session for those regions had nothing relevant to end on.
+const FOREARM_COOLDOWN: ExerciseTemplate = {
+  id: 'ph-c-1',
+  name: 'Forearm Flexor & Extensor Stretch',
+  sets: 1,
+  reps: '30s each way, each arm',
+  cue: 'Arm straight out, palm up - pull fingers down and back, then flip the palm down and repeat. Elbow stays locked out',
+  suggestedLoad: 'Bodyweight',
+  category: 'cooldown',
+  targetRegions: ['elbow', 'wrist', 'bicep'],
+  videoId: '',
+  movementPattern: 'mobility',
+  primaryMuscle: 'Forearms',
+  secondaryMuscles: [],
+  equipmentRequired: 'bodyweight',
+  difficulty: 'beginner',
+  isUnilateral: true,
+  injuryFriendlyAlternatives: [],
+};
+
+const SIDE_BEND_COOLDOWN: ExerciseTemplate = {
+  id: 'ph-c-2',
+  name: 'Side-Bend Overhead Reach',
+  sets: 1,
+  reps: '40s each side',
+  cue: 'Reach one arm overhead and lean away - lengthen from the hip all the way to the fingertips, ribs down',
+  suggestedLoad: 'Bodyweight',
+  category: 'cooldown',
+  targetRegions: ['tricep', 'lat_mid_back', 'rear_shoulder'],
+  videoId: '',
+  movementPattern: 'mobility',
+  primaryMuscle: 'Latissimus dorsi',
+  secondaryMuscles: [],
+  equipmentRequired: 'bodyweight',
+  difficulty: 'beginner',
+  isUnilateral: true,
+  injuryFriendlyAlternatives: [],
+};
+
+const flexStretch = (name: string): ExerciseTemplate =>
+  STANDALONE_FLEXIBILITY.find((e) => e.name === name)!;
+
+/**
+ * How a targeted rehab session ends, region by region.
+ *
+ * There used to be one cooldown for all of them — a supine hip 90/90 — so elbow
+ * rehab, wrist rehab and neck rehab all finished with a hip stretch. A cooldown
+ * has to reach the structure that was just worked, or it is only making the
+ * session longer.
+ *
+ * None of these repeats a movement the region already trains: the same stretch
+ * twice in one session reads as a bug, so where the obvious choice was already
+ * in the region's own list the next-best stretch for that structure is used.
+ */
+const PREHAB_COOLDOWN_BY_REGION: Record<PainRegion, ExerciseTemplate> = {
+  front_shoulder: flexStretch('Doorway Chest Opener'),
+  rear_shoulder: flexStretch('Thread-the-Needle Rotation'),
+  chest: flexStretch('Doorway Chest Opener'),
+  elbow: FOREARM_COOLDOWN,
+  wrist: FOREARM_COOLDOWN,
+  bicep: FOREARM_COOLDOWN,
+  tricep: SIDE_BEND_COOLDOWN,
+  neck: flexStretch('Thoracic Extension (Floor)'),
+  upper_back: flexStretch('Thoracic Extension (Floor)'),
+  lat_mid_back: SIDE_BEND_COOLDOWN,
+  lower_back: flexStretch('Supine Spinal Twist'),
+  core_ribs: flexStretch("Child's Pose with Side Reach"),
+  hip_groin: flexStretch('Pigeon Pose'),
+  glutes: flexStretch('Figure-4 Glute Stretch'),
+  quads: flexStretch('Hip Flexor Kneeling Stretch'),
+  hamstrings: flexStretch('Seated Forward Fold'),
+  knee: flexStretch('Standing Quad Stretch'),
+  calf_shin: flexStretch('Calf Stretch (Wall)'),
+  ankle_achilles: flexStretch('Legs-Up-The-Wall'),
+};
 
 // ─── WEEKLY BALANCED SESSIONS ──────────────────────────────────────────────────
 // Lower Body, Upper Body, Full Body — designed for users who want balanced
@@ -16724,6 +16875,7 @@ export function getAllPickableExercises(): PickableExercise[] {
       CONDITIONING_WORKOUTS,
       GOAL_CONDITIONING_BLOCKS,
       STANDALONE_PREHAB,
+      PREHAB_COOLDOWN_BY_REGION,
       STANDALONE_FLEXIBILITY,
       WEEKLY_LOWER_BODY,
       WEEKLY_UPPER_BODY,
@@ -16789,7 +16941,7 @@ export function getExerciseCategoryMap(): Record<string, ExerciseCategory> {
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
     PREHAB_WARMUP,
-    PREHAB_COOLDOWN,
+    PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
   ]);
 
@@ -16837,7 +16989,7 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
     PREHAB_WARMUP,
-    PREHAB_COOLDOWN,
+    PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
   ]);
 
@@ -16907,7 +17059,7 @@ export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
     PREHAB_WARMUP,
-    PREHAB_COOLDOWN,
+    PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
   ]);
 
@@ -16955,7 +17107,7 @@ export function getExerciseNameMap(): Record<string, string> {
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
     PREHAB_WARMUP,
-    PREHAB_COOLDOWN,
+    PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
     WEEKLY_LOWER_BODY,
     WEEKLY_UPPER_BODY,

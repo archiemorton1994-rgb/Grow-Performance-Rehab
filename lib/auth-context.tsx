@@ -92,6 +92,25 @@ async function clearToken() {
   setAuthToken(null);
 }
 
+/**
+ * Record which account the data on this device belongs to.
+ *
+ * Held back until the persisted store has finished loading: writing to the
+ * store before then flushes the still-empty initial state over the top of
+ * what is on disk, which is a real chance of losing the very history this is
+ * meant to protect.
+ */
+function tagDeviceOwner(userId: string) {
+  if (useAppStore.persist.hasHydrated()) {
+    useAppStore.getState().setDataOwnerId(userId);
+    return;
+  }
+  const stopWaiting = useAppStore.persist.onFinishHydration(() => {
+    stopWaiting();
+    useAppStore.getState().setDataOwnerId(userId);
+  });
+}
+
 let rcConfigured = false;
 export async function configureRevenueCat(userId?: string) {
   if (!RC_API_KEY) return;
@@ -165,6 +184,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const res = await apiRequest('GET', '/api/auth/me');
         const data = await res.json();
         setUser(data.user);
+        // Whatever is on the device belongs to this account, by definition - it
+        // is the account holding the stored token. Recording it on every launch
+        // means a device that has simply been signed in for a long time is
+        // still recognised later, when a lost token sends it back to the
+        // sign-in screen with all of its data still on it.
+        tagDeviceOwner(data.user.id);
         await configureRevenueCat(data.user.id);
         await refreshSubscription();
         // Restore progress from server if server has more sessions (new device scenario)
@@ -217,6 +242,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const data = await res.json();
       await storeToken(data.token);
+      // Training history left on the device by anyone other than the account
+      // now signing in must go before that account can touch it. A sign-out
+      // wipes the device, but a session can also end without one - an expired
+      // token, or a cold start where /api/auth/me fails - and the upload below
+      // would write the previous person's sessions, one-rep maxes and body
+      // weight permanently into this account, which then prescribes their
+      // working weights to someone else. History that cannot be proved to
+      // belong here counts as somebody else's, because dropping a device copy
+      // costs at most what the server has not seen yet, while writing it into
+      // the wrong account cannot be undone.
+      const local = useAppStore.getState();
+      if (local.completedSessions.length > 0 && local.dataOwnerId !== data.user.id) {
+        await useAppStore.persist.clearStorage();
+        await reloadAppAsync();
+        return;
+      }
+      tagDeviceOwner(data.user.id);
       setUser(data.user);
       setHasSignedOut(false);
       await configureRevenueCat(data.user.id);
@@ -237,6 +279,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Last chance to get anything logged since the last successful sync onto
+    // the server, because the wipe below is unconditional. Capped the same way
+    // as the RevenueCat login above so a dead network cannot leave the user
+    // holding a Sign out button that appears to do nothing.
+    await Promise.race([
+      uploadUserData(useAppStore.getState().getDataForSync()),
+      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+    ]);
     await clearToken();
     setHasSignedOut(true);
     setUser(null);
@@ -248,6 +298,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await Purchases.logOut();
       } catch {}
     }
+    // Clearing the token alone leaves every session, badge, one-rep max and the
+    // user's name sitting in the persisted store, so the next person to sign in
+    // on this device is greeted by the last person's name and trains on their
+    // strength. Wipe it and reload to a guaranteed clean slate, the same way
+    // deleteAccount does - the device goes back to looking like a fresh
+    // install, which is what signing out is supposed to mean.
+    await useAppStore.persist.clearStorage();
+    await reloadAppAsync();
   }, []);
 
   const deleteAccount = useCallback(async () => {

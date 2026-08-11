@@ -578,15 +578,47 @@ export function SessionActiveBar({
   const [showFeedback, setShowFeedback] = useState<{ setIndex: number; kg: number } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
+  /**
+   * The last number the app put in the weight box itself.
+   *
+   * The prefill has to be able to move without the set moving. Completing a set
+   * advances the index first and asks how it felt second, so the answer — and
+   * the lighter weight "Challenging" or "Too Hard" earns — lands while the key
+   * below is unchanged; keying the refresh on the set alone left the guide and
+   * the auto-regulation note updating while the box the user actually submits
+   * still held the weight they had just called too heavy. Comparing against
+   * this is what lets a new recommendation replace a prefill nobody has touched
+   * without overwriting a weight the user deliberately typed.
+   */
+  const autoFilledRef = useRef(weightText);
+  const prevRecommendedRef = useRef(recommendedKg);
   useEffect(() => {
+    const prefill = (value: string) => {
+      autoFilledRef.current = value;
+      setWeightText(value);
+    };
     const key = `${exerciseIndex}-${activeSetIndex}`;
     if (prevKeyRef.current !== key) {
       prevKeyRef.current = key;
-      setWeightText(computeInitialWeight());
+      prevRecommendedRef.current = recommendedKg;
+      prefill(computeInitialWeight());
       const r = setData?.sets[activeSetIndex]?.reps ?? 0;
       setRepsText(r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? ''));
+      return;
     }
-  }, [exerciseIndex, activeSetIndex, computeInitialWeight, setData, exercise]);
+    if (prevRecommendedRef.current !== recommendedKg) {
+      prevRecommendedRef.current = recommendedKg;
+      if (weightText === autoFilledRef.current) prefill(computeInitialWeight());
+    }
+  }, [
+    exerciseIndex,
+    activeSetIndex,
+    recommendedKg,
+    weightText,
+    computeInitialWeight,
+    setData,
+    exercise,
+  ]);
 
   const currentSet = setData?.sets[activeSetIndex];
   const totalSets = setData?.sets.length ?? 1;
@@ -595,9 +627,24 @@ export function SessionActiveBar({
   const parsedReps = parseInt(repsText) || 0;
   const effectiveWeightKg = displayUnitToKg(parsedWeight, weightUnit);
 
+  /**
+   * Rehab loads are a starting point, not a floor.
+   *
+   * "Light dumbbell 1-2 kg" on a wrist extension assumes an elbow that can hold
+   * 1 kg, and the movement is worth doing unweighted by someone whose elbow
+   * cannot — but the bar demanded a weight, so the only way through was to
+   * enter one they had not lifted. Zero is the honest answer here and the log
+   * should be able to say so. Deliberately not opened up to the loaded lifts:
+   * on those, 0 kg is a typo far more often than it is a set, and nothing on
+   * this bar can tell the two apart.
+   */
+  const allowsZeroWeight = exercise?.category === 'prehab';
+
   const isZeroBlocked =
     !isTimeExercise &&
-    (isBandExercise ? parsedReps === 0 : effectiveWeightKg === 0 || parsedReps === 0);
+    (isBandExercise || allowsZeroWeight
+      ? parsedReps === 0
+      : effectiveWeightKg === 0 || parsedReps === 0);
   const isImplausible =
     !isTimeExercise && (effectiveWeightKg > MAX_PLAUSIBLE_KG || parsedReps > MAX_PLAUSIBLE_REPS);
   const isCompleteBlocked = isZeroBlocked || isImplausible;
@@ -849,7 +896,7 @@ export function SessionActiveBar({
         <Text style={styles.barZeroHint}>
           {isImplausible
             ? `Double check that ${effectiveWeightKg > MAX_PLAUSIBLE_KG ? 'weight' : 'rep count'} - looks like a typo`
-            : isBandExercise
+            : isBandExercise || allowsZeroWeight
               ? 'Enter reps to complete'
               : 'Enter weight and reps to complete'}
         </Text>
@@ -1992,6 +2039,7 @@ export default function SessionScreen() {
       {
         hasAches,
         painRegion: painRegions && painRegions.length > 0 ? painRegions : painRegion,
+        painSeverity,
         energy,
         timeAvailable,
       },
@@ -2008,6 +2056,7 @@ export default function SessionScreen() {
     equipmentTier,
     hasAches,
     painRegion,
+    painSeverity,
     energy,
     timeAvailable,
     isTestWeek,
@@ -2195,7 +2244,14 @@ export default function SessionScreen() {
       setInSessionFeedback((prev) => {
         const answers = [...(setAnswersRef.current[exerciseId] ?? [])];
         answers[setIndex] = f;
-        const rating = feedbackRatingFor(answers.filter((a): a is SetFeedback => a != null));
+        // Passed with its gaps intact: which set an answer belongs to is what
+        // decides whether it counts, and squeezing the unanswered sets out
+        // would shift every later answer onto the wrong one.
+        const rated = exercises.find((ex) => ex.id === exerciseId);
+        const rating = feedbackRatingFor(answers, {
+          isRamped: rated?.category === 'main',
+          sets: rated?.sets ?? answers.length,
+        });
         const next = { ...prev };
         if (rating) next[exerciseId] = rating;
         else delete next[exerciseId];
@@ -2203,7 +2259,7 @@ export default function SessionScreen() {
       });
       if (Platform.OS !== 'web') Haptics.selectionAsync();
     },
-    []
+    [exercises]
   );
 
   // Elapsed session timer

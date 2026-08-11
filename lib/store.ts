@@ -356,6 +356,12 @@ interface AppState {
   /** ISO timestamp of when the bodyweight reminder was last snoozed (dismissed without saving). */
   weightReminderSnoozedAt: string | null;
   lastWeightPromptedAt: number | null;
+  /** Account id this device's training data belongs to, null when it belongs to
+   *  nobody yet (fresh install, or straight after a sign-out). Sign-in reads it
+   *  to tell "my own history, recovered after losing a session" apart from
+   *  "the previous person's history", which must never be uploaded into the
+   *  account now signing in. Persisted; deliberately not part of SyncPayload. */
+  dataOwnerId: string | null;
   hasHydrated: boolean;
   activeSession: ActiveSession | null;
   /** Maximum weight (kg) logged per exercise name in any past session.
@@ -431,6 +437,7 @@ interface AppState {
   deferTestWeek: () => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   setLastWeightPromptedAt: (ts: number) => void;
+  setDataOwnerId: (id: string) => void;
   setHasHydrated: (hydrated: boolean) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
@@ -587,6 +594,7 @@ export const useAppStore = create<AppState>()(
       lastPainRegion: null,
       weightUnit: 'kg',
       lastWeightPromptedAt: null,
+      dataOwnerId: null,
       hasHydrated: false,
       activeSession: null,
       lastLoggedWeights: {},
@@ -649,6 +657,7 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
+      setDataOwnerId: (id) => set({ dataOwnerId: id }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time, painRegion) =>
         set({
@@ -1342,6 +1351,11 @@ export const useAppStore = create<AppState>()(
         const s = get();
         const serverCount = data.completedSessions?.length ?? 0;
         const localCount = s.completedSessions.length;
+        // Only a server that is strictly ahead may overwrite, so sessions logged
+        // offline and not yet uploaded are never thrown away. This is only safe
+        // because whatever is on the device is guaranteed to belong to the
+        // account being merged into — sign-out and a mismatched sign-in both
+        // wipe the device first (see lib/auth-context.tsx).
         if (serverCount > localCount) {
           set({
             userProfile: (data.userProfile as any) ?? s.userProfile,

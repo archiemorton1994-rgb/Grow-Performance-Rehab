@@ -240,10 +240,29 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
  *     survives the move to three buttons — inferred from repetition rather than
  *     asked for directly.
  *   - "Too Hard" maps to 'hard', which holds or reduces next session.
+ *
+ * "Easy" is read only off the working sets. A ramped lift is built as fractions
+ * of one working weight — every set but the last is a share of it, which is why
+ * the screen labels them "Warm-up" and the guide tells the user they will feel
+ * easy. An honest answer to those is therefore "Easy" every single time, and
+ * counting them handed out the largest next-session jump every session while
+ * leaving the ordinary step reachable only by calling a warm-up challenging.
+ * Anything with no ramp carries the same target on every set, so all of its
+ * answers count.
+ *
+ * "Too Hard" counts wherever it was said, warm-up included. A set at half the
+ * working weight being too much is the strongest evidence there is that the
+ * prescription is wrong, and it is the one answer that must never be thrown
+ * away — the same reasoning as the guardrail above.
  */
-export function feedbackRatingFor(answers: SetFeedback[]): 'very_easy' | 'easy' | 'hard' | null {
+export function feedbackRatingFor(
+  answers: (SetFeedback | null)[],
+  ramp?: { isRamped: boolean; sets: number }
+): 'very_easy' | 'easy' | 'hard' | null {
   if (answers.includes('too_hard')) return 'hard';
-  const easyCount = answers.filter((a) => a === 'easy').length;
+  const working =
+    ramp?.isRamped && ramp.sets > 1 ? answers.filter((_, i) => i === ramp.sets - 1) : answers;
+  const easyCount = working.filter((a) => a === 'easy').length;
   if (easyCount >= 2) return 'very_easy';
   if (easyCount === 1) return 'easy';
   return null;

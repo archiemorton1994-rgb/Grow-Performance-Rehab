@@ -8,7 +8,8 @@
  * regions a user can ever tap.  When a user taps one, handlePrehabRegion() calls
  * getRegionPrehabWorkout(region) in workout-engine.ts, which delegates to:
  *
- *   exercise-db.ts: return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN];
+ *   exercise-db.ts: return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region],
+ *                           PREHAB_COOLDOWN_BY_REGION[region]];
  *
  * If PREHAB_BY_REGION[region] is missing or its array is empty, the session
  * launches with 0 exercises (warmup + cooldown only) — a silent failure the

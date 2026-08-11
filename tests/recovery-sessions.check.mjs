@@ -74,16 +74,16 @@ check(
   ''
 );
 check(
-  'rotating supplements are drawn from the general pool',
-  /const supplement = seededShuffleDiverse\(supplementPool, seed\)\.slice\(0, REHAB_SUPPLEMENT\);/.test(
+  'rotating supplements are still drawn on that seed',
+  /\.\.\.seededShuffleDiverse\(direct, seed\),[\s\S]{0,80}\.\.\.seededShuffleDiverse\(related, seed\),[\s\S]{0,40}\]\.slice\(0, REHAB_SUPPLEMENT\)/.test(
     engine
   ),
-  ''
+  'the supplement is what stops six weeks of rehab being one session repeated'
 );
 check(
-  'supplements never duplicate a region exercise',
-  /\.filter\(\(e\) => !core\.some\(\(c\) => c\.name === e\.name\)\)/.test(engine),
-  ''
+  'supplements are region-relevant rather than whatever is in the pool',
+  /const \{ direct, related \} = getRegionPrehabSupplements\(primaryRegion\);/.test(engine),
+  'see tests/prehab-region-relevance.check.mjs for what relevance means'
 );
 
 // ─── 2b. Simulated, against the real engine ──────────────────────────────────
@@ -129,6 +129,13 @@ check(
   'sessions stay a sane length',
   sessions.every((s) => s.length >= kneeCore.length + 2 && s.length <= kneeCore.length + 5),
   `lengths: ${sessions.map((s) => s.length).join(', ')}`
+);
+// Cased loosely: the same stretch is spelled "(wall)" in one region's list and
+// "(Wall)" in another, and both in one session still reads as a mistake.
+check(
+  'no session lists the same exercise twice',
+  sessions.every((s) => new Set(s.map((n) => n.toLowerCase())).size === s.length),
+  'a supplement or a cooldown that repeats the core is a visible bug'
 );
 
 // ─── 3. The Strength tab says something to a non-lifter ──────────────────────

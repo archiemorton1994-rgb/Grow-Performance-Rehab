@@ -1,3 +1,4 @@
+import { getAllPickableExercises } from './exercise-db';
 import type { ExperienceLevel, ExerciseCategory, PainRegion } from './store';
 
 /**
@@ -14,17 +15,21 @@ import type { ExperienceLevel, ExerciseCategory, PainRegion } from './store';
  *
  * HOW IT WORKS
  * ────────────
- * Two tables, both meant to be read and edited by a human:
+ * Three tables, all meant to be read and edited by a human:
  *
  *   1. TAG_RULES  — what a movement does to the body, recognised from its name.
- *   2. RESTRICTED_BY_REGION — what a given complaint should not be doing.
+ *   2. IMPACT_IN_PRESCRIPTION — the landing a name leaves out, recognised from
+ *      the exercise's own reps and cue.
+ *   3. RESTRICTED_BY_REGION — what a given complaint should not be doing.
  *
- * Classifying by name rather than by a per-exercise field is deliberate. There
- * are 447 pickable exercises and hand-tagging all of them would be wrong within
- * a month of the database growing; the names are descriptive and consistent
- * ("Squat Jump", "Bulgarian Split Squat", "Circuit B: Burpee + Reverse Lunge"),
- * and a compound circuit name matches on every movement it contains, which a
- * single per-exercise tag could not express.
+ * Reading this off the exercise's own words rather than a per-exercise field is
+ * deliberate. There are 447 pickable exercises and hand-tagging all of them
+ * would be wrong within a month of the database growing; the names are
+ * descriptive and consistent ("Squat Jump", "Bulgarian Split Squat", "Circuit
+ * B: Burpee + Reverse Lunge"), and a compound circuit name matches on every
+ * movement it contains, which a single per-exercise tag could not express.
+ * Where the name is not descriptive the prescription underneath it is —
+ * "AMRAP Finisher" says nothing; its reps say "5 burpees + 10 squat jumps".
  *
  * A NOTE ON WHAT THIS IS NOT
  * ──────────────────────────
@@ -72,9 +77,11 @@ export type StressTag =
  * picks up a tag from any movement inside it.
  */
 const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
-  // Feet leaving the ground, and the landings that follow.
-  { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskip\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat/i },
-  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskip\b|calf raise|calf press|heel raise|toe raise|pogo/i },
+  // Feet leaving the ground, and the landings that follow. Running belongs here
+  // too — a 20 m shuttle is a hundred landings, and the names that carry it
+  // ("KB Swing + Shuttle", "Steady Walk / Light Jog") never say jump.
+  { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskip\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
+  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskip\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
 
   // Knee.
   { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive/i },
@@ -98,6 +105,44 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // all rowing on a sore wrist took out 20% of the catalogue for no good reason.
   { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?up|chin-?up|snatch|\bclean\b|fat grip|grip strength|gripper|kettlebell swing|\bkb swing\b/i },
 ];
+
+/**
+ * The landing a name does not admit to.
+ *
+ * Most names are honest — "Squat Jump", "Burpee", "Box Jump" — but not all of
+ * them. "AMRAP Finisher" is eight minutes of burpees and squat jumps, "Dynamic
+ * Warm-Up" is jumping jacks and butt kicks, and "KB Swing + Shuttle" hides a
+ * sprint behind an abbreviation. Judging those on the name alone made them safe
+ * for every complaint at once, so they were not merely left in a knee-pain
+ * session — they were eligible to be picked as the REPLACEMENT for the lunge
+ * that was taken out of it.
+ *
+ * Impact is the only thing read out of the prescription. Coaching cues are full
+ * of the words the other rules key on — "press the floor away", "curl the tail
+ * under", "keep it overhead" — and matching those would rule out most of the
+ * catalogue for most complaints. What a movement lands on is the one thing a
+ * rep scheme reliably spells out.
+ */
+const IMPACT_IN_PRESCRIPTION =
+  /burpee|\bjump|jumping|plyo|\bhops?\b|hopping|bound(?:s|ing)?\b|skater|butt kick|high knees|mountain climber|sprint|shuttle|\bruns?\b|running|\bjogs?\b|jogging|double-?under|pogo/i;
+
+/**
+ * …unless the exercise says in so many words that it is the version that does
+ * not land. Several of these exist precisely as the gentle alternative — "same
+ * cardio effect as jumping jacks without the impact", "rehearse the jump
+ * pattern without leaving the floor" — and taking them out would remove the
+ * substitutes the screen most wants to reach for.
+ */
+const IMPACT_DISCLAIMED =
+  /\b(?:low|zero|no|non)[-\s]?impact|without (?:the )?(?:sprint|jump|jumping|impact|running)|without leaving the (?:floor|ground)|no jumping|instead of (?:the )?(?:sprint|jump|run)/i;
+
+/**
+ * Sprinting a bike, rower or erg is still sprinting, and still nothing lands.
+ * "Assault Bike Intervals" prescribes "20s sprint" and is one of the few hard
+ * conditioning options a sore knee or achilles can actually keep.
+ */
+const SEATED_CONDITIONING =
+  /\bbike|cycling|\berg\b|rower|rowing|elliptical|assault|airdyne|arc trainer|\bswim/i;
 
 /**
  * What each complaint should be kept away from.
@@ -149,8 +194,36 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   grip_load: 'hard gripping',
 };
 
+let prescriptionsByName: Map<string, string> | null = null;
+
 /**
- * Everything a movement asks of the body, derived from its name.
+ * An exercise's own reps and cue, found from the name the caller already holds.
+ *
+ * The screen runs over finished sessions and over the alternatives hanging off
+ * each card, and in both places an exercise is a name and very little else.
+ * Resolving the prescription here means every caller is judged on the same
+ * evidence without having to carry the template around with it. A name the
+ * catalogue does not recognise falls back to an empty prescription, which is
+ * simply the name-only behaviour this started as.
+ */
+function prescriptionFor(name: string): string {
+  if (!prescriptionsByName) {
+    prescriptionsByName = new Map(
+      getAllPickableExercises().map(({ template }) => [
+        template.name.toLowerCase(),
+        `${template.reps} ${template.cue}`,
+      ])
+    );
+  }
+  return prescriptionsByName.get(name.toLowerCase()) ?? '';
+}
+
+/**
+ * Everything a movement asks of the body.
+ *
+ * Read from the name first, then from the exercise's own reps and cue for the
+ * impact a name can leave out. The second pass only ever ADDS: a movement the
+ * name already rules out stays ruled out, whatever its cue claims.
  *
  * `movementPattern` is used only as a backstop for names the patterns miss —
  * a hinge or a squat that is named after its equipment rather than its shape.
@@ -159,6 +232,15 @@ export function stressTagsFor(name: string, movementPattern?: string): StressTag
   const tags = new Set<StressTag>();
   for (const rule of TAG_RULES) {
     if (rule.test.test(name)) tags.add(rule.tag);
+  }
+  const prescription = prescriptionFor(name);
+  if (
+    IMPACT_IN_PRESCRIPTION.test(prescription) &&
+    !IMPACT_DISCLAIMED.test(prescription) &&
+    !SEATED_CONDITIONING.test(`${name} ${prescription}`)
+  ) {
+    tags.add('high_impact');
+    tags.add('ankle_load');
   }
   if (movementPattern === 'hinge' && /barbell|dumbbell|\bdb\b|\bkb\b|kettlebell|trap bar/i.test(name)) {
     tags.add('loaded_hinge');

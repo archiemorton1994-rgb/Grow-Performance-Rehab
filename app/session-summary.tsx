@@ -45,7 +45,7 @@ import {
 } from '@/lib/exercise-db';
 import { Badge, BADGE_MAP, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { AchievementBanner } from '@/components/AchievementBanner';
-import { BodyDiagram, BODY_DIAGRAM_LABELS, MUSCLE_SET } from '@/components/BodyDiagram';
+import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -884,6 +884,15 @@ export default function SessionSummaryScreen() {
 
   const isMilestone = MILESTONE_SESSION_THRESHOLDS.includes(sessionNumber);
 
+  /**
+   * Where the work landed.
+   *
+   * Joints count. They used to be thrown away, which was invisible for a squat
+   * session and actively wrong for rehab: an hour of elbow work lit nothing at
+   * all, so the card fell through to the generic fallback and reported a hip
+   * and a lower back the user had never touched. The figures can shade a
+   * forearm or an ankle perfectly well — nothing was gained by hiding them.
+   */
   const workedRegions = useMemo(() => {
     if (!session || session.exerciseLogs.length === 0) return null;
     const targetMap = getExerciseTargetRegionsMap();
@@ -896,16 +905,14 @@ export default function SessionSummaryScreen() {
         regions = nameMap[log.exerciseName];
       }
       for (const r of regions ?? []) {
-        if (MUSCLE_SET.has(r)) {
-          counts[r] = (counts[r] ?? 0) + 1;
-        }
+        counts[r] = (counts[r] ?? 0) + 1;
       }
     }
 
     if (Object.keys(counts).length === 0) {
       const fallback = SESSION_TYPE_FALLBACK_REGIONS[session.sessionType] ?? [];
       fallback.forEach((r) => {
-        if (MUSCLE_SET.has(r)) counts[r] = 1;
+        counts[r] = 1;
       });
     }
 
@@ -1059,7 +1066,7 @@ export default function SessionSummaryScreen() {
       : `${Math.floor(durationSeconds / 60)}m`;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
-  const musclesHit = workedRegions ? Object.keys(workedRegions).length : 0;
+  const areasHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
   const pbCount = summary.rows.filter((r) => r.badge === 'gain-weight').length;
 
@@ -1342,7 +1349,9 @@ export default function SessionSummaryScreen() {
         : [
             { label: 'Duration', value: durationLabel },
             { label: 'Sets', value: String(summary.totalSets) },
-            { label: 'Muscles', value: String(musclesHit) },
+            // "Muscles" was a lie on any session built around a joint — the
+            // count includes the elbow, the knee and the ankle now.
+            { label: 'Areas', value: String(areasHit) },
           ];
 
   return (

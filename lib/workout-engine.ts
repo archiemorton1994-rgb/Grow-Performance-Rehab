@@ -31,6 +31,7 @@ import {
   getStandalonePrehabWorkout,
   getStandaloneFlexibilityWorkout,
   getRegionPrehabWorkout,
+  getRegionPrehabSupplements,
   getRegionPrehabExercise,
   getGoalConditioningBlock,
   getWeeklyLowerBodyExercises,
@@ -123,8 +124,8 @@ export interface Exercise {
 interface ReadinessCheck {
   hasAches: boolean;
   painRegion?: PainRegion | PainRegion[];
-  /** How bad it is. Until now this was recorded and never read — see
-   *  SEVERITY_DROPS_INTENSITY in lib/exercise-safety.ts. */
+  /** How bad it is. Moderate and above also cost the session its explosive and
+   *  finisher blocks — see SEVERITY_DROPS_INTENSITY in lib/exercise-safety.ts. */
   painSeverity?: 'mild' | 'moderate' | 'severe';
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
@@ -568,9 +569,11 @@ function personalizeLoad(
 
   const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.7) * avgGoalFactor * sexFactor;
 
-  // Scales every weight in the string, so a ladder like "8 / 14 / 20 kg" stays
-  // a ladder. The scaled values are collected as we go rather than re-parsed
-  // out of the result — that round trip is exactly what this removes.
+  // Every weight in the string is scaled, so the sentence the user reads keeps
+  // whatever shape it had — a range stays a range. The scaled values are
+  // collected as we go rather than re-parsed out of the result; that round trip
+  // is exactly what this removes. Only a stated ladder travels as several
+  // weights, because only a ladder means one weight per set.
   const scaled: number[] = [];
   const text = rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
@@ -579,7 +582,8 @@ function personalizeLoad(
     scaled.push(kg);
     return String(kg);
   });
-  return { text, kg: scaled.length > 0 ? scaled : null };
+  const prescribed = statesLadder(rawLoad) ? scaled : scaled.slice(0, 1);
+  return { text, kg: prescribed.length > 0 ? prescribed : null };
 }
 
 function shouldSwapForComfort(
@@ -1247,10 +1251,14 @@ function generateWorkoutUnscreened(
       //
       // The region-specific work is kept in full and kept first: it is chosen
       // for that joint and is the point of the session. What varies is the
-      // order it is worked in, and a couple of general joint-health movements
-      // rotated in from the standalone prehab pool — the same supplement the
-      // standalone session already draws on, at the same dosage it already
-      // uses.
+      // order it is worked in, and a couple of extra movements rotated in.
+      //
+      // Those extras used to come from the standalone prehab pool unfiltered,
+      // which is how an elbow session ended up with a thoracic rotation and a
+      // band pull-apart in it. They now have to be aimed at the injured region,
+      // and where a region has too few to fill both slots the session is simply
+      // shorter — padding it with someone else's rehab is worse than ending
+      // early.
       const regionPlan = getRegionPrehabWorkout(primaryRegion);
       const warmup = regionPlan.filter((e) => e.category === 'prep');
       const core = regionPlan.filter((e) => e.category === 'prehab');
@@ -1258,10 +1266,11 @@ function generateWorkoutUnscreened(
 
       const seed = (strengthSessionCount ?? 0) + getLocalDayIndex();
       const rotatedCore = seededShuffleDiverse(core, seed);
-      const supplementPool = getStandalonePrehabWorkout()
-        .filter((e) => e.category === 'prehab')
-        .filter((e) => !core.some((c) => c.name === e.name));
-      const supplement = seededShuffleDiverse(supplementPool, seed).slice(0, REHAB_SUPPLEMENT);
+      const { direct, related } = getRegionPrehabSupplements(primaryRegion);
+      const supplement = [
+        ...seededShuffleDiverse(direct, seed),
+        ...seededShuffleDiverse(related, seed),
+      ].slice(0, REHAB_SUPPLEMENT);
 
       return [...warmup, ...rotatedCore, ...supplement, ...cooldown].map((t) =>
         templateToExercise(t)
@@ -2074,7 +2083,23 @@ export function getWeightGuideKg(
  */
 export function parseLoadKg(suggestedLoad?: string): number[] {
   const text = suggestedLoad?.replace(/\d+(?:\.\d+)?\s*%/g, '') ?? '';
-  return (text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number).filter((n) => n > 0);
+  const numbers = (text.match(/\d+(?:\.\d+)?/g) ?? []).map(Number).filter((n) => n > 0);
+  return statesLadder(text) ? numbers : numbers.slice(0, 1);
+}
+
+/**
+ * Whether a load names a weight per set rather than a single working weight.
+ *
+ * Ladders are written with slashes — "80/60/40 kg" in the database, and the
+ * 1RM ramp builds its own the same way. Every other load carrying more than one
+ * number is a range ("30-47.5 kg") or two implements ("14-18 kg KB, 12-16 kg
+ * per hand goblet"), and neither of those states a progression. Telling them
+ * apart matters because a two-number load and a two-set exercise otherwise look
+ * identical to `expandSetTargets`, which then prescribed the bottom of a range
+ * as the warm-up for the top of it.
+ */
+function statesLadder(text: string): boolean {
+  return /\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?/.test(text);
 }
 
 /**
@@ -2095,10 +2120,11 @@ export function expandSetTargets(
   if (numbers.length === sets && sets > 1) return numbers;
   if (numbers.length === 0) return Array(sets).fill(0);
 
-  // Otherwise the first value is the working weight. Deliberately not the
-  // highest: 229 database loads are ranges ("8-12 kg per hand", "40-60 kg"),
-  // and the app has always prescribed the bottom of the range. Taking the top
-  // would quietly add load to a third of the catalogue.
+  // Otherwise the single value is the working weight the ramp is built from.
+  // A range ("8-12 kg per hand", "40-60 kg") has already been reduced to its
+  // bottom by the time it gets here — the app has always prescribed the bottom
+  // of the range, and taking the top would quietly add load to a third of the
+  // catalogue.
   const targetKg = numbers[0];
   const w = (pct: number) => roundTo2_5(targetKg * pct);
 
