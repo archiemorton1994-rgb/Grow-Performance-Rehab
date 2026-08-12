@@ -26,7 +26,14 @@ const LightColors = {
   // Was '#6b7570' - 4.17:1 on surfaceTertiary, the darkest card the app puts
   // secondary copy on, which is under AA. Nudged just dark enough to clear it.
   textSecondary: '#646d67',
-  textTertiary: '#9ca5a0',
+  // Was '#9ca5a0' - 2.21-2.53:1 across the four surfaces, against the dark
+  // theme's 3.01-4.12:1 for the same token. Tertiary is meant to be quiet, but
+  // it carries real content (achievement names, "Not tried yet", "Resend code
+  // in 25s"), so one theme being half as legible as the other was drift, not a
+  // choice. This value meets or beats the dark value on every surface. Full AA
+  // would need ~#687069, which is textSecondary in all but name and would
+  // erase the tier - so the remaining gap to AA is left as a design call.
+  textTertiary: '#727b76',
   textInverse: '#ffffff',
   /** Text/icon color for content placed on a `primaryDark`-filled surface.
    *  primaryDark flips from dark green (light theme) to bright green (dark
@@ -68,9 +75,14 @@ const LightColors = {
   achievementGoldMuted: '#f5c842',
   achievementGoldBorder: '#f59e0b55',
 
+  /** The three Restore rows. Each is painted as the row's *title* on a card
+   *  filled with itself at 5%, so the accent has to survive being read against
+   *  a wash of its own hue - which is why the light values are darker than the
+   *  dark theme's. cardAccentPrehab was left on the raw amber-500 when the
+   *  other two were darkened, giving 1.99:1; amber-700 clears AA outright. */
   cardAccentRecovery: '#0d9488',
   cardAccentMobility: '#6366f1',
-  cardAccentPrehab: '#f59e0b',
+  cardAccentPrehab: '#b45309',
   energyBadge: '#7C6EF0',
 
   youtubeSurface: '#FFF0F0',

@@ -60,11 +60,36 @@ check(
   `got ${easyRamp.kg} (${easyRamp.reason})`
 );
 
-const holdRamp = suggestSetWeight(ramped([out(60, 'challenging')]), 1);
+// 60 kg is the first rung of a ramp to 110 — a warm-up, and a stated fraction
+// of the working weight rather than a claim about it. Holding the NUMBER here
+// is what collapsed the lift; what gets held is the plan.
+const holdWarmUp = suggestSetWeight(ramped([out(60, 'challenging')]), 1);
 check(
-  'Challenging holds the weight just lifted',
-  holdRamp.kg === 60 && holdRamp.reason === 'hold',
-  `got ${holdRamp.kg} (${holdRamp.reason}) — the ramp must NOT carry on climbing`
+  'Challenging on a warm-up carries on up the ramp',
+  holdWarmUp.kg === 80 && holdWarmUp.reason === 'ramp_hold',
+  `got ${holdWarmUp.kg} (${holdWarmUp.reason}) — repeating 60 here handed 60 to the working set too`
+);
+const overPlan = suggestSetWeight(ramped([out(70, 'challenging')]), 1);
+check(
+  'and adds nothing on top of the plan',
+  overPlan.kg === 80,
+  `got ${overPlan.kg}; they lifted 70 against a planned 60, and Easy would have carried that up`
+);
+const underPlan = suggestSetWeight(ramped([out(50, 'challenging')]), 1);
+check(
+  'while still following someone lifting under the plan',
+  underPlan.kg > 50 && underPlan.kg < 80,
+  `got ${underPlan.kg}; they lifted 50 against a planned 60`
+);
+
+const holdWorking = suggestSetWeight(
+  ramped([out(60, 'easy'), out(80, 'easy'), out(100, 'easy'), out(110, 'challenging')]),
+  4
+);
+check(
+  'Challenging on the WORKING set holds the weight just lifted',
+  holdWorking.kg === 110 && holdWorking.reason === 'hold',
+  `got ${holdWorking.kg} (${holdWorking.reason}) — the one place the ramp must NOT carry on climbing`
 );
 
 const backOff = suggestSetWeight(ramped([out(60, 'easy'), out(80, 'easy'), out(100, 'too_hard')]), 3);
@@ -149,58 +174,80 @@ check('and actually goes down on Too Hard', adjustKg(5, 0.9) < 5, '');
 check('a weight never rounds to zero', adjustKg(0.5, 0.9) > 0, '');
 
 // ─── 5. THE GUARDRAIL, exhaustively ──────────────────────────────────────────
-console.log('\n[5] Nothing ever gets heavier after Challenging or Too Hard');
+console.log('\n[5] Nothing gets heavier after Challenging on the set that counts');
 
 const ANSWERS = ['easy', 'challenging', 'too_hard'];
 let violations = [];
+let overPlanned = [];
 let capViolations = [];
 let combos = 0;
 
 for (const isRamped of [true, false]) {
   const planned = isRamped ? RAMP : [20, 20, 20, 20];
-  // Every sequence of three answers over four sets.
+  // Every sequence of four answers over four sets, plus the set after the last.
   for (const a of ANSWERS) {
     for (const b of ANSWERS) {
       for (const c of ANSWERS) {
-        combos++;
-        const seq = [a, b, c];
-        const outcomes = [];
-        let cappedAt = null;
-        for (let i = 0; i < seq.length; i++) {
-          const suggestion = suggestSetWeight({ isRamped, plannedKg: planned, outcomes }, i);
-          const lifted = suggestion.kg;
+        for (const d of ANSWERS) {
+          combos++;
+          const seq = [a, b, c, d];
+          const outcomes = [];
+          let cappedAt = null;
+          for (let i = 0; i <= seq.length; i++) {
+            const suggestion = suggestSetWeight({ isRamped, plannedKg: planned, outcomes }, i);
+            const lifted = suggestion.kg;
+            const where = `${isRamped ? 'KPI' : 'acc'} ${seq.join('>')} set${i + 1}`;
 
-          // THE PROPERTY: the weight offered after a Challenging/Too Hard answer
-          // must never exceed what was on the bar when that answer was given.
-          if (i > 0) {
-            const prevAnswer = outcomes[i - 1].feedback;
-            const prevWeight = outcomes[i - 1].loggedKg;
-            if (
-              (prevAnswer === 'challenging' || prevAnswer === 'too_hard') &&
-              lifted > prevWeight
-            ) {
-              violations.push(
-                `${isRamped ? 'KPI' : 'acc'} ${seq.join('>')} set${i + 1}: ${prevAnswer} at ${prevWeight} → offered ${lifted}`
-              );
+            if (i > 0) {
+              const prevAnswer = outcomes[i - 1].feedback;
+              const prevWeight = outcomes[i - 1].loggedKg;
+              // A flat exercise carries the same target on every set, so every
+              // set of one is a working set. A ramp has exactly one.
+              const prevWasWorkingSet = !isRamped || i - 1 >= planned.length - 1;
+
+              // THE PROPERTY: on the set that carries the prescription, an
+              // answer of Challenging or Too Hard is never met with more
+              // weight. Too Hard is never met with more weight anywhere.
+              if (
+                (prevAnswer === 'too_hard' || (prevAnswer === 'challenging' && prevWasWorkingSet)) &&
+                lifted > prevWeight
+              ) {
+                violations.push(`${where}: ${prevAnswer} at ${prevWeight} → offered ${lifted}`);
+              }
+
+              // THE SECOND PROPERTY: a Challenging on a warm-up may carry the
+              // ramp on climbing — a warm-up is a fraction of the working
+              // weight, not a verdict on it — but never past the rung the plan
+              // itself named. It may decline to add; it may not add.
+              if (prevAnswer === 'challenging' && !prevWasWorkingSet) {
+                const rung = planned[i] ?? 0;
+                if (rung > 0 && lifted > rung) {
+                  overPlanned.push(`${where}: offered ${lifted} against a planned ${rung}`);
+                }
+              }
+            }
+
+            // And once Too Hard has been said, nothing later may climb back
+            // above the weight it was backed off to.
+            if (cappedAt !== null && lifted > cappedAt) {
+              capViolations.push(`${where}: capped at ${cappedAt} → offered ${lifted}`);
+            }
+            if (i < seq.length) {
+              if (seq[i] === 'too_hard' && cappedAt === null) {
+                // The cap is whatever the next set is offered after the failure.
+                const after = suggestSetWeight(
+                  {
+                    isRamped,
+                    plannedKg: planned,
+                    outcomes: [...outcomes, out(lifted, 'too_hard')],
+                  },
+                  i + 1
+                );
+                cappedAt = after.kg;
+              }
+              outcomes.push(out(lifted, seq[i]));
             }
           }
-
-          // And once Too Hard has been said, nothing later may climb back above
-          // the weight it was backed off to.
-          if (cappedAt !== null && lifted > cappedAt) {
-            capViolations.push(
-              `${isRamped ? 'KPI' : 'acc'} ${seq.join('>')} set${i + 1}: capped at ${cappedAt} → offered ${lifted}`
-            );
-          }
-          if (seq[i] === 'too_hard' && cappedAt === null) {
-            // The cap is whatever the next set is offered after the failure.
-            const after = suggestSetWeight(
-              { isRamped, plannedKg: planned, outcomes: [...outcomes, out(lifted, 'too_hard')] },
-              i + 1
-            );
-            cappedAt = after.kg;
-          }
-          outcomes.push(out(lifted, seq[i]));
         }
       }
     }
@@ -208,9 +255,14 @@ for (const isRamped of [true, false]) {
 }
 
 check(
-  `no increase follows Challenging or Too Hard (${combos} sequences)`,
+  `no increase follows Too Hard, or Challenging on a working set (${combos} sequences)`,
   violations.length === 0,
   violations.slice(0, 5).join(' | ')
+);
+check(
+  'and a Challenging warm-up never climbs past the plan',
+  overPlanned.length === 0,
+  overPlanned.slice(0, 5).join(' | ')
 );
 check(
   'nothing climbs back above a Too Hard back-off',
@@ -246,6 +298,45 @@ check(
   'Too Hard always wins over Easy',
   feedbackRatingFor(['easy', 'easy', 'too_hard']) === 'hard',
   'a failed set is the most important thing that happened'
+);
+
+// The ramped branch, which nothing above this line ever reached: every check
+// here called feedbackRatingFor WITHOUT the ramp argument, so the KPI lifts —
+// the only exercises that have a ramp — were the untested case.
+const KPI = { isRamped: true, sets: 4 };
+check(
+  'a ramp reads its working set and ignores the warm-ups',
+  feedbackRatingFor(['easy', 'easy', 'easy', 'challenging'], KPI) === null,
+  'three easy warm-ups say nothing about the working weight — they are fractions of it'
+);
+check(
+  'Easy on the working set earns the biggest jump',
+  feedbackRatingFor(['challenging', 'challenging', 'challenging', 'easy'], KPI) === 'very_easy',
+  'the summary screen promises Easy can earn 7.5 kg; a ramp has one set that can say it, so that set earns it'
+);
+check(
+  'the biggest jump is actually reachable on a ramp at all',
+  ['easy', 'challenging', 'too_hard', null].some(
+    (a) =>
+      ['easy', 'challenging', 'too_hard', null].some((b) =>
+        ['easy', 'challenging', 'too_hard', null].some((c) =>
+          ['easy', 'challenging', 'too_hard', null].some(
+            (d) => feedbackRatingFor([a, b, c, d], KPI) === 'very_easy'
+          )
+        )
+      )
+  ),
+  'enumerated: before this, no run of answers on a ramped lift could ever return very_easy'
+);
+check(
+  'a one-set main lift is all working set',
+  feedbackRatingFor(['easy'], { isRamped: true, sets: 1 }) === 'very_easy',
+  'with one set there is no warm-up to discount'
+);
+check(
+  'Too Hard on a warm-up still counts against the whole exercise',
+  feedbackRatingFor(['too_hard', null, null, 'easy'], KPI) === 'hard',
+  'half the working weight being too much is the strongest evidence there is'
 );
 
 check(

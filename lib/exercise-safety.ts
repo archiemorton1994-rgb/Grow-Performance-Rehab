@@ -1,5 +1,5 @@
 import { getAllPickableExercises } from './exercise-db';
-import type { ExperienceLevel, ExerciseCategory, PainRegion } from './store';
+import type { ExperienceLevel, ExerciseCategory, PainRegion, PainSeverity } from './store';
 
 /**
  * Which exercises are unsafe for which complaint.
@@ -83,28 +83,86 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskip\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
   { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskip\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
 
-  // Knee.
-  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive/i },
+  // Knee. The barbell squats and the leg press belong here for the same reason
+  // the front squat does — the knee goes past 90° with the heaviest load the
+  // user handles all week. Leaving them out is why a SEVERE knee complaint
+  // still prescribed Back Squat and Leg Press with nothing said about either.
+  // The light front-loaded squats (goblet, box, bodyweight) are deliberately
+  // NOT here: they are the regression the screen reaches for, and banning the
+  // substitute along with the movement leaves nothing to put in its place.
+  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|\bback squat\b|barbell squat|belt squat|zercher|\bleg press\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive/i },
   { tag: 'open_chain_knee', test: /leg extension|knee extension|quad extension/i },
 
   // Hip and low back.
-  { tag: 'loaded_hinge', test: /deadlift|romanian|\brdl\b|good morning|kb swing|kettlebell swing|\bswing\b|hip thrust|clean\b|snatch|jefferson|back extension|hyperextension|jump shrug/i },
+  // \bswings?\b spelled exactly as grip_load spells it. The plural was missing
+  // here too: "EMOM Finisher: KB / DB Swings" and "Tabata Finisher: Alternating
+  // Swings" were hinge-free, so a sore low back kept both.
+  { tag: 'loaded_hinge', test: /deadlift|romanian|\brdl\b|good morning|\bswings?\b|hip thrust|clean\b|snatch|jefferson|back extension|hyperextension|jump shrug/i },
   { tag: 'spinal_compression', test: /back squat|front squat|overhead squat|zercher|barbell squat|standing (?:overhead|military|shoulder) press|push press|jerk|\bthruster\b|farmer|yoke|good morning|\bshrug\b/i },
   { tag: 'lumbar_flexion', test: /sit-up|situp|crunch|toe touch|jackknife|v-up|\bv up\b|roll-?up|jefferson curl|russian twist/i },
 
   // Shoulder, elbow, wrist, neck.
-  { tag: 'overhead', test: /overhead|\bohp\b|military press|shoulder press|push press|\bjerk\b|snatch|handstand|pull-?up|chin-?up|lat pulldown|\bthruster\b|\bpress-?out\b/i },
+  // \bslam\b, because a slam STARTS overhead. Reading that off the cue instead
+  // is not an option — see IMPACT_IN_PRESCRIPTION on why impact is the only
+  // thing the prescription is trusted for — so the name has to carry it, and
+  // every slam in the catalogue (med ball, battle rope) is thrown from above
+  // the head. Without it "Med Ball Slam + Jump Rope Round" was overhead-free.
+  { tag: 'overhead', test: /overhead|\bohp\b|military press|shoulder press|push press|\bjerk\b|snatch|handstand|pull-?up|chin-?up|lat pulldown|\bthruster\b|\bpress-?out\b|\bslams?\b/i },
   // \brings?\b, not ring\b. Without the leading boundary it matched "Nordic
   // HamstRING Curl", so reporting shoulder pain removed a hamstring exercise.
   { tag: 'shoulder_end_range', test: /\bdips?\b|\bfly\b|\bflye\b|pec deck|upright row|behind[- ]the[- ]neck|behind neck|\bpullover\b|deep push-?up|\brings?\b/i },
   { tag: 'elbow_load', test: /\bcurl\b|curls\b|skull ?crusher|triceps? extension|triceps? pushdown|pushdown|kickback|\bdip\b|dips\b|chin-?up|preacher|concentration/i },
-  { tag: 'wrist_load', test: /push-?up|plank|bear crawl|front rack|handstand|burpee|renegade|\bdip\b|dips\b|upright row|wrist curl|mountain climber/i },
-  { tag: 'neck_load', test: /\bshrug\b|behind[- ]the[- ]neck|behind neck|neck (?:curl|extension|bridge)|\bbridge\b/i },
+  // An ab wheel is the most wrist-extended loaded position in the catalogue —
+  // bodyweight through a straight arm on a rolling handle — and it was being
+  // offered as the exercise that would protect a sore wrist.
+  { tag: 'wrist_load', test: /push-?up|plank|bear crawl|front rack|handstand|burpee|renegade|\bdip\b|dips\b|upright row|wrist curl|mountain climber|ab wheel|\broll-?outs?\b/i },
+  // `neck bridge` only — NOT a bare \bbridge\b. Every one of the 15 exercises in
+  // the catalogue with "bridge" in its name is a GLUTE bridge, so the bare word
+  // was a 100% false-positive rule: reporting neck or upper-back pain deleted
+  // eleven glute bridges, none of which load the neck. Worse, it deleted them
+  // and put something back — measured, an upper-back complaint had "Single-Leg
+  // Glute Bridge + Side Plank Round" replaced by "Burpee + Reverse Lunge +
+  // Plank Hold" under the caption "to protect your upper back".
+  { tag: 'neck_load', test: /\bshrug\b|behind[- ]the[- ]neck|behind neck|neck (?:curl|extension|bridge)/i },
   // Sustained hard gripping — carries, hangs, heavy pulls from the floor. NOT
   // every row: a cable row is a back exercise you happen to hold, and banning
   // all rowing on a sore wrist took out 20% of the catalogue for no good reason.
-  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?up|chin-?up|snatch|\bclean\b|fat grip|grip strength|gripper|kettlebell swing|\bkb swing\b/i },
+  //
+  // A bare \bswings?\b, not `kb swing`. A swing is a bell held in the hands at
+  // the end of a long lever whatever the name calls it, and matching only the
+  // abbreviated spelling meant "Alternating Swing + Tuck Jump Round" carried no
+  // grip demand at all and was offered to protect a sore wrist. `loaded_hinge`
+  // matched the same bare word already, so the two rules disagreed about which
+  // exercise "Swing" named. The mobility swings are stripped before any rule
+  // runs — see NOT_WHAT_IT_LOOKS_LIKE.
+  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?up|chin-?up|snatch|\bclean\b|fat grip|grip strength|gripper|\bswings?\b/i },
 ];
+
+/**
+ * Words that read as one movement and mean another.
+ *
+ * Two of them, both measured as live false positives:
+ *
+ *   swing — a loaded hinge with a bell in both hands, except in "Leg Swing +
+ *     Arm Cross Warm-Up", "Marching + Arm Swings" and "Goblet Squat + Arm Swing
+ *     Warm-Up", where nothing is held and nothing is loaded. Reading those as
+ *     hinges took three mobility warm-ups out of every hip, low-back,
+ *     hamstring, glute and mid-back session and put something else in their
+ *     place.
+ *   curl — heavy elbow flexion, except in the eight LEG curls, where the elbow
+ *     does nothing at all. Measured, a sore bicep produced "Swapped from Nordic
+ *     Hamstring Curl to protect your bicep" and a sore tricep produced the same
+ *     for "Hamstring Curl (light)". Same shape of mistake as \brings?\b once
+ *     matching "Nordic HamstRING Curl", in the same corner of the catalogue.
+ *
+ * Removed from the name before any rule sees it rather than excluded rule by
+ * rule, so a name containing BOTH a leg swing and a kettlebell swing still
+ * reads as the loaded hinge it is. NOT a general exclusion list: a phrase only
+ * belongs here when no rule needs it — "jefferson curl" is spinal flexion and
+ * stripping it would cost lumbar_flexion the only pattern that catches it.
+ */
+const NOT_WHAT_IT_LOOKS_LIKE =
+  /\b(?:arm|leg|shoulder|torso)\s+swings?\b|\b(?:leg|hamstring|nordic)\s+curls?\b/gi;
 
 /**
  * The landing a name does not admit to.
@@ -230,8 +288,9 @@ function prescriptionFor(name: string): string {
  */
 export function stressTagsFor(name: string, movementPattern?: string): StressTag[] {
   const tags = new Set<StressTag>();
+  const readable = name.replace(NOT_WHAT_IT_LOOKS_LIKE, ' ');
   for (const rule of TAG_RULES) {
-    if (rule.test.test(name)) tags.add(rule.tag);
+    if (rule.test.test(readable)) tags.add(rule.tag);
   }
   const prescription = prescriptionFor(name);
   if (
@@ -257,10 +316,16 @@ export function stressTagsFor(name: string, movementPattern?: string): StressTag
  * the tissue tolerance to absorb plyometrics, and "my shoulder hurts" is not a
  * reason to have them doing box jumps either. Experienced lifters keep whatever
  * their specific complaint does not rule out.
+ *
+ * SEVERE. Pain bad enough to call severe is a reason not to land on anything
+ * today, wherever it is. Below severe the impact rules stay region-specific: a
+ * sore bicep is genuinely not a reason to stop sprinting, and pretending
+ * otherwise trains people to under-report so the app stops taking things away.
  */
 export function restrictedTagsFor(
   regions: PainRegion[] | undefined,
-  experience?: ExperienceLevel
+  experience?: ExperienceLevel,
+  severity?: PainSeverity
 ): Set<StressTag> {
   const banned = new Set<StressTag>();
   if (!regions || regions.length === 0) return banned;
@@ -268,7 +333,41 @@ export function restrictedTagsFor(
     for (const tag of RESTRICTED_BY_REGION[r] ?? []) banned.add(tag);
   }
   if (experience === 'beginner') banned.add('high_impact');
+  if (severity && SEVERITY_BANS_IMPACT[severity]) banned.add('high_impact');
   return banned;
+}
+
+/**
+ * What the app may not CHOOSE for you — as opposed to what it may not leave you
+ * doing, which is `restrictedTagsFor` above.
+ *
+ * THE PROBLEM THIS SOLVES
+ * ───────────────────────
+ * RESTRICTED_BY_REGION lists `high_impact` for eight regions of nineteen, and
+ * that is the right answer to "should a sore tricep cancel your sprints?" — no.
+ * It is the wrong answer to a different question the same table was being asked:
+ * "may the app hand this person burpees under a card that says it is protecting
+ * their tricep?" Measured across the ten regions that do not restrict impact,
+ * that produced 39 distinct substitutions of the form
+ *
+ *     Broad Jump + Walking Lunge Round
+ *     Swapped from DB Squat Clean + Push Press Round to protect your elbow
+ *
+ * — a caption that promises care while the app quietly escalates a press into a
+ * plyometric. The coach-mark on the pain screen says "we'll automatically swap
+ * exercises away from that area so you can train safely"; that sentence is
+ * about what the app picks, so this is the set that has to honour it.
+ *
+ * Widening RESTRICTED_BY_REGION instead was the obvious fix and the wrong one.
+ * It would have deleted every jump from the session of anyone with a sore
+ * wrist, which is not a safety rule, it is the app being nervous on someone
+ * else's behalf. Leaving what the user's own program already contains alone,
+ * and holding what the app substitutes IN to a higher standard, is the smaller
+ * and more honest rule: never make the session harder than you found it.
+ */
+export function substitutionRestrictedTags(banned: Set<StressTag>): Set<StressTag> {
+  if (banned.size === 0) return banned;
+  return new Set<StressTag>([...banned, 'high_impact']);
 }
 
 /** The restricted tags a given movement carries. Empty means it is fine. */
@@ -387,8 +486,21 @@ export const REGION_BOUND_CATEGORIES: ExerciseCategory[] = ['main', 'accessory']
  *   mild      – swap what loads the sore area, leave the rest alone
  *   moderate  – the same, and drop the explosive and finisher blocks, which are
  *               where an irritated joint gets aggravated fastest
- *   severe    – the same as moderate, and this is the level that already
- *               offers a rehab session instead
+ *   severe    – the same as moderate, and nothing lands anywhere in the session
+ *               whichever region hurts, and every working block loses a set
+ *
+ * The severe row is new, and it is here because the previous three-way question
+ * had two answers. Measured across 168 region × session-type × tier
+ * combinations, mild and moderate produced different sessions 168 times out of
+ * 168 and moderate and severe produced different sessions 0 times out of 168 —
+ * the app asked how bad it was, offered three buttons, and treated the last two
+ * as the same button. Asking someone in pain to make a distinction you then
+ * discard is how they learn to stop answering honestly.
+ *
+ * A set off every working block is the lever rather than another block-drop
+ * because it is the one that applies to every session there is. Dropping blocks
+ * only bites on sessions that have those blocks; volume is what every session
+ * has, and less of it is what "this is severe" should mean.
  *
  * These are session-shaping rules, not medical ones. They are here as data so
  * they can be argued with.
@@ -401,6 +513,25 @@ export const SEVERITY_DROPS_INTENSITY: Record<string, boolean> = {
 
 /** Blocks removed entirely at moderate and above. */
 export const HIGH_INTENSITY_CATEGORIES: ExerciseCategory[] = ['neuro', 'finisher'];
+
+/** Whether impact goes out of the whole session whatever the sore region is. */
+export const SEVERITY_BANS_IMPACT: Record<string, boolean> = {
+  mild: false,
+  moderate: false,
+  severe: true,
+};
+
+/** Sets taken off each working block at severe. */
+export const SEVERE_SET_REDUCTION = 1;
+
+/**
+ * The blocks a set comes off.
+ *
+ * The loaded ones only. A warm-up, a cooldown and the rehab block are not
+ * volume in the sense that matters — cutting a set of breathing or of the
+ * joint work chosen for the sore area makes the session worse, not gentler.
+ */
+export const SET_REDUCED_CATEGORIES: ExerciseCategory[] = ['main', 'accessory', 'mechanical'];
 
 /** The sentence shown on a card that was changed for safety. */
 export function substitutionNote(originalName: string, regionLabel: string): string {

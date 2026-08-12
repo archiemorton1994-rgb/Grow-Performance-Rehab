@@ -21,6 +21,36 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SEC = 30;
 const RATE_LIMIT_COOLDOWN_SEC = 10 * 60;
 
+/**
+ * Turn a thrown API error into something a person can read.
+ *
+ * apiRequest rejects before its caller can inspect the response, and the
+ * message it throws is `${status}: ${raw body}` — so a mistyped code put
+ * `400: {"message":"Invalid or expired code."}` on screen, in red, on the
+ * first error a new user can possibly hit. Unwrap that shape back to the
+ * server's own sentence, and fall back to plain English for anything that
+ * isn't JSON (a gateway's HTML error page, a network failure).
+ *
+ * The unwrapped text is still the server's `message`, so the "too many"
+ * rate-limit check downstream keeps matching.
+ */
+function friendlyError(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : '';
+  if (!raw) return fallback;
+  const body = raw.replace(/^\s*\d{3}\s*:\s*/, '');
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed.message === 'string' && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+  } catch {
+    // Not JSON. Only surface it if it reads like a sentence rather than a
+    // status line, a stack trace or an HTML error page.
+    if (body.length > 0 && body.length <= 120 && !/[<>{}]/.test(body)) return body;
+  }
+  return fallback;
+}
+
 export default function OtpAuthScreen() {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -63,8 +93,7 @@ export default function OtpAuthScreen() {
       setStep('code');
       setTimeout(() => codeRef.current?.focus(), 150);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not send code. Please try again.';
-      setErrorMsg(msg);
+      setErrorMsg(friendlyError(err, 'Could not send code. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -78,9 +107,8 @@ export default function OtpAuthScreen() {
     try {
       await verifyCode(email.trim(), code.trim());
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Incorrect code. Please try again.';
       setCode('');
-      setErrorMsg(msg);
+      setErrorMsg(friendlyError(err, 'Incorrect code. Please try again.'));
       setLoading(false);
       setTimeout(() => codeRef.current?.focus(), 100);
     }
@@ -105,7 +133,7 @@ export default function OtpAuthScreen() {
       setDevCode(result.devCode);
       setResendSecondsLeft(RESEND_COOLDOWN_SEC);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Could not resend code.';
+      const msg = friendlyError(err, 'Could not resend code.');
       setErrorMsg(msg);
       if (isRateLimitError(msg)) {
         setResendSecondsLeft(RATE_LIMIT_COOLDOWN_SEC);

@@ -47,7 +47,9 @@ import {
   DROPPABLE_CATEGORIES,
   HIGH_INTENSITY_CATEGORIES,
   REGION_BOUND_CATEGORIES,
+  SEVERE_SET_REDUCTION,
   SEVERITY_DROPS_INTENSITY,
+  SET_REDUCED_CATEGORIES,
   bodyRegionOf,
   canSubstituteFor,
   SCREEN_EXEMPT_CATEGORIES,
@@ -55,6 +57,7 @@ import {
   restrictedTagsFor,
   restrictedTagsOn,
   substitutionNote,
+  substitutionRestrictedTags,
   STRESS_TAG_LABELS,
   type StressTag,
 } from './exercise-safety';
@@ -1333,7 +1336,13 @@ export function fillSwapAlternatives(
       ? readiness.painRegion
       : [readiness.painRegion]
     : [];
-  const banned = restrictedTagsFor(regions, profile?.experienceLevel);
+  // Every option on this sheet is one the app is offering, not one the user
+  // already had, so it is held to the choose-on-their-behalf standard — see
+  // substitutionRestrictedTags. Removing the thing that hurts and then putting
+  // a burpee round one tap behind it is the same failure with an extra step.
+  const banned = substitutionRestrictedTags(
+    restrictedTagsFor(regions, profile?.experienceLevel, readiness?.painSeverity)
+  );
   const inSession = new Set(exercises.map((e) => e.name.toLowerCase()));
 
   return exercises.map((ex, i) => {
@@ -1410,8 +1419,13 @@ export function applyInjurySafety(
       ? readiness.painRegion
       : [readiness.painRegion]
     : [];
-  const banned = restrictedTagsFor(regions, profile?.experienceLevel);
+  const severity = readiness?.painSeverity ?? 'mild';
+  const banned = restrictedTagsFor(regions, profile?.experienceLevel, severity);
   if (banned.size === 0) return exercises;
+  // What may STAY is `banned`; what the app may put there instead is stricter.
+  // See substitutionRestrictedTags — the difference is the whole reason a card
+  // reading "to protect your elbow" could serve a broad jump.
+  const bannedForSubstitution = substitutionRestrictedTags(banned);
 
   const regionLabel = regions.length > 0 ? getPainRegionLabel(regions[0]) : 'injury';
   const usedNames = new Set(exercises.map((e) => e.name.toLowerCase()));
@@ -1420,7 +1434,13 @@ export function applyInjurySafety(
   // Moderate and above also lose the explosive and finisher blocks. Those are
   // where an already-irritated joint gets aggravated fastest, and they are the
   // parts of a session nobody needs on a bad day.
-  const dropIntensity = SEVERITY_DROPS_INTENSITY[readiness?.painSeverity ?? 'mild'] === true;
+  const dropIntensity = SEVERITY_DROPS_INTENSITY[severity] === true;
+  // Severe takes a set off every working block on top of that. Without it,
+  // severe and moderate were the same session to the byte.
+  const setsFor = (ex: Exercise) =>
+    severity === 'severe' && SET_REDUCED_CATEGORIES.includes(ex.category)
+      ? Math.max(1, ex.sets - SEVERE_SET_REDUCTION)
+      : ex.sets;
 
   exercises.forEach((ex, i) => {
     const hits = SCREEN_EXEMPT_CATEGORIES.includes(ex.category)
@@ -1428,11 +1448,11 @@ export function applyInjurySafety(
       : restrictedTagsOn(ex.name, banned);
     if (dropIntensity && HIGH_INTENSITY_CATEGORIES.includes(ex.category)) return;
     if (hits.length === 0) {
-      screened.push(ex);
+      screened.push(ex.sets === setsFor(ex) ? ex : { ...ex, sets: setsFor(ex) });
       return;
     }
     usedNames.delete(ex.name.toLowerCase());
-    const replacement = findSafeReplacement(ex, banned, tier, usedNames, seed + i);
+    const replacement = findSafeReplacement(ex, bannedForSubstitution, tier, usedNames, seed + i);
     if (!replacement) {
       // Nothing safe to put here. Optional blocks go; anything else stays, with
       // the warning attached — silently deleting someone's main lift and saying
@@ -1440,6 +1460,7 @@ export function applyInjurySafety(
       if (DROPPABLE_CATEGORIES.includes(ex.category)) return;
       screened.push({
         ...ex,
+        sets: setsFor(ex),
         safetyNote: `Take care with your ${regionLabel.toLowerCase()} here — this involves ${STRESS_TAG_LABELS[hits[0]]}`,
       });
       usedNames.add(ex.name.toLowerCase());
@@ -1452,7 +1473,7 @@ export function applyInjurySafety(
       // Keep the set count the session was built with: it has already been
       // scaled for time, energy and goals, and the replacement's own default
       // would quietly undo that.
-      sets: ex.sets,
+      sets: setsFor(ex),
       badge: 'comfort',
       safetyNote: substitutionNote(ex.name, regionLabel),
       // The revert. Uses the swap slot every card already has, so "put it back"

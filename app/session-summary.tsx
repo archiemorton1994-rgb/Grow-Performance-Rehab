@@ -103,6 +103,16 @@ interface ExerciseRow {
   badge: BadgeKind;
   deltaWeight: number;
   deltaReps: number;
+  /**
+   * True when the user answered "Too Hard" on a set of this exercise.
+   *
+   * The store turns that answer into an ExercisePerformance of 'failed', which
+   * is the same value a genuinely unfinished set produces — so the hint below
+   * could not tell the two apart and told everyone who answered honestly that
+   * they had left a set incomplete. Carried through so the reason it gives is
+   * the reason that actually applied.
+   */
+  ratedHard: boolean;
 }
 
 const SESSION_TYPE_FALLBACK_REGIONS: Partial<Record<string, PainRegion[]>> = {
@@ -197,13 +207,22 @@ function getNextHint(
   lastSessionPerformance: Record<string, ExercisePerformance>,
   exerciseNormalStreak: Record<string, number>,
   exerciseFeedback: Record<string, ExerciseFeedback>,
-  weightUnit: WeightUnit
+  weightUnit: WeightUnit,
+  ratedHard: boolean
 ): string | null {
   if (!isLatestSession || bestWeightKg <= 0) return null;
   const perf = lastSessionPerformance[exerciseId];
   if (perf === 'failed') {
     const ratedDown = exerciseFeedback[exerciseId]?.thumbs === 'down';
-    const why = ratedDown ? 'You rated this tough' : 'A set was left incomplete';
+    // Three different things reach 'failed' and only one of them is an
+    // unfinished set. Saying "a set was left incomplete" to someone who
+    // finished every set and simply answered "Too Hard" is the app telling
+    // them they did something they did not do.
+    const why = ratedHard
+      ? 'You rated a set Too Hard'
+      : ratedDown
+        ? 'You rated this tough'
+        : 'A set was left incomplete';
     return `Next time: holding at ${formatWeight(bestWeightKg, weightUnit)}. ${why}.`;
   }
   if (perf === 'very_easy') {
@@ -587,7 +606,8 @@ function ProgressTab({
                 lastSessionPerformance,
                 exerciseNormalStreak,
                 exerciseFeedback,
-                weightUnit
+                weightUnit,
+                r.ratedHard
               );
               const stuckStreak = exerciseStuckStreak[r.exerciseId] ?? 0;
               const showPlateauNudge = isLatestSession && stuckStreak >= 3;
@@ -857,6 +877,7 @@ export default function SessionSummaryScreen() {
         badge,
         deltaWeight,
         deltaReps,
+        ratedHard: log.feedbackRating === 'hard',
       });
     }
 

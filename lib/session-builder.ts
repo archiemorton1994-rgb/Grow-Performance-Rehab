@@ -2,6 +2,7 @@ import type { CustomExercise, ExerciseCategory, PainRegion } from './store';
 import {
   getAllPickableExercises,
   getMainLift,
+  tierRequiredFor,
   type ExerciseTemplate,
   type InternalTier,
 } from './exercise-db';
@@ -824,22 +825,25 @@ function availableIn(e: IndexedExercise, owned: InternalTier[]): boolean {
   return e.tiers.some((t) => owned.includes(t));
 }
 
-/** Equipment a warm-up needs a gym for. */
-const GYM_CARDIO_EQUIPMENT = /^(fullgym|full gym|machine|cable machine)$/i;
-
 /**
- * The cardio warm-ups are the one pool with no equipment tiers of their own.
+ * Does this user own what the movement asks for?
  *
- * They sit in a flat list because the generator uses them for every session, so
- * the catalogue records them as available at every tier — and the generator
- * then filters them itself, offering only the bodyweight ones to anyone short
- * of a full gym. Without the same filter here, the first thing a bodyweight
- * user is offered, and the option they get by default, is a treadmill.
+ * This gate ran on the cardio block alone, because a treadmill in the warm-up
+ * step was the leak somebody noticed: the cardio warm-ups sit in a flat list
+ * with no tier of their own, so the catalogue recorded them as available
+ * everywhere and the first thing a bodyweight user was offered was a machine.
+ *
+ * Every other block leaked the same way and less visibly, because a leak is
+ * only obvious when the exercise is NAMED after its equipment. The Core &
+ * Prehab step's top-ranked option — the one it auto-fills with — was an Ab
+ * Wheel Rollout for all twelve bodyweight builds and all twelve dumbbell ones,
+ * and it read as harmless because its suggested load is the word "Bodyweight".
+ *
+ * The requirement is now checked directly rather than inferred from where the
+ * catalogue happens to file a movement, so the two cannot disagree again.
  */
-function equipmentAllows(block: BuilderBlock, t: ExerciseTemplate, owned: InternalTier[]): boolean {
-  if (block.category !== 'cardio') return true;
-  if (owned.includes('fullgym')) return true;
-  return !GYM_CARDIO_EQUIPMENT.test(t.equipmentRequired ?? '');
+function equipmentAllows(t: ExerciseTemplate, owned: InternalTier[]): boolean {
+  return owned.includes(tierRequiredFor(t.equipmentRequired));
 }
 
 /**
@@ -965,7 +969,7 @@ export function optionsForBlock(
     (e) =>
       e.roles.includes(block.category) &&
       availableIn(e, owned) &&
-      equipmentAllows(block, e.template, owned) &&
+      equipmentAllows(e.template, owned) &&
       !taken.has(e.template.name.toLowerCase())
   );
 

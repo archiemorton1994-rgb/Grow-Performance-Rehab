@@ -614,7 +614,11 @@ export default function RecoverScreen() {
               <Text style={styles.navSub}>{row.subtitle}</Text>
               <Text style={styles.navRecency}>{row.recency}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={row.cardAccent + '88'} />
+            {/* Full strength, not the 53% the fill and border use: this arrow is
+                the only thing on the card that says "this opens something", so
+                it is a meaningful icon and owes 3:1 against the tint it sits on.
+                At 53% every row's arrow measured under 2:1. */}
+            <Ionicons name="chevron-forward" size={16} color={row.cardAccent} />
           </Pressable>
         ))}
       </View>

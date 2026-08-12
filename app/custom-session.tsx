@@ -68,6 +68,30 @@ function recentLabel(iso: string): string | null {
   return null;
 }
 
+/**
+ * "1 set", not "1 sets".
+ *
+ * A good third of the catalogue prescribes a single set — every stretch, every
+ * cardio warm-up, every timed hold — so the ungrammatical form was on screen
+ * more often than not. The session screen already says "1 set × 30s"; this is
+ * the builder catching up with it.
+ */
+function setsLabel(sets: number): string {
+  return `${sets} set${sets === 1 ? '' : 's'}`;
+}
+
+/**
+ * A block title used mid-sentence — "every accessory option", "search cardio
+ * warm-up".
+ *
+ * Lowercasing the title outright turns the one acronym in the set into "kpi
+ * lift", which is the block the whole flow is built around and the one place
+ * the copy could least afford to look unfinished.
+ */
+function blockNoun(title: string): string {
+  return title.toLowerCase().replace(/\bkpi\b/g, 'KPI');
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   main: 'Main Lift',
   accessory: 'Accessory',
@@ -1299,8 +1323,8 @@ export default function CustomSessionScreen() {
             )}
             <Text style={styles.exerciseMeta}>
               {selEntry
-                ? `${selEntry.sets} sets · ${selEntry.reps}`
-                : `${item.sets} sets · ${item.reps}`}
+                ? `${setsLabel(selEntry.sets)} · ${selEntry.reps}`
+                : `${setsLabel(item.sets)} · ${item.reps}`}
               {' · '}
               {item.suggestedLoad}
             </Text>
@@ -1773,7 +1797,7 @@ export default function CustomSessionScreen() {
           </View>
           <Text style={styles.stepFilterNote} testID="step-filter-note">
             {showWholeBlock
-              ? `Every ${activeBlock.title.toLowerCase()} option for your equipment`
+              ? `Every ${blockNoun(activeBlock.title)} option for your equipment`
               : stepOptions.widened
                 ? `${filterLabel} - widened, too few exact matches for your equipment`
                 : filterLabel}
@@ -1812,7 +1836,7 @@ export default function CustomSessionScreen() {
               <Ionicons name="search" size={16} color={C.textTertiary} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder={`Search ${activeBlock.title.toLowerCase()}…`}
+                placeholder={`Search ${blockNoun(activeBlock.title)}…`}
                 placeholderTextColor={C.textTertiary}
                 value={stepSearch}
                 onChangeText={setStepSearch}
@@ -1880,7 +1904,7 @@ export default function CustomSessionScreen() {
                   <Text style={styles.exerciseMeta}>
                     {activeBlock.id === 'cardio'
                       ? `${cardioMinutes} min · ${item.suggestedLoad}`
-                      : `${entry?.sets ?? item.sets} sets · ${entry?.reps ?? item.reps} · ${item.suggestedLoad}`}
+                      : `${setsLabel(entry?.sets ?? item.sets)} · ${entry?.reps ?? item.reps} · ${item.suggestedLoad}`}
                   </Text>
                 </View>
                 <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
@@ -1991,7 +2015,7 @@ export default function CustomSessionScreen() {
                       <Text style={styles.reviewRowMeta}>
                         {block.id === 'cardio'
                           ? `${cardioMinutes} min steady`
-                          : `${p.sets} sets · ${p.reps} · ${p.template.suggestedLoad}`}
+                          : `${setsLabel(p.sets)} · ${p.reps} · ${p.template.suggestedLoad}`}
                       </Text>
                     </View>
                     {/* A required block can be changed but not emptied. */}

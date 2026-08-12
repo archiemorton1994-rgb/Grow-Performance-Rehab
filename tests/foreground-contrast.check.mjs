@@ -28,6 +28,12 @@
  *     `.primary` is the exact regression this check exists to stop; those call
  *     sites must read `primaryText`.
  *
+ *  C. PILLS — the session card's category pills, read from the screen.
+ *
+ *  D. CARD ACCENTS — accent tokens painted as type on a card tinted with that
+ *     same accent, read from the screen. See the section for why the token
+ *     table alone cannot catch this one.
+ *
  * TOKENS DELIBERATELY NOT CHECKED
  * ───────────────────────────────
  * These are below AA today as ink. They are left out rather than quietly
@@ -35,13 +41,18 @@
  * that is a design decision, not a contrast fix. Measured worst case, vs
  * surfaceTertiary (the darkest card in light mode / lightest in dark):
  *
- *   textTertiary   light 2.21  dark 3.01   — de-emphasised hints
+ *   textTertiary   light 3.81  dark 3.01   — de-emphasised hints. Light used to
+ *                                            be 2.21, i.e. materially worse than
+ *                                            dark for the same token; it is now
+ *                                            at or above dark on every surface.
+ *                                            Closing the rest of the gap to AA
+ *                                            makes it textSecondary, so it is a
+ *                                            design decision, not a fix.
  *   warning        light 2.80  dark 5.78   — amber, mostly a badge fill
  *   trendWarning   light 2.78  dark 4.81   — amber, ditto
  *   trendDanger    light 4.22  dark 3.17
  *   trendNeutral   light 4.22  dark 3.17
  *   error          light 4.62  dark 3.66
- *   cardAccent*    light 1.88–3.61         — card accent stripes, not type
  *
  * Run:  node tests/foreground-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -320,6 +331,192 @@ if (!mapMatch) {
         console.error(`    Fix: pair the tinted fill with the BRIGHT ink token, as the others do.`);
         failures++;
       }
+    }
+  }
+}
+
+// ─── D. Card accents used as type on a card tinted with the same accent ──────
+//
+// Section A pairs *ink* tokens with *neutral surfaces*. The badge checks pair
+// *pill* tokens with *pill fills*. Neither describes what the Restore rows do:
+// each row is filled and outlined with its own accent at low alpha, and then
+// the row's title and its chevron are painted in that same accent at full
+// strength. The ink and the surface are the same hue, so the surface tracks the
+// ink — darken the accent and the card darkens with it — and the margin between
+// them is much smaller than the token table makes it look.
+//
+// That is how `cardAccentPrehab` sat at 1.99 : 1 in light mode while every
+// contrast check passed. Its two siblings had been darkened for this exact
+// reason; it was left on the raw amber and nothing noticed.
+//
+// So this measures the pairing as it is composited on screen — accent over
+// (accent @ tint alpha) over the screen background — and it reads the alphas,
+// the accent list and the background token out of the screen itself. A fourth
+// Restore row, or a change to the tint, is covered the day it is written rather
+// than the day somebody remembers to update a list here.
+
+// Large/emphasis type and meaningful icons — WCAG 1.4.3 large text and 1.4.11
+// non-text, and the same bar PILL_MIN uses above. Note this is NOT full AA:
+// these titles are 16px semibold, which is a hair under WCAG's large-text size,
+// so 4.5 : 1 is the strictly correct bar. cardAccentRecovery (3.41) and
+// cardAccentMobility (4.04) sit between the two, deliberately, because dragging
+// the whole palette to 4.5 is a look-and-feel decision rather than a fix.
+const ACCENT_MIN = 3.0;
+
+const recoverSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'recover.tsx'), 'utf8');
+
+/** '#rrggbb' at `alphaHex` composited over an opaque '#rrggbb'. */
+function composite(fgHex, alphaHex, bgHex) {
+  const a = parseInt(alphaHex, 16) / 255;
+  const f = hexToRgb(fgHex);
+  const b = hexToRgb(bgHex);
+  return (
+    '#' +
+    [0, 1, 2]
+      .map((i) => Math.round(f[i] * a + b[i] * (1 - a)).toString(16).padStart(2, '0'))
+      .join('')
+  );
+}
+
+console.log('\n── Restore rows — accent as type on a card tinted with that accent ──');
+
+const accentTokens = [...recoverSrc.matchAll(/cardAccent:\s*C\.(\w+)/g)].map((m) => m[1]);
+const tintMatch = recoverSrc.match(
+  /backgroundColor:\s*row\.cardAccent\s*\+\s*'([0-9a-fA-F]{2})'/
+);
+const baseMatch = recoverSrc.match(/root:\s*\{[^}]*backgroundColor:\s*C\.(\w+)/);
+
+// Every place the accent is drawn *on* that tinted card. The optional trailing
+// alpha is captured so dimming a call site is measured rather than assumed away.
+const ACCENT_SITES = [
+  {
+    what: 'row title',
+    re: /color:\s*row\.cardAccent(?:\s*\+\s*'([0-9a-fA-F]{2})')?\s*\}\]/,
+  },
+  {
+    what: 'row chevron',
+    re: /chevron-forward[^\n]*?color=\{row\.cardAccent(?:\s*\+\s*'([0-9a-fA-F]{2})')?\}/,
+  },
+];
+
+total++;
+if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
+  console.error(
+    `  ✗ could not read the Restore rows from app/(tabs)/recover.tsx ` +
+      `(accents: ${accentTokens.length}, tint: ${tintMatch ? 'ok' : 'missing'}, ` +
+      `base surface: ${baseMatch ? 'ok' : 'missing'})`
+  );
+  console.error('    Fix: this check reads the screen; update it alongside the layout.');
+  failures++;
+} else {
+  const tintAlpha = tintMatch[1];
+  const baseKey = baseMatch[1];
+  console.log(
+    `  ✓ ${accentTokens.length} accents, card tinted at '${tintAlpha}' over ${baseKey}`
+  );
+
+  const sites = ACCENT_SITES.map(({ what, re }) => {
+    const m = recoverSrc.match(re);
+    return { what, found: !!m, alpha: m?.[1] ?? 'ff' };
+  });
+
+  for (const site of sites) {
+    total++;
+    if (!site.found) {
+      console.error(`  ✗ ${site.what} — no accent-coloured call site found on the row`);
+      console.error('    Fix: this check reads the screen; update it alongside the layout.');
+      failures++;
+    }
+  }
+
+  for (const [themeName, T] of Object.entries(THEMES)) {
+    const base = T[baseKey];
+    for (const token of accentTokens) {
+      const accent = T[token];
+      total++;
+      if (!accent || !base) {
+        console.error(`  ✗ ${themeName}.${token} — token missing (or ${baseKey} missing)`);
+        failures++;
+        continue;
+      }
+      const card = composite(accent, tintAlpha, base);
+      for (const site of sites) {
+        if (!site.found) continue;
+        total++;
+        const ink = site.alpha === 'ff' ? accent : composite(accent, site.alpha, card);
+        const ratio = contrastRatio(ink, card);
+        const where = `${themeName} ${token} ${site.what} on its own tint (${card})`;
+        if (ratio >= ACCENT_MIN) {
+          console.log(`  ✓ ${where} — ${ratio.toFixed(2)} : 1`);
+        } else {
+          console.error(`  ✗ ${where} — ${ratio.toFixed(2)} : 1 — below ${ACCENT_MIN} : 1`);
+          console.error(
+            `    Fix: darken ${themeName}.${token} (light) / brighten it (dark). The card is ` +
+              `tinted with this same token, so it moves with the ink — check the measured ratio, ` +
+              `not the raw token against a white page.`
+          );
+          failures++;
+        }
+      }
+    }
+  }
+}
+
+// ─── E. Theme parity for the inks that are knowingly below AA ────────────────
+//
+// Section A only covers tokens that clear AA, so the ones listed at the top of
+// this file as "deliberately not checked" have no guard at all. They still owe
+// the user something, though: reading the app in light mode should not be
+// harder than reading it in dark. `textTertiary` had drifted to exactly that —
+// 2.21–2.53 : 1 in light against 3.01–4.12 : 1 in dark, roughly half the
+// legibility for the same strings, which is nobody's design decision.
+//
+// So rather than pin a number (which would just restate whatever value is in
+// the table today), this asserts the promise: for the same token on the same
+// surface, neither theme may be meaningfully worse than the other.
+//
+// Only textTertiary is listed. The amber inks (warning, trendWarning) are worse
+// offenders — light 2.80 vs dark 5.78 — but they are mostly badge fills that
+// happen to be reused as type, and sorting them out means deciding what the
+// amber is *for* first. Adding them here is the right next step, not a rename.
+const PARITY_TOKENS = ['textTertiary'];
+// The weaker theme must reach at least this share of the stronger one on the
+// same surface. It is deliberately generous: the two palettes are different
+// colours on different backgrounds and will never land on identical numbers.
+// It is tight enough to catch what actually went wrong — the old light value
+// missed on three of the four surfaces, worst 0.59.
+const PARITY_MIN_SHARE = 0.7;
+
+console.log('\n── Theme parity — below-AA inks must not be far weaker in one theme ──');
+
+for (const key of PARITY_TOKENS) {
+  for (const surfKey of SURFACES) {
+    total++;
+    const lightInk = THEMES.LightColors[key];
+    const darkInk = THEMES.DarkColors[key];
+    const lightSurf = THEMES.LightColors[surfKey];
+    const darkSurf = THEMES.DarkColors[surfKey];
+    if (!lightInk || !darkInk || !lightSurf || !darkSurf) {
+      console.error(`  ✗ ${key} / ${surfKey} — token missing from one of the themes`);
+      failures++;
+      continue;
+    }
+    const lightRatio = contrastRatio(lightInk, lightSurf);
+    const darkRatio = contrastRatio(darkInk, darkSurf);
+    const share = Math.min(lightRatio, darkRatio) / Math.max(lightRatio, darkRatio);
+    const weaker = lightRatio < darkRatio ? 'LightColors' : 'DarkColors';
+    const shown = `light ${lightRatio.toFixed(2)} vs dark ${darkRatio.toFixed(2)}`;
+    if (share >= PARITY_MIN_SHARE) {
+      console.log(`  ✓ ${key} on ${surfKey} — ${shown} (${(share * 100).toFixed(0)}%)`);
+    } else {
+      console.error(
+        `  ✗ ${key} on ${surfKey} — ${shown} — ${weaker} is only ` +
+          `${(share * 100).toFixed(0)}% as legible, floor is ${PARITY_MIN_SHARE * 100}%`
+      );
+      console.error(
+        `    Fix: bring ${weaker}.${key} up. Improving only the stronger theme widens the gap.`
+      );
+      failures++;
     }
   }
 }

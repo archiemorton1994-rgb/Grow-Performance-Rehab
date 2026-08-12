@@ -79,6 +79,7 @@ import {
 } from '@/lib/workout-engine';
 import {
   feedbackRatingFor,
+  nextAnchorKg,
   suggestSetWeight,
   SET_FEEDBACK_LABELS,
   type LoadPlan,
@@ -536,10 +537,17 @@ interface SessionActiveBarProps {
    *  once per step and doesn't re-measure if the bar's own content changes. */
   isDemo?: boolean;
   /**
-   * Suppresses the "how did it feel?" prompt. A 1RM test set is taken to
-   * failure by definition, so there is no "5+ more left" to report and nothing
-   * for the answer to adjust — the next session's load comes from the tested
-   * max, not from an RPE guess.
+   * Suppresses the "how did it feel?" prompt.
+   *
+   * Two cases. A 1RM test set is taken to failure by definition, so there is no
+   * "5+ more left" to report and nothing for the answer to adjust — the next
+   * session's load comes from the tested max, not from an RPE guess. And a set
+   * with no weight on it — held for time, or done at bodyweight or with a band
+   * — has no load for the answer to move: this bar draws it without a weight
+   * box at all. Asking anyway is how the prompt ended up interrupting
+   * diaphragmatic breathing and hip-flexor stretches, where the question has
+   * nothing to change and the only way past it is to make a claim about a
+   * stretch.
    */
   suppressFeedback?: boolean;
   /** Demo mode only: show the feedback UI unconditionally, driven by which
@@ -710,11 +718,17 @@ export function SessionActiveBar({
     parsedWeight > 0 &&
     effectiveWeightKg > previousBest;
 
+  // Named to match the per-set guide printed on the card above, which calls the
+  // penultimate set of a long ramp an "Approach set" at ~87.5% of the working
+  // weight. Calling that a warm-up was the third of three accounts the same
+  // exercise gave of itself on one screen.
   const setLabel =
     exercise?.category === 'main'
-      ? activeSetIndex < totalSets - 1
-        ? 'Warm-up'
-        : 'Working set'
+      ? activeSetIndex >= totalSets - 1
+        ? 'Working set'
+        : totalSets >= 4 && activeSetIndex === totalSets - 2
+          ? 'Approach set'
+          : 'Warm-up'
       : null;
 
   const handleComplete = () => {
@@ -1198,13 +1212,15 @@ export function ExerciseCard({
 
   const setsLabel = `${exercise.sets} ${exercise.sets === 1 ? 'set' : 'sets'}`;
   const repsLabel = exercise.reps;
-  // Exercise-db rep strings aren't uniformly formatted - some are bare counts
-  // ("10", "10-12") that need " reps" appended for clarity, others already
-  // read naturally on their own ("10 each", "15 each direction", "12 reps
-  // each side"). Appending unconditionally produced "10 each reps". Skip the
-  // suffix when the string already contains "reps" or "each".
-  const repsAlreadyDescriptive = /\breps?\b|\beach\b/i.test(repsLabel);
-  const repDisplay = isTimeExercise || repsAlreadyDescriptive ? repsLabel : `${repsLabel} reps`;
+  // Exercise-db rep strings aren't uniformly formatted. Some are bare counts
+  // ("10", "10-12") that need " reps" appended for clarity; most of the rest
+  // already name their own unit or object and read as nonsense with it —
+  // "10 deep breaths reps", "40m reps", "25 pulses reps", "20 total reps".
+  // Asking "does it already say reps or each?" caught two of those spellings
+  // and let 226 others through, so the question is asked the other way round:
+  // append only to a string that is nothing but a number or a range.
+  const repsIsBareCount = /^[\d\s.,\-–—+x×/]+$/.test(repsLabel.trim());
+  const repDisplay = isTimeExercise || !repsIsBareCount ? repsLabel : `${repsLabel} reps`;
 
   const isPast = exerciseState === 'past';
   const isFuture = exerciseState === 'future';
@@ -2483,9 +2499,13 @@ export default function SessionScreen() {
       return { ...ed, activeSetIndex };
     });
     setExerciseData(restoredData);
-    setExerciseNotes(
-      stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => '')
-    );
+    const restoredNotes =
+      stored.exerciseNotes.length === exs.length ? stored.exerciseNotes : exs.map(() => '');
+    setExerciseNotes(restoredNotes);
+    // A note that survived the reload but came back collapsed reads as a note
+    // that was lost: nothing on the card says it is there. Reopen the ones that
+    // have something in them.
+    setNotesVisible(restoredNotes.map((n) => n.length > 0));
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     if (stored.painBannerDismissed) setPainBannerDismissed(true);
     if (stored.inSessionFeedback) setInSessionFeedback(stored.inSessionFeedback);
@@ -2891,8 +2911,17 @@ export default function SessionScreen() {
           .filter((s) => s.completed && !s.skipped && s.weight > 0)
           .map((s) => s.weight);
         if (completedWeights.length > 0) {
-          // Key by exerciseId (stable, unaffected by KB name relabeling)
-          sessionWeights[log.exerciseId] = Math.max(...completedWeights);
+          // Key by exerciseId (stable, unaffected by KB name relabeling).
+          // Filing the heaviest set outright treated "the most you lifted" as
+          // "the most you can lift", which is a feedback loop: a light session
+          // prescribes a lighter one, and that one is lighter still. See
+          // nextAnchorKg — a session can raise this number freely, and only
+          // lower it when the user actually said a set was too much.
+          sessionWeights[log.exerciseId] = nextAnchorKg(
+            Math.max(...completedWeights),
+            lastLoggedWeights?.[log.exerciseId] ?? 0,
+            log.feedbackRating
+          );
         }
       }
       // Also re-baseline the real (non-test-protocol) KPI-lift exercise ID
@@ -3250,7 +3279,7 @@ export default function SessionScreen() {
               autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
-              suppressFeedback={isTestWeek}
+              suppressFeedback={isTestWeek || isTimeEx || isBandEx}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
               demoForceFeedback={

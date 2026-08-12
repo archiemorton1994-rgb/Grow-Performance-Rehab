@@ -15,6 +15,55 @@ export function toInternalTier(tier: EquipmentTier): InternalTier {
   return 'fullgym';
 }
 
+/**
+ * Which equipment tier owns each named piece of kit.
+ *
+ * "Bodyweight" was being used in this file to mean NO EXTERNAL LOAD, while
+ * onboarding sells the same word as NO EQUIPMENT. A pull-up is bodyweight-loaded
+ * and still needs a bar, so the two readings quietly disagreed: a Chin-Up sat in
+ * two bodyweight pools, an Ab Wheel Rollout requiring a 'machine' sat in a third,
+ * and nothing downstream could tell, because the tier a movement is FILED under
+ * and the kit it NEEDS were separate facts that nobody reconciled.
+ *
+ * This table is the single place that reconciles them. Every equipment gate in
+ * the app derives from it rather than forming its own opinion.
+ *
+ * Bands sit at the bodyweight tier because the app itself puts them there —
+ * toInternalTier() collapses 'bands' and 'bodyweight' into one internal tier, so
+ * separating them would mean a fourth tier and a re-filing of the whole
+ * catalogue. A pull-up bar gets no such benefit of the doubt.
+ */
+const EQUIPMENT_TIER: Record<string, InternalTier> = {
+  bodyweight: 'bodyweight',
+  'resistance bands': 'bodyweight',
+  dumbbells: 'dumbbells',
+  kettlebell: 'dumbbells',
+  'ab wheel': 'fullgym',
+  barbell: 'fullgym',
+  'cable machine': 'fullgym',
+  'foam roller': 'fullgym',
+  'full gym': 'fullgym',
+  fullgym: 'fullgym',
+  machine: 'fullgym',
+  'pull-up bar': 'fullgym',
+  'stability ball': 'fullgym',
+};
+
+/** Every value `equipmentRequired` is allowed to take. */
+export const EQUIPMENT_NAMES: string[] = Object.keys(EQUIPMENT_TIER);
+
+/**
+ * The lowest tier that owns the kit a template asks for.
+ *
+ * Anything unrecognised — including a template that declares nothing at all —
+ * is treated as gym equipment. Failing closed hides a mis-tagged movement from
+ * the people who cannot perform it, which is the direction of error that costs
+ * a beginner nothing.
+ */
+export function tierRequiredFor(equipmentRequired: string | undefined): InternalTier {
+  return EQUIPMENT_TIER[(equipmentRequired ?? '').toLowerCase()] ?? 'fullgym';
+}
+
 export interface ExerciseTemplate {
   id: string;
   name: string;
@@ -122,10 +171,12 @@ export const CARDIO_WARMUPS: ExerciseTemplate[] = [
     difficulty: 'beginner',
     isUnilateral: false,
     injuryFriendlyAlternatives: [],
+    // The only bodyweight warm-up whose alternative was a treadmill, which is
+    // how the injury screen came to offer one to a user with no equipment.
     swapAlternative: {
-      name: 'Cardio Machine Warm-Up',
-      cue: 'Treadmill or bike at easy pace - no space needed',
-      suggestedLoad: 'Low intensity',
+      name: 'Leg Swing + Arm Cross Warm-Up',
+      cue: 'Forward and lateral leg swings, then cross-body arm swings - same warm-up, less space',
+      suggestedLoad: 'Bodyweight',
     },
   },
   {
@@ -5805,7 +5856,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Lats', 'Obliques'],
         difficulty: 'intermediate',
         isUnilateral: false,
-        equipmentRequired: 'machine',
+        equipmentRequired: 'ab wheel',
         injuryFriendlyAlternatives: ['Partial Ab Wheel Rollout'],
         swapAlternative: {
           name: 'Hollow Body Hold',
@@ -5834,7 +5885,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Obliques', 'Hip flexors'],
         difficulty: 'intermediate',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'pull-up bar',
         injuryFriendlyAlternatives: ['Hanging Knee Raise'],
         swapAlternative: {
           name: 'Lying Leg Raise',
@@ -6002,7 +6053,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         name: 'Inverted Row',
         sets: 3,
         reps: '15',
-        cue: 'Pull chest to bar, squeeze back at top - body plank-straight',
+        cue: 'Lie under a sturdy table or desk, take the edge overhand and pull your chest to it - squeeze the back at the top, body plank-straight',
         suggestedLoad: 'Bodyweight',
         category: 'accessory',
         targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder'],
@@ -6085,31 +6136,36 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
       },
       {
-        id: 'bn-acc-bw-5',
-        name: 'Pull-Up',
+        // Taking the Pull-Up out of this pool left a no-equipment pull day with
+        // three movements, all of them two-handed and all of them at roughly one
+        // difficulty. This is the standard way that row is progressed once the
+        // two-handed version stops being hard, and it is the catalogue's only
+        // single-arm pull that needs nothing.
+        id: 'bn-acc-bw-15',
+        name: 'Single-Arm Towel Row (Door Handle)',
         sets: 3,
-        reps: '6-10',
-        cue: 'Full hang to chin over bar, control the descent - lats drive the pull',
+        reps: '8-10 each side',
+        cue: 'Loop a rolled towel round one handle of a solid closed door. Stand close, feet either side of the door, hold with one hand and lean back until the arm takes your weight. Row your chest towards the door and resist the twist through your ribs. Walk the feet closer to make it harder',
         suggestedLoad: 'Bodyweight',
         category: 'accessory',
-        targetRegions: ['lat_mid_back', 'bicep'],
+        targetRegions: ['lat_mid_back', 'rear_shoulder', 'bicep'],
         videoId: '',
         movementPattern: 'pull',
         primaryMuscle: 'Latissimus dorsi',
-        secondaryMuscles: ['Biceps', 'Rhomboids', 'Core'],
+        secondaryMuscles: ['Biceps', 'Rear deltoid', 'Obliques'],
         difficulty: 'intermediate',
-        isUnilateral: false,
+        isUnilateral: true,
         equipmentRequired: 'bodyweight',
-        injuryFriendlyAlternatives: ['Band-Assisted Pull-Up'],
+        injuryFriendlyAlternatives: ['Towel Row (Door Handle)'],
         swapAlternative: {
-          name: 'Inverted Row',
-          cue: 'Lie under a sturdy table or low rail, heels on the floor, pull the chest up - the horizontal version, nothing to hang from needed',
+          name: 'Towel Row (Door Handle)',
+          cue: 'Both hands on the towel instead of one - the same row with half the load per arm and no anti-rotation demand',
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
-          name: 'Band-Assisted Pull-Up',
-          cue: 'Loop a band under your feet for assistance - reduces shoulder/elbow load',
-          suggestedLoad: 'Light band assist',
+          name: 'Prone Y-T-W Raise',
+          cue: 'Face down on the floor, lift the arms into a Y, then a T, then a W - upper back work with the shoulder unloaded',
+          suggestedLoad: 'Bodyweight',
           triggerRegions: ['rear_shoulder', 'elbow', 'wrist', 'lat_mid_back', 'bicep'],
         },
       },
@@ -6424,16 +6480,19 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         difficulty: 'beginner',
         isUnilateral: false,
         equipmentRequired: 'dumbbells',
-        injuryFriendlyAlternatives: ['Cable/Band Lateral Raise'],
+        // The gentler variant used to be named for a cable machine, which is a
+        // strange thing to offer someone whose equipment answer was dumbbells.
+        // The band is the half of it they actually have.
+        injuryFriendlyAlternatives: ['Band Lateral Raise'],
         swapAlternative: {
           name: 'Prone DB Rear Delt Fly',
           cue: 'Face down on bench, arms wide - rear delt and upper back emphasis',
           suggestedLoad: '4-6 kg per hand',
         },
         comfortVariant: {
-          name: 'Cable/Band Lateral Raise',
-          cue: 'Pull-through path, less impingement risk',
-          suggestedLoad: '2-4 kg per hand',
+          name: 'Band Lateral Raise',
+          cue: 'Stand on a light band and raise to shoulder height - the tension builds through the range, so there is less load in the pinch point',
+          suggestedLoad: 'Light band',
           triggerRegions: ['front_shoulder', 'rear_shoulder'],
         },
       },
@@ -6629,9 +6688,9 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Chest Fly (limited arc)'],
         swapAlternative: {
-          name: 'Cable Chest Fly',
-          cue: 'Constant cable tension, sweep hands together - better stretch at bottom',
-          suggestedLoad: '10-20 kg per side',
+          name: 'DB Floor Fly',
+          cue: 'Same fly lying on the floor - the upper arms stop at the ground, so the shoulder never reaches end range',
+          suggestedLoad: '6-12 kg per hand',
         },
         comfortVariant: {
           name: 'DB Chest Fly (limited arc)',
@@ -7551,6 +7610,35 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           triggerRegions: ['front_shoulder', 'elbow', 'wrist'],
         },
       },
+      {
+        id: 'bn-acc-bw-5',
+        name: 'Pull-Up',
+        sets: 3,
+        reps: '6-10',
+        cue: 'Full hang to chin over bar, control the descent - lats drive the pull',
+        suggestedLoad: 'Bodyweight',
+        category: 'accessory',
+        targetRegions: ['lat_mid_back', 'bicep'],
+        videoId: '',
+        movementPattern: 'pull',
+        primaryMuscle: 'Latissimus dorsi',
+        secondaryMuscles: ['Biceps', 'Rhomboids', 'Core'],
+        difficulty: 'intermediate',
+        isUnilateral: false,
+        equipmentRequired: 'pull-up bar',
+        injuryFriendlyAlternatives: ['Band-Assisted Pull-Up'],
+        swapAlternative: {
+          name: 'Inverted Row',
+          cue: 'Lie under a sturdy table or low rail, heels on the floor, pull the chest up - the horizontal version, nothing to hang from needed',
+          suggestedLoad: 'Bodyweight',
+        },
+        comfortVariant: {
+          name: 'Band-Assisted Pull-Up',
+          cue: 'Loop a band under your feet for assistance - reduces shoulder/elbow load',
+          suggestedLoad: 'Light band assist',
+          triggerRegions: ['rear_shoulder', 'elbow', 'wrist', 'lat_mid_back', 'bicep'],
+        },
+      },
     ],
   },
   deadlift: {
@@ -7669,35 +7757,6 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           cue: 'Hands on wall, hinge back until hamstrings stretch - zero spinal compressive load',
           suggestedLoad: 'Bodyweight',
           triggerRegions: ['lower_back', 'hip_groin', 'hamstrings'],
-        },
-      },
-      {
-        id: 'dl-acc-bw-5',
-        name: 'Pull-Up',
-        sets: 3,
-        reps: '6-10',
-        cue: 'Full hang to chin over bar, control the descent - lats drive the pull',
-        suggestedLoad: 'Bodyweight',
-        category: 'accessory',
-        targetRegions: ['lat_mid_back', 'bicep'],
-        videoId: '',
-        movementPattern: 'pull',
-        primaryMuscle: 'Latissimus dorsi',
-        secondaryMuscles: ['Biceps', 'Rhomboids', 'Core'],
-        difficulty: 'intermediate',
-        isUnilateral: false,
-        equipmentRequired: 'resistance bands',
-        injuryFriendlyAlternatives: ['Band-Assisted Pull-Up'],
-        swapAlternative: {
-          name: 'Inverted Row',
-          cue: 'Body under bar, pull chest up - horizontal pull alternative',
-          suggestedLoad: 'Bodyweight',
-        },
-        comfortVariant: {
-          name: 'Band-Assisted Pull-Up',
-          cue: 'Band under feet for assistance - reduces shoulder/elbow load',
-          suggestedLoad: 'Light band assist',
-          triggerRegions: ['rear_shoulder', 'elbow', 'wrist', 'lat_mid_back', 'bicep'],
         },
       },
       {
@@ -7904,95 +7963,6 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
       },
       {
-        id: 'dl-acc-bw-13',
-        name: 'Dead Hang',
-        sets: 3,
-        reps: '30-45s',
-        cue: 'Hang from bar with straight arms - let gravity decompress the spine, keep shoulders active (not fully shrugged or fully collapsed)',
-        suggestedLoad: 'Bodyweight',
-        category: 'accessory',
-        targetRegions: ['lat_mid_back', 'elbow', 'wrist'],
-        videoId: '',
-        movementPattern: 'pull',
-        primaryMuscle: 'Grip/Forearms',
-        secondaryMuscles: ['Latissimus dorsi', 'Shoulder stabilizers'],
-        difficulty: 'beginner',
-        isUnilateral: false,
-        equipmentRequired: 'bodyweight',
-        injuryFriendlyAlternatives: ['Doorway Hang (reduced height)'],
-        swapAlternative: {
-          name: 'Standing Lat Stretch (Doorframe)',
-          cue: 'Grip a doorframe at head height, sit the hips back and let the arms take the weight - the same decompression with no bar and no hanging',
-          suggestedLoad: 'Bodyweight',
-        },
-        comfortVariant: {
-          name: 'Doorway Hang (reduced height)',
-          cue: 'Toes touching floor slightly - reduces load on wrists and shoulders',
-          suggestedLoad: 'Bodyweight',
-          triggerRegions: ['elbow', 'wrist', 'rear_shoulder', 'lat_mid_back'],
-        },
-      },
-      {
-        id: 'dl-acc-bw-14',
-        name: 'Hanging Leg Raise',
-        sets: 3,
-        reps: '10-12',
-        cue: 'Dead hang, brace core, raise both legs to at least parallel - control the return, no swinging',
-        suggestedLoad: 'Bodyweight',
-        category: 'accessory',
-        targetRegions: ['core_ribs', 'hip_groin'],
-        videoId: '',
-        movementPattern: 'isometric',
-        primaryMuscle: 'Rectus abdominis',
-        secondaryMuscles: ['Obliques', 'Grip/Forearms'],
-        difficulty: 'intermediate',
-        isUnilateral: false,
-        equipmentRequired: 'bodyweight',
-        injuryFriendlyAlternatives: ['Hanging Knee Raise'],
-        swapAlternative: {
-          name: 'Lying Leg Raise',
-          cue: 'Flat on back, raise legs - same core demand without grip requirement',
-          suggestedLoad: 'Bodyweight',
-        },
-        comfortVariant: {
-          name: 'Hanging Knee Raise',
-          cue: 'Bring knees to chest - shorter lever, less hip flexor and lower back demand',
-          suggestedLoad: 'Bodyweight',
-          triggerRegions: ['core_ribs', 'hip_groin', 'lower_back'],
-        },
-      },
-      {
-        id: 'dl-acc-bw-15',
-        name: 'Stability Ball Hamstring Curl',
-        sets: 3,
-        reps: '12-15',
-        cue: 'Lying on back, heels on stability ball, bridge hips up and curl ball toward glutes - hamstrings load eccentrically and concentrically',
-        suggestedLoad: 'Bodyweight',
-        category: 'accessory',
-        targetRegions: ['hamstrings', 'glutes', 'lower_back'],
-        videoId: '',
-        movementPattern: 'hinge',
-        primaryMuscle: 'Hamstrings',
-        secondaryMuscles: ['Glutes', 'Core'],
-        difficulty: 'intermediate',
-        isUnilateral: false,
-        equipmentRequired: 'bodyweight',
-        injuryFriendlyAlternatives: ['Glute Bridge March'],
-        // The old alternative to "you need a stability ball" was a Nordic curl,
-        // which is two levels harder and needs someone to hold your feet.
-        swapAlternative: {
-          name: 'Sliding Leg Curl',
-          cue: 'Heels on a towel or socks on a smooth floor - bridge up, slide the heels out slowly and drag them back. Same curl, no ball',
-          suggestedLoad: 'Bodyweight',
-        },
-        comfortVariant: {
-          name: 'Glute Bridge March',
-          cue: 'Hips up, alternate lifting knees - same posterior chain activation with less hamstring eccentric load',
-          suggestedLoad: 'Bodyweight',
-          triggerRegions: ['hamstrings', 'lower_back', 'knee'],
-        },
-      },
-      {
         id: 'dl-acc-bw-16',
         name: 'Banded Hip Thrust',
         sets: 3,
@@ -8019,35 +7989,6 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           cue: 'Floor version with band - removes bench setup, same glute medius activation',
           suggestedLoad: 'Light-medium band',
           triggerRegions: ['hip_groin', 'lower_back', 'knee'],
-        },
-      },
-      {
-        id: 'dl-acc-bw-17',
-        name: 'Ab Wheel Rollout',
-        sets: 3,
-        reps: '10',
-        cue: 'Kneel, grip wheel, roll forward extending arms until hips nearly touch floor - brace core hard and pull wheel back; one of the best core exercises',
-        suggestedLoad: 'Bodyweight',
-        category: 'accessory',
-        targetRegions: ['core_ribs', 'lower_back'],
-        videoId: '',
-        movementPattern: 'isometric',
-        primaryMuscle: 'Transversus abdominis',
-        secondaryMuscles: ['Lats', 'Obliques', 'Erector spinae'],
-        difficulty: 'intermediate',
-        isUnilateral: false,
-        equipmentRequired: 'resistance bands',
-        injuryFriendlyAlternatives: ['Partial Ab Wheel Rollout'],
-        swapAlternative: {
-          name: 'Hollow Body Hold',
-          cue: 'Arms and legs extended on floor - same anti-extension core without wheel',
-          suggestedLoad: 'Bodyweight',
-        },
-        comfortVariant: {
-          name: 'Partial Ab Wheel Rollout',
-          cue: 'Roll only to 45°, shorter range - significantly reduces lower back compressive demand',
-          suggestedLoad: 'Bodyweight',
-          triggerRegions: ['core_ribs', 'lower_back'],
         },
       },
     ],
@@ -8157,9 +8098,9 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'kettlebell',
         injuryFriendlyAlternatives: ['Prone Trap Raise (Y)'],
         swapAlternative: {
-          name: 'Barbell Shrug',
-          cue: 'Barbell in front, shrug up - heavier loading for traps',
-          suggestedLoad: '40-70 kg',
+          name: 'DB Shrug (paused)',
+          cue: 'Same shrug holding the top for two seconds each rep - more time under tension without more weight',
+          suggestedLoad: '16-28 kg per hand',
         },
         comfortVariant: {
           name: 'Prone Trap Raise (Y)',
@@ -8974,7 +8915,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Shoulder stabilizers', 'Latissimus dorsi'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'pull-up bar',
         injuryFriendlyAlternatives: ['Partial Hang (feet lightly touching)'],
         swapAlternative: {
           name: 'Dead Hang (single arm)',
@@ -9061,7 +9002,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Biceps', 'Rear deltoid'],
         difficulty: 'intermediate',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'pull-up bar',
         injuryFriendlyAlternatives: ['Lat Pulldown (underhand)'],
         swapAlternative: {
           name: 'Pull-Up',
@@ -9102,6 +9043,124 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           cue: 'No plate, same form - reduces lower back and shoulder demand',
           suggestedLoad: 'Bodyweight',
           triggerRegions: ['core_ribs', 'lower_back', 'front_shoulder'],
+        },
+      },
+      {
+        id: 'dl-acc-bw-17',
+        name: 'Ab Wheel Rollout',
+        sets: 3,
+        reps: '10',
+        cue: 'Kneel, grip wheel, roll forward extending arms until hips nearly touch floor - brace core hard and pull wheel back; one of the best core exercises',
+        suggestedLoad: 'Bodyweight',
+        category: 'accessory',
+        targetRegions: ['core_ribs', 'lower_back'],
+        videoId: '',
+        movementPattern: 'isometric',
+        primaryMuscle: 'Transversus abdominis',
+        secondaryMuscles: ['Lats', 'Obliques', 'Erector spinae'],
+        difficulty: 'intermediate',
+        isUnilateral: false,
+        equipmentRequired: 'ab wheel',
+        injuryFriendlyAlternatives: ['Partial Ab Wheel Rollout'],
+        swapAlternative: {
+          name: 'Hollow Body Hold',
+          cue: 'Arms and legs extended on floor - same anti-extension core without wheel',
+          suggestedLoad: 'Bodyweight',
+        },
+        comfortVariant: {
+          name: 'Partial Ab Wheel Rollout',
+          cue: 'Roll only to 45°, shorter range - significantly reduces lower back compressive demand',
+          suggestedLoad: 'Bodyweight',
+          triggerRegions: ['core_ribs', 'lower_back'],
+        },
+      },
+      {
+        id: 'dl-acc-bw-15',
+        name: 'Stability Ball Hamstring Curl',
+        sets: 3,
+        reps: '12-15',
+        cue: 'Lying on back, heels on stability ball, bridge hips up and curl ball toward glutes - hamstrings load eccentrically and concentrically',
+        suggestedLoad: 'Bodyweight',
+        category: 'accessory',
+        targetRegions: ['hamstrings', 'glutes', 'lower_back'],
+        videoId: '',
+        movementPattern: 'hinge',
+        primaryMuscle: 'Hamstrings',
+        secondaryMuscles: ['Glutes', 'Core'],
+        difficulty: 'intermediate',
+        isUnilateral: false,
+        equipmentRequired: 'stability ball',
+        injuryFriendlyAlternatives: ['Glute Bridge March'],
+        // The old alternative to "you need a stability ball" was a Nordic curl,
+        // which is two levels harder and needs someone to hold your feet.
+        swapAlternative: {
+          name: 'Sliding Leg Curl',
+          cue: 'Heels on a towel or socks on a smooth floor - bridge up, slide the heels out slowly and drag them back. Same curl, no ball',
+          suggestedLoad: 'Bodyweight',
+        },
+        comfortVariant: {
+          name: 'Glute Bridge March',
+          cue: 'Hips up, alternate lifting knees - same posterior chain activation with less hamstring eccentric load',
+          suggestedLoad: 'Bodyweight',
+          triggerRegions: ['hamstrings', 'lower_back', 'knee'],
+        },
+      },
+      {
+        id: 'dl-acc-bw-14',
+        name: 'Hanging Leg Raise',
+        sets: 3,
+        reps: '10-12',
+        cue: 'Dead hang, brace core, raise both legs to at least parallel - control the return, no swinging',
+        suggestedLoad: 'Bodyweight',
+        category: 'accessory',
+        targetRegions: ['core_ribs', 'hip_groin'],
+        videoId: '',
+        movementPattern: 'isometric',
+        primaryMuscle: 'Rectus abdominis',
+        secondaryMuscles: ['Obliques', 'Grip/Forearms'],
+        difficulty: 'intermediate',
+        isUnilateral: false,
+        equipmentRequired: 'pull-up bar',
+        injuryFriendlyAlternatives: ['Hanging Knee Raise'],
+        swapAlternative: {
+          name: 'Lying Leg Raise',
+          cue: 'Flat on back, raise legs - same core demand without grip requirement',
+          suggestedLoad: 'Bodyweight',
+        },
+        comfortVariant: {
+          name: 'Hanging Knee Raise',
+          cue: 'Bring knees to chest - shorter lever, less hip flexor and lower back demand',
+          suggestedLoad: 'Bodyweight',
+          triggerRegions: ['core_ribs', 'hip_groin', 'lower_back'],
+        },
+      },
+      {
+        id: 'dl-acc-bw-5',
+        name: 'Pull-Up',
+        sets: 3,
+        reps: '6-10',
+        cue: 'Full hang to chin over bar, control the descent - lats drive the pull',
+        suggestedLoad: 'Bodyweight',
+        category: 'accessory',
+        targetRegions: ['lat_mid_back', 'bicep'],
+        videoId: '',
+        movementPattern: 'pull',
+        primaryMuscle: 'Latissimus dorsi',
+        secondaryMuscles: ['Biceps', 'Rhomboids', 'Core'],
+        difficulty: 'intermediate',
+        isUnilateral: false,
+        equipmentRequired: 'pull-up bar',
+        injuryFriendlyAlternatives: ['Band-Assisted Pull-Up'],
+        swapAlternative: {
+          name: 'Inverted Row',
+          cue: 'Body under bar, pull chest up - horizontal pull alternative',
+          suggestedLoad: 'Bodyweight',
+        },
+        comfortVariant: {
+          name: 'Band-Assisted Pull-Up',
+          cue: 'Band under feet for assistance - reduces shoulder/elbow load',
+          suggestedLoad: 'Light band assist',
+          triggerRegions: ['rear_shoulder', 'elbow', 'wrist', 'lat_mid_back', 'bicep'],
         },
       },
     ],
@@ -9332,24 +9391,28 @@ const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> 
       },
       {
         id: 'bn-ph-db-2',
-        name: 'Thoracic Extension (foam roll)',
+        // A dumbbell tier means dumbbells. It does not mean a foam roller, and
+        // this was the only prehab movement standing between someone with a
+        // pair of dumbbells and a piece of kit they were never asked about. A
+        // towel rolled to the same thickness does the same job.
+        name: 'Thoracic Extension over Rolled Towel',
         sets: 2,
         reps: '30s at each level',
-        cue: 'Roll thoracic spine section by section - upper back mobility',
-        suggestedLoad: 'Foam roller',
+        cue: 'Roll a towel tight, lay it across the floor and lie back over it with the upper back on top. Support the head, breathe out and let the ribs open. Move the towel a hand-width up the spine each round',
+        suggestedLoad: 'Rolled towel',
         category: 'prehab',
         targetRegions: ['upper_back', 'front_shoulder'],
         videoId: '',
         movementPattern: 'mobility',
         primaryMuscle: 'Thoracic extensors',
         secondaryMuscles: [],
-        equipmentRequired: 'foam roller',
+        equipmentRequired: 'bodyweight',
         difficulty: 'beginner',
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
           name: 'Thread-the-Needle Rotation',
-          cue: 'All fours, thread one arm under - thoracic mobility without foam roller',
+          cue: 'All fours, thread one arm under - thoracic mobility with nothing on the floor at all',
           suggestedLoad: 'Bodyweight',
         },
       },
@@ -9780,10 +9843,13 @@ const FINISHERS: Record<
       easy: [
         {
           id: 'sq-fin-db-e',
-          name: 'Stationary Bike / Walk',
+          // Named for a machine nobody at this tier was asked whether they own.
+          // The walk was always the half of it that needed nothing, so the walk
+          // is what it now leads with.
+          name: 'Recovery Walk',
           sets: 1,
           reps: '4 min easy',
-          cue: 'Low resistance, steady pace - recovery conditioning',
+          cue: 'Steady, conversational pace - outside, on the spot, or on a bike at low resistance if you have one. Nose breathing throughout',
           suggestedLoad: 'Easy pace',
           category: 'finisher',
           targetRegions: [],
@@ -9791,7 +9857,7 @@ const FINISHERS: Record<
           movementPattern: 'conditioning',
           primaryMuscle: 'Cardiovascular system',
           secondaryMuscles: ['Legs', 'Core'],
-          equipmentRequired: 'dumbbells',
+          equipmentRequired: 'bodyweight',
           difficulty: 'beginner',
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
@@ -9819,7 +9885,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
-            name: 'Stationary Bike / Walk',
+            name: 'Recovery Walk',
             cue: 'No weights - lightest active recovery option',
             suggestedLoad: 'Bodyweight',
           },
@@ -10515,7 +10581,7 @@ const FINISHERS: Record<
           injuryFriendlyAlternatives: [],
           swapAlternative: {
             name: 'DB Push Press Intervals',
-            cue: '12 push presses, 30s rest - power finisher without the machine',
+            cue: '12 push presses, 30s rest - power finisher, dumbbells and floor space only',
             suggestedLoad: '10-14 kg per hand',
           },
         },
@@ -16411,14 +16477,16 @@ const STANDALONE_PREHAB: ExerciseTemplate[] = [
     sets: 2,
     reps: '20s each side',
     cue: 'Press hands away from body, resist rotation - tall spine, breathe. Anti-rotation core stability',
-    suggestedLoad: 'Light band or cable',
+    // The load used to read "Light band or cable" while the movement claimed to
+    // need nothing, which offered a cable machine to people without one.
+    suggestedLoad: 'Light band',
     category: 'prehab',
     targetRegions: ['core_ribs', 'lower_back'],
     videoId: '',
     movementPattern: 'rehabilitation',
     primaryMuscle: 'Obliques',
     secondaryMuscles: [],
-    equipmentRequired: 'bodyweight',
+    equipmentRequired: 'resistance bands',
     difficulty: 'beginner',
     isUnilateral: false,
     injuryFriendlyAlternatives: [],
@@ -16898,15 +16966,18 @@ const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
       name: 'Eccentric Wrist Extension',
       sets: 3,
       reps: '12 each side',
-      cue: 'Forearm resting on your thigh, palm down. Lift the weight with your other hand, then lower it over 3 slow seconds. The standard loading drill for pain on the outside of the elbow',
-      suggestedLoad: 'Light dumbbell 1-2 kg',
+      // Elbow prehab reaches every user, and this one used to arrive reading
+      // "Light dumbbell 1-2 kg" for someone who owns none. A filled bottle is
+      // the same one to two kilos.
+      cue: 'Forearm resting on your thigh, palm down, holding a full water bottle. Lift it with your other hand, then lower it over 3 slow seconds. The standard loading drill for pain on the outside of the elbow',
+      suggestedLoad: 'Full water bottle (1-2 kg)',
       category: 'prehab',
       targetRegions: ['elbow'],
       videoId: '',
       movementPattern: 'rehabilitation',
       primaryMuscle: 'Wrist extensors',
       secondaryMuscles: [],
-      equipmentRequired: 'dumbbells',
+      equipmentRequired: 'bodyweight',
       difficulty: 'beginner',
       isUnilateral: true,
       injuryFriendlyAlternatives: [],
@@ -17777,11 +17848,14 @@ const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
     },
     {
       id: 'ph-r-ch-5',
-      name: 'Foam Roll Thoracic Extension',
+      // Region prehab is served straight to the user with no equipment filter
+      // in front of it, so a movement here has to work for everyone. This one
+      // asked for a foam roller.
+      name: 'Floor Angel',
       sets: 2,
       reps: '30s at each level',
-      cue: 'Roll thoracic spine section by section - opens up the anterior chest after heavy pressing sessions',
-      suggestedLoad: 'Foam roller',
+      cue: 'Lie on your back, knees bent, arms out at shoulder height with the backs of the hands on the floor. Slide them slowly overhead and back, keeping hands, elbows and lower back in contact throughout - opens the chest after heavy pressing',
+      suggestedLoad: 'Bodyweight',
       category: 'prehab',
       targetRegions: ['chest', 'upper_back'],
       videoId: '',
@@ -18844,6 +18918,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Prisoner Squat',
         cue: 'Hands laced behind your head, elbows wide. Same squat, but the arm position forces your chest to stay tall.',
@@ -18865,6 +18940,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Single-Leg Hip Hinge',
         cue: 'Stand on one leg, hinge forward and let the free leg travel back as a counterweight. Keep hips square to the floor.',
@@ -18886,6 +18962,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hip flexors'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Reverse Lunge',
         cue: 'Step back and drop the rear knee toward the floor. Easier on the front knee than the elevated version.',
@@ -18907,6 +18984,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Hamstrings', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Single-Leg Glute Bridge',
         cue: 'One foot planted, other knee hugged to your chest. Drive through the planted heel and keep hips level.',
@@ -18928,6 +19006,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Adductors'],
       difficulty: 'beginner',
       isUnilateral: true,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Curtsy Lunge',
         cue: 'Step one leg diagonally behind the other and sink. Hits the glute from a different angle to the side step.',
@@ -18951,6 +19030,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Front Squat',
         cue: 'A dumbbell racked on each shoulder instead of one at the chest. Keep elbows high so the torso stays upright.',
@@ -18972,6 +19052,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Sumo Deadlift',
         cue: 'Wide stance, one dumbbell between the feet. More hip and inner thigh, less hamstring stretch.',
@@ -18993,6 +19074,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Reverse Lunge',
         cue: 'Step back rather than elevating the rear foot. Same load, less balance demand.',
@@ -19014,6 +19096,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Walking Lunge',
         cue: 'Lunge forward and walk through. Keeps the single-leg work without needing a box.',
@@ -19035,6 +19118,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'intermediate',
       isUnilateral: true,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB B-Stance RDL',
         cue: 'Back toe lightly touching for balance, most of the weight through the front leg. Easier to control than fully single-leg.',
@@ -19058,6 +19142,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core', 'Upper back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Barbell Front Squat',
         cue: 'Bar racked across the front delts, elbows high. More quad and upright torso, less lower-back load.',
@@ -19079,6 +19164,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Barbell Good Morning',
         cue: 'Bar on the back, hinge forward with soft knees. Same hinge, more hamstring stretch at lighter load.',
@@ -19100,6 +19186,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'advanced',
       isUnilateral: true,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Barbell Reverse Lunge',
         cue: 'Bar on the back, step back and drop the rear knee. Less balance demand than the elevated version.',
@@ -19121,6 +19208,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'machine',
       swapAlternative: {
         name: 'Hack Squat',
         cue: 'Machine squat pattern with the back supported. Heavier quad loading with no balance element.',
@@ -19142,6 +19230,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'machine',
       swapAlternative: {
         name: 'Seated Leg Curl',
         cue: 'Same curl from a seated position. The hip angle biases the lower hamstring slightly differently.',
@@ -19149,6 +19238,44 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       },
     },
   ],
+};
+
+/**
+ * The pull for someone who owns nothing at all.
+ *
+ * The vertical-pull slot of a bodyweight upper body session was a Chin-Up, and
+ * the same slot in a full body session — which runs every movement, every time,
+ * and cannot drop one — was a Chin-Up too. Both are required slots, so a
+ * beginner who answered "No Equipment" during onboarding was handed a movement
+ * they had nothing to perform on, in the one position the session will not let
+ * them skip. There is no honest vertical pull without something to hang from;
+ * this is a real, loadable pull that needs a door and a towel, and walking the
+ * feet closer to the door is how it gets harder.
+ *
+ * Defined once and shared by both weekly pools rather than copied into each, so
+ * the two cannot drift into prescribing different things under one name.
+ */
+const TOWEL_ROW: ExerciseTemplate = {
+  id: 'w-bw-towel-row',
+  name: 'Towel Row (Door Handle)',
+  sets: 3,
+  reps: '8-12',
+  cue: 'Loop a rolled towel round both handles of a solid closed door. Stand close with a foot either side of the door, lean back on straight arms until they take your weight, then row your chest to the door and squeeze the shoulder blades together. Walk the feet closer to the door to make it harder.',
+  suggestedLoad: 'Bodyweight',
+  category: 'main',
+  targetRegions: ['lat_mid_back', 'rear_shoulder', 'bicep'],
+  videoId: '',
+  movementPattern: 'pull',
+  primaryMuscle: 'Lats',
+  secondaryMuscles: ['Biceps', 'Rear delts'],
+  equipmentRequired: 'bodyweight',
+  difficulty: 'beginner',
+  isUnilateral: false,
+  swapAlternative: {
+    name: 'Prone Y-T-W Raise',
+    cue: 'Face down on the floor, lift the arms into a Y, then a T, then a W, holding each for a second. No door needed and it still hits the upper back.',
+    suggestedLoad: 'Bodyweight',
+  },
 };
 
 const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
@@ -19168,6 +19295,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Front delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Incline Push-Up',
         cue: 'Hands on a bench or step. Same movement at a fraction of the load - use it to keep reps clean.',
@@ -19179,7 +19307,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       name: 'Inverted Row',
       sets: 3,
       reps: '8-12',
-      cue: 'Lie under a bar or table edge. Grip overhand, body straight. Pull chest up to bar, squeezing shoulder blades together. Lower with control.',
+      cue: 'Lie under a sturdy table or desk and take the edge overhand, body straight. Pull your chest up to it, squeezing the shoulder blades together. Lower with control. A low bar works the same way if you have one.',
       suggestedLoad: 'Bodyweight',
       category: 'main',
       targetRegions: ['lat_mid_back', 'rear_shoulder', 'bicep'],
@@ -19189,6 +19317,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Feet-Elevated Inverted Row',
         cue: 'Same row with the feet up on a box. Steeper angle, more of your bodyweight on the pull.',
@@ -19210,35 +19339,14 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper chest'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Elevated Pike Push-Up',
         cue: 'Feet on a box so the torso is closer to vertical. More shoulder, less chest.',
         suggestedLoad: 'Bodyweight',
       },
     },
-    {
-      id: 'wub-bw-chin-up',
-      name: 'Chin-Up',
-      sets: 3,
-      reps: '5-8',
-      cue: 'Hang from bar, palms facing you, shoulder-width. Pull chest to bar driving elbows down and back. Lower to full hang between reps.',
-      suggestedLoad: 'Bodyweight (needs a pull-up bar)',
-      category: 'main',
-      targetRegions: ['lat_mid_back', 'bicep', 'rear_shoulder'],
-      videoId: '',
-      movementPattern: 'pull',
-      primaryMuscle: 'Lats',
-      secondaryMuscles: ['Biceps', 'Rear delts'],
-      difficulty: 'intermediate',
-      isUnilateral: false,
-      // This slot cannot be skipped, and the alternative used to need a bar
-      // too — so anyone training with nothing had no way out of it.
-      swapAlternative: {
-        name: 'Towel Row (Door Handle)',
-        cue: 'Loop a rolled towel round both handles of a solid closed door, stand close with feet either side, lean back on straight arms and row your chest to the door.',
-        suggestedLoad: 'Bodyweight',
-      },
-    },
+    TOWEL_ROW,
     {
       id: 'wub-bw-diamond-pushup',
       name: 'Diamond Push-Up',
@@ -19254,6 +19362,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Front delts'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Bench Dip',
         cue: 'Hands behind you on a bench, lower until the elbows hit 90 degrees. Triceps without the wrist position.',
@@ -19277,6 +19386,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Floor Press',
         cue: 'Same press lying on the floor. The upper arms stop at the ground, which spares the shoulder.',
@@ -19298,6 +19408,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Chest-Supported Row',
         cue: 'Chest on an incline bench. Takes the lower back out entirely so the lats do the work.',
@@ -19319,6 +19430,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Arnold Press',
         cue: 'Start palms-in and rotate out as you press. More front delt through a longer range.',
@@ -19340,6 +19452,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Single-Arm Row',
         cue: 'One hand and knee on a bench, row the dumbbell to the hip. More direct lat work.',
@@ -19361,6 +19474,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Upper traps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Front Raise',
         cue: 'Raise to the front rather than the side. Shifts the work to the front delt.',
@@ -19384,6 +19498,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Incline Barbell Bench Press',
         cue: 'Bench set to 30 degrees. Biases the upper chest and is often easier on the shoulder.',
@@ -19405,6 +19520,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Pendlay Row',
         cue: 'Bar returns to the floor between reps. Strict, no momentum, heavier on the mid-back.',
@@ -19426,6 +19542,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Push Press',
         cue: 'A small leg drive to start the bar moving. Lets you handle more than a strict press.',
@@ -19447,6 +19564,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'cable machine',
       swapAlternative: {
         name: 'Seated Cable Row',
         cue: 'Horizontal pull instead of vertical. More mid-back and rear delt.',
@@ -19468,6 +19586,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Obliques', 'Glutes'],
       difficulty: 'beginner',
       isUnilateral: true,
+      equipmentRequired: 'cable machine',
       swapAlternative: {
         name: 'Cable Woodchop',
         cue: 'Same anti-rotation demand, but moving through the range rather than holding.',
@@ -19494,6 +19613,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Hamstrings'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Prisoner Squat',
         cue: 'Hands laced behind your head, elbows wide. Forces the chest to stay tall through the squat.',
@@ -19515,6 +19635,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Bodyweight Hip Hinge',
         cue: 'Hands on the hips instead of behind the head. Same hinge with less demand on the upper back.',
@@ -19536,6 +19657,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Front delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Incline Push-Up',
         cue: 'Hands on a bench or step. Same movement at a fraction of the load.',
@@ -19547,7 +19669,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       name: 'Inverted Row',
       sets: 3,
       reps: '8-12',
-      cue: 'Pull chest up to bar, squeeze shoulder blades at top. Body stays rigid. The more horizontal you are, the harder it gets.',
+      cue: 'Lie under a sturdy table or desk and take the edge overhand. Pull your chest up to it, squeeze the shoulder blades at the top, body rigid. The more horizontal you are, the harder it gets.',
       suggestedLoad: 'Bodyweight',
       category: 'main',
       targetRegions: ['lat_mid_back', 'rear_shoulder', 'bicep'],
@@ -19557,6 +19679,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Feet-Elevated Inverted Row',
         cue: 'Same row with the feet up on a box. Steeper angle, harder pull.',
@@ -19578,36 +19701,14 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'bodyweight',
       swapAlternative: {
         name: 'Elevated Pike Push-Up',
         cue: 'Feet on a box so the torso sits closer to vertical. More shoulder.',
         suggestedLoad: 'Bodyweight',
       },
     },
-    {
-      id: 'wfb-bw-chin-up',
-      name: 'Chin-Up',
-      sets: 3,
-      reps: '5-8',
-      cue: 'Hang from bar, palms facing you. Pull chest to bar driving elbows down and back. Squeeze lats at the top. Lower to full hang with control.',
-      suggestedLoad: 'Bodyweight (needs a pull-up bar)',
-      category: 'main',
-      targetRegions: ['lat_mid_back', 'bicep', 'rear_shoulder'],
-      videoId: '',
-      movementPattern: 'pull',
-      primaryMuscle: 'Lats',
-      secondaryMuscles: ['Biceps', 'Rear delts'],
-      difficulty: 'intermediate',
-      isUnilateral: false,
-      // A full-body session runs all six movements every time, so this one
-      // cannot be dropped. Its alternative needed a bar too, which left anyone
-      // training with nothing stuck on it.
-      swapAlternative: {
-        name: 'Towel Row (Door Handle)',
-        cue: 'Loop a rolled towel round both handles of a solid closed door, stand close with feet either side, lean back on straight arms and row your chest to the door.',
-        suggestedLoad: 'Bodyweight',
-      },
-    },
+    TOWEL_ROW,
   ],
   dumbbells: [
     {
@@ -19625,6 +19726,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Front Squat',
         cue: 'A dumbbell on each shoulder rather than one at the chest. Elbows high, torso upright.',
@@ -19646,6 +19748,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Lower back'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Sumo Deadlift',
         cue: 'Wide stance with one dumbbell between the feet. More hip, less hamstring stretch.',
@@ -19667,6 +19770,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Floor Press',
         cue: 'Press from the floor so the upper arms stop at the ground. Easier on the shoulder.',
@@ -19688,6 +19792,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Chest-Supported Row',
         cue: 'Chest on an incline bench, taking the lower back out of it.',
@@ -19709,6 +19814,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Arnold Press',
         cue: 'Start palms-in and rotate out as you press. Longer range through the front delt.',
@@ -19730,6 +19836,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Chest', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'dumbbells',
       swapAlternative: {
         name: 'DB Single-Arm Row',
         cue: 'One hand and knee on a bench, row to the hip. More direct lat work.',
@@ -19753,6 +19860,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Glutes', 'Core', 'Upper back'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Barbell Front Squat',
         cue: 'Bar across the front delts, elbows high. More quad, less lower-back load.',
@@ -19774,6 +19882,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Lats', 'Traps', 'Core'],
       difficulty: 'advanced',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Trap Bar Deadlift',
         cue: 'Neutral handles with the load in line with you. Friendlier to the lower back than a straight bar.',
@@ -19795,6 +19904,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Front delts', 'Triceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Incline Barbell Bench Press',
         cue: 'Bench at 30 degrees. Biases upper chest, often easier on the shoulder.',
@@ -19816,6 +19926,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Rear delts', 'Biceps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Pendlay Row',
         cue: 'Bar returns to the floor between reps. Strict and heavier on the mid-back.',
@@ -19837,6 +19948,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Triceps', 'Upper traps'],
       difficulty: 'intermediate',
       isUnilateral: false,
+      equipmentRequired: 'barbell',
       swapAlternative: {
         name: 'Push Press',
         cue: 'A small leg drive to start the bar. Lets you handle more than a strict press.',
@@ -19858,6 +19970,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       secondaryMuscles: ['Biceps', 'Rear delts'],
       difficulty: 'beginner',
       isUnilateral: false,
+      equipmentRequired: 'cable machine',
       swapAlternative: {
         name: 'Seated Cable Row',
         cue: 'Horizontal pull rather than vertical. More mid-back and rear delt.',
@@ -20008,6 +20121,18 @@ export function getAllPickableExercises(): PickableExercise[] {
   );
 
   const results = [...byName.values()];
+
+  // Where the filing and the declared kit disagreed, the filing used to win.
+  // That is how a Cardio Machine Warm-Up — filed in a flat list, so recorded as
+  // available at every tier — stayed on the menu for someone with no equipment,
+  // and got handed to them by the injury screen as a "safe" substitute for a
+  // jump rope. Availability is the stricter of the two facts.
+  for (const p of results) {
+    const need = INTERNAL_TIERS.indexOf(tierRequiredFor(p.template.equipmentRequired));
+    const owned = p.tiers.filter((t) => INTERNAL_TIERS.indexOf(t) >= need);
+    p.tiers = owned.length > 0 ? owned : INTERNAL_TIERS.slice(need);
+  }
+
   results.sort((a, b) => {
     const oa = PICKER_CATEGORY_ORDER[a.template.category] ?? 99;
     const ob = PICKER_CATEGORY_ORDER[b.template.category] ?? 99;

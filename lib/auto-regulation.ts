@@ -13,10 +13,15 @@
  * THE RULES, WHICH ARE DELIBERATELY BORING
  * ────────────────────────────────────────
  * KPI lifts (squat/bench/deadlift) arrive with a planned ramp derived from the
- * user's 1RM — warm-ups climbing to a top set around 80-85%. So:
+ * user's 1RM — warm-ups climbing to a top set around 80-85%. Only the top of
+ * that ramp is the working weight. Every rung below it is a stated fraction of
+ * that one number, which is why the screen labels them Warm-up and Approach
+ * set and tells the user they should feel easy. So:
  *
- *   Easy        → move up to the next rung of that ramp
- *   Challenging → hold the weight that was just lifted
+ *   Easy        → move up to the next rung, carrying any extra the user put on
+ *                 the bar up with it
+ *   Challenging → on the working set, hold the weight just lifted; on a rung
+ *                 below it, carry on up the ramp and add nothing on top
  *   Too Hard    → drop back to the last set that went well, and stop climbing
  *
  * Accessories have no 1RM to derive anything from, so the first set is whatever
@@ -26,14 +31,26 @@
  *   Challenging → hold
  *   Too Hard    → -10%
  *
- * THE GUARDRAIL
- * ─────────────
- * The app must never increase the load after "Challenging" or "Too Hard". Both
- * of those are the user saying they are at or past their limit, and answering
- * that honestly must never be punished with more weight. Two things enforce it:
- * each branch above, and `capKg` — once "Too Hard" has been said on an
- * exercise, every later set in that exercise is ceilinged at the backed-off
- * weight, so a single "Easy" on a lighter set cannot send it climbing again.
+ * THE GUARDRAIL, AND THE ONE PLACE IT DOES NOT BELONG
+ * ───────────────────────────────────────────────────
+ * The app must never answer "Challenging" or "Too Hard" on the WORKING SET with
+ * more weight. That is the user saying they are at their limit on the load the
+ * exercise is actually prescribed at, and answering honestly must never be
+ * punished. `ceilingKg` is the second half of it: once "Too Hard" has been said
+ * on an exercise, every later set is ceilinged at the backed-off weight, so a
+ * single "Easy" on a lighter set cannot send it climbing again.
+ *
+ * Applying the same rule to a warm-up was catastrophic, and it is why this file
+ * reads the way it does. A lifter with a 102.5 kg squat is offered 40 kg for
+ * set 1 of 6. Reading "that felt challenging" as "hold 40 kg" handed them 40 kg
+ * for every remaining set, the one labelled WORKING SET included — and the
+ * heaviest weight of a session is what gets filed as the exercise's anchor, so
+ * the next session's ramp was built from 40 kg and the same answer flattened
+ * that too. Four sessions took the lift to an empty bar with nothing on screen
+ * explaining why. A warm-up is a fraction of the working weight by
+ * construction, so what the user says about one is not a claim about the
+ * working weight and must not be able to delete it. The answer that backs a
+ * warm-up off is "Too Hard", and it still does.
  *
  * Everything here returns a SUGGESTION. It lands in the weight field as a
  * prefill and the user can type over it. Nothing is forced.
@@ -70,8 +87,9 @@ export interface LoadPlan {
 export type SuggestionReason =
   | 'planned' // following the prescription; nothing to adjust from yet
   | 'ramp_up' // climbing the ramp after "Easy"
+  | 'ramp_hold' // "Challenging" on a warm-up — next rung, nothing added on top
   | 'increase' // accessory +10% after "Easy"
-  | 'hold' // "Challenging" — same weight again
+  | 'hold' // "Challenging" on the working set — same weight again
   | 'back_off' // "Too Hard" — down to the last set that went well
   | 'decrease' // accessory -10% after "Too Hard"
   | 'capped'; // held down by an earlier "Too Hard" on this exercise
@@ -152,6 +170,41 @@ function weightOf(plan: LoadPlan, setIndex: number): number {
 }
 
 /**
+ * The set that carries the working weight — the top of the ramp.
+ *
+ * This is the same set the bar labels "Working set" and the per-set guide calls
+ * "your one quality set". Everything below it is a share of that number, so an
+ * answer given there is an answer about a share.
+ */
+function workingSetIndex(plan: LoadPlan): number {
+  return Math.max(0, plan.plannedKg.length - 1);
+}
+
+/**
+ * The next rung of a ramp, kept on the scale the user is actually lifting at.
+ *
+ * Someone lifting above or below the prescription should have the rest of their
+ * ramp shifted with them rather than snapped back to the plan. `allowAbovePlan`
+ * is the only thing separating Easy from Challenging here: Easy may carry a
+ * heavier-than-planned warm-up upward, Challenging follows the plan and refuses
+ * to add anything to it.
+ */
+function rampRungKg(
+  plan: LoadPlan,
+  setIndex: number,
+  base: number,
+  allowAbovePlan: boolean
+): number {
+  const planned = plan.plannedKg[setIndex] ?? 0;
+  const prevPlanned = plan.plannedKg[setIndex - 1] ?? 0;
+  const ratio = prevPlanned > 0 ? base / prevPlanned : 1;
+  const scaled = planned > 0 ? adjustKg(planned * ratio, 1) : 0;
+  if (allowAbovePlan) return scaled > base ? scaled : adjustKg(base, EASY_STEP);
+  if (planned <= 0) return base;
+  return Math.min(planned, scaled > 0 ? scaled : planned);
+}
+
+/**
  * The weight to offer for `setIndex`, given everything logged before it.
  *
  * Pure and total: safe to call for any index, including ones with no history.
@@ -185,32 +238,42 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
       const kg = plan.isRamped
         ? backOffTarget(plan, setIndex - 1)
         : adjustKg(base, TOO_HARD_STEP);
+      // "No more increases this exercise" is a promise about the sets still to
+      // come. On the last set there are none, and the line read as a warning
+      // about something that could not happen.
+      const more =
+        setIndex < plan.plannedKg.length - 1 ? ' — no more increases this exercise' : '';
       return {
         kg,
         reason: plan.isRamped ? 'back_off' : 'decrease',
-        note: plan.isRamped
-          ? 'Eased back to your last good set — no more increases this exercise'
-          : 'Down 10% — no more increases this exercise',
+        note: plan.isRamped ? `Eased back to your last good set${more}` : `Down 10%${more}`,
       };
     }
 
-    case 'challenging':
-      // The whole point of the guardrail. Saying a set was hard must never be
-      // answered with more weight, ramp or no ramp.
-      return withCap(base, 'hold', 'Same weight again — you said that one was challenging');
+    case 'challenging': {
+      // On an accessory every set carries the same target, so holding the
+      // weight is holding the prescription. On a ramp it is only the working
+      // set that carries the prescription; below it, holding the number would
+      // throw the rest of the ramp away — see the header.
+      if (!plan.isRamped || setIndex - 1 >= workingSetIndex(plan)) {
+        return withCap(base, 'hold', 'Same weight again — you said that one was challenging');
+      }
+      return withCap(
+        rampRungKg(plan, setIndex, base, false),
+        'ramp_hold',
+        'Still warming up — on to your next planned weight'
+      );
+    }
 
     case 'easy': {
       if (!plan.isRamped) {
         return withCap(adjustKg(base, EASY_STEP), 'increase', 'Up 10% — that one felt easy');
       }
-      // Climb to the next rung of the planned ramp, but keep the user's own
-      // scale: someone lifting above or below the prescription should have the
-      // rest of their ramp shifted with them, not snapped back to the plan.
-      const prevPlanned = plan.plannedKg[setIndex - 1] ?? 0;
-      const ratio = prevPlanned > 0 ? base / prevPlanned : 1;
-      const scaled = planned > 0 ? adjustKg(planned * ratio, 1) : 0;
-      const kg = scaled > base ? scaled : adjustKg(base, EASY_STEP);
-      return withCap(kg, 'ramp_up', 'Up to your next working weight');
+      return withCap(
+        rampRungKg(plan, setIndex, base, true),
+        'ramp_up',
+        'Up to your next working weight'
+      );
     }
 
     default: {
@@ -250,6 +313,14 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
  * Anything with no ramp carries the same target on every set, so all of its
  * answers count.
  *
+ * Which leaves a ramp with exactly one set that can say anything, so "twice"
+ * can never happen on one — and requiring it made the top rung unreachable on
+ * every KPI lift in the app while the summary screen went on promising "you
+ * rated a set Easy — the biggest jump, 5 to 7.5 kg". Enumerated: no run of
+ * answers on a six-set ramp could return 'very_easy'. So on a ramp the top set
+ * going easy is not a nudge, it is the whole signal, and it earns the whole
+ * jump. The +5 rung is still reachable there through a run of clean sessions.
+ *
  * "Too Hard" counts wherever it was said, warm-up included. A set at half the
  * working weight being too much is the strongest evidence there is that the
  * prescription is wrong, and it is the one answer that must never be thrown
@@ -260,12 +331,40 @@ export function feedbackRatingFor(
   ramp?: { isRamped: boolean; sets: number }
 ): 'very_easy' | 'easy' | 'hard' | null {
   if (answers.includes('too_hard')) return 'hard';
-  const working =
-    ramp?.isRamped && ramp.sets > 1 ? answers.filter((_, i) => i === ramp.sets - 1) : answers;
-  const easyCount = working.filter((a) => a === 'easy').length;
+  if (ramp?.isRamped) {
+    const working = Math.max(0, (ramp.sets > 0 ? ramp.sets : answers.length) - 1);
+    return answers[working] === 'easy' ? 'very_easy' : null;
+  }
+  const easyCount = answers.filter((a) => a === 'easy').length;
   if (easyCount >= 2) return 'very_easy';
   if (easyCount === 1) return 'easy';
   return null;
+}
+
+/**
+ * The weight to file as an exercise's anchor once a session is over.
+ *
+ * The next session's prescription is built from this number, so a session that
+ * happened to be light prescribes a lighter session — which then becomes the
+ * lightest number on file, and so on down. That loop is what turned one honest
+ * answer on a warm-up into an empty bar a fortnight later, and it stays open
+ * for as long as "the heaviest thing you lifted" is treated as evidence about
+ * what you CAN lift. It is not: most of the time it is just the number the app
+ * itself offered.
+ *
+ * So the anchor moves down when the user actually said a set was too much, and
+ * otherwise only ever moves up. That terminates on its own — as the weight
+ * comes down it stops being too much, so the user stops saying so and the
+ * anchor settles at what they can lift — where the old rule had no floor at all.
+ */
+export function nextAnchorKg(
+  heaviestThisSession: number,
+  anchorOnFile: number,
+  rating: 'very_easy' | 'easy' | 'hard' | null | undefined
+): number {
+  if (heaviestThisSession <= 0) return anchorOnFile;
+  if (anchorOnFile <= 0 || rating === 'hard') return heaviestThisSession;
+  return Math.max(heaviestThisSession, anchorOnFile);
 }
 
 /** Button labels, fixed in one place so the UI and the tests cannot drift. */
