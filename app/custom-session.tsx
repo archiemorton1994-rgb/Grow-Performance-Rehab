@@ -38,6 +38,22 @@ import {
   TIER_LABELS,
   type PatternGroup,
 } from '@/lib/exercise-classification';
+import {
+  assembleSession,
+  blocksForGoal,
+  optionsForBlock,
+  refreshForKpi,
+  CARDIO_MINUTES,
+  DEFAULT_CARDIO_MINUTES,
+  SESSION_FOCUSES,
+  SESSION_GOALS,
+  type BlockId,
+  type BuilderBlock,
+  type BuilderPick,
+  type BuilderPicks,
+  type SessionFocus,
+  type SessionGoal,
+} from '@/lib/session-builder';
 import { daysSince } from '@/lib/utils';
 
 // An exercise logged within this many days is considered "recently done".
@@ -172,6 +188,35 @@ interface SelectedExercise {
   reps: string;
 }
 
+/**
+ * Where the user is in the build.
+ *
+ *   start     — pick a goal and a focus, or load a saved template
+ *   step      — one block of the assembly line at a time
+ *   review    — the whole session in the order it will be performed
+ *   catalogue — the old flat repository, kept as the escape hatch
+ *
+ * The catalogue is unchanged and still reachable in one tap, because a guided
+ * flow that cannot be stepped out of is a worse repository, not a better one.
+ * It does two jobs now: a free build from the start screen, and "find me
+ * something the filter left out" from inside a step, which is what
+ * `catalogueTarget` distinguishes.
+ */
+type BuilderStage = 'start' | 'step' | 'review' | 'catalogue';
+
+/** Icon per block, so a step is recognisable before its title is read. */
+const BLOCK_ICONS: Record<BlockId, React.ComponentProps<typeof Ionicons>['name']> = {
+  cardio: 'heart-outline',
+  mobility: 'accessibility-outline',
+  activation: 'flash-outline',
+  power: 'rocket-outline',
+  kpi: 'barbell-outline',
+  accessory: 'layers-outline',
+  volume: 'repeat-outline',
+  core_prehab: 'shield-checkmark-outline',
+  conditioning: 'stopwatch-outline',
+};
+
 export default function CustomSessionScreen() {
   const insets = useSafeAreaInsets();
   const C = useColors();
@@ -231,6 +276,19 @@ export default function CustomSessionScreen() {
   const [editingExercise, setEditingExercise] = useState<SelectedExercise | null>(null);
   const [editSets, setEditSets] = useState(3);
   const [editReps, setEditReps] = useState('');
+
+  // ── The guided build ──────────────────────────────────────────────────────
+  const [stage, setStage] = useState<BuilderStage>('start');
+  const [goal, setGoal] = useState<SessionGoal>('athletic');
+  const [focus, setFocus] = useState<SessionFocus>('lower');
+  const [stepIndex, setStepIndex] = useState(0);
+  const [picks, setPicks] = useState<BuilderPicks>({});
+  const [cardioMinutes, setCardioMinutes] = useState(DEFAULT_CARDIO_MINUTES);
+  const [stepSearch, setStepSearch] = useState('');
+  /** Per-step escape hatch: show the whole block, not just what matches the lift. */
+  const [showWholeBlock, setShowWholeBlock] = useState(false);
+  /** Set when the catalogue was opened to fill a step rather than to free-build. */
+  const [catalogueTarget, setCatalogueTarget] = useState<BlockId | null>(null);
 
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -486,7 +544,6 @@ export default function CustomSessionScreen() {
     setDifficultyFilters(new Set());
   }, []);
 
-  const selectedIds = useMemo(() => new Set(selected.map((s) => s.template.id)), [selected]);
   const totalPicked = selected.length + selectedCardio.length;
 
   const [hasEverSelected, setHasEverSelected] = useState(false);
@@ -503,8 +560,11 @@ export default function CustomSessionScreen() {
     setHasEverSelected(true);
   }, []);
 
-  const openEditModal = useCallback((sel: SelectedExercise) => {
+  const [editingBlock, setEditingBlock] = useState<BlockId | null>(null);
+
+  const openEditModal = useCallback((sel: SelectedExercise, block: BlockId | null = null) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditingBlock(block);
     setEditingExercise(sel);
     setEditSets(sel.sets);
     setEditReps(sel.reps);
@@ -512,15 +572,258 @@ export default function CustomSessionScreen() {
 
   const saveEdit = useCallback(() => {
     if (!editingExercise) return;
-    setSelected((prev) =>
-      prev.map((s) =>
-        s.template.id === editingExercise.template.id
-          ? { ...s, sets: editSets, reps: editReps.trim() || s.reps }
-          : s
-      )
-    );
+    const id = editingExercise.template.id;
+    if (editingBlock) {
+      setPicks((prev) => ({
+        ...prev,
+        [editingBlock]: (prev[editingBlock] ?? []).map((p) =>
+          p.template.id === id ? { ...p, sets: editSets, reps: editReps.trim() || p.reps } : p
+        ),
+      }));
+    } else {
+      setSelected((prev) =>
+        prev.map((s) =>
+          s.template.id === id ? { ...s, sets: editSets, reps: editReps.trim() || s.reps } : s
+        )
+      );
+    }
     setEditingExercise(null);
-  }, [editingExercise, editSets, editReps]);
+    setEditingBlock(null);
+  }, [editingExercise, editingBlock, editSets, editReps]);
+
+  // ── Assembly-line state ───────────────────────────────────────────────────
+
+  const blocks = useMemo(() => blocksForGoal(goal), [goal]);
+  const activeBlock: BuilderBlock | undefined = blocks[stepIndex];
+
+  /** The lift the session is built on, once it has been chosen. */
+  const kpiTemplate = picks.kpi?.[0]?.template ?? null;
+  const relevanceCtx = useMemo(() => ({ focus, kpi: kpiTemplate }), [focus, kpiTemplate]);
+
+  /** No exercise fills two slots of the same session. */
+  const pickedNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const [id, list] of Object.entries(picks)) {
+      if (id === activeBlock?.id) continue;
+      for (const p of list ?? []) names.add(p.template.name);
+    }
+    return names;
+  }, [picks, activeBlock]);
+
+  const stepOptions = useMemo(() => {
+    if (!activeBlock) return { options: [], widened: false, all: [] };
+    return optionsForBlock(activeBlock, relevanceCtx, ownedTiers, pickedNames);
+  }, [activeBlock, relevanceCtx, ownedTiers, pickedNames]);
+
+  /**
+   * The list a step shows.
+   *
+   * Three widths, in one direction: what suits the lift, then the whole block,
+   * then — through the catalogue — everything. Anything already picked is kept
+   * visible whatever the filter says, so narrowing the list can never make a
+   * choice you already made disappear.
+   */
+  const stepList = useMemo(() => {
+    if (!activeBlock) return [];
+    const base = showWholeBlock ? stepOptions.all : stepOptions.options;
+    const chosen = picks[activeBlock.id] ?? [];
+    const merged = [...chosen.map((p) => p.template)];
+    for (const t of base) if (!merged.some((m) => m.id === t.id)) merged.push(t);
+    const q = stepSearch.trim().toLowerCase();
+    return q ? merged.filter((t) => t.name.toLowerCase().includes(q)) : merged;
+  }, [activeBlock, showWholeBlock, stepOptions, picks, stepSearch]);
+
+  const pickOf = useCallback(
+    (t: ExerciseTemplate): BuilderPick => ({ template: t, sets: t.sets, reps: t.reps }),
+    []
+  );
+
+  /**
+   * Move to a step, filling it in if it has never been visited.
+   *
+   * The default is the top-ranked option (or two, where the block is built
+   * around two), which is what lets someone hold Next and still finish with a
+   * coherent session. An emptied block stays empty — `[]` means the user
+   * skipped it deliberately, `undefined` means they have not been there yet.
+   */
+  const goToStep = useCallback(
+    (index: number) => {
+      const block = blocks[index];
+      if (!block) return;
+      setStepIndex(index);
+      setStepSearch('');
+      setShowWholeBlock(false);
+      setPicks((prev) => {
+        if (prev[block.id] !== undefined) return prev;
+        const others = new Set<string>();
+        for (const [id, list] of Object.entries(prev)) {
+          if (id === block.id) continue;
+          for (const p of list ?? []) others.add(p.template.name);
+        }
+        const { options } = optionsForBlock(block, { focus, kpi: prev.kpi?.[0]?.template ?? null }, ownedTiers, others);
+        return { ...prev, [block.id]: options.slice(0, block.picks).map(pickOf) };
+      });
+    },
+    [blocks, focus, ownedTiers, pickOf]
+  );
+
+  const startBuild = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPicks({});
+    setSelected([]);
+    setSelectedCardio([]);
+    setLoadedTemplateId(null);
+    setStage('step');
+    goToStep(0);
+  }, [goToStep]);
+
+  const nextStep = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (stepIndex >= blocks.length - 1) {
+      setStage('review');
+      return;
+    }
+    goToStep(stepIndex + 1);
+  }, [stepIndex, blocks.length, goToStep]);
+
+  const backStep = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    if (stepIndex === 0) {
+      setStage('start');
+      return;
+    }
+    goToStep(stepIndex - 1);
+  }, [stepIndex, goToStep]);
+
+  const skipStep = useCallback(() => {
+    if (!activeBlock) return;
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setPicks((prev) => ({ ...prev, [activeBlock.id]: [] }));
+    if (stepIndex >= blocks.length - 1) {
+      setStage('review');
+      return;
+    }
+    goToStep(stepIndex + 1);
+  }, [activeBlock, stepIndex, blocks.length, goToStep]);
+
+  /**
+   * Tap an exercise in a step.
+   *
+   * A block built around one exercise behaves like a radio button — tapping a
+   * different KPI lift swaps it rather than adding a second one — and a block
+   * built around several behaves like a checkbox. Anything else means a step
+   * that says "choose one" and then lets you choose four.
+   *
+   * Tapping the one exercise a required block holds does nothing, rather than
+   * emptying it. Otherwise the obvious gesture for "I want a different main
+   * lift" — tap the highlighted one — leaves the step with nothing chosen and
+   * the Next button greyed out, with no way back but a second guess.
+   */
+  const togglePick = useCallback(
+    (block: BuilderBlock, t: ExerciseTemplate) => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setPicks((prev) => {
+        const current = prev[block.id] ?? [];
+        const already = current.some((p) => p.template.id === t.id);
+        if (already) {
+          if (!block.optional && current.length <= 1) return prev;
+          return { ...prev, [block.id]: current.filter((p) => p.template.id !== t.id) };
+        }
+        const next: BuilderPicks =
+          block.picks === 1
+            ? { ...prev, [block.id]: [pickOf(t)] }
+            : { ...prev, [block.id]: [...current, pickOf(t)] };
+        // Changing the lift the session is built on re-filters everything that
+        // claims to be matched to it.
+        if (block.id !== 'kpi') return next;
+        return refreshForKpi(goal, next, { focus, kpi: t }, ownedTiers);
+      });
+    },
+    [pickOf, goal, focus, ownedTiers]
+  );
+
+  const removePick = useCallback(
+    (block: BuilderBlock, id: string) => {
+      if (Platform.OS !== 'web') Haptics.selectionAsync();
+      setPicks((prev) => {
+        const current = prev[block.id] ?? [];
+        if (!block.optional && current.length <= 1) return prev;
+        return { ...prev, [block.id]: current.filter((p) => p.template.id !== id) };
+      });
+    },
+    []
+  );
+
+  const openCatalogueFor = useCallback((blockId: BlockId) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCatalogueTarget(blockId);
+    setSearch('');
+    setCategoryFilter('all');
+    setStage('catalogue');
+  }, []);
+
+  /** The built session, in the order a generated one arrives in. */
+  const guidedExercises = useMemo(
+    () => assembleSession(goal, picks, cardioMinutes),
+    [goal, picks, cardioMinutes]
+  );
+
+  const handleStartGuided = useCallback(() => {
+    if (guidedExercises.length === 0) return;
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPendingCustomExercises(guidedExercises);
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType: 'custom',
+        hasAches: 'false',
+        painRegion: '',
+        energy: 'normal',
+        timeAvailable: '60',
+        isTestWeek: 'false',
+        equipment: tier,
+        ...(sessionName.trim() ? { displayLabel: sessionName.trim() } : {}),
+      },
+    });
+  }, [guidedExercises, setPendingCustomExercises, tier, sessionName]);
+
+  /**
+   * The catalogue serves two masters.
+   *
+   * Opened from the start screen it builds a flat session, exactly as before.
+   * Opened from a step it is filling that step, so a tap lands in the block
+   * rather than in the flat tray and the bottom bar takes you back rather than
+   * starting a session.
+   */
+  const catalogueBlock = useMemo(
+    () => (catalogueTarget ? (blocks.find((b) => b.id === catalogueTarget) ?? null) : null),
+    [catalogueTarget, blocks]
+  );
+
+  const catalogueSelected = useMemo(
+    () =>
+      catalogueBlock
+        ? (picks[catalogueBlock.id] ?? []).map((p) => ({
+            template: p.template,
+            sets: p.sets,
+            reps: p.reps,
+          }))
+        : selected,
+    [catalogueBlock, picks, selected]
+  );
+
+  const catalogueSelectedIds = useMemo(
+    () => new Set(catalogueSelected.map((s) => s.template.id)),
+    [catalogueSelected]
+  );
+
+  const onCataloguePick = useCallback(
+    (t: ExerciseTemplate) => {
+      if (catalogueBlock) togglePick(catalogueBlock, t);
+      else toggleExercise(t);
+    },
+    [catalogueBlock, togglePick, toggleExercise]
+  );
 
   const [emptiedToastVisible, setEmptiedToastVisible] = useState(false);
   const emptiedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -675,6 +978,17 @@ export default function CustomSessionScreen() {
   const confirmSaveTemplate = useCallback(() => {
     const name = templateName.trim();
     if (!name) return;
+    // A guided build is already an ordered list of CustomExercises, blocks and
+    // all, so it saves as itself rather than being flattened back through the
+    // catalogue's model.
+    if (stage === 'review') {
+      saveTemplate(name, guidedExercises);
+      setSaveModalVisible(false);
+      setLoadedTemplateId(null);
+      if (Platform.OS !== 'web')
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return;
+    }
     const strengthExercises: CustomExercise[] = selected.map((s) => ({
       id: s.template.id,
       name: s.template.name,
@@ -698,7 +1012,7 @@ export default function CustomSessionScreen() {
     setSaveModalVisible(false);
     setLoadedTemplateId(null);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [templateName, selected, selectedCardio, saveTemplate]);
+  }, [templateName, selected, selectedCardio, saveTemplate, stage, guidedExercises]);
 
   const loadTemplate = useCallback(
     (tmpl: CustomTemplate) => {
@@ -734,6 +1048,12 @@ export default function CustomSessionScreen() {
       setCategoryFilter('all');
       setPatternFilters(new Set());
       setDifficultyFilters(new Set());
+      // A saved template is a finished session. It opens in the catalogue,
+      // where every exercise in it is visible and editable at once — walking
+      // someone back through eight steps to change one accessory would be
+      // slower than the flat list they saved it from.
+      setCatalogueTarget(null);
+      setStage('catalogue');
     },
     [allExercises]
   );
@@ -888,16 +1208,20 @@ export default function CustomSessionScreen() {
   };
 
   const renderExercise = ({ item, index }: { item: ExerciseTemplate; index: number }) => {
-    const isSelected = selectedIds.has(item.id);
-    const selEntry = selected.find((s) => s.template.id === item.id);
+    const isSelected = catalogueSelectedIds.has(item.id);
+    const selEntry = catalogueSelected.find((s) => s.template.id === item.id);
     const lastDone = getLastDone(item);
     const recent = lastDone ? recentLabel(lastDone) : null;
 
     return (
       <Animated.View entering={FadeInDown.delay(index * 18).duration(280)}>
         <Pressable
-          onPress={() => toggleExercise(item)}
-          onLongPress={() => (isSelected && selEntry ? openEditModal(selEntry) : undefined)}
+          onPress={() => onCataloguePick(item)}
+          onLongPress={() =>
+            isSelected && selEntry
+              ? openEditModal(selEntry, catalogueBlock?.id ?? null)
+              : undefined
+          }
           style={({ pressed }) => [
             styles.exerciseCard,
             isSelected && styles.exerciseCardSelected,
@@ -961,7 +1285,7 @@ export default function CustomSessionScreen() {
               )}
               {recent && (
                 <View style={styles.recentPill} testID={`recent-tag-${item.id}`}>
-                  <Ionicons name="time-outline" size={10} color={C.primary} />
+                  <Ionicons name="time-outline" size={10} color={C.primaryText} />
                   <Text style={styles.recentPillText}>{recent}</Text>
                 </View>
               )}
@@ -1007,7 +1331,7 @@ export default function CustomSessionScreen() {
                 testID={`template-${tmpl.id}`}
               >
                 <View style={styles.templateCardTop}>
-                  <Ionicons name="bookmark" size={14} color={C.primary} />
+                  <Ionicons name="bookmark" size={14} color={C.primaryText} />
                   <Text style={styles.templateCardName} numberOfLines={1}>
                     {tmpl.name}
                   </Text>
@@ -1047,6 +1371,705 @@ export default function CustomSessionScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
+  const renderEditModal = () => (
+    <Modal
+      visible={!!editingExercise}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setEditingExercise(null)}
+    >
+      <Pressable style={styles.modalOverlay} onPress={() => setEditingExercise(null)}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.modalTitle}>{editingExercise?.template.name}</Text>
+          <Text style={styles.modalSub}>Adjust for this session</Text>
+
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Sets</Text>
+            <View style={styles.stepper}>
+              <Pressable
+                onPress={() => setEditSets((v) => Math.max(1, v - 1))}
+                style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
+                accessibilityLabel="Decrease sets"
+                accessibilityRole="button"
+              >
+                <Ionicons name="remove" size={20} color={C.text} />
+              </Pressable>
+              <Text style={styles.stepperValue}>{editSets}</Text>
+              <Pressable
+                onPress={() => setEditSets((v) => Math.min(5, v + 1))}
+                style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
+                accessibilityLabel="Increase sets"
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={20} color={C.text} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Reps / Duration</Text>
+            <TextInput
+              style={styles.modalRepsInput}
+              value={editReps}
+              onChangeText={setEditReps}
+              placeholder={editingExercise?.template.reps ?? '10'}
+              placeholderTextColor={C.textTertiary}
+              returnKeyType="done"
+              onSubmitEditing={saveEdit}
+            />
+          </View>
+
+          <View style={styles.modalActions}>
+            <Pressable
+              onPress={() => setEditingExercise(null)}
+              style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={saveEdit}
+              style={({ pressed }) => [styles.modalSaveBtn, pressed && { opacity: 0.88 }]}
+            >
+              <Text style={styles.modalSaveText}>Save</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  const renderSaveModal = () => (
+    <Modal visible={saveModalVisible} transparent animationType="fade" onRequestClose={closeSaveModal}>
+      <Pressable style={styles.modalOverlay} onPress={closeSaveModal}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.saveModalHeader}>
+            <Ionicons name="bookmark" size={20} color={C.primaryText} />
+            <Text style={styles.modalTitle}>Save as Template</Text>
+          </View>
+          <Text style={styles.modalSub}>
+            {stage === 'review' ? guidedExercises.length : selected.length} exercise
+            {(stage === 'review' ? guidedExercises.length : selected.length) !== 1 ? 's' : ''} will
+            be saved
+          </Text>
+
+          {loadedTemplateId &&
+            (() => {
+              const loadedTmpl = savedTemplates.find((t) => t.id === loadedTemplateId);
+              if (!loadedTmpl) return null;
+              return (
+                <Pressable
+                  onPress={confirmUpdateTemplate}
+                  style={({ pressed }) => [styles.updateExistingBtn, pressed && { opacity: 0.8 }]}
+                  testID="confirm-update-template"
+                >
+                  <Ionicons name="refresh-outline" size={16} color={C.primaryText} />
+                  <Text style={styles.updateExistingText} numberOfLines={1}>
+                    {`Update "${loadedTmpl.name}"`}
+                  </Text>
+                </Pressable>
+              );
+            })()}
+
+          {loadedTemplateId && (
+            <View style={styles.saveModalDivider}>
+              <View style={styles.saveModalDividerLine} />
+              <Text style={styles.saveModalDividerText}>or save as new</Text>
+              <View style={styles.saveModalDividerLine} />
+            </View>
+          )}
+
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Template Name</Text>
+            <TextInput
+              style={styles.modalRepsInput}
+              value={templateName}
+              onChangeText={setTemplateName}
+              placeholder="e.g. Push Day, Leg Blast…"
+              placeholderTextColor={C.textTertiary}
+              returnKeyType="done"
+              onSubmitEditing={confirmSaveTemplate}
+              autoFocus={!loadedTemplateId}
+              maxLength={40}
+            />
+          </View>
+
+          <View style={styles.modalActions}>
+            <Pressable
+              onPress={closeSaveModal}
+              style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={confirmSaveTemplate}
+              style={({ pressed }) => [
+                styles.modalSaveBtn,
+                !templateName.trim() && styles.modalSaveBtnDisabled,
+                pressed && { opacity: 0.88 },
+              ]}
+              disabled={!templateName.trim()}
+              testID="confirm-save-template"
+            >
+              <Text style={styles.modalSaveText}>
+                {loadedTemplateId ? 'Save New' : 'Save Template'}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  const renderRenameModal = () => (
+    <Modal
+      visible={!!renamingTemplate}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setRenamingTemplate(null)}
+    >
+      <Pressable style={styles.modalOverlay} onPress={() => setRenamingTemplate(null)}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.saveModalHeader}>
+            <Ionicons name="pencil" size={20} color={C.primaryText} />
+            <Text style={styles.modalTitle}>Rename Template</Text>
+          </View>
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Template Name</Text>
+            <TextInput
+              style={styles.modalRepsInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="Template name…"
+              placeholderTextColor={C.textTertiary}
+              returnKeyType="done"
+              onSubmitEditing={confirmRename}
+              autoFocus
+              maxLength={40}
+            />
+          </View>
+          <View style={styles.modalActions}>
+            <Pressable
+              onPress={() => setRenamingTemplate(null)}
+              style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              onPress={confirmRename}
+              style={({ pressed }) => [
+                styles.modalSaveBtn,
+                !renameText.trim() && styles.modalSaveBtnDisabled,
+                pressed && { opacity: 0.88 },
+              ]}
+              disabled={!renameText.trim()}
+              testID="confirm-rename-template"
+            >
+              <Text style={styles.modalSaveText}>Rename</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  const guidedHeader = (title: string, subtitle: string, onBack: () => void) => (
+    <View style={styles.hero}>
+      <View style={styles.heroTop}>
+        <Pressable
+          onPress={onBack}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
+          testID="custom-session-back"
+          accessibilityLabel="Back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={22} color={C.textInverse} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.heroTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.heroSub} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setNameOpen((v) => !v);
+          }}
+          style={({ pressed }) => [styles.heroIconBtn, pressed && { opacity: 0.7 }]}
+          testID="custom-session-name-toggle"
+          accessibilityLabel="Name this session"
+          accessibilityRole="button"
+        >
+          <Ionicons name={nameOpen ? 'create' : 'create-outline'} size={19} color={C.textInverse} />
+        </Pressable>
+      </View>
+      {nameOpen && (
+        <TextInput
+          style={styles.heroNameInput}
+          placeholder="Name this session (optional)"
+          placeholderTextColor={C.primaryMuted}
+          value={sessionName}
+          onChangeText={setSessionName}
+          returnKeyType="done"
+          maxLength={40}
+          autoFocus
+          testID="custom-session-name"
+        />
+      )}
+    </View>
+  );
+
+  /**
+   * Step 1. Goal, and what is being trained.
+   *
+   * The goal decides which blocks the session has; the focus decides what the
+   * warm-up is warming up. Both are answered before anything is picked, which
+   * is what stops the preparation sequence being generic.
+   */
+  const renderStart = () => (
+    <>
+      {guidedHeader(
+        sessionName.trim() || 'Build a session',
+        `Step 1 of ${blocks.length + 1} - what are you training for`,
+        () => router.back()
+      )}
+      <ScrollView
+        contentContainerStyle={[styles.startContent, { paddingBottom: 40 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.startGroupLabel}>Primary goal</Text>
+        {SESSION_GOALS.map((g) => {
+          const active = goal === g.key;
+          return (
+            <Pressable
+              key={g.key}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.selectionAsync();
+                setGoal(g.key);
+              }}
+              style={({ pressed }) => [
+                styles.goalCard,
+                active && styles.goalCardActive,
+                pressed && { opacity: 0.85 },
+              ]}
+              testID={`builder-goal-${g.key}`}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.goalCardTitle, active && { color: C.primaryText }]}>
+                  {g.label}
+                </Text>
+                <Text style={styles.goalCardBlurb}>{g.blurb}</Text>
+              </View>
+              <View style={[styles.checkCircle, active && styles.checkCircleSelected]}>
+                {active && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+              </View>
+            </Pressable>
+          );
+        })}
+
+        <Text style={styles.startGroupLabel}>Training today</Text>
+        <View style={styles.sheetChipWrap}>
+          {SESSION_FOCUSES.map((f) => {
+            const active = focus === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  setFocus(f.key);
+                }}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`builder-focus-${f.key}`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {f.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.startFocusBlurb}>
+          {SESSION_FOCUSES.find((f) => f.key === focus)?.blurb}
+        </Text>
+
+        <Text style={styles.startPlanLabel}>Your session</Text>
+        <View style={styles.planRow}>
+          {blocks.map((b, i) => (
+            <React.Fragment key={b.id}>
+              {i > 0 && <Ionicons name="chevron-forward" size={11} color={C.textTertiary} />}
+              <Text style={styles.planChip}>{b.title}</Text>
+            </React.Fragment>
+          ))}
+        </View>
+
+        <Pressable
+          onPress={startBuild}
+          style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.88 }]}
+          testID="builder-begin"
+        >
+          <Ionicons name="play" size={18} color={C.textInverse} />
+          <Text style={styles.primaryBtnText}>Build my session</Text>
+        </Pressable>
+
+        {TemplatesSection}
+
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.selectionAsync();
+            setCatalogueTarget(null);
+            setStage('catalogue');
+          }}
+          style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+          testID="builder-open-catalogue"
+        >
+          <Ionicons name="albums-outline" size={15} color={C.primaryText} />
+          <Text style={styles.linkBtnText}>Browse the full catalogue instead</Text>
+        </Pressable>
+      </ScrollView>
+    </>
+  );
+
+  /** One block of the assembly line. */
+  const renderStep = () => {
+    if (!activeBlock) return null;
+    const chosen = picks[activeBlock.id] ?? [];
+    const chosenIds = new Set(chosen.map((p) => p.template.id));
+    const isLast = stepIndex === blocks.length - 1;
+    const filterLabel = kpiTemplate
+      ? `Matched to ${kpiTemplate.name}`
+      : `Matched to ${SESSION_FOCUSES.find((f) => f.key === focus)?.label.toLowerCase()} training`;
+
+    return (
+      <>
+        {guidedHeader(
+          activeBlock.title,
+          `Step ${stepIndex + 2} of ${blocks.length + 1}`,
+          backStep
+        )}
+
+        <View style={styles.stepDots}>
+          {blocks.map((b, i) => (
+            <View
+              key={b.id}
+              style={[
+                styles.stepDot,
+                i === stepIndex && styles.stepDotActive,
+                i < stepIndex && styles.stepDotDone,
+              ]}
+            />
+          ))}
+        </View>
+
+        <View style={styles.stepMeta}>
+          <View style={styles.stepPurposeRow}>
+            <Ionicons name={BLOCK_ICONS[activeBlock.id]} size={15} color={C.primaryText} />
+            <Text style={styles.stepPurpose}>{activeBlock.purpose}</Text>
+          </View>
+          <Text style={styles.stepFilterNote} testID="step-filter-note">
+            {showWholeBlock
+              ? `Every ${activeBlock.title.toLowerCase()} option for your equipment`
+              : stepOptions.widened
+                ? `${filterLabel} - widened, too few exact matches for your equipment`
+                : filterLabel}
+          </Text>
+
+          {activeBlock.id === 'cardio' && (
+            <View style={styles.minuteRow}>
+              <Text style={styles.minuteLabel}>Minutes</Text>
+              {CARDIO_MINUTES.map((m) => {
+                const active = cardioMinutes === m;
+                return (
+                  <Pressable
+                    key={m}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.selectionAsync();
+                      setCardioMinutes(m);
+                    }}
+                    style={({ pressed }) => [
+                      styles.minuteChip,
+                      active && styles.minuteChipActive,
+                      pressed && { opacity: 0.8 },
+                    ]}
+                    testID={`cardio-minutes-${m}`}
+                  >
+                    <Text style={[styles.minuteChipText, active && styles.minuteChipTextActive]}>
+                      {m}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={styles.stepSearchRow}>
+            <View style={[styles.searchRow, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]}>
+              <Ionicons name="search" size={16} color={C.textTertiary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={`Search ${activeBlock.title.toLowerCase()}…`}
+                placeholderTextColor={C.textTertiary}
+                value={stepSearch}
+                onChangeText={setStepSearch}
+                returnKeyType="search"
+                autoCorrect={false}
+                testID="step-search"
+              />
+            </View>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.selectionAsync();
+                setShowWholeBlock((v) => !v);
+              }}
+              style={({ pressed }) => [
+                styles.filterChip,
+                showWholeBlock && styles.filterChipActive,
+                pressed && { opacity: 0.8 },
+              ]}
+              testID="step-show-all"
+            >
+              <Text
+                style={[styles.filterChipText, showWholeBlock && styles.filterChipTextActive]}
+              >
+                All
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <FlatList
+          data={stepList}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => {
+            const isSelected = chosenIds.has(item.id);
+            const entry = chosen.find((p) => p.template.id === item.id);
+            return (
+              <Pressable
+                onPress={() => togglePick(activeBlock, item)}
+                onLongPress={() =>
+                  isSelected && entry ? openEditModal(entry, activeBlock.id) : undefined
+                }
+                style={({ pressed }) => [
+                  styles.exerciseCard,
+                  isSelected && styles.exerciseCardSelected,
+                  pressed && { opacity: 0.85 },
+                ]}
+                testID={`step-exercise-${item.id}`}
+              >
+                <View style={styles.exerciseCardLeft}>
+                  <View style={styles.exerciseCardPills}>
+                    <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
+                      <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
+                        {PATTERN_GROUP_LABELS[patternGroupOf(item)]}
+                      </Text>
+                    </View>
+                    {item.primaryMuscle && (
+                      <View style={[styles.categoryPill, { backgroundColor: C.surfaceSecondary }]}>
+                        <Text style={[styles.categoryPillText, { color: C.textSecondary }]}>
+                          {item.primaryMuscle}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.exerciseName}>{item.name}</Text>
+                  <Text style={styles.exerciseMeta}>
+                    {activeBlock.id === 'cardio'
+                      ? `${cardioMinutes} min · ${item.suggestedLoad}`
+                      : `${entry?.sets ?? item.sets} sets · ${entry?.reps ?? item.reps} · ${item.suggestedLoad}`}
+                  </Text>
+                </View>
+                <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
+                  {isSelected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+                </View>
+              </Pressable>
+            );
+          }}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 24 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListFooterComponent={
+            <Pressable
+              onPress={() => openCatalogueFor(activeBlock.id)}
+              style={({ pressed }) => [styles.linkBtn, pressed && { opacity: 0.7 }]}
+              testID="step-open-catalogue"
+            >
+              <Ionicons name="albums-outline" size={15} color={C.primaryText} />
+              <Text style={styles.linkBtnText}>Not here? Search the full catalogue</Text>
+            </Pressable>
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon="search-outline"
+              title="Nothing matches that search"
+              subtitle="Clear the search, or tap All to see the whole block"
+              testID="step-empty"
+            />
+          }
+        />
+
+        <View style={[styles.stepFooter, { paddingBottom: insets.bottom + 12 }]}>
+          {activeBlock.optional && (
+            <Pressable
+              onPress={skipStep}
+              style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.7 }]}
+              testID="step-skip"
+            >
+              <Text style={styles.ghostBtnText}>Skip</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={nextStep}
+            disabled={chosen.length === 0 && !activeBlock.optional}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              { flex: 1, marginTop: 0 },
+              chosen.length === 0 && !activeBlock.optional && styles.modalSaveBtnDisabled,
+              pressed && { opacity: 0.88 },
+            ]}
+            testID="step-next"
+          >
+            <Text style={styles.primaryBtnText}>
+              {isLast ? 'Review session' : `Next · ${chosen.length} chosen`}
+            </Text>
+            <Ionicons name="chevron-forward" size={17} color={C.textInverse} />
+          </Pressable>
+        </View>
+      </>
+    );
+  };
+
+  /** The finished session, in the order it will be performed. */
+  const renderReview = () => (
+    <>
+      {guidedHeader(
+        sessionName.trim() || 'Your session',
+        `${guidedExercises.length} exercise${guidedExercises.length === 1 ? '' : 's'} · ${SESSION_GOALS.find((g) => g.key === goal)?.label}`,
+        () => {
+          setStage('step');
+          goToStep(blocks.length - 1);
+        }
+      )}
+      <ScrollView
+        contentContainerStyle={[styles.startContent, { paddingBottom: 140 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {blocks.map((block, blockIdx) => {
+          const list = picks[block.id] ?? [];
+          return (
+            <View key={block.id} style={styles.reviewBlock}>
+              <View style={styles.reviewBlockHead}>
+                <Ionicons name={BLOCK_ICONS[block.id]} size={14} color={C.primaryText} />
+                <Text style={styles.reviewBlockTitle}>{block.title}</Text>
+                <Pressable
+                  onPress={() => {
+                    setStage('step');
+                    goToStep(blockIdx);
+                  }}
+                  hitSlop={8}
+                  testID={`review-edit-${block.id}`}
+                >
+                  <Text style={styles.reviewEditText}>{list.length === 0 ? 'Add' : 'Change'}</Text>
+                </Pressable>
+              </View>
+              {list.length === 0 ? (
+                <Text style={styles.reviewSkipped}>Skipped</Text>
+              ) : (
+                list.map((p) => (
+                  <Pressable
+                    key={p.template.id}
+                    onPress={() => openEditModal(p, block.id)}
+                    style={({ pressed }) => [styles.reviewRow, pressed && { opacity: 0.8 }]}
+                    testID={`review-row-${p.template.id}`}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reviewRowName}>{p.template.name}</Text>
+                      <Text style={styles.reviewRowMeta}>
+                        {block.id === 'cardio'
+                          ? `${cardioMinutes} min steady`
+                          : `${p.sets} sets · ${p.reps} · ${p.template.suggestedLoad}`}
+                      </Text>
+                    </View>
+                    {/* A required block can be changed but not emptied. */}
+                    {block.optional && (
+                      <Pressable
+                        onPress={() => removePick(block, p.template.id)}
+                        hitSlop={8}
+                        style={styles.trayChipRemove}
+                        accessibilityLabel="Remove exercise"
+                        accessibilityRole="button"
+                      >
+                        <Ionicons name="close" size={15} color={C.textSecondary} />
+                      </Pressable>
+                    )}
+                  </Pressable>
+                ))
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      <View style={[styles.stepFooter, { paddingBottom: insets.bottom + 12 }]}>
+        <Pressable
+          onPress={openSaveModal}
+          style={({ pressed }) => [styles.ghostBtn, pressed && { opacity: 0.7 }]}
+          testID="review-save-template"
+        >
+          <Ionicons name="bookmark-outline" size={15} color={C.primaryText} />
+          <Text style={styles.ghostBtnText}>Save</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleStartGuided}
+          disabled={guidedExercises.length === 0}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { flex: 1, marginTop: 0 },
+            guidedExercises.length === 0 && styles.modalSaveBtnDisabled,
+            pressed && { opacity: 0.88 },
+          ]}
+          testID="review-start"
+        >
+          <Ionicons name="play" size={17} color={C.textInverse} />
+          <Text style={styles.primaryBtnText}>Start Session</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+
+  if (stage === 'start') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+        {renderStart()}
+        {renderSaveModal()}
+        {renderRenameModal()}
+      </View>
+    );
+  }
+
+  if (stage === 'step') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+        {renderStep()}
+        {renderEditModal()}
+      </View>
+    );
+  }
+
+  if (stage === 'review') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+        {renderReview()}
+        {renderEditModal()}
+        {renderSaveModal()}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       {/* ONE HEADER BLOCK, NOT FOUR ROWS OF CHROME.
@@ -1063,7 +2086,14 @@ export default function CustomSessionScreen() {
       <View style={styles.hero}>
         <View style={styles.heroTop}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (catalogueBlock) {
+                setCatalogueTarget(null);
+                setStage('step');
+                return;
+              }
+              setStage('start');
+            }}
             style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
             testID="custom-session-back"
             accessibilityLabel="Back"
@@ -1073,12 +2103,14 @@ export default function CustomSessionScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroTitle} numberOfLines={1}>
-              {sessionName.trim() || 'Build a session'}
+              {catalogueBlock ? catalogueBlock.title : sessionName.trim() || 'Build a session'}
             </Text>
-            <Text style={styles.heroSub}>
-              {totalPicked === 0
-                ? 'Pick the exercises you want'
-                : `${totalPicked} exercise${totalPicked === 1 ? '' : 's'} picked`}
+            <Text style={styles.heroSub} numberOfLines={1}>
+              {catalogueBlock
+                ? 'Whole catalogue - anything you tap fills this block'
+                : totalPicked === 0
+                  ? 'Pick the exercises you want'
+                  : `${totalPicked} exercise${totalPicked === 1 ? '' : 's'} picked`}
             </Text>
           </View>
           <Pressable
@@ -1248,9 +2280,9 @@ export default function CustomSessionScreen() {
                       <Ionicons
                         name={opt.icon}
                         size={18}
-                        color={isSelected ? C.primary : C.textSecondary}
+                        color={isSelected ? C.primaryText : C.textSecondary}
                       />
-                      <Text style={[styles.exerciseName, isSelected && { color: C.primary }]}>
+                      <Text style={[styles.exerciseName, isSelected && { color: C.primaryText }]}>
                         {opt.name}
                       </Text>
                       <View
@@ -1265,7 +2297,7 @@ export default function CustomSessionScreen() {
                           style={{
                             fontSize: 10,
                             fontFamily: 'Inter_600SemiBold',
-                            color: C.primary,
+                            color: C.primaryText,
                             textTransform: 'uppercase' as const,
                             letterSpacing: 0.4,
                           }}
@@ -1351,10 +2383,10 @@ export default function CustomSessionScreen() {
           renderItem={renderExercise}
           ListHeaderComponent={
             <>
-              {TemplatesSection}
-              {selected.length === 0 && filtered.length > 0 && !hasEverSelected && (
+              {!catalogueBlock && TemplatesSection}
+              {!catalogueBlock && selected.length === 0 && filtered.length > 0 && !hasEverSelected && (
                 <View style={styles.selectionHint}>
-                  <Ionicons name="hand-left-outline" size={14} color={C.primary} />
+                  <Ionicons name="hand-left-outline" size={14} color={C.primaryText} />
                   <Text style={styles.selectionHintText}>
                     Tap an exercise to add it - select at least one to start
                   </Text>
@@ -1402,7 +2434,34 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      {(selected.length > 0 || selectedCardio.length > 0) && (
+      {catalogueBlock && (
+        <View
+          style={[
+            styles.tray,
+            { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 12 },
+          ]}
+        >
+          <Text style={styles.trayCount} numberOfLines={2}>
+            {catalogueSelected.length === 0
+              ? `Nothing chosen for ${catalogueBlock.title} yet`
+              : catalogueSelected.map((s) => s.template.name).join(', ')}
+          </Text>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setCatalogueTarget(null);
+              setStage('step');
+            }}
+            style={({ pressed }) => [styles.startBtn, { marginTop: 12 }, pressed && { opacity: 0.88 }]}
+            testID="catalogue-done"
+          >
+            <Ionicons name="checkmark" size={18} color={C.textInverse} />
+            <Text style={styles.startBtnText}>Back to {catalogueBlock.title}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {!catalogueBlock && (selected.length > 0 || selectedCardio.length > 0) && (
         <Animated.View
           entering={FadeInDown.duration(300)}
           style={[
@@ -1421,7 +2480,7 @@ export default function CustomSessionScreen() {
                 style={({ pressed }) => [styles.saveTemplateBtn, pressed && { opacity: 0.7 }]}
                 testID="save-template-btn"
               >
-                <Ionicons name="bookmark-outline" size={15} color={C.primary} />
+                <Ionicons name="bookmark-outline" size={15} color={C.primaryText} />
                 <Text style={styles.saveTemplateBtnText}>Save</Text>
               </Pressable>
               <Text style={styles.trayHint}>Long-press to drag</Text>
@@ -1477,7 +2536,7 @@ export default function CustomSessionScreen() {
                       <Ionicons
                         name="reorder-three-outline"
                         size={15}
-                        color={isDragged ? C.primary : C.textTertiary}
+                        color={isDragged ? C.primaryText : C.textTertiary}
                         style={styles.trayChipDragHandle}
                       />
                       <View style={styles.trayChipBody}>
@@ -1504,7 +2563,7 @@ export default function CustomSessionScreen() {
               {insertAtIdx === selected.length && <View style={styles.insertCursor} />}
               {selectedCardio.map((c) => (
                 <View key={c.id} style={styles.trayChip}>
-                  <Ionicons name={c.icon} size={14} color={C.primary} style={{ marginRight: 4 }} />
+                  <Ionicons name={c.icon} size={14} color={C.primaryText} style={{ marginRight: 4 }} />
                   <View style={styles.trayChipBody}>
                     <Text style={styles.trayChipName} numberOfLines={1}>
                       {c.name}
@@ -1551,153 +2610,8 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      <Modal
-        visible={!!editingExercise}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditingExercise(null)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setEditingExercise(null)}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>{editingExercise?.template.name}</Text>
-            <Text style={styles.modalSub}>Adjust for this session</Text>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Sets</Text>
-              <View style={styles.stepper}>
-                <Pressable
-                  onPress={() => setEditSets((v) => Math.max(1, v - 1))}
-                  style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
-                  accessibilityLabel="Decrease sets"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="remove" size={20} color={C.text} />
-                </Pressable>
-                <Text style={styles.stepperValue}>{editSets}</Text>
-                <Pressable
-                  onPress={() => setEditSets((v) => Math.min(5, v + 1))}
-                  style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.7 }]}
-                  accessibilityLabel="Increase sets"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="add" size={20} color={C.text} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Reps / Duration</Text>
-              <TextInput
-                style={styles.modalRepsInput}
-                value={editReps}
-                onChangeText={setEditReps}
-                placeholder={editingExercise?.template.reps ?? '10'}
-                placeholderTextColor={C.textTertiary}
-                returnKeyType="done"
-                onSubmitEditing={saveEdit}
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setEditingExercise(null)}
-                style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={saveEdit}
-                style={({ pressed }) => [styles.modalSaveBtn, pressed && { opacity: 0.88 }]}
-              >
-                <Text style={styles.modalSaveText}>Save</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={saveModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeSaveModal}
-      >
-        <Pressable style={styles.modalOverlay} onPress={closeSaveModal}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.saveModalHeader}>
-              <Ionicons name="bookmark" size={20} color={C.primary} />
-              <Text style={styles.modalTitle}>Save as Template</Text>
-            </View>
-            <Text style={styles.modalSub}>
-              {selected.length} exercise{selected.length !== 1 ? 's' : ''} will be saved
-            </Text>
-
-            {loadedTemplateId &&
-              (() => {
-                const loadedTmpl = savedTemplates.find((t) => t.id === loadedTemplateId);
-                if (!loadedTmpl) return null;
-                return (
-                  <Pressable
-                    onPress={confirmUpdateTemplate}
-                    style={({ pressed }) => [styles.updateExistingBtn, pressed && { opacity: 0.8 }]}
-                    testID="confirm-update-template"
-                  >
-                    <Ionicons name="refresh-outline" size={16} color={C.primary} />
-                    <Text style={styles.updateExistingText} numberOfLines={1}>
-                      {`Update "${loadedTmpl.name}"`}
-                    </Text>
-                  </Pressable>
-                );
-              })()}
-
-            {loadedTemplateId && (
-              <View style={styles.saveModalDivider}>
-                <View style={styles.saveModalDividerLine} />
-                <Text style={styles.saveModalDividerText}>or save as new</Text>
-                <View style={styles.saveModalDividerLine} />
-              </View>
-            )}
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Template Name</Text>
-              <TextInput
-                style={styles.modalRepsInput}
-                value={templateName}
-                onChangeText={setTemplateName}
-                placeholder="e.g. Push Day, Leg Blast…"
-                placeholderTextColor={C.textTertiary}
-                returnKeyType="done"
-                onSubmitEditing={confirmSaveTemplate}
-                autoFocus={!loadedTemplateId}
-                maxLength={40}
-              />
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={closeSaveModal}
-                style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmSaveTemplate}
-                style={({ pressed }) => [
-                  styles.modalSaveBtn,
-                  !templateName.trim() && styles.modalSaveBtnDisabled,
-                  pressed && { opacity: 0.88 },
-                ]}
-                disabled={!templateName.trim()}
-                testID="confirm-save-template"
-              >
-                <Text style={styles.modalSaveText}>
-                  {loadedTemplateId ? 'Save New' : 'Save Template'}
-                </Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {renderEditModal()}
+      {renderSaveModal()}
 
       {undoToast && (
         <Animated.View
@@ -1733,55 +2647,7 @@ export default function CustomSessionScreen() {
         </Animated.View>
       )}
 
-      <Modal
-        visible={!!renamingTemplate}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRenamingTemplate(null)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setRenamingTemplate(null)}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.saveModalHeader}>
-              <Ionicons name="pencil" size={20} color={C.primary} />
-              <Text style={styles.modalTitle}>Rename Template</Text>
-            </View>
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Template Name</Text>
-              <TextInput
-                style={styles.modalRepsInput}
-                value={renameText}
-                onChangeText={setRenameText}
-                placeholder="Template name…"
-                placeholderTextColor={C.textTertiary}
-                returnKeyType="done"
-                onSubmitEditing={confirmRename}
-                autoFocus
-                maxLength={40}
-              />
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setRenamingTemplate(null)}
-                style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmRename}
-                style={({ pressed }) => [
-                  styles.modalSaveBtn,
-                  !renameText.trim() && styles.modalSaveBtnDisabled,
-                  pressed && { opacity: 0.88 },
-                ]}
-                disabled={!renameText.trim()}
-                testID="confirm-rename-template"
-              >
-                <Text style={styles.modalSaveText}>Rename</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {renderRenameModal()}
 
       {/* FILTERS, IN ONE PLACE.
           These chips used to sit in a horizontal ScrollView above the list,
@@ -1934,7 +2800,7 @@ export default function CustomSessionScreen() {
                 <Ionicons
                   name="sparkles-outline"
                   size={13}
-                  color={freshFirst ? C.primary : C.textSecondary}
+                  color={freshFirst ? C.primaryText : C.textSecondary}
                 />
                 <Text style={[styles.filterChipText, freshFirst && styles.filterChipTextActive]}>
                   Fresh first
@@ -2024,6 +2890,199 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     filterBtnActive: { backgroundColor: C.primary },
     filterBtnCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
 
+    // ── The guided build ────────────────────────────────────────────────────
+    startContent: { paddingHorizontal: 16, paddingTop: 18 },
+    startGroupLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 10,
+      marginTop: 6,
+    },
+    goalCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      padding: 14,
+      marginBottom: 8,
+    },
+    goalCardActive: { borderColor: C.primary, backgroundColor: C.primaryMuted },
+    goalCardTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    goalCardBlurb: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 2,
+    },
+    startFocusBlurb: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 8,
+    },
+    startPlanLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    planRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 4,
+    },
+    planChip: {
+      fontSize: 11.5,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    primaryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 15,
+      marginTop: 22,
+    },
+    primaryBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    ghostBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 18,
+      paddingVertical: 15,
+      borderRadius: 14,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    ghostBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    linkBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 14,
+      marginTop: 6,
+    },
+    linkBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+
+    stepDots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 5,
+      paddingTop: 10,
+    },
+    stepDot: {
+      width: 18,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+    },
+    stepDotActive: { backgroundColor: C.primary, width: 26 },
+    stepDotDone: { backgroundColor: C.primaryLight },
+    stepMeta: { paddingHorizontal: 16, paddingTop: 12 },
+    stepPurposeRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    stepPurpose: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.text,
+    },
+    stepFilterNote: {
+      fontSize: 11.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 4,
+      marginLeft: 22,
+    },
+    stepSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+    minuteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+    minuteLabel: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginRight: 2,
+    },
+    minuteChip: {
+      width: 38,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    minuteChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
+    minuteChipText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    minuteChipTextActive: { color: C.primaryText, fontFamily: 'Inter_700Bold' },
+    stepFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      backgroundColor: C.surface,
+      borderTopWidth: 1,
+      borderTopColor: C.borderLight,
+    },
+
+    reviewBlock: { marginBottom: 16 },
+    reviewBlockHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    reviewBlockTitle: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    reviewEditText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    reviewSkipped: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      paddingLeft: 20,
+    },
+    reviewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      marginBottom: 6,
+    },
+    reviewRowName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
+    reviewRowMeta: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 2,
+    },
+
     sheetOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',
@@ -2051,7 +3110,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 14,
     },
     sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
-    sheetClear: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    sheetClear: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     sheetGroupLabel: {
       fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
@@ -2138,7 +3197,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
     },
     equipChipTextActive: {
-      color: C.primary,
+      color: C.primaryText,
       fontFamily: 'Inter_700Bold',
     },
     browseRow: {
@@ -2231,7 +3290,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
     },
     filterChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    filterChipTextActive: { color: C.primary, fontFamily: 'Inter_600SemiBold' },
+    filterChipTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
 
     listContent: { paddingHorizontal: 16, paddingTop: 4 },
 
@@ -2323,7 +3382,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     recentPillText: {
       fontSize: 10,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       letterSpacing: 0.2,
     },
     freshChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -2403,7 +3462,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.primary,
     },
-    saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     emptiedToast: {
       position: 'absolute',
       left: 16,
@@ -2576,7 +3635,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 1,
       fontSize: 14,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
     },
     saveModalDivider: {
       flexDirection: 'row',

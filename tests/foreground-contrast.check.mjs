@@ -210,11 +210,7 @@ const PRIMARY_RE =
 // would fail on churn that has nothing to do with colour. Every file NOT listed
 // here must stay clean, which is what protects the screens already migrated.
 // Delete an entry once its screen is done.
-const NOT_YET_MIGRATED = new Set([
-  'app/session.tsx',
-  'app/custom-session.tsx',
-  'app/readiness.tsx',
-]);
+const NOT_YET_MIGRATED = new Set(['app/session.tsx', 'app/readiness.tsx']);
 
 function walkFiles(dir, results = []) {
   for (const entry of readdirSync(dir)) {
