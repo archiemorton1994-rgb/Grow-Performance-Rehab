@@ -23,6 +23,18 @@
  * The muscle-heatmap coverage test next door already guards MAIN_LIFTS and
  * ACCESSORIES. This one guards everything else, and the equipment promise.
  *
+ *   4. A conditioning session was the same session forever. The database held
+ *      exactly one prescribed circuit per equipment tier per energy level, so
+ *      whatever the engine did with the order, the exercises never changed:
+ *      day-over-day overlap measured 1.000 in all fifteen tier x energy cells.
+ *   5. Individual entries described the wrong movement. A "Bicep Stretch"
+ *      reported that it worked the thoracic extensors, a Pallof Press reported
+ *      pectorals, a Hanging Leg Raise was filed as a vertical pull and offered
+ *      alongside pull-ups, and a cool-down stretch was tagged as conditioning,
+ *      which filed it into the warm-up block of the custom builder. All of
+ *      those are printed on the exercise card or drive which list it appears
+ *      in, so every one of them is something a user reads.
+ *
  * WHAT COUNTS AS UNTAGGED ON PURPOSE
  * ──────────────────────────────────
  * A two-minute bike warm-up, a cool-down walk and a breathing drill genuinely
@@ -67,6 +79,8 @@ import {
   getExerciseNameMap,
   getRegionsByExerciseNameMap,
 } from '../lib/exercise-db.ts';
+import { patternGroupOf } from '../lib/exercise-classification.ts';
+import { builderCategoryOf } from '../lib/session-builder.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
@@ -139,7 +153,9 @@ for (const s of SESSIONS) {
 }
 for (const tr of TIERS) {
   for (const e of ENERGY) {
-    record(getConditioningWorkout(tr, e), tr, 'CONDITIONING');
+    // A conditioning session is composed from four pools, so one call sees one
+    // day's pick. Walking forty rotations reaches every entry in all of them.
+    for (let d = 0; d < 40; d++) record(getConditioningWorkout(tr, e, d), tr, 'CONDITIONING');
     record(getGoalConditioningBlock(tr, e), tr, 'GOAL_CONDITIONING');
   }
   record(getWeeklyLowerBodyExercises(tr), tr, 'WEEKLY_LOWER_BODY');
@@ -162,13 +178,15 @@ const NO_MUSCLE_ON_PURPOSE = new Set([
   // Cardio warm-up pool
   'cardio-warmup', 'cardio-warmup-2', 'cardio-warmup-3', 'cardio-warmup-4',
   'cardio-warmup-5', 'cardio-warmup-6',
-  // Conditioning session bookends
-  'cond-bw-e-1', 'cond-bw-e-6', 'cond-bw-n-1', 'cond-bw-n-5', 'cond-bw-h-1',
-  'cond-bw-h-5', 'cond-db-e-1', 'cond-db-e-5', 'cond-db-n-1', 'cond-db-n-5',
-  'cond-db-h-1', 'cond-db-h-5', 'cond-fg-e-1', 'cond-fg-e-5', 'cond-fg-n-1',
-  'cond-fg-n-5', 'cond-fg-h-1', 'cond-fg-h-5',
-  // Steady machine cardio: a heart-rate block, not a training set
-  'cond-fg-e-3', 'gcond-fg-e-2', 'sq-fin-db-e', 'sq-fin-fg-e3', 'dl-fin-fg-e2',
+  // Conditioning session bookends: the warm-ups that open one and the
+  // cool-downs that close one
+  'cond-bw-wu-1', 'cond-bw-wu-2', 'cond-bw-wu-3', 'cond-bw-wu-4',
+  'cond-db-wu-1', 'cond-db-wu-2', 'cond-db-wu-3', 'cond-db-wu-4',
+  'cond-fg-wu-1', 'cond-fg-wu-2', 'cond-fg-wu-3', 'cond-fg-wu-4',
+  'cond-cd-1', 'cond-cd-2', 'cond-cd-3',
+  // Steady machine cardio and locomotion: a heart-rate block, not a training set
+  'cond-fg-e-1b', 'cond-fg-e-f2', 'cond-bw-e-f2',
+  'gcond-fg-e-2', 'sq-fin-db-e', 'sq-fin-fg-e3', 'dl-fin-fg-e2',
   // Easy-bucket finishers that are locomotion or a stretch
   'sq-fin-bw-e', 'sq-fin-bw-e2', 'sq-fin-bw-e3', 'bn-fin-bw-e', 'bn-fin-bw-e2',
   'bn-fin-bw-e3',
@@ -373,6 +391,172 @@ check(
   'no exercise name is used for both a bodyweight movement and a loaded one',
   collisions.length === 0,
   `${collisions.join('; ')} — the picker keeps one template and hands it to both tiers`
+);
+
+// ─── 7. Conditioning is a different session each time ────────────────────────
+console.log('\n[7] A conditioning session is not the same session every day');
+
+const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const condNames = (tier, energy, day) => getConditioningWorkout(tier, energy, day).map((x) => x.name);
+const overlap = (a, b) => {
+  const A = new Set(a);
+  const B = new Set(b);
+  return [...A].filter((x) => B.has(x)).length / new Set([...A, ...B]).size;
+};
+
+// The measurement the defect was reported as: 1.000 means yesterday's session
+// and today's are the same exercises.
+const sticky = [];
+for (const tier of ALL_TIERS) {
+  for (const e of ENERGY) {
+    for (let d = 1; d < 30; d++) {
+      const o = overlap(condNames(tier, e, d - 1), condNames(tier, e, d));
+      if (o > 0.5) sticky.push(`${tier}/${e} day ${d}: ${o.toFixed(3)}`);
+    }
+  }
+}
+check(
+  `consecutive days share at most half their exercises in all ${ALL_TIERS.length * ENERGY.length} tier x energy cells`,
+  sticky.length === 0,
+  sticky.length
+    ? `${sticky.length} pairs above that: ${sticky.slice(0, 3).join(', ')} — this was 1.000 everywhere`
+    : ''
+);
+
+const repeatedInMonth = [];
+for (const tier of ALL_TIERS) {
+  for (const e of ENERGY) {
+    const seen = new Set(Array.from({ length: 30 }, (_, d) => condNames(tier, e, d).join('|')));
+    if (seen.size < 30) repeatedInMonth.push(`${tier}/${e}: ${seen.size}`);
+  }
+}
+check(
+  'thirty consecutive days produce thirty different sessions',
+  repeatedInMonth.length === 0,
+  repeatedInMonth.slice(0, 4).join(', ')
+);
+
+// The real usage pattern: conditioning twice a week for four weeks. Checked for
+// every common pair of training days and every day of the week it could start
+// on, because a schedule whose spacing lines up with a pool length is exactly
+// how a rotation quietly stops rotating.
+const TWICE_WEEKLY = {
+  'Mon/Wed': [0, 2, 7, 9, 14, 16, 21, 23],
+  'Mon/Thu': [0, 3, 7, 10, 14, 17, 21, 24],
+  'Mon/Fri': [0, 4, 7, 11, 14, 18, 21, 25],
+  'Sat/Sun': [0, 1, 7, 8, 14, 15, 21, 22],
+};
+const monthRepeats = [];
+for (const [label, days] of Object.entries(TWICE_WEEKLY)) {
+  for (const tier of ALL_TIERS) {
+    for (const e of ENERGY) {
+      for (let start = 0; start < 14; start++) {
+        const seen = new Set(days.map((d) => condNames(tier, e, d + start).join('|')));
+        if (seen.size < days.length) monthRepeats.push(`${label} ${tier}/${e} start ${start}: ${seen.size}/8`);
+      }
+    }
+  }
+}
+check(
+  'a month of twice-weekly conditioning never repeats a session, on any schedule',
+  monthRepeats.length === 0,
+  monthRepeats.slice(0, 4).join(', ')
+);
+
+// Composing a session from four pools is only worth anything if every entry in
+// every pool is actually reachable — an off-by-one in the index would strand
+// one silently.
+const unreachable = [];
+for (const tier of TIERS) {
+  for (const e of ENERGY) {
+    const reached = new Set();
+    for (let d = 0; d < 200; d++) for (const x of getConditioningWorkout(tier, e, d)) reached.add(x.id);
+    if (reached.size < 28) unreachable.push(`${tier}/${e}: only ${reached.size}`);
+  }
+}
+check(
+  'every warm-up, circuit, finisher and cool-down in the pools can actually come up',
+  unreachable.length === 0,
+  unreachable.join(', ')
+);
+
+// A warm-up that is not first is not a warm-up, and a cool-down in the middle
+// of a session is a mistake.
+const misshaped = [];
+for (const tier of ALL_TIERS) {
+  for (const e of ENERGY) {
+    for (let d = 0; d < 30; d++) {
+      const s = getConditioningWorkout(tier, e, d);
+      if (s[0].category !== 'prep') misshaped.push(`${tier}/${e}/${d} opens with ${s[0].category}`);
+      if (s[s.length - 1].category !== 'cooldown') misshaped.push(`${tier}/${e}/${d} ends with ${s[s.length - 1].category}`);
+      if (s[s.length - 2].category !== 'finisher') misshaped.push(`${tier}/${e}/${d} has no finisher before the cool-down`);
+    }
+  }
+}
+check(
+  'every composed session opens with a warm-up and closes finisher then cool-down',
+  misshaped.length === 0,
+  misshaped.slice(0, 4).join(', ')
+);
+
+// ─── 8. The corrections stay corrected ───────────────────────────────────────
+console.log('\n[8] Exercises are filed as the movement they actually are');
+
+const templateById = (id) => byId.get(id);
+const named = (rx) => [...byId.values()].filter((t) => rx.test(t.name));
+
+check(
+  'the bicep stretch reports a bicep, not a spinal muscle',
+  /bicep/i.test(templateById('ph-r-bi-1')?.primaryMuscle ?? ''),
+  `ph-r-bi-1 says "${templateById('ph-r-bi-1')?.primaryMuscle}" — that string is printed on the exercise card`
+);
+
+const pallof = named(/pallof/i).filter((t) => !/core|abdomin|oblique|transvers/i.test(t.primaryMuscle ?? ''));
+check(
+  'an anti-rotation press is core work, not chest work',
+  pallof.length === 0,
+  pallof.map((t) => `${t.id} → ${t.primaryMuscle}`).join(', ')
+);
+
+// A hanging leg raise reads as a vertical pull to the classifier the moment its
+// movementPattern says 'pull', because the name contains "hang" — which is how
+// it came to be offered as pull work in the custom builder.
+const legRaises = named(/hanging leg raise/i).filter((t) => patternGroupOf(t) !== 'core');
+check(
+  'a hanging leg raise is core work, not a vertical pull',
+  legRaises.length === 0,
+  legRaises.map((t) => `${t.id} → ${patternGroupOf(t)}`).join(', ')
+);
+
+// builderCategoryOf sends a cooldown to the cardio block when its
+// movementPattern is 'conditioning'. That is right for a cool-down walk and
+// wrong for a stretch, which is how a stretch ended up in the warm-up list.
+const isStretchOrBreathing = (n) => /stretch/i.test(n) || (/breathing/i.test(n) && !/walk|jog|bike|row/i.test(n));
+const strayStretches = [...byId.values()].filter(
+  (t) => t.category === 'cooldown' && isStretchOrBreathing(t.name) && builderCategoryOf(t) === 'cardio'
+);
+check(
+  'a cool-down stretch is not offered as a warm-up',
+  strayStretches.length === 0,
+  strayStretches.map((t) => `${t.id} (${t.name})`).join(', ')
+);
+
+const hardCooldowns = [...byId.values()].filter(
+  (t) => t.category === 'cooldown' && t.difficulty === 'advanced'
+);
+check(
+  'no cool-down is graded advanced',
+  hardCooldowns.length === 0,
+  `${hardCooldowns.map((t) => `${t.id} (${t.name})`).join(', ')} — the difficulty badge describes the movement, not the session it closed`
+);
+
+// One movement, one name: "Pull-Up / Chin-Up" was a third entry for two
+// movements the catalogue already held separately.
+const allNames = new Set([...byId.values()].map((t) => t.name));
+check(
+  'a pull-up and a chin-up are two exercises, and neither is called both',
+  !allNames.has('Pull-Up / Chin-Up') && allNames.has('Pull-Up') && allNames.has('Chin-Up'),
+  'the picker showed the same movement three times, under two and a half names'
 );
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

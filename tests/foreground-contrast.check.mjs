@@ -201,16 +201,11 @@ const KEY_RE = new RegExp(`\\b(${[...FOREGROUND_KEYS, ...FILL_KEYS].join('|')})\
 const PRIMARY_RE =
   /\b(?:C|Colors|colors|DarkColors|LightColors|theme)\.primary\b(?!(?:Light|Dark|Muted|Surface|Subtext))/g;
 
-// These three screens still feed `primary` into foreground slots. They were
-// owned by another workstream when the split landed, so they could not be
-// migrated in the same pass — they need one mechanical sweep of their own.
-//
-// Deliberately a file list and not a per-file count: while the migration is
-// outstanding these files are being edited for unrelated reasons, and a count
-// would fail on churn that has nothing to do with colour. Every file NOT listed
-// here must stay clean, which is what protects the screens already migrated.
-// Delete an entry once its screen is done.
-const NOT_YET_MIGRATED = new Set(['app/session.tsx', 'app/readiness.tsx']);
+// Empty, and meant to stay that way: every screen has been migrated. It is kept
+// as the one documented escape hatch, so that a screen mid-migration can be
+// listed for as long as that takes instead of the guard being switched off for
+// everybody. Anything added here is a debt with a name on it.
+const NOT_YET_MIGRATED = new Set([]);
 
 function walkFiles(dir, results = []) {
   for (const entry of readdirSync(dir)) {
@@ -270,6 +265,64 @@ for (const file of NOT_YET_MIGRATED) {
 if (offenders.length === 0) console.log('  ✓ no foreground uses of `primary` anywhere');
 
 failures += sourceFailures;
+
+// ─── C. The session card's category pills, read from the screen ──────────────
+//
+// The badge checks next door take a hand-written list of token PAIRS, which
+// only ever grew to the five pills named `categoryX` / `categoryXText`. The
+// three that are assembled out of general tokens were never in it, and that is
+// how "Warm-Up" sat at 1.90 : 1 on the first four cards of every session while
+// two contrast checks passed: it pairs `primaryMuted` with `primary`, and
+// neither name says "category pill" to a list.
+//
+// So this reads the map the screen actually renders rather than a list of what
+// somebody remembered to add. A new pill is covered the day it is written.
+
+const PILL_MIN = 3.0; // small bold type on its own fill — the app's badge bar
+
+const cardSrc = readFileSync(join(ROOT, 'app', 'session.tsx'), 'utf8');
+const mapMatch = cardSrc.match(
+  /const categoryColors: Record<string, \{ bg: string; text: string; label: string \}> = \{([\s\S]*?)\n {2}\};/
+);
+
+console.log('\n── Session category pills — text on its own fill, both themes ──');
+
+if (!mapMatch) {
+  console.error('  ✗ could not find `categoryColors` in app/session.tsx');
+  failures++;
+  total++;
+} else {
+  const pills = [...mapMatch[1].matchAll(/(\w+): \{ bg: C\.(\w+), text: C\.(\w+), label: '([^']+)'/g)];
+  total++;
+  if (pills.length < 8) {
+    console.error(`  ✗ parsed only ${pills.length} pills — the map's shape has changed`);
+    failures++;
+  } else {
+    console.log(`  ✓ all ${pills.length} pills found in the map`);
+  }
+
+  for (const [, key, bgKey, textKey, label] of pills) {
+    for (const [themeName, T] of Object.entries(THEMES)) {
+      total++;
+      const bg = T[bgKey];
+      const ink = T[textKey];
+      if (!bg || !ink) {
+        console.error(`  ✗ ${themeName} ${key} — token missing (${bgKey} / ${textKey})`);
+        failures++;
+        continue;
+      }
+      const ratio = contrastRatio(ink, bg);
+      const where = `${themeName} "${label}" (${textKey} on ${bgKey})`;
+      if (ratio >= PILL_MIN) {
+        console.log(`  ✓ ${where} — ${ratio.toFixed(2)} : 1`);
+      } else {
+        console.error(`  ✗ ${where} — ${ratio.toFixed(2)} : 1 — below ${PILL_MIN} : 1`);
+        console.error(`    Fix: pair the tinted fill with the BRIGHT ink token, as the others do.`);
+        failures++;
+      }
+    }
+  }
+}
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 

@@ -493,7 +493,7 @@ export default function ReadinessScreen() {
       >
         {layoffMessage && (
           <View style={styles.layoffBanner} testID="layoff-banner">
-            <Ionicons name={layoffMessage.icon as never} size={18} color={C.primary} />
+            <Ionicons name={layoffMessage.icon as never} size={18} color={C.primaryText} />
             <View style={{ flex: 1 }}>
               <Text style={styles.layoffTitle}>{layoffMessage.title}</Text>
               <Text style={styles.layoffBody}>{layoffMessage.body}</Text>
@@ -554,7 +554,7 @@ export default function ReadinessScreen() {
         )}
         {testPostponed && (
           <View style={styles.testDeferConfirm}>
-            <Ionicons name="checkmark-circle-outline" size={16} color={C.primary} />
+            <Ionicons name="checkmark-circle-outline" size={16} color={C.primaryText} />
             <Text style={styles.testDeferConfirmText}>
               {testsDisabled
                 ? "Test weeks are off. Today's a normal session — you can turn them back on in Profile › Settings."
@@ -567,7 +567,7 @@ export default function ReadinessScreen() {
           <Text style={styles.sectionTitle}>Equipment today</Text>
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primary} />
+              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
               <Text style={styles.beginnerNoteText}>
                 No Equipment & bands - great for building safe foundations
               </Text>
@@ -575,7 +575,7 @@ export default function ReadinessScreen() {
           )}
           {overrideTiers !== null && (
             <View style={styles.beginnerNote}>
-              <Ionicons name="swap-horizontal-outline" size={13} color={C.primary} />
+              <Ionicons name="swap-horizontal-outline" size={13} color={C.primaryText} />
               <Text style={styles.beginnerNoteText}>
                 Pre-selected from your session choice - adjust below if needed
               </Text>
@@ -585,7 +585,7 @@ export default function ReadinessScreen() {
             <View style={styles.effectiveTierBadge}>
               <Text style={styles.effectiveTierText}>
                 Best match:{' '}
-                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primary }}>
+                <Text style={{ fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
                   {getEquipmentLabel(effectiveTier)}
                 </Text>
               </Text>
@@ -626,7 +626,7 @@ export default function ReadinessScreen() {
                         numberOfLines={1}
                         style={[
                           styles.tierLabel,
-                          isActive && { color: C.primary },
+                          isActive && { color: C.primaryText },
                           !isAvailable && { color: C.textTertiary },
                         ]}
                       >
@@ -817,7 +817,7 @@ export default function ReadinessScreen() {
           ) : hasAches ? (
             <>
               <Ionicons name="arrow-forward" size={18} color={C.textInverse} />
-              <Text style={styles.startButtonText}>Next: pick area →</Text>
+              <Text style={styles.startButtonText}>Next: pick area</Text>
             </>
           ) : (
             <>
@@ -847,7 +847,7 @@ export default function ReadinessScreen() {
             { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 10 },
           ]}
         >
-          <Ionicons name="body-outline" size={24} color={C.primary} />
+          <Ionicons name="body-outline" size={24} color={C.primaryText} />
         </View>
         <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>
           What area to target today?
@@ -866,7 +866,7 @@ export default function ReadinessScreen() {
             <BodyDiagram
               selected={diagramPrehabRegion}
               onSelect={setDiagramPrehabRegion}
-              accentColor={C.primary}
+              accentColor={C.primaryText}
               accentColorLight={C.primarySurface}
               maxHeight={prehabDiagramAreaH > 0 ? prehabDiagramAreaH - 20 : undefined}
             />
@@ -974,9 +974,9 @@ export default function ReadinessScreen() {
             <Ionicons
               name={multiSelect ? 'checkbox' : 'square-outline'}
               size={14}
-              color={multiSelect ? C.primary : C.textTertiary}
+              color={multiSelect ? C.primaryText : C.textTertiary}
             />
-            <Text style={[styles.multiToggleText, multiSelect && { color: C.primary }]}>
+            <Text style={[styles.multiToggleText, multiSelect && { color: C.primaryText }]}>
               More than one area
             </Text>
           </Pressable>
@@ -1343,7 +1343,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       height: 22,
       borderRadius: 11,
       backgroundColor: C.primaryMuted,
-      color: C.primary,
+      color: C.primaryText,
       fontSize: 12,
       fontFamily: 'Inter_700Bold',
       textAlign: 'center',
@@ -1730,7 +1730,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 1,
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
-      color: C.primary,
+      color: C.primaryText,
       lineHeight: 17,
     },
 
@@ -1746,7 +1746,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     layoffTitle: {
       fontSize: 13,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       marginBottom: 3,
     },
     layoffBody: {

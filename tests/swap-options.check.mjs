@@ -32,6 +32,7 @@ globalThis.__DEV__ = false;
 
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { restrictedTagsFor, restrictedTagsOn } from '../lib/exercise-safety.ts';
+import { getRegionsByExerciseNameMap } from '../lib/exercise-db.ts';
 
 let failures = 0;
 let total = 0;
@@ -207,10 +208,34 @@ const rehab = generateWorkout(
   { hasAches: true, painRegion: ['knee'], energy: 'normal', timeAvailable: '45' },
   profile
 );
+// A rehab exercise may not be traded away — it was chosen for the sore joint,
+// and swapping it for something else undoes the session. It MAY be traded down:
+// an eccentric hamstring curl offering a floor slide is the regression a
+// physio would give you, not an escape from the work. The line between the two
+// is the regions: a permitted swap trains the same ones.
+const regionsByName = getRegionsByExerciseNameMap();
+const escapes = rehab
+  .filter((e) => e.category === 'prehab' && e.swapName)
+  .flatMap((e) => {
+    const own = regionsByName[e.name] ?? [];
+    return [e.swapName, e.swap2Name].filter(Boolean).map((alt) => {
+      const altRegions = regionsByName[alt] ?? [];
+      const staysOnTarget =
+        own.length > 0 && altRegions.length > 0 && altRegions.every((r) => own.includes(r));
+      return { from: e.name, to: alt, own, altRegions, staysOnTarget };
+    });
+  })
+  .filter((s) => !s.staysOnTarget);
+
 check(
-  'a rehab session is not given swap options',
-  rehab.filter((e) => e.category === 'prehab').every((e) => !e.swapName),
-  'the rehab block was chosen for the sore joint — offering to trade it away undoes the session'
+  'a rehab session only offers swaps that stay on the injured area',
+  escapes.length === 0,
+  escapes
+    .map(
+      (s) =>
+        `${s.from} [${s.own.join(', ') || 'untagged'}] → ${s.to} [${s.altRegions.join(', ') || 'untagged'}]`
+    )
+    .join('; ')
 );
 
 console.log('');

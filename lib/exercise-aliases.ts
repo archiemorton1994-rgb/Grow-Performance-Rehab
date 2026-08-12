@@ -49,6 +49,9 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   'Standing Long Jump': 'Broad Jump',
   'Australian Pull-Up': 'Inverted Row',
   'Straight Bar Pushdowns': 'Cable Tricep Pushdown',
+  // One slot used to name both movements at once, while Pull-Up and Chin-Up also
+  // existed separately — three catalogue entries for two exercises.
+  'Pull-Up / Chin-Up': 'Pull-Up',
   'Calf Stretch (wall)': 'Calf Stretch (Wall)',
   'Supine Hamstring Stretch (strap)': 'Supine Hamstring Stretch (Strap)',
 

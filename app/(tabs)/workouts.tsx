@@ -40,7 +40,11 @@ import {
   PANEL_BG,
 } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
-import { getExerciseTargetRegionsMap, getExerciseNameMap } from '@/lib/exercise-db';
+import {
+  getExerciseTargetRegionsMap,
+  getExerciseNameMap,
+  getRegionsByExerciseNameMap,
+} from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
 import {
   formatDate,
@@ -164,6 +168,27 @@ function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, s
 }
 
 // ─── Muscle Progress data layer ───────────────────────────────────────────────
+
+/**
+ * The regions one logged exercise trained.
+ *
+ * By id first, then by name. The id is not always in the catalogue: a weekly
+ * session that rotates its main lift to the declared alternative logs it under
+ * `<base id>-variation`, deliberately, so the variation progresses on its own
+ * history rather than the base lift's. No region map knows that id, so looking
+ * up by id alone dropped the biggest exercise of the session from the map.
+ * Same fallback the session summary already uses.
+ */
+function regionsOfLog(
+  log: CompletedSession['exerciseLogs'][number],
+  byId: Record<string, PainRegion[]>,
+  byName: Record<string, PainRegion[]>
+): PainRegion[] {
+  const byIdRegions = byId[log.exerciseId];
+  if (byIdRegions && byIdRegions.length > 0) return byIdRegions;
+  return byName[log.exerciseName] ?? [];
+}
+
 // Maps each MUSCLE_SET region to a heatmapCounts value:
 //   0     → inactive (grey)   — not trained in 14 days
 //   1     → progressing (green) — trained 1–4 days in last 7 days
@@ -173,6 +198,7 @@ function getMuscleProgressCounts(
   sessions: CompletedSession[]
 ): Partial<Record<PainRegion, number>> {
   const targetRegionsMap = getExerciseTargetRegionsMap();
+  const regionsByName = getRegionsByExerciseNameMap();
   const now = new Date();
   const cutoff7 = new Date(now);
   cutoff7.setDate(now.getDate() - 7);
@@ -188,7 +214,7 @@ function getMuscleProgressCounts(
     const dateKey = session.date.slice(0, 10);
     const inLast7 = sessionDate >= cutoff7;
     for (const log of session.exerciseLogs) {
-      const regions = targetRegionsMap[log.exerciseId] ?? [];
+      const regions = regionsOfLog(log, targetRegionsMap, regionsByName);
       for (const region of regions) {
         if (!MUSCLE_SET.has(region)) continue;
         if (inLast7) {
@@ -274,6 +300,7 @@ function MuscleProgressPanel({
   const insightData = useMemo(() => {
     if (!insightRegion) return null;
     const targetRegionsMap = getExerciseTargetRegionsMap();
+    const regionsByName = getRegionsByExerciseNameMap();
     const nameMap = getExerciseNameMap();
     const cutoff7 = new Date();
     cutoff7.setDate(cutoff7.getDate() - 7);
@@ -283,7 +310,7 @@ function MuscleProgressPanel({
     for (const session of completedSessions) {
       if (new Date(session.date) < cutoff7) continue;
       for (const log of session.exerciseLogs) {
-        const regions = targetRegionsMap[log.exerciseId] ?? [];
+        const regions = regionsOfLog(log, targetRegionsMap, regionsByName);
         if (regions.includes(insightRegion)) {
           daySet.add(session.date.slice(0, 10));
           const completed = log.sets.filter((s) => s.completed).length;
@@ -293,7 +320,7 @@ function MuscleProgressPanel({
             entry.sets += completed;
           } else {
             exSets.set(log.exerciseId, {
-              name: nameMap[log.exerciseId] ?? log.exerciseId,
+              name: nameMap[log.exerciseId] ?? log.exerciseName,
               sets: completed,
             });
           }

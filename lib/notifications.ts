@@ -16,7 +16,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 const REMINDER_BODIES = [
-  "Your session is ready. Let's go 💪",
+  "Your session is ready. Let's go.",
   'Consistency builds strength. Time to train.',
   "You'll feel great after. Let's get started.",
   'Ready to move? Your workout is waiting.',
@@ -194,7 +194,7 @@ export async function scheduleStreakProtectionAlert(
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_PROTECTION_ID,
       content: {
-        title: '🔥 Your weekly streak is at risk!',
+        title: 'Your weekly streak is at risk',
         body,
         sound: true,
         data: { screen: 'train' },

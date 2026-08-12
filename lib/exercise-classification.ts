@@ -119,9 +119,35 @@ export function patternGroupOf(t: ExerciseTemplate): PatternGroup {
  */
 export type ExerciseTier = 'primary_compound' | 'accessory' | 'isolation';
 
-/** One joint, one muscle — recognised by what it is called. */
+/**
+ * One joint, one muscle — recognised by what it is called.
+ *
+ * `pullover` and `straight arm` are the same movement on two implements: the
+ * arms never bend, so the shoulder is the only joint doing anything. Both read
+ * as vertical pulls by pattern, which is right, and both were being offered as
+ * lifts to build a session around, which is not. `kick` covers the quadruped
+ * glute kicks alongside the tricep kickbacks that were already here.
+ */
 const ISOLATION_NAMES =
-  /\bcurl\b|curls\b|\braise\b|raises\b|\bfly\b|flye|extension|pushdown|kickback|pec deck|calf raise|shrug|wrist|rotator|face pull|pull-?apart|leg curl|leg extension/i;
+  /\bcurl\b|curls\b|\braise\b|raises\b|\bfly\b|flye|extension|pushdown|\bkick|pec deck|calf raise|shrug|wrist|rotator|face pull|pull-?apart|leg curl|leg extension|pullover|straight.?arm/i;
+
+/**
+ * Muscles nothing is built around.
+ *
+ * A main lift is named by the muscle it drives, and these are not muscles
+ * anybody drives — they are the small stabilisers and the grip, which work hard
+ * on plenty of movements and lead none of them. The secondary-muscle count
+ * cannot see this: a Dead Hang lists the lats and the shoulder stabilisers
+ * behind "Grip/Forearms" and so counts as multi-joint, and a Curtsy Lunge lists
+ * three behind "Glute medius". Both were offered as lifts to open a session
+ * with, next to a back squat.
+ *
+ * The same test the session builder already applies when it decides what counts
+ * as activation work — lib/session-builder.ts, STABILISER_MUSCLES — for the same
+ * reason: nobody trains their rotator cuff or their glute medius for size.
+ */
+const SUPPORTING_PRIME_MOVERS =
+  /glute medius|rotator cuff|infraspinatus|\bgrip\b|forearm|serratus|transversus|tibialis|hip flexor|neck/i;
 
 /**
  * Exercises the rules get wrong, and why.
@@ -162,6 +188,10 @@ export function tierOf(t: ExerciseTemplate): ExerciseTier {
     return secondaries >= 2 ? 'accessory' : 'isolation';
   }
   if (ISOLATION_NAMES.test(t.name)) return 'isolation';
+  // Aimed at a stabiliser, so multi-joint or not it is support work.
+  if (SUPPORTING_PRIME_MOVERS.test(t.primaryMuscle ?? '')) {
+    return secondaries >= 1 ? 'accessory' : 'isolation';
+  }
   // Two or more supporting muscles is the practical definition of multi-joint
   // in this database, and it is the same threshold the session generator
   // already uses to decide whether something can fill a compound slot.

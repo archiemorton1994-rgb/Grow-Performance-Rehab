@@ -39,7 +39,7 @@ import {
   getSessionColors,
   SessionMeta,
 } from '@/lib/session-meta';
-import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
+import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -110,6 +110,7 @@ export default function HomeScreen() {
     getThisWeekCount,
     weeklyStreakGoal,
     getTestWeekProgress,
+    getReturnWindow,
     isWeightReminderVisible,
     userProfile,
     setUserProfile,
@@ -190,6 +191,7 @@ export default function HomeScreen() {
   const weekCount = getThisWeekCount();
   const testWeekProgress = getTestWeekProgress();
   const testWeek = testWeekProgress.active;
+  const testHeld = testWeekProgress.held;
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
   const greeting = getTimeOfDayGreeting();
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
@@ -345,6 +347,19 @@ export default function HomeScreen() {
     !testWeek && strengthCount > 0 ? strengthCount % cycleLength || cycleLength : 0;
   const sessionsUntilTest = cycleLength - sessionsInBlock;
   const showBlockProgress = testsOn && strengthCount >= 1 && !testWeek;
+  /**
+   * Sessions still owed before a withheld test is offered.
+   *
+   * The block is finished — that is why the test came due — but nobody walks
+   * out of a layoff into a max-effort attempt, so it waits until the baseline
+   * is back (see getTestWeekProgress in lib/store.ts). Left to the arithmetic
+   * above, the row counted a block that had already ended: "Test week in 0
+   * sessions" while no test was on offer, then "Block 1 / 12" as though a
+   * fresh block had started. Both read as a stuck counter.
+   */
+  const sessionsUntilTestResumes = testHeld
+    ? Math.max(0, COMEBACK_SESSIONS - (getReturnWindow()?.sessionsBack ?? 0))
+    : 0;
   // How many full test-week blocks they've already been through, counted from
   // actual completed test weeks (not derived from strengthCount / frequency)
   // so it stays correct even if testWeekFrequency is changed mid-program or a
@@ -830,17 +845,26 @@ export default function HomeScreen() {
                   <View
                     style={[
                       styles.blockBarFill,
-                      { width: `${Math.round((sessionsInBlock / cycleLength) * 100)}%` as any },
+                      {
+                        width: (testHeld
+                          ? '100%'
+                          : `${Math.round((sessionsInBlock / cycleLength) * 100)}%`) as any,
+                      },
                     ]}
                   />
                 </View>
                 <Text
-                  style={[styles.blockProgressLabel, sessionsUntilTest <= 2 && { color: C.warning }]}
+                  style={[
+                    styles.blockProgressLabel,
+                    !testHeld && sessionsUntilTest <= 2 && { color: C.warning },
+                  ]}
                   numberOfLines={1}
                 >
-                  {sessionsUntilTest <= 2
-                    ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                    : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${cycleLength}`}
+                  {testHeld
+                    ? `Strength test on hold · ${sessionsUntilTestResumes} session${sessionsUntilTestResumes !== 1 ? 's' : ''} to go`
+                    : sessionsUntilTest <= 2
+                      ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
+                      : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${cycleLength}`}
                 </Text>
               </Animated.View>
             </View>

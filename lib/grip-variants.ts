@@ -77,13 +77,6 @@ export const GRIP_VARIANTS: Record<string, GripVariant[]> = {
         'Use parallel handles with the palms facing each other; if your bar has no neutral handles, keep the standard grip.',
     },
   ],
-  'Pull-Up / Chin-Up': [
-    {
-      name: 'Neutral-Grip Pull-Up',
-      cueSuffix:
-        'Use parallel handles with the palms facing each other; if your bar has no neutral handles, keep the standard grip.',
-    },
-  ],
 
   // Overhead and incline pressing. Palms-in keeps the humerus in the scapular
   // plane, which lowers anterior shoulder demand rather than raising it — the

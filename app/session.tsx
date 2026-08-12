@@ -130,6 +130,45 @@ function parseRepsToSeconds(repsStr: string): number {
   return 5 * 60; // fallback 5 minutes
 }
 
+/**
+ * Does this exercise get the continuous countdown rather than a rest timer?
+ *
+ * The question is what the movement is, not where it sits. Keying on "the first
+ * warm-up in the list" held only because the generator always opens with cardio;
+ * a custom build that skipped the cardio step handed the clock to a stretch, and
+ * `parseRepsToSeconds` fell back to five minutes — a Cossack squat held for five
+ * minutes. The custom builder had to force a cardio block in to avoid it.
+ *
+ * The prescription is the honest signal. Every cardio warm-up in the catalogue
+ * asks for a run of minutes, whichever generator picked it, and so does the one
+ * the custom builder writes; every mobility drill in the same block is counted
+ * in seconds or in reps.
+ */
+function isTimedCardioWarmup(exercise: Exercise): boolean {
+  return exercise.category === 'prep' && /\d+\s*min/.test(exercise.reps);
+}
+
+/**
+ * Which way the arrow beside a progression note points.
+ *
+ * A weight that was eased back after time away arrives filed as a hold, because
+ * the two directions the engine can express are "up" and "hold" and an upward
+ * arrow beside a reduced weight would be worse than a flat one. Flat is still
+ * wrong: the note reads "Eased back to 78%" and the icon next to it says nothing
+ * moved. Until the direction itself can say "down", the sentence is the only
+ * record of the reduction, so it is what the arrow reads.
+ *
+ * "Starting fresh" is deliberately not included. That note means the old weight
+ * has stopped being evidence and the number is an estimate again — which is not
+ * the same as a step down, and can land either side of where the user left off.
+ */
+function progressionIconFor(exercise: Exercise) {
+  if (/^Eased back/.test(exercise.progressionNote ?? '')) return 'trending-down-outline' as const;
+  return exercise.progressionDirection === 'hold'
+    ? ('remove-outline' as const)
+    : ('trending-up-outline' as const);
+}
+
 function RestTimer({
   category,
   trigger = 0,
@@ -304,7 +343,7 @@ function RestTimer({
     return (
       <Animated.View style={pulseStyle}>
         <Pressable onPress={reset} style={styles.restTimerDone}>
-          <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+          <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
           <Text style={styles.restTimerDoneText}>Rest complete</Text>
         </Pressable>
       </Animated.View>
@@ -317,7 +356,7 @@ function RestTimer({
       <Animated.View style={[styles.restTimerPill, isCompleting && pulseStyle]}>
         {isCompleting ? (
           <View style={styles.restTimerPillInner}>
-            <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+            <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
             <Text style={styles.restTimerPillCompleteText}>Done!</Text>
           </View>
         ) : (
@@ -335,7 +374,7 @@ function RestTimer({
                 accessibilityLabel={isRunning ? 'Pause rest timer' : 'Resume rest timer'}
                 accessibilityRole="button"
               >
-                <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={C.primary} />
+                <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={C.primaryText} />
               </Pressable>
               <Pressable
                 onPress={addFifteen}
@@ -366,7 +405,7 @@ function RestTimer({
   return (
     <View style={styles.restTimerRow}>
       <View style={[styles.restTimerBtn, { flex: 1 }]}>
-        <Ionicons name="timer" size={18} color={C.primary} />
+        <Ionicons name="timer" size={18} color={C.primaryText} />
         <Text style={styles.restTimerText}>
           Rest timer · {mm}:{ss}
         </Text>
@@ -420,7 +459,7 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
     return (
       <Animated.View>
         <Pressable onPress={reset} style={styles.restTimerDone}>
-          <Ionicons name="checkmark-circle" size={16} color={C.primary} />
+          <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
           <Text style={styles.restTimerDoneText}>Warm-up complete - tap to reset</Text>
         </Pressable>
       </Animated.View>
@@ -436,7 +475,7 @@ function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
         <Ionicons
           name={isRunning ? 'pause-circle' : 'flame'}
           size={18}
-          color={isRunning ? '#fff' : C.primary}
+          color={isRunning ? '#fff' : C.primaryText}
         />
         <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
           {isRunning ? `Warm-up - ${mm}:${ss}` : `Cardio timer - ${mm}:${ss}`}
@@ -716,7 +755,7 @@ export function SessionActiveBar({
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <View style={styles.barCardioHint}>
-          <Ionicons name="timer-outline" size={20} color={C.primary} />
+          <Ionicons name="timer-outline" size={20} color={C.primaryText} />
           <Text style={styles.barCardioHintText}>Log your cardio in the card above ↑</Text>
         </View>
       </View>
@@ -971,7 +1010,7 @@ function CardioInputBlock({
     if (cardioData.distanceKm) parts.push(`${cardioData.distanceKm} km`);
     return (
       <View style={styles.cardioLoggedRow}>
-        <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+        <Ionicons name="checkmark-circle" size={18} color={C.primaryText} />
         <Text style={styles.cardioLoggedText}>{parts.join(' · ')}</Text>
       </View>
     );
@@ -1135,7 +1174,10 @@ export function ExerciseCard({
   }));
 
   const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    prep: { bg: C.primaryMuted, text: C.primary, label: 'Warm-Up' },
+    // Every other row here pairs a dark tinted fill with a bright ink token.
+    // This one used `primary`, which is the fill green — dim ink on a dim fill,
+    // 1.90:1 in dark mode, on the first four cards of every session.
+    prep: { bg: C.primaryMuted, text: C.primaryText, label: 'Warm-Up' },
     mechanical: { bg: C.categoryMechanical, text: C.categoryMechanicalText, label: 'Activation' },
     neuro: { bg: C.categoryNeuro, text: C.categoryNeuroText, label: 'Power Primer' },
     main: { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
@@ -1301,7 +1343,8 @@ export function ExerciseCard({
                         exiting={FadeOut.duration(400)}
                         style={styles.pbFlashBadge}
                       >
-                        <Text style={styles.pbFlashBadgeText}>New PB 🏆</Text>
+                        <Ionicons name="trophy" size={11} color={C.pbFlashText} />
+                        <Text style={styles.pbFlashBadgeText}>New PB</Text>
                       </Animated.View>
                     )}
                   </View>
@@ -1329,13 +1372,9 @@ export function ExerciseCard({
                   {exercise.progressionNote && (
                     <View style={styles.progressionNoteRow}>
                       <Ionicons
-                        name={
-                          exercise.progressionDirection === 'hold'
-                            ? 'remove-outline'
-                            : 'trending-up-outline'
-                        }
+                        name={progressionIconFor(exercise)}
                         size={11}
-                        color={C.primary}
+                        color={C.primaryText}
                       />
                       <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
                     </View>
@@ -1374,7 +1413,7 @@ export function ExerciseCard({
                     <Ionicons
                       name="swap-horizontal-outline"
                       size={18}
-                      color={setData.swapCount > 0 ? C.primary : C.textSecondary}
+                      color={setData.swapCount > 0 ? C.primaryText : C.textSecondary}
                     />
                   </Pressable>
                 )}
@@ -1388,7 +1427,7 @@ export function ExerciseCard({
                   <Ionicons
                     name={noteVisible ? 'pencil' : 'pencil-outline'}
                     size={17}
-                    color={noteVisible ? C.primary : C.textSecondary}
+                    color={noteVisible ? C.primaryText : C.textSecondary}
                   />
                 </Pressable>
               </View>
@@ -1407,7 +1446,7 @@ export function ExerciseCard({
                   about, on the day you are about to do it again. */}
               {previousNote && !note && (
                 <View style={styles.recalledNote}>
-                  <Ionicons name="bookmark" size={12} color={C.primary} />
+                  <Ionicons name="bookmark" size={12} color={C.primaryText} />
                   <Text style={styles.recalledNoteText} numberOfLines={3}>
                     {previousNote}
                   </Text>
@@ -1423,7 +1462,7 @@ export function ExerciseCard({
                   testID={`plate-calc-${index}`}
                   accessibilityLabel="Plate breakdown"
                 >
-                  <Ionicons name="barbell-outline" size={13} color={C.primary} />
+                  <Ionicons name="barbell-outline" size={13} color={C.primaryText} />
                   <Text style={styles.plateBtnText}>What plates?</Text>
                 </Pressable>
               )}
@@ -1450,7 +1489,7 @@ export function ExerciseCard({
               {expanded && (
                 <View style={styles.setsContainer}>
                   <View style={styles.cueContainer}>
-                    <Ionicons name="bulb-outline" size={14} color={C.primary} />
+                    <Ionicons name="bulb-outline" size={14} color={C.primaryText} />
                     <Text style={styles.cueText}>{exercise.cue}</Text>
                   </View>
 
@@ -1469,17 +1508,13 @@ export function ExerciseCard({
                     />
                   )}
 
-                  {exercise.type !== 'cardio' &&
-                    (exercise.id === 'cardio-warmup' ||
-                      (exercise.category === 'prep' && index === 0)) && (
-                      <CardioWarmupTimer repsStr={exercise.reps} />
-                    )}
+                  {exercise.type !== 'cardio' && isTimedCardioWarmup(exercise) && (
+                    <CardioWarmupTimer repsStr={exercise.reps} />
+                  )}
 
-                  {exercise.type !== 'cardio' &&
-                    exercise.id !== 'cardio-warmup' &&
-                    !(exercise.category === 'prep' && index === 0) && (
-                      <RestTimer category={exercise.category} trigger={effectiveTimerTrigger} />
-                    )}
+                  {exercise.type !== 'cardio' && !isTimedCardioWarmup(exercise) && (
+                    <RestTimer category={exercise.category} trigger={effectiveTimerTrigger} />
+                  )}
 
                   {exercise.type !== 'cardio' &&
                     !isBandExercise &&
@@ -1559,7 +1594,7 @@ export function ExerciseCard({
                                     <Ionicons
                                       name={onEditSet ? 'pencil' : 'checkmark'}
                                       size={10}
-                                      color={C.primary}
+                                      color={C.primaryText}
                                     />
                                   </Pressable>
                                 );
@@ -1572,7 +1607,7 @@ export function ExerciseCard({
                             activeSetIndex >= 0 &&
                             activeSetIndex < setData.sets.length && (
                               <View style={styles.activeSetInCard}>
-                                <Ionicons name="barbell-outline" size={14} color={C.primary} />
+                                <Ionicons name="barbell-outline" size={14} color={C.primaryText} />
                                 <Text style={styles.activeSetInCardText}>
                                   Set {activeSetIndex + 1} of {setData.sets.length} · log below ↓
                                 </Text>
@@ -1582,7 +1617,7 @@ export function ExerciseCard({
                           {/* All sets done indicator */}
                           {allDone && (
                             <View style={styles.allSetsDone}>
-                              <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+                              <Ionicons name="checkmark-circle" size={18} color={C.primaryText} />
                               <Text style={styles.allSetsDoneText}>All sets complete!</Text>
                             </View>
                           )}
@@ -3339,7 +3374,7 @@ export default function SessionScreen() {
                 marginBottom: 4,
               }}
             >
-              <Ionicons name="checkmark-circle" size={52} color={C.primary} />
+              <Ionicons name="checkmark-circle" size={52} color={C.primaryText} />
             </View>
             <Text
               style={{
@@ -3615,6 +3650,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       letterSpacing: 0.5,
     },
     pbFlashBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
       backgroundColor: C.pbFlash,
       paddingHorizontal: 8,
       paddingVertical: 3,
@@ -3649,7 +3687,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     dumbbellNote: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       marginTop: 2,
       fontStyle: 'italic' as const,
     },
@@ -3662,7 +3700,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     progressionNoteText: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       fontStyle: 'italic' as const,
       flex: 1,
     },
@@ -3703,7 +3741,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     cueText: {
       fontSize: 13,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       fontStyle: 'italic' as const,
       flex: 1,
     },
@@ -3890,7 +3928,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primaryMuted,
       marginBottom: 12,
     },
-    swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primary, marginBottom: 2 },
+    swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primaryText, marginBottom: 2 },
     swapToName: {
       fontSize: 14,
       fontFamily: 'Inter_700Bold',
@@ -3904,7 +3942,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontStyle: 'italic' as const,
       marginBottom: 4,
     },
-    swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primary },
+    swapToLoad: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primaryText },
     swapNote: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
@@ -3957,7 +3995,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
     },
     congratsStat: { flex: 1, alignItems: 'center' },
-    congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primary },
+    congratsStatValue: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primaryText },
     congratsStatLabel: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
@@ -4000,7 +4038,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 14,
       width: '100%',
     },
-    feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primary, flex: 1 },
+    feedbackSavedText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primaryText, flex: 1 },
     feedbackButtonRow: {
       flexDirection: 'row',
       gap: 10,
@@ -4020,7 +4058,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.primaryMuted,
     },
-    feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    feedbackSecondaryText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     feedbackSubtitle: {
       fontSize: 13,
       fontFamily: 'Inter_400Regular',
@@ -4110,7 +4148,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     milestoneBadgeText: {
       fontSize: 11,
       fontFamily: 'Inter_700Bold',
-      color: C.primary,
+      color: C.primaryText,
       letterSpacing: 1.5,
       backgroundColor: C.primaryMuted,
       paddingHorizontal: 12,
@@ -4179,7 +4217,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerSkipText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     restTimerAddBtn: {
       paddingHorizontal: 10,
       height: 40,
@@ -4191,7 +4229,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
     restTimerAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
-    restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     restTimerTextActive: { color: '#fff' },
     restTimerDone: {
       flexDirection: 'row',
@@ -4206,7 +4244,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
       alignSelf: 'flex-start',
     },
-    restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerDoneText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     restTimerPill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4260,7 +4298,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    restTimerPillSkipText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerPillSkipText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     restTimerPillInner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4268,7 +4306,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 1,
       justifyContent: 'center',
     },
-    restTimerPillCompleteText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    restTimerPillCompleteText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     // Spotter advisory
     spotterAdvisory: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
     spotterAdvisoryText: {
@@ -4317,7 +4355,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     targetWeightLabel: {
       fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
       marginBottom: 1,
@@ -4342,7 +4380,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ormCompareTitle: {
       fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       textAlign: 'center',
       marginBottom: 12,
       textTransform: 'uppercase' as const,
@@ -4357,7 +4395,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 4,
     },
     ormCompareValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
-    ormCompareNew: { color: C.primary, fontSize: 22 },
+    ormCompareNew: { color: C.primaryText, fontSize: 22 },
     ormPbBadge: { marginTop: 10, alignItems: 'center' },
     ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     // Time-based exercise done button
@@ -4374,7 +4412,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginVertical: 8,
     },
     timeDoneBtnDone: { backgroundColor: C.primary, borderColor: C.primary },
-    timeDoneBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    timeDoneBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     timeDoneBtnTextDone: { color: C.textInverse },
     // Zero-block hint below set row
     zeroBlockHint: {
@@ -4454,7 +4492,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primaryMuted,
       backgroundColor: C.primarySurface,
     },
-    plateBtnText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.primary },
+    plateBtnText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     comfortNote: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4498,7 +4536,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     activeSetLabel: {
       fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
-      color: C.primary,
+      color: C.primaryText,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.8,
       textAlign: 'center',
@@ -4522,7 +4560,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     activeSetGuideText: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',
-      color: C.primary,
+      color: C.primaryText,
       flex: 1,
       fontStyle: 'italic' as const,
     },
@@ -4566,7 +4604,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     activeSetInCardText: {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
-      color: C.primary,
+      color: C.primaryText,
     },
     // ── Icon-only action buttons ────────────────────────────────────────────────
     iconActionBtn: {
@@ -4615,7 +4653,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     barSetLabel: {
       fontSize: 11,
       fontFamily: 'Inter_500Medium',
-      color: C.primary,
+      color: C.primaryText,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
     },
@@ -4782,7 +4820,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     barCardioHintText: {
       fontSize: 14,
       fontFamily: 'Inter_500Medium',
-      color: C.primary,
+      color: C.primaryText,
     },
     cardioInputBlock: {
       marginTop: 8,
