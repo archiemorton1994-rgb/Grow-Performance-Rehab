@@ -1,10 +1,16 @@
 import type { CustomExercise, ExerciseCategory, PainRegion } from './store';
 import {
   getAllPickableExercises,
+  getMainLift,
   type ExerciseTemplate,
   type InternalTier,
 } from './exercise-db';
-import { canBeMainLift, patternGroupOf, tierOf, type PatternGroup } from './exercise-classification';
+import {
+  canBeMainLift,
+  patternGroupOf,
+  tierOf,
+  type PatternGroup,
+} from './exercise-classification';
 import { bodyRegionOf, type BodyRegion } from './exercise-safety';
 
 /**
@@ -128,7 +134,10 @@ const MUSCLE_PATTERNS: [MuscleGroup, RegExp][] = [
   ['forearms', /forearm|\bgrip\b|wrist|pronator|elbow/i],
   // Not the neck: core work is trunk work, and treating a neck stretch as core
   // stability put one in front of everybody doing a squat session.
-  ['core', /\bcore\b|abdomin|oblique|transversus|diaphragm|erector spinae|thoracic extensor|spinal rotator/i],
+  [
+    'core',
+    /\bcore\b|abdomin|oblique|transversus|diaphragm|erector spinae|thoracic extensor|spinal rotator/i,
+  ],
   ['full_body', /full body|cardiovascular/i],
 ];
 
@@ -827,11 +836,7 @@ const GYM_CARDIO_EQUIPMENT = /^(fullgym|full gym|machine|cable machine)$/i;
  * of a full gym. Without the same filter here, the first thing a bodyweight
  * user is offered, and the option they get by default, is a treadmill.
  */
-function equipmentAllows(
-  block: BuilderBlock,
-  t: ExerciseTemplate,
-  owned: InternalTier[]
-): boolean {
+function equipmentAllows(block: BuilderBlock, t: ExerciseTemplate, owned: InternalTier[]): boolean {
   if (block.category !== 'cardio') return true;
   if (owned.includes('fullgym')) return true;
   return !GYM_CARDIO_EQUIPMENT.test(t.equipmentRequired ?? '');
@@ -874,7 +879,31 @@ export interface StepOptions {
  * Deterministic, so the same build offers the same order twice — a list that
  * reshuffles between visits is one nobody can learn.
  */
-function rankOf(block: BuilderBlock, t: ExerciseTemplate, ctx: RelevanceContext): number {
+/**
+ * The lift the app itself would programme for this tier, by name.
+ *
+ * The KPI step used to rank every `main` template the same and let the
+ * alphabet break the tie, so a bodyweight lower-body session led with — and
+ * defaulted to — a Bodyweight Good Morning ahead of a Bodyweight Squat. Rather
+ * than invent a second opinion about which lift is the centrepiece, borrow the
+ * one the generator already acts on.
+ */
+function programmedMainLiftNames(owned: InternalTier[]): Set<string> {
+  const names = new Set<string>();
+  for (const tier of owned) {
+    for (const sessionType of ['squat', 'bench', 'deadlift'] as const) {
+      names.add(getMainLift(sessionType, tier).name.toLowerCase());
+    }
+  }
+  return names;
+}
+
+function rankOf(
+  block: BuilderBlock,
+  t: ExerciseTemplate,
+  ctx: RelevanceContext,
+  programmed: Set<string>
+): number {
   const target = contextGroups(ctx);
   let shared = 0;
   for (const g of muscleGroupsOf(t)) if (target.has(g)) shared++;
@@ -887,8 +916,10 @@ function rankOf(block: BuilderBlock, t: ExerciseTemplate, ctx: RelevanceContext)
       // The dedicated warm-up machines first, the cool-down walks last.
       return t.category === 'prep' ? 0 : 2;
     case 'kpi':
-      // The lifts the app itself programmes as main lifts lead.
-      return t.category === 'main' ? 0 : 1;
+      // The exact lift the generator would programme leads, then the rest of
+      // the main lifts, then everything else eligible to carry a session.
+      if (programmed.has(t.name.toLowerCase())) return 0;
+      return t.category === 'main' ? 1 : 2;
     case 'volume':
       // An extra volume block is where isolation work belongs.
       return (tierOf(t) === 'isolation' ? 0 : 20) + onTarget;
@@ -938,11 +969,12 @@ export function optionsForBlock(
       !taken.has(e.template.name.toLowerCase())
   );
 
+  const programmed = programmedMainLiftNames(owned);
   const sort = (list: IndexedExercise[]) =>
     [...list]
       .sort(
         (a, b) =>
-          rankOf(block, a.template, ctx) - rankOf(block, b.template, ctx) ||
+          rankOf(block, a.template, ctx, programmed) - rankOf(block, b.template, ctx, programmed) ||
           a.template.name.localeCompare(b.template.name)
       )
       .map((e) => e.template);
@@ -1075,4 +1107,3 @@ export function assembleSession(
 
   return out;
 }
-
