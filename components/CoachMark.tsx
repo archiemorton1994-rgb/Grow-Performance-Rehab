@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { elevatedShadow } from '@/constants/shadows';
+import { autoRadius } from '@/lib/spotlight-shape';
 
 const CARD_MARGIN = 16;
 // Gap kept between the card and the spotlighted target, whichever side it lands on.
@@ -49,8 +50,15 @@ export type SpotlightRect = {
   left: number;
   width: number;
   height: number;
+  /** Override the shape. Omit and the spotlight takes it from the rect — see autoRadius. */
   borderRadius?: number;
 };
+
+// The spotlight's corner radius is derived in lib/spotlight-shape.ts, not here:
+// this file imports react-native, so anything defined in it can be read by a
+// test but never called by one. Re-exported so callers that already import from
+// CoachMark do not need to know that.
+export { autoRadius };
 
 interface CoachMarkProps {
   visible: boolean;
@@ -136,14 +144,7 @@ export default function CoachMark({
   const ctaLabel = nextLabel ?? (step >= total ? "Let's go!" : 'Next →');
 
   const sr = spotlightRect;
-  // True pill/circle, always: half of the shorter side. A roughly-square icon
-  // target comes out as a full circle; a wide or tall region (a whole card)
-  // comes out as a stadium — its short axis fully rounds, the long axis keeps
-  // a straight run in the middle. There's no case where this looks wrong, so
-  // no cap is needed — capping the inputs (an earlier version of this) is
-  // what produced the "still square" look: it under-rounded anything whose
-  // shorter side was already below the cap.
-  const sr_r = sr ? (sr.borderRadius ?? Math.min(sr.width, sr.height) / 2) : 12;
+  const sr_r = sr ? (sr.borderRadius ?? autoRadius(sr.width, sr.height)) : 12;
 
   // Decide which side of the target the card renders on. Default is below
   // (anchored bottomOffset from the screen bottom, as before) — but when the

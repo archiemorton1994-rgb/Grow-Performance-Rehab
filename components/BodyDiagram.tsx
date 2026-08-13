@@ -96,7 +96,7 @@ export const MUSCLE_SET = new Set<PainRegion>([
   'calf_shin',
 ]);
 
-// ── ADDING A NEW PAIN REGION — update ALL four of these: ─────────────────────
+// ── ADDING A NEW PAIN REGION — update ALL five of these: ─────────────────────
 //
 //  1. lib/store.ts              → add the literal to the PainRegion union type
 //  2. BODY_DIAGRAM_LABELS       → add a human-readable label  (this file, below)
@@ -106,9 +106,12 @@ export const MUSCLE_SET = new Set<PainRegion>([
 //  4. FRONT_REGION_SLUGS /      → add the slug(s) for the new region in the
 //     BACK_REGION_SLUGS           correct view map(s); also update the reverse
 //                                 FRONT_SLUG_TO_REGION / BACK_SLUG_TO_REGION maps
+//  5. MUSCLES_OF_REGION         → name the muscle(s) the work lands on, so the
+//                                 session summary can say what was trained
+//                                 (lib/muscles-worked.ts)
 //
 //  The contract test at tests/body-diagram-region-coverage.check.mjs verifies
-//  steps 2–4 automatically on every run; step 1 is checked by TypeScript.
+//  steps 2–5 automatically on every run; step 1 is checked by TypeScript.
 //
 //  Also update renderFrontHotspots / renderBackHotspots below (contract compliance).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +162,11 @@ const DIAGRAM_LABEL_BY_VIEW: Partial<Record<PainRegion, Partial<Record<BodyView,
 export function getDiagramLabel(region: PainRegion, view: BodyView): string {
   return DIAGRAM_LABEL_BY_VIEW[region]?.[view] ?? BODY_DIAGRAM_LABELS[region];
 }
+
+// The region → muscle translation lives in lib/muscles-worked.ts, not here:
+// this file imports react-native, so anything defined in it can be read by a
+// test but never called by one.
+export { musclesWorked } from '@/lib/muscles-worked';
 
 // ── Cycle-through order: body-order top → bottom, per view ───────────────────
 // Used by the cycle-through arrow button to step through selectable regions.

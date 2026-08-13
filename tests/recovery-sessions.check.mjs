@@ -64,9 +64,19 @@ console.log('\n[2] Targeted rehab varies between sessions');
 
 check(
   'the region plan is split into warmup / core / cooldown',
-  /const regionPlan = getRegionPrehabWorkout\(primaryRegion\);/.test(engine) &&
+  /const regionPlan = getRegionPrehabWorkout\(primaryRegion, \{ acute \}\);/.test(engine) &&
     /const core = regionPlan\.filter\(\(e\) => e\.category === 'prehab'\);/.test(engine),
   ''
+);
+// The variety this section is about belongs to the MAINTENANCE path — someone
+// working on an area over weeks. A region that is sore today gets a fixed,
+// deliberately unvarying acute protocol instead, and that split is asserted in
+// tests/acute-rehab.check.mjs. Everything below runs without `acute`, which is
+// what the Restore tab sends when the user says the area feels fine.
+check(
+  'and the fixed acute protocol returns before any of this rotation',
+  /if \(acute\) return \[\.\.\.warmup, \.\.\.core\]/.test(engine),
+  'shuffling an acute protocol puts its hardest movement on cold, injured tissue'
 );
 check(
   'the core order is shuffled on a seed',

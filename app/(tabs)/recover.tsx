@@ -157,8 +157,13 @@ function getSessionInfo(
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
       duration: 'Area-focused circuit · 20-30 min',
+      // Says what the session actually is now. It used to promise "protecting
+      // and strengthening ... to reduce injury risk", which is prevention — and
+      // then hand someone with a strained hamstring six ways to stretch it.
+      // Picking an area now builds the low-load, pain-free protocol for that
+      // area instead, so the card has to say so before they pick.
       description:
-        'Select a region that needs attention. The session focuses on protecting and strengthening that specific area to reduce injury risk and improve long-term function.',
+        'Pick the area that is sore. You get gentle, low-load work for it — holds and short controlled movements, nothing that stretches or strains the spot that hurts. Stay inside a pain-free range throughout.',
       cta: 'Choose Area & Start',
       sessionType: 'prehab',
     },
@@ -192,13 +197,26 @@ function RegionBodyPicker({
 }: {
   pending: PainRegion | undefined;
   onPendingChange: (r: PainRegion | undefined) => void;
-  onConfirm: (region: PainRegion) => void;
+  onConfirm: (region: PainRegion, acute: boolean) => void;
   onFullBody: () => void;
   bottomInset: number;
   testPrefix: string;
 }) {
   const C = useColors();
   const { height: windowHeight } = useWindowDimensions();
+  /**
+   * Is this area sore today, or is it the area you are looking after?
+   *
+   * The two answers build genuinely different sessions — gentle isometric work
+   * that never lengthens the tissue, or the fuller mobility-led circuit that
+   * rotates across six weeks — and there is no way to tell them apart from the
+   * region alone. Inferring it was the first attempt and it stranded anyone in a
+   * long rehab block on the acute protocol forever.
+   *
+   * Defaults to sore. The two ways to be wrong are not equal: too gentle costs a
+   * session, too much costs weeks.
+   */
+  const [sore, setSore] = useState(true);
   const diagramBudget = windowHeight * PICKER_SHEET_HEIGHT_PCT - SHEET_CHROME_H - bottomInset;
   const diagramMaxWidth = Math.max(
     MIN_DIAGRAM_WIDTH,
@@ -224,8 +242,79 @@ function RegionBodyPicker({
           gap: 4,
         }}
       >
+        {/* How does it feel today? Only asked once a region is chosen — it is
+            meaningless for the full-body circuit, and asking before the user has
+            said where would be asking about nothing. */}
+        {pending && (
+          <View style={{ marginBottom: 10 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Inter_600SemiBold',
+                color: C.textSecondary,
+                marginBottom: 6,
+                textAlign: 'center',
+              }}
+            >
+              How does your {BODY_DIAGRAM_LABELS[pending].toLowerCase()} feel today?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(
+                [
+                  { key: true, label: 'Sore or injured', hint: 'Gentle, low-load work' },
+                  { key: false, label: 'Feels fine', hint: 'Full mobility circuit' },
+                ] as const
+              ).map((opt) => {
+                const active = sore === opt.key;
+                return (
+                  <Pressable
+                    key={String(opt.key)}
+                    onPress={() => setSore(opt.key)}
+                    testID={`${testPrefix}-sore-${opt.key ? 'yes' : 'no'}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        alignItems: 'center' as const,
+                        paddingVertical: 9,
+                        paddingHorizontal: 8,
+                        borderRadius: 12,
+                        borderWidth: 1.5,
+                        borderColor: active ? C.primary : C.border,
+                        backgroundColor: active ? C.primary + '1a' : 'transparent',
+                      },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Inter_600SemiBold',
+                        color: active ? C.primaryText : C.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Inter_400Regular',
+                        color: C.textSecondary,
+                        marginTop: 1,
+                      }}
+                    >
+                      {opt.hint}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         <Pressable
-          onPress={() => (pending ? onConfirm(pending) : onFullBody())}
+          onPress={() => (pending ? onConfirm(pending, sore) : onFullBody())}
           style={({ pressed }) => [
             {
               flexDirection: 'row' as const,
@@ -402,7 +491,11 @@ export default function RecoverScreen() {
     });
   };
 
-  const handlePrehabRegion = (region: PainRegion | 'fullbody', displayLabel: string) => {
+  const handlePrehabRegion = (
+    region: PainRegion | 'fullbody',
+    displayLabel: string,
+    acute = true
+  ) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     closeModal();
     router.push({
@@ -411,6 +504,8 @@ export default function RecoverScreen() {
         sessionType: 'prehab',
         hasAches: 'false',
         painRegion: region !== 'fullbody' ? region : '',
+        // Only meaningful with a region; the full-body circuit is unchanged.
+        ...(region !== 'fullbody' ? { acute: String(acute) } : {}),
         energy: 'normal',
         timeAvailable: '60',
         isTestWeek: 'false',
@@ -660,7 +755,7 @@ export default function RecoverScreen() {
             <RegionBodyPicker
               pending={recoveryPending}
               onPendingChange={setRecoveryPending}
-              onConfirm={(region) => handlePrehabRegion(region, 'Recovery')}
+              onConfirm={(region, acute) => handlePrehabRegion(region, 'Recovery', acute)}
               onFullBody={() => handlePrehabRegion('fullbody', 'Recovery')}
               bottomInset={insets.bottom}
               testPrefix="recovery"
@@ -763,7 +858,7 @@ export default function RecoverScreen() {
             <RegionBodyPicker
               pending={prehabPending}
               onPendingChange={setPrehabPending}
-              onConfirm={(region) => handlePrehabRegion(region, 'Targeted Prehab')}
+              onConfirm={(region, acute) => handlePrehabRegion(region, 'Targeted Prehab', acute)}
               onFullBody={() => handlePrehabRegion('fullbody', 'Targeted Prehab')}
               bottomInset={insets.bottom}
               testPrefix="prehab"

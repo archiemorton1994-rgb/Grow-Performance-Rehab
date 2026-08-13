@@ -1,0 +1,679 @@
+# Exercise video status
+
+<!-- GENERATED FILE - do not edit by hand. Run `npm run video-status` to refresh. -->
+
+Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
+
+**38 of 639 recorded (5.9%). 601 still to go.**
+
+An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
+
+## Recorded
+
+- Back Squat
+- Band Face Pull
+- Band Pull-Apart
+- Banded Clamshell
+- Banded Good Morning
+- Banded Lateral Walk
+- Barbell Bulgarian Split Squat
+- Barbell Good Morning
+- Box Jump (Step-Down)
+- Bulgarian Split Squat
+- Chin-Up
+- DB Bicep Curl
+- DB Bulgarian Split Squat
+- DB Face Pull
+- DB Hammer Curl
+- DB Lateral Raise
+- DB Shoulder Press
+- Dead Bug
+- Depth Jump
+- Doorway Chest Opener
+- Doorway Chest Stretch
+- Dumbbell Bench Press
+- Glute Bridge
+- Goblet Squat
+- Incline DB Press
+- KB / DB Swing
+- KB Swing (Explosive)
+- KB Swing (Steady)
+- Landmine Press
+- Lat Pulldown
+- Lateral Lunge
+- Med Ball Overhead Slam
+- Plank Shoulder Tap
+- Prone Y Raise
+- Pull-Up
+- Push-Up
+- Sled Push/Pull Complex
+- Squat Jump
+
+## Still to record
+
+Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+
+### Main lifts — the squat, bench and deadlift variations a session is built around (11)
+
+- Barbell Bench Press
+- Barbell Deadlift
+- Barbell Row
+- Bodyweight Good Morning
+- Bodyweight Hip Hinge
+- Bodyweight Squat
+- Lying Leg Curl
+- Pallof Press
+- Romanian Deadlift
+- Single-Leg Hinge
+- Towel Row (Door Handle)
+
+### Accessories — the supporting work in every strength session (246)
+
+- 45 Degree Hyperextension
+- Ab Wheel Rollout
+- Adductor Machine
+- Alternating Reverse Lunge
+- Alternating Swing + Tuck Jump Round
+- Archer Push-Up
+- Assault Bike (Easy)
+- Assault Bike Escalating Intervals
+- Assault Bike Hard Interval + Med Ball Slam
+- Back Extension
+- Band Bicep Curl
+- Banded Glute Bridge
+- Banded Hip Thrust
+- Banded Pallof Press
+- Banded Pull-Apart
+- Barbell Bent-Over Row
+- Barbell Hip Thrust
+- Barbell Holds
+- Battle Rope + Box Jump Round
+- Battle Rope + Box Step-Over Round
+- Battle Rope Slam + Goblet Squat Round
+- Battle Rope Waves
+- Bear Crawl
+- Bear Crawl (Steady Pace)
+- Bear Crawl + KB Swing + Box Jump
+- Bear Crawl + Sit-Up Round
+- Belt Squat
+- Board Press
+- Box Jump + Double-Under Round
+- Box Jump + KB Swing Round
+- Box Step-Up
+- Broad Jump + Walking Lunge Round
+- Burpee + Hollow Hold Round
+- Burpee + Reverse Lunge + Plank Hold
+- Burpee + Squat Jump + Plyo Lunge
+- Burpee Broad Jump + Tuck Jump Round
+- Cable Bicep Curl
+- Cable Chest Fly
+- Cable Crunch
+- Cable Face Pull
+- Cable Front Raise
+- Cable Pull-Through
+- Cable Tricep Pushdown
+- Cable Woodchop
+- Calf Raise
+- Chest Supported Row
+- Close-Grip Bench Press
+- Copenhagen Plank
+- Cossack Squat
+- Crab Walk + Dead Bug Round
+- Curtsy Lunge
+- DB Arnold Press
+- DB Bent-Over Lateral Raise
+- DB Bent-Over Row
+- DB Calf Raise
+- DB Chest Fly
+- DB Clean + Front Squat Round
+- DB Clean and Press + Front Squat Round
+- DB Complex: Deadlift, Row, Clean, Press
+- DB Devil Press + Goblet Squat Round
+- DB Farmer Carry
+- DB Floor Press
+- DB Floor Press + Plank Drag Round
+- DB Floor Press + Renegade Row Round
+- DB Front Squat
+- DB Good Morning
+- DB High Pull + Squat Jump Round
+- DB Hip Thrust
+- DB Incline Tricep Extension
+- DB Lateral Lunge
+- DB Man Maker + Thruster + Swing
+- DB Man Maker Round
+- DB Overhead Carry
+- DB Power Clean
+- DB Pullover
+- DB Push Press
+- DB Push Press + KB Swing Round
+- DB Renegade Row
+- DB Reverse Lunge
+- DB Reverse Lunge + Bent-Over Row Round
+- DB Romanian Deadlift
+- DB Shrug
+- DB Single-Arm Row
+- DB Single-Leg Hip Thrust
+- DB Single-Leg RDL
+- DB Skull Crushers
+- DB Snatch + Jump Lunge Round
+- DB Snatch + Reverse Lunge Round
+- DB Squat Clean + Push Press Round
+- DB Step-Up
+- DB Step-Up + Push-Up Round
+- DB Sumo Deadlift
+- DB Sumo Squat
+- DB Thruster + Renegade Row + Squat Jump
+- DB Thruster Ladder
+- DB Tricep Overhead Extension
+- Dead Bug (Steady Tempo)
+- Dead Hang
+- Decline Bench Press
+- Deficit Push-Up
+- Diamond Push-Up
+- Diamond Push-Up + Pike Push-Up Round
+- Donkey Kick
+- Dumbbell Front Raise
+- Dumbbell Walking Lunge
+- External Rotation (Band)
+- EZ Bar Curl
+- EZ Bar Skull Crushers
+- Farmer Walk (Heavy DBs)
+- Farmer Walk + Mountain Climber Round
+- Farmers Carry
+- Farmers Carry (Heavy)
+- Fast Bear Crawl + Hollow Rock Round
+- Fast Farmer Carry + Push-Up Round
+- Fast Feet + Squat to Stand Round
+- Fat Grip Hold
+- Feet-Elevated Inverted Row
+- Frog Pumps
+- Front Squat
+- Glute Bridge March
+- Glute Ham Raise
+- Goblet March
+- Goblet Squat + Burpee Round
+- Goblet Squat Hold + Bear Crawl Round
+- Hack Squat
+- Half Burpee + Broad Jump Round
+- Hanging Leg Raise
+- Heavy Sled Push + Farmer Carry
+- Heavy Swing + Burpee Round
+- Hollow Body Hold
+- Inchworm + Bicycle Crunch Round
+- Incline Barbell Press
+- Incline Push-Up
+- Inverted Row
+- JM Press
+- Jump Lunge + Skater Hop Round
+- Jumping Jack + Bodyweight Squat Round
+- KB Halo + Goblet Squat Round
+- KB Snatch + Box Jump + Burpee
+- KB Snatch + Squat Jump + Renegade Row
+- KB Swing + Box Step-Over + Push-Up
+- KB Swing + Goblet Squat + Push-Up
+- KB Swing + Jump Rope Round
+- Lateral Shuffle + Sumo Squat Round
+- Lateral Step-Out Squat
+- Leg Curl (Machine)
+- Leg Extension
+- Leg Press
+- Lying Hamstring Curl
+- Machine Chest Press
+- Med Ball Slam (Light)
+- Med Ball Slam + Fast Bear Crawl
+- Med Ball Slam + Jump Rope Round
+- Mountain Climber + Push-Up Round
+- Nordic Hamstring Curl
+- Overhead Cable Tricep Extension
+- Overhead Carry + Burpee Round
+- Overhead Press
+- Pec Deck (Machine Fly)
+- Pendlay Row
+- Pike Push-Up
+- Pike Push-Up + Hollow Hold Round
+- Plank Walk-Up + Sit-Through Round
+- Plate Pinch Holds
+- Prone Y-T-W Raise
+- Push-Up + Mountain Climber Sprint
+- Push-Up + Superman Round
+- Rack Pull
+- Racked Carry + Sit-Up Round
+- Renegade Row
+- Renegade Row + Mountain Climber Sprint
+- Renegade Row + Plank Shoulder Tap Round
+- Reverse Hyperextension
+- Reverse Hyperextension (floor)
+- Reverse Lunge
+- Reverse Snow Angel
+- Rope Pushdowns
+- Rowing Interval + Goblet Squat Round
+- Rowing Interval + Wall Ball + Burpee
+- Rowing Interval + Wall Ball Round
+- Rowing Interval Ladder
+- Rowing Intervals (Easy)
+- Rowing Machine Pyramid (Easy)
+- Seal Row
+- Seated Cable Row
+- Seated DB Shoulder Press
+- Seated Hamstring Curl
+- Shuttle Run (10 m x 6)
+- Side Plank
+- Single Arm Cable Extension
+- Single Leg Hip Thrust
+- Single-Arm KB / DB Swing
+- Single-Arm Swing + Shuttle Run Round
+- Single-Arm Swing + Suitcase Carry Round
+- Single-Arm Towel Row (Door Handle)
+- Single-Leg Glute Bridge + Side Plank Round
+- Sissy Squat
+- Skater Hop + Glute Bridge Round
+- Ski Erg + Box Step-Up Round
+- Ski Erg Hard Pull + Battle Rope Slam
+- Ski Erg Interval + Med Ball Slam Round
+- Ski Erg Intervals (Easy)
+- Sled Backward Drag
+- Sled Drag
+- Sled Drag + Farmer Walk Round
+- Sled Drag + Shuttle Run
+- Sled Push (Steady)
+- Sled Push + Assault Bike Sprint
+- Sled Push + Cable Woodchop Round
+- Sled Push + Fast Bear Crawl + Assault Bike
+- Spanish Squat
+- Sprint (20 m) + Push-Up + Bear Crawl (10 m)
+- Sprint Interval (30s)
+- Squat Jump + Push-Up + High Knees
+- Squat Jump + Push-Up Couplet
+- Squat Pulse + Plank Shoulder Tap
+- Squat to Stand
+- Stability Ball Hamstring Curl
+- Standing Calf Raise
+- Standing Overhead Press
+- Step-Up (Low Step)
+- Step-Up + Push-Up Round
+- Step-Up with Knee Drive
+- Stiff-Leg Deadlift
+- Straight Arm Pulldown
+- Suitcase Carry
+- Sumo Goblet Squat
+- Sumo Squat Pulse
+- Superman Hold
+- T-Bar Row
+- Tate Press
+- Treadmill Hill Sprints
+- Tricep Dips (Bench)
+- Tuck Jump + Cossack Squat Round
+- Tuck Jump + Wall Sit Round
+- V-Up + Plank Jack Round
+- Wall Ball (Light)
+- Wall Ball + Burpee Round
+- Wall Ball + KB Swing + Jump Rope
+- Wall Ball + Sit-Up Round
+- Wall Sit
+- Weighted Dips
+- Weighted Plank
+- Weighted Push-Up
+- Wide Push-Up
+- Zottman Curl
+
+### Rehab and prehab — the Restore tab, and the rehab slot inside a session (120)
+
+- Glute Bridge (isometric hold)  _(used in 6 places)_
+- Legs-Up-The-Wall  _(used in 6 places)_
+- Forearm Supination / Pronation  _(used in 4 places)_
+- Single-Leg Balance  _(used in 4 places)_
+- Bird Dog  _(used in 3 places)_
+- Chin Tuck  _(used in 3 places)_
+- Elbow Flexion / Extension ROM  _(used in 3 places)_
+- Prone Thoracic Extension  _(used in 3 places)_
+- Quad Set (isometric)  _(used in 3 places)_
+- Seated Toe Raise  _(used in 3 places)_
+- Single-Leg Glute Bridge  _(used in 3 places)_
+- Wall Slide  _(used in 3 places)_
+- Band Curl (light, high reps)  _(used in 2 places)_
+- Band Finger Extension  _(used in 2 places)_
+- Band Pushdown (light, high reps)  _(used in 2 places)_
+- Isometric Shoulder Extension Press (Wall)  _(used in 2 places)_
+- Isometric Wrist Extension Hold  _(used in 2 places)_
+- Open-and-Close Fist Pumps  _(used in 2 places)_
+- Pallof Press (Isometric Hold)  _(used in 2 places)_
+- Seated Ankle Pump (Small Range)  _(used in 2 places)_
+- Seated Isometric Calf Press  _(used in 2 places)_
+- Supine Straight-Leg Raise  _(used in 2 places)_
+- Terminal Knee Extension (band)  _(used in 2 places)_
+- Thoracic Cat-Cow  _(used in 2 places)_
+- Wall Angel  _(used in 2 places)_
+- Adductor Side-Lying Stretch
+- Ankle Circles
+- Band Chest Press (Light, Short Range)
+- Band Straight-Arm Press-Down (Short Range)
+- Bicep Stretch (arm back)
+- Book Opener (thoracic rotation)
+- Calf Stretch (Wall)
+- Cat-Cow
+- Child's Pose with Side Reach
+- Copenhagen Adductor Hold
+- Couch Stretch
+- Cross-Body Shoulder Stretch
+- Cross-Body Tricep Stretch
+- DB Shoulder External Rotation
+- Doorway Lat Stretch
+- Eccentric Wrist Extension
+- Figure-4 Glute Stretch
+- Floor Angel
+- Glute Set (isometric)
+- Heel Drop (eccentric)
+- Hip Flexor Stretch
+- Hip Hinge Against Wall
+- Incline Push-Up (slow)
+- Isometric Adductor Squeeze (Ball or Towel)
+- Isometric Ankle Press (In and Out)
+- Isometric Band Row Hold (Light)
+- Isometric Chest Press Into Wall
+- Isometric Elbow Extension Press (Thigh)
+- Isometric Elbow Flexion Hold (Table)
+- Isometric Elbow Press (Bend and Straighten)
+- Isometric Hip Abduction (Wall Press)
+- Isometric Neck Press (Hand Resistance)
+- Isometric Pec Squeeze (Palms Together)
+- Isometric Shoulder External Rotation (Doorframe)
+- Isometric Shoulder Flexion Press (Wall)
+- Isometric Supination Hold (Towel)
+- Isometric Wall Sit
+- Isometric Wrist Flexion Hold
+- Lateral Band Walk
+- Levator Scapulae Stretch
+- Long-Lever Adductor Squeeze
+- McGill Side Plank
+- Neck Side Stretch
+- Nordic Curl Negative (slow)
+- Overhead Tricep Stretch
+- Pain-Free Elbow Bend and Straighten
+- Pain-Free Wrist Glide
+- Pec Minor Stretch
+- Pec Minor Stretch (doorway)
+- Pendulum Shoulder Swing
+- Pigeon Pose
+- Pronator Self-Release
+- Prone Knee Bend Hold
+- Prone Shoulder External Rotation
+- Prone T-Spine Extension
+- Scapular Setting (Isometric Squeeze)
+- Scapular Setting (Isometric)
+- Scapular Setting (Shoulder Blade Set)
+- Seated Heel Raise (Bodyweight)
+- Seated Hip March (Low Lift)
+- Seated Lat Press-Down Hold (Chair)
+- Short-Arc Quad Extension (Towel Roll)
+- Shoulder CAR (Controlled Articular Rotation)
+- Side-Lying Hip Abduction
+- Single-Leg Calf Raise
+- Single-Leg Calf Raise (Eccentric)
+- Slow Step-Down
+- Slow Step-Down (eccentric)
+- Soft Towel Squeeze
+- Soleus Stretch
+- Standing Calf Raise (Bodyweight)
+- Standing Calf Raise (loaded)
+- Standing Calf Raise (slow eccentric)
+- Standing Hamstring Stretch
+- Standing Quad Stretch
+- Supine Abdominal Brace with Breathing
+- Supine Hamstring Stretch (Strap)
+- Supine Heel Slide (Braced)
+- Supine Isometric Hamstring Press (Bent Knee)
+- Supine Pelvic Tilt (Small Range)
+- Supine Rib Breathing (Hands on Ribs)
+- Supported Heel Slide
+- Supported Neck Nod (Head Resting)
+- Supported Neck Rotation (Small Range)
+- Supported Shoulder Slide (Table)
+- Thoracic Extension (foam roll)
+- Thoracic Extension over Rolled Towel
+- Thread the Needle (Thoracic Rotation)
+- Thread-the-Needle Rotation
+- Tibialis Raise
+- Upper Trap Stretch
+- VMO Wall Sit
+- Wrist Circles
+- Wrist Extensor Stretch
+- Wrist Flexor Stretch
+
+### Warm-ups (34)
+
+- 90/90 Hip Switch
+- Adductor Rockback
+- Ankle Circles + Dorsiflexion Drill
+- Ankle Dorsiflexion Drill
+- Assault Bike Warm-Up
+- Band Pull-Apart (Warm-Up)
+- Banded Hip Circle
+- Cardio Machine Warm-Up
+- Cardio Warm-Up (Easy Walk / Bike)
+- Cat-Cow Flow
+- Child's Pose
+- Cossack Squat Flow
+- Dynamic March + Arm Circles
+- Dynamic Warm-Up
+- Easy Cardio Warm-Up
+- Easy Cardio Warm-Up (No Kit)
+- Goblet Squat + Arm Swing Warm-Up
+- Halo + Hip Hinge Warm-Up
+- Hip Circle (Standing)
+- Hip Flexor Kneeling Stretch
+- Jump Rope / Skip Warm-Up
+- Jump Rope Warm-Up
+- Kneeling Thoracic Rotation
+- Leg Swing + Arm Cross Warm-Up
+- Light Swing + March Warm-Up
+- March + Arm Circle Warm-Up
+- Neck Rolls + Shoulder Circles
+- Rowing Machine Warm-Up
+- Shadow Box + Squat Warm-Up
+- Shoulder CARs (Controlled Articular Rotations)
+- Standing Hamstring Reach
+- Stationary Bike Warm-Up
+- Thoracic Extension on Floor
+- World's Greatest Stretch
+
+### Power and speed work (22)
+
+- Broad Jump
+- Clap Push-Up
+- DB Power Clean (light)
+- Depth Drop
+- Depth Drop to Broad Jump
+- Drop Squat
+- Explosive Push-Up
+- Hang Pull
+- Jump Shrug
+- Landmine Push Press
+- Lateral Box Jump
+- Lateral Jump
+- Loaded Jump Squat
+- Med Ball Chest Pass (Wall)
+- Med Ball Slam (Simulated)
+- Overhead Slam (Ball or Simulated)
+- Plyo Push-Up (Hands on Bench)
+- Power Clean
+- Power Clean (Light)
+- Power Skip
+- Reactive Step-Off
+- Vertical Jump
+
+### Mechanical drop sets (30)
+
+- Arm Speed Drill
+- Band Pull-Apart (Fast Tempo)
+- Bird Dog (fast tempo)
+- Cable External Rotation
+- DB Hip March (Supine)
+- DB Romanian Deadlift (light)
+- Face Pull
+- Fire Hydrant
+- Glute Bridge Pulse
+- Goblet Squat Primer
+- Goblet Squat Speed Primer
+- Hamstring Curl (light)
+- Hip Abductor Machine Prime
+- Hip Circle (Fast Tempo)
+- Hip Hinge Drill (Wall)
+- Hip Hinge Speed Drill
+- Hip Thrust Activation (Bodyweight)
+- KB Deadbug
+- KB Deadbug (controlled)
+- Lateral Bound (Stick Landing)
+- Leg Press Activation
+- Light DB External Rotation
+- Light DB Speed Press (seated)
+- Machine Rear Delt Fly
+- Scapular Push-Up
+- Single-Leg Hip Hinge (Bodyweight)
+- Single-Leg Hip Hinge (DB)
+- Speed Bench Activation (bar only)
+- Speed Good Morning (bar only)
+- Speed Squat Ramp (bar only)
+
+### Finishers (130)
+
+- Alternating Jump Lunge
+- AMRAP Finisher
+- AMRAP Finisher: Burpee, KB Swing, Air Squat
+- AMRAP: Squat Jump + Broad Jump + Burpee
+- Arm Circles + Step Touch
+- Assault Bike (Easy Pace)
+- Assault Bike (Moderate)
+- Assault Bike + Squat Jump Circuit
+- Assault Bike EMOM + RDL
+- Assault Bike Escalating Finisher
+- Assault Bike Hard Interval Finisher
+- Assault Bike Intervals
+- Assault Bike Intervals (Easy)
+- Assault Bike Sprints
+- Battle Rope EMOM
+- Battle Rope Finisher
+- Bear Crawl (Easy Pace)
+- Bear Crawl + Sprint
+- Bear Crawl Finisher
+- Bear Crawl Intervals
+- Bodyweight Squat Ladder
+- Bodyweight Squat Pulse
+- Burpee
+- Burpee + Box Jump EMOM
+- Burpee EMOM
+- Burpee Ladder
+- Burpee Ladder Finisher
+- Burpee to Broad Jump
+- Cable Crossover Superset
+- Cable Drop Set Superset
+- Cable Push-Pull Circuit
+- Cable Row Intervals
+- Carry + Walk Finisher
+- Chest Stretch Walk
+- DB Complex
+- DB Complex EMOM
+- DB Deadlift + Push Press AMRAP
+- DB Devil Press AMRAP
+- DB Glute Bridge (Pump)
+- DB Goblet Squat Easy Pace
+- DB Goblet Squat Intervals
+- DB Lunge Intervals
+- DB Man Maker
+- DB Man Maker AMRAP
+- DB Push Press Intervals
+- DB Romanian Deadlift Intervals
+- DB Shoulder Circuit (Light)
+- DB Squat + Press AMRAP
+- DB Thruster
+- DB Thruster + Burpee EMOM
+- DB Thruster + Shuttle Run
+- DB Thruster Finisher
+- Deadlift Drop Set
+- EMOM Finisher: KB / DB Swings
+- EMOM: Push-Up + Burpee
+- Farmer Walk
+- Farmer Walk Finisher
+- Farmer Walk Finisher (Gym)
+- Glute Bridge Hold
+- Glute Bridge Tabata
+- Goblet Squat (continuous)
+- Goblet Squat Ladder
+- Goblet Squat Tabata
+- Hamstring Curl (Easy Pump)
+- Heavy Carry Finisher
+- Heavy Sled Push Finisher
+- Hollow Rock + V-Up Finisher
+- Jump Rope Intervals
+- Jumping Jack Finisher
+- KB / DB Swing + Shuttle
+- KB / DB Swing EMOM
+- KB / DB Swing Intervals
+- Leg Press 50s Drop Set
+- Leg Press Intervals
+- Light DB Hip Hinge Walk
+- Light DB Lateral Raise Walk
+- Light Farmer Walk
+- Light Sled Drag
+- Machine Chest Fly (Pump)
+- Man Maker Finisher
+- Marching + Arm Swings
+- Mountain Climber Intervals
+- Mountain Climbers
+- Plank + Hollow Hold Finisher
+- Plank + March Finisher
+- Prowler Drag (light)
+- Prowler Push/Pull + Bike
+- Push Press + Assault Bike Circuit
+- Push-Up + DB Row EMOM
+- Push-Up + Plank Intervals
+- Racked Carry Finisher
+- Recovery Walk
+- Renegade Row Finisher
+- Renegade Row Intervals
+- Reverse Lunge + Hip Drive Intervals
+- Reverse Lunge + Knee Drive Intervals
+- Rowing Finisher
+- Rowing Finisher (Steady)
+- Shadow Boxing
+- Shuttle Run Intervals
+- Ski Erg Interval Finisher
+- Sled Drag Finisher
+- Sled Drag Intervals
+- Sled Push
+- Sled Push + Sprint Back
+- Sled Push Finisher
+- Sled Push Intervals
+- Sprint Interval Finisher
+- Squat Jump + Push-Up Couplet Finisher
+- Squat Jump + Walking Lunge Circuit
+- Squat Jump Intervals
+- Stationary Bike (Easy)
+- Steady Walk / Light Jog
+- Steady Walk Finisher
+- Step-Up Walk (Chair/Step)
+- Stepping Jack Intervals
+- Stepping Jacks
+- Stiff-Leg Deadlift Intervals
+- Tabata Burpees
+- Tabata Finisher: Alternating Swings
+- Tabata Finisher: Mountain Climbers
+- Tabata Squat Jumps
+- Tabata: Explosive Push-Up + Mountain Climbers
+- Treadmill Incline Walk
+- Treadmill Sprint Intervals
+- Tricep Pushdown + Face Pull Superset
+- Tuck Jump + Push-Up Couplet
+- Unbroken Carry Finisher
+- Walking Lunges
+- Wall Ball AMRAP Finisher
+
+### Cool-downs and stretching (8)
+
+- Cool Down Stretch Sequence
+- Cool Down Walk + Breathing
+- Diaphragmatic Breathing
+- Forearm Flexor & Extensor Stretch
+- Legs-Up Recovery Breathing
+- Seated Forward Fold
+- Side-Bend Overhead Reach
+- Supine Spinal Twist

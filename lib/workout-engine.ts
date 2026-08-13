@@ -97,6 +97,20 @@ export interface Exercise {
   category: ExerciseCategory;
   badge?: 'comfort' | 'volume';
   videoId: string;
+  /**
+   * A full @GrowPerformanceRehabilitation link written on the template itself.
+   *
+   * Threaded alongside videoId at every point an Exercise is built from a
+   * template — including the comfort-swap and grip-variant paths that rebuild
+   * the object — because a field that survives one route and not another fails
+   * silently: the right video simply never opens, with nothing to say why.
+   * tests/exercise-video.check.mjs holds both fields to that.
+   *
+   * Usually absent. The normal place to record a video is the table in
+   * lib/exercise-videos.ts, which is keyed by name and so needs no threading at
+   * all.
+   */
+  youtubeUrl?: string;
   hasSwap: boolean;
   swapName?: string;
   swapCue?: string;
@@ -138,6 +152,24 @@ interface ReadinessCheck {
   /** How bad it is. Moderate and above also cost the session its explosive and
    *  finisher blocks — see SEVERITY_DROPS_INTENSITY in lib/exercise-safety.ts. */
   painSeverity?: 'mild' | 'moderate' | 'severe';
+  /**
+   * The named region is hurting NOW, as opposed to being the area someone wants
+   * to look after. It routes the rehab work to lib/acute-rehab.ts, where
+   * nothing stretches or hard-loads the injured tissue.
+   *
+   * WHY IT IS A SEPARATE FLAG AND NOT INFERRED FROM painRegion
+   * ──────────────────────────────────────────────────────────
+   * The first version of this treated any named region as acute, which is right
+   * for the readiness screen — you only report pain there because something
+   * hurts — and wrong for the Restore tab, where naming a region is how you ask
+   * for work on it at all. That version left anyone six weeks into knee rehab on
+   * the acute protocol permanently, with no route back to the fuller
+   * maintenance work and no way to say they had got better.
+   *
+   * So the two callers answer it differently: the readiness screen always sets
+   * it, and the Restore tab asks, defaulting to yes.
+   */
+  acute?: boolean;
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
 }
@@ -492,9 +524,10 @@ function sameMuscleFamily(a?: string, b?: string): boolean {
   return MUSCLE_FAMILIES.some((fam) => fam.includes(x) && fam.includes(y));
 }
 
-/** How many rotating general joint-health movements a targeted rehab session
+/** How many rotating general joint-health movements a MAINTENANCE rehab session
  *  picks up alongside its region-specific core. Keeps the total in line with the
- *  seven the standalone prehab session already prescribes. */
+ *  seven the standalone prehab session already prescribes. Not used by the acute
+ *  path, which is a fixed list — see generateWorkout. */
 const REHAB_SUPPLEMENT = 2;
 
 function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
@@ -525,6 +558,7 @@ function templateToExercise(
     category: t.category,
     badge,
     videoId: t.videoId,
+    youtubeUrl: t.youtubeUrl,
     hasSwap: !!swap1,
     swapName: swap1?.name,
     swapCue: swap1?.cue,
@@ -1037,6 +1071,7 @@ function applyComfortOrBadge(
       category: overrideCategory ?? template.category,
       badge: 'comfort',
       videoId: template.videoId,
+      youtubeUrl: template.youtubeUrl,
       hasSwap: false,
       isDumbbellExercise: isDumbbell,
       // A comfort variant is the same movement made kinder, so it trains the
@@ -1739,10 +1774,27 @@ function generateWorkoutUnscreened(
       // and where a region has too few to fill both slots the session is simply
       // shorter — padding it with someone else's rehab is worse than ending
       // early.
-      const regionPlan = getRegionPrehabWorkout(primaryRegion);
+      const acute = readiness.acute === true;
+      const regionPlan = getRegionPrehabWorkout(primaryRegion, { acute });
       const warmup = regionPlan.filter((e) => e.category === 'prep');
       const core = regionPlan.filter((e) => e.category === 'prehab');
       const cooldown = regionPlan.filter((e) => e.category === 'cooldown');
+
+      // THE ACUTE SESSION IS NEITHER ROTATED NOR SUPPLEMENTED.
+      //
+      // Both are right for maintenance work done over six weeks and both are
+      // wrong in the first days after a strain:
+      //
+      //   Rotation — the protocol is ordered gentlest first and builds through
+      //     the session. Shuffling it puts the hardest movement on cold tissue.
+      //   Supplements — they are drawn from the whole rehab library, which is
+      //     exactly how a Pigeon Pose could find its way back into a hamstring
+      //     session through the side door.
+      //
+      // The variety it costs is variety nobody needs here: the acute phase is
+      // days, and doing the same five things each day is how you notice you are
+      // getting better. The maintenance path below keeps both, unchanged.
+      if (acute) return [...warmup, ...core].map((t) => templateToExercise(t));
 
       const seed = (strengthSessionCount ?? 0) + getLocalDayIndex();
       const rotatedCore = seededShuffleDiverse(core, seed);
@@ -1888,6 +1940,7 @@ function generateWorkoutUnscreened(
       category: 'main',
       badge: 'comfort',
       videoId: mainTemplate.videoId,
+      youtubeUrl: mainTemplate.youtubeUrl,
       hasSwap: false,
       isDumbbellExercise: isDumbbellTier(equipmentTier),
       primaryMuscle: mainTemplate.primaryMuscle,
@@ -1953,9 +2006,14 @@ function generateWorkoutUnscreened(
 
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
   if (timeAvailable !== '30') {
+    // The user told the readiness screen this area hurts, so the rehab slot in
+    // their session is the acute one. It used to be PREHAB_BY_REGION[region][0]
+    // — for hamstrings, a 45-second-a-side Standing Hamstring Stretch on a
+    // muscle they had just reported as strained.
     const prehabTemplate = readiness?.painRegion
       ? getRegionPrehabExercise(
-          Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion
+          Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion,
+          { acute: true }
         )
       : seededShuffleDiverse(getPrehab(mainType, equipmentTier), sessionSeed)[0];
     const phEx = templateToExercise(prehabTemplate);
@@ -2226,8 +2284,12 @@ function generateWeeklyWorkout(
 
   // ── 4. Prehab (45 min only — 60 min uses finisher instead) ────────────────
   if (timeAvailable === '45') {
+    // Same rule as the KPI path above: a named region is a sore region, so the
+    // rehab slot comes from the acute protocol.
     const prehabTemplate = painRegion
-      ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion)
+      ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion, {
+          acute: true,
+        })
       : seededShuffleDiverse(
           getPrehab(
             sessionType === 'upper_body'

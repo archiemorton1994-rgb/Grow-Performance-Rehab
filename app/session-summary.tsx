@@ -45,7 +45,7 @@ import {
 } from '@/lib/exercise-db';
 import { Badge, BADGE_MAP, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { AchievementBanner } from '@/components/AchievementBanner';
-import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
+import { BodyDiagram, musclesWorked } from '@/components/BodyDiagram';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -1087,7 +1087,6 @@ export default function SessionSummaryScreen() {
       : `${Math.floor(durationSeconds / 60)}m`;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
-  const areasHit = workedRegions ? Object.keys(workedRegions).length : 0;
   const streakDays = getStreakDays();
   const pbCount = summary.rows.filter((r) => r.badge === 'gain-weight').length;
 
@@ -1098,27 +1097,26 @@ export default function SessionSummaryScreen() {
   const heatmap = (workedRegions ?? {}) as Parameters<typeof BodyDiagram>[0]['heatmapCounts'];
 
   /**
-   * The shaded regions, named.
+   * The shaded regions, named as MUSCLES.
    *
    * The figures already showed where the work landed; nothing said what the
    * shading meant. Reading a highlighted outline and knowing it is "lat / mid
    * back" is a skill, not a glance.
    *
-   * Sorted by how much each region was worked so the heaviest reads first, and
-   * capped at six — a full body session lights up nearly everything, and a list
-   * of twelve region names is not a summary of anything.
+   * Two things this used to get wrong, both visible in one screenshot of a
+   * custom session — "Quads, Hamstrings, Glutes, Knee, Hip, Lower Back, +5 more":
+   *
+   *   Joints in a list of what you trained. A knee is not trained, the quads
+   *   and hamstrings that move it are. musclesWorked() does that translation.
+   *
+   *   "+5 more". This sits beside a body map with eleven regions shaded; naming
+   *   six of them and counting the rest is the one thing a legend must not do.
+   *   Every muscle the figures shade is now named, and the row wraps.
    */
   // Not memoised: this sits below an early return, so a hook here would be
   // called conditionally. It is a sort of at most nineteen entries — cheaper
   // than the comparison that would decide whether to recompute it.
-  const WORKED_LABEL_LIMIT = 6;
-  const workedEntries = Object.entries(workedRegions ?? {})
-    .filter(([, count]) => (count as number) > 0)
-    .sort((a, b) => (b[1] as number) - (a[1] as number));
-  const workedLabels = workedEntries
-    .slice(0, WORKED_LABEL_LIMIT)
-    .map(([region]) => BODY_DIAGRAM_LABELS[region as PainRegion] ?? region);
-  const workedOverflow = Math.max(0, workedEntries.length - WORKED_LABEL_LIMIT);
+  const workedLabels = musclesWorked(workedRegions ?? {});
 
   // Lead with the one biggest thing that happened, not three equal stats.
   //
@@ -1370,9 +1368,13 @@ export default function SessionSummaryScreen() {
         : [
             { label: 'Duration', value: durationLabel },
             { label: 'Sets', value: String(summary.totalSets) },
-            // "Muscles" was a lie on any session built around a joint — the
-            // count includes the elbow, the knee and the ankle now.
-            { label: 'Areas', value: String(areasHit) },
+            // "Muscles" again, and true again. It was renamed to "Areas"
+            // because the tally counted the elbow, the knee and the ankle —
+            // joints, which nobody trains. Now that the joints resolve to the
+            // muscles that move them this counts muscles, and it counts exactly
+            // the chips printed under the figures rather than a larger number
+            // the reader can't reconcile with them.
+            { label: 'Muscles', value: String(workedLabels.length) },
           ];
 
   return (
@@ -1603,9 +1605,8 @@ export default function SessionSummaryScreen() {
                         regions costs one line and removes the guesswork.
 
                         Ordered by how much each was worked, so the heaviest
-                        reads first, and capped: a full body session touches
-                        nearly everything and a list of twelve is not a summary
-                        of anything. */}
+                        reads first. All of them: this is the key to the figures
+                        beside it, and a key that stops halfway is not one. */}
                     {workedLabels.length > 0 && (
                       <View style={styles.workedRow}>
                         {workedLabels.map((label) => (
@@ -1613,9 +1614,6 @@ export default function SessionSummaryScreen() {
                             <Text style={styles.workedChipText}>{label}</Text>
                           </View>
                         ))}
-                        {workedOverflow > 0 && (
-                          <Text style={styles.workedMore}>+{workedOverflow} more</Text>
-                        )}
                       </View>
                     )}
                   </Animated.View>
@@ -2153,11 +2151,6 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.muted,
-  },
-  workedMore: {
-    fontSize: 9.5,
-    fontFamily: 'Inter_400Regular',
-    color: SAGE.faint,
   },
   diagramLabel: {
     fontSize: 9,

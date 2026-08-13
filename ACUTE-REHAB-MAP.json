@@ -1,0 +1,2099 @@
+{
+  "$comment": "GENERATED FILE - do not edit by hand. Run `npm run acute-map` after changing lib/acute-rehab.ts.",
+  "purpose": "Maps each injury site to the gentle, low-load rehab that replaces the stretching and heavy loading the app used to serve for it.",
+  "painRule": "Stay in a pain-free range. Nothing here should take your pain above 2 out of 10, and it should settle as soon as you stop.",
+  "appliesWhen": [
+    "The user picks a body region on the Restore tab (Recovery or Targeted Prehab).",
+    "The user reports pain in a region on the readiness screen before a training session."
+  ],
+  "allowedKinds": {
+    "isometric": "The muscle works, nothing moves, nothing lengthens.",
+    "controlled_isotonic": "Short range, light load, slow, well inside the middle of the range.",
+    "activation": "Switching the area on without loading it.",
+    "mobility_low_load": "Keeping a joint moving, explicitly stopping short of the end of the range.",
+    "circulation": "Moving blood and swelling, with no muscular demand at all."
+  },
+  "forbidden": [
+    "static or passive stretching of the injured tissue",
+    "aggressive or ballistic dynamic movement",
+    "heavy eccentric loading",
+    "anything that leaves the ground"
+  ],
+  "injurySites": [
+    {
+      "region": "hamstrings",
+      "name": "Hamstrings",
+      "disclaimer": "Work only in a range that stays comfortable - nothing in this session should take your pain above 2 out of 10, and it should settle again as soon as you stop. If it hurts more than that while you work, or the leg feels worse the next morning, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Standing and supine hamstring stretches - pulling on a muscle that is still knitting back together pulls the repairing fibres apart and slows healing down",
+        "Nordic curl negatives and other hard lowering work - the heaviest demand there is on a hamstring, and completely wrong in the first two weeks after a strain",
+        "The wall hip hinge and any hinge cued to feel a stretch at the bottom - it loads the hamstring at its longest point, which is exactly where strains happen and re-happen",
+        "Pigeon Pose and the seated forward fold - long passive holds that park the healing tissue at full length for a minute at a time",
+        "Running, sprinting and anything that lands - the tissue is nowhere near ready for speed"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Standing Hamstring Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Supine Hamstring Stretch (Strap)",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Nordic Curl Negative (slow)",
+          "previousPrescription": "3 x 5 reps",
+          "status": "withdrawn",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Hip Hinge Against Wall",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Seated Forward Fold",
+          "previousPrescription": "2 x 60s",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Standing Hamstring Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Supine Hamstring Stretch (Strap)",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Nordic Curl Negative (slow)",
+          "previousPrescription": "3 x 5 reps",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Hip Hinge Against Wall",
+          "previousPrescription": "3 x 15 slow reps",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Seated Forward Fold",
+          "previousPrescription": "2 x 60s",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Supine Isometric Hamstring Press (Bent Knee)",
+          "sets": 3,
+          "reps": "8 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the sore leg bent to a right angle and the heel on the floor. Press the heel gently down into the floor at about a third of your effort and hold - the hamstring switches on with nothing moving and nothing pulling."
+        },
+        {
+          "exercise": "Banded Clamshell",
+          "sets": 2,
+          "reps": "15 each side",
+          "load": "Light band",
+          "cue": "Lie on your side, knees bent and stacked, light band above the knees - open the top knee a small way, hold a second and lower slowly. Keep the top hip from rolling backwards."
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "sets": 3,
+          "reps": "8 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Feet flat and tucked in close to your backside, drive through the heels and lift the hips until you are straight from knee to shoulder - hold, then lower with control. Heels in close keeps the work in the glutes and off the hamstring."
+        },
+        {
+          "exercise": "Prone Knee Bend Hold",
+          "sets": 2,
+          "reps": "10 reps, hold 3s each side",
+          "load": "Bodyweight",
+          "cue": "Lie face down and bend the sore knee up to about halfway, hold it there for three seconds, then lower it slowly. The only weight is your own shin - stop short of anything that pulls or grabs."
+        },
+        {
+          "exercise": "Single-Leg Glute Bridge",
+          "sets": 2,
+          "reps": "8 each side",
+          "load": "Bodyweight",
+          "cue": "One foot planted close to your backside, the other knee hugged in - lift until the hips are level, hold a beat, then lower slowly. Stop the set if the hamstring starts to cramp or grab."
+        }
+      ]
+    },
+    {
+      "region": "glutes",
+      "name": "Glutes",
+      "disclaimer": "Stay inside a range that feels comfortable - none of this should push your pain above 2 out of 10, and it should settle as soon as you finish. If the pain goes higher than that, or the hip is more sore the following day, stop and have it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Figure-4 and Pigeon Pose - both pull the leg across the body, which presses the glute tendons hard against the point of the hip and is one of the most common reasons this pain drags on",
+        "Loaded hip hinges - deadlifts, Romanian deadlifts, kettlebell swings and hip thrusts all ask the sore muscle for its hardest job while it is still healing",
+        "Deep squats and lunges, which take the hip into the loaded, folded position the tissue least tolerates right now",
+        "Jumping, running and taking stairs two at a time",
+        "Long side-lying holds on the sore hip and sitting with the legs crossed - both squash the tendon against the bone for minutes at a time"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Banded Clamshell",
+          "previousPrescription": "3 x 15 each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "previousPrescription": "3 x 10 reps, 5s hold each",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 60s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Lateral Band Walk",
+          "previousPrescription": "2 x 15 steps each direction",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Single-Leg Glute Bridge",
+          "previousPrescription": "2 x 10 each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Figure-4 Glute Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "previousPrescription": "3 x 10 reps, 5s hold each",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 60s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Figure-4 Glute Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Glute Set (isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the legs straight - squeeze both buttocks together at about half effort, hold, then let go completely. Nothing lifts and nothing moves at the hip."
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "sets": 3,
+          "reps": "8 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Feet flat and hip-width apart - lift the hips until you are straight from knee to shoulder and squeeze at the top. Lower slowly and reset properly between reps."
+        },
+        {
+          "exercise": "Banded Clamshell",
+          "sets": 2,
+          "reps": "15 each side",
+          "load": "Light band",
+          "cue": "On your side, knees bent and stacked, light band above the knees - open the top knee a small way, hold a second, lower slowly. Do not let the top hip roll backwards to help."
+        },
+        {
+          "exercise": "Isometric Hip Abduction (Wall Press)",
+          "sets": 3,
+          "reps": "5 reps, hold 20s each side",
+          "load": "Bodyweight",
+          "cue": "Stand side-on to a wall with the inside leg lifted and the knee bent, then press that knee into the wall at about a third of your effort. The standing hip is the one doing the work - keep the pelvis level and the torso upright."
+        },
+        {
+          "exercise": "Single-Leg Glute Bridge",
+          "sets": 2,
+          "reps": "8 each side",
+          "load": "Bodyweight",
+          "cue": "One foot planted, the other knee hugged in - lift until the hips are level, hold a beat, then lower slowly. Level hips matter far more than height."
+        }
+      ]
+    },
+    {
+      "region": "calf_shin",
+      "name": "Calf / Shin",
+      "disclaimer": "Keep everything inside a pain-free range - nothing here should take your pain above 2 out of 10, and it should ease off the moment you stop. If it goes higher than that, or the calf is tighter and more painful the next day, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Calf and soleus stretches against a wall - a healing calf tear does not need lengthening, and that is the exact position most calves tear in",
+        "Heel drops off a step and slow eccentric calf raises - the right treatment for a long-standing tendon problem and far too much for a fresh muscle strain",
+        "Single-leg calf raises, which put roughly double the load through the injured calf compared with using both legs",
+        "Running, skipping and jumping - every stride is a fast, forceful stretch of the tissue you are trying to protect",
+        "Digging into the sore spot with a massage gun or foam roller in the first week or so, which can add to the bleeding and swelling"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Standing Calf Raise (slow eccentric)",
+          "previousPrescription": "3 x 15 reps (3s down)",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Tibialis Raise",
+          "previousPrescription": "3 x 20 reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Soleus Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Single-Leg Calf Raise",
+          "previousPrescription": "3 x 12 each side",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Seated Toe Raise",
+          "previousPrescription": "2 x 20 reps",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Calf Stretch (Wall)",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Standing Calf Raise (slow eccentric)",
+          "previousPrescription": "3 x 15 reps (3s down)",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Soleus Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Single-Leg Calf Raise",
+          "previousPrescription": "3 x 12 each side",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Calf Stretch (Wall)",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Seated Ankle Pump (Small Range)",
+          "sets": 2,
+          "reps": "20 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Sit with the leg out in front of you - point the toes gently away, then bring them back to flat and stop there. Small and slow, purely to move blood through the calf."
+        },
+        {
+          "exercise": "Seated Toe Raise",
+          "sets": 2,
+          "reps": "20 reps",
+          "load": "Bodyweight",
+          "cue": "Sit with the heel on the floor and the knee bent - lift the toes and forefoot towards you, then lower slowly. Keep it easy and stop short of any pull in the calf."
+        },
+        {
+          "exercise": "Seated Isometric Calf Press",
+          "sets": 3,
+          "reps": "8 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Sit tall with the knee bent to a right angle and the foot flat - press the ball of the foot down into the floor at about a third of your effort and hold. The heel stays down and nothing moves."
+        },
+        {
+          "exercise": "Seated Heel Raise (Bodyweight)",
+          "sets": 2,
+          "reps": "12 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Sitting with the foot flat, lift the heel as far as is comfortable, hold a second, then lower it slowly back to the floor. Keep your hands off the thigh - the only load is the weight of your own leg."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "sets": 1,
+          "reps": "3 min",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the legs resting up the wall and the ankles completely relaxed - close your eyes and breathe. This helps drain swelling out of the lower leg."
+        }
+      ]
+    },
+    {
+      "region": "ankle_achilles",
+      "name": "Ankle / Achilles",
+      "disclaimer": "Only work in a range that stays comfortable - nothing here should push your pain above 2 out of 10, and it should settle straight after you finish. If the pain is higher than that, or the ankle is stiffer and more sore the next morning, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Eccentric heel drops off a step - the correct treatment for a long-standing Achilles problem and the wrong choice entirely for one that is freshly strained, swollen or angry",
+        "Calf and soleus stretches against a wall, which pull directly on the tendon you are trying to settle",
+        "Full-range ankle circles - they take an irritated joint to the end of its range in every direction, one after another",
+        "Running, hopping, skipping and jumping, and anything where you push off hard",
+        "Balance work with no support and up on the toes - the balance training here is deliberately flat-footed with a hand on something solid"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Heel Drop (eccentric)",
+          "previousPrescription": "3 x 15 each side",
+          "status": "withdrawn",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Tibialis Raise",
+          "previousPrescription": "3 x 20 reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Single-Leg Balance",
+          "previousPrescription": "3 x 30s each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Ankle Circles",
+          "previousPrescription": "2 x 10 each direction, each ankle",
+          "status": "withdrawn",
+          "reason": "Driven deliberately to the end of the range, which for a fresh sprain is the position of injury."
+        },
+        {
+          "exercise": "Calf Stretch (Wall)",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "previousPrescription": "1 x 2 min",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Heel Drop (eccentric)",
+          "previousPrescription": "3 x 15 each side",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Ankle Circles",
+          "previousPrescription": "2 x 10 each direction, each ankle",
+          "reason": "Driven deliberately to the end of the range, which for a fresh sprain is the position of injury."
+        },
+        {
+          "exercise": "Calf Stretch (Wall)",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Seated Ankle Pump (Small Range)",
+          "sets": 2,
+          "reps": "20 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Sit with the leg supported - point the toes gently away, then bring them back to flat and stop there. Never past flat, and never into anything that pulls at the back of the heel."
+        },
+        {
+          "exercise": "Seated Toe Raise",
+          "sets": 2,
+          "reps": "20 reps",
+          "load": "Bodyweight",
+          "cue": "Heel on the floor and the knee bent - lift the toes and forefoot towards you, then lower slowly. Stay in the easy part of the range throughout."
+        },
+        {
+          "exercise": "Isometric Ankle Press (In and Out)",
+          "sets": 2,
+          "reps": "5 holds of 10s in each direction",
+          "load": "Bodyweight",
+          "cue": "Sit with the foot flat and the outside of the foot against a wall or table leg - press outwards at about a third of your effort and hold, then turn round and press the inside edge in the same way. Nothing moves."
+        },
+        {
+          "exercise": "Seated Isometric Calf Press",
+          "sets": 3,
+          "reps": "8 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Sit tall with the knee bent to a right angle and the foot flat - press the ball of the foot down into the floor at about a third of your effort and hold. Heel stays down, nothing moves."
+        },
+        {
+          "exercise": "Single-Leg Balance",
+          "sets": 3,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Stand on one leg with your fingertips resting on a wall or worktop - stay flat-footed and do not rise onto the toes. Small wobbles are normal and are the point."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "sets": 1,
+          "reps": "3 min",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the legs resting up the wall and the ankles loose - close your eyes and breathe. Gravity helps swelling drain out of the foot and ankle."
+        }
+      ]
+    },
+    {
+      "region": "quads",
+      "name": "Quads",
+      "disclaimer": "Work only in a range that stays pain-free - 0 to 2 out of 10 at most, and no sharp pull at any point. If pain goes above a 2 while you work, or the thigh is more sore later that day or the next morning, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Standing Quad Stretch, Couch Stretch and kneeling hip flexor stretches - all of them pull a torn quad into its longest position, which is the one thing torn muscle fibres cannot tolerate in the first week or two",
+        "Slow Step-Down and any other eccentric or step-based quad work - lowering under control is exactly the loading pattern that tore the muscle in the first place",
+        "Isometric Wall Sit and deep squats or lunges - long holds at 90 degrees put high tension through the quad while it is already lengthened",
+        "Foam rolling or digging into the sore spot - pressure over a fresh strain can worsen the bleeding and bruising",
+        "Running, kicking and sprinting until the leg is pain-free at full effort on the exercises below"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Standing Quad Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Terminal Knee Extension (band)",
+          "previousPrescription": "3 x 15 each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Slow Step-Down (eccentric)",
+          "previousPrescription": "3 x 10 each side",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Couch Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Isometric Wall Sit",
+          "previousPrescription": "2 x 30s",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Hip Flexor Kneeling Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Standing Quad Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Slow Step-Down (eccentric)",
+          "previousPrescription": "3 x 10 each side",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Couch Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Isometric Wall Sit",
+          "previousPrescription": "2 x 30s",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Hip Flexor Kneeling Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Quad Set (isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Lie flat with a rolled towel under the knee - press the back of the knee down into the towel at about half effort, hold, then let go completely. The thigh should tighten without the leg moving anywhere."
+        },
+        {
+          "exercise": "Short-Arc Quad Extension (Towel Roll)",
+          "sets": 3,
+          "reps": "12 reps, hold 2s at the top",
+          "load": "Bodyweight",
+          "cue": "Rolled towel under the knee, lift the heel until the knee is straight - hold, then lower slowly onto the towel. Only the last part of the range moves, so the muscle never works long."
+        },
+        {
+          "exercise": "Supine Straight-Leg Raise",
+          "sets": 3,
+          "reps": "10 each side",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with one knee bent and the injured leg straight - tighten the thigh, lift the leg about 30 cm, then lower it under control. Keep the knee locked straight the whole way."
+        },
+        {
+          "exercise": "Banded Clamshell",
+          "sets": 2,
+          "reps": "15 each side",
+          "load": "Light band",
+          "cue": "Light band above the knees, heels together, hips and knees bent - rotate the top knee up, hold 1s, lower slowly. This works the hip while the front of the thigh rests."
+        },
+        {
+          "exercise": "Single-Leg Balance",
+          "sets": 3,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Stand on the injured leg with the knee soft but almost straight, fingertips on a wall if you need them - small wobbles are normal, thigh ache is not. Step down if it starts to ache."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "sets": 1,
+          "reps": "3 min",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the legs resting up a wall, knees soft and the thigh completely loose - breathe slowly and let the leg go heavy."
+        }
+      ]
+    },
+    {
+      "region": "knee",
+      "name": "Knee",
+      "disclaimer": "Stay in a pain-free range throughout - 0 to 2 out of 10 is the limit, and nothing should feel sharp or catch. If pain goes above a 2, or the knee is more swollen or stiff the next morning, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Slow Step-Down, step-ups and squatting past a quarter of the way down - deep bending squeezes an already irritated kneecap and loads the joint eccentrically",
+        "VMO Wall Sit and any long hold at 90 degrees - high load in deep bend is the classic way to flare a sore knee",
+        "Standing Quad Stretch, Figure-4 Glute Stretch and kneeling stretches - they tug on a joint that is already irritated and add nothing while it is settling",
+        "Kneeling, twisting on a planted foot, jumping and running until the knee is comfortable with everything below",
+        "Pushing through swelling - a knee that puffs up after a session was loaded too hard, not stretched too little"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Terminal Knee Extension (band)",
+          "previousPrescription": "3 x 15 each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Slow Step-Down",
+          "previousPrescription": "3 x 10 each side",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "VMO Wall Sit",
+          "previousPrescription": "3 x 30s",
+          "status": "withdrawn",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Banded Clamshell",
+          "previousPrescription": "3 x 15 each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Quad Set (isometric)",
+          "previousPrescription": "2 x 10 reps, hold 10s each",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Standing Quad Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Slow Step-Down",
+          "previousPrescription": "3 x 10 each side",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "VMO Wall Sit",
+          "previousPrescription": "3 x 30s",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Standing Quad Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Quad Set (isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Lie flat with a rolled towel under the knee - press the knee gently down into the towel at about half effort and hold. This wakes the thigh up without moving the joint at all."
+        },
+        {
+          "exercise": "Supported Heel Slide",
+          "sets": 2,
+          "reps": "10 slow slides each side",
+          "load": "Bodyweight",
+          "cue": "Lie on your back and slide the heel towards you along the floor or a towel - stop at the first hint of tightness and slide straight back out. Small range only - you are keeping the knee moving, not working it to its limit."
+        },
+        {
+          "exercise": "Supine Straight-Leg Raise",
+          "sets": 3,
+          "reps": "10 each side",
+          "load": "Bodyweight",
+          "cue": "Tighten the thigh first so the knee stays locked straight, then lift the leg about 30 cm and lower it slowly. If the knee sags into a bend on the way up, put the leg down and start again."
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Feet flat and hip-width, push through the heels and lift the hips until the body is in a line - squeeze the glutes, hold, then lower slowly. Knees stay pointing straight ahead."
+        },
+        {
+          "exercise": "Terminal Knee Extension (band)",
+          "sets": 3,
+          "reps": "15 each side",
+          "load": "Light band",
+          "cue": "Light band behind the knee, stand tall with a small bend in it - straighten the knee fully against the band, hold 1s, then release slowly. Only the last few degrees move."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "sets": 1,
+          "reps": "3 min",
+          "load": "Bodyweight",
+          "cue": "Legs resting up the wall with the knees soft - lying with the leg above heart height helps any swelling drain away. Breathe slowly and stay there."
+        }
+      ]
+    },
+    {
+      "region": "hip_groin",
+      "name": "Hip / Groin",
+      "disclaimer": "Everything here should stay pain-free - up to 2 out of 10 at most, with no sharp pull in the groin. If pain goes above a 2 while you work, or the area is worse later that day or the next morning, stop and get it assessed by a physiotherapist or doctor.",
+      "avoid": [
+        "Copenhagen Adductor Hold - one of the highest adductor loads there is, and completely wrong for a groin that is still healing",
+        "Butterfly and seated groin stretches, Pigeon Pose and wide-legged positions - they take the injured inner thigh to its full length, which is where fresh strains re-tear",
+        "Hip Flexor Stretch and kneeling lunge stretches - the same problem at the front of the hip if that is the part that was strained",
+        "Lateral Band Walk, side lunges and wide-stance squats - these pull the groin long while it is under load and weight-bearing",
+        "Kicking, sprinting and changing direction until the squeezes below are comfortable at full effort"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Banded Clamshell",
+          "previousPrescription": "3 x 15 each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Copenhagen Adductor Hold",
+          "previousPrescription": "3 x 20s each side",
+          "status": "withdrawn",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Hip Flexor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Figure-4 Glute Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Lateral Band Walk",
+          "previousPrescription": "2 x 15 steps each direction",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 60s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Copenhagen Adductor Hold",
+          "previousPrescription": "3 x 20s each side",
+          "reason": "A near-maximal load on the injured tissue. Correct for a long-standing problem, far too much for a fresh one."
+        },
+        {
+          "exercise": "Hip Flexor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Figure-4 Glute Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Pigeon Pose",
+          "previousPrescription": "2 x 60s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Isometric Adductor Squeeze (Ball or Towel)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Soft ball or rolled towel",
+          "cue": "Lie on your back, knees bent, a soft ball or rolled towel between the knees - squeeze at about half effort, hold, then let go completely. Bent knees keep the groin short and the load gentle."
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Feet hip-width and flat, lift the hips until the body is in a line - squeeze the glutes, hold, then lower slowly. Keep the knees pointing straight ahead, do not let them drift apart."
+        },
+        {
+          "exercise": "Seated Hip March (Low Lift)",
+          "sets": 2,
+          "reps": "12 each side",
+          "load": "Bodyweight",
+          "cue": "Sit tall in a chair and lift one heel a few centimetres off the floor, then set it down slowly. A tiny lift is enough - this is for the front of the hip, not a leg raise."
+        },
+        {
+          "exercise": "Long-Lever Adductor Squeeze",
+          "sets": 3,
+          "reps": "8 reps, hold 5s each",
+          "load": "Soft ball or rolled towel",
+          "cue": "The same squeeze but with the legs almost straight and the ball or towel down at the ankles - still about half effort. Stop the set if the groin starts to talk back."
+        },
+        {
+          "exercise": "Single-Leg Balance",
+          "sets": 3,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Stand on the injured side with fingertips on a wall - keep the hips level and the standing knee soft. Small wobbles are normal, groin pain is not."
+        },
+        {
+          "exercise": "Legs-Up-The-Wall",
+          "sets": 1,
+          "reps": "3 min",
+          "load": "Bodyweight",
+          "cue": "Legs up the wall with the knees soft and the legs together - keep them touching and never let them fall out to the sides. Rest there and breathe slowly."
+        }
+      ]
+    },
+    {
+      "region": "front_shoulder",
+      "name": "Front of Shoulder",
+      "disclaimer": "Work only in a range that stays pain-free - a mild ache of 0 to 2 out of 10 is acceptable, anything sharper is not. Stop and get the shoulder assessed if pain climbs above 2 out of 10 during a session or if it is more sore the day after.",
+      "avoid": [
+        "Doorway chest stretch and pec minor stretch - both drive the arm into end-range shoulder extension, which is the exact position that pulls on a freshly strained front shoulder",
+        "Cross-body and overhead stretching - end-range positions add nothing in the first ten days and can irritate a healing tendon",
+        "Shoulder CAR and other full-circle mobility drills - taking the joint to its limit in every direction is the opposite of what an acute strain needs",
+        "Press-ups, dips, bench pressing and overhead pressing - loaded shoulder flexion is a return-to-sport task, not a day 2-10 task",
+        "Lifting the arm above shoulder height against gravity until the isometric holds feel completely comfortable"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Doorway Chest Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Prone Shoulder External Rotation",
+          "previousPrescription": "3 x 12 each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Band Pull-Apart",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Pec Minor Stretch (doorway)",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Shoulder CAR (Controlled Articular Rotation)",
+          "previousPrescription": "2 x 5 slow circles each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Doorway Chest Opener",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Doorway Chest Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Pec Minor Stretch (doorway)",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Doorway Chest Opener",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Pendulum Shoulder Swing",
+          "sets": 2,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Lean forward with your good hand on a table and let the sore arm hang loose - sway your body so the arm swings in small circles. The shoulder muscles do nothing, the movement comes from your trunk."
+        },
+        {
+          "exercise": "Scapular Setting (Isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sit or stand tall and draw the shoulder blade gently back and down at about a quarter of your full effort - the arm stays completely still. This is a small squeeze, not a hard pinch."
+        },
+        {
+          "exercise": "Isometric Shoulder External Rotation (Doorframe)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Elbow tucked to your side and bent to 90 degrees, press the back of your hand out into a doorframe at about a third of your effort. Nothing should move - if you feel a pinch, press more softly until you do not."
+        },
+        {
+          "exercise": "Isometric Shoulder Flexion Press (Wall)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Stand facing a wall with your elbow bent and your fist resting on it at hip height - press forward at about a third of your effort and hold. Keeping the elbow bent keeps the arm short and the load low."
+        },
+        {
+          "exercise": "Supported Shoulder Slide (Table)",
+          "sets": 2,
+          "reps": "10 slow reps each side",
+          "load": "Bodyweight (towel on a table)",
+          "cue": "Sit at a table with your forearm resting on a folded towel, then slide the arm forward and back as if polishing the surface. The table carries the weight of the arm - stop the moment it begins to pull."
+        },
+        {
+          "exercise": "Wall Slide",
+          "sets": 2,
+          "reps": "8 slow reps",
+          "load": "Bodyweight",
+          "cue": "Back flat on the wall, elbows bent to 90 degrees and touching the wall - slide up only as far as stays comfortable, then lower slowly. Nowhere near overhead in the first week."
+        }
+      ]
+    },
+    {
+      "region": "rear_shoulder",
+      "name": "Back of Shoulder",
+      "disclaimer": "Stay inside a pain-free range at all times - 0 to 2 out of 10 discomfort is fine, more than that is a signal to stop. If pain goes above 2 out of 10, or the shoulder is worse the following day, stop and get it assessed.",
+      "avoid": [
+        "Cross-body shoulder stretch - it lengthens the rear deltoid and back of the shoulder capsule, which is precisely the tissue that has been strained",
+        "Band Pull-Apart and Prone Y Raise at their usual dose - both take the injured rear deltoid through full range under load and squeeze hard at the end, which is too much in the first week",
+        "Shoulder CAR and full-circle mobility work - end range in every direction is the wrong ask for an acute strain",
+        "Rows, pull-downs, rear flyes and any pulling with weight",
+        "Sleeping on the sore side, and the sleeper stretch, which compresses and lengthens the back of the shoulder at the same time"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Band Pull-Apart",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Band Face Pull",
+          "previousPrescription": "3 x 12 reps",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Prone Y Raise",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Wall Slide",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Cross-Body Shoulder Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Thread-the-Needle Rotation",
+          "previousPrescription": "2 x 6 each side, hold 3s",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Cross-Body Shoulder Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Pendulum Shoulder Swing",
+          "sets": 2,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Lean forward with your good hand on a table and let the sore arm hang loose - sway your body so the arm swings in small circles. The shoulder muscles do nothing, the movement comes from your trunk."
+        },
+        {
+          "exercise": "Scapular Setting (Isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sit or stand tall and draw the shoulder blade gently back and down at about a quarter of your full effort - the arm stays completely still. This is a small squeeze, not a hard pinch."
+        },
+        {
+          "exercise": "Isometric Shoulder External Rotation (Doorframe)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Elbow tucked to your side and bent to 90 degrees, press the back of your hand out into a doorframe at about a third of your effort. Nothing should move - if you feel a pinch, press more softly until you do not."
+        },
+        {
+          "exercise": "Isometric Shoulder Extension Press (Wall)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Stand with your back to a wall, arm by your side and elbow softly bent, and press the back of your arm into the wall at about a third of your effort - hold, then relax. Nothing moves."
+        },
+        {
+          "exercise": "Prone Thoracic Extension",
+          "sets": 2,
+          "reps": "8 reps, hold 2s at top",
+          "load": "Bodyweight",
+          "cue": "Lie face down with your arms by your sides and lift your chest a few centimetres using the mid-back only - keep the lift small and the shoulders relaxed."
+        },
+        {
+          "exercise": "Band Face Pull",
+          "sets": 2,
+          "reps": "12 slow reps",
+          "load": "Very light band",
+          "cue": "Very light band at chest height, elbows kept low - pull only until your hands reach the front of your chest, then release slowly. Half the range you would normally use and a fraction of the tension."
+        }
+      ]
+    },
+    {
+      "region": "chest",
+      "name": "Chest",
+      "disclaimer": "Everything here should feel easy - keep discomfort at 0 to 2 out of 10 and ease off the moment it goes higher. If pain rises above 2 out of 10, or the chest is more sore the next day, stop the session and get it assessed.",
+      "avoid": [
+        "Doorway chest stretch, pec minor stretch and floor angels - each one takes the chest muscle to its full length, which is the single position a healing pec strain cannot tolerate",
+        "Press-ups of any kind, including incline - the bottom of a press-up is a loaded stretch of the pec",
+        "Flyes, dips and bench pressing, which combine load with end-range width",
+        "Letting the elbows travel behind the ribs in any exercise, including sleeping with the arm out wide or hanging off the edge of the bed",
+        "Chest-opening yoga positions and foam rolling directly over the sore area"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Doorway Chest Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Incline Push-Up (slow)",
+          "previousPrescription": "3 x 10 slow reps",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Pec Minor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Band Pull-Apart",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Floor Angel",
+          "previousPrescription": "2 x 30s at each level",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Doorway Chest Opener",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Doorway Chest Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Incline Push-Up (slow)",
+          "previousPrescription": "3 x 10 slow reps",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Pec Minor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Doorway Chest Opener",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Scapular Setting (Isometric)",
+          "sets": 3,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sit or stand tall and draw the shoulder blade gently back and down at about a quarter of your full effort - the arm stays completely still. This is a small squeeze, not a hard pinch."
+        },
+        {
+          "exercise": "Isometric Pec Squeeze (Palms Together)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each",
+          "load": "Bodyweight",
+          "cue": "Press your palms together in front of your chest with the elbows bent and low, at about a third of your effort - hold, then relax fully. Keep the elbows in front of the body throughout."
+        },
+        {
+          "exercise": "Isometric Chest Press Into Wall",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Face a wall with your hand flat on it at chest height and the elbow bent, then press gently into the wall at about a third of your effort. Nothing moves, and the elbow stays in front of your body, never behind it."
+        },
+        {
+          "exercise": "Band Chest Press (Light, Short Range)",
+          "sets": 2,
+          "reps": "12 slow reps",
+          "load": "Light band",
+          "cue": "Band around your back with your hands at chest height - press forward slowly, then return only until your hands reach your chest. Never let the elbows travel behind your ribs."
+        }
+      ]
+    },
+    {
+      "region": "bicep",
+      "name": "Biceps",
+      "disclaimer": "Only work in a range that stays pain-free - 0 to 2 out of 10 discomfort is acceptable, anything above that is not. Stop and get the arm assessed if pain goes past 2 out of 10 during the session or if it is worse the following day.",
+      "avoid": [
+        "The arm-back bicep stretch - straightening the elbow with the arm behind you is the longest possible position for the biceps and its shoulder tendon, and a healing biceps should not go there",
+        "Cross-body shoulder stretch and wrist flexor stretch, which both pull on the same tissue line",
+        "Curls with weight, chin-ups and anything with a slow lowering phase - controlled lowering under load is how most biceps injuries happen in the first place",
+        "Forcing the last few degrees of straightening at the elbow, whether by yourself or with someone helping",
+        "Carrying shopping or heavy bags in that hand while the arm is still sore"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Bicep Stretch (arm back)",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Forearm Supination / Pronation",
+          "previousPrescription": "2 x 15 each direction",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Band Curl (light, high reps)",
+          "previousPrescription": "3 x 20 reps",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Wrist Flexor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Cross-Body Shoulder Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Bicep Stretch (arm back)",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Band Curl (light, high reps)",
+          "previousPrescription": "3 x 20 reps",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Wrist Flexor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Cross-Body Shoulder Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Elbow Flexion / Extension ROM",
+          "sets": 2,
+          "reps": "10 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Bend and straighten the elbow slowly with nothing in the hand - stop just short of the point where it starts to pull, and never force the last few degrees straight."
+        },
+        {
+          "exercise": "Forearm Supination / Pronation",
+          "sets": 2,
+          "reps": "15 each direction",
+          "load": "Bodyweight",
+          "cue": "Elbow tucked in and bent to 90 degrees, turn the palm slowly up then down with nothing in the hand - keeps the elbow moving without asking the biceps to lift anything."
+        },
+        {
+          "exercise": "Isometric Elbow Flexion Hold (Table)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Sit with your palm under the edge of a table and the elbow bent to 90 degrees, then press up into it at about a third of your effort. Nothing moves - if it stings, press more softly."
+        },
+        {
+          "exercise": "Isometric Supination Hold (Towel)",
+          "sets": 2,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Rolled towel",
+          "cue": "Elbow at your side bent to 90 degrees, hold one end of a rolled towel and try to twist your palm upward while your other hand holds it still - a third of effort, no movement."
+        },
+        {
+          "exercise": "Band Curl (light, high reps)",
+          "sets": 2,
+          "reps": "15 slow reps",
+          "load": "Very light band",
+          "cue": "Very light band - curl up smoothly and lower only until the elbow is about two thirds straight. No heavy slow lowering and no locking the arm out at the bottom."
+        }
+      ]
+    },
+    {
+      "region": "tricep",
+      "name": "Triceps",
+      "disclaimer": "Keep everything inside a pain-free range - 0 to 2 out of 10 discomfort is fine, anything sharper means stop. If pain rises above 2 out of 10, or the back of the arm is more sore the day after, stop and get it assessed.",
+      "avoid": [
+        "Overhead and cross-body tricep stretches - both put the triceps at full length across the shoulder and the elbow at the same time, which a healing muscle cannot take",
+        "Wrist extensor stretch, which pulls on the same chain at the elbow",
+        "Dips, close-grip pressing, skull crushers and any overhead pressing",
+        "Wall angels and overhead arm slides in the first week - taking the arm above the head lengthens the long head of the triceps at the shoulder",
+        "Bending the elbow deeply while holding something heavy, such as carrying a bag with the arm bent"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Overhead Tricep Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Cross-Body Tricep Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Band Pushdown (light, high reps)",
+          "previousPrescription": "3 x 20 reps",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Wrist Extensor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wall Angel",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Side-Bend Overhead Reach",
+          "previousPrescription": "1 x 40s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Overhead Tricep Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Cross-Body Tricep Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wrist Extensor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Side-Bend Overhead Reach",
+          "previousPrescription": "1 x 40s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Elbow Flexion / Extension ROM",
+          "sets": 2,
+          "reps": "10 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Bend and straighten the elbow slowly with nothing in the hand - stop bending as soon as you feel a pull at the back of the arm. Straightening is usually the comfortable direction."
+        },
+        {
+          "exercise": "Forearm Supination / Pronation",
+          "sets": 2,
+          "reps": "15 each direction",
+          "load": "Bodyweight",
+          "cue": "Elbow tucked in at 90 degrees, rotate the palm up and down slowly - keeps the elbow moving and blood flowing without asking the triceps to work."
+        },
+        {
+          "exercise": "Isometric Elbow Extension Press (Thigh)",
+          "sets": 3,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Sit with the elbow bent to 90 degrees and press the back of your fist down into your thigh at about a third of your effort - hold, then relax. The arm should not move at all."
+        },
+        {
+          "exercise": "Isometric Shoulder Extension Press (Wall)",
+          "sets": 2,
+          "reps": "6 reps, hold 10s each side",
+          "load": "Bodyweight",
+          "cue": "Stand with your back to a wall, arm by your side and elbow softly bent, and press the back of your arm into the wall at about a third of your effort - hold, then relax. Nothing moves."
+        },
+        {
+          "exercise": "Band Pushdown (light, high reps)",
+          "sets": 2,
+          "reps": "15 slow reps",
+          "load": "Very light band",
+          "cue": "Very light band with the elbows pinned to your sides - push down to almost straight, then let it come back up only halfway. Keep the return slow but short, and stop if the back of the arm starts to ache."
+        }
+      ]
+    },
+    {
+      "region": "elbow",
+      "name": "Elbow",
+      "disclaimer": "Stay inside a pain-free range for every movement here - no more than 2 out of 10 on a scale where 0 is nothing and 10 is the worst pain you can imagine. If the elbow goes above that during a movement, or feels worse in the hours afterwards, stop and get it assessed before doing this again.",
+      "avoid": [
+        "Wrist flexor and extensor stretches - pulling the fingers back on a straight arm puts the healing tendon at the elbow on full stretch, which is exactly what keeps it irritable",
+        "Eccentric Wrist Extension with a water bottle - slow heavy lowering is the right drill for a long-standing tendon problem, not for a strain that is only days old",
+        "The Forearm Flexor & Extensor Stretch that normally ends this session - it is the same end-range pull with the elbow locked out",
+        "Pronator Self-Release - digging a thumb into tissue that is still swollen and sore adds irritation rather than settling it",
+        "Hanging, heavy gripping, press-ups and any loaded arm work - the elbow is not ready to take load through a long straight arm yet",
+        "Fully straightening or fully bending the elbow to its limit - the last few degrees at either end are where a fresh strain gets pulled again"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Forearm Supination / Pronation",
+          "previousPrescription": "2 x 15 each direction",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Eccentric Wrist Extension",
+          "previousPrescription": "3 x 12 each side",
+          "status": "withdrawn",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Isometric Wrist Extension Hold",
+          "previousPrescription": "3 x 30s each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Elbow Flexion / Extension ROM",
+          "previousPrescription": "2 x 10 each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Pronator Self-Release",
+          "previousPrescription": "1 x 45s each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Eccentric Wrist Extension",
+          "previousPrescription": "3 x 12 each side",
+          "reason": "Heavy lowering work. It loads the muscle while it is getting longer, which is how strains happen and re-happen."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Open-and-Close Fist Pumps",
+          "sets": 2,
+          "reps": "20 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Rest the forearm on your thigh, then open the hand wide and close it into a loose fist, slowly. This pumps blood and swelling through the forearm without asking the elbow to do anything"
+        },
+        {
+          "exercise": "Isometric Wrist Extension Hold",
+          "sets": 3,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Palm down, press the back of your hand into your other palm and hold. Loads the tendon without moving the joint, which is what you want while it is still irritable"
+        },
+        {
+          "exercise": "Isometric Wrist Flexion Hold",
+          "sets": 2,
+          "reps": "20s each side",
+          "load": "Bodyweight",
+          "cue": "Palm up, press the palm gently into your other hand and hold at about a third of your strength. Works the inner forearm and the tendon on the inside of the elbow with nothing moving"
+        },
+        {
+          "exercise": "Isometric Elbow Press (Bend and Straighten)",
+          "sets": 2,
+          "reps": "20s each direction",
+          "load": "Bodyweight",
+          "cue": "Elbow bent to a right angle and tucked into your side. Press up into your other hand as if curling, hold, then press down onto your thigh as if straightening - light effort only, nothing should actually move"
+        },
+        {
+          "exercise": "Pain-Free Elbow Bend and Straighten",
+          "sets": 2,
+          "reps": "10 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Rest the arm on a table and bend and straighten the elbow slowly through the middle of the range only. Stop short of the point where you feel a pull at either end - this is about keeping the joint moving, not about winning back the last few degrees"
+        },
+        {
+          "exercise": "Forearm Supination / Pronation",
+          "sets": 2,
+          "reps": "15 each direction",
+          "load": "Bodyweight",
+          "cue": "Elbow tucked in at your side and bent to a right angle, turn the palm slowly up and then down with nothing in the hand. Stay in the easy middle of the turn and stop short of either end"
+        }
+      ]
+    },
+    {
+      "region": "wrist",
+      "name": "Wrist",
+      "disclaimer": "Everything here should stay pain-free - up to 2 out of 10 at most, on a scale where 0 is nothing and 10 is the worst pain you can imagine. If the wrist hurts more than that at any point, or is more sore later on, stop and get it looked at before repeating this session.",
+      "avoid": [
+        "Wrist flexor and extensor stretches - taking a sore wrist to its end range pulls directly on the ligaments and tendons that are trying to knit back together",
+        "Full end-range wrist circles - going as far as the joint will travel in every direction strains the injured structures at the outside of each circle",
+        "The Forearm Flexor & Extensor Stretch that normally closes this session - it is a 30 second end-range hold on an injured joint",
+        "Press-ups, planks, front rack holds or anything that puts bodyweight through the palm - a bent-back loaded wrist is far too much this early",
+        "Loaded wrist curls, heavy gripping and hanging - the wrist should not be taking outside load until it is comfortable without it",
+        "Cracking or forcing the joint to see how far it goes - testing the painful range repeatedly is what keeps it inflamed"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Wrist Flexor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wrist Extensor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wrist Circles",
+          "previousPrescription": "2 x 10 each direction",
+          "status": "withdrawn",
+          "reason": "Driven deliberately to the end of the range, which for a fresh sprain is the position of injury."
+        },
+        {
+          "exercise": "Band Finger Extension",
+          "previousPrescription": "2 x 20 reps",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Wrist Flexor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wrist Extensor Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Wrist Circles",
+          "previousPrescription": "2 x 10 each direction",
+          "reason": "Driven deliberately to the end of the range, which for a fresh sprain is the position of injury."
+        },
+        {
+          "exercise": "Forearm Flexor & Extensor Stretch",
+          "previousPrescription": "1 x 30s each way, each arm",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Open-and-Close Fist Pumps",
+          "sets": 2,
+          "reps": "20 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Rest the forearm on a cushion with the hand higher than the elbow, then open and close the fist slowly. This moves swelling away from the wrist without the wrist itself having to move"
+        },
+        {
+          "exercise": "Isometric Wrist Extension Hold",
+          "sets": 3,
+          "reps": "30s each side",
+          "load": "Bodyweight",
+          "cue": "Palm down, press the back of your hand into your other palm and hold. Loads the tendon without moving the joint, which is what you want while it is still irritable"
+        },
+        {
+          "exercise": "Isometric Wrist Flexion Hold",
+          "sets": 2,
+          "reps": "20s each side",
+          "load": "Bodyweight",
+          "cue": "Palm up, press the palm gently into your other hand and hold at about a third of your strength. Works the inner forearm and the tendon on the inside of the elbow with nothing moving"
+        },
+        {
+          "exercise": "Soft Towel Squeeze",
+          "sets": 2,
+          "reps": "10 reps, hold 5s each",
+          "load": "Rolled towel",
+          "cue": "Roll a towel into the palm and squeeze at about a third of your hardest grip, hold, then let go slowly. Keeps the hand and forearm working while the wrist stays still"
+        },
+        {
+          "exercise": "Band Finger Extension",
+          "sets": 2,
+          "reps": "20 reps",
+          "load": "Light band",
+          "cue": "Loop a light band around the fingers and spread them apart slowly against it, then let them close. Works the back of the forearm without the wrist itself having to move"
+        },
+        {
+          "exercise": "Pain-Free Wrist Glide",
+          "sets": 2,
+          "reps": "10 slow reps each direction",
+          "load": "Bodyweight",
+          "cue": "Forearm flat on a table with the hand just off the edge. Let the hand drop a little way and lift a little way, staying well inside the range that feels easy - small and slow is the point, not big"
+        }
+      ]
+    },
+    {
+      "region": "neck",
+      "name": "Neck",
+      "disclaimer": "Keep every movement inside a pain-free range - 2 out of 10 at the very most, where 0 is no pain and 10 is the worst pain you can imagine. If anything is sharper than that, or the neck is stiffer and sorer afterwards, stop and get it assessed rather than pushing on.",
+      "avoid": [
+        "Neck side stretches, upper trap stretches and levator scapulae stretches - pulling the head away from a strained neck muscle re-stresses the tissue that is trying to heal",
+        "Any end-range turning, looking up or dropping the chin to the chest - the far end of the range is where a fresh neck strain gets provoked",
+        "Hands-on pulling of the head in any direction, including using the other arm to add pressure",
+        "Loaded shrugs, farmer's carries, overhead pressing and heavy rows - they all pull on the neck through the shoulders",
+        "The Prone Thoracic Extension that normally ends this session - lying face down and lifting the head holds the neck in extension for exactly the wrong length of time",
+        "Fast or repeated head movements to test the range - repeatedly checking how far it will go keeps the area irritated"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Chin Tuck",
+          "previousPrescription": "3 x 10 reps, hold 3s each",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Neck Side Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Levator Scapulae Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Upper Trap Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Thoracic Cat-Cow",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Prone Thoracic Extension",
+          "previousPrescription": "2 x 10 reps, hold 2s at top",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Chin Tuck",
+          "previousPrescription": "3 x 10 reps, hold 3s each",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Neck Side Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Levator Scapulae Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Upper Trap Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Supported Neck Nod (Head Resting)",
+          "sets": 2,
+          "reps": "10 reps, hold 3s each",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with the head resting on a folded towel. Nod the chin a few millimetres towards your throat as if saying a small yes, hold, then release - the head stays down on the towel the whole time"
+        },
+        {
+          "exercise": "Isometric Neck Press (Hand Resistance)",
+          "sets": 2,
+          "reps": "4 directions, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Palm on the forehead, then each side of the head, then the back of the head. Press the head into the hand at about a quarter of your strength and hold - the hand wins every time, so nothing actually moves"
+        },
+        {
+          "exercise": "Supported Neck Rotation (Small Range)",
+          "sets": 2,
+          "reps": "8 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Still lying down with the head supported, turn slowly to look one way, then the other. Go only as far as feels easy and come straight back - this is about keeping the neck moving, not about reaching the end of the turn"
+        },
+        {
+          "exercise": "Chin Tuck",
+          "sets": 3,
+          "reps": "10 reps, hold 3s each",
+          "load": "Bodyweight",
+          "cue": "Glide the chin straight back to make a gentle double chin, hold, then release. Small and slow - this switches on the deep muscles at the front of the neck and should not pull anywhere"
+        },
+        {
+          "exercise": "Scapular Setting (Shoulder Blade Set)",
+          "sets": 2,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sitting tall, draw the shoulder blades gently down and back, hold, then let go. Very light effort - this is about taking the work off the top of the neck, not about squeezing hard"
+        },
+        {
+          "exercise": "Wall Angel",
+          "sets": 2,
+          "reps": "10 slow reps",
+          "load": "Bodyweight",
+          "cue": "Back and head resting flat against the wall, slide the arms slowly up and down. Frees up the upper back and shoulder blades so the neck does not have to do their work"
+        }
+      ]
+    },
+    {
+      "region": "lower_back",
+      "name": "Lower Back",
+      "disclaimer": "Everything here should feel easy - keep any discomfort at or below 2 out of 10 on a 0 to 10 pain scale, and never push into a position that hurts. If pain goes above that during the session, or the back is worse the next day, stop and get it assessed by a physio or doctor.",
+      "avoid": [
+        "Hip Flexor Stretch - the deep lunge tips the pelvis forward and pulls the sore low back to the very end of its range",
+        "Cat-Cow - it drives the injured segment into full bending backwards and forwards, which is the movement that hurts most in the first ten days",
+        "Supine Spinal Twist and Seated Forward Fold - end-range twisting and folding put a direct pull on healing muscle and ligament",
+        "Hollow Body Hold and McGill Side Plank - far too much trunk load for a strain that is only a few days old",
+        "Any hip hinge, deadlift or good morning pattern, including Hip Hinge Against Wall - loading the back in a bent-forward position is what tends to re-tear it",
+        "Rolling or digging into the sore spot - it feels productive but it just irritates fresh tissue"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Dead Bug",
+          "previousPrescription": "3 x 8 each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Bird Dog",
+          "previousPrescription": "3 x 8 each side, hold 3s",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Cat-Cow",
+          "previousPrescription": "2 x 10 slow cycles",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Hip Flexor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Glute Bridge",
+          "previousPrescription": "3 x 15 reps, hold 2s at top",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Supine Spinal Twist",
+          "previousPrescription": "2 x 45s each side",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Hip Flexor Stretch",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Supine Abdominal Brace with Breathing",
+          "sets": 3,
+          "reps": "5 reps, hold 10s each",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with knees bent - tense the stomach to about a quarter of your hardest effort and keep breathing normally all the way through the hold. Wakes the deep support muscles without moving the sore back at all"
+        },
+        {
+          "exercise": "Supine Pelvic Tilt (Small Range)",
+          "sets": 2,
+          "reps": "10 slow reps",
+          "load": "Bodyweight",
+          "cue": "Knees bent, feet flat - roll the pelvis back just far enough to flatten the low back against the floor, then let it settle. Keep the range tiny and never push to the end of the movement"
+        },
+        {
+          "exercise": "Glute Bridge (isometric hold)",
+          "sets": 3,
+          "reps": "8 reps, 5s hold each",
+          "load": "Bodyweight",
+          "cue": "Push through the heels and lift the hips only as high as stays comfortable - squeeze the glutes and hold, ribs staying down. Strong glutes take the work off the low back"
+        },
+        {
+          "exercise": "Dead Bug",
+          "sets": 2,
+          "reps": "6 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Brace lightly, then lower one arm and the opposite leg only as far as the low back stays flat on the floor - a short range is fine. End the rep the moment the back starts to lift"
+        },
+        {
+          "exercise": "Bird Dog",
+          "sets": 2,
+          "reps": "6 each side, hold 3s",
+          "load": "Bodyweight",
+          "cue": "On all fours, slide one leg back along the floor and reach the opposite arm forward - hips stay level and the back stays still. Only lift the leg clear of the floor if that stays pain-free"
+        }
+      ]
+    },
+    {
+      "region": "upper_back",
+      "name": "Upper Back",
+      "disclaimer": "Stay inside a pain-free range throughout - anything you feel should be no more than 2 out of 10 on a 0 to 10 pain scale. If it climbs above that, or the mid-back feels worse in the hours afterwards, stop the session and have it assessed by a physio or doctor.",
+      "avoid": [
+        "Thread-the-Needle Rotation and Book Opener - both take the mid-back to the end of its twist, which pulls directly on the strained muscle",
+        "Prone T-Spine Extension - arms out in a T is a long lever and loads sore tissue hard for no benefit this early",
+        "Band Pull-Apart - straight-arm band work puts more pull through the rhomboids and mid-traps than a fresh strain can take",
+        "Cat-Cow at full range and Child's Pose - end-range rounding lengthens exactly what is healing",
+        "Upper Trap Stretch, Levator Scapulae Stretch and Neck Side Stretch - hanging on a strained area is not treatment",
+        "Rows, pull-ups and overhead pressing with any real weight until this is settled and pain-free"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Band Pull-Apart",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Thread-the-Needle Rotation",
+          "previousPrescription": "2 x 8 each side, hold 3s",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Book Opener (thoracic rotation)",
+          "previousPrescription": "2 x 8 each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Prone T-Spine Extension",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Wall Slide",
+          "previousPrescription": "2 x 10 slow reps",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Prone Thoracic Extension",
+          "previousPrescription": "2 x 10 reps, hold 2s at top",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Book Opener (thoracic rotation)",
+          "previousPrescription": "2 x 8 each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Chin Tuck",
+          "sets": 2,
+          "reps": "10 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sit tall and glide the chin straight back to make a gentle double chin - hold, then release. Settles the neck and upper back junction before anything harder"
+        },
+        {
+          "exercise": "Scapular Setting (Isometric Squeeze)",
+          "sets": 3,
+          "reps": "8 reps, hold 5s each",
+          "load": "Bodyweight",
+          "cue": "Sit or stand tall and draw the shoulder blades gently down and together at about a quarter effort - hold, breathe, then let go. No shrugging and no hard pinching"
+        },
+        {
+          "exercise": "Thoracic Cat-Cow",
+          "sets": 2,
+          "reps": "10 slow reps",
+          "load": "Bodyweight",
+          "cue": "On all fours, round and arch the mid-back through a small, easy range only - stop well before the end of either direction. This is about keeping it moving, not about pulling on it"
+        },
+        {
+          "exercise": "Wall Slide",
+          "sets": 2,
+          "reps": "10 slow reps",
+          "load": "Bodyweight",
+          "cue": "Back flat against the wall, forearms in contact - slide the arms up only as far as the back stays flat and it stays comfortable, then lower slowly"
+        },
+        {
+          "exercise": "Isometric Band Row Hold (Light)",
+          "sets": 3,
+          "reps": "5 reps, hold 10s each",
+          "load": "Light band",
+          "cue": "Anchor a light band at chest height, elbows tucked in, pull to about a quarter effort and simply hold there - no movement, keep breathing. Loads the mid-back without pulling on it"
+        },
+        {
+          "exercise": "Band Face Pull",
+          "sets": 2,
+          "reps": "15 light reps",
+          "load": "Light band",
+          "cue": "Pull a light band towards the forehead with the elbows high, stopping short of the end of the pull - slow out, slow back. Keep it light enough that ten more reps would feel easy"
+        }
+      ]
+    },
+    {
+      "region": "lat_mid_back",
+      "name": "Lat / Mid Back",
+      "disclaimer": "Work only where it is pain-free - a mild 0 to 2 out of 10 on a 0 to 10 pain scale is acceptable, anything sharper is not. Stop the session and get the area assessed by a physio or doctor if pain goes above 2 out of 10, or if it is worse in the hours after.",
+      "avoid": [
+        "Doorway Lat Stretch, Child's Pose with Side Reach and Side-Bend Overhead Reach - all three pull the lat out to its full length, which is the one thing a strained lat cannot tolerate in the first ten days",
+        "Any overhead reaching or hanging position - the lat is already at full stretch before you have even added load",
+        "Thread-the-Needle Rotation and Book Opener - end-range twisting drags on the same tissue from a different angle",
+        "Band Pull-Apart - straight-arm band tension is more than a fresh strain needs",
+        "Pull-ups, lat pulldowns and dumbbell rows - the classic way people re-tear a lat is going back to pulling too soon",
+        "Foam rolling the sore area - pressure on a healing tear does not speed it up"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Child's Pose with Side Reach",
+          "previousPrescription": "2 x 45s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Thread-the-Needle Rotation",
+          "previousPrescription": "2 x 8 each side, hold 3s",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Band Pull-Apart",
+          "previousPrescription": "3 x 15 slow reps",
+          "status": "not used in the acute phase",
+          "reason": "Nothing wrong with it, but the acute protocol is a shorter, gentler list and this did not make it."
+        },
+        {
+          "exercise": "Book Opener (thoracic rotation)",
+          "previousPrescription": "2 x 8 each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Doorway Lat Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Side-Bend Overhead Reach",
+          "previousPrescription": "1 x 40s each side",
+          "status": "withdrawn",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "Child's Pose with Side Reach",
+          "previousPrescription": "2 x 45s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Book Opener (thoracic rotation)",
+          "previousPrescription": "2 x 8 each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        },
+        {
+          "exercise": "Doorway Lat Stretch",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        },
+        {
+          "exercise": "Side-Bend Overhead Reach",
+          "previousPrescription": "1 x 40s each side",
+          "reason": "Stretching the injured tissue. Pulling on a muscle that is still repairing separates the fibres that are knitting back together."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Seated Lat Press-Down Hold (Chair)",
+          "sets": 3,
+          "reps": "6 reps, hold 8s each",
+          "load": "Bodyweight",
+          "cue": "Sit on a firm chair with the hands flat on the seat beside your hips - press down gently at about a quarter effort, as if to lift yourself, and hold. This works the lat while it stays short"
+        },
+        {
+          "exercise": "Thoracic Cat-Cow",
+          "sets": 2,
+          "reps": "10 slow reps",
+          "load": "Bodyweight",
+          "cue": "On all fours, round and arch the mid-back through a small, easy range only - stop well before the end of either direction. This is about keeping it moving, not about pulling on it"
+        },
+        {
+          "exercise": "Band Face Pull",
+          "sets": 2,
+          "reps": "15 light reps",
+          "load": "Light band",
+          "cue": "Pull a light band towards the forehead with the elbows high, stopping short of the end of the pull - slow both ways. Works the mid-back muscles around the sore lat rather than through it"
+        },
+        {
+          "exercise": "Band Straight-Arm Press-Down (Short Range)",
+          "sets": 2,
+          "reps": "12 slow reps each side",
+          "load": "Light band",
+          "cue": "Anchor a light band at head height, start with the arm at forehead level rather than fully overhead - press the straight arm down to the hip, then return slowly under control. Never let the arm drift back up past your forehead"
+        },
+        {
+          "exercise": "Prone Thoracic Extension",
+          "sets": 2,
+          "reps": "10 reps, hold 2s at top",
+          "load": "Bodyweight",
+          "cue": "Lie face down with the arms by your sides - lift the chest a small way off the floor using the mid-back only, hold, then lower slowly. Keep the lift low and easy"
+        }
+      ]
+    },
+    {
+      "region": "core_ribs",
+      "name": "Core / Ribs",
+      "disclaimer": "Keep every movement pain-free - no more than 2 out of 10 on a 0 to 10 pain scale - and breathe normally rather than holding your breath. If pain rises above 2 out of 10, or the ribs or stomach feel worse afterwards, stop and get assessed by a physio or doctor.",
+      "avoid": [
+        "Hollow Body Hold - holding the whole body off the floor is one of the hardest loads there is for a torn stomach muscle",
+        "McGill Side Plank - a side plank loads the side of the trunk at precisely the spot that is injured",
+        "Child's Pose with Side Reach, Side-Bend Overhead Reach and Supine Spinal Twist - side bending and twisting pull the injured muscle and its rib attachments out to full length",
+        "Cat-Cow - arching backwards stretches the front of the trunk, which is the healing tissue in a stomach or rib strain",
+        "Sit-ups, crunches, russian twists and leg raises - full-range trunk flexion is the fastest way to set this back",
+        "Any lift heavy enough that you hold your breath and strain, including coughing or sneezing unbraced if you can help it"
+      ],
+      "previouslyServed": [
+        {
+          "exercise": "Dead Bug",
+          "previousPrescription": "3 x 8 each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Pallof Press (Isometric Hold)",
+          "previousPrescription": "3 x 20s each side",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "McGill Side Plank",
+          "previousPrescription": "2 x 20s each side",
+          "status": "withdrawn",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Bird Dog",
+          "previousPrescription": "3 x 8 each side, hold 3s",
+          "status": "carried over at a lower dose",
+          "reason": "Safe in the acute phase; the sets, reps and coaching are dialled down."
+        },
+        {
+          "exercise": "Hollow Body Hold",
+          "previousPrescription": "3 x 20s",
+          "status": "withdrawn",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Child's Pose with Side Reach",
+          "previousPrescription": "2 x 30s each side",
+          "status": "withdrawn",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "withdrawn": [
+        {
+          "exercise": "McGill Side Plank",
+          "previousPrescription": "2 x 20s each side",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Hollow Body Hold",
+          "previousPrescription": "3 x 20s",
+          "reason": "More load than an irritated area can take inside a 0-2/10 pain limit."
+        },
+        {
+          "exercise": "Child's Pose with Side Reach",
+          "previousPrescription": "2 x 30s each side",
+          "reason": "A long passive hold that parks the healing tissue at its full length."
+        }
+      ],
+      "replacement": [
+        {
+          "exercise": "Supine Rib Breathing (Hands on Ribs)",
+          "sets": 2,
+          "reps": "10 slow breaths",
+          "load": "Bodyweight",
+          "cue": "Lie on your back with a hand on each side of the ribs - breathe in slowly and feel the ribs widen under your hands, then breathe all the way out. Keeps the rib cage moving without any strain on it"
+        },
+        {
+          "exercise": "Supine Heel Slide (Braced)",
+          "sets": 2,
+          "reps": "8 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Knees bent and back flat - tense the stomach to about a quarter of your hardest effort, then slide one heel along the floor until the leg is nearly straight and draw it back. Stop short if the low back or ribs start to lift or ache."
+        },
+        {
+          "exercise": "Dead Bug",
+          "sets": 2,
+          "reps": "6 slow reps each side",
+          "load": "Bodyweight",
+          "cue": "Brace lightly, then lower one arm and the opposite leg only as far as the low back stays flat and the ribs stay quiet - short range is fine. Breathe out as you reach"
+        },
+        {
+          "exercise": "Bird Dog",
+          "sets": 2,
+          "reps": "6 each side, hold 3s",
+          "load": "Bodyweight",
+          "cue": "On all fours, reach one arm forward and slide the opposite leg back - keep the hips level and the trunk still. Lift the leg clear of the floor only if that stays comfortable"
+        },
+        {
+          "exercise": "Pallof Press (Isometric Hold)",
+          "sets": 2,
+          "reps": "15s each side",
+          "load": "Light band",
+          "cue": "Light band at chest height, press the hands out and simply hold - resist the pull, keep the ribs down and keep breathing. Use a band light enough that the hold feels easy"
+        }
+      ]
+    }
+  ]
+}

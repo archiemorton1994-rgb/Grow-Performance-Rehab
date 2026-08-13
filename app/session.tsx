@@ -58,6 +58,8 @@ import {
   TIER_ORDER,
 } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
+import { ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from '@/lib/acute-rehab';
+import { videoUrlFor } from '@/lib/exercise-videos';
 import {
   scheduleMissedWorkoutNudge,
   cancelRestTimerNotification,
@@ -1830,6 +1832,72 @@ export function NoMaxTestBanner({ visible }: { visible: boolean }) {
   );
 }
 
+/**
+ * The pain rule, on the sessions built for a sore area.
+ *
+ * WHY IT CANNOT BE DISMISSED
+ * ──────────────────────────
+ * Every other banner in this file reports something the app has already decided:
+ * volume was cut, an exercise was swapped, no test this block. This one is
+ * different in kind — it is an instruction, and it is the only thing setting the
+ * dose. The acute protocols prescribe effort as a fraction ("about a third of
+ * your effort") precisely because the correct load in the first days after a
+ * strain is whatever does not hurt. Without the number that defines "does not
+ * hurt", the prescriptions underneath are incomplete.
+ *
+ * So there is no dismiss control, and no persisted "seen it" flag: it is part of
+ * the protocol, not a notification about it.
+ */
+export function PainFreeRangeBanner({ text }: { text: string | null }) {
+  const C = useColors();
+  if (!text) return null;
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(350)}
+      testID="pain-free-range-banner"
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginHorizontal: 16,
+        marginBottom: 6,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: C.warningLight,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: C.warning + '44',
+        gap: 8,
+      }}
+    >
+      <Ionicons name="medkit-outline" size={16} color={C.warning} />
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 13,
+            fontFamily: 'Inter_600SemiBold',
+            color: C.warning,
+            marginBottom: 1,
+          }}
+        >
+          Keep it pain-free
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_400Regular',
+            color: C.warning,
+            opacity: 0.85,
+            lineHeight: 17,
+          }}
+        >
+          {text}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ─── Demo session exercises ────────────────────────────────────────────────
 // A hardcoded, realistic-looking set of exercises used in demo mode (?demo=true).
 // Covers each tutorial spotlight target: firstCard, sessionBar, progressBar.
@@ -1971,6 +2039,8 @@ export default function SessionScreen() {
     hasAches: string;
     painRegion: string;
     painSeverity?: string;
+    /** 'true' when painRegion is hurting today rather than just being the focus. */
+    acute?: string;
     energy: string;
     timeAvailable: string;
     isTestWeek: string;
@@ -2008,6 +2078,20 @@ export default function SessionScreen() {
         .filter(Boolean)
         .map((r) => r as PainRegion)
     : undefined;
+  /**
+   * Whether the named region is hurting NOW.
+   *
+   * Two callers, two answers. The readiness screen sets it because reporting
+   * pain there IS saying it hurts today. The Restore tab asks, because naming a
+   * region there is just how you choose what to work on — someone six weeks into
+   * knee rehab is picking "knee" and is not injured today.
+   *
+   * Defaults to TRUE when a region is named and nothing said otherwise. The two
+   * ways to be wrong are not equal: giving gentle work to someone who could have
+   * handled more costs them a session, and giving a stretch to a fresh tear
+   * costs them weeks.
+   */
+  const isAcute = params.acute ? params.acute === 'true' : !!params.painRegion;
   const VALID_PAIN_SEVERITY: PainSeverity[] = ['mild', 'moderate', 'severe'];
   const painSeverity = VALID_PAIN_SEVERITY.includes(params.painSeverity as PainSeverity)
     ? (params.painSeverity as PainSeverity)
@@ -2242,6 +2326,7 @@ export default function SessionScreen() {
         hasAches,
         painRegion: painRegions && painRegions.length > 0 ? painRegions : painRegion,
         painSeverity,
+        acute: isAcute,
         energy,
         timeAvailable,
       },
@@ -2299,6 +2384,29 @@ export default function SessionScreen() {
         .length,
     [exercises, exerciseData]
   );
+  /**
+   * The pain rule to show, or null if this session is not one that needs it.
+   *
+   * Decided by looking at the exercises the session actually contains, not by
+   * re-deriving the condition the engine used to choose them. Those are two
+   * different things, and only one of them can be wrong: if the engine ever
+   * serves acute rehab down a path nobody thought of, the instruction that makes
+   * it safe still arrives with it.
+   *
+   * The wording is the region's own where a single region is known, because
+   * "stop if the leg feels worse the next morning" is more use than a generic
+   * sentence. PAIN_FREE_RULE covers the multi-region case, where no one
+   * protocol's advice is the right one to print.
+   */
+  const painFreeText = useMemo(() => {
+    const hasAcuteWork = exercises.some((ex) => ex.id?.startsWith('acute-'));
+    if (!hasAcuteWork) return null;
+    if (painRegions?.length === 1 && ACUTE_PROTOCOL_NOTES[painRegions[0]]) {
+      return ACUTE_PROTOCOL_NOTES[painRegions[0]].disclaimer;
+    }
+    return PAIN_FREE_RULE;
+  }, [exercises, painRegions]);
+
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
   const [cardioLogs, setCardioLogs] = useState<(CardioLogData | null)[]>([]);
   const [showAbandonModal, setShowAbandonModal] = useState(false);
@@ -2760,20 +2868,29 @@ export default function SessionScreen() {
   /**
    * Open the demo for an exercise.
    *
-   * Prefers the exercise's own `videoId` and falls back to a YouTube search on
-   * its name. Every videoId in lib/exercise-db.ts is currently an empty string,
-   * so today this is always the search — which is why the app has worked
-   * perfectly well without any footage. As real recordings are made, filling in
-   * a videoId is the only change needed: no code, no release, just data.
+   * Opens the exact @GrowPerformanceRehabilitation video for this movement when
+   * there is one, and falls back to a YouTube search on the exercise name when
+   * there is not. Which videos exist is data, in lib/exercise-videos.ts — adding
+   * one is a single line in that file, with no code change and no release.
    *
-   * A grip variant inherits its base's videoId deliberately. That was one of the
+   * The fallback is deliberate rather than a stopgap. Footage is being recorded
+   * a few movements at a time and the catalogue is several hundred deep, so most
+   * exercises will have no video of their own for a long while. A search at
+   * least shows the movement; a dead button shows nothing and reads as broken.
+   *
+   * A grip variant inherits its base's video deliberately. That was one of the
    * conditions a variant had to pass to be accepted at all (see
    * lib/grip-variants.ts) — the base footage has to show the movement well
    * enough that only the cue needs to change.
    */
-  const openExerciseVideo = (exercise: { name: string; videoId?: string }) => {
-    if (exercise.videoId) {
-      Linking.openURL(`https://www.youtube.com/watch?v=${exercise.videoId}`);
+  const openExerciseVideo = (exercise: {
+    name: string;
+    videoId?: string;
+    youtubeUrl?: string;
+  }) => {
+    const url = videoUrlFor(exercise);
+    if (url) {
+      Linking.openURL(url);
       return;
     }
     const query = encodeURIComponent(exercise.name + ' exercise proper form tutorial');
@@ -3266,6 +3383,8 @@ export default function SessionScreen() {
       />
 
       <NoMaxTestBanner visible={isTestWeek && !runsMaxTest} />
+
+      <PainFreeRangeBanner text={painFreeText} />
 
       <KeyboardAwareScrollViewCompat
         ref={scrollViewRef}

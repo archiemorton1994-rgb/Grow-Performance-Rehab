@@ -48,17 +48,15 @@ console.log('\n[1] The video button uses videoId when there is one');
 
 check(
   'the handler takes the exercise, not just its name',
-  /const openExerciseVideo = \(exercise: \{ name: string; videoId\?: string \}\) =>/.test(
+  /const openExerciseVideo = \(exercise: \{\s*name: string;\s*videoId\?: string;\s*youtubeUrl\?: string;\s*\}\) =>/.test(
     sessionSrc
   ),
   'it used to take a bare name, which is why videoId could never be used'
 );
 check(
-  'a present videoId becomes a direct watch link',
-  /if \(exercise\.videoId\) \{[\s\S]{0,140}?youtube\.com\/watch\?v=\$\{exercise\.videoId\}/.test(
-    sessionSrc
-  ),
-  ''
+  'the exact video is resolved before any fallback',
+  /const url = videoUrlFor\(exercise\);[\s\S]{0,120}?Linking\.openURL\(url\)/.test(sessionSrc),
+  'videoUrlFor is the one place that knows which video belongs to which movement'
 );
 check(
   'an absent videoId still falls back to a search',

@@ -1,4 +1,11 @@
 import { EquipmentTier, ExerciseCategory, SessionType, PainRegion } from './store';
+// The acute-phase protocols. Kept in their own file rather than in this one:
+// they are the safety-critical half of the rehab content and need to be
+// readable on their own, not buried at line 18,000 of a 20,000-line database.
+import { ACUTE_PREHAB_BY_REGION } from './acute-rehab';
+
+export { ACUTE_PREHAB_BY_REGION, ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from './acute-rehab';
+export type { AcuteProtocolNotes } from './acute-rehab';
 
 export type { ExerciseCategory };
 
@@ -74,6 +81,17 @@ export interface ExerciseTemplate {
   category: ExerciseCategory;
   targetRegions: PainRegion[];
   videoId: string;
+  /**
+   * A full link to the @GrowPerformanceRehabilitation video for this movement.
+   *
+   * Almost always left off. The normal place to put a video is the one table in
+   * lib/exercise-videos.ts, keyed by exercise name — 800-odd templates is far
+   * too many to hunt through, and a single alphabetical list is something a
+   * non-programmer can maintain. This field exists for the occasional case where
+   * writing the link next to the exercise is genuinely more convenient, and it
+   * wins over the table when both are present.
+   */
+  youtubeUrl?: string;
   // Optional metadata for filtering, display and future smart selection
   movementPattern?:
     | 'squat'
@@ -18553,11 +18571,56 @@ export function getRegionPrehabSupplements(region: PainRegion): {
 // the other.
 const PREHAB_WARMUP: ExerciseTemplate = STANDALONE_PREHAB.find((e) => e.id === 'ph-s-1')!;
 
-export function getRegionPrehabWorkout(region: PainRegion): ExerciseTemplate[] {
+/**
+ * Options for the region-targeted rehab work.
+ *
+ * `acute` means the region was named because it HURTS — either the user picked
+ * it on the Restore tab, or they reported pain there on the readiness screen.
+ * It routes the whole block to lib/acute-rehab.ts, where nothing stretches the
+ * injured tissue and nothing loads it hard. See that file for what was going
+ * wrong before it existed.
+ */
+export interface PrehabOptions {
+  acute?: boolean;
+}
+
+/**
+ * The targeted session for one body region.
+ *
+ * ACUTE PATH — no cooldown, and no supplements either (see the engine).
+ * Both are stretching by design: every entry in PREHAB_COOLDOWN_BY_REGION is a
+ * long passive hold, and the supplement pool is drawn from the whole rehab
+ * library, which is how a hamstring session could rotate a Pigeon Pose back in
+ * through the side door. The acute protocols are complete as written and are
+ * ordered gentlest first, so they are not shuffled either — the order is the
+ * progression.
+ */
+export function getRegionPrehabWorkout(
+  region: PainRegion,
+  opts: PrehabOptions = {}
+): ExerciseTemplate[] {
+  if (opts.acute) return [PREHAB_WARMUP, ...ACUTE_PREHAB_BY_REGION[region]];
   return [PREHAB_WARMUP, ...PREHAB_BY_REGION[region], PREHAB_COOLDOWN_BY_REGION[region]];
 }
 
-export function getRegionPrehabExercise(region: PainRegion): ExerciseTemplate {
+/**
+ * The single rehab movement dropped into a strength session.
+ *
+ * This is the one that mattered most and was hardest to see. A user who reported
+ * hamstring pain on the readiness screen got their normal training session with
+ * `PREHAB_BY_REGION.hamstrings[0]` appended — a Standing Hamstring Stretch, 45
+ * seconds a side, on a muscle they had just told the app was hurt. Same for the
+ * quads (Standing Quad Stretch), the chest (Doorway Chest Stretch), the biceps
+ * (end-range shoulder extension) and the Achilles (an eccentric heel drop).
+ *
+ * The acute list leads with its gentlest exercise deliberately, so taking the
+ * first entry is still the right rule — it now yields an isometric.
+ */
+export function getRegionPrehabExercise(
+  region: PainRegion,
+  opts: PrehabOptions = {}
+): ExerciseTemplate {
+  if (opts.acute) return ACUTE_PREHAB_BY_REGION[region][0];
   return PREHAB_BY_REGION[region][0];
 }
 
