@@ -440,6 +440,17 @@ export interface BuilderBlock {
   picks: number;
   /** Can this block be skipped entirely? Only the KPI lift cannot. */
   optional: boolean;
+  /**
+   * Does this step's list actually narrow to the KPI lift?
+   *
+   * The screen prints "Matched to <lift>" above every step, and for two of them
+   * that was simply untrue: the conditioning list was byte-identical whichever
+   * lift was chosen, and the KPI step claimed to be matched to the lift it was
+   * still asking the user to pick. A step now says what it did, and this is the
+   * field that decides which sentence it prints — so a block whose filter
+   * changes cannot leave the old claim on screen.
+   */
+  followsLift: boolean;
 }
 
 /**
@@ -461,6 +472,7 @@ const CARDIO_BLOCK: BuilderBlock = {
   purpose: 'Raise your temperature before anything is stretched or loaded.',
   picks: 1,
   optional: false,
+  followsLift: true,
 };
 
 const MOBILITY_BLOCK: BuilderBlock = {
@@ -471,6 +483,7 @@ const MOBILITY_BLOCK: BuilderBlock = {
   purpose: 'Open the range the day’s main lift asks for.',
   picks: 2,
   optional: true,
+  followsLift: true,
 };
 
 const ACTIVATION_BLOCK: BuilderBlock = {
@@ -481,6 +494,7 @@ const ACTIVATION_BLOCK: BuilderBlock = {
   purpose: 'Wake up the muscles the main lift depends on.',
   picks: 1,
   optional: true,
+  followsLift: true,
 };
 
 const POWER_BLOCK: BuilderBlock = {
@@ -491,6 +505,7 @@ const POWER_BLOCK: BuilderBlock = {
   purpose: 'One explosive movement while you are fresh.',
   picks: 1,
   optional: true,
+  followsLift: true,
 };
 
 const KPI_BLOCK: BuilderBlock = {
@@ -501,6 +516,11 @@ const KPI_BLOCK: BuilderBlock = {
   purpose: 'The lift this session is built around. Everything after it supports this.',
   picks: 1,
   optional: false,
+  // This step is filtered by the FOCUS, not by the lift — it is the step that
+  // chooses the lift. It arrives with its top option already selected, so
+  // claiming to be matched to that selection asked the user to choose the thing
+  // it had just told them it was following.
+  followsLift: false,
 };
 
 const ACCESSORY_BLOCK: BuilderBlock = {
@@ -511,6 +531,7 @@ const ACCESSORY_BLOCK: BuilderBlock = {
   purpose: 'Support work for the same muscles the KPI lift trains.',
   picks: 2,
   optional: true,
+  followsLift: true,
 };
 
 const VOLUME_BLOCK: BuilderBlock = {
@@ -521,6 +542,7 @@ const VOLUME_BLOCK: BuilderBlock = {
   purpose: 'Extra sets on the same muscles, isolation first.',
   picks: 2,
   optional: true,
+  followsLift: true,
 };
 
 const CORE_PREHAB_BLOCK: BuilderBlock = {
@@ -531,6 +553,7 @@ const CORE_PREHAB_BLOCK: BuilderBlock = {
   purpose: 'Trunk stability and joint work for what you just loaded.',
   picks: 1,
   optional: true,
+  followsLift: true,
 };
 
 const CONDITIONING_BLOCK: BuilderBlock = {
@@ -541,6 +564,10 @@ const CONDITIONING_BLOCK: BuilderBlock = {
   purpose: 'A hard finish to end the session on.',
   picks: 1,
   optional: true,
+  // Deliberately not narrowed by the lift — see relevanceOf. The step used to
+  // print "Matched to <lift>" over a list that was the same 264 movements for
+  // every lift in the catalogue; it now says what it actually does.
+  followsLift: false,
 };
 
 /**
@@ -701,6 +728,53 @@ function unionRegions(patterns: PatternGroup[]) {
   return out;
 }
 
+/**
+ * What a cardio warm-up actually moves, read from its name.
+ *
+ * Every other filter in this file runs on the database's own fields. This one
+ * cannot: fifteen of the seventeen warm-ups record "Full body" as their primary
+ * muscle and carry no secondary muscles at all, so those fields cannot tell a
+ * rower from an exercise bike. The modality is written down in exactly one
+ * place, which is the name, and a warm-up step that ignores it is the step that
+ * offered the same seventeen options — in the same alphabetical order, led by
+ * an assault bike — to a chin-up session and a squat session alike.
+ *
+ * Upper-limb drills are mapped to pulling as well as pressing. Arm circles and
+ * a halo prepare the shoulder for a chin-up exactly as much as for a bench
+ * press, and treating them as pressing-only left a pull day with four matches.
+ */
+const CARDIO_AFFINITY: [RegExp, PatternGroup[]][] = [
+  [/\brow(ing|er)?\b|ski ?erg/i, ['horizontal_pull', 'vertical_pull', 'hip_dominant']],
+  [/\bbike\b|cycl/i, ['knee_dominant']],
+  [/tread|\bwalk\b|\bjog\b|\brun\b|march/i, ['knee_dominant', 'hip_dominant']],
+  [/jump rope|\bskip\b/i, ['knee_dominant']],
+  [
+    /shadow box|arm circle|arm swing|\bhalo\b|battle rope/i,
+    ['horizontal_push', 'vertical_push', 'horizontal_pull', 'vertical_pull'],
+  ],
+  [/squat/i, ['knee_dominant']],
+  [/hinge|\bswing\b/i, ['hip_dominant']],
+];
+
+/** The patterns a warm-up prepares. Empty means a general one, which prepares any. */
+function cardioAffinity(t: ExerciseTemplate): Set<PatternGroup> {
+  const out = new Set<PatternGroup>();
+  for (const [re, patterns] of CARDIO_AFFINITY) {
+    if (re.test(t.name)) for (const p of patterns) out.add(p);
+  }
+  return out;
+}
+
+/**
+ * Dedicated cardio kit, as opposed to a drill that happens to raise the pulse.
+ *
+ * The block's job is stated in its own purpose line — "raise your temperature" —
+ * and five minutes on the machine that drives the day's pattern does that
+ * better than a mixed calisthenic drill. This is what puts the rower first on a
+ * pulling day rather than whichever matching drill sorts first alphabetically.
+ */
+const CARDIO_MACHINES = /\bbike\b|tread|\brow(ing|er)?\b|ski ?erg|elliptical|jump rope|\bskip\b/i;
+
 /** The finishing modalities the brief names, plus their obvious siblings. */
 const FINISHER_MODALITIES =
   /sled|prowler|battle rope|rope slam|assault bike|air bike|ski erg|rower|farmer|carry|yoke|sprint|shuttle/i;
@@ -717,6 +791,8 @@ const RECOVERY_PACE = /\beasy\b|\blight\b|\bmoderate\b|steady|recovery|cool.?dow
 /** How well an exercise fits a block given what the session is built on. */
 export type Relevance = 'direct' | 'related' | 'none';
 
+const RELEVANCE_RANK: Record<Relevance, number> = { direct: 0, related: 1, none: 2 };
+
 export function relevanceOf(
   category: BuilderCategory,
   t: ExerciseTemplate,
@@ -730,10 +806,26 @@ export function relevanceOf(
   };
 
   switch (category) {
-    // A warm-up machine and a conditioning finisher are compatible with any
-    // session that exists. Narrowing them by the KPI lift would invent a
-    // restriction the spec does not ask for and coaches do not apply.
-    case 'cardio':
+    case 'cardio': {
+      // The warm-up exists to prepare the lift that follows it, so a rower
+      // leads a pulling day and a bike leads a leg day. A general warm-up has
+      // no pattern of its own and genuinely suits any lift, so it stays a
+      // direct match everywhere.
+      //
+      // Nothing here is ever graded 'none'. An exercise bike before a bench
+      // press is a worse warm-up than arm circles, not a wrong one, and 'none'
+      // is the grade that hides an option from the step and deletes it from a
+      // session when the lift changes. Ranking is what separates the two.
+      const affinity = cardioAffinity(t);
+      if (affinity.size === 0) return 'direct';
+      return contextPatterns(ctx).some((p) => affinity.has(p)) ? 'direct' : 'related';
+    }
+
+    // A finisher is not matched to the KPI lift, here or in any coach's
+    // programme: what you can bear at the end of a session is a question about
+    // time and gas in the tank, not about which compound you opened with.
+    // Kept deliberately unfiltered — and the step now says so rather than
+    // printing "Matched to <lift>" over a list that never changed.
     case 'conditioning':
       return 'direct';
 
@@ -916,9 +1008,21 @@ function rankOf(
   const onTarget = groupsOverlapStrict(primaryGroupsOf(t), target) ? 0 : 10;
 
   switch (block.id) {
-    case 'cardio':
-      // The dedicated warm-up machines first, the cool-down walks last.
-      return t.category === 'prep' ? 0 : 2;
+    case 'cardio': {
+      // The machine that drives the day's pattern first, then anything else
+      // that prepares it, then the general warm-ups, then the rest. Ranking on
+      // `category` alone did not order this list at all: sixteen of the
+      // seventeen options are filed as 'prep', so the tie-break fell through to
+      // the alphabet and every session in the app — squat, bench and chin-up —
+      // opened with, and defaulted to, an Assault Bike Warm-Up.
+      const affinity = cardioAffinity(t);
+      const machine = CARDIO_MACHINES.test(t.name);
+      const matches = affinity.size > 0 && contextPatterns(ctx).some((p) => affinity.has(p));
+      const base = matches ? (machine ? 0 : 1) : affinity.size === 0 ? 2 : machine ? 3 : 4;
+      // The cool-down walks sit in this block because they are continuous
+      // locomotion, but a warm-up beats one at warming up.
+      return base * 2 + (t.category === 'prep' ? 0 : 1);
+    }
     case 'kpi':
       // The exact lift the generator would programme leads, then the rest of
       // the main lifts, then everything else eligible to carry a session.
@@ -978,6 +1082,15 @@ export function optionsForBlock(
     [...list]
       .sort(
         (a, b) =>
+          // Relevance outranks everything, because the two lists below are not
+          // all one grade. A widened step, and the "show everything" list behind
+          // the All button, both contain work the lift has no use for, and
+          // ordering those by the block's own rule alone buried the matches: a
+          // dumbbell user building a chin-up session was offered — and filled
+          // the step with — a DB Power Clean, ahead of the four upper-body
+          // plyometrics the step exists to offer.
+          RELEVANCE_RANK[relevanceOf(block.category, a.template, ctx)] -
+            RELEVANCE_RANK[relevanceOf(block.category, b.template, ctx)] ||
           rankOf(block, a.template, ctx, programmed) - rankOf(block, b.template, ctx, programmed) ||
           a.template.name.localeCompare(b.template.name)
       )
@@ -1005,39 +1118,62 @@ function pickFrom(t: ExerciseTemplate): BuilderPick {
 }
 
 /**
- * Re-filter the blocks that come after the KPI lift once that lift changes.
+ * Re-filter every other block once the KPI lift changes.
  *
- * Every step after the KPI step promises to be "matched to" it, and a block
- * that was filled before the lift changed quietly stops keeping that promise:
- * choose a deadlift, let the accessories fill themselves with back squats, go
- * back and switch to a bench press, and the session says "support work for the
- * same muscles the KPI lift trains" above two squats.
+ * Every step promises to be built around the lift, and a block that was filled
+ * before the lift changed quietly stops keeping that promise: choose a
+ * deadlift, let the accessories fill themselves with back squats, go back and
+ * switch to a bench press, and the session says "support work for the same
+ * muscles the KPI lift trains" above two squats.
  *
- * Only picks that no longer fit at all are dropped, and a block is topped back
- * up to the number it held, so a deliberate choice that still makes sense
- * survives. A block the user has not opened yet is left alone — it fills itself
- * against the new lift when they reach it — and one they emptied on purpose
- * stays empty.
+ * THE WARM-UP COUNTS TOO. This walked forwards from the KPI step only, so
+ * switching a lower-body build to a bench press refilled the accessories with
+ * pressing work and left the four steps in front of it aimed at the old lift —
+ * a Cossack squat, a hip flexor stretch, a banded lateral walk and a box jump,
+ * in front of a bench press. Those four steps are the warm-up. Preparing the
+ * lift you are no longer about to do is not a cosmetic mismatch, it is the
+ * whole point of the block being there.
+ *
+ * WHOSE CHOICE IS IT. A pick the USER made is kept as long as it still fits at
+ * all, and the block is topped back up to the number it held — a deliberate
+ * choice that still makes sense must survive a change of mind about the lift.
+ * A pick the APP made, by filling a step the user walked straight through, is
+ * simply made again against the new lift. Both were previously treated as the
+ * user's, which is how an assault bike chosen for a squat day stayed put under
+ * a heading reading "Matched to Barbell Bench Press": it is a legitimate warm-up
+ * for a bench press, so nothing dropped it, and nobody had ever chosen it.
+ *
+ * `autoFilled` is those app-filled blocks. Default empty, i.e. treat everything
+ * as the user's and preserve it — the cautious direction for a caller that does
+ * not track the difference.
+ *
+ * A block the user has not opened yet is left alone — it fills itself against
+ * the new lift when they reach it — and one they emptied on purpose stays empty.
  */
 export function refreshForKpi(
   goal: SessionGoal,
   picks: BuilderPicks,
   ctx: RelevanceContext,
-  owned: InternalTier[]
+  owned: InternalTier[],
+  autoFilled: ReadonlySet<BlockId> = new Set()
 ): BuilderPicks {
   const blocks = blocksForGoal(goal);
-  const kpiIndex = blocks.findIndex((b) => b.id === 'kpi');
-  if (kpiIndex < 0) return picks;
+  if (!blocks.some((b) => b.id === 'kpi')) return picks;
 
   const next: BuilderPicks = { ...picks };
   let changed = false;
 
-  for (const block of blocks.slice(kpiIndex + 1)) {
+  for (const block of blocks) {
+    // The lift itself is what everything else is being re-filtered against.
+    if (block.id === 'kpi') continue;
     const current = next[block.id];
     if (!current || current.length === 0) continue;
 
-    const kept = current.filter((p) => relevanceOf(block.category, p.template, ctx) !== 'none');
-    if (kept.length === current.length) continue;
+    const appChose = autoFilled.has(block.id);
+    const kept = appChose
+      ? []
+      : current.filter((p) => relevanceOf(block.category, p.template, ctx) !== 'none');
+    if (!appChose && kept.length === current.length) continue;
 
     const exclude = new Set<string>();
     for (const [id, list] of Object.entries(next)) {
@@ -1052,6 +1188,13 @@ export function refreshForKpi(
       if (topped.length >= current.length) break;
       topped.push(pickFrom(t));
     }
+    // Re-picking an app-filled block usually lands on the same exercise. Say
+    // nothing changed when nothing did, so the screen does not re-render the
+    // whole session on every tap of an already-chosen lift.
+    const same =
+      topped.length === current.length &&
+      topped.every((p, i) => p.template.id === current[i].template.id);
+    if (same) continue;
     next[block.id] = topped;
     changed = true;
   }
@@ -1069,6 +1212,14 @@ export interface BuilderPick {
   template: ExerciseTemplate;
   sets: number;
   reps: string;
+  /**
+   * Set only on the flat catalogue's five cardio machines (Treadmill, Bike,
+   * Rower, Ski Erg, Other Cardio), which are not exercises in the database at
+   * all. The session screen keys its duration-and-distance logger off this, so
+   * a saved template that contains one has to carry it back out again — drop it
+   * and the user is asked for sets and reps on a treadmill.
+   */
+  type?: 'cardio';
 }
 
 export type BuilderPicks = Partial<Record<BlockId, BuilderPick[]>>;
@@ -1096,18 +1247,182 @@ export function assembleSession(
       const key = pick.template.name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      const isCardio = block.id === 'cardio';
+      // A self-logging cardio machine keeps its own prescription: the session
+      // screen asks it for a duration directly, so writing "3 min steady" into
+      // its reps would put a number on screen the logger then contradicts.
+      const timed = block.id === 'cardio' && pick.type !== 'cardio';
       out.push({
         id: pick.template.id,
         name: pick.template.name,
-        sets: isCardio ? 1 : pick.sets,
-        reps: isCardio ? `${cardioMinutes} min steady` : pick.reps,
+        sets: timed ? 1 : pick.sets,
+        reps: timed ? `${cardioMinutes} min steady` : pick.reps,
         cue: pick.template.cue,
         suggestedLoad: pick.template.suggestedLoad,
         category: block.sessionCategory,
+        ...(pick.type ? { type: pick.type } : {}),
       });
     }
   }
 
   return out;
+}
+
+// ─── Reading a saved session back into a build ───────────────────────────────
+
+/**
+ * A saved template, expressed as the build that would have produced it.
+ *
+ * Reusing a saved session used to drop the user into the flat catalogue with a
+ * tray of chips — the one screen the assembly line was built to replace, and
+ * the only place in the flow where the eight blocks stopped existing. The data
+ * was never the problem: a template stores each exercise with the block's own
+ * session category, so the structure survives being saved. It was simply never
+ * read back. This reads it back, so a reused session opens on the review screen
+ * and can be adjusted step by step exactly like a fresh one.
+ *
+ * Total by construction: every exercise in the template lands in some block of
+ * the returned goal, because losing one silently is worse than filing it oddly.
+ */
+export interface RestoredBuild {
+  goal: SessionGoal;
+  focus: SessionFocus;
+  picks: BuilderPicks;
+  cardioMinutes: number;
+}
+
+/**
+ * Where a saved exercise can go, best first.
+ *
+ * `prep` covers both warm-up blocks; the cardio one is separated out by
+ * category rather than by position, below.
+ */
+const BLOCKS_FOR_SESSION_CATEGORY: Record<ExerciseCategory, BlockId[]> = {
+  prep: ['mobility'],
+  cardio: ['cardio'],
+  mechanical: ['activation'],
+  neuro: ['power'],
+  // A session with two compounds in it has one KPI lift and one accessory —
+  // that is what a second compound is.
+  main: ['kpi', 'accessory'],
+  accessory: ['accessory', 'volume'],
+  prehab: ['core_prehab'],
+  finisher: ['conditioning'],
+  cooldown: ['mobility'],
+};
+
+let _byIdCache: Map<string, ExerciseTemplate> | null = null;
+let _byNameCache: Map<string, ExerciseTemplate> | null = null;
+
+/**
+ * The live template behind a saved exercise.
+ *
+ * By id first, then by name, because ids are not stable across the tier-keyed
+ * collections while the catalogue is deduplicated by name — a template saved on
+ * one equipment tier and reopened on another would otherwise lose its cue,
+ * muscles and video and come back as a bare name. When neither matches, the
+ * saved copy stands in for itself: a template must never lose an exercise
+ * because the catalogue moved on.
+ */
+function templateFor(ex: CustomExercise): ExerciseTemplate {
+  if (!_byIdCache || !_byNameCache) {
+    _byIdCache = new Map();
+    _byNameCache = new Map();
+    for (const e of index()) {
+      if (!_byIdCache.has(e.template.id)) _byIdCache.set(e.template.id, e.template);
+      const key = e.template.name.toLowerCase();
+      if (!_byNameCache.has(key)) _byNameCache.set(key, e.template);
+    }
+  }
+  return (
+    _byIdCache.get(ex.id) ??
+    _byNameCache.get(ex.name.toLowerCase()) ?? {
+      id: ex.id,
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      cue: ex.cue,
+      suggestedLoad: ex.suggestedLoad,
+      category: ex.category,
+      targetRegions: [],
+      videoId: '',
+    }
+  );
+}
+
+/**
+ * Which goal's template this session was built on, read from its shape.
+ *
+ * The three goals differ in exactly three ways, and each is visible in the
+ * saved list: only Athletic Performance has a power primer, only Muscle &
+ * Aesthetics has a second accessory block, and only General Fitness finishes
+ * with two conditioning movements. Athletic is the fallback because it is the
+ * one goal whose blocks are all optional bar the two that no goal can skip, so
+ * guessing it wrong costs the user a step they can skip rather than a block
+ * their session had nowhere to put.
+ */
+function goalFromSession(exercises: CustomExercise[]): SessionGoal {
+  const count = (c: ExerciseCategory) => exercises.filter((e) => e.category === c).length;
+  if (count('neuro') > 0) return 'athletic';
+  if (count('accessory') > 2) return 'aesthetic';
+  if (count('finisher') > 1) return 'fitness';
+  return 'athletic';
+}
+
+/** The focus a KPI lift implies, so the steps filter the way they first did. */
+function focusFromKpi(kpi: ExerciseTemplate | undefined): SessionFocus {
+  if (!kpi) return 'full';
+  const pattern = patternGroupOf(kpi);
+  return SESSION_FOCUSES.find((f) => f.key !== 'full' && f.patterns.includes(pattern))?.key ?? 'full';
+}
+
+/** The duration a saved cardio warm-up was prescribed for, if it still reads as one. */
+function cardioMinutesFrom(picks: BuilderPicks): number {
+  for (const pick of picks.cardio ?? []) {
+    const minutes = Number(/^\s*(\d+)\s*min steady\s*$/i.exec(pick.reps)?.[1]);
+    if (CARDIO_MINUTES.includes(minutes)) return minutes;
+  }
+  return DEFAULT_CARDIO_MINUTES;
+}
+
+export function buildFromSession(exercises: CustomExercise[]): RestoredBuild {
+  const goal = goalFromSession(exercises);
+  const blocks = new Map(blocksForGoal(goal).map((b) => [b.id, b]));
+  const picks: BuilderPicks = {};
+
+  for (const ex of exercises) {
+    const template = templateFor(ex);
+    const id = ((): BlockId => {
+      // The catalogue's five self-logging machines are cardio whatever they
+      // were filed as — they are saved with category 'accessory'.
+      if (ex.type === 'cardio') return 'cardio';
+      if (ex.category === 'prep' && builderCategoryOf(template) === 'cardio') return 'cardio';
+      const candidates = (BLOCKS_FOR_SESSION_CATEGORY[ex.category] ?? []).filter((b) =>
+        blocks.has(b)
+      );
+      for (const candidate of candidates) {
+        if ((picks[candidate] ?? []).length < (blocks.get(candidate)?.picks ?? 0)) return candidate;
+      }
+      // Everything this category could use is full, or this goal has no block
+      // for it at all. Accessories is where an unplaceable movement does the
+      // least harm — same reasoning as builderCategoryOf's default arm.
+      return candidates[candidates.length - 1] ?? 'accessory';
+    })();
+
+    picks[id] = [
+      ...(picks[id] ?? []),
+      {
+        template,
+        sets: ex.sets,
+        reps: ex.reps,
+        ...(ex.type ? { type: ex.type } : {}),
+      },
+    ];
+  }
+
+  return {
+    goal,
+    focus: focusFromKpi(picks.kpi?.[0]?.template),
+    picks,
+    cardioMinutes: cardioMinutesFrom(picks),
+  };
 }

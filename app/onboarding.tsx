@@ -33,6 +33,11 @@ import {
   EquipmentTier,
   ExperienceLevel,
   FitnessGoal,
+  isPlausibleOneRepMaxKg,
+  MAX_BODYWEIGHT_KG,
+  MAX_ONE_REP_MAX_KG,
+  MIN_BODYWEIGHT_KG,
+  MIN_ONE_REP_MAX_KG,
   Sex,
   SessionType,
   TestWeekFrequency,
@@ -183,6 +188,48 @@ const LIFTS_INDEX = 8;
 const TEST_WEEK_INDEX = 9;
 const CELEBRATION_INDEX = 10;
 
+/** A number the user could plausibly have meant to type. Rejects "1e5", "12abc" and "". */
+const TYPED_NUMBER = /^\d+(\.\d+)?$/;
+
+/**
+ * What is wrong with the typed bodyweight, in words, or null when nothing is.
+ *
+ * The old gate was `parseFloat(bodyweight) > 0`, which accepted 9999, 0.0001 and
+ * "1e5" (parseFloat reads that as 100000). Bodyweight scales every starting load
+ * the app prescribes, so those are not merely odd profile entries — they produce
+ * sessions the app then refuses to let you log.
+ *
+ * It returns the message rather than a boolean because refusing without saying
+ * why is the actual complaint: the button greys out and nothing explains it.
+ */
+export function bodyweightIssue(text: string): string | null {
+  const trimmed = text.trim();
+  if (!TYPED_NUMBER.test(trimmed)) return 'Enter your bodyweight as a number, for example 75';
+  const kg = parseFloat(trimmed);
+  if (kg < MIN_BODYWEIGHT_KG) {
+    return `That looks too low. Enter a bodyweight between ${MIN_BODYWEIGHT_KG} and ${MAX_BODYWEIGHT_KG} kg.`;
+  }
+  if (kg > MAX_BODYWEIGHT_KG) {
+    return `That looks too high. Your bodyweight sets your starting weights, so it needs to be between ${MIN_BODYWEIGHT_KG} and ${MAX_BODYWEIGHT_KG} kg.`;
+  }
+  return null;
+}
+
+/**
+ * The same for a best-lift entry, where blank is a legitimate answer — the step
+ * is optional and says so. A 1RM sets the working weight directly, so 10000 here
+ * prescribes a bar nobody can load and the session screen will not accept.
+ */
+export function oneRepMaxIssue(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  if (!TYPED_NUMBER.test(trimmed)) return 'Enter a number, or leave this blank';
+  if (!isPlausibleOneRepMaxKg(parseFloat(trimmed))) {
+    return `Enter a best lift between ${MIN_ONE_REP_MAX_KG} and ${MAX_ONE_REP_MAX_KG} kg, or leave it blank.`;
+  }
+  return null;
+}
+
 function experienceLabel(e: ExperienceLevel | null): string {
   switch (e) {
     case 'beginner':
@@ -209,7 +256,20 @@ function equipmentLabel(tiers: EquipmentTier[]): string {
   return 'No Equipment';
 }
 
+/**
+ * The saved answers live in AsyncStorage, which is read asynchronously, so on a
+ * reload this screen can mount before there is anything to restore from. Waiting
+ * for that read means the flow is built once, already holding the draft, instead
+ * of starting on the welcome screen and visibly jumping a moment later.
+ */
 export default function OnboardingScreen() {
+  const C = useColors();
+  const hasHydrated = useAppStore((s) => s.hasHydrated);
+  if (!hasHydrated) return <View style={{ flex: 1, backgroundColor: C.background }} />;
+  return <OnboardingFlow />;
+}
+
+function OnboardingFlow() {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
@@ -225,21 +285,35 @@ export default function OnboardingScreen() {
     themePreference,
     setThemePreference,
     setTestWeekFrequency,
+    saveOnboardingDraft,
   } = useAppStore();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Read once, at mount. The draft is where this flow starts, not a live source:
+  // after this every answer flows one way, from component state out to the store.
+  const [draft] = useState(() => useAppStore.getState().onboardingDraft);
 
-  const [name, setName] = useState('');
-  const [sex, setSex] = useState<Sex | null>(null);
-  const [experience, setExperience] = useState<ExperienceLevel | null>(null);
-  const [bodyweight, setBodyweight] = useState('');
-  const [goals, setGoals] = useState<FitnessGoal[]>([]);
-  const [equipment, setEquipment] = useState<EquipmentTier[]>([]);
-  const [ormSquat, setOrmSquat] = useState('');
-  const [ormBench, setOrmBench] = useState('');
-  const [ormDeadlift, setOrmDeadlift] = useState('');
+  // Clamped, because a step from an older build (or a corrupted one) that points
+  // past the last screen would strand the user on blank space: canContinue falls
+  // through to false there, so the footer button is gone and there is no way on.
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    Math.min(Math.max(Math.trunc(draft?.step ?? 0), 0), CELEBRATION_INDEX)
+  );
+
+  const [name, setName] = useState(() => draft?.name ?? '');
+  const [sex, setSex] = useState<Sex | null>(() => draft?.sex ?? null);
+  const [experience, setExperience] = useState<ExperienceLevel | null>(
+    () => draft?.experienceLevel ?? null
+  );
+  const [bodyweight, setBodyweight] = useState(() => draft?.bodyweight ?? '');
+  const [goals, setGoals] = useState<FitnessGoal[]>(() => draft?.goals ?? []);
+  const [equipment, setEquipment] = useState<EquipmentTier[]>(() => draft?.equipmentTiers ?? []);
+  const [ormSquat, setOrmSquat] = useState(() => draft?.ormSquat ?? '');
+  const [ormBench, setOrmBench] = useState(() => draft?.ormBench ?? '');
+  const [ormDeadlift, setOrmDeadlift] = useState(() => draft?.ormDeadlift ?? '');
   // Default to the app's existing behaviour so doing nothing keeps test weeks on.
-  const [testFrequency, setTestFrequency] = useState<TestWeekFrequency>(12);
+  const [testFrequency, setTestFrequency] = useState<TestWeekFrequency>(
+    () => draft?.testWeekFrequency ?? 12
+  );
 
   const nameInputRef = useRef<TextInput>(null);
   const bwInputRef = useRef<TextInput>(null);
@@ -274,13 +348,63 @@ export default function OnboardingScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
 
+  // Answering the experience question resets the equipment picked under the old
+  // answer. It must fire on a CHANGE and not on mount, or restoring a draft would
+  // wipe the equipment the user had already chosen before they reloaded.
+  const answeredExperience = useRef<ExperienceLevel | null>(experience);
   useEffect(() => {
+    if (answeredExperience.current === experience) return;
+    answeredExperience.current = experience;
     if (experience === 'beginner') {
       setEquipment(['bodyweight']);
     } else if (experience !== null) {
       setEquipment([]);
     }
   }, [experience]);
+
+  // Persist every answer as it is given. The alternative — writing only at the
+  // end — is what made a reload on step nine throw away all eight answers.
+  useEffect(() => {
+    saveOnboardingDraft({
+      step: currentIndex,
+      name,
+      sex,
+      experienceLevel: experience,
+      bodyweight,
+      goals,
+      equipmentTiers: equipment,
+      ormSquat,
+      ormBench,
+      ormDeadlift,
+      testWeekFrequency: testFrequency,
+    });
+  }, [
+    currentIndex,
+    name,
+    sex,
+    experience,
+    bodyweight,
+    goals,
+    equipment,
+    ormSquat,
+    ormBench,
+    ormDeadlift,
+    testFrequency,
+    saveOnboardingDraft,
+  ]);
+
+  // A restored draft mounts on a later page, but the pager itself always starts
+  // at offset zero, so put it where the index says. One tick late, because the
+  // pages have to be laid out before an offset means anything.
+  useEffect(() => {
+    if (currentIndex === 0) return;
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: SCREEN_WIDTH * currentIndex, animated: false });
+    }, 0);
+    return () => clearTimeout(t);
+    // Mount only: every later move goes through goTo, which scrolls itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (currentIndex === NAME_INDEX) {
@@ -334,6 +458,12 @@ export default function OnboardingScreen() {
     return () => clearTimeout(t);
   }, [currentIndex, SCREEN_WIDTH]);
 
+  const bodyweightError = bodyweight.trim() === '' ? null : bodyweightIssue(bodyweight);
+  const liftIssues = useMemo(
+    () => [oneRepMaxIssue(ormSquat), oneRepMaxIssue(ormBench), oneRepMaxIssue(ormDeadlift)],
+    [ormSquat, ormBench, ormDeadlift]
+  );
+
   const canContinue = useCallback((): boolean => {
     switch (currentIndex) {
       case WELCOME_INDEX:
@@ -347,19 +477,21 @@ export default function OnboardingScreen() {
       case EXPERIENCE_INDEX:
         return experience !== null;
       case BODYWEIGHT_INDEX:
-        return parseFloat(bodyweight) > 0;
+        return bodyweightIssue(bodyweight) === null;
       case GOALS_INDEX:
         return goals.length > 0;
       case EQUIPMENT_INDEX:
         return equipment.length > 0;
       case LIFTS_INDEX:
-        return true;
+        // Optional, so blank passes — but a number that IS given has to be one
+        // the app can program from, since it becomes the working weight.
+        return liftIssues.every((issue) => issue === null);
       case TEST_WEEK_INDEX:
         return true;
       default:
         return false;
     }
-  }, [currentIndex, name, sex, experience, bodyweight, goals, equipment]);
+  }, [currentIndex, name, sex, experience, bodyweight, goals, equipment, liftIssues]);
 
   const saveAndComplete = useCallback(() => {
     setUserProfile({
@@ -433,7 +565,11 @@ export default function OnboardingScreen() {
     ];
     for (const { lift, value } of lifts) {
       const kg = parseFloat(value);
-      if (kg > 0) addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+      // The lifts step already refuses to advance past an implausible entry;
+      // this is the write itself, so it checks again rather than assuming.
+      if (isPlausibleOneRepMaxKg(kg)) {
+        addOneRepMax({ lift, weight: kg, reps: 1, date: today, unit: 'kg' });
+      }
     }
     // Don't navigate directly — that would skip the auth/subscription gate
     // entirely. Every other gate screen (auth, subscription) just updates its
@@ -789,7 +925,7 @@ export default function OnboardingScreen() {
                 />
                 <Text style={styles.unitLabel}>kg</Text>
               </View>
-              {bodyweight.trim() !== '' && !(parseFloat(bodyweight) > 0) && (
+              {bodyweightError !== null && (
                 <Text
                   style={{
                     fontSize: 12,
@@ -797,9 +933,11 @@ export default function OnboardingScreen() {
                     color: C.error,
                     textAlign: 'center',
                     marginTop: 8,
+                    lineHeight: 17,
                   }}
+                  testID="bodyweight-error"
                 >
-                  Enter a valid bodyweight
+                  {bodyweightError}
                 </Text>
               )}
             </ScrollView>
@@ -957,6 +1095,7 @@ export default function OnboardingScreen() {
                   testID="orm-squat"
                   sessionType="squat"
                   sex={sex}
+                  error={liftIssues[0]}
                 />
                 <LiftInput
                   label="Bench Press"
@@ -965,6 +1104,7 @@ export default function OnboardingScreen() {
                   testID="orm-bench"
                   sessionType="bench"
                   sex={sex}
+                  error={liftIssues[1]}
                 />
                 <LiftInput
                   label="Deadlift"
@@ -973,6 +1113,7 @@ export default function OnboardingScreen() {
                   testID="orm-deadlift"
                   sessionType="deadlift"
                   sex={sex}
+                  error={liftIssues[2]}
                 />
               </View>
               <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
@@ -1134,6 +1275,7 @@ function LiftInput({
   testID,
   sessionType,
   sex,
+  error,
 }: {
   label: string;
   value: string;
@@ -1146,36 +1288,45 @@ function LiftInput({
    * default artwork to someone who has already picked "female" two steps back.
    */
   sex?: Sex | null;
+  /** Why this entry cannot be used, shown under the row. Null when it is fine. */
+  error?: string | null;
 }) {
   const C = useColors();
   const liftStyles = useMemo(() => makeLiftStyles(C), [C]);
   return (
     <View style={liftStyles.row}>
-      <View style={liftStyles.iconWrap}>
-        {sessionType ? (
-          <Image
-            source={getSessionImage(sessionType, sex ?? undefined)}
-            style={{ width: 40, height: 40, borderRadius: 8 }}
-            resizeMode="contain"
+      <View style={liftStyles.rowMain}>
+        <View style={liftStyles.iconWrap}>
+          {sessionType ? (
+            <Image
+              source={getSessionImage(sessionType, sex ?? undefined)}
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+              resizeMode="contain"
+            />
+          ) : (
+            <GrowIcon name="dumbbell" size={20} color={C.primaryText} />
+          )}
+        </View>
+        <Text style={liftStyles.label}>{label}</Text>
+        <View style={liftStyles.inputSide}>
+          <TextInput
+            style={[liftStyles.input, error ? liftStyles.inputError : null]}
+            value={value}
+            onChangeText={onChangeText}
+            keyboardType="decimal-pad"
+            placeholder="-"
+            placeholderTextColor={C.textTertiary}
+            selectTextOnFocus
+            testID={testID}
           />
-        ) : (
-          <GrowIcon name="dumbbell" size={20} color={C.primaryText} />
-        )}
+          <Text style={liftStyles.unit}>kg</Text>
+        </View>
       </View>
-      <Text style={liftStyles.label}>{label}</Text>
-      <View style={liftStyles.inputSide}>
-        <TextInput
-          style={liftStyles.input}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType="decimal-pad"
-          placeholder="-"
-          placeholderTextColor={C.textTertiary}
-          selectTextOnFocus
-          testID={testID}
-        />
-        <Text style={liftStyles.unit}>kg</Text>
-      </View>
+      {error ? (
+        <Text style={liftStyles.error} testID={testID ? `${testID}-error` : undefined}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -1565,12 +1716,22 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 function makeLiftStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     row: {
-      flexDirection: 'row',
-      alignItems: 'center',
       paddingVertical: 14,
       borderBottomWidth: 1,
       borderBottomColor: C.borderLight,
+    },
+    rowMain: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 12,
+    },
+    inputError: { borderColor: C.error },
+    error: {
+      fontSize: 12,
+      lineHeight: 17,
+      fontFamily: 'Inter_400Regular',
+      color: C.error,
+      marginTop: 6,
     },
     iconWrap: {
       width: 44,

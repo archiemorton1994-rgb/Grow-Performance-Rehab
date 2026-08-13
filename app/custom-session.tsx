@@ -41,6 +41,7 @@ import {
 import {
   assembleSession,
   blocksForGoal,
+  buildFromSession,
   optionsForBlock,
   refreshForKpi,
   CARDIO_MINUTES,
@@ -311,6 +312,15 @@ export default function CustomSessionScreen() {
   const [stepSearch, setStepSearch] = useState('');
   /** Per-step escape hatch: show the whole block, not just what matches the lift. */
   const [showWholeBlock, setShowWholeBlock] = useState(false);
+  /**
+   * Blocks the app filled and the user has never touched.
+   *
+   * Changing the KPI lift has to re-choose these against the new lift, while
+   * leaving alone anything the user picked themselves. A ref rather than state
+   * because nothing on screen depends on it — only refreshForKpi reads it, and
+   * making it state would re-render every step for a value nobody can see.
+   */
+  const autoFilledRef = useRef<Set<BlockId>>(new Set());
   /** Set when the catalogue was opened to fill a step rather than to free-build. */
   const [catalogueTarget, setCatalogueTarget] = useState<BlockId | null>(null);
 
@@ -598,6 +608,8 @@ export default function CustomSessionScreen() {
     if (!editingExercise) return;
     const id = editingExercise.template.id;
     if (editingBlock) {
+      // Prescribing your own sets and reps for a movement is choosing it.
+      autoFilledRef.current.delete(editingBlock);
       setPicks((prev) => ({
         ...prev,
         [editingBlock]: (prev[editingBlock] ?? []).map((p) =>
@@ -685,6 +697,10 @@ export default function CustomSessionScreen() {
           for (const p of list ?? []) others.add(p.template.name);
         }
         const { options } = optionsForBlock(block, { focus, kpi: prev.kpi?.[0]?.template ?? null }, ownedTiers, others);
+        // The app is choosing here, not the user. Recorded so that changing the
+        // KPI lift later can re-choose it rather than preserve it as if it had
+        // been picked on purpose.
+        autoFilledRef.current.add(block.id);
         return { ...prev, [block.id]: options.slice(0, block.picks).map(pickOf) };
       });
     },
@@ -693,6 +709,7 @@ export default function CustomSessionScreen() {
 
   const startBuild = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    autoFilledRef.current = new Set();
     setPicks({});
     setSelected([]);
     setSelectedCardio([]);
@@ -746,6 +763,8 @@ export default function CustomSessionScreen() {
   const togglePick = useCallback(
     (block: BuilderBlock, t: ExerciseTemplate) => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // From here on this block holds a decision, not a default.
+      autoFilledRef.current.delete(block.id);
       setPicks((prev) => {
         const current = prev[block.id] ?? [];
         const already = current.some((p) => p.template.id === t.id);
@@ -760,7 +779,7 @@ export default function CustomSessionScreen() {
         // Changing the lift the session is built on re-filters everything that
         // claims to be matched to it.
         if (block.id !== 'kpi') return next;
-        return refreshForKpi(goal, next, { focus, kpi: t }, ownedTiers);
+        return refreshForKpi(goal, next, { focus, kpi: t }, ownedTiers, autoFilledRef.current);
       });
     },
     [pickOf, goal, focus, ownedTiers]
@@ -769,6 +788,7 @@ export default function CustomSessionScreen() {
   const removePick = useCallback(
     (block: BuilderBlock, id: string) => {
       if (Platform.OS !== 'web') Haptics.selectionAsync();
+      autoFilledRef.current.delete(block.id);
       setPicks((prev) => {
         const current = prev[block.id] ?? [];
         if (!block.optional && current.length <= 1) return prev;
@@ -1038,48 +1058,48 @@ export default function CustomSessionScreen() {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [templateName, selected, selectedCardio, saveTemplate, stage, guidedExercises]);
 
+  /**
+   * Reuse a saved session.
+   *
+   * It lands on the review screen — the same screen a fresh build finishes on —
+   * so every block is visible at once and any one of them can be reopened and
+   * changed step by step. It used to drop the user into the flat catalogue with
+   * a tray of chips, which was the one path left in the app still showing the
+   * interface the assembly line replaced, and the one place where a saved
+   * session stopped having blocks at all.
+   *
+   * Nothing here is treated as auto-filled: every exercise in a saved template
+   * was chosen once already, so changing the KPI lift afterwards keeps whatever
+   * still fits rather than re-picking the session from scratch.
+   */
   const loadTemplate = useCallback(
     (tmpl: CustomTemplate) => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const exerciseById = new Map(allExercises.map((e) => [e.id, e]));
-      const strengthExs = tmpl.exercises.filter((ex) => ex.type !== 'cardio');
-      const cardioExs = tmpl.exercises.filter((ex) => ex.type === 'cardio');
-      const newSelected: SelectedExercise[] = strengthExs.map((ex) => {
-        const found = exerciseById.get(ex.id);
-        const template: ExerciseTemplate = found ?? {
-          id: ex.id,
-          name: ex.name,
-          sets: ex.sets,
-          reps: ex.reps,
-          cue: ex.cue,
-          suggestedLoad: ex.suggestedLoad,
-          category: ex.category as ExerciseCategory,
-          targetRegions: [],
-          videoId: '',
-        };
-        return { template, sets: ex.sets, reps: ex.reps };
-      });
-      const newCardio: SelectedCardioExercise[] = cardioExs.map((ex) => {
-        const option = CARDIO_OPTIONS.find((o) => o.id === ex.id) ?? CARDIO_OPTIONS[4];
-        return { id: ex.id, name: ex.name, icon: option.icon, cue: ex.cue };
-      });
-      const restoredOtherName = cardioExs.find((ex) => ex.id === 'cardio-other')?.name ?? '';
-      setSelected(newSelected);
-      setSelectedCardio(newCardio);
-      setOtherCardioName(restoredOtherName === 'Other Cardio' ? '' : restoredOtherName);
+      const restored = buildFromSession(tmpl.exercises);
+      autoFilledRef.current = new Set();
+      setGoal(restored.goal);
+      setFocus(restored.focus);
+      setPicks(restored.picks);
+      setCardioMinutes(restored.cardioMinutes);
+      setStepIndex(0);
+      setStepSearch('');
+      setShowWholeBlock(false);
+      // The flat tray is not what is being shown any more, and leaving a stale
+      // copy of a previous build in it would save the wrong session if the user
+      // stepped out to the catalogue.
+      setSelected([]);
+      setSelectedCardio([]);
+      setOtherCardioName('');
+      setSessionName(tmpl.name);
       setLoadedTemplateId(tmpl.id);
       setSearch('');
       setCategoryFilter('all');
       setPatternFilters(new Set());
       setDifficultyFilters(new Set());
-      // A saved template is a finished session. It opens in the catalogue,
-      // where every exercise in it is visible and editable at once — walking
-      // someone back through eight steps to change one accessory would be
-      // slower than the flat list they saved it from.
       setCatalogueTarget(null);
-      setStage('catalogue');
+      setStage('review');
     },
-    [allExercises]
+    []
   );
 
   const openRenameModal = useCallback((tmpl: CustomTemplate) => {
@@ -1099,25 +1119,34 @@ export default function CustomSessionScreen() {
 
   const confirmUpdateTemplate = useCallback(() => {
     if (!loadedTemplateId) return;
-    const strengthExercises: CustomExercise[] = selected.map((s) => ({
-      id: s.template.id,
-      name: s.template.name,
-      sets: s.sets,
-      reps: s.reps,
-      cue: s.template.cue,
-      suggestedLoad: s.template.suggestedLoad,
-      category: s.template.category,
-    }));
-    const cardioExercises: CustomExercise[] = selectedCardio.map((c) => ({
-      id: c.id,
-      name: c.name,
-      sets: 1,
-      reps: '',
-      cue: c.cue,
-      suggestedLoad: 'Cardio',
-      category: 'accessory' as const,
-      type: 'cardio' as const,
-    }));
+    // A reused template is now adjusted on the review screen, where the flat
+    // tray is empty by definition. Reading the tray there would have saved the
+    // template back as nothing.
+    const strengthExercises: CustomExercise[] =
+      stage === 'review'
+        ? guidedExercises
+        : selected.map((s) => ({
+            id: s.template.id,
+            name: s.template.name,
+            sets: s.sets,
+            reps: s.reps,
+            cue: s.template.cue,
+            suggestedLoad: s.template.suggestedLoad,
+            category: s.template.category,
+          }));
+    const cardioExercises: CustomExercise[] =
+      stage === 'review'
+        ? []
+        : selectedCardio.map((c) => ({
+            id: c.id,
+            name: c.name,
+            sets: 1,
+            reps: '',
+            cue: c.cue,
+            suggestedLoad: 'Cardio',
+            category: 'accessory' as const,
+            type: 'cardio' as const,
+          }));
     const exercises = [...strengthExercises, ...cardioExercises];
 
     const originalTemplate = savedTemplates.find((t) => t.id === loadedTemplateId);
@@ -1126,8 +1155,11 @@ export default function CustomSessionScreen() {
       : 0;
 
     const doUpdate = () => {
+      // The undo toast restores into the flat tray and only renders over the
+      // catalogue, so it is not offered on the review screen. The "you're
+      // removing N exercises" confirmation below is the safety net there.
       const prevSelected: SelectedExercise[] | null =
-        removedCount > 0 && originalTemplate
+        removedCount > 0 && originalTemplate && stage !== 'review'
           ? originalTemplate.exercises.map((ex) => {
               const found = allExercises.find((e) => e.id === ex.id);
               const tmpl: ExerciseTemplate = found ?? {
@@ -1174,6 +1206,8 @@ export default function CustomSessionScreen() {
     doUpdate();
   }, [
     loadedTemplateId,
+    stage,
+    guidedExercises,
     selected,
     selectedCardio,
     updateTemplate,
@@ -1765,15 +1799,37 @@ export default function CustomSessionScreen() {
     const chosen = picks[activeBlock.id] ?? [];
     const chosenIds = new Set(chosen.map((p) => p.template.id));
     const isLast = stepIndex === blocks.length - 1;
-    const filterLabel = kpiTemplate
-      ? `Matched to ${kpiTemplate.name}`
-      : `Matched to ${SESSION_FOCUSES.find((f) => f.key === focus)?.label.toLowerCase()} training`;
+
+    /**
+     * What this step's list was actually narrowed by.
+     *
+     * Three of these used to read "Matched to <your lift>" over a list that was
+     * nothing of the kind: the conditioning list was the same 264 movements for
+     * every lift in the catalogue, and the KPI step claimed to follow the lift
+     * it was still asking the user to choose — it arrives with its top option
+     * already selected, so its own note answered its own question.
+     */
+    const focusNote = `Matched to ${SESSION_FOCUSES.find((f) => f.key === focus)?.label.toLowerCase()} training`;
+    const filterNote = (() => {
+      if (showWholeBlock) return `Every ${blockNoun(activeBlock.title)} option for your equipment`;
+      if (!activeBlock.followsLift && activeBlock.id !== 'kpi') {
+        return 'Any finisher suits any lift - sled, rope, bike and carry work first';
+      }
+      const base = activeBlock.followsLift && kpiTemplate ? `Matched to ${kpiTemplate.name}` : focusNote;
+      return stepOptions.widened
+        ? `${base} - widened, too few exact matches for your equipment`
+        : base;
+    })();
 
     return (
       <>
+        {/* The dot row below has one dot per block, so the counter counts blocks
+            too. It used to count the start screen as step 1 and leave the review
+            screen unnumbered, which made "Step 2 of 9" appear under the first of
+            eight dots. */}
         {guidedHeader(
           activeBlock.title,
-          `Step ${stepIndex + 2} of ${blocks.length + 1}`,
+          `Step ${stepIndex + 1} of ${blocks.length}`,
           backStep
         )}
 
@@ -1796,11 +1852,7 @@ export default function CustomSessionScreen() {
             <Text style={styles.stepPurpose}>{activeBlock.purpose}</Text>
           </View>
           <Text style={styles.stepFilterNote} testID="step-filter-note">
-            {showWholeBlock
-              ? `Every ${blockNoun(activeBlock.title)} option for your equipment`
-              : stepOptions.widened
-                ? `${filterLabel} - widened, too few exact matches for your equipment`
-                : filterLabel}
+            {filterNote}
           </Text>
 
           {activeBlock.id === 'cardio' && (
@@ -2013,9 +2065,11 @@ export default function CustomSessionScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.reviewRowName}>{p.template.name}</Text>
                       <Text style={styles.reviewRowMeta}>
-                        {block.id === 'cardio'
-                          ? `${cardioMinutes} min steady`
-                          : `${setsLabel(p.sets)} · ${p.reps} · ${p.template.suggestedLoad}`}
+                        {p.type === 'cardio'
+                          ? 'Duration logged in the session'
+                          : block.id === 'cardio'
+                            ? `${cardioMinutes} min steady`
+                            : `${setsLabel(p.sets)} · ${p.reps} · ${p.template.suggestedLoad}`}
                       </Text>
                     </View>
                     {/* A required block can be changed but not emptied. */}

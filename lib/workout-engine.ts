@@ -11,7 +11,12 @@ import type {
   SessionType,
   TimeAvailable,
   UserProfile,
+  WeightUnit,
 } from './store';
+// The one runtime dependency this module has outside the exercise database:
+// the grid a gym can actually load. `lib/utils.ts` imports nothing at runtime,
+// so the contract tests that import this file directly stay free of the store.
+import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -546,8 +551,13 @@ function isDumbbellTier(tier: EquipmentTier): boolean {
  * time a lift was suggested, since personalizeLoad's lastLoggedWeight+step
  * path takes priority over this one for every session after that.
  */
-export function workingWeightFromOrm(ormKg: number, profile: UserProfile): number {
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+export function workingWeightFromOrm(
+  ormKg: number,
+  profile: UserProfile,
+  /** The unit the user's gym is stocked in - decides the grid this lands on. */
+  loadUnit: WeightUnit = 'kg'
+): number {
+  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
   const goalPct: Record<string, number> = {
     strength: 0.85,
     muscle: 0.75,
@@ -558,7 +568,7 @@ export function workingWeightFromOrm(ormKg: number, profile: UserProfile): numbe
   };
   const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
   const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.7), 0) / activeGoals.length;
-  return roundTo2_5(ormKg * avgPct);
+  return toGrid(ormKg * avgPct);
 }
 
 /**
@@ -573,7 +583,8 @@ export function workingWeightFromOrm(ormKg: number, profile: UserProfile): numbe
  * which is far more accurate than the heuristic scaling approach.
  *
  * Exercises with non-numeric loads (Bodyweight, Band, Machine, Cardio) are returned unchanged.
- * Numeric values are rounded to the nearest 2.5 kg with a minimum of 2.5 kg.
+ * Numeric values are rounded onto the grid the user's gym can actually load -
+ * 2.5 kg for a kilogram gym, 5 lb for a pound one. See `roundToLoadable`.
  */
 /**
  * A prescribed load: the words shown to the user, and the weights behind them.
@@ -599,7 +610,16 @@ function personalizeLoad(
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   /** Time away from training, or null when there has been none worth acting on. */
-  layoff?: Layoff | null
+  layoff?: Layoff | null,
+  /**
+   * The unit the user's gym is stocked in.
+   *
+   * The engine has to know it. Every weight here is decided by adding a step to
+   * a weight and rounding the result, and a grid applied afterwards at the
+   * render boundary would leave the number it rounds drifting off-grid session
+   * after session. See `roundToLoadable` for the full reasoning.
+   */
+  loadUnit: WeightUnit = 'kg'
 ): PersonalisedLoad {
   /** Load text the engine did not compute — no structured weight to attach. */
   const verbatim = (text: string): PersonalisedLoad => ({ text, kg: null });
@@ -628,7 +648,7 @@ function personalizeLoad(
     return verbatim(rawLoad);
   }
 
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
   const feedbackMult =
     exerciseId && exerciseFeedback?.[exerciseId]?.multiplier
       ? exerciseFeedback[exerciseId].multiplier
@@ -698,7 +718,7 @@ function personalizeLoad(
   if (lastKg > 0 && layoff && !layoff.reset) {
     // A comeback replaces progression rather than adding to it. The step exists
     // to answer "how did last session go", and last session was weeks ago.
-    return computed(roundTo2_5(lastKg * layoff.factor));
+    return computed(toGrid(lastKg * layoff.factor));
   }
   if (lastKg > 0 && !layoff?.reset) {
     const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
@@ -721,7 +741,7 @@ function personalizeLoad(
     // Apply exact additive step (hold / +2.5 / +5 / +7.5) as specified.
     // feedbackMult is NOT applied on top - it is only used in the heuristic
     // path below (when there is no previous logged weight to anchor from).
-    const progressedKg = roundTo2_5(lastKg + step);
+    const progressedKg = toGrid(lastKg + step);
     if (__DEV__) {
       console.log(
         `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} → ${progressedKg}kg`
@@ -741,7 +761,7 @@ function personalizeLoad(
    * Null whenever there is nothing to cap against.
    */
   const comebackCeilingKg =
-    layoff?.reset && lastKg > 0 ? roundTo2_5(lastKg * layoff.factor) : null;
+    layoff?.reset && lastKg > 0 ? toGrid(lastKg * layoff.factor) : null;
 
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
@@ -756,7 +776,9 @@ function personalizeLoad(
   // to calculate the working weight directly rather than relying on body-weight
   // heuristics.  Goal-specific percentages mirror common periodisation practice.
   if (ormKg && ormKg > 0 && isMainLift) {
-    const targetKg = roundTo2_5(workingWeightFromOrm(ormKg, profile) * earnedMult * layoffMult);
+    const targetKg = toGrid(
+      workingWeightFromOrm(ormKg, profile, loadUnit) * earnedMult * layoffMult
+    );
     return computed(comebackCeilingKg === null ? targetKg : Math.min(targetKg, comebackCeilingKg));
   }
 
@@ -811,7 +833,7 @@ function personalizeLoad(
   const text = rawLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
     if (num <= 0) return match;
-    const kg = roundTo2_5(num * scale * earnedMult * layoffMult * ceilingScale);
+    const kg = toGrid(num * scale * earnedMult * layoffMult * ceilingScale);
     scaled.push(kg);
     return String(kg);
   });
@@ -973,7 +995,9 @@ function applyPersonalization(
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null
+  layoff?: Layoff | null,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
@@ -1037,7 +1061,8 @@ function applyPersonalization(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     );
 
   const main = personalise(ex.suggestedLoad);
@@ -1084,7 +1109,14 @@ export function generateWorkout(
    * real session gets time-off handling without having to know about it, and a
    * test can pass an explicit number instead of reaching into module state.
    */
-  daysSinceLastSession: number | null = daysSinceLastTrained()
+  daysSinceLastSession: number | null = daysSinceLastTrained(),
+  /**
+   * The unit the user's gym is stocked in, which decides the grid every weight
+   * below is rounded onto. Defaults to kilograms so nothing that does not care
+   * about it has to say so. See `roundToLoadable` in lib/utils.ts for why this
+   * cannot live at the render boundary instead.
+   */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   const layoff = getLayoff(daysSinceLastSession);
   // Screen first, then fill the swap slots — so the alternatives on offer are
@@ -1102,7 +1134,8 @@ export function generateWorkout(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     ),
     readiness,
     equipmentTier,
@@ -1502,7 +1535,9 @@ function generateWorkoutUnscreened(
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null
+  layoff?: Layoff | null,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(
@@ -1514,7 +1549,8 @@ function generateWorkoutUnscreened(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     );
   }
   if (sessionType === 'prehab') {
@@ -1599,7 +1635,8 @@ function generateWorkoutUnscreened(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     );
   }
 
@@ -1778,7 +1815,8 @@ function generateWorkoutUnscreened(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     )
   );
   const kettlebelled =
@@ -1816,7 +1854,9 @@ function generateWeeklyWorkout(
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null
+  layoff?: Layoff | null,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
@@ -2073,7 +2113,8 @@ function generateWeeklyWorkout(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     )
   );
 
@@ -2104,7 +2145,9 @@ function generateConditioningWorkout(
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null
+  layoff?: Layoff | null,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
@@ -2157,7 +2200,8 @@ function generateConditioningWorkout(
       lastLoggedWeights,
       exerciseNormalStreak,
       lastSessionPerformance,
-      layoff
+      layoff,
+      loadUnit
     )
   );
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
@@ -2191,13 +2235,15 @@ export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
   _strengthSessionCount: number = 0,
-  workingKg?: number
+  workingKg?: number,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   if (sessionType === 'conditioning' || sessionType === 'custom') return [];
   const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
   let exercises = protocol.map((t) => templateToExercise(t));
 
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
   const bodyweightTier = equipmentTier === 'bodyweight' || equipmentTier === 'bands';
 
   // Plain language first, for every tier. "AMRAP @ 90%" is gym shorthand that
@@ -2214,24 +2260,29 @@ export function generate1RMWorkout(
   });
 
   if (workingKg && workingKg > 0 && !bodyweightTier) {
-    const testKg = roundTo2_5(workingKg * 0.9);
+    const testKg = toGrid(workingKg * 0.9);
+    // `suggestedLoad` stays in kilograms because that is the unit every reader
+    // of it expects (parseLoadKg, convertLoadString at render). The CUE is
+    // prose nothing parses, and it is the sentence the user actually follows,
+    // so it is written in the unit they train in.
+    const say = (kg: number) => `${kgToDisplayUnit(kg, loadUnit)} ${loadUnit}`;
     exercises = exercises.map((e) => {
       if (e.category === 'main') {
         return {
           ...e,
           suggestedLoad: `${testKg} kg`,
           loadKg: [testKg],
-          cue: `Load ${testKg} kg and do as many clean reps as you can. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
+          cue: `Load ${say(testKg)} and do as many clean reps as you can. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
         };
       }
       if (e.category === 'prep') {
         const fractions = RAMP_FRACTIONS[e.sets] ?? RAMP_FRACTIONS[4];
-        const ladder = fractions.map((f) => roundTo2_5(testKg * f));
+        const ladder = fractions.map((f) => toGrid(testKg * f));
         return {
           ...e,
           suggestedLoad: `${ladder.join(' / ')} kg`,
           loadKg: ladder,
-          cue: `Work up to the test weight: ${ladder.join(' kg, ')} kg. These are warm-ups, not work sets — stop each one well short of hard.`,
+          cue: `Work up to the test weight: ${ladder.map(say).join(', ')}. These are warm-ups, not work sets — stop each one well short of hard.`,
         };
       }
       return e;
@@ -2314,7 +2365,6 @@ export function getWeightGuide(
   weightUnit: 'kg' | 'lbs' = 'kg',
   suggestedLoad?: string
 ): string[] {
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
   const unit = weightUnit === 'lbs' ? 'lbs' : 'kg';
 
   // Try to extract the target weight number from the personalised load string
@@ -2324,10 +2374,15 @@ export function getWeightGuide(
     if (numMatch) targetKg = parseFloat(numMatch[1]);
   }
 
+  // `suggestedLoad` is kilograms. This used to print its numbers unconverted
+  // and then label them "lbs", so a pounds user was told to warm up at half a
+  // weight in the wrong unit.
+  const say = (kg: number) => kgToDisplayUnit(roundToLoadable(kg, unit), unit);
+  const target = targetKg === null ? null : kgToDisplayUnit(toLoadableForUnit(targetKg, unit), unit);
+
   const w = (pct: number): string => {
     if (targetKg === null) return '';
-    const val = roundTo2_5(targetKg * pct);
-    return ` (~${val} ${unit})`;
+    return ` (~${say(targetKg * pct)} ${unit})`;
   };
 
   if (category === 'main') {
@@ -2335,14 +2390,14 @@ export function getWeightGuide(
       return [
         `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
         `Set 2: Build up${w(0.7)} - approaching working weight`,
-        `Set 3: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - challenging but fully controlled`,
+        `Set 3: Working weight${target !== null ? ` (${target} ${unit})` : ''} - challenging but fully controlled`,
       ];
     if (sets === 4)
       return [
         `Set 1: Light warm-up${w(0.5)} - easy, just feel the pattern`,
         `Set 2: Build up${w(0.65)} - getting into position`,
         `Set 3: Approach set${w(0.875)} - close to working weight, stay sharp`,
-        `Set 4: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - your one quality set`,
+        `Set 4: Working weight${target !== null ? ` (${target} ${unit})` : ''} - your one quality set`,
       ];
     // 5+ sets: ramp progressively; penultimate set is always ~87.5%, final set is working weight
     const rampGuides: string[] = [
@@ -2361,7 +2416,7 @@ export function getWeightGuide(
     );
     // Final set: working weight
     rampGuides.push(
-      `Set ${sets}: Working weight${targetKg !== null ? ` (${targetKg} ${unit})` : ''} - your one quality set, full control`
+      `Set ${sets}: Working weight${target !== null ? ` (${target} ${unit})` : ''} - your one quality set, full control`
     );
     return rampGuides;
   }
@@ -2388,9 +2443,11 @@ export function getWeightGuide(
 export function getWeightGuideKg(
   category: ExerciseCategory,
   sets: number,
-  suggestedLoad?: string
+  suggestedLoad?: string,
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): number[] {
-  return expandSetTargets(category, sets, parseLoadKg(suggestedLoad));
+  return expandSetTargets(category, sets, parseLoadKg(suggestedLoad), loadUnit);
 }
 
 /**
@@ -2436,12 +2493,19 @@ function statesLadder(text: string): boolean {
 export function expandSetTargets(
   category: ExerciseCategory,
   sets: number,
-  numbers: number[]
+  numbers: number[],
+  /** The unit the user's gym is stocked in - see personalizeLoad. */
+  loadUnit: WeightUnit = 'kg'
 ): number[] {
-  const roundTo2_5 = (v: number) => Math.max(2.5, Math.round(v / 2.5) * 2.5);
+  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
+  // Numbers that arrive already rounded - a stated ladder, a working weight the
+  // engine computed - only need regridding when they are about to be read in a
+  // unit they were not rounded in. `toLoadableForUnit` is identity in kg, so a
+  // load the database wrote as "12 kg" still reads as 12 kg.
+  const asGiven = (v: number) => toLoadableForUnit(v, loadUnit);
 
   // An explicit ladder wins: the protocol has already stated each set.
-  if (numbers.length === sets && sets > 1) return numbers;
+  if (numbers.length === sets && sets > 1) return numbers.map(asGiven);
   if (numbers.length === 0) return Array(sets).fill(0);
 
   // Otherwise the single value is the working weight the ramp is built from.
@@ -2449,8 +2513,8 @@ export function expandSetTargets(
   // bottom by the time it gets here — the app has always prescribed the bottom
   // of the range, and taking the top would quietly add load to a third of the
   // catalogue.
-  const targetKg = numbers[0];
-  const w = (pct: number) => roundTo2_5(targetKg * pct);
+  const targetKg = asGiven(numbers[0]);
+  const w = (pct: number) => toGrid(targetKg * pct);
 
   if (category === 'main') {
     // Return exactly `sets` entries. This used to hand back three regardless,

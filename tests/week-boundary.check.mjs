@@ -113,8 +113,12 @@ check(
 console.log('');
 if (failures > 0) {
   console.error(`week-boundary: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
 } else {
   console.log(`week-boundary: all ${total} checks passed\n`);
-  process.exit(0);
 }
+// Set the code and let node exit on its own rather than calling process.exit().
+// When stdout is a pipe — which it is under `npm run check` — the writes above
+// are asynchronous, and exiting on top of one in flight aborts the process on
+// Windows with a libuv handle assertion. Every check here had already passed
+// when that happened, so the suite failed on the way out of a green run.
+process.exitCode = failures > 0 ? 1 : 0;

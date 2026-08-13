@@ -64,7 +64,13 @@ import {
   cancelStreakProtectionAlert,
   REST_TIMER_NOTIF_ID,
 } from '@/lib/notifications';
-import { kgToDisplayUnit, displayUnitToKg, convertLoadString } from '@/lib/utils';
+import {
+  kgToDisplayUnit,
+  displayUnitToKg,
+  convertLoadString,
+  isHeavierThan,
+  snapToLoadable,
+} from '@/lib/utils';
 import {
   Exercise,
   generateWorkout,
@@ -710,13 +716,17 @@ export function SessionActiveBar({
     !isTimeExercise && (effectiveWeightKg > MAX_PLAUSIBLE_KG || parsedReps > MAX_PLAUSIBLE_REPS);
   const isCompleteBlocked = isZeroBlocked || isImplausible;
 
+  // Judged in the unit on screen, not in the kilograms behind it. Converting
+  // 100 kg out to 220.5 lbs and back lands on 100.02 kg, so a straight kg
+  // comparison fired "New Record!" for submitting the number the app itself
+  // prefilled — i.e. every single time it held a weight. See isHeavierThan.
   const isNewRecord =
     !isBandExercise &&
     !isTimeExercise &&
     previousBest !== undefined &&
     previousBest > 0 &&
     parsedWeight > 0 &&
-    effectiveWeightKg > previousBest;
+    isHeavierThan(effectiveWeightKg, previousBest, weightUnit);
 
   // Named to match the per-set guide printed on the card above, which calls the
   // penultimate set of a long ramp an "Approach set" at ~87.5% of the working
@@ -2009,6 +2019,17 @@ export default function SessionScreen() {
 
   // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
   const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
+  /**
+   * The unit this session's weights were worked out in, frozen at the start.
+   *
+   * The prescription is rounded onto the grid the user's gym can load, so the
+   * engine has to be told which gym. Read live it would be a dependency of the
+   * exercise list, and regenerating that list mid-session resets every logged
+   * set — so it is captured once, exactly like the feedback above. Changing
+   * units mid-session then converts what is already on screen and moves nothing;
+   * the new grid takes effect from the next session.
+   */
+  const loadUnitAtStart = useRef<WeightUnit>(weightUnit);
   // Snapshot custom exercises at mount so store.clearPendingCustomExercises() doesn't empty the list mid-session.
   // On resume, pendingCustomExercises is already cleared; fall back to what was persisted in activeSession.
   const customExercisesSnapshot = useRef<CustomExercise[]>(
@@ -2096,7 +2117,9 @@ export default function SessionScreen() {
       const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
       const lastKg = mainLiftId ? (lastLoggedWeights?.[mainLiftId] ?? 0) : 0;
       const bestForLift = getBestORM(sessionType);
-      const fromOrm = bestForLift ? workingWeightFromOrm(bestForLift.weight, userProfile) : 0;
+      const fromOrm = bestForLift
+        ? workingWeightFromOrm(bestForLift.weight, userProfile, loadUnitAtStart.current)
+        : 0;
       // Take the better of the two rather than preferring the most recent log.
       // A test set that is too light is the worse error: the estimate comes from
       // weight x reps, and the formula loses accuracy fast beyond ~10 reps, so
@@ -2107,7 +2130,8 @@ export default function SessionScreen() {
         sessionType,
         equipmentTier,
         strengthCount,
-        workingKg > 0 ? workingKg : undefined
+        workingKg > 0 ? workingKg : undefined,
+        loadUnitAtStart.current
       );
     }
     const bestOrm = getBestORM(sessionType);
@@ -2128,7 +2152,9 @@ export default function SessionScreen() {
       strengthCount,
       lastLoggedWeights,
       exerciseNormalStreak,
-      lastSessionPerformance
+      lastSessionPerformance,
+      undefined,
+      loadUnitAtStart.current
     );
   }, [
     sessionType,
@@ -2862,7 +2888,11 @@ export default function SessionScreen() {
             unit: 'kg',
           });
           if (userProfile) {
-            testWeekWorkingWeight = workingWeightFromOrm(estimatedMax, userProfile);
+            testWeekWorkingWeight = workingWeightFromOrm(
+              estimatedMax,
+              userProfile,
+              loadUnitAtStart.current
+            );
           }
         }
       }
@@ -3226,8 +3256,18 @@ export default function SessionScreen() {
           const plannedForBar = !displayEx
             ? []
             : displayEx.loadKg
-              ? expandSetTargets(displayEx.category, displayEx.sets, displayEx.loadKg)
-              : getWeightGuideKg(displayEx.category, displayEx.sets, displayEx.suggestedLoad);
+              ? expandSetTargets(
+                  displayEx.category,
+                  displayEx.sets,
+                  displayEx.loadKg,
+                  loadUnitAtStart.current
+                )
+              : getWeightGuideKg(
+                  displayEx.category,
+                  displayEx.sets,
+                  displayEx.suggestedLoad,
+                  loadUnitAtStart.current
+                );
 
           // Auto-regulation. The prescription above is where the exercise
           // STARTS; what the user has actually lifted and said about it decides
@@ -3251,7 +3291,13 @@ export default function SessionScreen() {
               outcomes,
             };
             const regulated = plannedForBar.map((_, i) => suggestSetWeight(plan, i));
-            weightGuidesForBar = regulated.map((r) => r.kg);
+            // Auto-regulation works in kilogram increments (see loadStepKg): a
+            // 10% move off 145 lbs comes back as 93.7 lbs, which is not a
+            // weight. Put it back on the gym's grid without undoing the move
+            // the user's answer just earned. No-op in kilograms.
+            weightGuidesForBar = regulated.map((r, i) =>
+              snapToLoadable(r.kg, outcomes[i - 1]?.loggedKg ?? 0, loadUnitAtStart.current)
+            );
             autoNoteForBar = regulated[clampedSetIdx]?.note ?? null;
           }
           const isBandEx = displayEx ? isLoadBandOrBodyweight(displayEx.suggestedLoad) : false;
@@ -3303,8 +3349,8 @@ export default function SessionScreen() {
             Math.max(0, data.sets.length - 1)
           );
           const guides = ex.loadKg
-            ? expandSetTargets(ex.category, ex.sets, ex.loadKg)
-            : getWeightGuideKg(ex.category, ex.sets, ex.suggestedLoad);
+            ? expandSetTargets(ex.category, ex.sets, ex.loadKg, loadUnitAtStart.current)
+            : getWeightGuideKg(ex.category, ex.sets, ex.suggestedLoad, loadUnitAtStart.current);
           const logged = data.sets[setIdx]?.weight ?? 0;
           const kg = logged > 0 ? logged : (guides[setIdx] ?? 0);
           return (

@@ -1,19 +1,115 @@
 import type { WeightUnit } from '@/lib/store';
 
-export function formatWeight(kg: number, unit: WeightUnit): string {
-  if (unit === 'lbs') {
-    return `${(kg * 2.20462).toFixed(1)} lbs`;
-  }
-  const rounded = Math.round(kg * 10) / 10;
-  return `${rounded} kg`;
+/** Pounds in a kilogram. One definition, so the two directions cannot drift. */
+const LB_PER_KG = 2.20462;
+
+/**
+ * The increment a gym stocked in `unit` can actually make, at this weight.
+ *
+ * A kilogram gym works in 2.5 kg jumps - a pair of 1.25 kg plates, and the
+ * spacing of a dumbbell rack. A pound gym works in 5 lb jumps (a pair of 2.5 lb
+ * plates), closing to 2.5 lb at the light end where the dumbbells sit closer
+ * together and a 5 lb step is a fifth of the weight.
+ */
+function loadableStep(valueInUnit: number, unit: WeightUnit): number {
+  if (unit === 'kg') return 2.5;
+  return valueInUnit < 25 ? 2.5 : 5;
 }
 
+/**
+ * The nearest weight the user's gym can actually put in their hands, in kg.
+ *
+ * WHY THIS IS NOT A DISPLAY CONCERN
+ * ─────────────────────────────────
+ * Every rounding decision in the engine used to be `Math.round(v / 2.5) * 2.5`
+ * KILOGRAMS, for everybody. 2.5 kg is 5.5 lbs, so somebody training in pounds
+ * was prescribed 143.3 → 154.3 → 165.3 → 176.4 lbs: a constant 11.0 lb step and
+ * not one weight that can be made with plates.
+ *
+ * Doing this at the render boundary instead would have made the number on
+ * screen honest and left the problem exactly where it was. The stored weight
+ * would still be on the kilogram grid, so next session's step would be added to
+ * a weight nobody had lifted and the display would round it somewhere else
+ * again - the prescription would drift off-grid underneath a tidy-looking
+ * number. So the grid is applied where the weight is DECIDED, and the kilograms
+ * that get stored are the true weight of the plates on the bar: 145 lbs is
+ * 65.77 kg, and that is what history records. Storage is kilograms either way,
+ * so a set logged in pounds still reads back correctly in kilograms, and
+ * switching units changes which grid the NEXT prescription lands on and nothing
+ * else.
+ *
+ * In kilograms this is exactly the `Math.max(2.5, Math.round(v / 2.5) * 2.5)`
+ * it replaces, so nothing moves for anyone training in kilograms.
+ */
+export function roundToLoadable(kg: number, unit: WeightUnit): number {
+  if (!Number.isFinite(kg)) return kg;
+  const inUnit = unit === 'lbs' ? kg * LB_PER_KG : kg;
+  const step = loadableStep(inUnit, unit);
+  const snapped = Math.max(step, Math.round(inUnit / step) * step);
+  return unit === 'lbs' ? parseFloat((snapped / LB_PER_KG).toFixed(2)) : snapped;
+}
+
+/**
+ * A weight that is already loadable in kilograms, made loadable in the user's
+ * unit.
+ *
+ * Identity in kilograms on purpose. The figures in the exercise database were
+ * written by somebody holding a 12 kg dumbbell, and everything the engine
+ * computes is on the 2.5 kg grid already; it is only their CONVERSION that
+ * lands between plates. So this is what to apply to a number that was never
+ * rounded - a database range, an explicit ramp, a load carried through
+ * untouched - without moving what a kilogram user reads.
+ */
+export function toLoadableForUnit(kg: number, unit: WeightUnit): number {
+  return unit === 'lbs' ? roundToLoadable(kg, 'lbs') : kg;
+}
+
+/**
+ * A weight that has just been moved deliberately, put on the gym's grid without
+ * undoing the move.
+ *
+ * Rounding a 10% increase onto a coarse grid can land it back on - or below -
+ * the weight it came from, which is the user asking for a change and not
+ * getting one. `lib/auto-regulation.ts` already refuses that for its own
+ * kilogram steps (see `adjustKg`), and its `loadStepKg` IS the kilogram gym's
+ * grid. There was no pounds equivalent; this is it. Deliberately does nothing
+ * in kilograms, so every auto-regulation rule keeps behaving exactly as it was
+ * written and tested.
+ */
+export function snapToLoadable(kg: number, fromKg: number, unit: WeightUnit): number {
+  if (unit !== 'lbs' || !Number.isFinite(kg) || kg <= 0) return kg;
+  // Holding the previous weight is an answer in its own right ("same weight
+  // again - you said that one was challenging"). It must survive verbatim even
+  // when the user typed something off-grid.
+  if (kg === fromKg) return kg;
+  let out = roundToLoadable(kg, unit);
+  if (fromKg > 0) {
+    const step = loadableStep(Math.max(kg, fromKg) * LB_PER_KG, unit) / LB_PER_KG;
+    if (kg > fromKg && out <= fromKg) out = roundToLoadable(fromKg + step, unit);
+    if (kg < fromKg && out >= fromKg) out = roundToLoadable(fromKg - step, unit);
+  }
+  return out;
+}
+
+export function formatWeight(kg: number, unit: WeightUnit): string {
+  return `${kgToDisplayUnit(kg, unit)} ${unit}`;
+}
+
+/**
+ * A weight in the unit the user reads, at the precision they read it.
+ *
+ * One decimal place, and no trailing zero, because this number is BOTH printed
+ * on the card and prefilled into the logging box. They used to be computed two
+ * different ways - `convertLoadString` rounded to whole pounds while the bar
+ * prefilled one decimal - so the same set read 143 lbs on the card and 143.3 in
+ * the box.
+ */
 export function kgToDisplayUnit(kg: number, unit: WeightUnit): number {
-  return unit === 'lbs' ? parseFloat((kg * 2.20462).toFixed(1)) : kg;
+  return parseFloat((unit === 'lbs' ? kg * LB_PER_KG : kg).toFixed(1));
 }
 
 export function displayUnitToKg(val: number, unit: WeightUnit): number {
-  return unit === 'lbs' ? parseFloat((val / 2.20462).toFixed(2)) : val;
+  return unit === 'lbs' ? parseFloat((val / LB_PER_KG).toFixed(2)) : val;
 }
 
 export function formatWeightValue(kg: number, unit: WeightUnit): number {
@@ -26,21 +122,52 @@ export function formatWeightValue(kg: number, unit: WeightUnit): number {
  * display unit. Non-numeric labels like "Bodyweight", "Light band", or
  * "Low intensity" pass through unchanged. Source strings live in the exercise
  * database in kg - this is the render-boundary transform.
+ *
+ * The pounds it prints go through the same two functions the logging bar's
+ * prefill does, so "Target weight" on the card and the number waiting in the
+ * box are the same number by construction rather than by coincidence.
  */
 export function convertLoadString(load: string, unit: WeightUnit): string {
-  if (!load || unit === 'kg') return load;
-  // Match a number, optional en-dash/hyphen + second number, then "kg".
+  if (!load) return load;
+  const show = (kg: number) => kgToDisplayUnit(toLoadableForUnit(kg, unit), unit);
+  // A whole run of numbers before the unit word, not just the one touching it.
+  // Loads come as a single weight ("80 kg"), a range ("10–18 kg per hand") and
+  // a stated ladder ("60 / 50 / 40 kg" — the 1RM ramp writes one). Matching
+  // only the last number left the ladder half converted: a pounds user was
+  // shown "60 / 50 / 40 lbs" with the first two still in kilograms.
+  //
+  // Only the numbers are rewritten, so whatever separators and spacing the
+  // source used survive.
   return load.replace(
-    /(\d+(?:\.\d+)?)(?:\s*[–-]\s*(\d+(?:\.\d+)?))?\s*kgs?\b/gi,
-    (_m, a: string, b?: string) => {
-      const aLbs = Math.round(parseFloat(a) * 2.20462);
-      if (b) {
-        const bLbs = Math.round(parseFloat(b) * 2.20462);
-        return `${aLbs}-${bLbs} lbs`;
-      }
-      return `${aLbs} lbs`;
+    /(\d+(?:\.\d+)?(?:\s*[–\-/]\s*\d+(?:\.\d+)?)*)\s*(kgs?)\b/gi,
+    (_m, run: string, kgWord: string) => {
+      const converted = run.replace(/\d+(?:\.\d+)?/g, (n) => String(show(parseFloat(n))));
+      // Kilograms keep their own word and their own punctuation. The only thing
+      // that moves is precision: a weight carried over from a spell training in
+      // pounds is 65.77 kg, and the card has to read it to the one decimal
+      // place the logging box prefills or the two disagree again.
+      return unit === 'lbs' ? `${converted} lbs` : `${converted} ${kgWord}`;
     }
   );
+}
+
+/**
+ * Is `kg` heavier than `bestKg` as the user reads them?
+ *
+ * The "New Record!" flash used to compare kilograms: `effectiveWeightKg >
+ * previousBest`, where the left side is the pounds in the box converted back.
+ * Display rounds to one decimal and parsing to two, so for 48 of the 120
+ * weights on the 2.5 kg grid the round trip lands FRACTIONALLY ABOVE where it
+ * started (100 kg → 220.5 lbs → 100.02 kg). Submitting the prefilled number -
+ * exactly what happens when the app holds a weight - therefore congratulated
+ * the user on a personal best for repeating last week's set.
+ *
+ * Comparing what is on screen instead of what is behind it settles it without a
+ * fudge factor: 220.5 lbs is not a record over 220.5 lbs, and a genuine 0.5 kg
+ * step (220.5 → 221.6 lbs) still is.
+ */
+export function isHeavierThan(kg: number, bestKg: number, unit: WeightUnit): boolean {
+  return kgToDisplayUnit(kg, unit) > kgToDisplayUnit(bestKg, unit);
 }
 
 export function formatDate(dateStr: string): string {

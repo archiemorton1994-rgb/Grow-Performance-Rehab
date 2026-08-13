@@ -303,6 +303,60 @@ export interface UserProfile {
   bodyweightKg: number;
 }
 
+/**
+ * Bounds for the two numbers a user types that the load maths then multiplies by.
+ *
+ * Bodyweight scales the entire starting-load heuristic and a 1RM sets the working
+ * weight directly, so a misplaced digit does not produce a slightly wrong session,
+ * it produces one that cannot be completed: the session bar has its own 500 kg
+ * plausibility ceiling (MAX_PLAUSIBLE_KG in app/session.tsx) and simply refuses
+ * the weight the app itself just prescribed, with nothing on screen to explain why.
+ *
+ * Generous rather than clever, on purpose. These exist to catch 9999, 0.0001 and
+ * 1e5 — not to argue with anyone's real numbers. The 1RM ceiling is the session
+ * bar's own ceiling so that the two can never disagree about what is loggable.
+ */
+export const MIN_BODYWEIGHT_KG = 25;
+export const MAX_BODYWEIGHT_KG = 300;
+export const MIN_ONE_REP_MAX_KG = 5;
+export const MAX_ONE_REP_MAX_KG = 500;
+
+export function isPlausibleBodyweightKg(kg: number): boolean {
+  return Number.isFinite(kg) && kg >= MIN_BODYWEIGHT_KG && kg <= MAX_BODYWEIGHT_KG;
+}
+
+export function isPlausibleOneRepMaxKg(kg: number): boolean {
+  return Number.isFinite(kg) && kg >= MIN_ONE_REP_MAX_KG && kg <= MAX_ONE_REP_MAX_KG;
+}
+
+/**
+ * Every answer given in onboarding so far, and the step it was given on.
+ *
+ * The flow's answers used to live only in component state, which a reload throws
+ * away — routine on web, and exactly what a backgrounded phone amounts to once the
+ * OS evicts the app. An eight-step form that restarts from nothing is a form most
+ * people do not fill in a second time.
+ *
+ * This is deliberately NOT the profile. Nothing outside onboarding reads it, and
+ * writing it never sets `onboardingComplete` — a draft is a half-finished answer
+ * sheet, and the gate in app/_layout.tsx has to keep treating it as unfinished.
+ */
+export interface OnboardingDraft {
+  /** Index of the screen the user was last on, so they resume where they left off. */
+  step: number;
+  name: string;
+  sex: Sex | null;
+  experienceLevel: ExperienceLevel | null;
+  /** Stored exactly as typed rather than parsed — a half-typed "8" must come back as "8", not 8 kg. */
+  bodyweight: string;
+  goals: FitnessGoal[];
+  equipmentTiers: EquipmentTier[];
+  ormSquat: string;
+  ormBench: string;
+  ormDeadlift: string;
+  testWeekFrequency: TestWeekFrequency;
+}
+
 export const TIER_ORDER: EquipmentTier[] = [
   'bodyweight',
   'bands',
@@ -313,6 +367,10 @@ export const TIER_ORDER: EquipmentTier[] = [
 
 interface AppState {
   onboardingComplete: boolean;
+  /** In-progress onboarding answers, or null when there is nothing half-finished.
+   *  Persisted; cleared the moment onboarding is completed. Never a substitute for
+   *  onboardingComplete — see OnboardingDraft. */
+  onboardingDraft: OnboardingDraft | null;
   equipmentTiers: EquipmentTier[];
   completedCount: number;
   completedSessions: CompletedSession[];
@@ -436,6 +494,10 @@ interface AppState {
   lastSessionPerformance: Record<string, ExercisePerformance>;
 
   setOnboardingComplete: (complete: boolean) => void;
+  /** Snapshot the answers given so far. Called on every change during onboarding.
+   *  There is no matching clear(): the draft is thrown away by
+   *  setOnboardingComplete(true), and by the full storage wipe on sign-out. */
+  saveOnboardingDraft: (draft: OnboardingDraft) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
   /** Postpone today's due test week — isTestWeekDue() stays true until a
@@ -591,6 +653,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       onboardingComplete: false,
+      onboardingDraft: null,
       equipmentTiers: ['bodyweight'],
       completedCount: 0,
       completedSessions: [],
@@ -648,27 +711,46 @@ export const useAppStore = create<AppState>()(
       calibrationBannerDismissed: false,
 
       setOnboardingComplete: (complete) => {
-        set({ onboardingComplete: complete });
+        // Finishing is the one moment the draft is certainly worthless: every
+        // answer in it has just been written to the profile. Clearing it here
+        // rather than at the call site means no future path can finish
+        // onboarding and leave a stale answer sheet behind to be restored.
+        set(
+          complete
+            ? { onboardingComplete: true, onboardingDraft: null }
+            : { onboardingComplete: false }
+        );
       },
+      saveOnboardingDraft: (draft) => set({ onboardingDraft: draft }),
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
       deferTestWeek: () => set({ testWeekDeferred: true }),
       setUserProfile: (profile) => {
+        // Last line of defence for the one field the load maths multiplies by.
+        // Four screens write a bodyweight (onboarding, profile, the weekly weight
+        // prompt in app/_layout.tsx, and Home's prompt); each validates its own
+        // input, but a 100000 kg bodyweight reaching persisted state breaks every
+        // prescription the app makes afterwards, so it is refused here too rather
+        // than trusted to four separate call sites staying correct forever.
+        const patch = { ...profile };
+        if (patch.bodyweightKg !== undefined && !isPlausibleBodyweightKg(patch.bodyweightKg)) {
+          delete patch.bodyweightKg;
+        }
         set((state) => {
-          if (profile.bodyweightKg !== undefined && profile.bodyweightKg > 0) {
+          if (patch.bodyweightKg !== undefined && patch.bodyweightKg > 0) {
             const lastEntry = state.bodyweightLog[state.bodyweightLog.length - 1];
-            const weightChanged = !lastEntry || lastEntry.kg !== profile.bodyweightKg;
+            const weightChanged = !lastEntry || lastEntry.kg !== patch.bodyweightKg;
             const now = new Date().toISOString();
             return {
-              userProfile: { ...state.userProfile, ...profile },
+              userProfile: { ...state.userProfile, ...patch },
               bodyweightUpdatedAt: now,
               bodyweightLog: weightChanged
-                ? [...state.bodyweightLog, { date: now, kg: profile.bodyweightKg }]
+                ? [...state.bodyweightLog, { date: now, kg: patch.bodyweightKg }]
                 : state.bodyweightLog,
             };
           }
-          return { userProfile: { ...state.userProfile, ...profile } };
+          return { userProfile: { ...state.userProfile, ...patch } };
         });
         get().awardNewBadges();
       },
@@ -1619,6 +1701,9 @@ export const useAppStore = create<AppState>()(
         if (!('themePreference' in persistedState)) {
           persistedState.themePreference = 'dark';
         }
+        if (!('onboardingDraft' in persistedState)) {
+          persistedState.onboardingDraft = null;
+        }
         // v21: badge prestige revamp. Profile-setup badges were removed — badges
         // are now earned through training only. Strip the 9 retired profile IDs
         // from persisted state, and for already-onboarded users seed the single
@@ -1680,7 +1765,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 27,
+      version: 28,
     }
   )
 );

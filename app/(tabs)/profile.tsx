@@ -32,6 +32,8 @@ import {
   EquipmentTier,
   ExperienceLevel,
   FitnessGoal,
+  MAX_BODYWEIGHT_KG,
+  MIN_BODYWEIGHT_KG,
   Sex,
   TIER_ORDER,
   WeightUnit,
@@ -65,6 +67,38 @@ const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
   kettlebells: require('@/assets/images/equipment/kettlebells.png'),
   fullgym: require('@/assets/images/equipment/fullgym.png'),
 };
+
+/** A number the user could plausibly have meant to type. Rejects "1e5", "12abc" and "". */
+const TYPED_NUMBER = /^\d+(\.\d+)?$/;
+
+/**
+ * What is wrong with a typed bodyweight, in words and in the user's own unit, or
+ * null when nothing is. Shared by both places bodyweight can be edited here.
+ *
+ * Both used to check `> 0` alone, which accepted 9999 and 0.0001 without comment.
+ * Bodyweight scales every load the app prescribes, so an absurd one is not a
+ * cosmetic profile error: the session screen refuses to log the weights it then
+ * suggests (its own 500 kg ceiling), and nothing on screen connects the two.
+ *
+ * The quoted range is rounded INWARD when converted, so every number the message
+ * names as acceptable really is accepted.
+ */
+function bodyweightIssue(text: string, unit: WeightUnit): string | null {
+  const trimmed = text.trim();
+  if (!TYPED_NUMBER.test(trimmed)) {
+    return `Enter your bodyweight as a number, for example ${unit === 'kg' ? '80' : '176'}`;
+  }
+  const kg = displayUnitToKg(parseFloat(trimmed), unit);
+  const min = Math.ceil(kgToDisplayUnit(MIN_BODYWEIGHT_KG, unit));
+  const max = Math.floor(kgToDisplayUnit(MAX_BODYWEIGHT_KG, unit));
+  if (kg < MIN_BODYWEIGHT_KG) {
+    return `That looks too low. Enter a bodyweight between ${min} and ${max} ${unit}.`;
+  }
+  if (kg > MAX_BODYWEIGHT_KG) {
+    return `That looks too high. Your bodyweight sets your starting weights, so it needs to be between ${min} and ${max} ${unit}.`;
+  }
+  return null;
+}
 
 function getLegalUrls() {
   try {
@@ -477,16 +511,19 @@ export default function ProfileScreen() {
     setActiveModal('bodyweight');
   };
 
+  // Only complain about what has actually been typed: an empty field here means
+  // "never mind", and closes without changing anything.
+  const bwError = bwText.trim().length === 0 ? null : bodyweightIssue(bwText, weightUnit);
+
   const saveBodyweight = () => {
-    const val = parseFloat(bwText);
-    const hasBwText = bwText.trim().length > 0;
-    if (hasBwText && !(val > 0)) return;
-    if (val > 0) {
-      setUserProfile({ bodyweightKg: displayUnitToKg(val, weightUnit) });
+    if (bwText.trim().length === 0) {
+      dismissModal();
+      return;
     }
+    if (bwError !== null) return;
+    setUserProfile({ bodyweightKg: displayUnitToKg(parseFloat(bwText.trim()), weightUnit) });
     dismissModal();
-    if (Platform.OS !== 'web' && val > 0)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const [editName, setEditName] = useState('');
@@ -551,15 +588,18 @@ export default function ProfileScreen() {
   };
 
   const editWeightTrimmed = editWeight.trim();
-  const editWeightParsed = /^\d+(\.\d+)?$/.test(editWeightTrimmed)
+  const editWeightParsed = TYPED_NUMBER.test(editWeightTrimmed)
     ? parseFloat(editWeightTrimmed)
     : NaN;
   // Bodyweight is required to save. Empty / whitespace / non-numeric / 0 / negative
   // all fail validation - the Save button is disabled and an inline error is shown.
   // This prevents the silent "save did nothing" bug where the field fell back to the
   // existing bodyweight without telling the user the new value wasn't applied.
-  const editWeightValid =
-    editWeightTrimmed !== '' && !isNaN(editWeightParsed) && editWeightParsed > 0;
+  // Implausible values fail the same way, and for the same reason: silently
+  // accepting one leaves the app prescribing sessions that cannot be logged.
+  const editWeightError =
+    editWeightTrimmed === '' ? 'Enter your bodyweight' : bodyweightIssue(editWeight, weightUnit);
+  const editWeightValid = editWeightError === null;
   // Onboarding requires a non-empty name to continue; mirror that here so a
   // name can't be cleared and saved empty (Home's avatar has no good fallback
   // for that state — it's a bare "?" with no explanation).
@@ -1150,17 +1190,19 @@ export default function ProfileScreen() {
               keyboardType="decimal-pad"
               returnKeyType="done"
             />
-            {!editWeightValid && (
+            {editWeightError !== null && (
               <Text
                 style={{
                   fontSize: 12,
+                  lineHeight: 17,
                   fontFamily: 'Inter_400Regular',
                   color: C.error,
                   marginTop: -6,
                   marginBottom: 6,
                 }}
+                testID="edit-weight-error"
               >
-                Enter a valid bodyweight
+                {editWeightError}
               </Text>
             )}
 
@@ -1365,10 +1407,7 @@ export default function ProfileScreen() {
             </Text>
             <View style={styles.bwInputRow}>
               <TextInput
-                style={[
-                  styles.bwInput,
-                  bwText.trim().length > 0 && !(parseFloat(bwText) > 0) && styles.bwInputError,
-                ]}
+                style={[styles.bwInput, bwError !== null && styles.bwInputError]}
                 value={bwText}
                 onChangeText={setBwText}
                 placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
@@ -1380,17 +1419,18 @@ export default function ProfileScreen() {
               />
               <Text style={styles.bwUnit}>{weightUnit}</Text>
             </View>
-            {bwText.trim().length > 0 && !(parseFloat(bwText) > 0) && (
-              <Text style={styles.bwErrorText}>Please enter a positive number</Text>
+            {bwError !== null && (
+              <Text style={styles.bwErrorText} testID="bodyweight-error">
+                {bwError}
+              </Text>
             )}
             <Pressable
               onPress={saveBodyweight}
               style={[
                 styles.bwSaveBtn,
-                bwText.trim().length > 0 &&
-                  !(parseFloat(bwText) > 0) && { backgroundColor: C.border, opacity: 0.7 },
+                bwError !== null && { backgroundColor: C.border, opacity: 0.7 },
               ]}
-              disabled={bwText.trim().length > 0 && !(parseFloat(bwText) > 0)}
+              disabled={bwError !== null}
               testID="save-bodyweight"
             >
               <Text style={styles.bwSaveBtnText}>Save</Text>
@@ -2677,9 +2717,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     bwInputError: { borderColor: C.error },
     bwErrorText: {
       fontSize: 12,
+      lineHeight: 17,
       fontFamily: 'Inter_400Regular',
       color: C.error,
-      alignSelf: 'flex-start',
+      alignSelf: 'stretch',
       marginBottom: 10,
       marginTop: 2,
     },
