@@ -3,6 +3,7 @@ import { EquipmentTier, ExerciseCategory, SessionType, PainRegion } from './stor
 // they are the safety-critical half of the rehab content and need to be
 // readable on their own, not buried at line 18,000 of a 20,000-line database.
 import { ACUTE_PREHAB_BY_REGION } from './acute-rehab';
+import { CHANNEL_EXERCISES } from './channel-exercises';
 
 export { ACUTE_PREHAB_BY_REGION, ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from './acute-rehab';
 export type { AcuteProtocolNotes } from './acute-rehab';
@@ -9642,6 +9643,32 @@ const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> 
 };
 
 // ─── 7. CONDITIONING FINISHER (Optional) ─────────────────────────────────────
+
+/**
+ * The movements filmed for the channel that the catalogue did not have.
+ *
+ * Spliced in rather than typed out here: thirty entries scattered through this
+ * file by session type and tier would be unreviewable, and this is content a
+ * coach has to be able to check. Source and reasoning in lib/channel-exercises.ts.
+ *
+ * This runs at module load, above every accessor and above EXERCISE_COUNT, so
+ * by the time anything reads a pool the new movements are simply in it — they
+ * are generated into sessions, offered in the custom builder and counted in the
+ * catalogue exactly like anything declared inline.
+ */
+function spliceChannelExercises(): void {
+  const pools = { ACCESSORIES, NEURO, PREP, PREHAB };
+  for (const entry of CHANNEL_EXERCISES) {
+    if (entry.collection === 'FINISHERS') {
+      // FINISHERS nests one level deeper, by how hard the session is meant to
+      // be. A new finisher joins the normal tier; easy and hard are deliberate
+      // selections, not a place to append to.
+      FINISHERS[entry.sessionType][entry.tier].normal.push(entry.template);
+      continue;
+    }
+    pools[entry.collection][entry.sessionType][entry.tier].push(entry.template);
+  }
+}
 
 const FINISHERS: Record<
   MainSessionType,
@@ -20600,5 +20627,9 @@ export function getExerciseNameMap(): Record<string, string> {
   _nameMapCache = map;
   return map;
 }
+
+// Must run before anything reads a pool — EXERCISE_COUNT on the next line is
+// evaluated at module load and would otherwise be short by thirty.
+spliceChannelExercises();
 
 export const EXERCISE_COUNT = Object.keys(getExerciseNameMap()).length;

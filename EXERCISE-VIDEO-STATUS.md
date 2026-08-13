@@ -4,21 +4,37 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**38 of 639 recorded (5.9%). 601 still to go.**
+**71 of 669 recorded (10.6%). 598 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
 
+## Uploads not yet used by the app
+
+The channel had **69 videos** as at 2026-08-13. 68 of them are attached to an exercise; the 1 below is not.
+
+Each one is either a movement the app does not have — in which case the exercise needs adding — or one where two videos could each claim the same exercise and the choice has not been made.
+
+- Kettlebell Swings  — https://www.youtube.com/shorts/7bIzl01moZc
+
 ## Recorded
 
+- 90/90 Hip Switch
+- Alternating Dumbbell Bench Press
+- Alternating Dumbbell Curl
+- Alternating Dumbbell Overhead Press
 - Back Squat
 - Band Face Pull
 - Band Pull-Apart
 - Banded Clamshell
 - Banded Good Morning
 - Banded Lateral Walk
+- Banded March
+- Banded Monster Walk
 - Barbell Bulgarian Split Squat
 - Barbell Good Morning
+- Bench Dumbbell Reverse Fly
 - Box Jump (Step-Down)
+- Box Squat
 - Bulgarian Split Squat
 - Chin-Up
 - DB Bicep Curl
@@ -27,6 +43,9 @@ An exercise with no video is not broken — its red button runs a YouTube search
 - DB Hammer Curl
 - DB Lateral Raise
 - DB Shoulder Press
+- DB Split Squat Jump
+- DB Split-Stance Romanian Deadlift
+- DB Squat Jump
 - Dead Bug
 - Depth Jump
 - Doorway Chest Opener
@@ -34,20 +53,42 @@ An exercise with no video is not broken — its red button runs a YouTube search
 - Dumbbell Bench Press
 - Glute Bridge
 - Goblet Squat
+- Gorilla Row
 - Incline DB Press
 - KB / DB Swing
+- KB Romanian Deadlift
+- KB Side Lunge
 - KB Swing (Explosive)
 - KB Swing (Steady)
+- Kneeling Rock-Back
 - Landmine Press
 - Lat Pulldown
 - Lateral Lunge
+- Loaded Jump Squat
+- Med Ball Floor Chest Pass
 - Med Ball Overhead Slam
+- Plank
 - Plank Shoulder Tap
 - Prone Y Raise
 - Pull-Up
 - Push-Up
+- Seated Box Jump
+- Seated Cable Row
+- Seated Shoulder External Rotation (Band)
+- Seated Single-Arm Cable Row
+- Seated Wide-Grip Cable Row
+- Single-Arm Dumbbell Overhead Press
+- Skater Jump
 - Sled Push/Pull Complex
+- Sled Row
+- Split Squat Jump
 - Squat Jump
+- Standing Dumbbell Row
+- Supine Med Ball Throw
+- Trap Bar Deadlift
+- Trap Bar Jump
+- Trap Bar Romanian Deadlift
+- Trap Bar Row
 
 ## Still to record
 
@@ -67,7 +108,7 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Single-Leg Hinge
 - Towel Row (Door Handle)
 
-### Accessories — the supporting work in every strength session (246)
+### Accessories — the supporting work in every strength session (245)
 
 - 45 Degree Hyperextension
 - Ab Wheel Rollout
@@ -253,7 +294,6 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Rowing Intervals (Easy)
 - Rowing Machine Pyramid (Easy)
 - Seal Row
-- Seated Cable Row
 - Seated DB Shoulder Press
 - Seated Hamstring Curl
 - Shuttle Run (10 m x 6)
@@ -439,9 +479,8 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Wrist Extensor Stretch
 - Wrist Flexor Stretch
 
-### Warm-ups (34)
+### Warm-ups (33)
 
-- 90/90 Hip Switch
 - Adductor Rockback
 - Ankle Circles + Dorsiflexion Drill
 - Ankle Dorsiflexion Drill
@@ -476,7 +515,7 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Thoracic Extension on Floor
 - World's Greatest Stretch
 
-### Power and speed work (22)
+### Power and speed work (21)
 
 - Broad Jump
 - Clap Push-Up
@@ -490,7 +529,6 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Landmine Push Press
 - Lateral Box Jump
 - Lateral Jump
-- Loaded Jump Squat
 - Med Ball Chest Pass (Wall)
 - Med Ball Slam (Simulated)
 - Overhead Slam (Ball or Simulated)

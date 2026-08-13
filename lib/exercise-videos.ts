@@ -35,17 +35,20 @@
 /**
  * Exercise name → the video that demonstrates it.
  *
- * Filled in from the 69 videos on the channel as at 13 August 2026. 38 of them
- * name a movement the app also has; the other 31 are exercises the app does not
- * carry (trap-bar work, gorilla rows, banded monster walks) or are a variation
- * specific enough that pointing an existing exercise at them would be wrong.
+ * Filled in from the 69 videos on the channel as at 13 August 2026. 68 of them
+ * are attached to an exercise; the one that is not is a second upload of a
+ * movement already covered by the first.
  *
- * NOTHING HERE IS A GUESS. A video was only attached where it demonstrates the
+ * Thirty of those videos had no exercise to attach to, because the app simply
+ * did not carry the movement — trap bar work, gorilla rows, banded monster
+ * walks, and a plain front plank. Rather than leave the footage stranded, each
+ * became a real exercise: see lib/channel-exercises.ts.
+ *
+ * NOTHING HERE IS A GUESS. A video is only attached where it demonstrates the
  * same movement — a different name for it is fine, a different grip, tempo or
- * implement is not. Where two videos could both plausibly claim one exercise
- * (two "Kettlebell Swings" uploads; wide- and close-grip seated rows against a
- * single "Seated Cable Row") neither was used, because a red "watch the demo"
- * button is a claim about which movement this is.
+ * implement is not. A red "watch the demo" button is a claim about which
+ * movement this is, so where the claim could not be made confidently it was not
+ * made at all, and the exercise keeps its YouTube search.
  */
 export const EXERCISE_VIDEOS: Record<string, string> = {
   // ── Matched automatically on the video title ───────────────────────────
@@ -66,6 +69,55 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'Landmine Press': 'https://www.youtube.com/shorts/vL4UV9-NY_o',
   'Push-Up': 'https://www.youtube.com/shorts/f4LAlzZ7jMs',
   'Squat Jump': 'https://www.youtube.com/shorts/mHL97bDjXdM',
+
+  // ── Movements added BECAUSE they had been filmed ───────────────────────
+  // Each of these was on the channel with nothing in the app to attach it to,
+  // so the exercise was written to match the video. See lib/channel-exercises.ts.
+  'Alternating Dumbbell Bench Press': 'https://www.youtube.com/shorts/RB5ANXpinuE',
+  'Alternating Dumbbell Curl': 'https://www.youtube.com/shorts/763mOmEIQI8',
+  'Alternating Dumbbell Overhead Press': 'https://www.youtube.com/shorts/80Ro5q41PJw',
+  'Banded March': 'https://www.youtube.com/shorts/mMkzfRz_djc',
+  'Banded Monster Walk': 'https://www.youtube.com/shorts/qWBa9MSasTM',
+  'Bench Dumbbell Reverse Fly': 'https://www.youtube.com/shorts/ykk0R4hSGo4',
+  'Box Squat': 'https://www.youtube.com/shorts/6uPr0ee_wa4',
+  'DB Split Squat Jump': 'https://www.youtube.com/shorts/ovXoUaJ0xnU',
+  'DB Split-Stance Romanian Deadlift': 'https://www.youtube.com/shorts/JWExVh6hRrI',
+  'DB Squat Jump': 'https://www.youtube.com/shorts/3ai2sjIyy5A',
+  'Gorilla Row': 'https://www.youtube.com/shorts/s8iywanevOY',
+  'KB Romanian Deadlift': 'https://www.youtube.com/shorts/QffukPkOKsg',
+  'KB Side Lunge': 'https://www.youtube.com/shorts/eI6JDGd2Nf0',
+  'Kneeling Rock-Back': 'https://www.youtube.com/shorts/JS9vTaMTfwM',
+  'Med Ball Floor Chest Pass': 'https://www.youtube.com/shorts/9hWzbW2XQ9c',
+  'Plank': 'https://www.youtube.com/shorts/iH-ZhUE3j3U',
+  'Seated Box Jump': 'https://www.youtube.com/shorts/n76RaN51AFg',
+  'Seated Shoulder External Rotation (Band)': 'https://www.youtube.com/shorts/JqRjE-haFOM',
+  'Seated Single-Arm Cable Row': 'https://www.youtube.com/shorts/OmgSriop7qM',
+  'Seated Wide-Grip Cable Row': 'https://www.youtube.com/shorts/Az1vn7b1_Gg',
+  'Single-Arm Dumbbell Overhead Press': 'https://www.youtube.com/shorts/V5-MAHfu7fM',
+  'Skater Jump': 'https://www.youtube.com/shorts/7uQetCi9mbc',
+  'Sled Row': 'https://www.youtube.com/shorts/KPBZu2djV0M',
+  'Split Squat Jump': 'https://www.youtube.com/shorts/7yT5smEHvSI',
+  'Standing Dumbbell Row': 'https://www.youtube.com/shorts/XTbgWQAyO6Y',
+  'Supine Med Ball Throw': 'https://www.youtube.com/shorts/3GCUM05ig5o',
+  'Trap Bar Deadlift': 'https://www.youtube.com/shorts/3yjg8We2hEc',
+  'Trap Bar Jump': 'https://www.youtube.com/shorts/CRWrBIcRJKg',
+  'Trap Bar Romanian Deadlift': 'https://www.youtube.com/shorts/sK90sn5FYgo',
+  'Trap Bar Row': 'https://www.youtube.com/shorts/5jnD2PFf_Mc',
+
+  // ── Decided by Archie, 13 Aug 2026 ────────────────────────────────────
+  // Four cases where two things could each have claimed the other and the
+  // choice was his to make, not mine.
+  //
+  // Two uploads are titled "Kettlebell Swings"; either demonstrates the
+  // movement, so the swing entries take the first.
+  '90/90 Hip Switch': 'https://www.youtube.com/shorts/ZSysWQWU8js',
+  // Video "Barbell Jump Squats" - a loaded jump squat is what the app calls it.
+  'Loaded Jump Squat': 'https://www.youtube.com/shorts/S_sk9nCqscI',
+  // The app's Seated Cable Row is cued "pull to navel, squeeze shoulder blades"
+  // with the rhomboids as its primary muscle, which is the CLOSE-grip row - so
+  // that is the video it gets. The wide-grip upload became its own exercise
+  // rather than being forced onto this one.
+  'Seated Cable Row': 'https://www.youtube.com/shorts/dKKsJMlmogM',
 
   // ── Same movement, different wording. Each one checked by hand. ────────
   // video "Barbell Back Squat"

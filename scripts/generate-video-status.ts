@@ -9,7 +9,7 @@
  *
  * Run:  npm run video-status
  */
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -80,6 +80,30 @@ const todo = rows.filter((r) => !r.hasVideo);
 const orphans = Object.keys(EXERCISE_VIDEOS).filter((k) => !entries.has(norm(k)));
 const badUrls = Object.entries(EXERCISE_VIDEOS).filter(([, url]) => !isValidVideoUrl(url));
 
+/**
+ * Uploads that are not attached to anything.
+ *
+ * The other half of the cross-reference, and the half that is easy to lose
+ * track of: a video is recorded, uploaded, and then nothing in the app points
+ * at it. Read from the channel snapshot in scripts/channel-videos.json — see
+ * CHANNEL-REFRESH.md for how to update that after an upload session.
+ */
+type Snapshot = { capturedOn: string; videos: { id: string; title: string }[] };
+let snapshot: Snapshot | null = null;
+try {
+  snapshot = JSON.parse(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'channel-videos.json'), 'utf8')
+  );
+} catch {
+  // Optional. Without it the report simply omits this section.
+}
+const attachedIds = new Set(
+  Object.values(EXERCISE_VIDEOS)
+    .map((u) => u.match(/(?:shorts\/|watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/)?.[1])
+    .filter(Boolean) as string[]
+);
+const unattached = (snapshot?.videos ?? []).filter((v) => !attachedIds.has(v.id));
+
 const byCategory = new Map<string, typeof todo>();
 for (const r of todo) {
   const list = byCategory.get(r.category) ?? [];
@@ -134,6 +158,28 @@ if (badUrls.length > 0) {
   lines.push('## ⚠ Links that are not a YouTube video');
   lines.push('');
   for (const [name, url] of badUrls) lines.push(`- \`${name}\` → \`${url}\``);
+  lines.push('');
+}
+
+if (snapshot) {
+  const attached = snapshot.videos.length - unattached.length;
+  lines.push('## Uploads not yet used by the app');
+  lines.push('');
+  lines.push(
+    `The channel had **${snapshot.videos.length} videos** as at ${snapshot.capturedOn}. ${attached} of them are attached to an exercise; the ${unattached.length} below ${unattached.length === 1 ? 'is' : 'are'} not.`
+  );
+  lines.push('');
+  if (unattached.length === 0) {
+    lines.push('Every upload is in use.');
+  } else {
+    lines.push(
+      'Each one is either a movement the app does not have — in which case the exercise needs adding — or one where two videos could each claim the same exercise and the choice has not been made.'
+    );
+    lines.push('');
+    for (const v of unattached) {
+      lines.push(`- ${v.title}  — https://www.youtube.com/shorts/${v.id}`);
+    }
+  }
   lines.push('');
 }
 

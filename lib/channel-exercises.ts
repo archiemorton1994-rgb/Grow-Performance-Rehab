@@ -1,0 +1,908 @@
+import type { ExerciseTemplate } from './exercise-db';
+
+/**
+ * MOVEMENTS THE CHANNEL HAS FILMED THAT THE APP DID NOT HAVE.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS FILE EXISTS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Demo videos are recorded on @GrowPerformanceRehabilitation and matched to
+ * exercises in lib/exercise-videos.ts. Cross-referencing the channel against the
+ * catalogue turned up thirty movements that had been filmed and had nowhere to
+ * go — trap bar work, gorilla rows, banded monster walks, and a plain front
+ * plank, which the app somehow lacked while carrying a side plank and a weighted
+ * plank.
+ *
+ * A video with no exercise behind it is a recording nobody will ever see. So
+ * rather than leaving them stranded, each one is a real exercise here: fully
+ * classified, tiered, and spliced into the pool it belongs to.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THEY ARE HERE AND NOT IN exercise-db.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * They ARE in exercise-db.ts, as far as the rest of the app is concerned — the
+ * splice at the bottom of that file pushes each one into its collection before
+ * anything reads them, so they are generated into sessions, pickable in the
+ * custom builder and counted in the catalogue like any other movement.
+ *
+ * Keeping the SOURCE here is about review. exercise-db.ts is twenty thousand
+ * lines; thirty new entries scattered through it by session type and equipment
+ * tier would be unreviewable, and this is content a coach needs to be able to
+ * check. One file, one purpose, one place to look when the next batch of videos
+ * goes up.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE TIER RULE, WHICH IS THE ONE THAT MATTERS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `tier` is not a label, it is a promise. Onboarding asks the user what they own
+ * and the first option is "No Equipment". An exercise filed below the kit it
+ * actually needs gets handed to someone who cannot do it, in a slot the session
+ * will not let them skip.
+ *
+ *   bodyweight : nothing, or resistance bands
+ *   dumbbells  : dumbbells and kettlebells
+ *   fullgym    : barbells, trap bars, cables, machines, boxes, sleds, med balls
+ *
+ * It is checked against the exercise's own WORDS, not just its declaration —
+ * see tests/equipment-honesty.check.mjs, which exists because a Chin-Up once
+ * declared "bodyweight" and a beginner with no pull-up bar was told to do five.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ADDING MORE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * See CHANNEL-REFRESH.md. In short: refresh the channel snapshot, run
+ * `npm run video-status`, and read the "Uploads not yet used by the app"
+ * section — anything filmed with no home lands there.
+ */
+export interface ChannelExercise {
+  /** Which pool it joins. Mirrors the collections in lib/exercise-db.ts. */
+  collection: 'ACCESSORIES' | 'NEURO' | 'PREP' | 'PREHAB' | 'FINISHERS';
+  /** squat = squat pattern, deadlift = hinge and back, bench = upper-body push. */
+  sessionType: 'squat' | 'bench' | 'deadlift';
+  tier: 'bodyweight' | 'dumbbells' | 'fullgym';
+  template: ExerciseTemplate;
+}
+
+
+export const CHANNEL_EXERCISES: ChannelExercise[] = [
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Trapbar Deadlift".
+    template: {
+      id: 'ch-trap-bar-deadlift',
+      name: 'Trap Bar Deadlift',
+      sets: 4,
+      reps: '6-8 reps',
+      cue: 'Stand inside the frame, grip the neutral handles, chest tall and push the floor away - the more upright torso takes load off the lower back',
+      suggestedLoad: '60-100 kg',
+      category: 'accessory',
+      targetRegions: ['hamstrings', 'glutes', 'quads', 'lower_back', 'hip_groin'],
+      videoId: '',
+      movementPattern: 'hinge',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Quadriceps', 'Hamstrings', 'Erector spinae', 'Trapezius', 'Core'],
+      equipmentRequired: 'barbell',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Rack Pull',
+        cue: 'Bar set just below the knees, drive the hips through and squeeze glutes at the top - shorter range, same posterior chain',
+        suggestedLoad: '60-100 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Trapbar Romanian Deadlift".
+    template: {
+      id: 'ch-trap-bar-romanian-deadlift',
+      name: 'Trap Bar Romanian Deadlift',
+      sets: 3,
+      reps: '8-10 reps',
+      cue: 'Start tall inside the frame, push the hips back with soft knees until the hamstrings stretch, then drive the hips forward - handles stay close to the legs',
+      suggestedLoad: '50-80 kg',
+      category: 'accessory',
+      targetRegions: ['hamstrings', 'glutes', 'lower_back', 'hip_groin'],
+      videoId: '',
+      movementPattern: 'hinge',
+      primaryMuscle: 'Hamstrings',
+      secondaryMuscles: ['Glutes', 'Erector spinae', 'Core'],
+      equipmentRequired: 'barbell',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Barbell Romanian Deadlift',
+        cue: 'Straight bar in front of the thighs, same hip push and hamstring stretch - the load sits in front rather than at your sides',
+        suggestedLoad: '50-80 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Trapbar Rows".
+    template: {
+      id: 'ch-trap-bar-row',
+      name: 'Trap Bar Row',
+      sets: 3,
+      reps: '10-12',
+      cue: 'Hinge over inside the frame with a flat back, pull the handles to your ribs and squeeze the shoulder blades - lower under control',
+      suggestedLoad: '40-70 kg',
+      category: 'accessory',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rhomboids', 'Biceps', 'Rear deltoid', 'Erector spinae'],
+      equipmentRequired: 'barbell',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Pendlay Row',
+        cue: 'Barbell from a dead stop on the floor each rep, explosive pull to the ribs - same mid-back work with a straight bar',
+        suggestedLoad: '40-60 kg',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Trapbar Jumps".
+    template: {
+      id: 'ch-trap-bar-jump',
+      name: 'Trap Bar Jump',
+      sets: 3,
+      reps: '4 explosive',
+      cue: 'Set up as for a trap bar deadlift with a light load, stand up as fast as you can and jump off the floor - land soft with bent knees and reset every rep',
+      suggestedLoad: '40-60 kg',
+      category: 'neuro',
+      targetRegions: ['glutes', 'quads', 'hamstrings', 'hip_groin', 'knee', 'calf_shin'],
+      videoId: '',
+      movementPattern: 'hinge',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Quadriceps', 'Hamstrings', 'Calves'],
+      equipmentRequired: 'barbell',
+      difficulty: 'advanced',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Hang Pull',
+        cue: 'Barbell at the hips, short hinge then explosive extension and shrug to chest height - same triple extension with no landing impact',
+        suggestedLoad: '50-70 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'squat',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Box Squat".
+    template: {
+      id: 'ch-box-squat',
+      name: 'Box Squat',
+      sets: 4,
+      reps: '5-6 reps',
+      cue: 'Sit back onto the box under control, pause with the weight still in your feet, then drive up hard - the box sets your depth, never relax onto it',
+      suggestedLoad: '50-80 kg',
+      category: 'accessory',
+      targetRegions: ['quads', 'hamstrings', 'glutes', 'knee', 'hip_groin', 'lower_back'],
+      videoId: '',
+      movementPattern: 'squat',
+      primaryMuscle: 'Quadriceps',
+      secondaryMuscles: ['Glutes', 'Hamstrings', 'Erector spinae', 'Core'],
+      equipmentRequired: 'barbell',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Pause Squat',
+        cue: 'Same bar and stance, hold two seconds at the bottom instead of sitting onto a box - same control demand without needing a box',
+        suggestedLoad: '50-75 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Standing Dumbbell Rows".
+    template: {
+      id: 'ch-standing-dumbbell-row',
+      name: 'Standing Dumbbell Row',
+      sets: 3,
+      reps: '10-12',
+      cue: 'Hinge forward to about 45 degrees with a flat back, pull both dumbbells up to your hips and squeeze the shoulder blades together - lower slowly and keep the torso still',
+      suggestedLoad: '14-24 kg per hand',
+      category: 'accessory',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder', 'bicep', 'lower_back'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rhomboids', 'Trapezius', 'Biceps', 'Rear deltoid', 'Erector spinae'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Chest-Supported Row',
+        cue: 'Chest on an incline bench, pull both dumbbells to your hips - same back muscles with the lower back taken out of it',
+        suggestedLoad: '12-20 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Gorilla Rows".
+    template: {
+      id: 'ch-gorilla-row',
+      name: 'Gorilla Row',
+      sets: 3,
+      reps: '10 each side',
+      cue: 'Two dumbbells or kettlebells on the floor between your feet, hinge over with a flat back, and row one to your hip while the other stays resting on the floor - keep the hips square and alternate sides',
+      suggestedLoad: '16-28 kg per hand',
+      category: 'accessory',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder', 'core_ribs', 'lower_back'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rhomboids', 'Biceps', 'Core', 'Erector spinae', 'Trapezius'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Single-Arm Row',
+        cue: 'One hand braced on a bench, row the other dumbbell to your hip - same lat work with the back fully supported',
+        suggestedLoad: '16-26 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'bench',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Alternating Dumbbell Curls".
+    template: {
+      id: 'ch-alternating-dumbbell-curl',
+      name: 'Alternating Dumbbell Curl',
+      sets: 3,
+      reps: '10 each side',
+      cue: 'Elbows pinned to your sides, curl one dumbbell at a time and turn the palm up as it rises - lower it over two seconds before the other arm starts',
+      suggestedLoad: '8-16 kg per hand',
+      category: 'accessory',
+      targetRegions: ['bicep', 'elbow'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Biceps',
+      secondaryMuscles: ['Brachialis', 'Brachioradialis'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Hammer Curl',
+        cue: 'Neutral grip, thumbs up throughout - same elbow flexion with more brachialis and forearm',
+        suggestedLoad: '8-16 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'bench',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Single Arm Dumbbell Press".
+    template: {
+      id: 'ch-single-arm-dumbbell-overhead-pre',
+      name: 'Single-Arm Dumbbell Overhead Press',
+      sets: 3,
+      reps: '8-10 each side',
+      cue: 'Stand tall with one dumbbell at your shoulder, brace your core hard and press straight overhead without leaning away from it - lower under control',
+      suggestedLoad: '10-20 kg',
+      category: 'accessory',
+      targetRegions: ['front_shoulder', 'core_ribs', 'tricep', 'upper_back'],
+      videoId: '',
+      movementPattern: 'push',
+      primaryMuscle: 'Anterior deltoid',
+      secondaryMuscles: ['Triceps', 'Core', 'Trapezius'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Half-Kneeling DB Press',
+        cue: 'Same one-arm press from a half-kneeling stance - takes the lower back out of it and stops you leaning',
+        suggestedLoad: '8-16 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'bench',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Alternating Dumbbell Press".
+    template: {
+      id: 'ch-alternating-dumbbell-overhead-pr',
+      name: 'Alternating Dumbbell Overhead Press',
+      sets: 3,
+      reps: '8 each side',
+      cue: 'Both dumbbells at your shoulders, press one straight overhead while the other stays at your shoulder, then swap - keep the ribs down and do not lean side to side',
+      suggestedLoad: '10-18 kg per hand',
+      category: 'accessory',
+      targetRegions: ['front_shoulder', 'core_ribs', 'tricep'],
+      videoId: '',
+      movementPattern: 'push',
+      primaryMuscle: 'Anterior deltoid',
+      secondaryMuscles: ['Triceps', 'Core', 'Lateral deltoid'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Standing Overhead Press',
+        cue: 'Press both dumbbells overhead together - same deltoid load with a shorter set and less balance demand',
+        suggestedLoad: '10-18 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'bench',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Alternating Dumbbell Bench Press".
+    template: {
+      id: 'ch-alternating-dumbbell-bench-press',
+      name: 'Alternating Dumbbell Bench Press',
+      sets: 3,
+      reps: '8 each side',
+      cue: 'Lie back with both dumbbells locked out over your chest, lower one to chest level and press it back up while the other arm holds still at the top - alternate sides each rep',
+      suggestedLoad: '14-24 kg per hand',
+      category: 'accessory',
+      targetRegions: ['chest', 'tricep', 'front_shoulder', 'core_ribs'],
+      videoId: '',
+      movementPattern: 'push',
+      primaryMuscle: 'Pectorals',
+      secondaryMuscles: ['Triceps', 'Anterior deltoid', 'Core'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Dumbbell Bench Press',
+        cue: 'Press both dumbbells together - same chest and triceps work without the long hold on the resting arm',
+        suggestedLoad: '16-28 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Bench Dumbbell Reverse Fly".
+    template: {
+      id: 'ch-bench-dumbbell-reverse-fly',
+      name: 'Bench Dumbbell Reverse Fly',
+      sets: 3,
+      reps: '12-15',
+      cue: 'Lie chest-down on an incline bench with the dumbbells hanging straight below you, sweep them out wide to shoulder height with soft elbows and squeeze the shoulder blades - lower slowly and keep the neck relaxed',
+      suggestedLoad: '5-10 kg per hand',
+      category: 'accessory',
+      targetRegions: ['rear_shoulder', 'upper_back'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Rear deltoid',
+      secondaryMuscles: ['Rhomboids', 'Trapezius'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Bent-Over Lateral Raise',
+        cue: 'Same wide sweep hinged over on your feet - no bench needed, but the lower back has to hold the position',
+        suggestedLoad: '4-8 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'squat',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Kettlebell Side Lunge".
+    template: {
+      id: 'ch-kb-side-lunge',
+      name: 'KB Side Lunge',
+      sets: 3,
+      reps: '12 each side',
+      cue: 'Hold the bell at your chest, step wide to one side and sit into that hip while the other leg stays straight - push back through the heel to stand',
+      suggestedLoad: '12-20 kg',
+      category: 'accessory',
+      targetRegions: ['hip_groin', 'quads', 'glutes', 'hamstrings', 'knee'],
+      videoId: '',
+      movementPattern: 'lunge',
+      primaryMuscle: 'Adductors',
+      secondaryMuscles: ['Glutes', 'Quadriceps', 'Hamstrings'],
+      equipmentRequired: 'kettlebell',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Cossack Squat',
+        cue: 'Same wide stance with no weight, sit deep into one hip with the other leg straight and heel down',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Kettlebell Romanian Deadlifts".
+    template: {
+      id: 'ch-kb-romanian-deadlift',
+      name: 'KB Romanian Deadlift',
+      sets: 3,
+      reps: '12-15',
+      cue: 'Soft knees, push the hips back and let the bell slide down the thighs until the hamstrings pull tight - stand tall and squeeze the glutes',
+      suggestedLoad: '16-28 kg',
+      category: 'accessory',
+      targetRegions: ['hamstrings', 'glutes', 'lower_back'],
+      videoId: '',
+      movementPattern: 'hinge',
+      primaryMuscle: 'Hamstrings',
+      secondaryMuscles: ['Glutes', 'Erector spinae', 'Core'],
+      equipmentRequired: 'kettlebell',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Single-Leg KB Romanian Deadlift',
+        cue: 'One bell, hinge over one leg and reach it toward the floor - same hamstring stretch with a balance demand',
+        suggestedLoad: '12-20 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Split Stance Romanian Deadlifts".
+    template: {
+      id: 'ch-db-split-stance-romanian-deadlif',
+      name: 'DB Split-Stance Romanian Deadlift',
+      sets: 3,
+      reps: '10 each side',
+      cue: 'Stagger the feet so the back toe only rests for balance, hinge over the front leg and slide the dumbbells down that thigh - drive the front hip forward to stand',
+      suggestedLoad: '10-18 kg per hand',
+      category: 'accessory',
+      targetRegions: ['hamstrings', 'glutes', 'hip_groin', 'lower_back'],
+      videoId: '',
+      movementPattern: 'hinge',
+      primaryMuscle: 'Hamstrings',
+      secondaryMuscles: ['Glutes', 'Erector spinae', 'Core'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Single-Leg RDL',
+        cue: 'Back foot off the floor entirely, hinge and reach toward the ground - same hamstring loading with more balance demand',
+        suggestedLoad: '8-16 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Seated Wide Grip Rows".
+    template: {
+      id: 'ch-seated-wide-grip-cable-row',
+      name: 'Seated Wide-Grip Cable Row',
+      sets: 3,
+      reps: '12-15',
+      cue: 'Wide grip on the bar, sit tall and pull high to the sternum with the elbows flaring out to the sides - lats and rear delts rather than a shrug, then control the return',
+      suggestedLoad: '35-55 kg',
+      category: 'accessory',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rear deltoid', 'Rhomboids', 'Biceps'],
+      equipmentRequired: 'cable machine',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'DB Chest-Supported Row',
+        cue: 'Chest on an incline bench, elbows wide, pull towards the ribs - same wide-elbow back work without a cable stack',
+        suggestedLoad: '12-18 kg per hand',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Seated Single Arm Rows".
+    template: {
+      id: 'ch-seated-single-arm-cable-row',
+      name: 'Seated Single-Arm Cable Row',
+      sets: 3,
+      reps: '12 each side',
+      cue: 'One handle at a time, let the shoulder blade reach forward at the start then pull the handle back to your hip and squeeze - keep the torso square instead of twisting with it',
+      suggestedLoad: '20-35 kg',
+      category: 'accessory',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder', 'core_ribs'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rhomboids', 'Biceps', 'Rear deltoid', 'Core'],
+      equipmentRequired: 'cable machine',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'DB Single-Arm Row',
+        cue: 'Knee and hand on a bench, pull the dumbbell to your hip and lower it slowly - same one-sided lat work with a dumbbell',
+        suggestedLoad: '14-22 kg',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Skater Jumps".
+    template: {
+      id: 'ch-skater-jump',
+      name: 'Skater Jump',
+      sets: 3,
+      reps: '6 each side',
+      cue: 'Push off the outside foot and bound sideways onto the other leg, swinging the arms across the body - stick the landing on one foot and hold it steady before bounding back',
+      suggestedLoad: 'Bodyweight',
+      category: 'neuro',
+      targetRegions: ['glutes', 'hip_groin', 'knee', 'quads', 'ankle_achilles'],
+      videoId: '',
+      movementPattern: 'squat',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Glute medius', 'Quadriceps', 'Calves'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Lateral Jump',
+        cue: 'Push off the outside foot and jump sideways, landing on two feet - same sideways power with a simpler landing',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Split Squat Jumps".
+    template: {
+      id: 'ch-split-squat-jump',
+      name: 'Split Squat Jump',
+      sets: 3,
+      reps: '5 each side',
+      cue: 'Drop into a split stance with the back knee low, then jump straight up off both feet and land back in the same stance - land soft and reset the position before the next rep',
+      suggestedLoad: 'Bodyweight',
+      category: 'neuro',
+      targetRegions: ['quads', 'glutes', 'hip_groin', 'knee'],
+      videoId: '',
+      movementPattern: 'lunge',
+      primaryMuscle: 'Quadriceps',
+      secondaryMuscles: ['Glutes', 'Hamstrings', 'Calves'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'intermediate',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Jump Lunge',
+        cue: 'Same jump but switch the feet in the air and land in the opposite split stance - alternate every rep',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'squat',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Dumbbell Split Squat Jumps".
+    template: {
+      id: 'ch-db-split-squat-jump',
+      name: 'DB Split Squat Jump',
+      sets: 3,
+      reps: '5 each side',
+      cue: 'Light dumbbells hanging at your sides, drop into the split stance and jump straight up - land soft in the same stance and keep the weight light so the speed stays high',
+      suggestedLoad: '5-10 kg per hand',
+      category: 'neuro',
+      targetRegions: ['quads', 'glutes', 'hip_groin', 'knee'],
+      videoId: '',
+      movementPattern: 'lunge',
+      primaryMuscle: 'Quadriceps',
+      secondaryMuscles: ['Glutes', 'Hamstrings', 'Calves'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'advanced',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Split Squat Jump',
+        cue: 'Same jump with nothing in the hands - drop the load and keep the intent',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'squat',
+    tier: 'dumbbells',
+    // Demonstrated by the channel video "Dumbbell Squat Jumps".
+    template: {
+      id: 'ch-db-squat-jump',
+      name: 'DB Squat Jump',
+      sets: 3,
+      reps: '5 explosive',
+      cue: 'Dumbbells hanging at your sides, dip to about half depth and jump as high as you can - land soft with bent knees and reset between every rep',
+      suggestedLoad: '6-12 kg per hand',
+      category: 'neuro',
+      targetRegions: ['quads', 'glutes', 'knee', 'hip_groin', 'calf_shin'],
+      videoId: '',
+      movementPattern: 'squat',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Quadriceps', 'Hamstrings', 'Calves'],
+      equipmentRequired: 'dumbbells',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Squat Jump',
+        cue: 'Same jump with no dumbbells - full depth, maximum height, land soft',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'squat',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Seated Box Jumps".
+    template: {
+      id: 'ch-seated-box-jump',
+      name: 'Seated Box Jump',
+      sets: 3,
+      reps: '5 jumps',
+      cue: 'Sit tall on a low box with both feet planted, then jump up onto the box in front of you without dipping down first - step off, sit back down and reset every rep',
+      suggestedLoad: 'Bodyweight',
+      category: 'neuro',
+      targetRegions: ['quads', 'glutes', 'knee', 'hip_groin'],
+      videoId: '',
+      movementPattern: 'squat',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Quadriceps', 'Hamstrings', 'Calves'],
+      equipmentRequired: 'full gym',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Box Jump (Step-Down)',
+        cue: 'Jump onto the box from standing and step down - same target with a normal dip and arm swing',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'bench',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Medball Floor Chest Pass".
+    template: {
+      id: 'ch-med-ball-floor-chest-pass',
+      name: 'Med Ball Floor Chest Pass',
+      sets: 3,
+      reps: '6 explosive',
+      cue: 'Ball held at chest height, drive it away from you and down into the floor a few metres ahead with both arms - collect it, reset your stance and throw with full intent each rep',
+      suggestedLoad: '4-6 kg ball',
+      category: 'neuro',
+      targetRegions: ['chest', 'front_shoulder', 'core_ribs'],
+      videoId: '',
+      movementPattern: 'push',
+      primaryMuscle: 'Pectorals',
+      secondaryMuscles: ['Triceps', 'Anterior deltoid', 'Core'],
+      equipmentRequired: 'full gym',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Med Ball Chest Pass (Wall)',
+        cue: 'Same chest pass into a wall so the ball comes straight back - catch and reload without walking after it',
+        suggestedLoad: '4-6 kg ball',
+      },
+    },
+  },
+  {
+    collection: 'NEURO',
+    sessionType: 'bench',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Supine Medball Throws".
+    template: {
+      id: 'ch-supine-med-ball-throw',
+      name: 'Supine Med Ball Throw',
+      sets: 3,
+      reps: '6 explosive',
+      cue: 'Lie on your back with the ball on your chest and punch it straight up as fast as you can, catching it as it drops - keep it travelling over your chest, not your face',
+      suggestedLoad: '3-5 kg ball',
+      category: 'neuro',
+      targetRegions: ['chest', 'front_shoulder', 'elbow'],
+      videoId: '',
+      movementPattern: 'push',
+      primaryMuscle: 'Pectorals',
+      secondaryMuscles: ['Triceps', 'Anterior deltoid'],
+      equipmentRequired: 'full gym',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Med Ball Chest Pass (Wall)',
+        cue: 'Standing chest pass into a wall - same press throw with nothing coming back down over you',
+        suggestedLoad: '4-6 kg ball',
+      },
+    },
+  },
+  {
+    collection: 'FINISHERS',
+    sessionType: 'deadlift',
+    tier: 'fullgym',
+    // Demonstrated by the channel video "Sled Rows".
+    template: {
+      id: 'ch-sled-row',
+      name: 'Sled Row',
+      sets: 4,
+      reps: '15 m each round',
+      cue: 'Face the sled with a handle in each hand, hinge slightly and row both handles to your ribs, then step back and pull again - chest tall, squeeze the shoulder blades on every pull',
+      suggestedLoad: '30-50 kg sled',
+      category: 'finisher',
+      targetRegions: ['lat_mid_back', 'upper_back', 'rear_shoulder', 'bicep'],
+      videoId: '',
+      movementPattern: 'pull',
+      primaryMuscle: 'Latissimus dorsi',
+      secondaryMuscles: ['Rhomboids', 'Rear deltoid', 'Biceps', 'Core'],
+      equipmentRequired: 'full gym',
+      difficulty: 'intermediate',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Seated Cable Row',
+        cue: 'Upright torso, pull the handle to the navel and squeeze the shoulder blades - slow return',
+        suggestedLoad: '30-50 kg',
+      },
+    },
+  },
+  {
+    collection: 'ACCESSORIES',
+    sessionType: 'deadlift',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Plank".
+    template: {
+      id: 'ch-plank',
+      name: 'Plank',
+      sets: 3,
+      reps: '30-60s',
+      cue: 'Forearms under the shoulders, body in one straight line from head to heels - squeeze the glutes, brace the stomach and keep breathing instead of holding your breath',
+      suggestedLoad: 'Bodyweight',
+      category: 'accessory',
+      targetRegions: ['core_ribs', 'lower_back'],
+      videoId: '',
+      movementPattern: 'isometric',
+      primaryMuscle: 'Transversus abdominis',
+      secondaryMuscles: ['Obliques', 'Glutes', 'Erector spinae'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Dead Bug',
+        cue: 'On your back, lower one arm and the opposite leg while the lower back stays pressed to the floor - same anti-extension core work lying down',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREHAB',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Banded Monster Walks".
+    template: {
+      id: 'ch-banded-monster-walk',
+      name: 'Banded Monster Walk',
+      sets: 2,
+      reps: '10 steps forward and 10 back',
+      cue: 'Band around the ankles, drop into a quarter squat and step diagonally forward then diagonally back, keeping the feet wider than the hips and the toes pointing ahead the whole time',
+      suggestedLoad: 'Light band',
+      category: 'prehab',
+      targetRegions: ['glutes', 'hip_groin', 'knee'],
+      videoId: '',
+      movementPattern: 'rehabilitation',
+      primaryMuscle: 'Glute medius',
+      secondaryMuscles: ['Glutes', 'Hip external rotators', 'Quadriceps'],
+      equipmentRequired: 'resistance bands',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Banded Lateral Walk',
+        cue: 'Same band and same low stance, stepping sideways instead of diagonally - keeps constant tension on the outer hip',
+        suggestedLoad: 'Light band',
+      },
+    },
+  },
+  {
+    collection: 'PREHAB',
+    sessionType: 'deadlift',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Banded Marches".
+    template: {
+      id: 'ch-banded-march',
+      name: 'Banded March',
+      sets: 2,
+      reps: '10 each side',
+      cue: 'Loop a band around both feet, stand tall and drive one knee up to hip height against the band - hold a second, lower under control and do not let the standing hip drop or the torso lean back',
+      suggestedLoad: 'Light band',
+      category: 'prehab',
+      targetRegions: ['hip_groin', 'core_ribs', 'lower_back'],
+      videoId: '',
+      movementPattern: 'rehabilitation',
+      primaryMuscle: 'Hip flexors',
+      secondaryMuscles: ['Core', 'Glutes', 'Glute medius'],
+      equipmentRequired: 'resistance bands',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Glute Bridge March',
+        cue: 'On your back with the hips up, lift each foot in turn without letting the hips tip - the same stability demand from the floor',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREP',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Kneeling Rocks".
+    template: {
+      id: 'ch-kneeling-rock-back',
+      name: 'Kneeling Rock-Back',
+      sets: 1,
+      reps: '10 slow reps',
+      cue: 'On all fours with hands under the shoulders and knees under the hips, set a flat back and rock the hips towards the heels as far as they go before the lower back rounds - then rock forward to the start',
+      suggestedLoad: 'Bodyweight',
+      category: 'prep',
+      targetRegions: ['hip_groin', 'lower_back', 'knee'],
+      videoId: '',
+      movementPattern: 'mobility',
+      primaryMuscle: 'Glutes',
+      secondaryMuscles: ['Adductors', 'Erector spinae'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Child\'s Pose',
+        cue: 'Sit the hips back onto the heels and reach the arms long - the same hip and lower back opener held still instead of rocking',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREHAB',
+    sessionType: 'bench',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Seated Shoulder External Rotations".
+    template: {
+      id: 'ch-seated-shoulder-external-rotatio',
+      name: 'Seated Shoulder External Rotation (Band)',
+      sets: 2,
+      reps: '12 each side',
+      cue: 'Sit tall holding a band between both hands with the elbows pinned to your ribs at 90°, rotate the forearms outward against the band, pause, then return slowly without shrugging or letting the elbows drift',
+      suggestedLoad: 'Light band',
+      category: 'prehab',
+      targetRegions: ['rear_shoulder', 'front_shoulder', 'upper_back'],
+      videoId: '',
+      movementPattern: 'rotation',
+      primaryMuscle: 'Infraspinatus',
+      secondaryMuscles: ['Teres minor', 'Rear deltoid'],
+      equipmentRequired: 'resistance bands',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: 'Prone Shoulder External Rotation',
+        cue: 'Face down on a bed or bench, elbow at 90°, rotate the hand up towards shoulder height - the same rotator cuff work with no band at all',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+];
