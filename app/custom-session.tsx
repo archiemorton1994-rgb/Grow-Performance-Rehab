@@ -40,18 +40,23 @@ import {
 } from '@/lib/exercise-classification';
 import {
   assembleSession,
-  blocksForGoal,
+  blocksForSession,
   buildFromSession,
+  durationForPicks,
+  estimatedMinutes,
   optionsForBlock,
   refreshForKpi,
   CARDIO_MINUTES,
   DEFAULT_CARDIO_MINUTES,
+  DEFAULT_DURATION,
+  SESSION_DURATIONS,
   SESSION_FOCUSES,
   SESSION_GOALS,
   type BlockId,
   type BuilderBlock,
   type BuilderPick,
   type BuilderPicks,
+  type SessionDuration,
   type SessionFocus,
   type SessionGoal,
 } from '@/lib/session-builder';
@@ -305,6 +310,7 @@ export default function CustomSessionScreen() {
   // ── The guided build ──────────────────────────────────────────────────────
   const [stage, setStage] = useState<BuilderStage>('start');
   const [goal, setGoal] = useState<SessionGoal>('athletic');
+  const [duration, setDuration] = useState<SessionDuration>(DEFAULT_DURATION);
   const [focus, setFocus] = useState<SessionFocus>('lower');
   const [stepIndex, setStepIndex] = useState(0);
   const [picks, setPicks] = useState<BuilderPicks>({});
@@ -629,7 +635,29 @@ export default function CustomSessionScreen() {
 
   // ── Assembly-line state ───────────────────────────────────────────────────
 
-  const blocks = useMemo(() => blocksForGoal(goal), [goal]);
+  const blocks = useMemo(() => blocksForSession(goal, duration), [goal, duration]);
+  const plannedMinutes = useMemo(() => estimatedMinutes(blocks), [blocks]);
+
+  /**
+   * What the chosen length costs you, said plainly.
+   *
+   * Naming what a shorter session GIVES UP matters more than naming what it
+   * keeps: the plan strip underneath already shows what is in, and a user who
+   * picks 30 and silently loses their conditioning finisher will read it as the
+   * app forgetting rather than the app fitting.
+   */
+  const durationBlurb = useMemo(() => {
+    const kept = new Set(blocks.map((b) => b.id));
+    const dropped = blocksForSession(goal, '60')
+      .filter((b) => !kept.has(b.id))
+      .map((b) => b.title.toLowerCase());
+    if (dropped.length === 0) return 'Everything this goal builds, at full volume.';
+    const list =
+      dropped.length === 1
+        ? dropped[0]
+        : `${dropped.slice(0, -1).join(', ')} and ${dropped[dropped.length - 1]}`;
+    return `Warm-up, mobility, activation and your lift are always kept. No ${list} at this length.`;
+  }, [blocks, goal]);
   const activeBlock: BuilderBlock | undefined = blocks[stepIndex];
 
   /** The lift the session is built on, once it has been chosen. */
@@ -1080,6 +1108,18 @@ export default function CustomSessionScreen() {
       setGoal(restored.goal);
       setFocus(restored.focus);
       setPicks(restored.picks);
+      // Long enough to SHOW everything the saved session contains. A template
+      // with a conditioning finisher must not reopen at a length whose shape
+      // has no conditioning step — the block would be unreachable in the wizard
+      // and still present in what gets assembled.
+      setDuration(
+        durationForPicks(
+          restored.goal,
+          (Object.keys(restored.picks) as BlockId[]).filter(
+            (id) => (restored.picks[id] ?? []).length > 0
+          )
+        )
+      );
       setCardioMinutes(restored.cardioMinutes);
       setStepIndex(0);
       setStepSearch('');
@@ -1631,7 +1671,7 @@ export default function CustomSessionScreen() {
   );
 
   const guidedHeader = (title: string, subtitle: string, onBack: () => void) => (
-    <View style={styles.hero}>
+    <View style={[styles.hero, { paddingTop: insets.top + webTopInset }]}>
       <View style={styles.heroTop}>
         <Pressable
           onPress={onBack}
@@ -1756,12 +1796,56 @@ export default function CustomSessionScreen() {
           {SESSION_FOCUSES.find((f) => f.key === focus)?.blurb}
         </Text>
 
-        <Text style={styles.startPlanLabel}>Your session</Text>
+        {/* HOW LONG YOU HAVE GOT.
+            The third question, and the one that decides how much of the plan
+            below survives. The four blocks that make a session a session —
+            warm-up, mobility, activation, the lift — are kept at every length;
+            what changes is how much is built around them, and which optional
+            blocks come off first. See SESSION_SHAPE in lib/session-builder.ts. */}
+        <Text style={styles.startGroupLabel}>Time today</Text>
+        <View style={styles.sheetChipWrap}>
+          {SESSION_DURATIONS.map((d) => {
+            const active = duration === d;
+            return (
+              <Pressable
+                key={d}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  setDuration(d);
+                }}
+                style={({ pressed }) => [
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+                testID={`builder-duration-${d}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${d} minute session`}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {d} min
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.startFocusBlurb}>{durationBlurb}</Text>
+
+        <View style={styles.startPlanHead}>
+          <Text style={styles.startPlanLabel}>Your session</Text>
+          <Text style={styles.startPlanEstimate} testID="builder-estimate">
+            about {plannedMinutes} min
+          </Text>
+        </View>
         <View style={styles.planRow}>
           {blocks.map((b, i) => (
             <React.Fragment key={b.id}>
               {i > 0 && <Ionicons name="chevron-forward" size={11} color={C.textTertiary} />}
-              <Text style={styles.planChip}>{b.title}</Text>
+              <Text style={styles.planChip}>
+                {b.title}
+                {b.picks > 1 ? ` ×${b.picks}` : ''}
+              </Text>
             </React.Fragment>
           ))}
         </View>
@@ -2121,7 +2205,7 @@ export default function CustomSessionScreen() {
 
   if (stage === 'start') {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+      <View style={styles.container}>
         {renderStart()}
         {renderSaveModal()}
         {renderRenameModal()}
@@ -2131,7 +2215,7 @@ export default function CustomSessionScreen() {
 
   if (stage === 'step') {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+      <View style={styles.container}>
         {renderStep()}
         {renderEditModal()}
       </View>
@@ -2140,7 +2224,7 @@ export default function CustomSessionScreen() {
 
   if (stage === 'review') {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+      <View style={styles.container}>
         {renderReview()}
         {renderEditModal()}
         {renderSaveModal()}
@@ -2149,7 +2233,7 @@ export default function CustomSessionScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+    <View style={styles.container}>
       {/* ONE HEADER BLOCK, NOT FOUR ROWS OF CHROME.
           Before this there were four full-width control rows stacked above the
           list — a name field, a search field, an equipment row and a horizontal
@@ -2161,7 +2245,7 @@ export default function CustomSessionScreen() {
           rather than another card list. Search is the one control that earns
           permanent space. The name field folds away until wanted, and every
           other filter lives behind one button that says how many are on. */}
-      <View style={styles.hero}>
+      <View style={[styles.hero, { paddingTop: insets.top + webTopInset }]}>
         <View style={styles.heroTop}>
           <Pressable
             onPress={() => {
@@ -2918,6 +3002,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
      * place of its own and, more usefully, marks where the controls end and
      * the catalogue begins — which is exactly the boundary that was missing.
      */
+    /**
+     * The green block runs UP behind the status bar, not below it.
+     *
+     * The screen's safe-area inset used to sit on the container, so the strip
+     * behind the clock and battery stayed page-coloured and the green started
+     * underneath it. On a light phone that reads as a header with its top
+     * sliced off — square top corners butted against a pale band, while the
+     * bottom corners are round. Reported as "the green box at the top is cut
+     * off", which is exactly what it looks like.
+     *
+     * The inset moved onto this block instead (applied inline, since it is a
+     * runtime value): the colour now reaches the top of the screen the way a
+     * coloured header is supposed to, and the padding still keeps the title
+     * clear of the clock.
+     */
     hero: {
       backgroundColor: C.primaryDark,
       paddingHorizontal: 14,
@@ -2970,6 +3069,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     // ── The guided build ────────────────────────────────────────────────────
     startContent: { paddingHorizontal: 16, paddingTop: 18 },
+    startPlanHead: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    startPlanEstimate: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryText,
+    },
     startGroupLabel: {
       fontSize: 12,
       fontFamily: 'Inter_700Bold',

@@ -614,6 +614,228 @@ export function blocksForGoal(goal: SessionGoal): BuilderBlock[] {
   ];
 }
 
+// ─── How long you have got ───────────────────────────────────────────────────
+
+export type SessionDuration = '30' | '45' | '60';
+export const SESSION_DURATIONS: SessionDuration[] = ['30', '45', '60'];
+export const DEFAULT_DURATION: SessionDuration = '45';
+
+/**
+ * Roughly how many minutes one pick from a block costs, performed.
+ *
+ * Not a stopwatch — an honest estimate, so the screen can say "about 45 min"
+ * and the shapes below can be checked against the number they claim rather than
+ * asserted. Rest is the dominant term and it differs per block, which is why
+ * this is per-block and not a flat cost per exercise:
+ *
+ *   kpi          a ramp plus four or five working sets at 2-3 min rest
+ *   power        low reps, near-full recovery, but only a handful of sets
+ *   conditioning a finisher circuit runs long by design
+ *   accessory    3 sets of 8-12 at 60-90s
+ *   mobility     a couple of rounds, no rest to speak of
+ */
+const MINUTES_PER_PICK: Record<BlockId, number> = {
+  cardio: 4,
+  mobility: 1.5,
+  activation: 2,
+  power: 3,
+  kpi: 12,
+  accessory: 4,
+  volume: 4,
+  core_prehab: 3,
+  conditioning: 5,
+};
+
+/**
+ * The blocks time pressure is never allowed to take.
+ *
+ * Asked for directly: "It should always prioritise cardio warm up, active
+ * mobility, activation and KPI lift." They are the session's spine — the part
+ * that makes it a training session rather than a list of exercises — so a
+ * 30-minute build drops volume from everything else before it touches these.
+ *
+ * Note this is a different question from `optional` on the block itself, which
+ * is about whether the USER may skip a step. This is about what the APP may
+ * remove to fit the clock, and the app may not remove any of these.
+ */
+export const PROTECTED_BLOCKS: BlockId[] = ['cardio', 'mobility', 'activation', 'kpi'];
+
+/**
+ * The one block each goal exists for, kept at every duration.
+ *
+ * "So athletic performance would prioritise power primer. Muscle & Aesthetics
+ * would be accessories. General fitness would be conditioning." A 30-minute
+ * athletic session that has dropped its power primer is not a short athletic
+ * session, it is a different session.
+ */
+export const GOAL_SIGNATURE_BLOCK: Record<SessionGoal, BlockId> = {
+  athletic: 'power',
+  aesthetic: 'accessory',
+  fitness: 'conditioning',
+};
+
+/**
+ * What each goal builds at each length, as data.
+ *
+ * WHY A TABLE AND NOT A SOLVER
+ * ────────────────────────────
+ * The obvious implementation is a budget and a priority list: keep dropping the
+ * lowest-priority block until the estimate fits. It produces sessions nobody
+ * chose. Whether a 45-minute aesthetic build should spend its last six minutes
+ * on a third accessory or on a core block is a coaching decision, and a solver
+ * answers it with whatever the arithmetic happens to favour that day.
+ *
+ * Nine shapes is small enough to write down, so they are written down: each one
+ * can be read, argued with and corrected by someone who does not read code, and
+ * the contract test checks each against the minutes it claims.
+ *
+ * Two rules hold across the table, both asserted by tests/session-duration.check.mjs:
+ *   every shape contains the four protected blocks and the goal's own block;
+ *   nothing is ever LOST by choosing a longer session — 30 is a subset of 45 is
+ *   a subset of 60 — so moving the slider up can only ever add.
+ */
+const SESSION_SHAPE: Record<
+  SessionGoal,
+  Record<SessionDuration, { id: BlockId; picks: number }[]>
+> = {
+  // Power primer survives at every length; accessory volume is what gives way.
+  athletic: {
+    '30': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 2 },
+      { id: 'activation', picks: 1 },
+      { id: 'power', picks: 1 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 1 },
+    ],
+    '45': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 2 },
+      { id: 'activation', picks: 1 },
+      { id: 'power', picks: 2 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 3 },
+      { id: 'core_prehab', picks: 2 },
+    ],
+    '60': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 3 },
+      { id: 'activation', picks: 2 },
+      { id: 'power', picks: 2 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 3 },
+      { id: 'core_prehab', picks: 2 },
+      { id: 'conditioning', picks: 2 },
+    ],
+  },
+  // Accessories survive; the second volume block and the finisher are the
+  // adjustable part.
+  aesthetic: {
+    '30': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 2 },
+      { id: 'activation', picks: 1 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 2 },
+    ],
+    '45': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 2 },
+      { id: 'activation', picks: 1 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 3 },
+      { id: 'volume', picks: 2 },
+      { id: 'core_prehab', picks: 1 },
+    ],
+    '60': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 3 },
+      { id: 'activation', picks: 2 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 3 },
+      { id: 'volume', picks: 3 },
+      { id: 'core_prehab', picks: 2 },
+      { id: 'conditioning', picks: 1 },
+    ],
+  },
+  // Conditioning survives, and grows: it is the reason this goal exists.
+  fitness: {
+    '30': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 2 },
+      { id: 'activation', picks: 1 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 1 },
+      { id: 'conditioning', picks: 1 },
+    ],
+    '45': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 3 },
+      { id: 'activation', picks: 1 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 2 },
+      { id: 'core_prehab', picks: 1 },
+      { id: 'conditioning', picks: 2 },
+    ],
+    '60': [
+      { id: 'cardio', picks: 1 },
+      { id: 'mobility', picks: 3 },
+      { id: 'activation', picks: 2 },
+      { id: 'kpi', picks: 1 },
+      { id: 'accessory', picks: 3 },
+      { id: 'core_prehab', picks: 2 },
+      { id: 'conditioning', picks: 3 },
+    ],
+  },
+};
+
+/**
+ * The blocks a session actually has, given the goal AND the time available.
+ *
+ * `blocksForGoal` stays the full template for a goal and is what the rest of
+ * this file walks — restoring a saved session, or re-filtering after the KPI
+ * lift changes, has to be able to see every block a pick could be filed under,
+ * including one the user has since shortened out of the build.
+ */
+export function blocksForSession(
+  goal: SessionGoal,
+  duration: SessionDuration = DEFAULT_DURATION
+): BuilderBlock[] {
+  const base = new Map(blocksForGoal(goal).map((b) => [b.id, b]));
+  return SESSION_SHAPE[goal][duration].flatMap(({ id, picks }) => {
+    const block = base.get(id);
+    return block ? [{ ...block, picks }] : [];
+  });
+}
+
+/** Roughly how long the built session will take, in whole minutes. */
+export function estimatedMinutes(blocks: BuilderBlock[]): number {
+  return Math.round(blocks.reduce((n, b) => n + MINUTES_PER_PICK[b.id] * b.picks, 0));
+}
+
+/**
+ * The shortest length that can still SHOW everything a session contains.
+ *
+ * Reopening a saved session sets the goal and the picks, but the length is not
+ * stored on it — it is a property of how the session was built, not of the
+ * session. Defaulting to 45 there would hide any block the shape at 45 does not
+ * include: a template with a conditioning finisher would reopen with that
+ * finisher unreachable in the wizard and yet still present in what gets
+ * assembled, which is the worst of both.
+ *
+ * So the length is inferred from what is actually in the session: the shortest
+ * shape whose blocks cover it. Falls back to the longest, which by construction
+ * is a superset of the other two.
+ */
+export function durationForPicks(goal: SessionGoal, filled: Iterable<BlockId>): SessionDuration {
+  const needed = new Set(filled);
+  for (const d of SESSION_DURATIONS) {
+    const have = new Set(blocksForSession(goal, d).map((b) => b.id));
+    if ([...needed].every((id) => have.has(id))) return d;
+  }
+  return SESSION_DURATIONS[SESSION_DURATIONS.length - 1];
+}
+
 // ─── What "relevant" means, per block ────────────────────────────────────────
 
 /** What the later steps filter against. */
