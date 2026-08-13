@@ -30,15 +30,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
-import { SessionType, useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import { useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
-import {
-  SESSION_META,
-  SESSION_SHORT_LABELS,
-  getSessionColors,
-  SessionMeta,
-} from '@/lib/session-meta';
+import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
@@ -319,19 +314,7 @@ export default function HomeScreen() {
     [suggestedSession, testWeek]
   );
 
-  const SESSION_TYPE_META = useMemo(() => {
-    const colors = getSessionColors(C);
-    const result = {} as Record<
-      SessionType,
-      SessionMeta & ReturnType<typeof getSessionColors>[SessionType]
-    >;
-    (Object.keys(SESSION_META) as SessionType[]).forEach((type) => {
-      result[type] = { ...SESSION_META[type], ...colors[type] };
-    });
-    return result;
-  }, [C]);
-
-  const suggestedMeta = SESSION_TYPE_META[suggestedSession];
+  const suggestedMeta = SESSION_META[suggestedSession];
 
   const strengthCount = useMemo(
     () => completedSessions.filter((s) => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
@@ -708,31 +691,31 @@ export default function HomeScreen() {
                 <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
                   Pick where to start - your program rotates automatically from here.
                 </Text>
+                {/* One accent for all three, on purpose. Squat, bench and
+                    deadlift are the same kind of thing — a KPI barbell session
+                    — and they are already told apart by their name, their
+                    subtitle and their illustration. Giving them a green, a blue
+                    and a purple said "three different kinds of thing", which is
+                    not true, and it was the first screen a new user saw. */}
                 {(
                   [
                     {
                       type: 'squat' as const,
                       label: SESSION_META.squat.label,
                       sub: 'Quads · Glutes · Hamstrings',
-                      color: C.primaryText,
-                      bg: C.primaryMuted,
                     },
                     {
                       type: 'bench' as const,
                       label: SESSION_META.bench.label,
                       sub: 'Chest · Shoulders · Triceps',
-                      color: C.badgeVolumeText,
-                      bg: C.badgeVolume,
                     },
                     {
                       type: 'deadlift' as const,
                       label: SESSION_META.deadlift.label,
                       sub: 'Back · Hips · Legs',
-                      color: C.categoryNeuroText,
-                      bg: C.categoryNeuro,
                     },
                   ] as const
-                ).map(({ type, label, sub, color, bg }) => (
+                ).map(({ type, label, sub }) => (
                   <Pressable
                     key={type}
                     onPress={() => handleFirstSessionChoice(type)}
@@ -750,7 +733,7 @@ export default function HomeScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.firstChoiceLabel, { color }]}>{label}</Text>
+                      <Text style={styles.firstChoiceLabel}>{label}</Text>
                       <Text style={styles.firstChoiceSub}>{sub}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
@@ -759,8 +742,12 @@ export default function HomeScreen() {
               </Animated.View>
             ) : (
               <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
+                {/* The brand accent, not the session's own colour. This wash
+                    changed hue with whatever session came up next — green one
+                    day, blue the next — which made the same card look like a
+                    different card for no reason a user could name. */}
                 <LinearGradient
-                  colors={[suggestedMeta.color + '18', 'transparent']}
+                  colors={[C.primaryText + '18', 'transparent']}
                   style={[StyleSheet.absoluteFill, { borderRadius: 20, pointerEvents: 'none' }]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 0.65 }}
@@ -781,7 +768,7 @@ export default function HomeScreen() {
                 </View>
                 {lastSession && lastSessionRelativeLabel && (
                   <Text style={styles.lastInline}>
-                    You last did {SESSION_TYPE_META[lastSession.sessionType].label.toLowerCase()}{' '}
+                    You last did {SESSION_META[lastSession.sessionType].label.toLowerCase()}{' '}
                     {lastSessionRelativeLabel}
                     {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
                   </Text>
@@ -1622,7 +1609,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     firstChoiceImage: { width: '100%' as any, height: '100%' as any },
     todayIconImage: { width: '100%' as any, height: '100%' as any },
-    firstChoiceLabel: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+    firstChoiceLabel: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryText,
+      marginBottom: 2,
+    },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     calibrationCompleteCard: {

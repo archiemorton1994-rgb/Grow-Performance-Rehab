@@ -535,6 +535,9 @@ console.log('\n[8] The 1RM test week');
   let seen = 0;
   for (const type of ['squat', 'bench', 'deadlift']) {
     for (const tier of ['fullgym', 'dumbbells']) {
+      // 4th argument is the weight on the bar for the all-out set - see
+      // testLoadFromWorkingWeight, and tests/test-week-fairness.check.mjs for
+      // where that number comes from.
       const session = generate1RMWorkout(type, tier, 4, displayUnitToKg(145, 'lbs'), 'lbs');
       for (const ex of session) {
         for (const n of cardNumbers(ex, 'lbs')) {
@@ -562,7 +565,7 @@ console.log('\n[8] The 1RM test week');
   // The same protocol in kilograms still says kilograms.
   const kgSession = generate1RMWorkout('squat', 'fullgym', 4, 100, 'kg');
   const kgMain = kgSession.find((e) => e.category === 'main');
-  check('a kilogram user is still told kilograms', /\b90 kg\b/.test(kgMain.cue), kgMain.cue.slice(0, 80));
+  check('a kilogram user is still told kilograms', /\b100 kg\b/.test(kgMain.cue), kgMain.cue.slice(0, 80));
 }
 
 // ─── 9. The per-set guide text ───────────────────────────────────────────────

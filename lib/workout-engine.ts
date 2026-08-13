@@ -542,6 +542,32 @@ function isDumbbellTier(tier: EquipmentTier): boolean {
 }
 
 /**
+ * Where each goal's working sets sit as a fraction of a one-rep max. The same
+ * numbers personalizeLoad's bootstrap path uses.
+ */
+const GOAL_LOAD_FRACTION: Record<string, number> = {
+  strength: 0.85,
+  muscle: 0.75,
+  fat_loss: 0.65,
+  fitness: 0.7,
+  rehab: 0.5,
+  power: 0.9,
+};
+const DEFAULT_LOAD_FRACTION = 0.7;
+
+/**
+ * The fraction of a one-rep max this user's working sets are meant to sit at,
+ * averaged when they picked more than one goal.
+ */
+export function goalLoadFraction(profile: UserProfile): number {
+  const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
+  return (
+    activeGoals.reduce((sum, g) => sum + (GOAL_LOAD_FRACTION[g] ?? DEFAULT_LOAD_FRACTION), 0) /
+    activeGoals.length
+  );
+}
+
+/**
  * Working weight for a main KPI lift derived directly from a 1RM, using the
  * same goal-appropriate percentages personalizeLoad's bootstrap path uses
  * (strength: 85%, muscle: 75%, fat_loss: 65%, fitness: 70%, rehab: 50%,
@@ -557,18 +583,158 @@ export function workingWeightFromOrm(
   /** The unit the user's gym is stocked in - decides the grid this lands on. */
   loadUnit: WeightUnit = 'kg'
 ): number {
-  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
-  const goalPct: Record<string, number> = {
-    strength: 0.85,
-    muscle: 0.75,
-    fat_loss: 0.65,
-    fitness: 0.7,
-    rehab: 0.5,
-    power: 0.9,
-  };
-  const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
-  const avgPct = activeGoals.reduce((sum, g) => sum + (goalPct[g] ?? 0.7), 0) / activeGoals.length;
-  return toGrid(ormKg * avgPct);
+  return roundToLoadable(ormKg * goalLoadFraction(profile), loadUnit);
+}
+
+/**
+ * The one-rep max implied by what someone is currently being trained at.
+ *
+ * Exactly the inverse of `workingWeightFromOrm`: the app prescribes
+ * `goalFraction x 1RM`, so the 1RM it is working from is `working / goalFraction`.
+ */
+export function ormFromWorkingWeight(workingKg: number, profile: UserProfile): number {
+  return workingKg / goalLoadFraction(profile);
+}
+
+/**
+ * The fraction of a one-rep max a max-reps test is loaded at.
+ *
+ * This is the whole reason the test used to punish four goals out of six. It
+ * was set at 90% of the WORKING weight, which only lands near a true max for
+ * the strength and power goals - every other goal trains further below its max
+ * by design, so the same 90% put the bar far too light, and the reps needed
+ * just to break even ran to 14, 18, 21, and for rehab 36. Epley (below) is a
+ * straight line through one point; past about ten reps it drifts badly, so
+ * those users were being judged in the part of the formula that does not work,
+ * and the app concluded they had got weaker.
+ *
+ * Anchoring to the estimated 1RM instead makes break-even depend only on this
+ * number and nothing else: Epley says a set at fraction f of a max is worth
+ * 30 x (1/f - 1) reps, so break-even is the same handful of reps for every
+ * goal. 80% puts that at 7.5 reps - comfortably inside the range where the
+ * formula is trustworthy, and light enough to be a reasonable ask of someone
+ * who has never tested. Published rep-max tables put roughly 8 reps at 80%,
+ * so a user who is exactly where the app thinks they are keeps their weight.
+ *
+ * In whole reps, and for every goal: 7 or 8 changes nothing, 9 earns more
+ * weight, 6 or fewer takes some off.
+ */
+export const TEST_LOAD_FRACTION_OF_ORM = 0.8;
+
+/**
+ * The reps that leave a user's working weight exactly where it was, derived
+ * from the test load rather than written down beside it so the sentence the
+ * user reads cannot drift away from the arithmetic that judges them.
+ */
+export const TEST_EXPECTED_REPS = Math.round(30 * (1 / TEST_LOAD_FRACTION_OF_ORM - 1));
+
+/**
+ * What to actually put on the bar for a max-reps test, given what the lift is
+ * currently being trained at.
+ */
+export function testLoadFromWorkingWeight(
+  workingKg: number,
+  profile: UserProfile,
+  /** The unit the user's gym is stocked in - decides the grid this lands on. */
+  loadUnit: WeightUnit = 'kg'
+): number {
+  return roundToLoadable(
+    ormFromWorkingWeight(workingKg, profile) * TEST_LOAD_FRACTION_OF_ORM,
+    loadUnit
+  );
+}
+
+/** Epley: the one-rep max implied by `reps` clean reps at `weightKg`. */
+export function estimateOrmFromAmrap(weightKg: number, reps: number): number {
+  return weightKg * (1 + reps / 30);
+}
+
+/**
+ * The most a single test is allowed to move a block's programming, either way.
+ *
+ * A test is evidence, not a verdict. Before this, one flat day wrote itself
+ * straight into the working weight: the app would go on showing a 144 kg
+ * personal best while prescribing 65 kg, with nothing on screen reconciling
+ * the two, and climbing back at +2.5 kg a session took twenty-three of them.
+ * Capping the move means a bad day costs a little and a fluke costs nothing -
+ * and it closes the other end too, because Epley inflates fast past ten reps
+ * and an over-read max is a bar nobody can lift next block.
+ */
+export const MAX_TEST_WEIGHT_MOVE = 0.1;
+
+/**
+ * How far off prediction a test has to land before it means anything, in reps.
+ *
+ * A max-reps test is quantised twice over. The user does 7 reps or 8, never
+ * 7.5 - half a rep of slop before anything else happens. And the weight they
+ * were told to load had to be a weight their gym can make, which in pounds is
+ * the nearest 5 lb; a bar a plate heavier than intended costs most of a rep on
+ * its own. So a result within about a rep of prediction is the equipment and
+ * the arithmetic talking, not the user's strength.
+ *
+ * It bit in practice: a pounds user whose strength had not moved at all came
+ * out a plate lighter after a test, purely from which side of the nearest 5 lb
+ * their true working weight fell on. Reading that as a strength loss and
+ * taking weight off for it is the behaviour this whole change exists to stop,
+ * so the tolerance is a rep plus the headroom the grid needs - and the error
+ * it prefers to make is leaving someone's weight alone, which costs them
+ * nothing (weights still climb session to session between tests) rather than
+ * cutting someone who did nothing wrong.
+ */
+export const TEST_DEADBAND_REPS = 1.25;
+
+/**
+ * The working weight to carry into the next block, given the max a test just
+ * estimated. Held where it is when the result was within `TEST_DEADBAND_REPS`
+ * of what the current weight predicted, then clamped to within
+ * `MAX_TEST_WEIGHT_MOVE` of it. With no current weight to protect there is
+ * nothing to hold or clamp against.
+ *
+ * Takes the estimated max rather than a finished working weight on purpose:
+ * the deadband has to be judged before the gym's grid gets involved, or the
+ * grid's own rounding is what decides whether the deadband was cleared.
+ */
+export function workingWeightAfterTest(
+  currentKg: number,
+  estimatedMaxKg: number,
+  profile: UserProfile,
+  /** The unit the user's gym is stocked in - decides the grid this lands on. */
+  loadUnit: WeightUnit = 'kg'
+): number {
+  const raw = estimatedMaxKg * goalLoadFraction(profile);
+  if (!(currentKg > 0)) return roundToLoadable(raw, loadUnit);
+  // In reps, because reps are the unit the test was actually taken in - and
+  // because the same difference in kilograms means a different number of reps
+  // depending on how heavy the bar was.
+  const testKg = testLoadFromWorkingWeight(currentKg, profile, loadUnit);
+  const repsOffPrediction =
+    testKg > 0
+      ? (30 * (estimatedMaxKg - ormFromWorkingWeight(currentKg, profile))) / testKg
+      : Infinity;
+  if (Math.abs(repsOffPrediction) <= TEST_DEADBAND_REPS) return currentKg;
+  // The band is put on the gym's grid before the clamp, not after. Clamping to
+  // a raw bound and rounding afterwards can land a step the wrong side of the
+  // line it was clamped to; clamping between two loadable weights cannot.
+  const lo = roundToLoadable(currentKg * (1 - MAX_TEST_WEIGHT_MOVE), loadUnit);
+  const hi = roundToLoadable(currentKg * (1 + MAX_TEST_WEIGHT_MOVE), loadUnit);
+  return Math.min(hi, Math.max(lo, roundToLoadable(raw, loadUnit)));
+}
+
+/**
+ * Should this user be asked for an all-out set at all?
+ *
+ * On a rehab goal, no. The test load is a fixed fraction of the estimated max
+ * for everyone (see TEST_LOAD_FRACTION_OF_ORM), which is what makes it a fair
+ * test - but rehab working weights sit at half of a max by design, so a fair
+ * test means roughly 1.6x what that user trains at, taken to failure. A
+ * maximal single-set effort on healing tissue is the specific thing rehab
+ * programming exists to avoid, so the honest options were "test properly" or
+ * "do not test", and for someone who has told us they are rehabbing it is the
+ * second. Their weights still climb session to session; only the max-effort
+ * set is withheld, and the session says so rather than quietly changing.
+ */
+export function skipsMaxTest(profile: UserProfile): boolean {
+  return (profile.goals ?? []).includes('rehab' as FitnessGoal);
 }
 
 /**
@@ -2226,16 +2392,19 @@ const RAMP_FRACTIONS: Record<number, number[]> = {
  * of the session that matters most, and the guide that did appear was garbage
  * (see the percent-stripping note in getWeightGuideKg).
  *
- * `workingKg` should be what the lift is currently being trained at. The test
- * set is 90% of it, held for max reps, which is what the Epley estimate below
- * expects. Passing nothing keeps the old generic copy, which is the right
- * fallback for someone with no history on the lift.
+ * `testKg` is the weight to put on the bar for the all-out set - work it out
+ * with `testLoadFromWorkingWeight`, which anchors it to the user's estimated
+ * one-rep max rather than to their goal-scaled working weight. It used to be a
+ * working weight that this function then took 90% of, which is what made the
+ * test unfair to every goal except strength and power; see
+ * TEST_LOAD_FRACTION_OF_ORM for the full story. Passing nothing keeps the old
+ * generic copy, the right fallback for someone with no history on the lift.
  */
 export function generate1RMWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
   _strengthSessionCount: number = 0,
-  workingKg?: number,
+  testKg?: number,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
   loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
@@ -2259,8 +2428,8 @@ export function generate1RMWorkout(
     };
   });
 
-  if (workingKg && workingKg > 0 && !bodyweightTier) {
-    const testKg = toGrid(workingKg * 0.9);
+  if (testKg && testKg > 0 && !bodyweightTier) {
+    const topKg = toGrid(testKg);
     // `suggestedLoad` stays in kilograms because that is the unit every reader
     // of it expects (parseLoadKg, convertLoadString at render). The CUE is
     // prose nothing parses, and it is the sentence the user actually follows,
@@ -2270,14 +2439,14 @@ export function generate1RMWorkout(
       if (e.category === 'main') {
         return {
           ...e,
-          suggestedLoad: `${testKg} kg`,
-          loadKg: [testKg],
-          cue: `Load ${say(testKg)} and do as many clean reps as you can. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
+          suggestedLoad: `${topKg} kg`,
+          loadKg: [topKg],
+          cue: `Load ${say(topKg)} and do as many clean reps as you can. Around ${TEST_EXPECTED_REPS} means you are exactly where the app thinks you are, so there is no target to beat — just be honest. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
         };
       }
       if (e.category === 'prep') {
         const fractions = RAMP_FRACTIONS[e.sets] ?? RAMP_FRACTIONS[4];
-        const ladder = fractions.map((f) => toGrid(testKg * f));
+        const ladder = fractions.map((f) => toGrid(topKg * f));
         return {
           ...e,
           suggestedLoad: `${ladder.join(' / ')} kg`,

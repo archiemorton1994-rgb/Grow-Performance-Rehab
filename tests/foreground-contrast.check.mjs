@@ -34,6 +34,15 @@
  *     same accent, read from the screen. See the section for why the token
  *     table alone cannot catch this one.
  *
+ *  E. THEME PARITY — reading a string in light mode must not be meaningfully
+ *     harder than reading the same string in dark mode.
+ *
+ *  F. ONE ACCENT PER CATEGORY — Home's first-session chooser. Squat, bench and
+ *     deadlift are one kind of thing and must be one colour.
+ *
+ *  G. ONE FAMILY — the Restore accents must read as a derived set, not three
+ *     colours picked separately.
+ *
  * TOKENS DELIBERATELY NOT CHECKED
  * ───────────────────────────────
  * These are below AA today as ink. They are left out rather than quietly
@@ -41,18 +50,17 @@
  * that is a design decision, not a contrast fix. Measured worst case, vs
  * surfaceTertiary (the darkest card in light mode / lightest in dark):
  *
- *   textTertiary   light 3.81  dark 3.01   — de-emphasised hints. Light used to
- *                                            be 2.21, i.e. materially worse than
- *                                            dark for the same token; it is now
- *                                            at or above dark on every surface.
- *                                            Closing the rest of the gap to AA
- *                                            makes it textSecondary, so it is a
- *                                            design decision, not a fix.
  *   warning        light 2.80  dark 5.78   — amber, mostly a badge fill
  *   trendWarning   light 2.78  dark 4.81   — amber, ditto
  *   trendDanger    light 4.22  dark 3.17
  *   trendNeutral   light 4.22  dark 3.17
  *   error          light 4.62  dark 3.66
+ *
+ * textTertiary used to head that list. It does not any more: it carries real
+ * content — every achievement name and rarity tier, "Not tried yet", the
+ * in-session timer line, each queued exercise's set/rep spec, "Resend code in
+ * 25s", the locked equipment labels — so "de-emphasised hint" was never an
+ * honest description of it. It is in section A now and cannot drift back.
  *
  * Run:  node tests/foreground-contrast.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -121,6 +129,27 @@ function contrastRatio(a, b) {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
+/**
+ * Perceptual distance (CIE76). Contrast ratio cannot answer "are these two
+ * different colours" — a red and a green of equal lightness score 1.0 against
+ * each other and are obviously not the same. Section H needs the other
+ * question, so it needs the other measure.
+ */
+function deltaE76(a, b) {
+  const toLab = (hex) => {
+    const [r, g, bl] = hexToRgb(hex).map(linearise);
+    const X = (r * 0.4124 + g * 0.3576 + bl * 0.1805) / 0.95047;
+    const Y = r * 0.2126 + g * 0.7152 + bl * 0.0722;
+    const Z = (r * 0.0193 + g * 0.1192 + bl * 0.9505) / 1.08883;
+    const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+    const [fx, fy, fz] = [f(X), f(Y), f(Z)];
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+  };
+  const A = toLab(a);
+  const B = toLab(b);
+  return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]);
+}
+
 // ─── A. Token definitions ────────────────────────────────────────────────────
 
 // The four neutral surfaces any card or screen can be.
@@ -129,6 +158,7 @@ const SURFACES = ['background', 'surface', 'surfaceSecondary', 'surfaceTertiary'
 const INK_TOKENS = [
   { key: 'text', on: SURFACES },
   { key: 'textSecondary', on: SURFACES },
+  { key: 'textTertiary', on: SURFACES },
   // primaryMuted / primarySurface are the green-tinted chips this accent is put
   // on when a row is selected — the Settings case that started all this.
   { key: 'primaryText', on: [...SURFACES, 'primaryMuted', 'primarySurface'] },
@@ -355,13 +385,12 @@ if (!mapMatch) {
 // Restore row, or a change to the tint, is covered the day it is written rather
 // than the day somebody remembers to update a list here.
 
-// Large/emphasis type and meaningful icons — WCAG 1.4.3 large text and 1.4.11
-// non-text, and the same bar PILL_MIN uses above. Note this is NOT full AA:
-// these titles are 16px semibold, which is a hair under WCAG's large-text size,
-// so 4.5 : 1 is the strictly correct bar. cardAccentRecovery (3.41) and
-// cardAccentMobility (4.04) sit between the two, deliberately, because dragging
-// the whole palette to 4.5 is a look-and-feel decision rather than a fix.
-const ACCENT_MIN = 3.0;
+// Full AA. These titles are 16px semibold, a hair under WCAG's large-text
+// size, so 4.5 : 1 was always the strictly correct bar — the bar used to sit at
+// 3.0 only because two of the three accents could not clear it. The family was
+// re-derived to a common weight well above AA, so the correct bar is now the
+// enforced one.
+const ACCENT_MIN = 4.5;
 
 const recoverSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'recover.tsx'), 'utf8');
 
@@ -462,24 +491,24 @@ if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
   }
 }
 
-// ─── E. Theme parity for the inks that are knowingly below AA ────────────────
+// ─── E. Theme parity for the quiet inks ──────────────────────────────────────
 //
-// Section A only covers tokens that clear AA, so the ones listed at the top of
-// this file as "deliberately not checked" have no guard at all. They still owe
-// the user something, though: reading the app in light mode should not be
-// harder than reading it in dark. `textTertiary` had drifted to exactly that —
-// 2.21–2.53 : 1 in light against 3.01–4.12 : 1 in dark, roughly half the
+// Section A puts a floor under each theme separately, which is not the same
+// promise as "both themes are equally readable". A token can clear 4.5 in light
+// and sit at 15 in dark and still leave light-mode users squinting at strings
+// dark-mode users read comfortably. `textTertiary` had drifted to exactly that
+// — 2.21–2.53 : 1 in light against 3.01–4.12 : 1 in dark, roughly half the
 // legibility for the same strings, which is nobody's design decision.
 //
 // So rather than pin a number (which would just restate whatever value is in
 // the table today), this asserts the promise: for the same token on the same
 // surface, neither theme may be meaningfully worse than the other.
 //
-// Only textTertiary is listed. The amber inks (warning, trendWarning) are worse
-// offenders — light 2.80 vs dark 5.78 — but they are mostly badge fills that
-// happen to be reused as type, and sorting them out means deciding what the
-// amber is *for* first. Adding them here is the right next step, not a rename.
-const PARITY_TOKENS = ['textTertiary'];
+// The amber inks (warning, trendWarning) are worse offenders — light 2.80 vs
+// dark 5.78 — but they are mostly badge fills that happen to be reused as type,
+// and sorting them out means deciding what the amber is *for* first. Adding
+// them here is the right next step, not a rename.
+const PARITY_TOKENS = ['textSecondary', 'textTertiary'];
 // The weaker theme must reach at least this share of the stronger one on the
 // same surface. It is deliberately generous: the two palettes are different
 // colours on different backgrounds and will never land on identical numbers.
@@ -487,7 +516,7 @@ const PARITY_TOKENS = ['textTertiary'];
 // missed on three of the four surfaces, worst 0.59.
 const PARITY_MIN_SHARE = 0.7;
 
-console.log('\n── Theme parity — below-AA inks must not be far weaker in one theme ──');
+console.log('\n── Theme parity — the quiet inks must not be far weaker in one theme ──');
 
 for (const key of PARITY_TOKENS) {
   for (const surfKey of SURFACES) {
@@ -521,13 +550,384 @@ for (const key of PARITY_TOKENS) {
   }
 }
 
+// ─── F. Colour carries category, never instance — the first-session chooser ──
+//
+// The three rows of "Choose Your First Session" are the first coloured thing a
+// new user ever sees. They used to be a green row, a blue row and a purple row,
+// which tells the user these are three different kinds of session. They are
+// not: squat, bench and deadlift are one category, a KPI barbell session, and
+// they are already told apart by their name, their subtitle and their picture.
+//
+// So this reads the titles' ink off the screen rather than trusting a list:
+// every colour those three rows can paint their own title with, resolved in
+// both themes. There must be exactly one, and it must be the brand accent.
+
+console.log('\n── First-session chooser — one accent for the three strength sessions ──');
+
+const homeSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'index.tsx'), 'utf8');
+
+// The card, from its heading down to the end of the row list.
+const chooserMatch = homeSrc.match(
+  /Choose Your First Session([\s\S]*?)\n {14}<\/Animated\.View>/
+);
+
+total++;
+if (!chooserMatch) {
+  console.error('  ✗ could not find the first-session chooser in app/(tabs)/index.tsx');
+  console.error('    Fix: this check reads the screen; update it alongside the layout.');
+  failures++;
+} else {
+  const block = chooserMatch[1];
+  const rowTypes = [...block.matchAll(/type:\s*'(\w+)' as const/g)].map((m) => m[1]);
+
+  // Two places a row title's colour can come from: an ink named inside the row
+  // definitions, or the shared `firstChoiceLabel` style. Both are collected —
+  // a per-row `color` reappearing in the array is exactly the regression here.
+  const inlineInks = [...block.matchAll(/\bcolor:\s*C\.(\w+)/g)].map((m) => m[1]);
+  const labelStyle = homeSrc.match(/firstChoiceLabel:\s*\{([\s\S]*?)\}/);
+  const styleInk = labelStyle?.[1].match(/\bcolor:\s*C\.(\w+)/)?.[1];
+  const inks = [...new Set([...inlineInks, ...(styleInk ? [styleInk] : [])])];
+
+  total++;
+  if (rowTypes.length !== 3) {
+    console.error(
+      `  ✗ parsed ${rowTypes.length} chooser row(s), expected squat/bench/deadlift — ` +
+        'the card\'s shape has changed'
+    );
+    console.error('    Fix: this check reads the screen; update it alongside the layout.');
+    failures++;
+  } else {
+    console.log(`  ✓ 3 rows found: ${rowTypes.join(', ')}`);
+  }
+
+  total++;
+  if (inks.length === 0) {
+    console.error('  ✗ found no ink for the chooser row titles — the parse has gone stale');
+    failures++;
+  } else if (inks.length > 1) {
+    console.error(
+      `  ✗ the three rows can be painted ${inks.length} different colours (${inks.join(', ')})`
+    );
+    console.error(
+      '    Fix: squat, bench and deadlift are one category. Colour must carry the category, ' +
+        'not the instance — the name and the icon already tell them apart.'
+    );
+    failures++;
+  } else {
+    console.log(`  ✓ one ink for all three rows: ${inks[0]}`);
+
+    for (const [themeName, T] of Object.entries(THEMES)) {
+      total++;
+      const ink = T[inks[0]];
+      const brand = T.primaryText;
+      if (!ink || !brand) {
+        console.error(`  ✗ ${themeName} — ${inks[0]} or primaryText missing`);
+        failures++;
+      } else if (ink.toLowerCase() === brand.toLowerCase()) {
+        console.log(`  ✓ ${themeName} — that ink is the brand accent (${ink})`);
+      } else {
+        console.error(
+          `  ✗ ${themeName} — rows are ${ink}, brand accent is ${brand}: not the brand colour`
+        );
+        console.error('    Fix: this is a green-branded product; its KPI sessions wear the brand.');
+        failures++;
+      }
+    }
+  }
+}
+
+// ─── G. The Restore accents are one derived family ───────────────────────────
+//
+// Section D asks whether each Restore accent is legible. It cannot ask the
+// other question a user actually asks of that screen: do these three look like
+// they belong together? Teal, indigo and amber each passed a contrast bar
+// individually and still read as three colours chosen on three different days.
+//
+// A family is three things differing in *hue only*. So: same saturation, same
+// weight (each accent lands on the same contrast against its own tinted card),
+// and every hue within reach of the brand green without being mistakable for
+// it — the brand accent means "strength session" over on Home.
+
+const SAT_SPREAD_MAX = 5; // percentage points
+const WEIGHT_MIN_SHARE = 0.85; // weakest / strongest contrast on own tint
+const HUE_MIN_FROM_BRAND = 10; // degrees — closer and it reads as the brand itself
+const HUE_MAX_FROM_BRAND = 95; // degrees — further and it is not the brand's family
+
+function hueSat(hex) {
+  const [r, g, b] = hexToRgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0 };
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return { h, s: s * 100 };
+}
+
+function hueGap(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+console.log('\n── Restore accents — one derived family, not three separate colours ──');
+
+total++;
+if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
+  console.error('  ✗ no Restore accents parsed — see the section above');
+  failures++;
+} else {
+  for (const [themeName, T] of Object.entries(THEMES)) {
+    const base = T[baseMatch[1]];
+    const members = accentTokens.map((k) => ({ key: k, hex: T[k] }));
+
+    total++;
+    if (members.some((m) => !m.hex) || !base) {
+      console.error(`  ✗ ${themeName} — an accent or the base surface is missing`);
+      failures++;
+      continue;
+    }
+
+    const sats = members.map((m) => hueSat(m.hex).s);
+    const satSpread = Math.max(...sats) - Math.min(...sats);
+    if (satSpread <= SAT_SPREAD_MAX) {
+      console.log(
+        `  ✓ ${themeName} shared saturation — ${sats.map((s) => s.toFixed(0) + '%').join(' / ')}`
+      );
+    } else {
+      console.error(
+        `  ✗ ${themeName} saturation spread ${satSpread.toFixed(0)} pts ` +
+          `(${sats.map((s) => s.toFixed(0) + '%').join(' / ')}), max ${SAT_SPREAD_MAX}`
+      );
+      console.error('    Fix: derive the set from one saturation; only the hue should differ.');
+      failures++;
+    }
+
+    total++;
+    const weights = members.map((m) => contrastRatio(m.hex, composite(m.hex, tintMatch[1], base)));
+    const weightShare = Math.min(...weights) / Math.max(...weights);
+    if (weightShare >= WEIGHT_MIN_SHARE) {
+      console.log(
+        `  ✓ ${themeName} shared weight — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1`
+      );
+    } else {
+      console.error(
+        `  ✗ ${themeName} weight varies — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1, ` +
+          `weakest is ${(weightShare * 100).toFixed(0)}% of strongest (floor ${WEIGHT_MIN_SHARE * 100}%)`
+      );
+      console.error(
+        '    Fix: tune each accent\'s lightness so all three land on the same contrast against ' +
+          'their own tint. One row shouting over the others is what makes a set look accidental.'
+      );
+      failures++;
+    }
+
+    const brandHue = hueSat(T.primaryText).h;
+    for (const m of members) {
+      total++;
+      const gap = hueGap(hueSat(m.hex).h, brandHue);
+      if (gap >= HUE_MIN_FROM_BRAND && gap <= HUE_MAX_FROM_BRAND) {
+        console.log(`  ✓ ${themeName} ${m.key} — ${gap.toFixed(0)}° from the brand green`);
+      } else if (gap < HUE_MIN_FROM_BRAND) {
+        console.error(
+          `  ✗ ${themeName} ${m.key} (${m.hex}) is only ${gap.toFixed(0)}° from the brand green`
+        );
+        console.error('    Fix: too close — this row would read as the brand accent itself.');
+        failures++;
+      } else {
+        console.error(
+          `  ✗ ${themeName} ${m.key} (${m.hex}) is ${gap.toFixed(0)}° from the brand green, ` +
+            `max ${HUE_MAX_FROM_BRAND}°`
+        );
+        console.error('    Fix: unrelated to the brand. Step away from the green, do not leave it.');
+        failures++;
+      }
+    }
+  }
+}
+
+// ─── H. Chart marks must survive on the card they are drawn on ───────────────
+//
+// Stats' Session Breakdown is a donut plus a legend. Both are drawn on the
+// card, but they were painted with the legend row's *selected-state ink* — the
+// colour meant to be read on that row's own coloured fill.
+//
+// Seven of the ten session types pair a pale fill with strong ink, so that ink
+// happened to work as a mark too. Conditioning and custom are built the other
+// way round — a strong fill with plain white ink, which is what their pills
+// want. In light mode that made their donut wedges and their legend dots WHITE
+// ON A WHITE CARD: two of the seven slices were not drawn, two legend dots were
+// missing, and the ring visibly did not add up to the "7 total" printed in the
+// middle of it. Every contrast check passed, because none of them was looking
+// at a fill-shaped token being used as a fill on the wrong surface.
+//
+// This is section B's bug wearing the opposite coat: there, a fill token was
+// used as ink; here, an ink token was used as a mark. So this section asks the
+// question the user asks — can I see every slice, and can I read the row when I
+// tap it — and it reads the fields off the screen so a new session type or a
+// renamed field is covered the day it is written, not the day someone
+// remembers this file.
+
+// Marks are graphical objects, not text: WCAG 1.4.11 asks 3 : 1. The legend
+// label is 12px semibold on its own fill, which is the app's badge bar, also 3.
+const MARK_MIN = 3.0;
+// "These two are not literally the same swatch". Deliberately NOT a comfort
+// bar: the tightest real pair today is squat / prehab at dE 15.1, and squat /
+// flexibility at 22.4 — two greens and a teal that a user can separate side by
+// side but would not call a designed set. Raising this bar is a palette
+// decision, so it is written down here rather than smuggled in as a threshold.
+const MARK_DISTINCT_MIN = 12;
+
+console.log('\n── Stats chart marks — every slice visible on its card ──');
+
+const statsSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'workouts.tsx'), 'utf8');
+
+const typeBlock = statsSrc.match(
+  /function getSessionTypeColors\([\s\S]*?\n {2}return \{([\s\S]*?)\n {2}\};/
+);
+// Which field the donut paints with, and which the legend dot uses in each state.
+const donutField = statsSrc.match(/fill=\{sessionTypeColors\[seg\.type\]\.(\w+)\}/)?.[1];
+const dotFields = statsSrc.match(
+  /backgroundColor:\s*isSelected\s*\?\s*meta\.(\w+)\s*:\s*meta\.(\w+),/
+);
+// The card the donut and legend are drawn on.
+const cardKey = statsSrc.match(
+  /function SessionTypeBreakdown\(\{[\s\S]*?backgroundColor:\s*C\.(\w+)/
+)?.[1];
+
+total++;
+if (!typeBlock || !donutField || !dotFields || !cardKey) {
+  console.error(
+    `  ✗ could not read the breakdown from app/(tabs)/workouts.tsx ` +
+      `(map: ${typeBlock ? 'ok' : 'missing'}, donut field: ${donutField ?? 'missing'}, ` +
+      `dot fields: ${dotFields ? 'ok' : 'missing'}, card: ${cardKey ?? 'missing'})`
+  );
+  console.error('    Fix: this check reads the screen; update it alongside the layout.');
+  failures++;
+} else {
+  const entries = [
+    ...typeBlock[1].matchAll(
+      /(\w+):\s*\{[^}]*?bg:\s*C\.(\w+)[^}]*?color:\s*C\.(\w+),[^}]*?chart:\s*C\.(\w+),?[^}]*?\}/g
+    ),
+  ].map(([, type, bg, color, chart]) => ({ type, bg, color, chart }));
+
+  const [, selectedDotField, restingDotField] = dotFields;
+
+  total++;
+  if (entries.length < 10) {
+    console.error(
+      `  ✗ parsed only ${entries.length} session types — the map's shape has changed`
+    );
+    console.error('    Fix: this check reads the screen; update it alongside the layout.');
+    failures++;
+  } else {
+    console.log(
+      `  ✓ ${entries.length} session types; donut paints \`${donutField}\`, ` +
+        `dot paints \`${restingDotField}\` at rest and \`${selectedDotField}\` when selected, ` +
+        `card is ${cardKey}`
+    );
+  }
+
+  for (const [themeName, T] of Object.entries(THEMES)) {
+    const card = T[cardKey];
+    const marks = [];
+
+    for (const e of entries) {
+      // The donut slice and the resting legend dot both sit on the card.
+      for (const [what, field] of [
+        ['donut slice', donutField],
+        ['legend dot', restingDotField],
+      ]) {
+        total++;
+        const mark = T[e[field]];
+        if (!mark || !card) {
+          console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${cardKey} missing`);
+          failures++;
+          continue;
+        }
+        const r = contrastRatio(mark, card);
+        if (what === 'donut slice') marks.push({ type: e.type, hex: mark, e });
+        if (r >= MARK_MIN) {
+          console.log(
+            `  ✓ ${themeName} ${e.type} ${what} (${e[field]} ${mark}) on ${cardKey} — ${r.toFixed(2)} : 1`
+          );
+        } else {
+          console.error(
+            `  ✗ ${themeName} ${e.type} ${what} (${e[field]} ${mark}) on ${cardKey} (${card}) — ` +
+              `${r.toFixed(2)} : 1 — below ${MARK_MIN} : 1`
+          );
+          console.error(
+            `    Fix: this is a MARK on the card, not ink on the row's own fill. Point ` +
+              `\`${field}\` at a token that is strong in both themes.`
+          );
+          failures++;
+        }
+      }
+
+      // Selecting a row fills it with `bg`; its label and its dot move onto that fill.
+      for (const [what, field] of [
+        ['selected label', 'color'],
+        ['selected dot', selectedDotField],
+      ]) {
+        total++;
+        const ink = T[e[field]];
+        const bg = T[e.bg];
+        if (!ink || !bg) {
+          console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${e.bg} missing`);
+          failures++;
+          continue;
+        }
+        const r = contrastRatio(ink, bg);
+        if (r >= MARK_MIN) {
+          console.log(
+            `  ✓ ${themeName} ${e.type} ${what} (${e[field]}) on its own ${e.bg} — ${r.toFixed(2)} : 1`
+          );
+        } else {
+          console.error(
+            `  ✗ ${themeName} ${e.type} ${what} (${e[field]} ${ink}) on ${e.bg} (${bg}) — ` +
+              `${r.toFixed(2)} : 1 — below ${MARK_MIN} : 1`
+          );
+          console.error('    Fix: the selected row is filled with `bg`; pair it with ink that reads on it.');
+          failures++;
+        }
+      }
+    }
+
+    // Two slices the user cannot separate make the chart unreadable whatever
+    // each one scores against the card on its own.
+    for (let i = 0; i < marks.length; i++) {
+      for (let j = i + 1; j < marks.length; j++) {
+        // A shared colour is allowed only when the two types are the same
+        // entry in every respect — squat / lower_body are deliberately one
+        // family. Matching on the mark alone would let an unrelated type be
+        // aliased onto another's colour and call itself intentional.
+        const a = marks[i].e;
+        const b = marks[j].e;
+        if (a.bg === b.bg && a.color === b.color && a.chart === b.chart) continue;
+        total++;
+        const d = deltaE76(marks[i].hex, marks[j].hex);
+        if (d >= MARK_DISTINCT_MIN) continue;
+        console.error(
+          `  ✗ ${themeName} ${marks[i].type} (${marks[i].hex}) and ${marks[j].type} ` +
+            `(${marks[j].hex}) are dE ${d.toFixed(1)} apart — the same swatch to a reader`
+        );
+        console.error('    Fix: two slices of one chart must not be the same colour.');
+        failures++;
+      }
+    }
+  }
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 console.log('');
 if (failures > 0) {
   console.error(`foreground-contrast: FAILED (${failures} of ${total} check(s))\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`foreground-contrast: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

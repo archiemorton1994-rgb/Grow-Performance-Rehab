@@ -23,7 +23,7 @@ import { useColors } from '@/constants/colors';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
-import { SESSION_META as SESSION_META_LABELS, getSessionColors } from '@/lib/session-meta';
+import { SESSION_META } from '@/lib/session-meta';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 
 interface TrainTutorialStep {
@@ -196,24 +196,6 @@ export default function TrainScreen() {
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const testWeek = isTestWeekDue();
-
-  const SESSION_META = useMemo(() => {
-    const colors = getSessionColors(C);
-    const result = {} as Record<
-      SessionType,
-      {
-        label: string;
-        subtitle: string;
-        icon: keyof typeof Ionicons.glyphMap;
-        color: string;
-        bg: string;
-      }
-    >;
-    (Object.keys(SESSION_META_LABELS) as SessionType[]).forEach((type) => {
-      result[type] = { ...SESSION_META_LABELS[type], ...colors[type] };
-    });
-    return result;
-  }, [C]);
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -441,7 +423,7 @@ export default function TrainScreen() {
                   <Text style={styles.resumeBannerTitle}>Session in progress</Text>
                   <Text style={styles.resumeBannerSub}>
                     {activeSession.displayLabel ??
-                      SESSION_META_LABELS[activeSession.sessionType]?.label}{' '}
+                      SESSION_META[activeSession.sessionType]?.label}{' '}
                     · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
                   </Text>
                 </View>

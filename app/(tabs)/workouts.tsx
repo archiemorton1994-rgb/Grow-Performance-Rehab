@@ -108,51 +108,89 @@ function formatSessionDuration(seconds: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function getSessionTypeColors(
-  C: ReturnType<typeof useColors>
-): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string }> {
+/**
+ * Three jobs, not two — which is why `chart` exists.
+ *
+ * `bg` fills the legend row while it is the active filter, and `color` is the
+ * ink written on that fill. Seven of the ten types pair a pale fill with strong
+ * ink; conditioning and custom are built the other way round, a strong fill
+ * with plain white ink, because that is what their pills want elsewhere.
+ *
+ * The donut slices and the legend dots are drawn on the CARD, not on `bg`, and
+ * they were reading `color`. In light mode that made conditioning and custom
+ * white marks on a white card: two of the seven wedges simply were not there,
+ * their legend dots were missing, and the ring did not add up to the "7 total"
+ * printed in the middle of it. Dark mode was fine, which is why it survived.
+ *
+ * `chart` is therefore the mark colour — the one that has to survive on the
+ * card — and it is a token that carries a strong value in BOTH themes, so the
+ * dark rendering is unchanged. Where the existing ink already qualified, chart
+ * is that same ink.
+ */
+function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<
+  SessionType,
+  { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string; chart: string }
+> {
   return {
-    squat: { bg: C.primaryMuted, icon: SHARED_SESSION_META.squat.icon, color: C.primaryText },
-    bench: { bg: C.badgeVolume, icon: SHARED_SESSION_META.bench.icon, color: C.badgeVolumeText },
+    squat: {
+      bg: C.primaryMuted,
+      icon: SHARED_SESSION_META.squat.icon,
+      color: C.primaryText,
+      chart: C.primaryText,
+    },
+    bench: {
+      bg: C.badgeVolume,
+      icon: SHARED_SESSION_META.bench.icon,
+      color: C.badgeVolumeText,
+      chart: C.badgeVolumeText,
+    },
     deadlift: {
       bg: C.categoryNeuro,
       icon: SHARED_SESSION_META.deadlift.icon,
       color: C.categoryNeuroText,
+      chart: C.categoryNeuroText,
     },
     conditioning: {
       bg: C.categoryPrehab,
       icon: SHARED_SESSION_META.conditioning.icon,
       color: C.categoryPrehabText,
+      chart: C.streakText,
     },
     prehab: {
       bg: C.categoryMechanical,
       icon: SHARED_SESSION_META.prehab.icon,
       color: C.categoryMechanicalText,
+      chart: C.categoryMechanicalText,
     },
     flexibility: {
       bg: C.categoryCooldown,
       icon: SHARED_SESSION_META.flexibility.icon,
       color: C.categoryCooldownText,
+      chart: C.categoryCooldownText,
     },
     custom: {
       bg: C.categoryFinisher,
       icon: SHARED_SESSION_META.custom.icon,
       color: C.categoryFinisherText,
+      chart: C.destructive,
     },
     lower_body: {
       bg: C.primaryMuted,
       icon: SHARED_SESSION_META.lower_body.icon,
       color: C.primaryText,
+      chart: C.primaryText,
     },
     upper_body: {
       bg: C.badgeVolume,
       icon: SHARED_SESSION_META.upper_body.icon,
       color: C.badgeVolumeText,
+      chart: C.badgeVolumeText,
     },
     full_body: {
       bg: C.categoryNeuro,
       icon: SHARED_SESSION_META.full_body.icon,
       color: C.categoryNeuroText,
+      chart: C.categoryNeuroText,
     },
   };
 }
@@ -2310,7 +2348,7 @@ function SessionTypeBreakdown({
               <Path
                 key={seg.type}
                 d={donutSegmentPath(cx, cy, R, r, seg.startAngle, seg.endAngle)}
-                fill={sessionTypeColors[seg.type].color}
+                fill={sessionTypeColors[seg.type].chart}
                 opacity={isDimmed ? 0.25 : isSelected ? 1 : 0.9}
                 onPress={() => onFilterChange(isSelected ? null : seg.type)}
               />
@@ -2361,8 +2399,16 @@ function SessionTypeBreakdown({
                   opacity: isDimmed ? 0.35 : 1,
                 })}
               >
+                {/* Selecting a row fills it with `bg`, so the dot changes
+                    surface as well — it follows the same rule the row's text
+                    already follows one line down. */}
                 <View
-                  style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: meta.color }}
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: isSelected ? meta.color : meta.chart,
+                  }}
                 />
                 <Text
                   style={{

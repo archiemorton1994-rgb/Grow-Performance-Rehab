@@ -23,17 +23,21 @@ const LightColors = {
   surfaceTertiary: '#eef0ef',
 
   text: '#1a1d1b',
-  // Was '#6b7570' - 4.17:1 on surfaceTertiary, the darkest card the app puts
-  // secondary copy on, which is under AA. Nudged just dark enough to clear it.
-  textSecondary: '#646d67',
-  // Was '#9ca5a0' - 2.21-2.53:1 across the four surfaces, against the dark
-  // theme's 3.01-4.12:1 for the same token. Tertiary is meant to be quiet, but
-  // it carries real content (achievement names, "Not tried yet", "Resend code
-  // in 25s"), so one theme being half as legible as the other was drift, not a
-  // choice. This value meets or beats the dark value on every surface. Full AA
-  // would need ~#687069, which is textSecondary in all but name and would
-  // erase the tier - so the remaining gap to AA is left as a design call.
-  textTertiary: '#727b76',
+  // Moved down with textTertiary rather than independently. Once tertiary is
+  // held at AA it lands within 0.1 of where secondary used to sit, so the two
+  // tiers would have rendered as the same grey. Secondary is set from the dark
+  // theme's secondary instead (7.2 : 1 here vs 7.7 : 1 there on the same
+  // surface) - light was the weaker theme for the same strings, which was never
+  // a decision anybody made.
+  textSecondary: '#4a504c',
+  // Tertiary carries real content, not decoration: every achievement name and
+  // rarity tier, "Not tried yet", the in-session timer line, each queued
+  // exercise's set/rep spec, "Resend code in 25s", the locked equipment labels.
+  // It sat below AA in both themes on the argument that closing the gap would
+  // erase the tier; the tier is kept by moving textSecondary too. Set to clear
+  // 4.5 : 1 on surfaceTertiary - the darkest card light mode paints it on - and
+  // deliberately close to that floor, so it stays the quiet tier.
+  textTertiary: '#656f68',
   textInverse: '#ffffff',
   /** Text/icon color for content placed on a `primaryDark`-filled surface.
    *  primaryDark flips from dark green (light theme) to bright green (dark
@@ -57,7 +61,9 @@ const LightColors = {
 
   tabActive: '#2f6b46',
   // Was '#9ca5a0' - only ~2.4:1 against the near-white tab bar, hard to read.
-  // Tracks textSecondary's already-vetted contrast.
+  // Left where it is now that textSecondary has moved down: an unselected tab
+  // label has to stay clearly quieter than the selected one, which body-copy
+  // ink no longer is. 5.2 : 1 on the tab bar, so it is above AA on its own.
   tabInactive: '#646d67',
 
   destructive: '#ef4444',
@@ -75,14 +81,27 @@ const LightColors = {
   achievementGoldMuted: '#f5c842',
   achievementGoldBorder: '#f59e0b55',
 
-  /** The three Restore rows. Each is painted as the row's *title* on a card
-   *  filled with itself at 5%, so the accent has to survive being read against
-   *  a wash of its own hue - which is why the light values are darker than the
-   *  dark theme's. cardAccentPrehab was left on the raw amber-500 when the
-   *  other two were darkened, giving 1.99:1; amber-700 clears AA outright. */
-  cardAccentRecovery: '#0d9488',
-  cardAccentMobility: '#6366f1',
-  cardAccentPrehab: '#b45309',
+  /** The three Restore rows — one derived family, not three picked colours.
+   *
+   *  Recovery, mobility and prehab really are three different modalities, so
+   *  they stay told apart by hue. They used to be teal / indigo / amber, which
+   *  is three hues chosen independently: nothing tied them to each other or to
+   *  the brand, and side by side they read as an unfinished screen.
+   *
+   *  These are derived instead. All three share one saturation and one *weight*
+   *  — each is tuned so it lands on the same contrast (~5.2 : 1 light, ~7 : 1
+   *  dark) against the 5% wash of itself the row is filled with — so only the
+   *  hue differs. The hues step evenly away from the brand green (143 deg):
+   *  158 / 186 / 214, sea green to teal to steel blue. Close enough to read as
+   *  the brand's family, far enough that none of them is mistaken for the brand
+   *  accent itself, which on Home means "strength session".
+   *
+   *  Each is painted as the row's title on a card filled with itself, so the
+   *  surface moves with the ink — measure the composite, not the raw value
+   *  against a white page. That is how the old prehab amber sat at 1.99 : 1. */
+  cardAccentRecovery: '#147451',
+  cardAccentMobility: '#15707a',
+  cardAccentPrehab: '#2164bc',
   energyBadge: '#7C6EF0',
 
   youtubeSurface: '#FFF0F0',
@@ -151,7 +170,9 @@ const DarkColors = {
 
   text: '#ffffff',
   textSecondary: '#b8b8b8',
-  textTertiary: '#6e6e6e',
+  // See the note on LightColors.textTertiary. Same job, same floor: 4.6 : 1 on
+  // surfaceTertiary, the lightest card dark mode paints it on.
+  textTertiary: '#8c8c8c',
   textInverse: '#ffffff',
   primaryDarkText: '#1a1d1b',
 
@@ -192,9 +213,12 @@ const DarkColors = {
   achievementGoldMuted: '#f59e0b22',
   achievementGoldBorder: '#f59e0b33',
 
-  cardAccentRecovery: '#14b8a6',
-  cardAccentMobility: '#818cf8',
-  cardAccentPrehab: '#fbbf24',
+  // Same three hues as the light theme, lifted to ~7 : 1 on their own tint.
+  // Dark mode can afford the extra brightness and needs it — at the light
+  // theme's weight these read as three dim smudges on black.
+  cardAccentRecovery: '#28ac7c',
+  cardAccentMobility: '#2ba7b5',
+  cardAccentPrehab: '#699bdc',
   energyBadge: '#9d8cf5',
 
   youtubeSurface: '#1a0808',
