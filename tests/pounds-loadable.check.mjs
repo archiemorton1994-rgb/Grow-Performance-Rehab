@@ -197,7 +197,26 @@ console.log('\n[1] The progression the audit read off the screen');
 }
 
 // ─── 2. The bigger steps keep their meaning ──────────────────────────────────
-console.log('\n[2] The three progression sizes are still three different sizes');
+//
+// REWRITTEN when progression stopped being a flat number of kilograms.
+//
+// This used to assert three exact numbers — +5, +10 and +15 lb — which were the
+// pound faces of the old flat +2.5 / +5 / +7.5 kg steps. Those steps were the
+// bug: the same kilograms went onto a deadlift and onto a lateral raise, and
+// twelve quiet sessions took a 10 kg dumbbell to 62.5 kg. The step is a share of
+// the load now, so a fixed pound figure is no longer the thing to check.
+//
+// What still has to hold is the PROMISE the three sizes make: a bigger answer
+// never moves you less, and answering at all beats saying nothing. That is what
+// keeps the feedback prompt worth using.
+//
+// Three DISTINCT sizes are deliberately not required. The pound grid is 5 lb, so
+// three distinct multiples on a 145 lb squat means +15 lb — 10.3% in one
+// session, which is more than a tap of "plenty left" should authorise. Where the
+// grid can express the difference the engine takes it (see the tier-separation
+// step in progressedLoad); where it cannot, two answers landing on the same
+// weight is the honest outcome and not a fault.
+console.log('\n[2] A bigger answer never moves you less');
 {
   const stepsFor = (performance, normalStreak) => {
     let lastKg = displayUnitToKg(145, 'lbs');
@@ -219,9 +238,27 @@ console.log('\n[2] The three progression sizes are still three different sizes')
   const veryEasy = stepsFor('very_easy', 0);
   const held = stepsFor('failed', 0);
   console.log(`     normal ${normal.join()} | easy ${easy.join()} | very easy ${veryEasy.join()} | hold ${held.join()}`);
-  check('a clean session is +5 lb', normal.every((s) => s === 5), normal.join());
-  check('"that felt easy" is +10 lb', easy.every((s) => s === 10), easy.join());
-  check('"plenty left" is +15 lb', veryEasy.every((s) => s === 15), veryEasy.join());
+  check('a clean session is +5 lb, the smallest a pound gym can make', normal.every((s) => s === 5), normal.join());
+  check(
+    'every step is a whole number of pounds the gym can load',
+    [...normal, ...easy, ...veryEasy].every((s) => s % 5 === 0),
+    `${normal.join()} | ${easy.join()} | ${veryEasy.join()}`
+  );
+  check(
+    '"that felt easy" moves more than saying nothing',
+    easy.every((s, i) => s > normal[i]),
+    `easy ${easy.join()} vs normal ${normal.join()}`
+  );
+  check(
+    '"plenty left" is never less than "that felt easy"',
+    veryEasy.every((s, i) => s >= easy[i]),
+    `very easy ${veryEasy.join()} vs easy ${easy.join()}`
+  );
+  check(
+    'and no single answer adds more than a tenth of the bar',
+    veryEasy.every((s) => s / 145 <= 0.105),
+    veryEasy.join()
+  );
   check('a failed session holds the weight exactly', held.every((s) => s === 0), held.join());
 }
 

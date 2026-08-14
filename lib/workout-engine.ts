@@ -796,6 +796,166 @@ interface PersonalisedLoad {
   kg: number[] | null;
 }
 
+/**
+ * How much weight last session earned you.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS IS A PERCENTAGE AND NOT A NUMBER OF KILOGRAMS
+ * ─────────────────────────────────────────────────────────────────────────────
+ * It used to be a flat step: hold on a failure, +2.5 kg normally, +5 kg after
+ * three clean sessions or a thumbs-up, +7.5 kg on "5+ reps left". The same
+ * kilograms for every exercise in the app, which is only sensible if every
+ * exercise is loaded like a deadlift. Measured over twelve sessions with NO
+ * feedback given at all — the default path, what a user gets by just training:
+ *
+ *     Barbell Deadlift    140 kg -> 192.5 kg    +38%
+ *     Overhead Press       40 kg ->  92.5 kg   +131%
+ *     DB Lateral Raise     10 kg ->  62.5 kg   +525%
+ *
+ * A 62 kg lateral raise is not a hard session, it is an impossible one, and the
+ * app arrived at it by adding the same 2.5 kg it adds to a deadlift. One tap of
+ * "5+ reps left" moved a lateral raise 75% in a single session.
+ *
+ * A share of the current load is the right unit: 2.5 kg is 1.8% of a deadlift
+ * and 25% of a lateral raise, and it is the percentage that decides whether the
+ * jump is reasonable.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE PART THAT MATTERS MOST: THE GYM HAS A SMALLEST PLATE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * On the 2.5 kg grid the smallest possible increase to a 10 kg dumbbell is 25%.
+ * No percentage can fix that, because the equipment cannot express it. So when
+ * the smallest available jump is too big a share of the current load, the answer
+ * is not a smaller step — it is to WAIT, and take the jump once there is enough
+ * evidence to justify it.
+ *
+ * That is what a coach does with a light lift: hold, accumulate clean sessions,
+ * then move up a dumbbell. It makes a lateral raise progress on roughly every
+ * fourth session instead of every single one, and leaves the deadlift — where
+ * one grid step is under 2% — moving every session exactly as it did before.
+ */
+const PROGRESSION_PCT = {
+  /** "5+ reps left in the tank". */
+  very_easy: 0.05,
+  /** Thumbs-up, or a session logged as easy. */
+  easy: 0.03,
+  /** Three clean sessions in a row with nothing said. */
+  streak: 0.03,
+  /** The default: it went fine, nothing reported. */
+  normal: 0.015,
+} as const;
+
+/**
+ * The biggest share of the current load a single session may add unasked.
+ *
+ * Above this the jump is gated on evidence rather than taken automatically.
+ *
+ * 5%, because that is where the grid stops being fine enough to express a
+ * sensible week. One 2.5 kg step is 1.8% of a 140 kg deadlift and 6% of a 40 kg
+ * overhead press: the deadlift can move every session and the press cannot,
+ * and a single threshold on the PERCENTAGE is what tells the two apart.
+ */
+const MAX_UNEARNED_JUMP = 0.05;
+
+/**
+ * Clean sessions needed to bank one oversized jump.
+ *
+ * The streak counts consecutive sessions with nothing reported and is only
+ * reset by explicit feedback (see completeSession) — it does NOT reset when a
+ * weight increase is taken. So a plain `streak >= 3` gate delays a light lift's
+ * first jump by three sessions and then lets it climb every session after,
+ * which is most of the original problem still in place: a 10 kg lateral raise
+ * reached 32.5 kg over twelve sessions instead of 62.5 kg.
+ *
+ * Taking the jump only on every third clean session makes the evidence have to
+ * rebuild each time, which is the behaviour the streak would have if it reset
+ * itself. A lateral raise moves up a dumbbell about once a month of weekly
+ * training; a deadlift is unaffected, because one grid step there is under 2%
+ * and never reaches this gate at all.
+ */
+const CLEAN_SESSIONS_PER_BIG_JUMP = 3;
+
+/**
+ * The most a single session may add when separating one feedback tier from
+ * another on a coarse grid. See the tier-separation step in progressedLoad.
+ */
+const TIER_SEPARATION_CAP = 0.1;
+
+export function progressedLoad(
+  lastKg: number,
+  performance: ExercisePerformance | undefined,
+  normalStreak: number,
+  toGrid: (v: number) => number
+): number {
+  // Belt and braces: the caller already returns early on a failure, but this is
+  // exported and its name promises a progression, not a hold.
+  if (performance === 'failed' || lastKg <= 0) return lastKg;
+
+  const pct =
+    performance === 'very_easy'
+      ? PROGRESSION_PCT.very_easy
+      : performance === 'easy'
+        ? PROGRESSION_PCT.easy
+        : normalStreak >= 3
+          ? PROGRESSION_PCT.streak
+          : PROGRESSION_PCT.normal;
+
+  /** The next weight up from `kg` that the gym can actually load. */
+  const stepUp = (kg: number): number => {
+    for (let probe = kg + 0.25; probe <= kg * 1.6 + 5; probe += 0.25) {
+      const g = toGrid(probe);
+      if (g > kg) return g;
+    }
+    return kg;
+  };
+
+  let next = toGrid(lastKg * (1 + pct));
+  // A percentage can round back onto the weight it came from — 1.5% of 140 kg
+  // is 2.1 kg, which rounds to 140. One increment up, so a session that earned
+  // something is never handed the same bar.
+  if (next <= lastKg) next = stepUp(lastKg);
+  if (next <= lastKg) return lastKg;
+
+  /**
+   * Three answers have to feel like three answers.
+   *
+   * On a coarse grid the tiers collapse: 1.5% and 3% of a 145 lb squat are 2.2
+   * and 4.4 lb, and the smallest pound jump is 5 — so saying "that felt easy"
+   * moved the bar exactly as far as saying nothing at all. A feedback prompt
+   * whose answers do not change anything teaches people to stop answering, and
+   * this app leans on those answers for everything.
+   *
+   * So an ANSWER takes one extra increment when the grid has flattened it into
+   * the default — but only while the result stays inside TIER_SEPARATION_CAP.
+   * On a 10 kg dumbbell one step is already 25%; a second would be 50%, and no
+   * answer to a feedback prompt justifies that.
+   *
+   * A clean streak deliberately does NOT get this. It is the app's own
+   * inference, not something the user said, so there is no prompt for it to
+   * make feel worthwhile — and letting it bump turned a 100 kg squat into a
+   * 5 kg-per-session climb, 100 -> 152.5 kg over twelve quiet sessions.
+   */
+  if (performance === 'easy' || performance === 'very_easy') {
+    const baseline = stepUp(lastKg);
+    if (next <= baseline) {
+      const bumped = stepUp(baseline);
+      if (bumped > baseline && (bumped - lastKg) / lastKg <= TIER_SEPARATION_CAP) next = bumped;
+    }
+  }
+
+  // Is the smallest jump the gym can express too big to hand over unasked?
+  const jump = (next - lastKg) / lastKg;
+  if (jump > MAX_UNEARNED_JUMP) {
+    // Saying it was easy is evidence enough on its own — the user was asked and
+    // answered. Otherwise the jump has to be banked, and the bank has to refill
+    // before the next one.
+    const said = performance === 'very_easy' || performance === 'easy';
+    const banked = normalStreak > 0 && normalStreak % CLEAN_SESSIONS_PER_BIG_JUMP === 0;
+    if (!said && !banked) return lastKg;
+  }
+  return next;
+}
+
 function personalizeLoad(
   rawLoad: string,
   profile: UserProfile,
@@ -883,6 +1043,7 @@ function personalizeLoad(
   const earnedMult = layoff?.reset ? 1 : combinedMult;
 
   // ── Per-exercise progression: lastLoggedWeight + step per session ────────
+  // See progressedLoad above for how the step is sized.
   // Keyed by stable exerciseId (not display name) so kettlebell-relabelled
   // names still match the ID that was logged in the previous session.
   //
@@ -936,15 +1097,10 @@ function personalizeLoad(
     // store so it resets to 0 precisely when feedback is received for *this*
     // exercise, not based on unrelated global session count changes.
     const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
-    const step =
-      performance === 'very_easy' ? 7.5 : performance === 'easy' || normalStreak >= 3 ? 5 : 2.5;
-    // Apply exact additive step (hold / +2.5 / +5 / +7.5) as specified.
-    // feedbackMult is NOT applied on top - it is only used in the heuristic
-    // path below (when there is no previous logged weight to anchor from).
-    const progressedKg = toGrid(lastKg + step);
+    const progressedKg = progressedLoad(lastKg, performance, normalStreak, toGrid);
     if (__DEV__) {
       console.log(
-        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} +${step} → ${progressedKg}kg`
+        `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} → ${progressedKg}kg`
       );
     }
     return computed(progressedKg);

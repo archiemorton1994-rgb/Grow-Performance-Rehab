@@ -53,8 +53,14 @@ const RESTORE_TUTORIAL: readonly RestoreTutorialStep[] = [
     spotlightRef: 'prehab',
     iconName: 'locate-outline',
     iconLabel: 'Prehab',
-    title: 'Target a specific area',
-    body: 'Pick the region that needs it, tight hips, a cranky shoulder, and get a focused circuit just for that.',
+    title: 'Target a sore area',
+    // Rewritten when the acute protocols landed. The old copy promised "a
+    // focused circuit", which was true of what it used to build and is the
+    // wrong expectation to set now: naming a sore area gets gentle isometric
+    // and short-range work with a pain limit attached, and deliberately no
+    // stretching of the injured tissue. Someone expecting a circuit and given
+    // five holds will think it is broken unless the tour says so first.
+    body: 'Name the area that hurts and you get gentle, low-load work built for it — nothing that stretches or loads a sore muscle hard, and a pain limit to stay inside.',
   },
 ] as const;
 

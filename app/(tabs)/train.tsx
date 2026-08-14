@@ -50,6 +50,17 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     body: 'Squat, Bench, and Deadlift drive your 1RM and strength tracking, everything else is measured against these.',
   },
   {
+    // Same region as the step above — Custom sits in that grid — but it is a
+    // different idea and was going unexplained. The builder is the only place
+    // in the app that asks how long you have got, and a user who never opens it
+    // never finds that out.
+    spotlightRef: 'kpi',
+    iconName: 'construct-outline',
+    iconLabel: 'Custom',
+    title: 'Or build your own',
+    body: 'Custom asks what you are training for and how long you have — 30, 45 or 60 minutes — then builds to fit. Your warm-up, mobility, activation and main lift are always kept.',
+  },
+  {
     spotlightRef: 'additional',
     iconName: 'grid-outline',
     iconLabel: 'More',

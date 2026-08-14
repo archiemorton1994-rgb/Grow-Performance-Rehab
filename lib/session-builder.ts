@@ -212,6 +212,28 @@ const CATEGORY_OVERRIDES: Record<string, BuilderCategory> = {
   // Recorded with movementPattern 'conditioning', which routes it to the
   // finisher block; it is an ordinary lunge and belongs with the accessories.
   'alternating reverse lunge': 'accessory',
+
+  // ── Filmed for the channel, categorised by Archie ─────────────────────────
+  // Four loaded compounds that canBeMainLift() accepts and a coach would not.
+  // The rule is right in general — a barbell hinge under a real load usually IS
+  // a candidate main lift — but it cannot tell that a row is support work
+  // whatever bar it uses, or that a trap-bar RDL is the accessory that follows
+  // the deadlift rather than a lift you would build a block around.
+  //
+  // Note this also removes them from the KPI step's list, because builderRolesOf
+  // derives the roles from this category. That is the intent: they were named as
+  // accessories, and a Gorilla Row offered as the lift a training block is built
+  // on is the thing being fixed. Trap Bar Deadlift and Box Squat are NOT here —
+  // they classify as KPI lifts already, which is exactly where they belong.
+  'trap bar romanian deadlift': 'accessory',
+  'trap bar row': 'accessory',
+  'gorilla row': 'accessory',
+  'kb side lunge': 'accessory',
+  // Banded walks and marches are the textbook glute-medius activation drill.
+  // Filed 'prehab' because that is also true of them, which routed them to Core
+  // & Prehab — the block that runs AFTER the lift they exist to prime.
+  'banded monster walk': 'activation',
+  'banded march': 'activation',
 };
 
 /** Continuous, machine-or-locomotion cardio, recognised by what it is called. */

@@ -836,10 +836,70 @@ export function BodyDiagram({
     </G>
   );
 
+  // The body silhouette — warm dark ink on a light background, white on a dark
+  // panel or in compact mode, themed otherwise. Declared here rather than beside
+  // the other display values because bodyData below needs it: every part of the
+  // figure that is not carrying a highlight is painted with it.
+  const defaultFill = lightBg
+    ? colorWithAlpha('#2C1F0F', 0.22)
+    : darkPanel || compact
+      ? colorWithAlpha('#ffffff', 0.12)
+      : colorWithAlpha(C.text, 0.7);
+
   // ─── Build library data array ─────────────────────────────────────────────────
   const bodyData = useMemo((): ExtendedBodyPart[] => {
     const slugMap = view === 'front' ? FRONT_REGION_SLUGS : BACK_REGION_SLUGS;
     const result: ExtendedBodyPart[] = [];
+
+    /**
+     * EVERY part of the figure gets its colour from us, not from the library.
+     *
+     * THE BUG THIS FIXES
+     * ──────────────────
+     * react-native-body-highlighter bakes a colour into each path it ships, and
+     * any part we do not name keeps it. Five were never named:
+     *
+     *     female head   #454545   a solid black face
+     *     male head     #bebebe   a light grey face
+     *     feet          #454545 / #3f3f3f   black feet on both figures
+     *     triceps       dark      two dark blobs on the upper arms, front view
+     *     adductors     dark      a dark blob on the inner thigh, back view
+     *
+     * The face is the one that got reported, and it is the one this repo caused:
+     * patches/react-native-body-highlighter+3.2.0.patch removes the FEMALE
+     * figure's hair, so the app does not give every woman the same hairstyle.
+     * That left her bare head silhouette painted dark grey with nothing drawn
+     * over it. The male kept his hair, so his lighter head read as a face and
+     * the identical fault went unnoticed on that side.
+     *
+     * Seeding the silhouette fill fixes all five at once, on both figures and
+     * both views: anything not carrying a highlight is simply part of the body.
+     *
+     * `hair` is in the list deliberately. With the female figure's hair removed,
+     * tinting the male's would leave the two drawn to different rules, and a
+     * plain silhouette matches the app's own exercise artwork — a pale figure
+     * with the worked muscles picked out in green.
+     *
+     * Two of these are only structural on ONE view: triceps and adductors are
+     * real regions on the back and scenery on the front. So a slug this view
+     * maps is skipped rather than seeded and overwritten. The library would
+     * take the later entry either way, but one entry per slug means nothing
+     * downstream has to know that — a reader, or a test, can look up a slug and
+     * find the single answer.
+     */
+    const STRUCTURAL_SLUGS = [
+      'head',
+      'hair',
+      'feet',
+      // On both figures, but only mapped to a region on one of the two views.
+      'triceps',
+      'adductors',
+    ] as Slug[];
+    const mappedHere = new Set<string>(Object.values(slugMap).flat() as string[]);
+    for (const slug of STRUCTURAL_SLUGS) {
+      if (mappedHere.has(slug)) continue;
+      result.push({ slug, styles: { fill: defaultFill } });
+    }
 
     if (heatmapCounts !== undefined) {
       for (const [region, slugs] of Object.entries(slugMap) as [PainRegion, Slug[]][]) {
@@ -867,7 +927,7 @@ export function BodyDiagram({
       }
     }
     return result;
-  }, [view, selected, selectedRegions, category, heatmapCounts]);
+  }, [view, selected, selectedRegions, category, heatmapCounts, defaultFill]);
 
   // ─── Library press handler ─────────────────────────────────────────────────────
   const handleBodyPartPress = (bodyPart: ExtendedBodyPart) => {
@@ -892,13 +952,6 @@ export function BodyDiagram({
     : selectedRegions?.length
       ? selectedRegions.map((r) => getDiagramLabel(r, view)).join(' · ')
       : null;
-
-  // defaultFill: body silhouette — warm dark ink on light bg, white on dark panel/compact, themed otherwise
-  const defaultFill = lightBg
-    ? colorWithAlpha('#2C1F0F', 0.22)
-    : darkPanel || compact
-      ? colorWithAlpha('#ffffff', 0.12)
-      : colorWithAlpha(C.text, 0.7);
 
   const styles = useMemo(
     () =>
