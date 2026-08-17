@@ -858,28 +858,29 @@ export default function ReadinessScreen() {
 
   const renderPrehabFocus = () => (
     <Animated.View key="prehabFocus" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
+      {/* A PLAIN VIEW, not a ScrollView — the same shape the pain step uses.
+          Inside a ScrollView the content box is unbounded vertically, so the
+          `flex: 1` measuring wrapper below resolved to whatever the content had
+          grown to rather than to the room left on screen. The measurement was
+          therefore always big enough for the figure it was supposed to be
+          constraining: it measured diligently and the number meant nothing.
+
+          THE FIGURE IS THE CONTENT, so everything else earns its space — the
+          same rule the pain step follows, and the same ~60pt of chrome removed.
+          The icon medallion said nothing the heading did not, and the subtitle
+          described an interaction the two buttons underneath state outright
+          ("Start targeted prehab" / "Full body circuit"). */}
+      <View
+        style={{
+          flex: 1,
           paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: 32,
+          paddingTop: 4,
+          paddingBottom: 16,
           alignItems: 'center',
         }}
       >
-        <View
-          style={[
-            styles.questionIcon,
-            { alignSelf: 'center', width: 48, height: 48, borderRadius: 14, marginBottom: 10 },
-          ]}
-        >
-          <Ionicons name="body-outline" size={24} color={C.primaryText} />
-        </View>
-        <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 4 }]}>
+        <Text style={[styles.question, { textAlign: 'center', fontSize: 20, marginBottom: 2 }]}>
           What area to target today?
-        </Text>
-        <Text style={[styles.questionSub, { textAlign: 'center', marginBottom: 4 }]}>
-          Tap a region - or run a full body circuit
         </Text>
         {/* Measured, like the pain step. This one was not measuring at all, so
             it took the component's default budget and stayed small on every
@@ -996,7 +997,7 @@ export default function ReadinessScreen() {
             <Text style={styles.startButtonText}>Full body circuit</Text>
           </Pressable>
         )}
-      </ScrollView>
+      </View>
     </Animated.View>
   );
 
@@ -1020,26 +1021,26 @@ export default function ReadinessScreen() {
  * never said what it was. Reported as exactly that: "it highlights the area but
  * doesn't say what the area is".
  *
- * 46 = the label row's own 44, plus a point of slack. Taken off the figure
- * rather than added to the screen, because the other half of the report was
- * "avoiding scrolling still" — this step has to fit as it is.
+ * That reserve is BodyDiagram's business, not this screen's — it is the only
+ * thing that knows how tall its own toggles and label row are, and it measures
+ * them now. A guessed constant here was always going to be wrong, and it was:
+ * the figure alone fitted the budget while the card around it did not, so it
+ * rode up over this screen's own heading. What is passed below is simply the
+ * measured space, which is what `maxHeight` has always claimed to mean.
  */
-const PAIN_LABEL_RESERVE = 46;
 
 /**
  * Room kept below the prehab figure for the sore / feels-fine question.
  *
- * Same arithmetic as PAIN_LABEL_RESERVE and for the same reason: taken off the
- * figure, not added to the screen, because this step has to fit without
- * scrolling. Label row + two option cards + gap = ~78.
+ * This one genuinely IS the screen's business: the question is a sibling of the
+ * diagram, not part of it. Label row + two option cards + gap = ~78. Taken off
+ * the figure rather than added to the screen, because this step has to fit
+ * without scrolling.
  */
 const PREHAB_SORE_RESERVE = 78;
 
-const painDiagramMaxHeight =
-  painDiagramAreaH > 0 ? painDiagramAreaH - 20 - PAIN_LABEL_RESERVE : undefined;
+const painDiagramMaxHeight = painDiagramAreaH > 0 ? painDiagramAreaH - 20 : undefined;
 
-// Same shape for the prehab step, which additionally has to make room for the
-// sore / feels-fine question once an area is chosen.
 const prehabDiagramMaxHeight =
   prehabDiagramAreaH > 0
     ? prehabDiagramAreaH - 20 - (diagramPrehabRegion ? PREHAB_SORE_RESERVE : 0)

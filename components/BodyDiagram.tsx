@@ -1,5 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  Platform,
+  type LayoutChangeEvent,
+} from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import Body, { ExtendedBodyPart, Slug } from 'react-native-body-highlighter';
 import Animated, {
@@ -78,6 +86,7 @@ export const DIAGRAM_MAX_WIDTH = 240;
 export const HIT_PADDING = 9;
 /** Floor, so small regions (wrist, ankle) stay big enough to tap accurately. */
 export const DIAGRAM_MIN_WIDTH = 140;
+
 /** Share of viewport height the figure may occupy when otherwise unconstrained. */
 const DIAGRAM_HEIGHT_SHARE = 0.58;
 
@@ -446,8 +455,45 @@ export function BodyDiagram({
    * changed, because this line was binding first and the two were fighting.
    *
    * `maxHeight` was already the escape hatch; it just was not being passed.
+   *
+   * ── AND IT BUDGETS THE WHOLE COMPONENT, NOT JUST THE FIGURE ──────────────
+   *
+   * It used to size the SVG alone, while the toggles above and the label row
+   * below were added on top — around 240pt of chrome that the caller's budget
+   * knew nothing about. So a screen that measured its space perfectly and
+   * handed the exact number over still produced a card ~150pt taller than the
+   * space it was given. Because the slot centres its content, the overflow went
+   * BOTH ways: the figure ran off the bottom of the phone and the card rode up
+   * over the screen's own heading. On the pain step it covered "Which area is
+   * affected?"; on the prehab step it covered the title and pushed the confirm
+   * button below the fold.
+   *
+   * Both callers had grown magic reserve constants to compensate — 46 here, 78
+   * there — which is guesswork against a number only this component can know.
+   * It measures its own chrome instead: the toggle group and the label row
+   * report their heights, neither of which depends on the figure, so there is
+   * no feedback loop. `maxHeight` now means what every caller already assumed
+   * it meant — "this is all the room there is".
    */
-  const heightBudget = maxHeight ?? screenHeight * DIAGRAM_HEIGHT_SHARE;
+  /**
+   * Chrome is MEASURED as (whole component - figure), not added up from its
+   * parts. Summing them was the first attempt and it came out ~67pt short: the
+   * toggle group and label row are the obvious pieces, but there is also the
+   * body row's own alignment, the wrapper around the figure and the caller's
+   * card padding, and enumerating them is a list that goes stale the moment
+   * anyone adds a row.
+   *
+   * This subtraction is invariant to the figure's own size — grow or shrink the
+   * figure and the difference is the same — so feeding it back into the budget
+   * settles immediately rather than oscillating.
+   */
+  const [componentH, setComponentH] = useState(0);
+  const [figureH, setFigureH] = useState(0);
+  const chromeH = componentH > 0 && figureH > 0 ? Math.max(0, componentH - figureH) : 0;
+  const heightBudget =
+    maxHeight != null
+      ? Math.max(DIAGRAM_MIN_WIDTH * DIAGRAM_ASPECT, maxHeight - chromeH)
+      : screenHeight * DIAGRAM_HEIGHT_SHARE;
   // The floor applies only to the viewport-derived size — it must never
   // override an explicit `maxWidth`. Callers that ask for a deliberately tiny
   // figure (the summary certificate's 58–84px front/back pair, the 120px Stats
@@ -1170,7 +1216,10 @@ export function BodyDiagram({
         {/* Spacer mirrors the cycle button width so the body stays centred */}
         {!compact && !heatmapCounts && <View style={styles.cyclerSpacer} />}
 
-        <Animated.View style={[styles.bodyWrap, svgAnimStyle]}>
+        <Animated.View
+          style={[styles.bodyWrap, svgAnimStyle]}
+          onLayout={(e) => setFigureH(e.nativeEvent.layout.height)}
+        >
           <View
             style={{ position: 'relative', width: svgWidth, height: svgWidth * DIAGRAM_ASPECT }}
           >
@@ -1314,13 +1363,26 @@ export function BodyDiagram({
     return <View style={{ alignItems: 'center' }}>{diagramContent}</View>;
   }
 
+  // Only measured when a caller has given a budget to fit inside; otherwise the
+  // figure is sized from the screen and there is nothing to correct against.
+  // Attached ALWAYS, not only when a budget is present. Callers measure their
+  // own space first, so `maxHeight` arrives as undefined on the first render and
+  // becomes a number on the second — and a handler attached at that point never
+  // fires, because onLayout reports layout CHANGES and the layout has already
+  // settled. The measurement is cheap and unused when there is no budget.
+  const measureComponent = (e: LayoutChangeEvent) => setComponentH(e.nativeEvent.layout.height);
+
   if (darkPanel) {
     return (
-      <View style={styles.container}>
+      <View style={styles.container} onLayout={measureComponent}>
         <View style={styles.darkPanel}>{diagramContent}</View>
       </View>
     );
   }
 
-  return <View style={styles.container}>{diagramContent}</View>;
+  return (
+    <View style={styles.container} onLayout={measureComponent}>
+      {diagramContent}
+    </View>
+  );
 }
