@@ -161,13 +161,14 @@ check(
   'this one was not measuring at all, so it took the default on every phone'
 );
 
-// The prehab step gained a sore / feels-fine question, which has to come out of
-// the figure's budget rather than off the bottom of the screen — this step is
-// required to fit without scrolling.
+// The prehab step gained a sore / feels-fine question. It is a SIBLING of the
+// measured wrapper, so flexbox already takes its height out of the measurement —
+// this assertion used to demand a reserve on top of that, which shrank the
+// figure twice over the moment a region was tapped.
 check(
-  'and it reserves room for the sore question rather than overflowing',
-  /diagramPrehabRegion \? PREHAB_SORE_RESERVE : 0/.test(readiness),
-  'adding a row below a figure sized to the whole area is what pushed the pain label off screen last time'
+  'the sore question is not double-counted against the figure',
+  !/PREHAB_SORE_RESERVE/.test(readiness),
+  'flexbox has already removed a sibling row from the measured height; subtracting it again shrinks the figure for nothing'
 );
 
 // ─── 3. Multi-select is a decision, not an accident ──────────────────────────

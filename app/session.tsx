@@ -3476,7 +3476,9 @@ export default function SessionScreen() {
 
     sessionTerminatedRef.current = true;
     clearActiveSession();
-    void uploadUserData(useAppStore.getState().getDataForSync());
+    void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+            if (ok) useAppStore.getState().clearResetPendingUpload();
+          });
     if (Platform.OS !== 'web') {
       cancelRestTimerNotification();
       if (useAppStore.getState().nudgeEnabled) void scheduleMissedWorkoutNudge();

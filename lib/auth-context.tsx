@@ -289,7 +289,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             useAppStore.getState().mergeServerData(serverData);
           } else {
             // First time this account is seen on any device - upload local data
-            void uploadUserData(useAppStore.getState().getDataForSync());
+            void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+            if (ok) useAppStore.getState().clearResetPendingUpload();
+          });
           }
         } catch {}
       }
@@ -302,7 +304,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (appStateRef.current.match(/inactive|background/) && next === 'active') {
         if (user) {
           await refreshSubscription();
-          void uploadUserData(useAppStore.getState().getDataForSync());
+          void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+            if (ok) useAppStore.getState().clearResetPendingUpload();
+          });
         }
       }
       appStateRef.current = next;
@@ -355,14 +359,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (serverData) {
         useAppStore.getState().mergeServerData(serverData);
       } else {
-        void uploadUserData(useAppStore.getState().getDataForSync());
+        void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+            if (ok) useAppStore.getState().clearResetPendingUpload();
+          });
       }
     },
     [refreshSubscription]
   );
 
   const uploadData = useCallback(async () => {
-    void uploadUserData(useAppStore.getState().getDataForSync());
+    void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+            if (ok) useAppStore.getState().clearResetPendingUpload();
+          });
   }, []);
 
   const signOut = useCallback(async () => {

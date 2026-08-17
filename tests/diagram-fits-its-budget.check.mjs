@@ -115,10 +115,25 @@ check(
   'the label-row reserve belonged to the component, which now measures it'
 );
 
+// This assertion used to pin a reserve for the sore/feels-fine question, and was
+// wrong: the question is a SIBLING of the flex:1 wrapper that reports its own
+// height, so flexbox has already removed the question's height from that
+// measurement. Subtracting it again shrank the figure a second time, at the
+// exact moment the user taps a region and most wants to check they hit the right
+// one. The property that matters is that the budget does not depend on the
+// selection at all.
 check(
-  'the prehab step reserves only what is genuinely outside the diagram',
-  /prehabDiagramAreaH - 20 - \(diagramPrehabRegion \? PREHAB_SORE_RESERVE : 0\)/.test(readiness),
-  'the sore question is a sibling of the diagram, so that one IS the screen’s business'
+  'the prehab step passes its measured space, same as the pain step',
+  /const prehabDiagramMaxHeight =\s*\r?\n?\s*prehabDiagramAreaH > 0 \? prehabDiagramAreaH - 20 : undefined;/.test(
+    readiness
+  ),
+  'a reserve here is counted twice - flexbox has already taken the question out of the measurement'
+);
+
+check(
+  'the figure budget does not change when a region is selected',
+  !/prehabDiagramMaxHeight[\s\S]{0,120}?diagramPrehabRegion/.test(readiness),
+  'the figure must not jump smaller the moment the user taps an area'
 );
 
 console.log('\n[3] Neither step can scroll');

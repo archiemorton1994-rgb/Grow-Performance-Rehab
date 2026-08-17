@@ -1030,21 +1030,23 @@ export default function ReadinessScreen() {
  */
 
 /**
- * Room kept below the prehab figure for the sore / feels-fine question.
+ * NO reserve for the sore / feels-fine question, deliberately.
  *
- * This one genuinely IS the screen's business: the question is a sibling of the
- * diagram, not part of it. Label row + two option cards + gap = ~78. Taken off
- * the figure rather than added to the screen, because this step has to fit
- * without scrolling.
+ * There was one, of 78pt, and it was subtracted twice. The question is a
+ * SIBLING of the `flex: 1` wrapper that reports its own height — so flexbox has
+ * already taken the question's height out of that measurement before it reaches
+ * here. Subtracting it again shrank the figure by a further ~78pt of budget at
+ * the exact moment the user taps a region and most wants to check they hit the
+ * right one.
+ *
+ * The reasoning that justified it — "the question is a sibling of the diagram,
+ * not part of it" — is the reason it must NOT be subtracted, not the reason it
+ * must. Both steps now simply hand over what they measured.
  */
-const PREHAB_SORE_RESERVE = 78;
-
 const painDiagramMaxHeight = painDiagramAreaH > 0 ? painDiagramAreaH - 20 : undefined;
 
 const prehabDiagramMaxHeight =
-  prehabDiagramAreaH > 0
-    ? prehabDiagramAreaH - 20 - (diagramPrehabRegion ? PREHAB_SORE_RESERVE : 0)
-    : undefined;
+  prehabDiagramAreaH > 0 ? prehabDiagramAreaH - 20 : undefined;
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>

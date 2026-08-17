@@ -398,6 +398,15 @@ interface AppState {
    *  testWeekFrequency-session cycle for it to come due again. Cleared once a
    *  genuine test-week session completes. Persisted. */
   testWeekDeferred: boolean;
+  /**
+   * A Reset Progress whose cleared state has not yet reached the server.
+   *
+   * Startup restores the server copy whenever it is ahead on sessions, which
+   * right after a reset it always is. Without this, a reset performed with no
+   * signal was silently undone on the next launch. mergeServerData refuses to
+   * restore while it is set; a genuinely successful upload clears it.
+   */
+  resetPendingUpload: boolean;
   userProfile: UserProfile;
   exerciseFeedback: Record<string, ExerciseFeedback>;
   lastReadinessEnergy: EnergyLevel;
@@ -522,6 +531,7 @@ interface AppState {
   setUserProfile: (profile: Partial<UserProfile>) => void;
   setLastWeightPromptedAt: (ts: number) => void;
   setDataOwnerId: (id: string) => void;
+  clearResetPendingUpload: () => void;
   setHasHydrated: (hydrated: boolean) => void;
   completeSession: (session: Omit<CompletedSession, 'id'>) => void;
   addOneRepMax: (orm: OneRepMax) => void;
@@ -676,6 +686,7 @@ export const useAppStore = create<AppState>()(
       oneRepMaxes: [],
       testWeekFrequency: 12,
       testWeekDeferred: false,
+      resetPendingUpload: false,
       userProfile: {
         name: '',
         sex: 'male' as Sex,
@@ -772,6 +783,7 @@ export const useAppStore = create<AppState>()(
       },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
       setDataOwnerId: (id) => set({ dataOwnerId: id }),
+      clearResetPendingUpload: () => set({ resetPendingUpload: false }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time, painRegion) =>
         set({
@@ -1036,6 +1048,22 @@ export const useAppStore = create<AppState>()(
           testWeekDeferred: false,
           earnedBadges: [],
           newlyUnlockedBadges: [],
+          // The half-finished session goes too. Left behind, Home kept offering
+          // "Squat Session - 12/24 sets" with a Resume button, for a session
+          // belonging to the history that was just deleted — and finishing it
+          // wrote the pre-reset working weights straight back into
+          // lastLoggedWeights, quietly undoing the reset one exercise at a time.
+          activeSession: null,
+          // The reset is not truly done until the server knows about it.
+          // Startup restores the server copy whenever it is ahead on sessions,
+          // which right after a reset it always is, so a failed upload used to
+          // mean every deleted session, badge and learned weight came back on
+          // the next launch — with the confirmation dialog having promised "this
+          // cannot be undone" and nothing on screen saying the upload failed.
+          //
+          // While this flag is set, mergeServerData refuses to restore. It is
+          // cleared only by an upload that genuinely succeeded.
+          resetPendingUpload: true,
         }),
 
       setExerciseFeedback: (exerciseId, thumbs) =>
@@ -1533,6 +1561,13 @@ export const useAppStore = create<AppState>()(
 
       mergeServerData: (data) => {
         const s = get();
+        // A reset that has not reached the server yet outranks anything the
+        // server can offer. Without this, resetting with no signal looked like
+        // it worked and was silently undone on the next launch — the server is
+        // ahead on sessions BY DEFINITION right after a reset, so the restore
+        // branch below fires every time and hands back exactly what the user
+        // just deleted. The confirmation said "this cannot be undone".
+        if (s.resetPendingUpload) return;
         const serverCount = data.completedSessions?.length ?? 0;
         const localCount = s.completedSessions.length;
         // Only a server that is strictly ahead may overwrite, so sessions logged

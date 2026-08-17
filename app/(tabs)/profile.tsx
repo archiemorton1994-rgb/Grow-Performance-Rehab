@@ -638,7 +638,15 @@ export default function ProfileScreen() {
             // the next launch: startup downloads the server copy and restores
             // it whenever the server is ahead on sessions - which, right after
             // a reset, it always is. "This cannot be undone" has to be true.
-            void uploadUserData(useAppStore.getState().getDataForSync());
+            //
+            // The upload can fail (no signal, sleeping server) and says nothing
+            // when it does, so resetProgress also sets a flag that blocks the
+            // restore. Only an upload that genuinely succeeded clears it; until
+            // then the device keeps its cleared state whatever the server says,
+            // and the ordinary foreground sync will carry it up later.
+            void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
+              if (ok) useAppStore.getState().clearResetPendingUpload();
+            });
             setActiveModal(null);
           },
         },

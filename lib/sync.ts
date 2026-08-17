@@ -42,11 +42,23 @@ export interface SyncPayload {
   earnedBadges?: string[];
 }
 
-export async function uploadUserData(payload: SyncPayload): Promise<void> {
+/**
+ * Returns whether the upload actually landed.
+ *
+ * It used to return void and swallow every failure, which is right for the
+ * routine case — local data is the source of truth and the next foreground
+ * retries. But one caller genuinely needs to know: Reset Progress is only
+ * irreversible once the server has the cleared state, and a reset performed with
+ * no signal was otherwise undone by the next launch restoring the server copy.
+ * Silence is still the default; the boolean is there for callers that care.
+ */
+export async function uploadUserData(payload: SyncPayload): Promise<boolean> {
   try {
     await apiRequest('PUT', '/api/user/data', payload);
+    return true;
   } catch {
     // Silent - local data is always source of truth; upload retry on next foreground
+    return false;
   }
 }
 

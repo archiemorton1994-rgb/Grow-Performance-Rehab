@@ -4740,6 +4740,23 @@ export default function StatsScreen() {
               sessionType: 'prehab',
               hasAches: 'false',
               painRegion: region,
+              // Prevention, explicitly. The session route infers "acute" from
+              // "is a region named", so leaving this out builds the fresh-injury
+              // protocol: floor-based isometrics, no cool-down, no rotation,
+              // identical every single time.
+              //
+              // This was the third of three doors into a prehab session and the
+              // only one the fix missed. It is also the worst place to have
+              // missed it: this sheet is reached from the Pain Patterns heatmap,
+              // which only ever offers areas the user has flagged REPEATEDLY —
+              // the long-term "looking after it" population, who would have been
+              // stuck on injury-phase work forever and never progressed.
+              //
+              // The sheet's own copy already frames it as prevention ("reducing
+              // injury risk over time"), so 'false' matches what the user was
+              // promised. Someone whose area is sore TODAY has the Restore tab,
+              // which asks.
+              acute: 'false',
               energy: 'normal',
               timeAvailable: '60',
               isTestWeek: 'false',

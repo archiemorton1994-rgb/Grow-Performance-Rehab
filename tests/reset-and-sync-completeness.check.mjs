@@ -103,6 +103,43 @@ check(
   'this resets training progression; a weigh-in is a body measurement, not a lift'
 );
 
+// A half-finished session survived the first version of this fix. Home kept
+// offering "Squat Session - 12/24 sets" with a Resume button, for a session
+// belonging to the history that had just been deleted - and finishing it wrote
+// the pre-reset working weights straight back, undoing the reset one exercise
+// at a time.
+check(
+  'the in-progress session is cleared too',
+  /activeSession: null/.test(resetBody),
+  'otherwise Home offers to resume a session from the history that was just deleted'
+);
+
+console.log('\n[1b] A reset survives a failed upload');
+
+check(
+  'the reset marks itself as not yet uploaded',
+  /resetPendingUpload: true/.test(resetBody),
+  'the server is ahead on sessions by definition right after a reset, so the restore would undo it'
+);
+
+check(
+  'the merge refuses to restore while that is pending',
+  /if \(s\.resetPendingUpload\) return;/.test(store),
+  'this is what makes "this cannot be undone" true when the upload failed'
+);
+
+check(
+  'the upload reports whether it actually landed',
+  /export async function uploadUserData\(payload: SyncPayload\): Promise<boolean>/.test(sync),
+  'it used to swallow every failure and return void, so no caller could tell'
+);
+
+check(
+  'the flag is cleared only by a successful upload',
+  /if \(ok\) useAppStore\.getState\(\)\.clearResetPendingUpload\(\)/.test(profile),
+  'clearing it unconditionally would put the hole straight back'
+);
+
 console.log('\n[2] The confirmation says what actually happens');
 
 check(
@@ -125,7 +162,7 @@ check(
 
 check(
   'the cleared state is pushed to the server immediately',
-  /resetProgress\(\);[\s\S]{0,400}?uploadUserData\(useAppStore\.getState\(\)\.getDataForSync\(\)\)/.test(
+  /resetProgress\(\);[\s\S]{0,900}?uploadUserData\(useAppStore\.getState\(\)\.getDataForSync\(\)\)/.test(
     profile
   ),
   'startup restores the server copy whenever it is ahead on sessions - which right after a reset it always is, so without this the reset is undone by the next launch'
