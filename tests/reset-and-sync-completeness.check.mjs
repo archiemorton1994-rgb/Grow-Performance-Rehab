@@ -185,10 +185,29 @@ for (const field of ['bodyweightLog', 'bodyweightUpdatedAt', 'weeklyStreakGoal',
 
 console.log('\n[4] Restoring it back is safe in both directions');
 
+// Was "the server has more entries than the device". Now stronger: the two logs
+// are MERGED by date, so neither side can lose an entry the other does not have
+// — a straight swap discarded any weigh-in made on this device and not yet
+// uploaded, which is the same class of loss the sync was added to prevent.
 check(
-  'the weigh-in log has its own gate, not the session count',
-  /serverWeighIns > s\.bodyweightLog\.length/.test(store),
-  'a user with weigh-ins and no completed sessions would otherwise get nothing back - exactly the case this protects'
+  'the weigh-in log is merged, not gated on the session count',
+  /const byDate = new Map<string, BodyweightLogEntry>\(\);/.test(store) &&
+    /for \(const entry of s\.bodyweightLog\) byDate\.set\(entry\.date, entry\);/.test(store),
+  'a user with weigh-ins and no completed sessions must still get them back, and must not lose local ones'
+);
+
+check(
+  'the device wins a same-day tie',
+  /for \(const entry of serverLog\) byDate\.set[\s\S]{0,120}?for \(const entry of s\.bodyweightLog\) byDate\.set/.test(
+    store
+  ),
+  'local is applied second, so it overwrites - it is the entry the user is looking at'
+);
+
+check(
+  'the most recent weigh-in wins for the profile figure',
+  /const keepLocalBodyweight =\s*\r?\n?\s*localWeighedAt > serverWeighedAt/.test(store),
+  'onboarding runs BEFORE sign-in, so a returning user types their weight and then has it overwritten'
 );
 
 check(

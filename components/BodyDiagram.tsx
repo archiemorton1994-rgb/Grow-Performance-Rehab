@@ -1109,8 +1109,25 @@ export function BodyDiagram({
           fontFamily: 'Inter_600SemiBold',
           color: darkPanel ? 'rgba(255,255,255,0.45)' : C.textSecondary,
         },
-        catMuscleActive: { color: VOCAB_WORKED },
-        catJointActive: { color: JOINT_CLR },
+        /**
+         * The SELECTED tab has to be the readable one.
+         *
+         * These were the fixed figure colours — a bright mint green and a mid
+         * blue, both chosen to sit on the dark panel the figure is drawn on. On
+         * a white chip in light mode the selected tab came out fainter than the
+         * unselected one next to it, which is plain dark grey. So the single
+         * piece of text telling you which mode you are in was the one you could
+         * not read, and in gym lighting it effectively vanished.
+         *
+         * They follow the theme now, like every other selected control in the
+         * app. The fixed vocabulary colours stay where they belong: on the
+         * figure, and on the dark panel where they were legible all along.
+         */
+        catMuscleActive: { color: darkPanel ? VOCAB_WORKED : C.primaryText },
+        // cardAccentMobility rather than a new token: it is the app's own themed
+        // teal, it has a light and a dark value that are both readable on their
+        // own surface, and joints/mobility is the same idea wearing two names.
+        catJointActive: { color: darkPanel ? JOINT_CLR : C.cardAccentMobility },
         bodyRow: {
           flexDirection: 'row' as const,
           alignItems: 'center' as const,

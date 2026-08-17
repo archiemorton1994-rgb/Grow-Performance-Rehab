@@ -1141,7 +1141,18 @@ const prehabDiagramMaxHeight =
             >
               How bad is it?
             </Text>
-            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
+            {/* A radio group, stated as one. A screen-reader user heard the
+                words Mild, Moderate and Severe with no indication that they
+                were buttons, no indication that one was already chosen for them
+                (Moderate is), and no confirmation when they picked another — on
+                the control that decides whether the whole session is scaled
+                down. The prehab sore/feels-fine control on this same screen
+                already does this properly; the two now match. */}
+            <View
+              style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}
+              accessibilityRole="radiogroup"
+              accessibilityLabel="How bad is it?"
+            >
               {PAIN_SEVERITY_OPTIONS.map((opt) => {
                 const active = painSeverity === opt.value;
                 return (
@@ -1151,6 +1162,10 @@ const prehabDiagramMaxHeight =
                       hapticTap();
                       setPainSeverity(opt.value);
                     }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={opt.label}
+                    hitSlop={8}
                     style={[styles.pill, styles.pillAches, active && styles.pillAchesActive]}
                     testID={`pain-severity-${opt.value}`}
                   >
@@ -1632,7 +1647,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
+      // 44 is the smallest reliably tappable target. These were about 36 tall.
+      minHeight: 44,
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderRadius: 20,

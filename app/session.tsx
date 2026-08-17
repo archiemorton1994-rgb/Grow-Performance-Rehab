@@ -954,6 +954,7 @@ export function SessionActiveBar({
                   const v = parseFloat(weightText) || 0;
                   setWeightText(v > 0 ? String(v) : '');
                 }}
+                accessibilityLabel={`Weight in ${weightUnit}`}
                 testID={`set-${activeSetIndex + 1}-weight`}
               />
             </View>
@@ -979,6 +980,7 @@ export function SessionActiveBar({
               value={repsText}
               onChangeText={setRepsText}
               onSubmitEditing={Keyboard.dismiss}
+              accessibilityLabel="Reps"
               testID={`set-${activeSetIndex + 1}-reps`}
             />
           </View>
@@ -5234,7 +5236,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     barInput: {
       width: '100%',
-      height: 56,
+      // minHeight, not height. At a large system text size the digits scale up
+      // and a fixed box does not, so the number being typed was clipped top and
+      // bottom in the one place in the app where reading back what you entered
+      // matters most - the logging bar, mid-set. Common for older clients, and
+      // this is a physiotherapist's app.
+      minHeight: 56,
       borderRadius: 12,
       backgroundColor: C.surfaceTertiary,
       borderWidth: 2,

@@ -334,6 +334,29 @@ function MuscleProgressPanel({
     [completedSessions]
   );
 
+  /**
+   * The heatmap in words, for anyone the colours do not reach.
+   *
+   * Same buckets as heatmapColor: 1 session is progressing, 2-3 wants
+   * attention, 4+ is too much. Only the two states that call for a decision are
+   * named — listing every muscle that is merely progressing would bury them.
+   */
+  const heatmapSummary = useMemo(() => {
+    const attention: string[] = [];
+    const tooMuch: string[] = [];
+    for (const [region, count] of Object.entries(progressCounts)) {
+      const n = count ?? 0;
+      const label = BODY_DIAGRAM_LABELS[region as PainRegion];
+      if (!label) continue;
+      if (n >= 4) tooMuch.push(label);
+      else if (n >= 2) attention.push(label);
+    }
+    const parts: string[] = [];
+    if (attention.length) parts.push(`Watch: ${attention.join(', ')}.`);
+    if (tooMuch.length) parts.push(`Too much: ${tooMuch.join(', ')}.`);
+    return parts.join(' ');
+  }, [progressCounts]);
+
   const insightData = useMemo(() => {
     if (!insightRegion) return null;
     const targetRegionsMap = getExerciseTargetRegionsMap();
@@ -510,6 +533,32 @@ function MuscleProgressPanel({
           </View>
         ))}
       </View>
+
+      {/* THE SAME INFORMATION, IN WORDS.
+          The figures said "progressing" and "too much" — opposite advice — with
+          nothing but green and red to tell them apart. To a red-green
+          colour-blind reader those two fills are near identical and amber sits
+          between them, and the legend is no help because it is coloured dots
+          too. Roughly one man in twelve, which is this app's core audience.
+
+          Built from the same counts the figures are painted from, so the two can
+          never disagree. Only the states that need action are named; listing
+          everything would bury them. */}
+      {heatmapSummary.length > 0 && (
+        <Text
+          style={{
+            fontSize: 11,
+            fontFamily: 'Inter_400Regular',
+            color: 'rgba(255,255,255,0.55)',
+            textAlign: 'center',
+            marginTop: 8,
+            lineHeight: 16,
+          }}
+          testID="muscle-heatmap-summary"
+        >
+          {heatmapSummary}
+        </Text>
+      )}
 
       {/* Tap-to-insight callout */}
       {insightData && insightRegion && (

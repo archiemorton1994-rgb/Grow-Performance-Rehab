@@ -1575,9 +1575,36 @@ export const useAppStore = create<AppState>()(
         // because whatever is on the device is guaranteed to belong to the
         // account being merged into — sign-out and a mismatched sign-in both
         // wipe the device first (see lib/auth-context.tsx).
+        /**
+         * The bodyweight the user typed most recently wins, whichever side it
+         * came from.
+         *
+         * The gate order is onboarding, then sign-in — so a user restoring on a
+         * new phone, or after a reinstall or a sign-out, has to complete the
+         * whole profile again BEFORE they are allowed to sign in. They step on
+         * the scales, type today's weight, sign in, and the server's copy
+         * overwrites it with whatever was last uploaded. Every load in the app
+         * is scaled from that number.
+         *
+         * Comparing the timestamps keeps the newer answer rather than letting
+         * the session count decide something it knows nothing about.
+         */
+        const serverWeighedAt = data.bodyweightUpdatedAt
+          ? new Date(data.bodyweightUpdatedAt).getTime()
+          : 0;
+        const localWeighedAt = s.bodyweightUpdatedAt
+          ? new Date(s.bodyweightUpdatedAt).getTime()
+          : 0;
+        const keepLocalBodyweight =
+          localWeighedAt > serverWeighedAt && (s.userProfile.bodyweightKg ?? 0) > 0;
+
         if (serverCount > localCount) {
+          const mergedProfile = {
+            ...((data.userProfile as any) ?? s.userProfile),
+            ...(keepLocalBodyweight ? { bodyweightKg: s.userProfile.bodyweightKg } : {}),
+          };
           set({
-            userProfile: (data.userProfile as any) ?? s.userProfile,
+            userProfile: mergedProfile,
             equipmentTiers: (data.equipmentTiers as any) ?? s.equipmentTiers,
             completedSessions: data.completedSessions ?? s.completedSessions,
             oneRepMaxes: data.oneRepMaxes ?? s.oneRepMaxes,
@@ -1610,11 +1637,24 @@ export const useAppStore = create<AppState>()(
         //
         // Same principle either way: whichever side is strictly ahead wins, so
         // entries added offline and not yet uploaded are never thrown away.
-        const serverWeighIns = data.bodyweightLog?.length ?? 0;
-        if (serverWeighIns > s.bodyweightLog.length) {
+        // MERGED by date, not replaced. One weigh-in per day, so the date is a
+        // natural key; a straight swap threw away any entry made on this device
+        // and not yet uploaded, which is the same class of loss this sync was
+        // added to prevent. The device's own entry wins a same-day tie — it is
+        // the one the user is looking at.
+        const serverLog = (data.bodyweightLog as BodyweightLogEntry[] | undefined) ?? [];
+        if (serverLog.length > 0) {
+          const byDate = new Map<string, BodyweightLogEntry>();
+          for (const entry of serverLog) byDate.set(entry.date, entry);
+          for (const entry of s.bodyweightLog) byDate.set(entry.date, entry);
+          const merged = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
           set({
-            bodyweightLog: data.bodyweightLog as BodyweightLogEntry[],
-            bodyweightUpdatedAt: data.bodyweightUpdatedAt ?? s.bodyweightUpdatedAt,
+            bodyweightLog: merged,
+            // Keep whichever weigh-in actually happened later.
+            bodyweightUpdatedAt:
+              localWeighedAt >= serverWeighedAt
+                ? s.bodyweightUpdatedAt
+                : (data.bodyweightUpdatedAt ?? s.bodyweightUpdatedAt),
           });
         }
       },

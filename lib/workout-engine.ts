@@ -1260,13 +1260,34 @@ function personalizeLoad(
     rehab: 0.5,
     power: 1.05,
   };
+  /**
+   * "Prefer not to say" is a MIDPOINT, on both halves of the body.
+   *
+   * It used to be a single 0.85 while male and female both split upper from
+   * lower — and the gap between the sexes is far wider on upper body (0.55 vs
+   * 1.0) than on lower (0.72 vs 1.0). So one flat number could not sit between
+   * them on both, and 0.85 sat close to male on the half where the difference
+   * is largest.
+   *
+   * In practice: a woman who chose the privacy answer on the sex step — offered
+   * under the hint "Helps us calibrate your lifting loads" — was prescribed
+   * about 55% more weight on her first bench session than the identical woman
+   * who chose Female, and 18% more on squat and deadlift days. With no 1RM
+   * entered and no history, this heuristic IS the first session's weight, so
+   * she fails her opening set and the app looks like it does not know her.
+   *
+   * Halfway between the two on each half instead. Declining to answer should
+   * cost accuracy in both directions equally, not push one group's loads up.
+   */
   const sexFactor =
     profile.sex === 'female'
       ? isUpperBodySession
         ? 0.55
         : 0.72
       : profile.sex === 'other'
-        ? 0.85
+        ? isUpperBodySession
+          ? 0.775
+          : 0.86
         : 1.0;
 
   const activeGoals = profile.goals?.length ? profile.goals : ['fitness' as FitnessGoal];
