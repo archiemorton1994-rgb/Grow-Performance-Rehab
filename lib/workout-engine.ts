@@ -64,6 +64,7 @@ import {
   substitutionNote,
   substitutionRestrictedTags,
   STRESS_TAG_LABELS,
+  RESTRICTED_BY_REGION,
   type StressTag,
 } from './exercise-safety';
 
@@ -1954,6 +1955,25 @@ export function applyInjurySafety(
   const bannedForSubstitution = substitutionRestrictedTags(banned);
 
   const regionLabel = regions.length > 0 ? getPainRegionLabel(regions[0]) : 'injury';
+
+  /**
+   * Which sore area is responsible for THIS swap.
+   *
+   * The caption used the first area tapped for every card in the session, so a
+   * user reporting a shoulder and then a knee got "Swapped from Squat Jump to
+   * protect your front shoulder" on the knee swaps. The adaptation was right;
+   * the reason printed on it was wrong, which reads as the app not having
+   * understood what it was told.
+   *
+   * The culprit is whichever reported area actually restricts the tag that
+   * caused the swap. Falls back to the first area when nothing matches, which
+   * is the old behaviour and the only sensible answer at that point.
+   */
+  const labelForHit = (tag: StressTag | undefined): string => {
+    if (regions.length <= 1 || !tag) return regionLabel;
+    const culprit = regions.find((r) => (RESTRICTED_BY_REGION[r] ?? []).includes(tag));
+    return getPainRegionLabel(culprit ?? regions[0]);
+  };
   const usedNames = new Set(exercises.map((e) => e.name.toLowerCase()));
   const screened: Exercise[] = [];
 
@@ -1987,7 +2007,7 @@ export function applyInjurySafety(
       screened.push({
         ...ex,
         sets: setsFor(ex),
-        safetyNote: `Take care with your ${regionLabel.toLowerCase()} here — this involves ${STRESS_TAG_LABELS[hits[0]]}`,
+        safetyNote: `Take care with your ${labelForHit(hits[0]).toLowerCase()} here — this involves ${STRESS_TAG_LABELS[hits[0]]}`,
       });
       usedNames.add(ex.name.toLowerCase());
       return;
@@ -2001,7 +2021,7 @@ export function applyInjurySafety(
       // would quietly undo that.
       sets: setsFor(ex),
       badge: 'comfort',
-      safetyNote: substitutionNote(ex.name, regionLabel),
+      safetyNote: substitutionNote(ex.name, labelForHit(hits[0])),
       // The revert. Uses the swap slot every card already has, so "put it back"
       // costs no new UI and behaves exactly like every other swap.
       hasSwap: true,

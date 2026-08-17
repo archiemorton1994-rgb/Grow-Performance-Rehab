@@ -873,7 +873,12 @@ export default function ProfileScreen() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next >= PROFILE_TUTORIAL.length) {
-        setTourActiveTab(null); // Profile is the end of the tour
+        setTourActiveTab(null); // Profile is the last tab
+        // ...and now the practice session the intro promised. Clearing the
+        // active tab FIRST matters: the routing effect in (tabs)/_layout.tsx
+        // only navigates while a tab is active, so with it null there is
+        // nothing left to pull the user back out of the session.
+        setTimeout(() => router.navigate('/session?demo=true' as any), 150);
         return null;
       }
       return next;

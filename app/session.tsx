@@ -585,6 +585,15 @@ const MAX_PLAUSIBLE_REPS = 200;
  */
 const RESUME_GAP_COUNTS_AS_TRAINING_S = 15 * 60;
 
+/**
+ * Shortest gap between two resume-snapshot writes.
+ *
+ * Long enough that a burst of logging costs one write instead of a dozen, short
+ * enough that a phone killed in the background loses at most a few seconds of
+ * work — and the background/unmount save covers that case anyway.
+ */
+const SNAPSHOT_THROTTLE_MS = 4000;
+
 export function SessionActiveBar({
   exercise,
   exerciseIndex,
@@ -1713,18 +1722,42 @@ export function ExerciseCard({
 export function PainAdaptBanner({
   hasAches,
   painRegion,
+  painRegions,
   comfortCount,
   dismissed,
   onDismiss,
 }: {
   hasAches: boolean;
   painRegion: PainRegion | undefined;
+  /** Every area reported, when more than one was. Falls back to `painRegion`. */
+  painRegions?: PainRegion[];
   comfortCount: number;
   dismissed: boolean;
   onDismiss: () => void;
 }) {
   const C = useColors();
   if (!hasAches || !painRegion || dismissed) return null;
+  /**
+   * Every area the user reported, not just the first one they tapped.
+   *
+   * This banner is the only place the session confirms back what it adapted
+   * for, and the stop-if-it-hurts instruction is the one line that makes a
+   * session built around an injury safe. Naming one area out of three left the
+   * other two silently uncovered — the person who reported MORE pain got the
+   * narrower instruction.
+   */
+  const shown = painRegions?.length ? painRegions : [painRegion];
+  const labels = shown.map((r) => getPainRegionLabel(r));
+  const titleLabels = labels.join(', ');
+  const sentenceLabels =
+    labels.length === 1
+      ? labels[0].toLowerCase()
+      : labels
+          .map((l) => l.toLowerCase())
+          .slice(0, -1)
+          .join(', ') +
+        ' or ' +
+        labels[labels.length - 1].toLowerCase();
   return (
     <Animated.View
       entering={FadeInDown.duration(350)}
@@ -1753,7 +1786,7 @@ export function PainAdaptBanner({
               marginBottom: 1,
             }}
           >
-            Adapted for {getPainRegionLabel(painRegion)}
+            Adapted for {titleLabels}
           </Text>
           <Text
             style={{
@@ -1773,7 +1806,7 @@ export function PainAdaptBanner({
                 skip". Naming the region matters too — the user picked it on a
                 body map two screens ago and this is the only place it is
                 confirmed back to them during the session. */}
-            {`If anything hurts your ${getPainRegionLabel(painRegion).toLowerCase()}, stop that exercise straight away and tap Skip. ` +
+            {`If anything hurts your ${sentenceLabels}, stop that exercise straight away and tap Skip. ` +
               (comfortCount > 0
                 ? `${comfortCount} ${comfortCount === 1 ? 'exercise was' : 'exercises were'} already swapped for comfort.`
                 : 'Nothing needed swapping, so take it as it comes.')}
@@ -3014,36 +3047,73 @@ export default function SessionScreen() {
     }, 350);
   }, [activeIndex]);
 
+  /**
+   * Auto-save the in-progress session — THROTTLED, and off the typing path.
+   *
+   * `activeSession` lives in the same persisted blob as the entire workout
+   * history, so every write re-serialises everything the user has ever logged
+   * and hands it to AsyncStorage. This effect ran on every set logged AND on
+   * every keystroke in an exercise note, which meant a note was one full
+   * history rewrite PER CHARACTER.
+   *
+   * A new account feels instant, because there is nothing to serialise. An
+   * account with a year or two of training behind it gets progressively heavier
+   * in exactly the place it must not — the logging bar, mid-set. It never looks
+   * broken, so nobody reports it; it just becomes "the app has got slow".
+   *
+   * Two changes. The snapshot is written at most once every few seconds rather
+   * than on every change, and `exerciseNotes` is off the dependency list
+   * entirely so typing never schedules one at all. Nothing is lost by either:
+   * the background/unmount save writes the current state (notes included) when
+   * the app is backgrounded or the screen goes away, which is the only moment a
+   * resume snapshot actually has to be correct.
+   */
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Auto-save in-progress state whenever data changes (sets, swaps, or notes)
   useEffect(() => {
     if (isDemo) return; // demo sessions must never create a resume snapshot
     if (sessionTerminatedRef.current) return;
     if (exerciseData.length === 0) return;
-    const completedSetsCount = exerciseData.reduce(
-      (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
-      0
-    );
-    const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
-    const hasAnyProgress =
-      exerciseData.some(
-        (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
-      ) || exerciseNotes.some((n) => n.length > 0);
-    if (!hasAnyProgress) return;
-    setActiveSession({
-      ...snapshotContext(),
-      exerciseData,
-      exerciseNotes,
-      inSessionFeedback: cleanFeedback(inSessionFeedback),
-      activeIndex,
-      savedAt: new Date().toISOString(),
-      completedSetsCount,
-      totalSets,
-      elapsedSeconds: elapsedSecondsRef.current,
-      exerciseIds: exercises.map((ex) => ex.id),
-      painBannerDismissed,
-    });
+    if (snapshotTimerRef.current !== null) return; // a write is already pending
+    snapshotTimerRef.current = setTimeout(() => {
+      snapshotTimerRef.current = null;
+      if (sessionTerminatedRef.current) return;
+      const data = exerciseDataRef.current;
+      const notes = exerciseNotesRef.current;
+      if (data.length === 0) return;
+      const completedSetsCount = data.reduce(
+        (sum, ed) => sum + ed.sets.filter((s) => s.completed).length,
+        0
+      );
+      const totalSets = data.reduce((sum, ed) => sum + ed.sets.length, 0);
+      const hasAnyProgress =
+        data.some(
+          (ed) => ed.sets.some((s) => s.completed || s.weight > 0 || s.reps > 0) || ed.swapCount > 0
+        ) || notes.some((n) => n.length > 0);
+      if (!hasAnyProgress) return;
+      setActiveSession({
+        ...snapshotContextRef.current(),
+        exerciseData: data,
+        exerciseNotes: notes,
+        inSessionFeedback: cleanFeedback(inSessionFeedbackRef.current),
+        activeIndex: activeIndexRef.current,
+        savedAt: new Date().toISOString(),
+        completedSetsCount,
+        totalSets,
+        elapsedSeconds: elapsedSecondsRef.current,
+        exerciseIds: exerciseIdsRef.current,
+        painBannerDismissed: painBannerDismissedRef.current,
+      });
+    }, SNAPSHOT_THROTTLE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseData, exerciseNotes, inSessionFeedback, activeIndex, painBannerDismissed]);
+  }, [exerciseData, inSessionFeedback, activeIndex, painBannerDismissed]);
+
+  useEffect(
+    () => () => {
+      if (snapshotTimerRef.current !== null) clearTimeout(snapshotTimerRef.current);
+    },
+    []
+  );
 
   /**
    * Open the demo for an exercise.
@@ -3552,6 +3622,7 @@ export default function SessionScreen() {
       <PainAdaptBanner
         hasAches={hasAches}
         painRegion={painRegion}
+        painRegions={painRegions}
         comfortCount={comfortCount}
         dismissed={painBannerDismissed}
         onDismiss={() => setPainBannerDismissed(true)}

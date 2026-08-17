@@ -161,6 +161,12 @@ function TabsInner() {
   // tabs, or replaying the tour from Profile) actually triggers one.
   useEffect(() => {
     if (tourActiveTab === null) return;
+    // Never navigate while the user is on a screen pushed ABOVE the tabs. The
+    // practice session is exactly that, and this effect used to yank them out
+    // of it two-tenths of a second after it opened. Same principle as
+    // TRANSIENT_SCREENS in the root layout: a screen that drives its own
+    // navigation must not have another one driven underneath it.
+    if (segments[0] !== '(tabs)') return;
     const currentSegment = segments[segments.length - 1];
     if (currentSegment === TOUR_TAB_SEGMENT[tourActiveTab]) return;
     const timer = setTimeout(() => router.navigate(TOUR_TAB_ROUTES[tourActiveTab] as any), 200);

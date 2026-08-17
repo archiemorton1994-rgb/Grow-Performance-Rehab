@@ -217,6 +217,22 @@ export default function ReadinessScreen() {
   const [diagramPrehabRegion, setDiagramPrehabRegion] = useState<PainRegion | undefined>(undefined);
   const [painDiagramAreaH, setPainDiagramAreaH] = useState(0);
   const [prehabDiagramAreaH, setPrehabDiagramAreaH] = useState(0);
+  /**
+   * Is the chosen area sore, or just being looked after?
+   *
+   * This route never asked and the session route's default answered "sore" for
+   * it — `acute` falls back to "any painRegion is present", and this step always
+   * sends one. So everyone who came in through Prehab or the Home coach nudge
+   * got the protocol written for a FRESH INJURY: floor-based isometrics, no
+   * cool-down, and no rotation at all, byte-identical every time. Six weeks of
+   * knee prehab was the same seven items forty times over.
+   *
+   * The Restore tab has asked this since the acute protocols were added; this
+   * entry point simply never got the question. Same default as there, for the
+   * same reason: the two ways to be wrong are not equal. Too gentle costs a
+   * session, too much costs weeks.
+   */
+  const [prehabSore, setPrehabSore] = useState(true);
   const [coachStep, setCoachStep] = useState<number | null>(null);
 
   // ── Spotlight refs for each readiness tutorial section ──────────────────
@@ -458,6 +474,10 @@ export default function ReadinessScreen() {
         sessionType: 'prehab',
         hasAches: 'false',
         painRegion: region !== 'fullbody' ? region : '',
+        // Explicit, always. Left unsent, the session route infers acute from
+        // "is there a painRegion", which is true on every targeted prehab and
+        // made the injury protocol the only thing this route could ever build.
+        acute: region !== 'fullbody' && prehabSore ? 'true' : 'false',
         energy: 'normal',
         timeAvailable: '60',
         isTestWeek: 'false',
@@ -874,10 +894,81 @@ export default function ReadinessScreen() {
               onSelect={setDiagramPrehabRegion}
               accentColor={C.primaryText}
               accentColorLight={C.primarySurface}
-              maxHeight={prehabDiagramAreaH > 0 ? prehabDiagramAreaH - 20 : undefined}
+              maxHeight={prehabDiagramMaxHeight}
             />
           </View>
         </View>
+        {/* Only once an area is chosen. It is meaningless for the full-body
+            circuit, and asking before the user has said where is asking about
+            nothing. Taken off the figure rather than added to the screen, so the
+            step still fits without scrolling. */}
+        {diagramPrehabRegion && (
+          <View style={{ width: '100%', marginTop: 6 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Inter_600SemiBold',
+                color: C.textSecondary,
+                marginBottom: 6,
+                textAlign: 'center',
+              }}
+            >
+              How does it feel today?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(
+                [
+                  { key: true, label: 'Sore or injured', hint: 'Gentle, low-load work' },
+                  { key: false, label: 'Feels fine', hint: 'Full mobility circuit' },
+                ] as const
+              ).map((opt) => {
+                const active = prehabSore === opt.key;
+                return (
+                  <Pressable
+                    key={String(opt.key)}
+                    onPress={() => setPrehabSore(opt.key)}
+                    testID={`prehab-sore-${opt.key ? 'yes' : 'no'}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        alignItems: 'center',
+                        paddingVertical: 8,
+                        paddingHorizontal: 8,
+                        borderRadius: 12,
+                        borderWidth: 1.5,
+                        borderColor: active ? C.primary : C.border,
+                        backgroundColor: active ? C.primarySurface : C.surface,
+                      },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'Inter_600SemiBold',
+                        color: active ? C.primaryText : C.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontFamily: 'Inter_400Regular',
+                        color: C.textSecondary,
+                        marginTop: 1,
+                      }}
+                    >
+                      {opt.hint}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
         {diagramPrehabRegion ? (
           <Pressable
             onPress={() => handlePrehabFocus(diagramPrehabRegion)}
@@ -935,8 +1026,24 @@ export default function ReadinessScreen() {
  */
 const PAIN_LABEL_RESERVE = 46;
 
+/**
+ * Room kept below the prehab figure for the sore / feels-fine question.
+ *
+ * Same arithmetic as PAIN_LABEL_RESERVE and for the same reason: taken off the
+ * figure, not added to the screen, because this step has to fit without
+ * scrolling. Label row + two option cards + gap = ~78.
+ */
+const PREHAB_SORE_RESERVE = 78;
+
 const painDiagramMaxHeight =
   painDiagramAreaH > 0 ? painDiagramAreaH - 20 - PAIN_LABEL_RESERVE : undefined;
+
+// Same shape for the prehab step, which additionally has to make room for the
+// sore / feels-fine question once an area is chosen.
+const prehabDiagramMaxHeight =
+  prehabDiagramAreaH > 0
+    ? prehabDiagramAreaH - 20 - (diagramPrehabRegion ? PREHAB_SORE_RESERVE : 0)
+    : undefined;
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>

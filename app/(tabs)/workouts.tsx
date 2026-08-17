@@ -3684,12 +3684,24 @@ export default function StatsScreen() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next >= STATS_TUTORIAL.length) {
-        // Last screen of the tour - complete it and hand off to the demo
-        // session, exactly like the old COACH_STEPS completion did.
-        setTourActiveTab(1); // hand off to Profile, the last stop
+        // Hand off to Profile, the last tab. ONE handoff.
+        //
+        // This used to do two contradictory things at once: set the active tab
+        // to Profile AND push /session?demo=true 150ms later. The tour-routing
+        // effect in (tabs)/_layout.tsx then saw it was not on Profile and
+        // navigated there 200ms after that, popping the practice session about
+        // a third of a second after it opened. Its own tutorial is on an 800ms
+        // timer, so it never even started.
+        //
+        // The result was a tour that promised "a walkthrough of the five tabs,
+        // then a quick practice session", flashed the session, and dumped the
+        // user on Profile. Nobody had ever seen it run.
+        //
+        // The practice session now launches at the END of the Profile tutorial,
+        // which is what the intro copy describes: five tabs, then practice.
+        setTourActiveTab(1);
         setTourComplete(true);
         setTourJustCompleted(true);
-        setTimeout(() => router.navigate('/session?demo=true' as any), 150);
         return null;
       }
       return next;

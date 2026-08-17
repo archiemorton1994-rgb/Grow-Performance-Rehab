@@ -156,8 +156,18 @@ check(
 check(
   'targeted prehab measures too',
   /setPrehabDiagramAreaH\(e\.nativeEvent\.layout\.height\)/.test(readiness) &&
-    /maxHeight=\{prehabDiagramAreaH > 0/.test(readiness),
+    /maxHeight=\{prehabDiagramMaxHeight\}/.test(readiness) &&
+    /const prehabDiagramMaxHeight =\s*\r?\n?\s*prehabDiagramAreaH > 0/.test(readiness),
   'this one was not measuring at all, so it took the default on every phone'
+);
+
+// The prehab step gained a sore / feels-fine question, which has to come out of
+// the figure's budget rather than off the bottom of the screen — this step is
+// required to fit without scrolling.
+check(
+  'and it reserves room for the sore question rather than overflowing',
+  /diagramPrehabRegion \? PREHAB_SORE_RESERVE : 0/.test(readiness),
+  'adding a row below a figure sized to the whole area is what pushed the pain label off screen last time'
 );
 
 // ─── 3. Multi-select is a decision, not an accident ──────────────────────────

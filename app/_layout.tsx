@@ -331,7 +331,12 @@ function makePromptStyles(C: ReturnType<typeof useColors>) {
 const TRANSIENT_SCREENS = new Set(['session', 'session-summary', 'readiness', 'custom-session']);
 
 function RootLayoutNav() {
-  const { onboardingComplete, hasHydrated } = useAppStore();
+  // Field-by-field selectors, deliberately. A bare useAppStore() subscribes to
+  // the WHOLE store, so this navigator - the component wrapping every screen in
+  // the app - re-rendered on every set logged, every note keystroke and every
+  // autosave. There were four such calls in here.
+  const onboardingComplete = useAppStore((s) => s.onboardingComplete);
+  const hasHydrated = useAppStore((s) => s.hasHydrated);
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
   const segments = useSegments();
   const currentPath = segments.join('/');
@@ -340,7 +345,8 @@ function RootLayoutNav() {
   const isOnTransientScreen = segments.some((s) => TRANSIENT_SCREENS.has(s));
 
   // ─── Badge toast queue (root-level so it floats above all screens) ────────
-  const { newlyUnlockedBadges, clearNewlyUnlockedBadges } = useAppStore();
+  const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
+  const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
   const [currentToast, setCurrentToast] = useState<ToastItem | null>(null);
   // Dedup guard for which ids have already been turned into a toastQueue entry.
@@ -526,7 +532,10 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, [isAuthenticated, hasActiveSubscription]);
 
-  const { reminderEnabled, reminderTime, activeSession, clearActiveSession } = useAppStore();
+  const reminderEnabled = useAppStore((s) => s.reminderEnabled);
+  const reminderTime = useAppStore((s) => s.reminderTime);
+  const activeSession = useAppStore((s) => s.activeSession);
+  const clearActiveSession = useAppStore((s) => s.clearActiveSession);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -546,15 +555,13 @@ function RootLayoutNav() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated]);
 
-  const {
-    nudgeEnabled,
-    streakProtectionEnabled,
-    streakProtectionTime,
-    completedSessions,
-    getStreakDays,
-    weeklyStreakGoal,
-    getThisWeekCount,
-  } = useAppStore();
+  const nudgeEnabled = useAppStore((s) => s.nudgeEnabled);
+  const streakProtectionEnabled = useAppStore((s) => s.streakProtectionEnabled);
+  const streakProtectionTime = useAppStore((s) => s.streakProtectionTime);
+  const completedSessions = useAppStore((s) => s.completedSessions);
+  const getStreakDays = useAppStore((s) => s.getStreakDays);
+  const weeklyStreakGoal = useAppStore((s) => s.weeklyStreakGoal);
+  const getThisWeekCount = useAppStore((s) => s.getThisWeekCount);
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web' || !isAuthenticated || !hasActiveSubscription) return;

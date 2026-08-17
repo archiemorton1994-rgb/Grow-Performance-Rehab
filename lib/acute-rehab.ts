@@ -2264,7 +2264,7 @@ export const ACUTE_PROTOCOL_NOTES: Record<PainRegion, AcuteProtocolNotes> = {
  * drifts on one screen is worse than none.
  */
 export const PAIN_FREE_RULE =
-  'Stay in a pain-free range. Nothing here should take your pain above 2 out of 10, and it should settle as soon as you stop.';
+  'Stay in a pain-free range. Nothing here should take your pain above 2 out of 10, and it should settle as soon as you stop. If it hurts more than that while you work, or an area is worse the next morning, stop and get it assessed by a physiotherapist or doctor.';
 
 /** Every acute exercise, deduplicated. Used by the contract test and the export. */
 export function allAcuteExercises(): ExerciseTemplate[] {

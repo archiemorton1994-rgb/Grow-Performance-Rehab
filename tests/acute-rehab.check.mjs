@@ -248,6 +248,16 @@ check(
   /\b2\s*(?:\/|out of)\s*10\b/i.test(PAIN_FREE_RULE),
   PAIN_FREE_RULE
 );
+// The shared rule is what a user sees when they report TWO OR MORE sore areas —
+// there is no single protocol to quote, so the app falls back to this. It used
+// to stop at "it should settle as soon as you stop", dropping the escalation
+// advice that all twenty per-region disclaimers carry. The person reporting more
+// pain was getting less guidance, which is exactly backwards.
+check(
+  'and the shared rule says what to do if it hurts more than that',
+  /stop|seek|assess|physio|doctor|gp\b/i.test(PAIN_FREE_RULE),
+  PAIN_FREE_RULE
+);
 check(
   'every protocol says what it deliberately leaves out',
   REGIONS.every((r) => (ACUTE_PROTOCOL_NOTES[r]?.avoid ?? []).length >= 3),
