@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextStyle, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextStyle, View, useWindowDimensions,
+  ScrollView,
+} from 'react-native';
 import { useColors } from '@/constants/colors';
 import { elevatedShadow } from '@/constants/shadows';
 
@@ -44,11 +46,33 @@ export function GlossaryTerm({
 
   const POPOVER_WIDTH = 220;
   const MARGIN = 12;
+  /** Enough for a heading and a couple of lines; below this, flip instead. */
+  const MIN_POPOVER_HEIGHT = 120;
   let left = (anchor?.x ?? 0) + (anchor?.width ?? 0) / 2 - POPOVER_WIDTH / 2;
   left = Math.max(MARGIN, Math.min(left, windowWidth - POPOVER_WIDTH - MARGIN));
+  /**
+   * Which way to open, and how tall it may be.
+   *
+   * The flip threshold used to be a flat 100pt, which is shorter than every
+   * definition in the app — so a term near the bottom of the screen opened
+   * downward into a box whose last two or three lines ran off the edge. The box
+   * did not scroll and could not be moved, so the explanation was simply
+   * unreadable: the user had to scroll the page, guess where the word had moved
+   * to, and tap it again.
+   *
+   * Two changes rather than a bigger guess. It flips when the other side has
+   * genuinely more room, and whichever side it lands on caps its height and
+   * lets the text scroll inside — so it is bounded by real space instead of an
+   * assumption about how long a definition is.
+   */
   const spaceBelow = windowHeight - ((anchor?.y ?? 0) + (anchor?.height ?? 0));
-  const showAbove = spaceBelow < 100;
+  const spaceAbove = anchor?.y ?? 0;
+  const showAbove = spaceBelow < MIN_POPOVER_HEIGHT && spaceAbove > spaceBelow;
   const top = showAbove ? (anchor?.y ?? 0) - 10 : (anchor?.y ?? 0) + (anchor?.height ?? 0) + 10;
+  const maxPopoverHeight = Math.max(
+    MIN_POPOVER_HEIGHT,
+    (showAbove ? spaceAbove : spaceBelow) - MARGIN * 2
+  );
 
   return (
     <>
@@ -78,6 +102,7 @@ export function GlossaryTerm({
                   left,
                   top: showAbove ? undefined : top,
                   bottom: showAbove ? windowHeight - top : undefined,
+                  maxHeight: maxPopoverHeight,
                   backgroundColor: C.surface,
                   borderColor: C.border,
                 },
@@ -85,7 +110,15 @@ export function GlossaryTerm({
               ]}
             >
               <Text style={[styles.term, { color: C.text }]}>{term}</Text>
-              <Text style={[styles.definition, { color: C.textSecondary }]}>{definition}</Text>
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                showsVerticalScrollIndicator={false}
+                // The backdrop closes the popover; without this a scroll gesture
+                // that starts on the text would close it instead of scrolling.
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={[styles.definition, { color: C.textSecondary }]}>{definition}</Text>
+              </ScrollView>
             </View>
           )}
         </Pressable>

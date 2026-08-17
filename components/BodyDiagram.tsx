@@ -86,6 +86,10 @@ export const DIAGRAM_MAX_WIDTH = 240;
 export const HIT_PADDING = 9;
 /** Floor, so small regions (wrist, ankle) stay big enough to tap accurately. */
 export const DIAGRAM_MIN_WIDTH = 140;
+/** Floor on a screen too short for the comfortable one. See tightBudget. */
+export const DIAGRAM_TIGHT_MIN_WIDTH = 112;
+/** Below this much room, drop to the compact chrome. ~4.7-inch phones. */
+export const TIGHT_HEIGHT_BUDGET = 460;
 
 /** Share of viewport height the figure may occupy when otherwise unconstrained. */
 const DIAGRAM_HEIGHT_SHARE = 0.58;
@@ -490,15 +494,37 @@ export function BodyDiagram({
   const [componentH, setComponentH] = useState(0);
   const [figureH, setFigureH] = useState(0);
   const chromeH = componentH > 0 && figureH > 0 ? Math.max(0, componentH - figureH) : 0;
+
+  /**
+   * A short phone gets the same controls in less height.
+   *
+   * On a 4.7-inch screen (667pt) the readiness steps could not fit: with the
+   * figure already pinned at its minimum tappable width, the chrome still left
+   * the card ~80pt taller than the room available, so the heading was covered
+   * and the confirm button pushed below the fold. Scrolling was the obvious
+   * escape and the wrong one — these steps are required to fit as they are.
+   *
+   * The two toggle rows stacked are the most expensive thing in here, and they
+   * sit side by side perfectly well. Only on a tight budget: on a normal phone
+   * the stacked pair is easier to hit and there is room for it.
+   */
+  const tightBudget = maxHeight != null && maxHeight < TIGHT_HEIGHT_BUDGET;
+  /**
+   * And the figure may go a little smaller than the comfortable minimum, but
+   * only when the alternative is not fitting at all. Still well above the point
+   * where the hit padding stops doing its job, and the cycle button remains as
+   * a way to pick a region without aiming at it.
+   */
+  const minFigureWidth = tightBudget ? DIAGRAM_TIGHT_MIN_WIDTH : DIAGRAM_MIN_WIDTH;
   const heightBudget =
     maxHeight != null
-      ? Math.max(DIAGRAM_MIN_WIDTH * DIAGRAM_ASPECT, maxHeight - chromeH)
+      ? Math.max(minFigureWidth * DIAGRAM_ASPECT, maxHeight - chromeH)
       : screenHeight * DIAGRAM_HEIGHT_SHARE;
   // The floor applies only to the viewport-derived size — it must never
   // override an explicit `maxWidth`. Callers that ask for a deliberately tiny
   // figure (the summary certificate's 58–84px front/back pair, the 120px Stats
   // cards) are sizing to a fixed container and would overflow it otherwise.
-  const fromHeight = Math.max(DIAGRAM_MIN_WIDTH, Math.round(heightBudget / DIAGRAM_ASPECT));
+  const fromHeight = Math.max(minFigureWidth, Math.round(heightBudget / DIAGRAM_ASPECT));
   const svgWidth = Math.min(screenWidth - 40, maxWidth, fromHeight);
   const scale = svgWidth / 200;
 
@@ -1037,6 +1063,13 @@ export function BodyDiagram({
           overflow: 'hidden',
         },
         toggleGroup: { gap: 8, marginBottom: 10, alignItems: 'center' as const },
+        toggleGroupTight: {
+          flexDirection: 'row' as const,
+          gap: 6,
+          marginBottom: 6,
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+        },
         toggleRow: {
           flexDirection: 'row' as const,
           backgroundColor: darkPanel ? 'rgba(255,255,255,0.08)' : C.surfaceTertiary,
@@ -1162,7 +1195,7 @@ export function BodyDiagram({
   const diagramContent = (
     <>
       {!compact && (
-        <View style={styles.toggleGroup}>
+        <View style={tightBudget ? styles.toggleGroupTight : styles.toggleGroup}>
           {/* Front / Back toggle */}
           <View style={styles.toggleRow}>
             <Pressable

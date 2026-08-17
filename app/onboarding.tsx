@@ -976,9 +976,19 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 7: Equipment — compact, no-scroll layout so every tile + Continue fit on screen */}
+          {/* Screen 7: Equipment.
+              Compact by design, and now scrollable as a backstop. On a 4.7-inch
+              phone the fifth tile (Full Gym) was sliced through and the closing
+              line about changing it later was entirely off screen — on the step
+              that decides which exercises the whole app will ever offer, in a
+              new customer's first five minutes. The compact layout means it
+              still does not scroll on a normal phone. */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
-            <View style={[styles.screenContent, styles.equipScreenContent]}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.screenContent, styles.equipScreenContent]}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
                 <GrowIcon name="dumbbell" size={24} color={C.primaryText} />
               </View>
@@ -1069,7 +1079,7 @@ function OnboardingFlow() {
               >
                 You can change this anytime from your profile.
               </Text>
-            </View>
+            </ScrollView>
           </View>
 
           {/* Screen 8: Key Lifts (optional) */}

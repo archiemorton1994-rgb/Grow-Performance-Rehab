@@ -94,9 +94,34 @@ check(
 );
 
 check(
-  'the figure still cannot collapse below its tappable minimum',
-  /Math\.max\(DIAGRAM_MIN_WIDTH \* DIAGRAM_ASPECT, maxHeight - chromeH\)/.test(diagram),
+  'the figure still cannot collapse below a tappable minimum',
+  /Math\.max\(minFigureWidth \* DIAGRAM_ASPECT, maxHeight - chromeH\)/.test(diagram),
   'a small budget must shrink the figure, not make it untappable'
+);
+
+// A 4.7-inch phone could not fit these steps even with the figure pinned at the
+// comfortable minimum, so a short screen gets compact chrome (the two toggle
+// rows side by side rather than stacked) and a slightly lower floor. Scrolling
+// was the obvious escape and the wrong one - these steps must fit as they are.
+check(
+  'a short screen gets the compact chrome',
+  /const tightBudget = maxHeight != null && maxHeight < TIGHT_HEIGHT_BUDGET;/.test(diagram) &&
+    /tightBudget \? styles\.toggleGroupTight : styles\.toggleGroup/.test(diagram),
+  'the stacked toggle rows are the most expensive thing in the chrome'
+);
+
+check(
+  'and the lower floor reaches the width calculation, not just the budget',
+  /const fromHeight = Math\.max\(minFigureWidth, Math\.round\(heightBudget \/ DIAGRAM_ASPECT\)\);/.test(
+    diagram
+  ),
+  'leaving DIAGRAM_MIN_WIDTH here silently pinned the figure back to the comfortable floor'
+);
+
+check(
+  'a normal phone is unaffected',
+  /const minFigureWidth = tightBudget \? DIAGRAM_TIGHT_MIN_WIDTH : DIAGRAM_MIN_WIDTH;/.test(diagram),
+  'the smaller floor must apply only where the alternative is not fitting at all'
 );
 
 check(

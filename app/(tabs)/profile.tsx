@@ -1172,10 +1172,26 @@ export default function ProfileScreen() {
         onRequestClose={dismissModal}
       >
         <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          {/* Capped and scrollable, with the actions pinned OUTSIDE the scroller.
+              On a 4.7-inch phone this sheet needed ~706pt in a 667pt screen, so
+              roughly 40pt sat off the bottom with nothing to scroll. Worse on
+              every phone: tapping Bodyweight raises the number pad, which covers
+              Save Details and Cancel — and a number pad has no return key, the
+              backdrop was inert, and there was no scroll, so the user was simply
+              stuck looking at a form they could not submit.
+
+              Same shape the Settings sheet in this file already uses. */}
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '88%' }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Edit Details</Text>
 
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              contentContainerStyle={{ paddingBottom: 8 }}
+            >
             <Text style={styles.inputLabel}>Name</Text>
             <TextInput
               style={[styles.input, !editNameValid && { borderColor: C.error }]}
@@ -1298,6 +1314,8 @@ export default function ProfileScreen() {
               })}
             </View>
 
+            </ScrollView>
+
             <Pressable
               onPress={saveEdit}
               disabled={!editWeightValid || !editNameValid}
@@ -1320,9 +1338,18 @@ export default function ProfileScreen() {
         onRequestClose={dismissModal}
       >
         <View style={styles.sheetOverlay}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
+          {/* Capped and scrollable, same as Edit Details. A beginner account on a
+              4.7-inch phone overflowed by ~40pt, and the thing that tipped it
+              over was the beginner explainer — so the people who most need to
+              read it were the ones it pushed off the screen. */}
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '88%' }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Equipment</Text>
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 8 }}
+            >
             <Text style={styles.sheetSub}>
               Select everything available to you - we use the best match for each session
             </Text>
@@ -1396,6 +1423,7 @@ export default function ProfileScreen() {
                 </Pressable>
               );
             })}
+            </ScrollView>
             <Pressable onPress={saveEquipment} style={[styles.saveBtn, { marginTop: 16 }]}>
               <Text style={styles.saveBtnText}>Save Equipment</Text>
             </Pressable>

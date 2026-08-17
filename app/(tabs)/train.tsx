@@ -474,7 +474,7 @@ export default function TrainScreen() {
                   <Text style={styles.sessionCardLabel} numberOfLines={1}>
                     {meta.label}
                   </Text>
-                  <Text style={styles.sessionCardSub} numberOfLines={1}>
+                  <Text style={styles.sessionCardSub} numberOfLines={2}>
                     {meta.subtitle}
                   </Text>
                 </Pressable>
@@ -538,7 +538,7 @@ export default function TrainScreen() {
                   <Text style={styles.sessionCardLabel} numberOfLines={1}>
                     {meta.label}
                   </Text>
-                  <Text style={styles.sessionCardSub} numberOfLines={1}>
+                  <Text style={styles.sessionCardSub} numberOfLines={2}>
                     {meta.subtitle}
                   </Text>
                 </Pressable>
@@ -797,7 +797,17 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     },
     sessionCardImage: { width: '100%', height: '100%' },
     sessionCardLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
-    sessionCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    // Two lines, with room reserved for both so the cards in a row stay level
+    // whether their subtitle wraps or not. At one line these were cut mid-word
+    // on a narrow card — "KPI · Quads · Glutes · Ha…" — which reads as broken
+    // rather than abbreviated.
+    sessionCardSub: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      lineHeight: 15,
+      minHeight: 30,
+    },
 
     kpiCallout: {
       flexDirection: 'row',
