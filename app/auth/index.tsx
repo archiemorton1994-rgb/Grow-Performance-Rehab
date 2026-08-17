@@ -16,40 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
 import { useAuth } from '@/lib/auth-context';
+import { friendlyError } from '@/lib/utils';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SEC = 30;
 const RATE_LIMIT_COOLDOWN_SEC = 10 * 60;
-
-/**
- * Turn a thrown API error into something a person can read.
- *
- * apiRequest rejects before its caller can inspect the response, and the
- * message it throws is `${status}: ${raw body}` — so a mistyped code put
- * `400: {"message":"Invalid or expired code."}` on screen, in red, on the
- * first error a new user can possibly hit. Unwrap that shape back to the
- * server's own sentence, and fall back to plain English for anything that
- * isn't JSON (a gateway's HTML error page, a network failure).
- *
- * The unwrapped text is still the server's `message`, so the "too many"
- * rate-limit check downstream keeps matching.
- */
-function friendlyError(err: unknown, fallback: string): string {
-  const raw = err instanceof Error ? err.message : '';
-  if (!raw) return fallback;
-  const body = raw.replace(/^\s*\d{3}\s*:\s*/, '');
-  try {
-    const parsed = JSON.parse(body);
-    if (parsed && typeof parsed.message === 'string' && parsed.message.trim()) {
-      return parsed.message.trim();
-    }
-  } catch {
-    // Not JSON. Only surface it if it reads like a sentence rather than a
-    // status line, a stack trace or an HTML error page.
-    if (body.length > 0 && body.length <= 120 && !/[<>{}]/.test(body)) return body;
-  }
-  return fallback;
-}
 
 export default function OtpAuthScreen() {
   const C = useColors();

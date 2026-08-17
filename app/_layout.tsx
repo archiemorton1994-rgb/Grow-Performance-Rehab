@@ -17,7 +17,6 @@ import {
   Text,
   Pressable,
   TextInput,
-  ScrollView as RNScrollView,
   StyleSheet,
   Platform,
 } from 'react-native';
@@ -31,7 +30,7 @@ import { GrowIcon } from '@/components/GrowIcon';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/lib/store';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { useColors, DarkColors } from '@/constants/colors';
+import { useColors } from '@/constants/colors';
 import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   scheduleWorkoutReminder,
@@ -667,67 +666,34 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
-  const [lastCrash, setLastCrash] = useState<string | null>(null);
-
   useEffect(() => {
     if (fontsLoaded || fontError || Platform.OS === 'web') {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 
-  useEffect(() => {
-    AsyncStorage.getItem('__last_crash__')
-      .then((val) => {
-        if (val) {
-          setLastCrash(val);
-          AsyncStorage.removeItem('__last_crash__').catch(() => {});
-        }
-      })
-      .catch(() => {});
-  }, []);
-
+  /**
+   * THE ON-DEVICE CRASH LOG IS GONE. The reporting is not.
+   *
+   * After any crash, the next launch used to open on a black full-screen panel
+   * headed "Last Crash Log" in red, showing a timestamp, a `fatal` flag, the
+   * internal error message and up to 1200 characters of JavaScript stack trace,
+   * above a Dismiss button.
+   *
+   * The part that made it dangerous rather than merely ugly: the handler that
+   * WRITES __last_crash__ is gated to production builds, so this screen was
+   * invisible in Expo Go and in every dev build. The only people who could ever
+   * see it were paying customers and App Review — for whom it reads as a
+   * catastrophically broken app, and is a straight Guideline 2.1 rejection for
+   * shipping developer diagnostic content.
+   *
+   * It was also a third uncoordinated root Modal, able to present alongside the
+   * weekly weigh-in prompt and freeze the app on launch.
+   *
+   * Nothing is lost by removing it: the crash is POSTed to /api/crash-log at
+   * module load (see the top of this file), which is where it should be read.
+   */
   if (!fontsLoaded && !fontError && Platform.OS !== 'web') {
-    if (lastCrash) {
-      return (
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: DarkColors.background,
-            justifyContent: 'flex-start',
-            padding: 24,
-            paddingTop: 60,
-          }}
-        >
-          <Text
-            style={{ color: DarkColors.error, fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}
-          >
-            Previous Launch Crash
-          </Text>
-          <RNScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-            <Text style={{ color: DarkColors.textInverse, fontSize: 11, fontFamily: 'monospace' }}>
-              {lastCrash}
-            </Text>
-          </RNScrollView>
-          <Pressable
-            onPress={() => {
-              AsyncStorage.removeItem('__last_crash__').catch(() => {});
-              setLastCrash(null);
-            }}
-            style={{
-              marginTop: 12,
-              backgroundColor: DarkColors.surfaceTertiary,
-              padding: 14,
-              borderRadius: 10,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: DarkColors.textInverse, fontWeight: '600' }}>
-              Dismiss & Continue Loading
-            </Text>
-          </Pressable>
-        </View>
-      );
-    }
     return null;
   }
 
@@ -748,61 +714,6 @@ export default function RootLayout() {
           </LayoutAnimationConfig>
         </GestureHandlerRootView>
       </QueryClientProvider>
-      {lastCrash ? (
-        <Modal visible transparent animationType="fade">
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.85)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 24,
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: DarkColors.surfaceSecondary,
-                borderRadius: 16,
-                padding: 20,
-                width: '100%',
-                maxHeight: '80%',
-              }}
-            >
-              <Text
-                style={{
-                  color: DarkColors.error,
-                  fontWeight: 'bold',
-                  fontSize: 16,
-                  marginBottom: 8,
-                }}
-              >
-                Last Crash Log
-              </Text>
-              <ScrollViewInline text={lastCrash} />
-              <Pressable
-                onPress={() => setLastCrash(null)}
-                style={{
-                  marginTop: 16,
-                  backgroundColor: DarkColors.surfaceTertiary,
-                  borderRadius: 10,
-                  padding: 12,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ color: DarkColors.textInverse, fontWeight: '600' }}>Dismiss</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-      ) : null}
     </ErrorBoundary>
-  );
-}
-
-function ScrollViewInline({ text }: { text: string }) {
-  return (
-    <RNScrollView style={{ maxHeight: 300 }}>
-      <Text style={{ color: '#ccc', fontSize: 11, lineHeight: 16 }}>{text}</Text>
-    </RNScrollView>
   );
 }

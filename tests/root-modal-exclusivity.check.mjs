@@ -79,12 +79,26 @@ check(
   'expected visible={showTourIntro && newlyUnlockedBadges.length === 0}'
 );
 
-console.log('\n[3] Crash-report overlay stays conditional');
+console.log('\n[3] The crash-report overlay is gone entirely');
+
+// This used to assert the crash Modal stayed BEHIND a `lastCrash ?` guard — the
+// weaker guarantee, from when the panel was thought worth keeping. It is now
+// deleted outright: it could only ever be seen by paying customers and App
+// Review (the handler that records a crash is gated to production builds, so it
+// never appeared in testing), and it was a third uncoordinated root Modal able
+// to present alongside the weigh-in prompt. Absence is easier to guarantee than
+// correct conditional presentation, and nothing is lost — the crash is still
+// POSTed to /api/crash-log for the owner to read.
+check(
+  'no crash Modal exists at the root at all',
+  !/lastCrash/.test(rootLayout),
+  'reintroducing it would be both an App Review risk and freeze incident number five'
+);
 
 check(
-  'the previous-launch crash Modal only renders when there is a crash to show',
-  /\{lastCrash\s*\?[\s\S]{0,80}?<Modal/.test(rootLayout),
-  'it must stay behind the lastCrash check — an always-mounted Modal at the root would collide with everything below it'
+  'crashes are still reported to the server',
+  /__last_crash__/.test(rootLayout) && /crash-log/.test(rootLayout),
+  'removing the SCREEN must never remove the reporting'
 );
 
 console.log('\n[4] Achievement toast vs the session-summary screen');

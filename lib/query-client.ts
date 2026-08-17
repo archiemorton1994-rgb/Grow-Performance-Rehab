@@ -11,10 +11,22 @@ export function getApiUrl(): string {
   return new URL(`https://${host}`).href;
 }
 
+/** An HTTP failure, carrying the status so callers can tell 401 from 502. */
+export interface ApiError extends Error {
+  status?: number;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    // The status is also in the message as an "NNN: " prefix, which callers used
+    // to have to parse back out of a string. Carrying it as a field lets the
+    // launch path tell "this token is invalid" (401) from "the server is asleep
+    // or the phone is on the Underground" (5xx, or no response at all) — the
+    // difference between correctly signing someone out and wrongly doing so.
+    const err = new Error(`${res.status}: ${text}`) as ApiError;
+    err.status = res.status;
+    throw err;
   }
 }
 

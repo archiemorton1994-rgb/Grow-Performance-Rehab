@@ -58,7 +58,7 @@ import {
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
-import { kgToDisplayUnit, displayUnitToKg, formatDate } from '@/lib/utils';
+import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/lib/utils';
 import { router } from 'expo-router';
 
 const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
@@ -688,8 +688,15 @@ export default function ProfileScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       await deleteAccount();
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'Could not delete your account. Please try again.';
+      // Never the raw thrown message. apiRequest rejects with `${status}: ${body}`,
+      // so a sleeping server put `502: <html><head><title>502 Bad Gateway…` into
+      // a native alert. Apple's reviewers are required to exercise account
+      // deletion (Guideline 5.1.1(v)), which makes this a path review is likely
+      // to hit. friendlyError already solved this for the sign-in screen: it
+      // strips the status prefix, unwraps a JSON `message`, and rejects anything
+      // containing <>{} or over 120 characters — so an HTML gateway page falls
+      // through to the plain sentence below.
+      const msg = friendlyError(err, 'Could not delete your account. Please try again.');
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Delete failed', msg);
     }
