@@ -642,7 +642,13 @@ console.log('\n[10] The session screen tells the engine which gym the user is in
   );
   check(
     'generateWorkout is told the unit',
-    /generateWorkout\([\s\S]{0,900}?loadUnitAtStart\.current\s*\n?\s*\)/.test(src),
+    // Deliberately does NOT require the unit to be the final argument. It was
+    // written that way — `loadUnitAtStart.current` followed by the closing
+    // paren — and that pinned an incidental fact rather than the promise: the
+    // day a parameter was appended after it (exerciseStuckStreak, for the
+    // deload), this failed while the screen was still passing the unit
+    // perfectly well. What matters is that it is passed at all.
+    /generateWorkout\([\s\S]{0,900}?loadUnitAtStart\.current\b/.test(src),
     'without this the library is right and the screen still prescribes 143.3 lbs'
   );
   check(

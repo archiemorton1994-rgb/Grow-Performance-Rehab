@@ -2140,6 +2140,7 @@ export default function SessionScreen() {
     reviewPromptShown,
     setReviewPromptShown,
     exerciseNormalStreak,
+    exerciseStuckStreak,
     lastSessionPerformance,
     pendingCustomExercises,
     clearPendingCustomExercises,
@@ -2342,7 +2343,8 @@ export default function SessionScreen() {
       exerciseNormalStreak,
       lastSessionPerformance,
       undefined,
-      loadUnitAtStart.current
+      loadUnitAtStart.current,
+      exerciseStuckStreak
     );
   }, [
     sessionType,
@@ -2359,6 +2361,7 @@ export default function SessionScreen() {
     strengthCount,
     lastLoggedWeights,
     exerciseNormalStreak,
+    exerciseStuckStreak,
     lastSessionPerformance,
   ]);
 

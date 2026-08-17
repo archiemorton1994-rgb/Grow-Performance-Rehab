@@ -881,24 +881,110 @@ const CLEAN_SESSIONS_PER_BIG_JUMP = 3;
  */
 const TIER_SEPARATION_CAP = 0.1;
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * STALLING, AND WHAT THE APP DOES ABOUT IT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Adding weight was automatic and taking it off was not, and that asymmetry was
+ * the real gap in progression — not the size of the step.
+ *
+ * The app already knew. `exerciseStuckStreak` counts consecutive failed
+ * sessions per exercise, and at three the session summary says, in these words:
+ *
+ *     "Held at this weight for 3 sessions in a row - a deload or swapping this
+ *      exercise for a while could help it move again."
+ *
+ * It named the remedy and did not apply it. The engine never read that counter,
+ * so a stalled lift sat at the same weight indefinitely while the app suggested
+ * the user work out the deload themselves. One level up, coach.ts has
+ * DELOAD_WEEKS = 4 and also only suggests. Two places that spot the need for a
+ * deload; none that performed one.
+ *
+ * Ten per cent off after three stalls is the ordinary coaching answer, and it
+ * turns a long ramp into repeated failure into a wave: climb, stall, back off,
+ * come again. It is also what bounds the climb — a lift that runs ahead of the
+ * lifter now has something that brings it back, which is a better fix than
+ * making every step smaller for everybody.
+ */
+const DELOAD_AFTER_STALLS = 3;
+/** What a deload leaves you holding. */
+const DELOAD_FRACTION = 0.9;
+
+/**
+ * How fast the weight climbs, by how long someone has been training.
+ *
+ * The app asks for this at onboarding and uses it for impact restrictions and
+ * equipment, then ignored it here — so a beginner and a fifteen-year lifter got
+ * the same percentage. Novice linear progression is real and the beginner keeps
+ * it; nobody at 140 kg adds to their deadlift every session, and offering it
+ * only walks them into the stall faster.
+ *
+ * Measured over twelve quiet sessions, which is where it actually bites — the
+ * three-clean-sessions tier, not the default one:
+ *
+ *     Barbell Deadlift   beginner 192.5 kg (+38%)   intermediate 170 kg (+21%)
+ *     Back Squat         beginner   135 kg (+35%)   intermediate 130 kg (+30%)
+ *
+ * BE AWARE: `advanced` and `intermediate` produce the same weights below about
+ * 208 kg, and that is not a bug to fix but a fact to know. One grid step is
+ * 2.5 kg, and 1.2% of anything lighter than 208 kg rounds to that same single
+ * step — the equipment cannot express the difference. It is kept as a separate
+ * entry because above that weight it does differ, and because collapsing it
+ * would mean re-deriving it the day the app supports finer plates.
+ *
+ * This matters much less than it did before deloading existed. A rate that is
+ * slightly too fast now ends in a stall and a 10% reset rather than in a number
+ * that climbs forever, so the system is self-limiting whatever this says.
+ */
+const EXPERIENCE_RATE: Record<string, number> = {
+  beginner: 1,
+  intermediate: 0.6,
+  advanced: 0.4,
+};
+
+/**
+ * What a stalled lift is given instead of the same weight again.
+ *
+ * Returns the deloaded weight at every DELOAD_AFTER_STALLS-th consecutive
+ * failure, and the weight unchanged otherwise. Stepping only on the third,
+ * sixth, ninth failure matters: the stuck counter is reset by a session that
+ * does NOT fail, so a bare `>= 3` would take another 10% off every single
+ * session until something gave.
+ */
+export function deloadedLoad(
+  lastKg: number,
+  stuckStreak: number,
+  toGrid: (v: number) => number
+): number | null {
+  if (lastKg <= 0) return null;
+  if (stuckStreak < DELOAD_AFTER_STALLS) return null;
+  if (stuckStreak % DELOAD_AFTER_STALLS !== 0) return null;
+  const target = toGrid(lastKg * DELOAD_FRACTION);
+  // A coarse grid can round a 10% cut back onto the weight it came from on a
+  // light lift. A deload that changes nothing is the bug this exists to fix.
+  return target < lastKg ? target : null;
+}
+
 export function progressedLoad(
   lastKg: number,
   performance: ExercisePerformance | undefined,
   normalStreak: number,
-  toGrid: (v: number) => number
+  toGrid: (v: number) => number,
+  experienceLevel?: string
 ): number {
   // Belt and braces: the caller already returns early on a failure, but this is
   // exported and its name promises a progression, not a hold.
   if (performance === 'failed' || lastKg <= 0) return lastKg;
 
+  const rate = EXPERIENCE_RATE[experienceLevel ?? 'intermediate'] ?? EXPERIENCE_RATE.intermediate;
   const pct =
-    performance === 'very_easy'
+    (performance === 'very_easy'
       ? PROGRESSION_PCT.very_easy
       : performance === 'easy'
         ? PROGRESSION_PCT.easy
         : normalStreak >= 3
           ? PROGRESSION_PCT.streak
-          : PROGRESSION_PCT.normal;
+          : PROGRESSION_PCT.normal) * rate;
 
   /** The next weight up from `kg` that the gym can actually load. */
   const stepUp = (kg: number): number => {
@@ -968,6 +1054,8 @@ function personalizeLoad(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
+
+  exerciseStuckStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   /** Time away from training, or null when there has been none worth acting on. */
   layoff?: Layoff | null,
@@ -1084,10 +1172,24 @@ function personalizeLoad(
   if (lastKg > 0 && !layoff?.reset) {
     const performance = exerciseId ? lastSessionPerformance?.[exerciseId] : undefined;
     if (performance === 'failed') {
+      // Three failures in a row is a stall, not a bad day. Back the weight off
+      // rather than handing over the same bar for a fourth attempt — see
+      // deloadedLoad, and the summary screen that has been recommending exactly
+      // this to the user while the engine did nothing about it.
+      const stuck = exerciseId ? (exerciseStuckStreak?.[exerciseId] ?? 0) : 0;
+      const deloaded = deloadedLoad(lastKg, stuck, toGrid);
+      if (deloaded !== null) {
+        if (__DEV__) {
+          console.log(
+            `[personalizeLoad] exId=${exerciseId} DELOAD ${lastKg}kg → ${deloaded}kg (stuck=${stuck})`
+          );
+        }
+        return computed(deloaded);
+      }
       // Incomplete sets or thumbs-down - hold at same weight
       if (__DEV__) {
         console.log(
-          `[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed)`
+          `[personalizeLoad] exId=${exerciseId} HOLDING at ${lastKg}kg (performance=failed, stuck=${stuck})`
         );
       }
       return computed(lastKg);
@@ -1097,7 +1199,13 @@ function personalizeLoad(
     // store so it resets to 0 precisely when feedback is received for *this*
     // exercise, not based on unrelated global session count changes.
     const normalStreak = exerciseId ? (exerciseNormalStreak?.[exerciseId] ?? 0) : 0;
-    const progressedKg = progressedLoad(lastKg, performance, normalStreak, toGrid);
+    const progressedKg = progressedLoad(
+      lastKg,
+      performance,
+      normalStreak,
+      toGrid,
+      profile?.experienceLevel
+    );
     if (__DEV__) {
       console.log(
         `[personalizeLoad] exId=${exerciseId} lastKg=${lastKg} perf=${performance} normalStreak=${normalStreak} → ${progressedKg}kg`
@@ -1351,6 +1459,8 @@ function applyPersonalization(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
+
+  exerciseStuckStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
@@ -1385,10 +1495,21 @@ function applyPersonalization(
     const performance = ex.id ? lastSessionPerformance?.[ex.id] : undefined;
     const normalStreak = ex.id ? (exerciseNormalStreak?.[ex.id] ?? 0) : 0;
     if (performance === 'failed') {
+      // A deload has to say so. Every other note on a failed session says "held
+      // steady", and on the session where the weight actually came DOWN that
+      // would be the card describing something the engine did not do — the same
+      // fault the time-off note above exists to avoid. Direction stays 'hold'
+      // for the same reason it does there: a dash beside "eased back" is honest
+      // where an upward arrow is not.
+      const stuck = ex.id ? (exerciseStuckStreak?.[ex.id] ?? 0) : 0;
+      const deloaded = deloadedLoad(lastKg, stuck, (v) => roundToLoadable(v, loadUnit));
       const ratedDown = ex.id ? exerciseFeedback?.[ex.id]?.thumbs === 'down' : false;
-      progressionNote = ratedDown
-        ? 'Held steady - you rated this tough last time'
-        : 'Held steady - a set was left incomplete last time';
+      progressionNote =
+        deloaded !== null
+          ? `Eased back ${Math.round((1 - DELOAD_FRACTION) * 100)}% - stuck here ${stuck} sessions, so this is a reset to build from`
+          : ratedDown
+            ? 'Held steady - you rated this tough last time'
+            : 'Held steady - a set was left incomplete last time';
       progressionDirection = 'hold';
     } else if (performance === 'very_easy') {
       progressionNote = 'Bumped up big - you said you had plenty left last time';
@@ -1417,6 +1538,8 @@ function applyPersonalization(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -1473,7 +1596,18 @@ export function generateWorkout(
    * about it has to say so. See `roundToLoadable` in lib/utils.ts for why this
    * cannot live at the render boundary instead.
    */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /**
+   * Consecutive failed sessions per exercise, which is what triggers a deload.
+   *
+   * LAST ON PURPOSE, breaking the grouping with the other two per-exercise
+   * records above it. This signature is positional and is called from the
+   * session screen and from a couple of dozen check scripts; slotting a
+   * thirteenth parameter into the middle would silently shift every argument
+   * after it at every one of those call sites. An awkward position is a much
+   * smaller problem than a test suite quietly passing the wrong data.
+   */
+  exerciseStuckStreak?: Record<string, number>
 ): Exercise[] {
   const layoff = getLayoff(daysSinceLastSession);
   // Screen first, then fill the swap slots — so the alternatives on offer are
@@ -1490,6 +1624,8 @@ export function generateWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -1891,6 +2027,8 @@ function generateWorkoutUnscreened(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
+
+  exerciseStuckStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
@@ -1905,6 +2043,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -2008,6 +2148,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -2194,6 +2336,8 @@ function generateWorkoutUnscreened(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -2233,6 +2377,8 @@ function generateWeeklyWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
+
+  exerciseStuckStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
@@ -2496,6 +2642,8 @@ function generateWeeklyWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
@@ -2528,6 +2676,8 @@ function generateConditioningWorkout(
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
+
+  exerciseStuckStreak?: Record<string, number>,
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
@@ -2583,6 +2733,8 @@ function generateConditioningWorkout(
       strengthSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
+
+      exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
       loadUnit
