@@ -449,4 +449,4 @@ console.log(
     ? `\nequipment-honesty: all ${total} checks passed\n`
     : `\nequipment-honesty: ${failures}/${total} check(s) FAILED\n`
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;

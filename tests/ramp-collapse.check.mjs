@@ -380,8 +380,8 @@ console.log('\n[8] The card never prints a unit twice');
 console.log('');
 if (failures > 0) {
   console.error(`ramp-collapse: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`ramp-collapse: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

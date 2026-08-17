@@ -377,8 +377,8 @@ for (const region of [...allCoveredRegions].sort()) {
 console.log('');
 if (failures > 0) {
   console.error(`body-diagram-region-coverage: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`body-diagram-region-coverage: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

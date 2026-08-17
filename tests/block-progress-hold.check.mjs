@@ -27,6 +27,8 @@
 
 globalThis.__DEV__ = false;
 
+// Drives the real persisted store; see the shim for why that needs a home.
+import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -178,8 +180,8 @@ check(
 console.log('');
 if (failures > 0) {
   console.error(`block-progress-hold: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`block-progress-hold: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

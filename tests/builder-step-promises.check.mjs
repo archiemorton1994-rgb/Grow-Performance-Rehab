@@ -561,8 +561,8 @@ console.log('\n[5] The counter and the dots agree on how many steps there are');
 console.log('');
 if (failures > 0) {
   console.error(`builder step promises: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`builder step promises: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

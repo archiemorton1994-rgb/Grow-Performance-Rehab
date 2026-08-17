@@ -212,4 +212,4 @@ if (hasPrevTourCompleteRef && hasSetTourActiveTab0 && hasFlipGuard) {
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
 console.log(`\nreplay-tour: ${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+process.exitCode = failed > 0 ? 1 : 0;

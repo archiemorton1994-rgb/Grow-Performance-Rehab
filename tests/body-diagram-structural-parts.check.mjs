@@ -116,6 +116,17 @@ if (front && back && structural) {
       orphans.length === 0,
       `left to the library: ${orphans.join(', ')}`
     );
+
+    // The package ships the female BACK figure with no head path at all — 13
+    // parts against the male's 16 — so turning to the back view gave a woman a
+    // headless body. patches/react-native-body-highlighter+3.2.0.patch adds one,
+    // scaled and positioned from her own front-view head. This fails if the
+    // patch stops applying, which is exactly the day it would otherwise ship.
+    check(
+      `${label}: the figure has a head`,
+      parts.some((p) => p.slug === 'head'),
+      'no head path — check that the patch applied (npx patch-package)'
+    );
   }
 }
 

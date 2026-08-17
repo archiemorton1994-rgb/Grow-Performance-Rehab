@@ -281,4 +281,4 @@ console.log(
     ? `\nconditioning-rotation: all ${total} checks passed\n`
     : `\nconditioning-rotation: ${failures} of ${total} checks FAILED\n`
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;

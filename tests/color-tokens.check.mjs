@@ -198,8 +198,8 @@ if (allViolations.length === 0) {
 
 if (failures > 0) {
   console.error(`colour-tokens: FAILED (${failures} violation(s))\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`colour-tokens: all checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

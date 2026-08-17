@@ -300,8 +300,8 @@ if (toggleIdx !== -1) {
 console.log('');
 if (failed === 0) {
   console.log(`note-input-kav: all ${passed} checks passed`);
-  process.exit(0);
+  process.exitCode = 0;
 } else {
   console.error(`note-input-kav: ${failed} of ${passed + failed} checks FAILED`);
-  process.exit(1);
+  process.exitCode = 1;
 }

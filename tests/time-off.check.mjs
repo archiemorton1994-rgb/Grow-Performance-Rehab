@@ -32,6 +32,9 @@
 
 globalThis.__DEV__ = false;
 
+// This file drives the real persisted store; see the shim for why that needs
+// somewhere to write to under Node.
+import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
 import {
   COMEBACK_SESSIONS,
@@ -451,4 +454,4 @@ console.log(
     ? `\ntime-off: all ${total} checks passed\n`
     : `\ntime-off: ${failures} of ${total} checks FAILED\n`
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;

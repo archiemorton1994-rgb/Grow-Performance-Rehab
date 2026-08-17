@@ -279,8 +279,8 @@ for (const region of regions) {
 console.log('');
 if (failures > 0) {
   console.error(`prehab-region-relevance: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`prehab-region-relevance: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

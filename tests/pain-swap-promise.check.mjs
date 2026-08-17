@@ -413,8 +413,8 @@ check(
 console.log('');
 if (failures > 0) {
   console.error(`pain-swap-promise: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`pain-swap-promise: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

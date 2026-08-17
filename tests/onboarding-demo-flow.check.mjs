@@ -320,4 +320,4 @@ if (setTourCompleteBlock) {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\nonboarding-demo-flow: ${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+process.exitCode = failed > 0 ? 1 : 0;

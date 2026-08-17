@@ -163,8 +163,8 @@ for (const pill of EXPECTED_PILLS) {
 console.log('');
 if (failures > 0) {
   console.error(`history-date-bar-pinned: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`history-date-bar-pinned: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

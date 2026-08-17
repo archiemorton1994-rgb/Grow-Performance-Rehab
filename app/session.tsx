@@ -2011,7 +2011,11 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'happy-outline',
     iconLabel: 'Feedback',
     title: 'Tell us how it felt',
-    body: 'After each set, tap Easy, Challenging or Too Hard. The weight for your next set adjusts straight away — and it never goes up after Challenging or Too Hard.',
+    // Says what the answer is FOR. The tour used to describe only the
+    // in-session effect, so the single biggest thing these taps do — set the
+    // weight you are given next week — went unexplained, and an answer whose
+    // consequence you cannot see is one people stop giving.
+    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time — bigger jumps when you say Easy, no jump at all after Too Hard.',
     demoForceFeedback: true,
   },
   {

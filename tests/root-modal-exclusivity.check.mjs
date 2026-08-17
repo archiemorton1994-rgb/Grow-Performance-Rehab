@@ -163,4 +163,4 @@ check(
 );
 
 console.log(`\nroot-modal-exclusivity: ${passed} passed, ${failed} failed`);
-process.exit(failed === 0 ? 0 : 1);
+process.exitCode = failed === 0 ? 0 : 1;

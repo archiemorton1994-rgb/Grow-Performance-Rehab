@@ -286,4 +286,4 @@ console.log(
     ? `\nsession-builder guardrails: all ${total} checks passed\n`
     : `\nsession-builder guardrails: ${failures}/${total} check(s) FAILED\n`
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;

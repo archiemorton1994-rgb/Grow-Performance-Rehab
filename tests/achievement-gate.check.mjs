@@ -96,4 +96,4 @@ check(
 );
 
 console.log(`\nachievement-gate: ${total - failures} passed, ${failures} failed\n`);
-if (failures > 0) process.exit(1);
+if (failures > 0) process.exitCode = 1;

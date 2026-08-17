@@ -4,7 +4,7 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**71 of 669 recorded (10.6%). 598 still to go.**
+**71 of 669 recorded (10.6%). 448 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
 
@@ -92,7 +92,9 @@ Each one is either a movement the app does not have — in which case the exerci
 
 ## Still to record
 
-Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+**448 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+
+A further 150 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
 
 ### Main lifts — the squat, bench and deadlift variations a session is built around (11)
 
@@ -108,17 +110,15 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Single-Leg Hinge
 - Towel Row (Door Handle)
 
-### Accessories — the supporting work in every strength session (245)
+### Accessories — the supporting work in every strength session (155)
 
 - 45 Degree Hyperextension
 - Ab Wheel Rollout
 - Adductor Machine
 - Alternating Reverse Lunge
-- Alternating Swing + Tuck Jump Round
 - Archer Push-Up
 - Assault Bike (Easy)
 - Assault Bike Escalating Intervals
-- Assault Bike Hard Interval + Med Ball Slam
 - Back Extension
 - Band Bicep Curl
 - Banded Glute Bridge
@@ -128,24 +128,12 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Barbell Bent-Over Row
 - Barbell Hip Thrust
 - Barbell Holds
-- Battle Rope + Box Jump Round
-- Battle Rope + Box Step-Over Round
-- Battle Rope Slam + Goblet Squat Round
 - Battle Rope Waves
 - Bear Crawl
 - Bear Crawl (Steady Pace)
-- Bear Crawl + KB Swing + Box Jump
-- Bear Crawl + Sit-Up Round
 - Belt Squat
 - Board Press
-- Box Jump + Double-Under Round
-- Box Jump + KB Swing Round
 - Box Step-Up
-- Broad Jump + Walking Lunge Round
-- Burpee + Hollow Hold Round
-- Burpee + Reverse Lunge + Plank Hold
-- Burpee + Squat Jump + Plyo Lunge
-- Burpee Broad Jump + Tuck Jump Round
 - Cable Bicep Curl
 - Cable Chest Fly
 - Cable Crunch
@@ -159,59 +147,40 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Close-Grip Bench Press
 - Copenhagen Plank
 - Cossack Squat
-- Crab Walk + Dead Bug Round
 - Curtsy Lunge
 - DB Arnold Press
 - DB Bent-Over Lateral Raise
 - DB Bent-Over Row
 - DB Calf Raise
 - DB Chest Fly
-- DB Clean + Front Squat Round
-- DB Clean and Press + Front Squat Round
-- DB Complex: Deadlift, Row, Clean, Press
-- DB Devil Press + Goblet Squat Round
 - DB Farmer Carry
 - DB Floor Press
-- DB Floor Press + Plank Drag Round
-- DB Floor Press + Renegade Row Round
 - DB Front Squat
 - DB Good Morning
-- DB High Pull + Squat Jump Round
 - DB Hip Thrust
 - DB Incline Tricep Extension
 - DB Lateral Lunge
-- DB Man Maker + Thruster + Swing
-- DB Man Maker Round
 - DB Overhead Carry
 - DB Power Clean
 - DB Pullover
 - DB Push Press
-- DB Push Press + KB Swing Round
 - DB Renegade Row
 - DB Reverse Lunge
-- DB Reverse Lunge + Bent-Over Row Round
 - DB Romanian Deadlift
 - DB Shrug
 - DB Single-Arm Row
 - DB Single-Leg Hip Thrust
 - DB Single-Leg RDL
 - DB Skull Crushers
-- DB Snatch + Jump Lunge Round
-- DB Snatch + Reverse Lunge Round
-- DB Squat Clean + Push Press Round
 - DB Step-Up
-- DB Step-Up + Push-Up Round
 - DB Sumo Deadlift
 - DB Sumo Squat
-- DB Thruster + Renegade Row + Squat Jump
-- DB Thruster Ladder
 - DB Tricep Overhead Extension
 - Dead Bug (Steady Tempo)
 - Dead Hang
 - Decline Bench Press
 - Deficit Push-Up
 - Diamond Push-Up
-- Diamond Push-Up + Pike Push-Up Round
 - Donkey Kick
 - Dumbbell Front Raise
 - Dumbbell Walking Lunge
@@ -219,12 +188,8 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - EZ Bar Curl
 - EZ Bar Skull Crushers
 - Farmer Walk (Heavy DBs)
-- Farmer Walk + Mountain Climber Round
 - Farmers Carry
 - Farmers Carry (Heavy)
-- Fast Bear Crawl + Hollow Rock Round
-- Fast Farmer Carry + Push-Up Round
-- Fast Feet + Squat to Stand Round
 - Fat Grip Hold
 - Feet-Elevated Inverted Row
 - Frog Pumps
@@ -232,28 +197,13 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Glute Bridge March
 - Glute Ham Raise
 - Goblet March
-- Goblet Squat + Burpee Round
-- Goblet Squat Hold + Bear Crawl Round
 - Hack Squat
-- Half Burpee + Broad Jump Round
 - Hanging Leg Raise
-- Heavy Sled Push + Farmer Carry
-- Heavy Swing + Burpee Round
 - Hollow Body Hold
-- Inchworm + Bicycle Crunch Round
 - Incline Barbell Press
 - Incline Push-Up
 - Inverted Row
 - JM Press
-- Jump Lunge + Skater Hop Round
-- Jumping Jack + Bodyweight Squat Round
-- KB Halo + Goblet Squat Round
-- KB Snatch + Box Jump + Burpee
-- KB Snatch + Squat Jump + Renegade Row
-- KB Swing + Box Step-Over + Push-Up
-- KB Swing + Goblet Squat + Push-Up
-- KB Swing + Jump Rope Round
-- Lateral Shuffle + Sumo Squat Round
 - Lateral Step-Out Squat
 - Leg Curl (Machine)
 - Leg Extension
@@ -261,36 +211,21 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Lying Hamstring Curl
 - Machine Chest Press
 - Med Ball Slam (Light)
-- Med Ball Slam + Fast Bear Crawl
-- Med Ball Slam + Jump Rope Round
-- Mountain Climber + Push-Up Round
 - Nordic Hamstring Curl
 - Overhead Cable Tricep Extension
-- Overhead Carry + Burpee Round
 - Overhead Press
 - Pec Deck (Machine Fly)
 - Pendlay Row
 - Pike Push-Up
-- Pike Push-Up + Hollow Hold Round
-- Plank Walk-Up + Sit-Through Round
 - Plate Pinch Holds
 - Prone Y-T-W Raise
-- Push-Up + Mountain Climber Sprint
-- Push-Up + Superman Round
 - Rack Pull
-- Racked Carry + Sit-Up Round
 - Renegade Row
-- Renegade Row + Mountain Climber Sprint
-- Renegade Row + Plank Shoulder Tap Round
 - Reverse Hyperextension
 - Reverse Hyperextension (floor)
 - Reverse Lunge
 - Reverse Snow Angel
 - Rope Pushdowns
-- Rowing Interval + Goblet Squat Round
-- Rowing Interval + Wall Ball + Burpee
-- Rowing Interval + Wall Ball Round
-- Rowing Interval Ladder
 - Rowing Intervals (Easy)
 - Rowing Machine Pyramid (Easy)
 - Seal Row
@@ -301,36 +236,19 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Single Arm Cable Extension
 - Single Leg Hip Thrust
 - Single-Arm KB / DB Swing
-- Single-Arm Swing + Shuttle Run Round
-- Single-Arm Swing + Suitcase Carry Round
 - Single-Arm Towel Row (Door Handle)
-- Single-Leg Glute Bridge + Side Plank Round
 - Sissy Squat
-- Skater Hop + Glute Bridge Round
-- Ski Erg + Box Step-Up Round
-- Ski Erg Hard Pull + Battle Rope Slam
-- Ski Erg Interval + Med Ball Slam Round
 - Ski Erg Intervals (Easy)
 - Sled Backward Drag
 - Sled Drag
-- Sled Drag + Farmer Walk Round
-- Sled Drag + Shuttle Run
 - Sled Push (Steady)
-- Sled Push + Assault Bike Sprint
-- Sled Push + Cable Woodchop Round
-- Sled Push + Fast Bear Crawl + Assault Bike
 - Spanish Squat
-- Sprint (20 m) + Push-Up + Bear Crawl (10 m)
 - Sprint Interval (30s)
-- Squat Jump + Push-Up + High Knees
-- Squat Jump + Push-Up Couplet
-- Squat Pulse + Plank Shoulder Tap
 - Squat to Stand
 - Stability Ball Hamstring Curl
 - Standing Calf Raise
 - Standing Overhead Press
 - Step-Up (Low Step)
-- Step-Up + Push-Up Round
 - Step-Up with Knee Drive
 - Stiff-Leg Deadlift
 - Straight Arm Pulldown
@@ -342,13 +260,7 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Tate Press
 - Treadmill Hill Sprints
 - Tricep Dips (Bench)
-- Tuck Jump + Cossack Squat Round
-- Tuck Jump + Wall Sit Round
-- V-Up + Plank Jack Round
 - Wall Ball (Light)
-- Wall Ball + Burpee Round
-- Wall Ball + KB Swing + Jump Rope
-- Wall Ball + Sit-Up Round
 - Wall Sit
 - Weighted Dips
 - Weighted Plank
@@ -479,10 +391,9 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Wrist Extensor Stretch
 - Wrist Flexor Stretch
 
-### Warm-ups (33)
+### Warm-ups (24)
 
 - Adductor Rockback
-- Ankle Circles + Dorsiflexion Drill
 - Ankle Dorsiflexion Drill
 - Assault Bike Warm-Up
 - Band Pull-Apart (Warm-Up)
@@ -492,23 +403,15 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Cat-Cow Flow
 - Child's Pose
 - Cossack Squat Flow
-- Dynamic March + Arm Circles
 - Dynamic Warm-Up
 - Easy Cardio Warm-Up
 - Easy Cardio Warm-Up (No Kit)
-- Goblet Squat + Arm Swing Warm-Up
-- Halo + Hip Hinge Warm-Up
 - Hip Circle (Standing)
 - Hip Flexor Kneeling Stretch
 - Jump Rope / Skip Warm-Up
 - Jump Rope Warm-Up
 - Kneeling Thoracic Rotation
-- Leg Swing + Arm Cross Warm-Up
-- Light Swing + March Warm-Up
-- March + Arm Circle Warm-Up
-- Neck Rolls + Shoulder Circles
 - Rowing Machine Warm-Up
-- Shadow Box + Squat Warm-Up
 - Shoulder CARs (Controlled Articular Rotations)
 - Standing Hamstring Reach
 - Stationary Bike Warm-Up
@@ -572,79 +475,49 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Speed Good Morning (bar only)
 - Speed Squat Ramp (bar only)
 
-### Finishers (130)
+### Finishers (80)
 
 - Alternating Jump Lunge
-- AMRAP Finisher
-- AMRAP Finisher: Burpee, KB Swing, Air Squat
-- AMRAP: Squat Jump + Broad Jump + Burpee
-- Arm Circles + Step Touch
 - Assault Bike (Easy Pace)
 - Assault Bike (Moderate)
-- Assault Bike + Squat Jump Circuit
-- Assault Bike EMOM + RDL
 - Assault Bike Escalating Finisher
 - Assault Bike Hard Interval Finisher
 - Assault Bike Intervals
 - Assault Bike Intervals (Easy)
 - Assault Bike Sprints
-- Battle Rope EMOM
 - Battle Rope Finisher
 - Bear Crawl (Easy Pace)
-- Bear Crawl + Sprint
 - Bear Crawl Finisher
 - Bear Crawl Intervals
-- Bodyweight Squat Ladder
 - Bodyweight Squat Pulse
 - Burpee
-- Burpee + Box Jump EMOM
-- Burpee EMOM
-- Burpee Ladder
-- Burpee Ladder Finisher
 - Burpee to Broad Jump
 - Cable Crossover Superset
 - Cable Drop Set Superset
 - Cable Push-Pull Circuit
 - Cable Row Intervals
-- Carry + Walk Finisher
 - Chest Stretch Walk
-- DB Complex
-- DB Complex EMOM
-- DB Deadlift + Push Press AMRAP
-- DB Devil Press AMRAP
 - DB Glute Bridge (Pump)
 - DB Goblet Squat Easy Pace
 - DB Goblet Squat Intervals
 - DB Lunge Intervals
 - DB Man Maker
-- DB Man Maker AMRAP
 - DB Push Press Intervals
 - DB Romanian Deadlift Intervals
 - DB Shoulder Circuit (Light)
-- DB Squat + Press AMRAP
 - DB Thruster
-- DB Thruster + Burpee EMOM
-- DB Thruster + Shuttle Run
 - DB Thruster Finisher
 - Deadlift Drop Set
-- EMOM Finisher: KB / DB Swings
-- EMOM: Push-Up + Burpee
 - Farmer Walk
 - Farmer Walk Finisher
 - Farmer Walk Finisher (Gym)
 - Glute Bridge Hold
-- Glute Bridge Tabata
 - Goblet Squat (continuous)
-- Goblet Squat Ladder
-- Goblet Squat Tabata
 - Hamstring Curl (Easy Pump)
 - Heavy Carry Finisher
 - Heavy Sled Push Finisher
-- Hollow Rock + V-Up Finisher
 - Jump Rope Intervals
 - Jumping Jack Finisher
-- KB / DB Swing + Shuttle
-- KB / DB Swing EMOM
 - KB / DB Swing Intervals
 - Leg Press 50s Drop Set
 - Leg Press Intervals
@@ -654,22 +527,13 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Light Sled Drag
 - Machine Chest Fly (Pump)
 - Man Maker Finisher
-- Marching + Arm Swings
 - Mountain Climber Intervals
 - Mountain Climbers
-- Plank + Hollow Hold Finisher
-- Plank + March Finisher
 - Prowler Drag (light)
-- Prowler Push/Pull + Bike
-- Push Press + Assault Bike Circuit
-- Push-Up + DB Row EMOM
-- Push-Up + Plank Intervals
 - Racked Carry Finisher
 - Recovery Walk
 - Renegade Row Finisher
 - Renegade Row Intervals
-- Reverse Lunge + Hip Drive Intervals
-- Reverse Lunge + Knee Drive Intervals
 - Rowing Finisher
 - Rowing Finisher (Steady)
 - Shadow Boxing
@@ -678,12 +542,9 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Sled Drag Finisher
 - Sled Drag Intervals
 - Sled Push
-- Sled Push + Sprint Back
 - Sled Push Finisher
 - Sled Push Intervals
 - Sprint Interval Finisher
-- Squat Jump + Push-Up Couplet Finisher
-- Squat Jump + Walking Lunge Circuit
 - Squat Jump Intervals
 - Stationary Bike (Easy)
 - Steady Walk / Light Jog
@@ -692,23 +553,14 @@ Grouped by where the exercise appears, and within each group the ones used in th
 - Stepping Jack Intervals
 - Stepping Jacks
 - Stiff-Leg Deadlift Intervals
-- Tabata Burpees
-- Tabata Finisher: Alternating Swings
-- Tabata Finisher: Mountain Climbers
-- Tabata Squat Jumps
-- Tabata: Explosive Push-Up + Mountain Climbers
 - Treadmill Incline Walk
 - Treadmill Sprint Intervals
-- Tricep Pushdown + Face Pull Superset
-- Tuck Jump + Push-Up Couplet
 - Unbroken Carry Finisher
 - Walking Lunges
-- Wall Ball AMRAP Finisher
 
-### Cool-downs and stretching (8)
+### Cool-downs and stretching (7)
 
 - Cool Down Stretch Sequence
-- Cool Down Walk + Breathing
 - Diaphragmatic Breathing
 - Forearm Flexor & Extensor Stretch
 - Legs-Up Recovery Breathing

@@ -139,8 +139,8 @@ for (const { name, token } of checks) {
 console.log('');
 if (failures > 0) {
   console.error(`dark-trend-inactive-contrast: FAILED (${failures} token(s) below threshold)\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log('dark-trend-inactive-contrast: all checks passed\n');
-  process.exit(0);
+  process.exitCode = 0;
 }

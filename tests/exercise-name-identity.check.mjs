@@ -251,6 +251,10 @@ if (
     '\nexercise-name-identity: ABORTED — the rules this test judges by could not be read ' +
       'out of lib/exercise-safety.ts. Nothing below was checked.'
   );
+  // Deliberately process.exit and NOT exitCode, unlike the summary at the foot
+  // of this file. This has to STOP: everything below judges the catalogue
+  // against rules that could not be read, and the summary line would overwrite
+  // this failure with a pass if those vacuous checks happened to agree.
   process.exit(1);
 }
 
@@ -384,4 +388,4 @@ check(
 console.log(
   `\nexercise-name-identity: ${failures === 0 ? `all ${total} checks passed` : `${failures} of ${total} checks FAILED`}`
 );
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;

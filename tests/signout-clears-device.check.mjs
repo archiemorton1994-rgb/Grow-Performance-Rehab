@@ -29,6 +29,8 @@
  * Exit: 0 = all pass, 1 = one or more failures
  */
 
+// Drives the real persisted store; see the shim for why that needs a home.
+import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -221,8 +223,8 @@ check(
 console.log('');
 if (failures > 0) {
   console.error(`signout-clears-device: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`signout-clears-device: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

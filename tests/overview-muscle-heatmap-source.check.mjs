@@ -150,8 +150,8 @@ if (callIdx !== -1) {
 console.log('');
 if (failures > 0) {
   console.error(`overview-muscle-heatmap-source: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`overview-muscle-heatmap-source: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

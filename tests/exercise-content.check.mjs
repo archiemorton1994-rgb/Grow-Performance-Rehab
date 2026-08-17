@@ -563,8 +563,8 @@ check(
 console.log('');
 if (failures > 0) {
   console.error(`exercise-content: ${failures}/${total} check(s) FAILED\n`);
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log(`exercise-content: all ${total} checks passed\n`);
-  process.exit(0);
+  process.exitCode = 0;
 }

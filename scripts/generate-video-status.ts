@@ -65,15 +65,35 @@ function primaryCategory(templates: ExerciseTemplate[]): string {
   )[0][0];
 }
 
+/**
+ * Is this entry a CIRCUIT rather than a movement?
+ *
+ * "Burpee + Reverse Lunge + Plank Hold" and "DB Complex: Deadlift, Row, Clean,
+ * Press" are real entries the app can put on screen, but they are not separate
+ * things to film — every movement inside them is already its own exercise. They
+ * were inflating the shooting list by about a third, which makes the job look
+ * bigger than it is and buries the movements that actually need a camera.
+ *
+ * Recognised from the name: a join word between two named movements, or the
+ * explicit circuit/complex/AMRAP/EMOM vocabulary the database uses for them.
+ */
+const IS_CIRCUIT =
+  /\s\+\s|,\s.*,|^circuit\b|\bcomplex\b|\bamrap\b|\bemom\b|\btabata\b|\bladder\b|\bcouplet\b|\bround\b|\bfinisher:\s/i;
+
 const rows = [...entries.values()].map((r) => ({
   name: r.name,
   count: r.count,
   category: primaryCategory(r.templates),
   hasVideo: mapped.has(norm(r.name)) || r.templates.some((t) => !!t.youtubeUrl || !!t.videoId),
+  isCircuit: IS_CIRCUIT.test(r.name),
 }));
 
 const done = rows.filter((r) => r.hasVideo);
-const todo = rows.filter((r) => !r.hasVideo);
+// The shooting list is single movements only. Circuits are counted and reported
+// separately rather than dropped silently — a number nobody can reconcile with
+// the catalogue is its own problem.
+const todo = rows.filter((r) => !r.hasVideo && !r.isCircuit);
+const circuits = rows.filter((r) => !r.hasVideo && r.isCircuit);
 
 // Names in the table that match nothing in the app. A typo here is a dead
 // button, so it is reported at the top rather than buried.
@@ -193,7 +213,11 @@ if (done.length > 0) {
 lines.push('## Still to record');
 lines.push('');
 lines.push(
-  'Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.'
+  `**${todo.length} single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.`
+);
+lines.push('');
+lines.push(
+  `A further ${circuits.length} entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.`
 );
 lines.push('');
 
@@ -223,6 +247,7 @@ writeFileSync(OUT, lines.join('\n'));
 console.log('wrote EXERCISE-VIDEO-STATUS.md');
 console.log(`  distinct exercises : ${rows.length}`);
 console.log(`  with a video       : ${done.length}`);
-console.log(`  still to record    : ${todo.length}`);
+console.log(`  still to record    : ${todo.length}  (single movements)`);
+console.log(`  circuits, not shot : ${circuits.length}  (every movement in them is filmed separately)`);
 if (orphans.length) console.log(`  UNMATCHED NAMES    : ${orphans.length} — ${orphans.join(', ')}`);
 if (badUrls.length) console.log(`  MALFORMED LINKS    : ${badUrls.length}`);
