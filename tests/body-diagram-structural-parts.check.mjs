@@ -74,9 +74,35 @@ check('STRUCTURAL_SLUGS found', structural !== null, 'the silhouette seed list i
 
 // The seed must actually be applied, not merely declared.
 check(
-  'every structural part is seeded with the silhouette fill',
-  /for \(const slug of STRUCTURAL_SLUGS\)[\s\S]{0,160}?fill: defaultFill/.test(src),
+  'every structural part is seeded with a fill',
+  /for \(const slug of STRUCTURAL_SLUGS\)[\s\S]{0,200}?fill: structuralFill/.test(src),
   'STRUCTURAL_SLUGS is declared but never pushed into bodyData'
+);
+
+/**
+ * AND THE FILL MUST NOT BE THE SILHOUETTE COLOUR.
+ *
+ * This is the second half of the same bug and it shipped once. The first fix
+ * seeded `defaultFill`, which is the silhouette — near-black at 70% opacity.
+ * Measured off the running app, the head came back rgba(26,29,27,0.7) while the
+ * un-highlighted muscles beside it were rgba(74,126,155,0.08): nine times
+ * fainter. The head was no longer the LIBRARY's dark grey, it was ours, and the
+ * report came back unchanged — "the head is black".
+ *
+ * A structural part carries no information, so it has to look like every other
+ * part carrying no information. That is a low-alpha neutral in normal mode and
+ * heatmapColor(0) on the heatmap, both derived from the rules right below it
+ * rather than picked by hand.
+ */
+check(
+  'the structural fill is NOT the dark silhouette colour',
+  /const structuralFill\s*=/.test(src) && !/fill: defaultFill/.test(src),
+  'seeding defaultFill paints the head near-black — that IS the reported bug'
+);
+check(
+  'on the heatmap it matches a region with no history',
+  /structuralFill[\s\S]{0,120}?heatmapColor\(0\)/.test(src),
+  'the head would stand out against every un-worked region'
 );
 
 // …and it must not emit a second entry for a slug this view already maps.

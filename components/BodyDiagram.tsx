@@ -895,10 +895,34 @@ export function BodyDiagram({
       'triceps',
       'adductors',
     ] as Slug[];
+    /**
+     * The colour of a part that is simply BODY.
+     *
+     * Not `defaultFill`. That is the silhouette colour — near-black at 70%
+     * opacity — and seeding it here is what produced the reported "black head",
+     * this time as our own doing rather than the library's. Measured off the
+     * live screen, the head came out rgba(26,29,27,0.7) while the unhighlighted
+     * muscles beside it were rgba(74,126,155,0.08): nine times fainter. The
+     * head was no longer the library's dark grey, it was OUR dark grey.
+     *
+     * A structural part has to match whatever the rest of the un-highlighted
+     * figure is doing in this mode, and the two modes do different things:
+     *
+     *   heatmap   every region is painted, and a region with no history gets
+     *             heatmapColor(0) — so that is what "no signal" looks like here.
+     *   normal    a region outside the selected category drops to 0.08 alpha,
+     *             which reads as pale grey against the panel.
+     *
+     * Either way the answer is "whatever a part carrying no information looks
+     * like", which is why it is derived from those rules rather than picked.
+     */
+    const structuralFill =
+      heatmapCounts !== undefined ? heatmapColor(0) : colorWithAlpha(C.text, 0.08);
+
     const mappedHere = new Set<string>(Object.values(slugMap).flat() as string[]);
     for (const slug of STRUCTURAL_SLUGS) {
       if (mappedHere.has(slug)) continue;
-      result.push({ slug, styles: { fill: defaultFill } });
+      result.push({ slug, styles: { fill: structuralFill } });
     }
 
     if (heatmapCounts !== undefined) {
@@ -927,7 +951,7 @@ export function BodyDiagram({
       }
     }
     return result;
-  }, [view, selected, selectedRegions, category, heatmapCounts, defaultFill]);
+  }, [view, selected, selectedRegions, category, heatmapCounts, C.text]);
 
   // ─── Library press handler ─────────────────────────────────────────────────────
   const handleBodyPartPress = (bodyPart: ExtendedBodyPart) => {
