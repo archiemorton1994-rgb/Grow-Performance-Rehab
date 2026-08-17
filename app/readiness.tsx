@@ -919,7 +919,24 @@ export default function ReadinessScreen() {
   // — the two were fighting. Passing the MEASURED height settles it: this
   // screen knows exactly how much room the figure has, and the component does
   // the aspect arithmetic.
-  const painDiagramMaxHeight = painDiagramAreaH > 0 ? painDiagramAreaH - 20 : undefined;
+/**
+ * Room kept below the figure for the name of the region you just tapped.
+ *
+ * `maxHeight` on BodyDiagram budgets the FIGURE, not the component — the label
+ * chip that names the selected region renders underneath it (labelRow: 10pt
+ * margin + 34pt min height). Handing the figure the whole area therefore pushed
+ * that chip out of the space entirely, so tapping a region highlighted it and
+ * never said what it was. Reported as exactly that: "it highlights the area but
+ * doesn't say what the area is".
+ *
+ * 46 = the label row's own 44, plus a point of slack. Taken off the figure
+ * rather than added to the screen, because the other half of the report was
+ * "avoiding scrolling still" — this step has to fit as it is.
+ */
+const PAIN_LABEL_RESERVE = 46;
+
+const painDiagramMaxHeight =
+  painDiagramAreaH > 0 ? painDiagramAreaH - 20 - PAIN_LABEL_RESERVE : undefined;
 
   const renderPainRegion = () => (
     <Animated.View key="painRegion" entering={FadeInDown.duration(350)} style={{ flex: 1 }}>

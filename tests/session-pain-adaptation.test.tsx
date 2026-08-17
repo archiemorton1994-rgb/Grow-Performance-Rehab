@@ -174,7 +174,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
     act(() => {
       root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={0} />);
     });
-    expect(hasText(root, 'No exercises needed swapping')).toBe(true);
+    expect(hasText(root, 'Nothing needed swapping')).toBe(true);
   });
 
   test('banner shows singular swap message when comfortCount is 1', () => {
@@ -182,7 +182,7 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
     act(() => {
       root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={1} />);
     });
-    expect(hasText(root, '1 exercise swapped for comfort')).toBe(true);
+    expect(hasText(root, '1 exercise was already swapped for comfort')).toBe(true);
   });
 
   test('banner shows plural swap message when comfortCount is 3', () => {
@@ -190,7 +190,40 @@ describe('[1] Real PainAdaptBanner — banner presence and dismiss', () => {
     act(() => {
       root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={3} />);
     });
-    expect(hasText(root, '3 exercises swapped for comfort')).toBe(true);
+    expect(hasText(root, '3 exercises were already swapped for comfort')).toBe(true);
+  });
+
+  /**
+   * THE SAFETY INSTRUCTION, WHICH IS THE POINT OF THE BANNER.
+   *
+   * The copy used to end on "skip anything that hurts" — true, and far too mild
+   * for a session built around a sore area. Asked for directly: "if any exercise
+   * causes pain to the specified area then to stop immediately and skip".
+   *
+   * Two things have to hold, and the swap-count tests above cover neither:
+   * the instruction is present, and it NAMES the region the user chose on the
+   * body map two screens earlier. A generic "if it hurts, stop" does not
+   * confirm the app understood which area they picked.
+   */
+  test('the banner tells you to stop immediately, and names the area', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(<BannerFixture hasAches={true} painRegion="knee" comfortCount={0} />);
+    });
+    expect(hasText(root, 'stop that exercise straight away')).toBe(true);
+    expect(hasText(root, 'tap Skip')).toBe(true);
+    expect(hasText(root, 'knee')).toBe(true);
+  });
+
+  test('and it names a different area when a different one was chosen', () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(
+        <BannerFixture hasAches={true} painRegion="lower_back" comfortCount={2} />
+      );
+    });
+    expect(hasText(root, 'lower back')).toBe(true);
+    expect(hasText(root, 'stop that exercise straight away')).toBe(true);
   });
 });
 
@@ -946,7 +979,7 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
     expect(hasText(root, 'Goblet Squat')).toBe(false);
   });
 
-  test('banner shows "1 exercise swapped for comfort" when swapCount=0', () => {
+  test('banner shows "1 exercise was already swapped for comfort" when swapCount=0', () => {
     const exercise = makeExercise({
       badge: 'comfort',
       hasSwap: true,
@@ -967,10 +1000,10 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
       );
     });
 
-    expect(hasText(root, '1 exercise swapped for comfort')).toBe(true);
+    expect(hasText(root, '1 exercise was already swapped for comfort')).toBe(true);
   });
 
-  test('banner drops to "No exercises needed swapping" when the only comfort exercise is swapped (swapCount=1)', () => {
+  test('banner drops to "Nothing needed swapping" when the only comfort exercise is swapped (swapCount=1)', () => {
     const exercise = makeExercise({
       badge: 'comfort',
       hasSwap: true,
@@ -991,8 +1024,8 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
       );
     });
 
-    expect(hasText(root, 'No exercises needed swapping')).toBe(true);
-    expect(hasText(root, '1 exercise swapped for comfort')).toBe(false);
+    expect(hasText(root, 'Nothing needed swapping')).toBe(true);
+    expect(hasText(root, '1 exercise was already swapped for comfort')).toBe(false);
   });
 
   test('banner drops from "2 exercises" to "1 exercise" when one of two comfort exercises is swapped (swapCount=1)', () => {
@@ -1031,9 +1064,9 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
       );
     });
 
-    expect(hasText(rootBefore, '2 exercises swapped for comfort')).toBe(true);
-    expect(hasText(rootAfter, '1 exercise swapped for comfort')).toBe(true);
-    expect(hasText(rootAfter, '2 exercises swapped for comfort')).toBe(false);
+    expect(hasText(rootBefore, '2 exercises were already swapped for comfort')).toBe(true);
+    expect(hasText(rootAfter, '1 exercise was already swapped for comfort')).toBe(true);
+    expect(hasText(rootAfter, '2 exercises were already swapped for comfort')).toBe(false);
   });
 });
 

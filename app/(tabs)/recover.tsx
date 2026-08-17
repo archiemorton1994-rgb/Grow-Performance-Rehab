@@ -525,6 +525,9 @@ export default function RecoverScreen() {
     key: NonNullable<ModalType>;
     title: string;
     subtitle: string;
+    /** Split out of the subtitle so a long description cannot break the
+     *  duration across two lines — "20-30 / min" was the reported look. */
+    duration: string;
     icon: keyof typeof Ionicons.glyphMap;
     iconBg: string;
     iconColor: string;
@@ -534,7 +537,8 @@ export default function RecoverScreen() {
     {
       key: 'recovery',
       title: 'Recovery',
-      subtitle: 'Full-body joint circuit · 20-30 min',
+      subtitle: 'Full-body joint circuit',
+      duration: '20-30 min',
       icon: 'pulse',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
@@ -544,7 +548,8 @@ export default function RecoverScreen() {
     {
       key: 'mobility',
       title: 'Mobility',
-      subtitle: 'Full-body stretch session · 30-40 min',
+      subtitle: 'Full-body stretch session',
+      duration: '30-40 min',
       icon: 'accessibility-outline',
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
@@ -554,7 +559,8 @@ export default function RecoverScreen() {
     {
       key: 'prehab',
       title: 'Targeted Prehab',
-      subtitle: 'Area-focused circuit · 20-30 min',
+      subtitle: 'Area-focused circuit',
+      duration: '20-30 min',
       icon: 'locate-outline',
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
@@ -694,7 +700,11 @@ export default function RecoverScreen() {
             onPress={() => openModal(row.key)}
             style={({ pressed }) => [
               styles.navBtn,
-              { borderColor: row.cardAccent + '55', backgroundColor: row.cardAccent + '0d' },
+              // 0d (5%) was a wash you had to look for. 1c (11%) reads as a
+              // coloured card while staying well clear of the text on it — the
+              // labels are the accent at full strength and were already
+              // measured against this family.
+              { borderColor: row.cardAccent + '66', backgroundColor: row.cardAccent + '1c' },
               pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
             ]}
             testID={`recover-row-${row.key}`}
@@ -713,7 +723,13 @@ export default function RecoverScreen() {
             <View style={styles.navBtnText}>
               <Text style={[styles.navLabel, { color: row.cardAccent }]}>{row.title}</Text>
               <Text style={styles.navSub}>{row.subtitle}</Text>
-              <Text style={styles.navRecency}>{row.recency}</Text>
+              {/* Duration and recency on one quiet line. Both are facts you
+                  glance at rather than read, and keeping the duration out of
+                  the description above is what stops "20-30 min" splitting
+                  across two lines now the artwork takes more of the row. */}
+              <Text style={styles.navRecency}>
+                {row.duration} · {row.recency}
+              </Text>
             </View>
             {/* Full strength, not the 53% the fill and border use: this arrow is
                 the only thing on the card that says "this opens something", so
@@ -1050,17 +1066,39 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.borderLight,
     },
+    /**
+     * THE ARTWORK IS THE CARD, not a bullet point beside it.
+     *
+     * Reported as "the images are too small and the boxes are such a dull
+     * colour all too similar to each other". Both were true. At 90pt square the
+     * figure sat in the corner of a card twice its height, so most of every row
+     * was empty tinted space.
+     *
+     * Sized as a share of the ROW in both directions, not by a fixed box and
+     * not by an aspect ratio. An aspect ratio was the first attempt and it only
+     * suits one of the three: Recovery's foam-roll figure is landscape (600x359)
+     * while Targeted Prehab's is a standing figure (272x600). One ratio makes
+     * two of them small. Giving the box the full height and a share of the width
+     * lets resizeMode="contain" fit each artwork to whichever edge binds, so all
+     * three end up as large as their own shape allows.
+     *
+     * Still no scrolling: the rows are flex: 1 and divide the space they get, so
+     * this scales with the phone instead of assuming one.
+     */
     navIcon: {
-      width: 90,
-      height: 90,
+      width: '37%' as any,
+      height: '94%' as any,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     navIconImage: { width: '100%' as any, height: '100%' as any },
     navBtnText: { flex: 1 },
-    navLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
-    navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    // The title carries the card. At 16 it was the same weight as the body copy
+    // under it and the row read as three lines of text with a picture; at 20/700
+    // there is a clear first thing to look at.
+    navLabel: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, letterSpacing: -0.3 },
+    navSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 3 },
     navRecency: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',

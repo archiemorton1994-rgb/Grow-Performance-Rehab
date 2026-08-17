@@ -401,14 +401,30 @@ function RootLayoutNav() {
         ...q,
         { isSummary: true as const, count: newIds.length, badgeIds: newIds },
       ]);
-      setHasQueuedWork(true);
     } else {
       const badge = BADGE_MAP.get(newIds[0]);
-      if (badge) {
-        setToastQueue((q) => [...q, badge]);
-        setHasQueuedWork(true);
-      }
+      if (badge) setToastQueue((q) => [...q, badge]);
     }
+    // ALWAYS, even when nothing could be queued.
+    //
+    // This used to sit inside each branch, so an id that BADGE_MAP could not
+    // resolve — a badge renamed or retired while a queue referencing it was in
+    // flight — consumed the id into enqueuedBadgeIds and queued nothing. The
+    // cleanup effect below is gated on hasQueuedWork, so it never ran, and
+    // newlyUnlockedBadges stayed non-empty for the rest of the process.
+    //
+    // That is not a cosmetic loss. The guided-tour intro is gated on
+    // `newlyUnlockedBadges.length === 0` — deliberately, so the two root Modals
+    // can never present together — so a queue that cannot drain silently
+    // suppresses the tour forever. The user lands on Home after onboarding, no
+    // tour appears, nothing happens, and because this queue is deliberately NOT
+    // persisted a restart is the only thing that clears it. Reported as "frozen
+    // on the home screen, only way to proceed is a restart", with no pop-up on
+    // screen — which is exactly the shape of a queue that will not drain.
+    //
+    // Marking the work as queued regardless means the cleanup always runs and
+    // the ids always clear, whether or not anything was presentable.
+    setHasQueuedWork(true);
   }, [newlyUnlockedBadges]);
 
   useEffect(() => {

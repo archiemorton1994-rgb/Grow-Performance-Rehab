@@ -1755,9 +1755,19 @@ export function PainAdaptBanner({
               lineHeight: 17,
             }}
           >
-            {comfortCount > 0
-              ? `${comfortCount} ${comfortCount === 1 ? 'exercise' : 'exercises'} swapped for comfort. Tap Swap or skip any that still hurt`
-              : 'No exercises needed swapping. Tap Swap or skip anything that hurts'}
+            {/* THE INSTRUCTION COMES FIRST, and it names the area.
+                This used to end on "skip anything that hurts" — true, and far
+                too mild for what it is. A session built around a sore area has
+                one rule that matters: if a movement hurts THAT area, stop, do
+                not push through it. Asked for in those words: "if any exercise
+                causes pain to the specified area then to stop immediately and
+                skip". Naming the region matters too — the user picked it on a
+                body map two screens ago and this is the only place it is
+                confirmed back to them during the session. */}
+            {`If anything hurts your ${getPainRegionLabel(painRegion).toLowerCase()}, stop that exercise straight away and tap Skip. ` +
+              (comfortCount > 0
+                ? `${comfortCount} ${comfortCount === 1 ? 'exercise was' : 'exercises were'} already swapped for comfort.`
+                : 'Nothing needed swapping, so take it as it comes.')}
           </Text>
         </View>
       </View>
