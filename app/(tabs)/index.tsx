@@ -40,6 +40,7 @@ import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/noti
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
 import { getCoachMessages, hasActionableAdvice, type CoachAction } from '@/lib/coach';
+import { resumeParams } from '@/lib/resume-params';
 
 /**
  * THE TOUR, REBUILT — and mostly by deleting.
@@ -518,16 +519,7 @@ export default function HomeScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: '/session',
-      params: {
-        sessionType: activeSession.sessionType,
-        hasAches: activeSession.hasAches ? 'true' : 'false',
-        painRegion: activeSession.painRegion ?? '',
-        energy: activeSession.energy,
-        timeAvailable: activeSession.timeAvailable,
-        isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
-        equipment: activeSession.equipmentTier,
-        ...(activeSession.displayLabel ? { displayLabel: activeSession.displayLabel } : {}),
-      },
+      params: resumeParams(activeSession),
     });
   };
 

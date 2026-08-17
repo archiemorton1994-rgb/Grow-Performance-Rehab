@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
+import { resumeParams } from '@/lib/resume-params';
 import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META } from '@/lib/session-meta';
@@ -247,16 +248,7 @@ export default function TrainScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({
       pathname: '/session',
-      params: {
-        sessionType: activeSession.sessionType,
-        hasAches: activeSession.hasAches ? 'true' : 'false',
-        painRegion: activeSession.painRegion ?? '',
-        energy: activeSession.energy,
-        timeAvailable: activeSession.timeAvailable,
-        isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
-        equipment: activeSession.equipmentTier,
-        ...(activeSession.displayLabel ? { displayLabel: activeSession.displayLabel } : {}),
-      },
+      params: resumeParams(activeSession),
     });
   };
 

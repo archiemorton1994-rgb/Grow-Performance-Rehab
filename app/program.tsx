@@ -29,6 +29,7 @@ import {
 } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
+import { resumeParams } from '@/lib/resume-params';
 
 /** How many completed sessions the non-barbell timeline looks back over. Enough
  *  to show a rhythm, short enough to still fit on a phone above the next one. */
@@ -227,16 +228,7 @@ export default function ProgramScreen() {
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push({
               pathname: '/session',
-              params: {
-                sessionType: activeSession.sessionType,
-                hasAches: activeSession.hasAches ? 'true' : 'false',
-                painRegion: activeSession.painRegion ?? '',
-                energy: activeSession.energy,
-                timeAvailable: activeSession.timeAvailable,
-                isTestWeek: activeSession.isTestWeek ? 'true' : 'false',
-                equipment: activeSession.equipmentTier,
-                ...(activeSession.displayLabel ? { displayLabel: activeSession.displayLabel } : {}),
-              },
+              params: resumeParams(activeSession),
             });
           },
         },

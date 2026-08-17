@@ -208,6 +208,21 @@ export interface ActiveSession {
   equipmentTier: EquipmentTier;
   hasAches: boolean;
   painRegion?: PainRegion;
+  /**
+   * The FULL pain context the session was built from.
+   *
+   * `painRegion` above is only the first area tapped, and for a long time it was
+   * the only part of the pain answer that survived a save. Resuming rebuilt the
+   * workout without the severity, without the other sore areas and without the
+   * acute flag, produced a different exercise list, decided the snapshot did not
+   * match it, and silently discarded every logged set — while the Home card
+   * still advertised "12/24 sets" and offered a Resume button.
+   *
+   * Optional because snapshots written by older builds will not have them.
+   */
+  painRegions?: PainRegion[];
+  painSeverity?: PainSeverity;
+  acute?: boolean;
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
   isTestWeek: boolean;

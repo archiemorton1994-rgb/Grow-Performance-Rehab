@@ -270,9 +270,14 @@ check(
   /exercises\.some\(\(ex\) => ex\.id\?\.startsWith\('acute-'\)\)/.test(sessionSrc),
   'the trigger must be read off the exercises, not re-derived from the pain inputs'
 );
+// Scoped to the component and its own JSX rather than to "onDismiss within 900
+// characters of the name" — the loose version failed the moment a DIFFERENT,
+// legitimately dismissible banner was added next to it in the render.
 check(
   'it has no dismiss control',
-  !/PainFreeRangeBanner[\s\S]{0,900}?onDismiss/.test(sessionSrc),
+  /export function PainFreeRangeBanner\(\{\s*text\s*\}: \{\s*text: string \| null;?\s*\}\)/.test(
+    sessionSrc
+  ) && !/<PainFreeRangeBanner(?:\s+(?!\/>)[^>])*onDismiss/.test(sessionSrc),
   'the pain rule sets the dose for everything under it — it is not a notification'
 );
 check(

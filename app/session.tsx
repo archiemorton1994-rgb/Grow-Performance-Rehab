@@ -576,6 +576,15 @@ interface SessionActiveBarProps {
 const MAX_PLAUSIBLE_KG = 500;
 const MAX_PLAUSIBLE_REPS = 200;
 
+/**
+ * How long a gap between saving and resuming still counts as time under the bar.
+ *
+ * Fifteen minutes covers the real interruptions — a phone call, a queue for the
+ * rack, the app being swapped out between sets. Beyond that the user left, and
+ * the clock should not have been running.
+ */
+const RESUME_GAP_COUNTS_AS_TRAINING_S = 15 * 60;
+
 export function SessionActiveBar({
   exercise,
   exerciseIndex,
@@ -1908,6 +1917,77 @@ export function PainFreeRangeBanner({ text }: { text: string | null }) {
   );
 }
 
+/**
+ * Shown when a saved session existed but could not be put back.
+ *
+ * The failure itself is unavoidable in the general case — a build can change the
+ * exercise pool, a custom template can be edited underneath a snapshot — but
+ * being silent about it is not. Handing someone a blank session after they
+ * tapped a card reading "12/24 sets" is what makes it feel like the app lost
+ * their work rather than could not restore it.
+ *
+ * Dismissible, unlike the pain-free rule: this is a notification about the
+ * session, not part of the protocol for doing it safely.
+ */
+function RestoreFailedBanner({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
+  const C = useColors();
+  if (!visible) return null;
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(350)}
+      testID="restore-failed-banner"
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginHorizontal: 16,
+        marginBottom: 6,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: C.warningLight,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: C.warning + '44',
+        gap: 8,
+      }}
+    >
+      <Ionicons name="refresh-outline" size={16} color={C.warning} />
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 13,
+            fontFamily: 'Inter_600SemiBold',
+            color: C.warning,
+            marginBottom: 1,
+          }}
+        >
+          Starting this one fresh
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            fontFamily: 'Inter_400Regular',
+            color: C.warning,
+            opacity: 0.85,
+            lineHeight: 17,
+          }}
+        >
+          Your saved session could not be rebuilt, so this is a new one. Anything you had logged
+          before is not here.
+        </Text>
+      </View>
+      <Pressable
+        onPress={onDismiss}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss"
+      >
+        <Ionicons name="close" size={16} color={C.warning} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 // ─── Demo session exercises ────────────────────────────────────────────────
 // A hardcoded, realistic-looking set of exercises used in demo mode (?demo=true).
 // Covers each tutorial spotlight target: firstCard, sessionBar, progressBar.
@@ -2429,6 +2509,7 @@ export default function SessionScreen() {
   const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [showDemoComplete, setShowDemoComplete] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
+  const [restoreFailed, setRestoreFailed] = useState(false);
   const [barTimerTrigger, setBarTimerTrigger] = useState(0);
   const [notesVisible, setNotesVisible] = useState<boolean[]>([]);
   const [inSessionFeedback, setInSessionFeedback] = useState<
@@ -2605,6 +2686,35 @@ export default function SessionScreen() {
     }, 1000);
     return () => clearInterval(timerId);
   }, [isDemo]);
+
+  // setInterval does not run while the app is backgrounded, so the common case
+  // of checking a message between sets used to come back with the timer frozen
+  // at the moment the app went away - under-reporting every session by however
+  // long the user was in another app. Credit the real gap on the way back in.
+  //
+  // Same threshold as the resume path: a short gap is an interruption inside a
+  // session, a long one means they left. Whichever is smaller keeps a phone that
+  // sat in a pocket overnight from claiming the difference.
+  useEffect(() => {
+    if (isDemo) return;
+    let leftAt: number | null = null;
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'background' || state === 'inactive') {
+        leftAt = Date.now();
+        return;
+      }
+      if (state === 'active' && leftAt !== null) {
+        const away = Math.floor((Date.now() - leftAt) / 1000);
+        leftAt = null;
+        if (away <= 0 || away > RESUME_GAP_COUNTS_AS_TRAINING_S) return;
+        setElapsedSeconds((s) => {
+          elapsedSecondsRef.current = s + away;
+          return s + away;
+        });
+      }
+    });
+    return () => sub.remove();
+  }, [isDemo]);
   const elapsedMM = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
   const elapsedSS = String(elapsedSeconds % 60).padStart(2, '0');
 
@@ -2614,6 +2724,7 @@ export default function SessionScreen() {
   const activeIndexRef = useRef<number>(0);
   const exerciseIdsRef = useRef<string[]>([]);
   const painBannerDismissedRef = useRef(false);
+  const inSessionFeedbackRef = useRef<Record<string, FeedbackRating | null>>({});
   // Ref to always-current activeSession (used in effects whose deps don't include activeSession)
   const activeSessionRef = useRef(activeSession);
   useEffect(() => {
@@ -2640,6 +2751,51 @@ export default function SessionScreen() {
   useEffect(() => {
     painBannerDismissedRef.current = painBannerDismissed;
   }, [painBannerDismissed]);
+  useEffect(() => {
+    inSessionFeedbackRef.current = inSessionFeedback;
+  }, [inSessionFeedback]);
+
+  /** Ratings without the nulls — a cleared rating is an absent one, not a value. */
+  const cleanFeedback = (f: Record<string, FeedbackRating | null>) =>
+    Object.fromEntries(Object.entries(f).filter(([, v]) => v != null)) as Record<
+      string,
+      FeedbackRating
+    >;
+
+  /**
+   * Everything about HOW this session was launched, which every resume snapshot
+   * has to carry so the session can be rebuilt exactly as it was.
+   *
+   * This was written out longhand in three separate places, and that is the
+   * whole reason the pain context went missing: `painRegions`, `painSeverity`
+   * and `acute` all reach generateWorkout, but only the first sore area was ever
+   * saved. On resume the app rebuilt the workout without the rest, got a
+   * different exercise list, decided the snapshot did not match, and threw away
+   * every logged set in silence — while Home still showed "12/24 sets" and a
+   * Resume button. Moderate is the readiness screen's DEFAULT severity, so this
+   * was most pain sessions rather than an edge case.
+   *
+   * One definition now, so a field added here cannot reach two writers out of
+   * three. Every value in it is fixed for the life of the screen, so it is safe
+   * to call from the background listener as well as from render.
+   */
+  const snapshotContext = () => ({
+    sessionType,
+    equipmentTier,
+    hasAches,
+    painRegion,
+    painRegions,
+    painSeverity,
+    acute: isAcute,
+    energy,
+    timeAvailable,
+    isTestWeek,
+    sessionName: getSessionLabel(sessionType),
+    displayLabel,
+    ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
+  });
+  const snapshotContextRef = useRef(snapshotContext);
+  snapshotContextRef.current = snapshotContext;
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
@@ -2672,25 +2828,17 @@ export default function SessionScreen() {
       );
       const totalSets = data.reduce((sum, ed) => sum + ed.sets.length, 0);
       setActiveSession({
-        sessionType,
-        equipmentTier,
-        hasAches,
-        painRegion,
-        energy,
-        timeAvailable,
-        isTestWeek,
+        ...snapshotContextRef.current(),
         exerciseData: data,
         exerciseNotes: notes,
+        inSessionFeedback: cleanFeedback(inSessionFeedbackRef.current),
         activeIndex: idx,
         savedAt: new Date().toISOString(),
         completedSetsCount,
         totalSets,
-        sessionName: getSessionLabel(sessionType),
-        displayLabel,
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
         painBannerDismissed: painBannerDismissedRef.current,
-        ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
       });
     };
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
@@ -2729,12 +2877,23 @@ export default function SessionScreen() {
       idsMatch;
     if (!canRestore) return false;
     hasRestoredRef.current = true;
-    // Cap the added time to 90 min - prevents absurd timer values if the app
-    // was closed overnight and then resumed (the session was not actually running).
-    const timeSinceSave = Math.min(
-      Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000),
-      5400
-    );
+    // Only a genuine interruption counts as time spent training.
+    //
+    // This used to CAP the gap at 90 minutes rather than reject it, so a session
+    // saved on Monday evening and resumed on Tuesday came back at 2:00:00 —
+    // thirty real minutes plus the full ninety-minute cap. That number then went
+    // everywhere: the summary, the Home card ("Last session: 130 min"), the
+    // history list, lifetime training hours, and any time-based badge reading
+    // them. Capping an absurd value still leaves an absurd value.
+    //
+    // Under the threshold the user stepped away mid-session and the clock should
+    // keep running. Over it they left and came back, and the honest figure is
+    // the time actually trained.
+    const secondsSinceSave = Math.floor((Date.now() - new Date(stored.savedAt).getTime()) / 1000);
+    const timeSinceSave =
+      secondsSinceSave > 0 && secondsSinceSave <= RESUME_GAP_COUNTS_AS_TRAINING_S
+        ? secondsSinceSave
+        : 0;
     const restoredElapsed = Math.max(0, stored.elapsedSeconds + timeSinceSave);
     setElapsedSeconds(restoredElapsed);
     elapsedSecondsRef.current = restoredElapsed;
@@ -2771,6 +2930,18 @@ export default function SessionScreen() {
     if (exercises.length === 0) return;
     const restored = tryRestoreFromStored(exercises, activeSessionRef.current);
     if (!restored) {
+      // If there WAS a snapshot and it could not be put back, say so. Silently
+      // handing the user a blank session when the card they tapped promised
+      // "12/24 sets" is the part that reads as the app losing their work, and
+      // there will always be cases the restore cannot cover — a build that
+      // changed the exercise pool, a template edited underneath it.
+      const stored = activeSessionRef.current;
+      const hadLoggedWork =
+        stored != null &&
+        !hasRestoredRef.current &&
+        stored.sessionType === sessionType &&
+        stored.completedSetsCount > 0;
+      if (hadLoggedWork) setRestoreFailed(true);
       setExerciseData(
         exercises.map((ex) => ({
           sets: Array.from({ length: ex.sets }, (_, i) => ({
@@ -2859,28 +3030,20 @@ export default function SessionScreen() {
       ) || exerciseNotes.some((n) => n.length > 0);
     if (!hasAnyProgress) return;
     setActiveSession({
-      sessionType,
-      equipmentTier,
-      hasAches,
-      painRegion,
-      energy,
-      timeAvailable,
-      isTestWeek,
+      ...snapshotContext(),
       exerciseData,
       exerciseNotes,
+      inSessionFeedback: cleanFeedback(inSessionFeedback),
       activeIndex,
       savedAt: new Date().toISOString(),
       completedSetsCount,
       totalSets,
-      sessionName: getSessionLabel(sessionType),
-      displayLabel,
       elapsedSeconds: elapsedSecondsRef.current,
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
-      ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseData, exerciseNotes, activeIndex, painBannerDismissed]);
+  }, [exerciseData, exerciseNotes, inSessionFeedback, activeIndex, painBannerDismissed]);
 
   /**
    * Open the demo for an exercise.
@@ -3281,33 +3444,21 @@ export default function SessionScreen() {
       0
     );
     const totalSets = exerciseData.reduce((sum, ed) => sum + ed.sets.length, 0);
+    // Save & Exit writes the snapshot, so the unmount save that follows
+    // router.dismissAll() must not run and overwrite it from a stale closure.
+    sessionTerminatedRef.current = true;
     setActiveSession({
-      sessionType,
-      equipmentTier,
-      hasAches,
-      painRegion,
-      energy,
-      timeAvailable,
-      isTestWeek,
+      ...snapshotContext(),
       exerciseData,
       exerciseNotes,
+      inSessionFeedback: cleanFeedback(inSessionFeedback),
       activeIndex,
       savedAt: new Date().toISOString(),
       completedSetsCount,
       totalSets,
-      sessionName: getSessionLabel(sessionType),
-      displayLabel,
       elapsedSeconds,
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
-      ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
-      ...(Object.keys(inSessionFeedback).length > 0
-        ? {
-            inSessionFeedback: Object.fromEntries(
-              Object.entries(inSessionFeedback).filter(([, v]) => v != null)
-            ) as Record<string, FeedbackRating>,
-          }
-        : {}),
     });
     setShowAbandonModal(false);
     router.dismissAll();
@@ -3409,6 +3560,7 @@ export default function SessionScreen() {
       <NoMaxTestBanner visible={isTestWeek && !runsMaxTest} />
 
       <PainFreeRangeBanner text={painFreeText} />
+      <RestoreFailedBanner visible={restoreFailed} onDismiss={() => setRestoreFailed(false)} />
 
       <KeyboardAwareScrollViewCompat
         ref={scrollViewRef}
