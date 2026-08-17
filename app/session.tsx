@@ -3000,13 +3000,20 @@ export default function SessionScreen() {
       const next = [...prev];
       const ex = next[index];
       if (!ex) return prev;
-      const skippedSets = ex.sets.map((s) => ({
-        ...s,
-        weight: 0,
-        reps: 0,
-        completed: true,
-        skipped: true,
-      }));
+      // Only the sets NOT already done. This used to zero every set on the
+      // exercise, so someone who benched two sets and then felt a shoulder
+      // twinge lost both: the summary showed zero reps and zero volume, the
+      // lift never reached the progress chart, and next session's suggestion
+      // did not move because the app had no record of any work.
+      //
+      // The in-session safety banner tells the user to do exactly this —
+      // "stop that exercise straight away and tap Skip" — so the button the
+      // clinical advice points at must not destroy the work already logged.
+      // The allSkipped guard in lib/store.ts keeps the nothing-was-logged case
+      // recorded as skipped rather than failed.
+      const skippedSets = ex.sets.map((s) =>
+        s.completed ? s : { ...s, weight: 0, reps: 0, completed: true, skipped: true }
+      );
       next[index] = {
         ...ex,
         sets: skippedSets,

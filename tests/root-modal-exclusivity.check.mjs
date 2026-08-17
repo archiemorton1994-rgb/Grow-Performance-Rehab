@@ -67,8 +67,8 @@ check(
 
 check(
   'it is rendered with deferred bound to the toast state',
-  /<WeeklyWeightPrompt\s+deferred=\{\s*currentToast\s*!==\s*null\s*\}/.test(rootLayout),
-  'expected <WeeklyWeightPrompt deferred={currentToast !== null} />'
+  /<WeeklyWeightPrompt\s+deferred=\{\s*currentToast\s*!==\s*null\s*\|\|/.test(rootLayout),
+  'expected deferred to start with currentToast !== null'
 );
 
 console.log('\n[2] Tour intro vs achievement toast');
@@ -103,15 +103,35 @@ check(
 );
 
 check(
-  'the badge toast is gated to the tab routes only',
-  /const canShowBadgeToast\s*=\s*segments\[0\]\s*===\s*'\(tabs\)'\s*;/.test(rootLayout),
-  "expected canShowBadgeToast = segments[0] === '(tabs)'; adding session-summary back presents a native Modal over a native modal presentation and freezes the app"
+  'root modals are gated to the tab routes only',
+  /const canShowRootModal\s*=\s*segments\[0\]\s*===\s*'\(tabs\)'\s*;/.test(rootLayout),
+  "expected canShowRootModal = segments[0] === '(tabs)'; adding session-summary back presents a native Modal over a native modal presentation and freezes the app"
 );
 
 check(
-  'the toast is not re-enabled on session-summary',
-  !/canShowBadgeToast[\s\S]{0,200}?session-summary/.test(rootLayout),
-  'session-summary must not appear in the canShowBadgeToast expression'
+  'the gate is not re-enabled on session-summary',
+  !/canShowRootModal[\s\S]{0,200}?session-summary/.test(rootLayout),
+  'session-summary must not appear in the canShowRootModal expression'
+);
+
+// The gate above was applied to the badge toast alone, which is why this file
+// went green while the weight prompt presented over session-summary anyway.
+// Its trigger is "sessions completed > 0 and no prompt recorded yet", which
+// first becomes true the instant a user finishes their FIRST session — so
+// unlike the badge case it fired on every new account, not just the ones that
+// unlocked something. Every root Modal goes through the same gate now.
+check(
+  'the toast drain honours the root-modal gate',
+  /if\s*\(!canShowRootModal\)\s*return;/.test(rootLayout),
+  'the badge toast queue must not pop while the user is off the tabs'
+);
+
+check(
+  'the weight prompt honours the root-modal gate too',
+  /<WeeklyWeightPrompt\s+deferred=\{\s*currentToast\s*!==\s*null\s*\|\|\s*!canShowRootModal\s*\}/.test(
+    rootLayout
+  ),
+  'expected <WeeklyWeightPrompt deferred={currentToast !== null || !canShowRootModal} /> - deferring only against the toast lets it present over the session-summary fullScreenModal and freeze the app'
 );
 
 console.log('\n[5] The achievement sheet can always be escaped');

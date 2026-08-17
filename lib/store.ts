@@ -5,6 +5,7 @@ import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
+import { performanceForLog } from '@/lib/set-performance';
 import {
   getTrainingBalanceNudge as getBalanceNudge,
   type BalanceNudge,
@@ -927,21 +928,13 @@ export const useAppStore = create<AppState>()(
           const newStuckStreak = { ...state.exerciseStuckStreak };
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
-            // If every set was skipped the user didn't perform the exercise at all -
-            // treat as a no-op so we don't advance load or streak for a skipped exercise.
-            const allSkipped = log.sets.length > 0 && log.sets.every((s) => s.skipped);
-            if (allSkipped) continue;
-            const hadFailure = log.sets.some((s) => !s.completed && !s.skipped);
-            const thisPerf: 'failed' | 'normal' = hadFailure ? 'failed' : 'normal';
-            // Apply in-session feedback override: 'very_easy'/'easy' upgrade to more
-            // load next session (a bigger jump for 'very_easy'), 'hard' downgrades to
-            // failed (hold load next session). This is equivalent to what
-            // setExerciseFeedback does post-session, but applied inline so the data
-            // is available immediately without a separate action call.
-            let perfWithFeedback: ExercisePerformance = thisPerf;
-            if (log.feedbackRating === 'very_easy') perfWithFeedback = 'very_easy';
-            else if (log.feedbackRating === 'easy') perfWithFeedback = 'easy';
-            else if (log.feedbackRating === 'hard') perfWithFeedback = 'failed';
+            // Skipped outright: the user never performed it, so it must not
+            // advance load, streak or stall counter. Partially skipped, raw
+            // failures and the in-session rating are all judged in one place -
+            // see lib/set-performance.ts, which exists so this rule can be
+            // tested without standing up the whole store.
+            const perfWithFeedback = performanceForLog(log.sets, log.feedbackRating);
+            if (perfWithFeedback === null) continue;
             newPerformance[log.exerciseId] = perfWithFeedback;
             // Streak counts consecutive 'normal' sessions for this exercise (no feedback,
             // all sets completed). Any explicit feedback or raw failure resets to 0.

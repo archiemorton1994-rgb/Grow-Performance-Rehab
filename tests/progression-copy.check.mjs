@@ -22,6 +22,7 @@
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { performanceForLog } from '../lib/set-performance.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const summary = readFileSync(join(__dir, '../app/session-summary.tsx'), 'utf8');
@@ -92,23 +93,41 @@ check(
   'it was never defined anywhere in the UI'
 );
 
-// ─── 4. The three branches still exist in the store ──────────────────────────
+// ─── 4. The three branches still exist in the engine ─────────────────────────
 console.log('\n[4] The engine still has the shape the copy describes');
+
+// These used to grep the store for the exact inline expressions. The rule now
+// lives in lib/set-performance.ts as a pure function, so they call it instead —
+// which is what they were always trying to establish, and cannot be broken by
+// re-wording the source.
+const fullyDone = [
+  { setNumber: 1, weight: 60, reps: 5, completed: true },
+  { setNumber: 2, weight: 60, reps: 5, completed: true },
+];
+const oneUnfinished = [
+  { setNumber: 1, weight: 60, reps: 5, completed: true },
+  { setNumber: 2, weight: 0, reps: 0, completed: false },
+];
 
 check(
   'a very_easy rating still upgrades performance',
-  /feedbackRating === 'very_easy'\) perfWithFeedback = 'very_easy'/.test(store),
+  performanceForLog(fullyDone, 'very_easy') === 'very_easy',
   ''
 );
 check(
   'a hard rating still forces a hold',
-  /feedbackRating === 'hard'\) perfWithFeedback = 'failed'/.test(store),
+  performanceForLog(fullyDone, 'hard') === 'failed',
   ''
 );
 check(
   'an incomplete set still forces a hold',
-  /hadFailure \? 'failed' : 'normal'/.test(store),
+  performanceForLog(oneUnfinished) === 'failed',
   ''
+);
+check(
+  'an unrated, fully completed exercise is the normal case',
+  performanceForLog(fullyDone) === 'normal',
+  'the "a clean session nudges it up" half of the copy depends on this'
 );
 check(
   'the streak still counts consecutive fully-completed sessions',

@@ -385,9 +385,18 @@ function RootLayoutNav() {
   //
   // The cost is that the celebration lands a moment later, when the user
   // returns to the tabs, instead of on the summary screen. The queue is drained
-  // in order and nothing is lost. That is the same deferral already used for
-  // the weekly weight prompt.
-  const canShowBadgeToast = segments[0] === '(tabs)';
+  // in order and nothing is lost.
+  //
+  // This is ONE rule about root-level Modals, not a rule about badges, and it
+  // is named accordingly because it was previously applied to the badge toast
+  // alone. The weekly weight prompt below deferred only against the toast, so
+  // it happily presented over session-summary — and its trigger is
+  // `completedSessions.length > 0` with no prompt yet recorded, which first
+  // becomes true at the instant a user finishes their FIRST session. Same
+  // collision, same dead screen, guaranteed on every new account rather than
+  // only on the ones that unlocked a badge. Anything root-level and modal goes
+  // through this gate.
+  const canShowRootModal = segments[0] === '(tabs)';
 
   useEffect(() => {
     if (newlyUnlockedBadges.length === 0) return;
@@ -429,12 +438,12 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!inMainApp) return;
-    if (!canShowBadgeToast) return; // don't pop toasts on gate screens before navigation completes
+    if (!canShowRootModal) return; // don't pop toasts on gate screens before navigation completes
     if (currentToast || toastQueue.length === 0) return;
     const [next, ...rest] = toastQueue;
     setToastQueue(rest);
     setCurrentToast(next);
-  }, [inMainApp, canShowBadgeToast, currentToast, toastQueue]);
+  }, [inMainApp, canShowRootModal, currentToast, toastQueue]);
 
   useEffect(() => {
     if (currentToast !== null || toastQueue.length > 0) return;
@@ -623,8 +632,9 @@ function RootLayoutNav() {
             path. */}
         <Stack.Screen name="custom-session" options={{ headerShown: false }} />
       </Stack>
-      {/* Only one root-level Modal may be presented at a time. */}
-      <WeeklyWeightPrompt deferred={currentToast !== null} />
+      {/* Only one root-level Modal may be presented at a time, and only over
+          the tabs — see canShowRootModal above. */}
+      <WeeklyWeightPrompt deferred={currentToast !== null || !canShowRootModal} />
       {currentToast &&
         (isSummaryToast(currentToast) ? (
           <AchievementUnlockedSheet
