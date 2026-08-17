@@ -1425,11 +1425,52 @@ function relabelForKettlebell(text: string): string {
     .replace(/\bDBs?\b/g, (match) => (match.endsWith('s') ? 'KBs' : 'KB'));
 }
 
+/**
+ * Rewrite a prescribed load in the weights a kettlebell owner actually has.
+ *
+ * IT USED TO ROUND EVERY NUMBER TO THE NEAREST BELL, INDEPENDENTLY.
+ *
+ * The lightest bell is 8 kg, so "2-4 kg per hand" — the physio's own
+ * prescription for rotator-cuff external rotations, the most load-sensitive
+ * drill in the app and one that sits in the prehab slot — was printed as
+ * "8-8 kg per hand". Two to four times the intended load, on a rehab exercise,
+ * for someone who has told the app their shoulder hurts.
+ *
+ * It also produced collapsed nonsense wherever both ends of a range rounded to
+ * the same bell: "6-10 kg" became "8-8 kg", across fourteen cards.
+ *
+ * Two rules now:
+ *
+ *   1. NEVER round a load UP past what was prescribed. A bell heavier than the
+ *      top of the range is not the nearest available option, it is a different
+ *      exercise. Sub-8 kg prescriptions are left exactly as written — bands or a
+ *      light dumbbell are the honest answer, and the user can read the number.
+ *   2. A range that collapses to one bell prints as one number, not "8-8".
+ */
 function relabelLoadForKettlebell(load: string): string {
   const labelled = relabelForKettlebell(load);
+
+  // A range: round each end on its own, then tidy up if they meet.
+  const range = labelled.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+  if (range) {
+    const lo = parseFloat(range[1]);
+    const hi = parseFloat(range[2]);
+    if (lo <= 100 && hi <= 100) {
+      // The whole range is lighter than the lightest bell. Rounding it up would
+      // more than double the prescription, so it stays as written.
+      if (hi < KB_WEIGHTS[0]) return labelled;
+      const loKb = Math.min(nearestKbWeight(lo), nearestKbWeight(hi));
+      const hiKb = nearestKbWeight(hi);
+      const replacement = loKb === hiKb ? String(loKb) : `${loKb}-${hiKb}`;
+      return labelled.replace(range[0], replacement);
+    }
+  }
+
   return labelled.replace(/\d+(?:\.\d+)?/g, (match) => {
     const num = parseFloat(match);
     if (num > 100) return match;
+    // Same rule for a single figure: never heavier than what was asked for.
+    if (num < KB_WEIGHTS[0]) return match;
     return String(nearestKbWeight(num));
   });
 }
@@ -2020,6 +2061,14 @@ export function applyInjurySafety(
       // scaled for time, energy and goals, and the replacement's own default
       // would quietly undo that.
       sets: setsFor(ex),
+      // And keep the SLOT'S ROLE for the same reason. The swapped-in exercise
+      // arrived with its own category, so replacing a main lift with something
+      // filed as 'mechanical' silently left the session with no main lift at
+      // all — no anchor to progress, and nothing for the block counter to read.
+      // It showed up the moment chest pain could remove a bench press: every
+      // main lift on a bench day is a chest press, so the substitute always came
+      // from another category. A swap fills the slot it was called for.
+      category: ex.category,
       badge: 'comfort',
       safetyNote: substitutionNote(ex.name, labelForHit(hits[0])),
       // The revert. Uses the swap slot every card already has, so "put it back"

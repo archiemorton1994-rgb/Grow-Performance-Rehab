@@ -58,6 +58,8 @@ export type StressTag =
   | 'overhead'
   /** The shoulder is taken to the end of its range under load. */
   | 'shoulder_end_range'
+  /** Pressing horizontally: bench, chest press, floor press. Loads the pec. */
+  | 'horizontal_press'
   /** Heavy elbow flexion/extension in isolation. */
   | 'elbow_load'
   /** Weight bearing through an extended wrist, or a hard front rack. */
@@ -110,7 +112,31 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   { tag: 'overhead', test: /overhead|\bohp\b|military press|shoulder press|push press|\bjerk\b|snatch|handstand|pull-?up|chin-?up|lat pulldown|\bthruster\b|\bpress-?out\b|\bslams?\b/i },
   // \brings?\b, not ring\b. Without the leading boundary it matched "Nordic
   // HamstRING Curl", so reporting shoulder pain removed a hamstring exercise.
-  { tag: 'shoulder_end_range', test: /\bdips?\b|\bfly\b|\bflye\b|pec deck|upright row|behind[- ]the[- ]neck|behind neck|\bpullover\b|deep push-?up|\brings?\b/i },
+  // A doorway chest opener is an end-range passive stretch on the front of the
+  // shoulder and the pec. It was surviving a SEVERE chest complaint, in the
+  // warm-up, which is the one place a strained pec should not be taken to end
+  // range at all.
+  { tag: 'shoulder_end_range', test: /\bdips?\b|\bfly\b|\bflye\b|pec deck|upright row|behind[- ]the[- ]neck|behind neck|\bpullover\b|deep push-?up|\brings?\b|chest opener|doorway/i },
+  /**
+   * Horizontal pressing — the tag the catalogue never had.
+   *
+   * Every other region could remove the work that loads it. Chest could not:
+   * `chest` restricted `shoulder_end_range` alone, which catches flyes and dips
+   * and misses every press. So reporting a strained pec at SEVERE left Barbell
+   * Bench Press 60-100 kg standing as the main lift, with close-grip and decline
+   * bench behind it. The app asked where it hurt and then changed nothing.
+   *
+   * Deliberately NOT push-ups: they are the regression the screen reaches for
+   * when heavier pressing is removed, and banning the substitute alongside the
+   * movement leaves nothing to put in its place. Same reasoning as the light
+   * squats under deep_knee_flexion.
+   */
+  // Written against the names that actually exist. "incline press" alone missed
+  // "DB Incline Press" and "Incline Barbell Bench Press", so incline/decline
+  // allow words in between; "board press" and "JM press" are bench variants that
+  // say neither. Leg Press is excluded explicitly - it is the one press in the
+  // catalogue that is nothing to do with the chest.
+  { tag: 'horizontal_press', test: /bench press|chest press|floor press|(?:incline|decline)\b[^,]{0,20}\bpress|board press|\bjm press\b|\bchest fly\b|chest pass|\bpec deck\b/i },
   { tag: 'elbow_load', test: /\bcurl\b|curls\b|skull ?crusher|triceps? extension|triceps? pushdown|pushdown|kickback|\bdip\b|dips\b|chin-?up|preacher|concentration/i },
   // An ab wheel is the most wrist-extended loaded position in the catalogue —
   // bodyweight through a straight arm on a rolling handle — and it was being
@@ -228,7 +254,9 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   quads: ['deep_knee_flexion', 'open_chain_knee', 'high_impact'],
   hamstrings: ['loaded_hinge', 'high_impact'],
   glutes: ['loaded_hinge', 'high_impact'],
-  chest: ['shoulder_end_range'],
+  // horizontal_press is what actually loads a strained pec. Without it this
+  // region could remove flyes and dips and nothing else, so bench press stood.
+  chest: ['shoulder_end_range', 'horizontal_press'],
   bicep: ['elbow_load', 'grip_load'],
   tricep: ['elbow_load', 'overhead'],
   lat_mid_back: ['loaded_hinge', 'spinal_compression'],
@@ -245,6 +273,7 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   lumbar_flexion: 'rounding the lower back',
   overhead: 'overhead work',
   shoulder_end_range: 'end-range shoulder work',
+  horizontal_press: 'horizontal pressing',
   elbow_load: 'loaded elbow work',
   wrist_load: 'weight through the wrists',
   ankle_load: 'loading the ankle',

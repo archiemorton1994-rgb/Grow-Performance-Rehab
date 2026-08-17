@@ -20270,6 +20270,18 @@ export function getAllPickableExercises(): PickableExercise[] {
       MAIN_LIFTS,
       ACCESSORIES,
       PREHAB_BY_REGION,
+
+      // The acute protocols were missing from every one of these lookups, so a
+
+      // rehab session shaded the wrong body parts on the summary map: the chest
+
+      // protocol lit up hip, lower back and core; the groin protocol never lit the
+
+      // groin. Their ids are unique (acute-NN-...), so adding the collection here
+
+      // fixes all 97 at once.
+
+      ACUTE_PREHAB_BY_REGION,
       CARDIO_WARMUPS,
       PREP,
       MECHANICAL,
@@ -20389,6 +20401,18 @@ export function getExerciseCategoryMap(): Record<string, ExerciseCategory> {
     GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
+
+    // The acute protocols were missing from every one of these lookups, so a
+
+    // rehab session shaded the wrong body parts on the summary map: the chest
+
+    // protocol lit up hip, lower back and core; the groin protocol never lit the
+
+    // groin. Their ids are unique (acute-NN-...), so adding the collection here
+
+    // fixes all 97 at once.
+
+    ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
@@ -20455,6 +20479,18 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
     GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
+
+    // The acute protocols were missing from every one of these lookups, so a
+
+    // rehab session shaded the wrong body parts on the summary map: the chest
+
+    // protocol lit up hip, lower back and core; the groin protocol never lit the
+
+    // groin. Their ids are unique (acute-NN-...), so adding the collection here
+
+    // fixes all 97 at once.
+
+    ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
@@ -20546,6 +20582,18 @@ export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
     GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
+
+    // The acute protocols were missing from every one of these lookups, so a
+
+    // rehab session shaded the wrong body parts on the summary map: the chest
+
+    // protocol lit up hip, lower back and core; the groin protocol never lit the
+
+    // groin. Their ids are unique (acute-NN-...), so adding the collection here
+
+    // fixes all 97 at once.
+
+    ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
@@ -20616,6 +20664,18 @@ export function getExerciseNameMap(): Record<string, string> {
     GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
     PREHAB_BY_REGION,
+
+    // The acute protocols were missing from every one of these lookups, so a
+
+    // rehab session shaded the wrong body parts on the summary map: the chest
+
+    // protocol lit up hip, lower back and core; the groin protocol never lit the
+
+    // groin. Their ids are unique (acute-NN-...), so adding the collection here
+
+    // fixes all 97 at once.
+
+    ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
     STANDALONE_FLEXIBILITY,
