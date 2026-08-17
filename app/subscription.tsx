@@ -14,7 +14,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Purchases, { PurchasesPackage } from 'react-native-purchases';
+import Purchases, {
+  PurchasesPackage,
+  INTRO_ELIGIBILITY_STATUS,
+} from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
 import { EXERCISE_COUNT } from '@/lib/exercise-db';
@@ -60,7 +63,26 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
   },
 ];
 
-function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: string; sub: string } {
+/**
+ * What the card promises, given the offer AND whether this person can have it.
+ *
+ * `trialEligible` is the half that was missing. Apple grants an introductory
+ * offer once per Apple ID, so anyone who has tried the app before — trial used,
+ * subscription cancelled, or simply reinstalling on a new phone — was shown
+ * "Start 14-Day Free Trial", tapped it, and was charged the full month
+ * immediately by Apple's own sheet. They believe they signed up for a free
+ * trial and see a charge the same day. That is a refund request, a one-star
+ * review, and a fair accusation of a misleading claim.
+ *
+ * Ineligible users get the honest version: Subscribe, and the price.
+ */
+function getTrialText(
+  pkg: PurchasesPackage | null,
+  trialEligible: boolean
+): { badge: string; cta: string; sub: string } {
+  if (!trialEligible) {
+    return { badge: '', cta: 'Subscribe', sub: '' };
+  }
   const intro = pkg?.product?.introPrice;
   if (intro && intro.price === 0 && intro.periodNumberOfUnits > 0) {
     const n = intro.periodNumberOfUnits;
@@ -75,11 +97,10 @@ function getTrialText(pkg: PurchasesPackage | null): { badge: string; cta: strin
       sub: `Try free for ${period.replace('-', ' ')}, then`,
     };
   }
-  return {
-    badge: '14-day free trial',
-    cta: 'Start 14-Day Free Trial',
-    sub: 'Try free for 14 days, then',
-  };
+  // No introPrice on the package: the store is not offering a trial on this
+  // product, whatever this app would like to say. Claiming "14 days free" here
+  // was a hardcoded promise nothing backed.
+  return { badge: '', cta: 'Subscribe', sub: '' };
 }
 
 function getLegalUrls() {
@@ -98,7 +119,7 @@ export default function SubscriptionScreen() {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
-  const { refreshSubscription } = useAuth();
+  const { refreshSubscription, signOut } = useAuth();
   const webTop = Platform.OS === 'web' ? 67 : 0;
 
   const [offering, setOffering] = useState<PurchasesPackage | null>(null);
@@ -107,8 +128,30 @@ export default function SubscriptionScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
+  // Assume NOT eligible until the store says otherwise. Promising a trial and
+  // then charging is far worse than not mentioning one and offering it anyway.
+  const [trialEligible, setTrialEligible] = useState(false);
 
   const { privacyUrl, termsUrl } = useMemo(() => getLegalUrls(), []);
+
+  /**
+   * Leave the paywall by signing out.
+   *
+   * Confirmed first, because it is destructive on this screen in a way it is not
+   * on Profile: signing out clears the device's local data, and someone poking
+   * at an unfamiliar link should not discover that by accident.
+   */
+  const handleSignOut = useCallback(() => {
+    Alert.alert(
+      'Sign out?',
+      'You can sign back in with a different email. Anything not yet synced to this account will be cleared from this phone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+      ]
+    );
+  }, [signOut]);
 
   const fetchOffering = useCallback(async () => {
     if (!RC_API_KEY) {
@@ -123,6 +166,20 @@ export default function SubscriptionScreen() {
       const monthly = offerings.current?.monthly ?? offerings.current?.availablePackages[0] ?? null;
       setOffering(monthly);
       if (!monthly) setOfferingError(true);
+      // Ask the store whether THIS Apple ID can still have the introductory
+      // offer. Anything other than a clear yes leaves the honest wording in
+      // place, including a failure to ask.
+      if (monthly?.product?.identifier) {
+        try {
+          const eligibility = await Purchases.checkTrialOrIntroductoryPriceEligibility([
+            monthly.product.identifier,
+          ]);
+          const status = eligibility[monthly.product.identifier]?.status;
+          setTrialEligible(status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE);
+        } catch {
+          setTrialEligible(false);
+        }
+      }
     } catch (e) {
       if (__DEV__) console.warn('[Subscription] getOfferings failed:', e);
       setOffering(null);
@@ -201,7 +258,16 @@ export default function SubscriptionScreen() {
       await refreshSubscription();
       const hasEntitlement = Object.keys(info.entitlements.active).length > 0;
       if (hasEntitlement) {
-        Alert.alert('Subscription restored', 'Your subscription is active again.');
+        // NOT a native Alert. A successful restore navigates straight into the
+        // tabs, where a first run presents the guided-tour card — so the alert
+        // and the tour card were two native pop-ups presenting in the same
+        // instant, on the get-a-new-phone path. That is the collision that
+        // reads as "the app is frozen", and at best it swallowed the tour and
+        // dropped a new subscriber on Home with no introduction.
+        //
+        // Being taken into the app is confirmation enough; this line is there
+        // for the moment before the navigation lands.
+        setInfoMsg('Subscription restored.');
       } else {
         // restorePurchases() resolves successfully even when there's nothing to
         // restore - without this, the button just silently reverts and leaves
@@ -219,7 +285,7 @@ export default function SubscriptionScreen() {
   }, [refreshSubscription]);
 
   const priceString = offering?.product?.priceString ?? '';
-  const trialText = getTrialText(offering);
+  const trialText = getTrialText(offering, trialEligible);
 
   return (
     // Scrollable rather than a fixed flex column. The auto-renew notice and the
@@ -300,13 +366,24 @@ export default function SubscriptionScreen() {
               </Text>
             )}
           </View>
-          <View style={styles.trialBadge}>
-            <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
-          </View>
+          {/* No badge when there is no trial to advertise — an empty pill is
+              worse than no pill. */}
+          {trialText.badge ? (
+            <View style={styles.trialBadge}>
+              <Text style={styles.trialBadgeText}>{trialText.badge}</Text>
+            </View>
+          ) : null}
         </View>
+        {/* Say only what is known.
+            This line used to read "...then the standard rate. Cancel anytime."
+            whenever the price failed to load — a subscription pitch with no
+            number in it, which is both unhelpful and an App Store review risk.
+            With no price it now says nothing about money at all, and the CTA
+            above is disabled with a Retry offered. */}
         <Text style={styles.planSub}>
-          {trialText.sub} {priceString ? `${priceString}/month` : 'the standard rate'}. Cancel
-          anytime.
+          {priceString
+            ? `${trialText.sub ? `${trialText.sub} ` : ''}${priceString}/month. Cancel anytime.`
+            : 'Cancel anytime.'}
         </Text>
       </View>
 
@@ -318,18 +395,34 @@ export default function SubscriptionScreen() {
         </View>
       ) : null}
 
+      {/* Confirmation, in the page rather than as a native pop-up — see handleRestore. */}
+      {infoMsg ? (
+        <View style={styles.errorRow} testID="subscription-info">
+          <Ionicons name="checkmark-circle" size={13} color={C.primaryText} />
+          <Text style={[styles.errorText, { color: C.primaryText }]}>{infoMsg}</Text>
+        </View>
+      ) : null}
+
       {/* CTA */}
+      {/* Disabled while there is nothing to buy, not only while buying.
+          It used to be `disabled={purchasing}` alone, so with no offering loaded
+          the button looked entirely live: full colour, pressable, and pressing
+          it did nothing except print an error. handlePurchase already refused to
+          proceed, so the guard was real — it just was not visible, which is the
+          part that reads as a broken app to a reviewer. */}
       <Pressable
         onPress={handlePurchase}
-        disabled={purchasing}
+        disabled={purchasing || (!!RC_API_KEY && !__DEV__ && (loadingOffering || !offering))}
         style={({ pressed }) => [
           styles.ctaBtn,
           purchasing && styles.ctaBtnLoading,
+          !!RC_API_KEY && !__DEV__ && !purchasing && (loadingOffering || !offering) &&
+            styles.ctaBtnLoading,
           pressed && styles.ctaBtnPressed,
         ]}
         testID="subscribe-cta"
       >
-        {purchasing ? (
+        {purchasing || (!!RC_API_KEY && !__DEV__ && loadingOffering) ? (
           <ActivityIndicator color={C.textInverse} />
         ) : (
           <Text style={styles.ctaBtnText}>{trialText.cta}</Text>
@@ -345,6 +438,20 @@ export default function SubscriptionScreen() {
           testID="restore-purchases"
         >
           <Text style={styles.footerLink}>{restoring ? 'Restoring…' : 'Restore'}</Text>
+        </Pressable>
+        <Text style={styles.footerDot}>·</Text>
+        {/* A WAY OFF THIS SCREEN.
+            Once signed in but not subscribed, this was the only screen the user
+            could reach: no back, no close, no way to change account. Sign in
+            with the wrong email — a typo, or the address the subscription is NOT
+            on — and Restore correctly answers "nothing to restore" and there is
+            nothing else to try. Deleting and reinstalling does not help either,
+            because the login is kept in the keychain and survives it. The only
+            escape was to contact support.
+            The gate in app/_layout.tsx already sends a signed-out user to the
+            sign-in screen, so this needs nothing else to work. */}
+        <Pressable onPress={handleSignOut} hitSlop={8} testID="subscription-sign-out">
+          <Text style={styles.footerLink}>Sign out</Text>
         </Pressable>
         <Text style={styles.footerDot}>·</Text>
         <Text
