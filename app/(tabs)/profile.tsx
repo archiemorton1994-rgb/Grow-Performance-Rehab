@@ -39,6 +39,7 @@ import {
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
+import { uploadUserData } from '@/lib/sync';
 import {
   isNotificationsSupported,
   requestNotificationPermission,
@@ -623,7 +624,7 @@ export default function ProfileScreen() {
   const handleReset = () => {
     Alert.alert(
       'Reset Progress',
-      'This will clear all your workout history, stats, and strength test records. This cannot be undone.',
+      'This will clear your workout history, stats, strength tests, badges, and the weights the app has learned for you - your next session starts from scratch. Your bodyweight log is kept. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -633,6 +634,11 @@ export default function ProfileScreen() {
             if (Platform.OS !== 'web')
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             resetProgress();
+            // Push the cleared state straight away, or the reset is undone by
+            // the next launch: startup downloads the server copy and restores
+            // it whenever the server is ahead on sessions - which, right after
+            // a reset, it always is. "This cannot be undone" has to be true.
+            void uploadUserData(useAppStore.getState().getDataForSync());
             setActiveModal(null);
           },
         },

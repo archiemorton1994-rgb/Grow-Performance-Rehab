@@ -24,6 +24,22 @@ export interface SyncPayload {
   exerciseNormalStreak: Record<string, number>;
   exerciseStuckStreak: Record<string, number>;
   savedTemplates: any[];
+  /**
+   * Weigh-ins, the streak goal, and the badge wall.
+   *
+   * These were the three things a user owned that never left the phone. Sign-out
+   * wipes the device (deliberately — two people sharing a handset must not share
+   * an account), so anything absent from this payload is destroyed rather than
+   * merely un-synced. A year of weigh-ins, the chart and the history list built
+   * from them, all gone to a routine sign-out or a new phone, with no warning.
+   *
+   * Optional because a payload written by an older build will not have them, and
+   * an absent field must leave what is on the device alone.
+   */
+  bodyweightLog?: any[];
+  bodyweightUpdatedAt?: string | null;
+  weeklyStreakGoal?: number;
+  earnedBadges?: string[];
 }
 
 export async function uploadUserData(payload: SyncPayload): Promise<void> {

@@ -1004,11 +1004,38 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
 
+      /**
+       * Clear everything the app has learned about how you train.
+       *
+       * It used to clear the three fields the HISTORY SCREENS read and nothing
+       * else, so the reset looked like it had worked and then visibly had not:
+       * the next session opened at exactly the weights the deleted history had
+       * built up, complete with the easier/harder adjustments learned along the
+       * way. Everything below is a number that decides a future weight, so all
+       * of it goes.
+       *
+       * testWeekDeferred matters most of the four counters. Left set, the first
+       * session after wiping everything is a max-effort one-rep-max attempt, on
+       * an account the app now believes has never trained.
+       *
+       * Deliberately NOT cleared: the bodyweight log. This resets training
+       * progression; a weigh-in is a body measurement, not a lift, and losing a
+       * year of them to a training reset is a harsher outcome than the button
+       * promises. The confirmation copy says so out loud.
+       */
       resetProgress: () =>
         set({
           completedCount: 0,
           completedSessions: [],
           oneRepMaxes: [],
+          lastLoggedWeights: {},
+          lastSessionPerformance: {},
+          exerciseNormalStreak: {},
+          exerciseStuckStreak: {},
+          exerciseFeedback: {},
+          testWeekDeferred: false,
+          earnedBadges: [],
+          newlyUnlockedBadges: [],
         }),
 
       setExerciseFeedback: (exerciseId, thumbs) =>
@@ -1428,6 +1455,10 @@ export const useAppStore = create<AppState>()(
           exerciseNormalStreak: s.exerciseNormalStreak,
           exerciseStuckStreak: s.exerciseStuckStreak,
           savedTemplates: s.savedTemplates,
+          bodyweightLog: s.bodyweightLog,
+          bodyweightUpdatedAt: s.bodyweightUpdatedAt,
+          weeklyStreakGoal: s.weeklyStreakGoal,
+          earnedBadges: s.earnedBadges,
         };
       },
 
@@ -1526,12 +1557,30 @@ export const useAppStore = create<AppState>()(
             exerciseNormalStreak: data.exerciseNormalStreak ?? s.exerciseNormalStreak,
             exerciseStuckStreak: data.exerciseStuckStreak ?? s.exerciseStuckStreak,
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
+            weeklyStreakGoal: data.weeklyStreakGoal ?? s.weeklyStreakGoal,
+            earnedBadges: data.earnedBadges ?? s.earnedBadges,
             completedCount: data.completedSessions?.length ?? s.completedCount,
           });
           // The server just handed back sessions this device did not have, so
           // everything they earned is about to look brand new. Record it
           // silently — restoring a backup is not an achievement.
           get().awardNewBadges({ silent: true });
+        }
+
+        // The weigh-in log gets its OWN gate rather than riding on the session
+        // count. Someone can have two years of weigh-ins and no completed
+        // sessions — the weight screen does not require training — and under a
+        // session-count-only gate that user gets nothing back on a new phone,
+        // which is precisely the case the sync was added to protect.
+        //
+        // Same principle either way: whichever side is strictly ahead wins, so
+        // entries added offline and not yet uploaded are never thrown away.
+        const serverWeighIns = data.bodyweightLog?.length ?? 0;
+        if (serverWeighIns > s.bodyweightLog.length) {
+          set({
+            bodyweightLog: data.bodyweightLog as BodyweightLogEntry[],
+            bodyweightUpdatedAt: data.bodyweightUpdatedAt ?? s.bodyweightUpdatedAt,
+          });
         }
       },
     }),

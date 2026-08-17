@@ -1,0 +1,171 @@
+/**
+ * Contract test: a reset resets, and a sign-out does not destroy data.
+ *
+ * TWO FAULTS, ONE CAUSE — a field was added to the store and nobody added it to
+ * the two places that have to know about every field.
+ *
+ * "RESET PROGRESS" CLEARED THE SCREENS, NOT THE NUMBERS
+ * ────────────────────────────────────────────────────
+ * It cleared the three fields the history screens read:
+ *
+ *     set({ completedCount: 0, completedSessions: [], oneRepMaxes: [] })
+ *
+ * History and stats went empty, so it looked like it had worked. Then the next
+ * session opened at exactly the weights the deleted history had built up, with
+ * the easier/harder adjustments still applied. Worse, testWeekDeferred survived:
+ * if a strength test had been postponed before the reset, the first session
+ * after wiping everything was a max-effort one-rep-max attempt, on an account
+ * the app now believed had never trained. For a physiotherapist's app that is a
+ * safety problem, not a tidiness one.
+ *
+ * SIGNING OUT DELETED THE BODYWEIGHT LOG FOR GOOD
+ * ───────────────────────────────────────────────
+ * Sessions, one-rep maxes and templates are all in the sync payload and come
+ * back on sign-in. Weigh-ins were not in it. Sign-out deliberately wipes the
+ * device — two people sharing a handset must not share an account — so anything
+ * missing from that payload is not merely un-synced, it is destroyed. A year of
+ * weigh-ins, the chart and the history list built from them, gone to a routine
+ * sign-out or a new phone, with no warning.
+ */
+import { readFileSync } from 'fs';
+
+let passed = 0;
+let failed = 0;
+function check(label, condition, detail) {
+  if (condition) {
+    console.log(`  ✓ ${label}`);
+    passed++;
+  } else {
+    console.log(`  ✗ ${label}`);
+    if (detail) console.log(`      ${detail}`);
+    failed++;
+  }
+}
+
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+const store = read('lib/store.ts');
+const sync = read('lib/sync.ts');
+const profile = read('app/(tabs)/profile.tsx');
+
+// The IMPLEMENTATION, not the interface declaration twenty lines into the file —
+// a slice anchored on the declaration swallows the whole store, including the
+// initial-state block, and then every "is it cleared" assertion passes for the
+// wrong reason.
+const resetImplAt = store.search(/resetProgress: \(\) =>\s*\r?\n\s*set\(\{/);
+const resetBody = store.slice(
+  resetImplAt,
+  store.indexOf('setExerciseFeedback: (exerciseId, thumbs)', resetImplAt)
+);
+
+console.log('\n[1] The reset clears every number that decides a future weight');
+
+for (const field of [
+  'lastLoggedWeights',
+  'lastSessionPerformance',
+  'exerciseNormalStreak',
+  'exerciseStuckStreak',
+  'exerciseFeedback',
+]) {
+  check(
+    `${field} is cleared`,
+    new RegExp(`${field}: \\{\\}`).test(resetBody),
+    'left behind, the next session opens at the weights the deleted history built'
+  );
+}
+
+check(
+  'a postponed strength test does not survive the reset',
+  /testWeekDeferred: false/.test(resetBody),
+  'otherwise the first session after wiping everything is a max-effort 1RM attempt'
+);
+
+check(
+  'the badge wall is cleared',
+  /earnedBadges: \[\]/.test(resetBody),
+  'badges for training that no longer exists'
+);
+
+check(
+  'the pop-up queue is cleared with it',
+  /newlyUnlockedBadges: \[\]/.test(resetBody),
+  'a queued celebration for a badge that no longer exists'
+);
+
+check(
+  'the history the screens read is still cleared',
+  /completedCount: 0/.test(resetBody) && /completedSessions: \[\]/.test(resetBody),
+  'the original behaviour must survive'
+);
+
+check(
+  'the bodyweight log is deliberately NOT cleared',
+  !/bodyweightLog: \[\]/.test(resetBody),
+  'this resets training progression; a weigh-in is a body measurement, not a lift'
+);
+
+console.log('\n[2] The confirmation says what actually happens');
+
+check(
+  'it names the learned weights',
+  /weights the app has learned/.test(profile),
+  'the old copy promised history and stats only, which is why the reset looked broken'
+);
+
+check(
+  'it names the badges',
+  /badges/.test(profile.slice(profile.indexOf("'Reset Progress'"), profile.indexOf("'Reset Progress'") + 500)),
+  'clearing something the copy does not mention is a surprise'
+);
+
+check(
+  'it says the bodyweight log is kept',
+  /bodyweight log is kept/i.test(profile),
+  'the one thing it does NOT clear has to be stated, or its survival looks like a bug'
+);
+
+check(
+  'the cleared state is pushed to the server immediately',
+  /resetProgress\(\);[\s\S]{0,400}?uploadUserData\(useAppStore\.getState\(\)\.getDataForSync\(\)\)/.test(
+    profile
+  ),
+  'startup restores the server copy whenever it is ahead on sessions - which right after a reset it always is, so without this the reset is undone by the next launch'
+);
+
+console.log('\n[3] Nothing a user owns is missing from the sync payload');
+
+for (const field of ['bodyweightLog', 'bodyweightUpdatedAt', 'weeklyStreakGoal', 'earnedBadges']) {
+  check(
+    `${field} is declared in SyncPayload`,
+    new RegExp(`${field}\\??:`).test(sync),
+    'sign-out wipes the device, so anything absent here is destroyed rather than un-synced'
+  );
+  check(
+    `${field} is uploaded`,
+    new RegExp(`${field}: s\\.${field}`).test(store),
+    'declared but never sent is the same as not declared'
+  );
+}
+
+console.log('\n[4] Restoring it back is safe in both directions');
+
+check(
+  'the weigh-in log has its own gate, not the session count',
+  /serverWeighIns > s\.bodyweightLog\.length/.test(store),
+  'a user with weigh-ins and no completed sessions would otherwise get nothing back - exactly the case this protects'
+);
+
+check(
+  'an absent field leaves the device alone',
+  /weeklyStreakGoal: data\.weeklyStreakGoal \?\? s\.weeklyStreakGoal/.test(store) &&
+    /earnedBadges: data\.earnedBadges \?\? s\.earnedBadges/.test(store),
+  'a payload from an older build must not blank these'
+);
+
+check(
+  'the session gate is unchanged for training data',
+  /if \(serverCount > localCount\)/.test(store),
+  'sessions logged offline and not yet uploaded must still never be overwritten'
+);
+
+console.log(`\nreset-and-sync-completeness: ${passed} passed, ${failed} failed`);
+process.exit(failed > 0 ? 1 : 0);
