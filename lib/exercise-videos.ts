@@ -162,6 +162,74 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'Pull-Up': 'https://www.youtube.com/shorts/x3lc-RqEcag',
   // video "Sled Push & Pull"
   'Sled Push/Pull Complex': 'https://www.youtube.com/shorts/7KYhdRNN8c8',
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SECOND BATCH — 24 uploads added after the 13 August snapshot.
+  //
+  // Seven matched a movement the app already carried and are mapped here.
+  // Sixteen had no home and became real exercises in lib/channel-exercises.ts,
+  // mapped below by their new names. One is a second take of something already
+  // covered and is deliberately unused — see the note at the bottom.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // Already in the app:
+  // video "Walking Lunges"
+  'Walking Lunges': 'https://www.youtube.com/shorts/PWfIF3QyJXk',
+  // video "Dumbbell Walking Lunges"
+  'Dumbbell Walking Lunge': 'https://www.youtube.com/shorts/rigx3wKlmE4',
+  // video "Banded Palloff Press" - the app spells it Pallof, one f
+  'Banded Pallof Press': 'https://www.youtube.com/shorts/f_9v7DUy8mo',
+  // video "Calf Raises"
+  'Calf Raise': 'https://www.youtube.com/shorts/_a4USpdkYEU',
+  // video "Seated Dumbbell Press"
+  'Seated DB Shoulder Press': 'https://www.youtube.com/shorts/2qz5IqK9w6o',
+  // video "Shoulder CARs (Controlled Articular Rotations)" - exact name match
+  'Shoulder CARs (Controlled Articular Rotations)':
+    'https://www.youtube.com/shorts/BpXtcAzYnSY',
+  // video "Single Arm Cable Tricep Extensions" - the app's entry is the same
+  // single-arm pushdown, named without the word "tricep"
+  'Single Arm Cable Extension': 'https://www.youtube.com/shorts/SU3KkNX7cCg',
+
+  // Added to the app for these videos (lib/channel-exercises.ts):
+  // video "Cable Lateral Raises"
+  'Cable Lateral Raise': 'https://www.youtube.com/shorts/wtGks2lKJ9M',
+  // video "Seated Lateral Raises"
+  'Seated DB Lateral Raise': 'https://www.youtube.com/shorts/UsZgojyINOg',
+  // video "Single Arm Cable Curls"
+  'Single-Arm Cable Curl': 'https://www.youtube.com/shorts/hMJysvlxaqY',
+  // video "Cable Hip Abduction"
+  'Cable Hip Abduction': 'https://www.youtube.com/shorts/NTNYykzuwUs',
+  // video "Cable Hip Extensions"
+  'Cable Hip Extension': 'https://www.youtube.com/shorts/qrJC1I1XaWQ',
+  // video "Cable Hip Flexion"
+  'Cable Hip Flexion': 'https://www.youtube.com/shorts/Zcitq7bqwjk',
+  // video "Landmine Single Arm Rows"
+  'Landmine Single-Arm Row': 'https://www.youtube.com/shorts/Ml92Kc8xaA0',
+  // video "Landmine Romanian Deadlifts"
+  'Landmine Romanian Deadlift': 'https://www.youtube.com/shorts/J-vaoprV2uM',
+  // video "Landmine Split Stance Romanian Deadlifts"
+  'Landmine Split-Stance Romanian Deadlift': 'https://www.youtube.com/shorts/R-l6_GQMJ_M',
+  // video "Landmine Split Squats"
+  'Landmine Split Squat': 'https://www.youtube.com/shorts/TGb7vq84olQ',
+  // video "Landmine Goblet Squats"
+  'Landmine Goblet Squat': 'https://www.youtube.com/shorts/i4YH9rWYm_A',
+  // video "Bent Knee Calf Raises"
+  'Bent-Knee Calf Raise': 'https://www.youtube.com/shorts/7vFpu7FOUWg',
+  // video "Bent Knee Single Leg Calf Raise"
+  'Bent-Knee Single-Leg Calf Raise': 'https://www.youtube.com/shorts/I4aTkSDhj2Q',
+  // video "Seated Calf Raises"
+  'Seated Calf Raise': 'https://www.youtube.com/shorts/gtMaEijS97k',
+  // video "Weighted Seated Calf Raises"
+  'Weighted Seated Calf Raise': 'https://www.youtube.com/shorts/OHldOsbk0iw',
+  // video "Tib Raises"
+  'Tib Raise': 'https://www.youtube.com/shorts/di7H803LkK0',
+
+  // DELIBERATELY UNUSED: "Single Arm Cable Rows" (U5EdqKJDX6s).
+  // The app's Seated Single-Arm Cable Row is already mapped to "Seated Single
+  // Arm Rows" (OmgSriop7qM), which matches its name and its seated position.
+  // Two videos cannot claim one exercise, so this one waits for a standing
+  // single-arm cable row to exist, or for someone to decide the seated entry
+  // should show this take instead.
 };
 
 /** The channel every video here must come from. */

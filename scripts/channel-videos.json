@@ -2,76 +2,379 @@
   "$comment": "Snapshot of every video on @GrowPerformanceRehabilitation. Used by `npm run video-status` to report which uploads are not yet attached to an exercise. Refresh it whenever new videos go up - see CHANNEL-REFRESH.md.",
   "channel": "@GrowPerformanceRehabilitation",
   "channelId": "UCp7CeSgTe519dmGuCxgMFJg",
-  "capturedOn": "2026-08-13",
+  "capturedOn": "2026-08-17",
   "videos": [
-    { "id": "gnCpgLadixo", "title": "Banded Clamshells" },
-    { "id": "cZDYVxn38LY", "title": "Banded Lateral Walks" },
-    { "id": "PKXzz7XSxv4", "title": "Glute Bridges" },
-    { "id": "qWBa9MSasTM", "title": "Banded Monster Walks" },
-    { "id": "mMkzfRz_djc", "title": "Banded Marches" },
-    { "id": "E272OXbzJgg", "title": "Doorway Pec Stretch" },
-    { "id": "n76RaN51AFg", "title": "Seated Box Jumps" },
-    { "id": "7ycVBlIF3r8", "title": "Depth Jumps" },
-    { "id": "sMVNO3e78OM", "title": "Barbell Good Mornings" },
-    { "id": "NfvoD1rsgls", "title": "Banded Good Mornings" },
-    { "id": "brxLZz3K0Qo", "title": "Banded Face Pulls" },
-    { "id": "Yk8fT7vxzZM", "title": "Bench Dumbbell Face Pulls" },
-    { "id": "ykk0R4hSGo4", "title": "Bench Dumbbell Reverse Fly" },
-    { "id": "2VPD8D6-qwE", "title": "Bench Dumbbell Ys" },
-    { "id": "iH-ZhUE3j3U", "title": "Plank" },
-    { "id": "X8KA_F1vqk4", "title": "Deadbugs" },
-    { "id": "7uQetCi9mbc", "title": "Skater Jumps" },
-    { "id": "ovXoUaJ0xnU", "title": "Dumbbell Split Squat Jumps" },
-    { "id": "7yT5smEHvSI", "title": "Split Squat Jumps" },
-    { "id": "mHL97bDjXdM", "title": "Squat Jump" },
-    { "id": "9hWzbW2XQ9c", "title": "Medball Floor Chest Pass" },
-    { "id": "3GCUM05ig5o", "title": "Supine Medball Throws" },
-    { "id": "s8iywanevOY", "title": "Gorilla Rows" },
-    { "id": "XTbgWQAyO6Y", "title": "Standing Dumbbell Rows" },
-    { "id": "763mOmEIQI8", "title": "Alternating Dumbbell Curls" },
-    { "id": "ddLnW_AhnCA", "title": "Dumbbell Hammer Curls" },
-    { "id": "V5-MAHfu7fM", "title": "Single Arm Dumbbell Press" },
-    { "id": "eI6JDGd2Nf0", "title": "Kettlebell Side Lunge" },
-    { "id": "6x-elUqiBJ0", "title": "Kettlebell Swings" },
-    { "id": "3yjg8We2hEc", "title": "Trapbar Deadlift" },
-    { "id": "sK90sn5FYgo", "title": "Trapbar Romanian Deadlift" },
-    { "id": "CRWrBIcRJKg", "title": "Trapbar Jumps" },
-    { "id": "5jnD2PFf_Mc", "title": "Trapbar Rows" },
-    { "id": "ZSysWQWU8js", "title": "Hip 90 90s" },
-    { "id": "JS9vTaMTfwM", "title": "Kneeling Rocks" },
-    { "id": "JqRjE-haFOM", "title": "Seated Shoulder External Rotations" },
-    { "id": "u47TJ9pDvWU", "title": "Plank Taps" },
-    { "id": "f4LAlzZ7jMs", "title": "Push Up" },
-    { "id": "xeLW4r3Jznk", "title": "Side Lunge" },
-    { "id": "S_sk9nCqscI", "title": "Barbell Jump Squats" },
-    { "id": "6uPr0ee_wa4", "title": "Box Squat" },
-    { "id": "uI9Bp7vrICg", "title": "Barbell Bulgarian Split Squats" },
-    { "id": "MnJz6MVIoIE", "title": "Barbell Back Squat" },
-    { "id": "4Rv283FcR9A", "title": "Bulgarian Split Squat" },
-    { "id": "6uvGppVwer4", "title": "Dumbbell Bulgarian Spilt Squat" },
-    { "id": "bDZuhqCWkNM", "title": "Box Jumps" },
-    { "id": "HB0yMwKDxQA", "title": "Band Pull Aparts" },
-    { "id": "vL4UV9-NY_o", "title": "Landmine Press" },
-    { "id": "x3lc-RqEcag", "title": "Pull Ups" },
-    { "id": "LJJCoB1wr08", "title": "Chin Ups" },
-    { "id": "Az1vn7b1_Gg", "title": "Seated Wide Grip Rows" },
-    { "id": "lV1C-jOp55g", "title": "Dumbbell Bench Press" },
-    { "id": "dKKsJMlmogM", "title": "Seated Close Grip Rows" },
-    { "id": "RB5ANXpinuE", "title": "Alternating Dumbbell Bench Press" },
-    { "id": "36aFWMgjmYs", "title": "Incline Dumbbell Bench Press" },
-    { "id": "OmgSriop7qM", "title": "Seated Single Arm Rows" },
-    { "id": "7KYhdRNN8c8", "title": "Sled Push & Pull" },
-    { "id": "KPBZu2djV0M", "title": "Sled Rows" },
-    { "id": "3ai2sjIyy5A", "title": "Dumbbell Squat Jumps" },
-    { "id": "7bIzl01moZc", "title": "Kettlebell Swings" },
-    { "id": "JWExVh6hRrI", "title": "Split Stance Romanian Deadlifts" },
-    { "id": "QffukPkOKsg", "title": "Kettlebell Romanian Deadlifts" },
-    { "id": "VJpw-_FZdi8", "title": "Dumbbell Lateral Raises" },
-    { "id": "80Ro5q41PJw", "title": "Alternating Dumbbell Press" },
-    { "id": "JDiuwl1C6gY", "title": "Dumbbell Bicep Curls" },
-    { "id": "AwnvtTwmTt0", "title": "Kettlebell Goblet Squats" },
-    { "id": "pFDyKWvEBow", "title": "Standing Dumbbell Press" },
-    { "id": "uyjFVVPrycU", "title": "Wide Grip Pulldowns" },
-    { "id": "lucmyeFhqWQ", "title": "Medball Slams" }
+    {
+      "id": "SU3KkNX7cCg",
+      "title": "Single Arm Cable Tricep Extensions"
+    },
+    {
+      "id": "wtGks2lKJ9M",
+      "title": "Cable Lateral Raises"
+    },
+    {
+      "id": "Zcitq7bqwjk",
+      "title": "Cable Hip Flexion"
+    },
+    {
+      "id": "hMJysvlxaqY",
+      "title": "Single Arm Cable Curls"
+    },
+    {
+      "id": "qrJC1I1XaWQ",
+      "title": "Cable Hip Extensions"
+    },
+    {
+      "id": "NTNYykzuwUs",
+      "title": "Cable Hip Abduction"
+    },
+    {
+      "id": "U5EdqKJDX6s",
+      "title": "Single Arm Cable Rows"
+    },
+    {
+      "id": "Ml92Kc8xaA0",
+      "title": "Landmine Single Arm Rows"
+    },
+    {
+      "id": "PWfIF3QyJXk",
+      "title": "Walking Lunges"
+    },
+    {
+      "id": "rigx3wKlmE4",
+      "title": "Dumbbell Walking Lunges"
+    },
+    {
+      "id": "R-l6_GQMJ_M",
+      "title": "Landmine Split Stance Romanian Deadlifts"
+    },
+    {
+      "id": "TGb7vq84olQ",
+      "title": "Landmine Split Squats"
+    },
+    {
+      "id": "J-vaoprV2uM",
+      "title": "Landmine Romanian Deadlifts"
+    },
+    {
+      "id": "i4YH9rWYm_A",
+      "title": "Landmine Goblet Squats"
+    },
+    {
+      "id": "f_9v7DUy8mo",
+      "title": "Banded Palloff Press"
+    },
+    {
+      "id": "_a4USpdkYEU",
+      "title": "Calf Raises"
+    },
+    {
+      "id": "7vFpu7FOUWg",
+      "title": "Bent Knee Calf Raises"
+    },
+    {
+      "id": "I4aTkSDhj2Q",
+      "title": "Bent Knee Single Leg Calf Raise"
+    },
+    {
+      "id": "gtMaEijS97k",
+      "title": "Seated Calf Raises"
+    },
+    {
+      "id": "OHldOsbk0iw",
+      "title": "Weighted Seated Calf Raises"
+    },
+    {
+      "id": "di7H803LkK0",
+      "title": "Tib Raises"
+    },
+    {
+      "id": "2qz5IqK9w6o",
+      "title": "Seated Dumbbell Press"
+    },
+    {
+      "id": "BpXtcAzYnSY",
+      "title": "Shoulder CARs (Controlled Articular Rotations)"
+    },
+    {
+      "id": "UsZgojyINOg",
+      "title": "Seated Lateral Raises"
+    },
+    {
+      "id": "gnCpgLadixo",
+      "title": "Banded Clamshells"
+    },
+    {
+      "id": "cZDYVxn38LY",
+      "title": "Banded Lateral Walks"
+    },
+    {
+      "id": "PKXzz7XSxv4",
+      "title": "Glute Bridges"
+    },
+    {
+      "id": "qWBa9MSasTM",
+      "title": "Banded Monster Walks"
+    },
+    {
+      "id": "mMkzfRz_djc",
+      "title": "Banded Marches"
+    },
+    {
+      "id": "E272OXbzJgg",
+      "title": "Doorway Pec Stretch"
+    },
+    {
+      "id": "n76RaN51AFg",
+      "title": "Seated Box Jumps"
+    },
+    {
+      "id": "7ycVBlIF3r8",
+      "title": "Depth Jumps"
+    },
+    {
+      "id": "sMVNO3e78OM",
+      "title": "Barbell Good Mornings"
+    },
+    {
+      "id": "NfvoD1rsgls",
+      "title": "Banded Good Mornings"
+    },
+    {
+      "id": "brxLZz3K0Qo",
+      "title": "Banded Face Pulls"
+    },
+    {
+      "id": "Yk8fT7vxzZM",
+      "title": "Bench Dumbbell Face Pulls"
+    },
+    {
+      "id": "ykk0R4hSGo4",
+      "title": "Bench Dumbbell Reverse Fly"
+    },
+    {
+      "id": "2VPD8D6-qwE",
+      "title": "Bench Dumbbell Ys"
+    },
+    {
+      "id": "iH-ZhUE3j3U",
+      "title": "Plank"
+    },
+    {
+      "id": "X8KA_F1vqk4",
+      "title": "Deadbugs"
+    },
+    {
+      "id": "7uQetCi9mbc",
+      "title": "Skater Jumps"
+    },
+    {
+      "id": "ovXoUaJ0xnU",
+      "title": "Dumbbell Split Squat Jumps"
+    },
+    {
+      "id": "7yT5smEHvSI",
+      "title": "Split Squat Jumps"
+    },
+    {
+      "id": "mHL97bDjXdM",
+      "title": "Squat Jump"
+    },
+    {
+      "id": "9hWzbW2XQ9c",
+      "title": "Medball Floor Chest Pass"
+    },
+    {
+      "id": "3GCUM05ig5o",
+      "title": "Supine Medball Throws"
+    },
+    {
+      "id": "s8iywanevOY",
+      "title": "Gorilla Rows"
+    },
+    {
+      "id": "XTbgWQAyO6Y",
+      "title": "Standing Dumbbell Rows"
+    },
+    {
+      "id": "763mOmEIQI8",
+      "title": "Alternating Dumbbell Curls"
+    },
+    {
+      "id": "ddLnW_AhnCA",
+      "title": "Dumbbell Hammer Curls"
+    },
+    {
+      "id": "V5-MAHfu7fM",
+      "title": "Single Arm Dumbbell Press"
+    },
+    {
+      "id": "eI6JDGd2Nf0",
+      "title": "Kettlebell Side Lunge"
+    },
+    {
+      "id": "6x-elUqiBJ0",
+      "title": "Kettlebell Swings"
+    },
+    {
+      "id": "3yjg8We2hEc",
+      "title": "Trapbar Deadlift"
+    },
+    {
+      "id": "sK90sn5FYgo",
+      "title": "Trapbar Romanian Deadlift"
+    },
+    {
+      "id": "CRWrBIcRJKg",
+      "title": "Trapbar Jumps"
+    },
+    {
+      "id": "5jnD2PFf_Mc",
+      "title": "Trapbar Rows"
+    },
+    {
+      "id": "ZSysWQWU8js",
+      "title": "Hip 90 90s"
+    },
+    {
+      "id": "JS9vTaMTfwM",
+      "title": "Kneeling Rocks"
+    },
+    {
+      "id": "JqRjE-haFOM",
+      "title": "Seated Shoulder External Rotations"
+    },
+    {
+      "id": "u47TJ9pDvWU",
+      "title": "Plank Taps"
+    },
+    {
+      "id": "f4LAlzZ7jMs",
+      "title": "Push Up"
+    },
+    {
+      "id": "xeLW4r3Jznk",
+      "title": "Side Lunge"
+    },
+    {
+      "id": "S_sk9nCqscI",
+      "title": "Barbell Jump Squats"
+    },
+    {
+      "id": "6uPr0ee_wa4",
+      "title": "Box Squat"
+    },
+    {
+      "id": "uI9Bp7vrICg",
+      "title": "Barbell Bulgarian Split Squats"
+    },
+    {
+      "id": "MnJz6MVIoIE",
+      "title": "Barbell Back Squat"
+    },
+    {
+      "id": "4Rv283FcR9A",
+      "title": "Bulgarian Split Squat"
+    },
+    {
+      "id": "6uvGppVwer4",
+      "title": "Dumbbell Bulgarian Spilt Squat"
+    },
+    {
+      "id": "bDZuhqCWkNM",
+      "title": "Box Jumps"
+    },
+    {
+      "id": "HB0yMwKDxQA",
+      "title": "Band Pull Aparts"
+    },
+    {
+      "id": "vL4UV9-NY_o",
+      "title": "Landmine Press"
+    },
+    {
+      "id": "x3lc-RqEcag",
+      "title": "Pull Ups"
+    },
+    {
+      "id": "LJJCoB1wr08",
+      "title": "Chin Ups"
+    },
+    {
+      "id": "Az1vn7b1_Gg",
+      "title": "Seated Wide Grip Rows"
+    },
+    {
+      "id": "lV1C-jOp55g",
+      "title": "Dumbbell Bench Press"
+    },
+    {
+      "id": "dKKsJMlmogM",
+      "title": "Seated Close Grip Rows"
+    },
+    {
+      "id": "RB5ANXpinuE",
+      "title": "Alternating Dumbbell Bench Press"
+    },
+    {
+      "id": "36aFWMgjmYs",
+      "title": "Incline Dumbbell Bench Press"
+    },
+    {
+      "id": "OmgSriop7qM",
+      "title": "Seated Single Arm Rows"
+    },
+    {
+      "id": "7KYhdRNN8c8",
+      "title": "Sled Push & Pull"
+    },
+    {
+      "id": "KPBZu2djV0M",
+      "title": "Sled Rows"
+    },
+    {
+      "id": "3ai2sjIyy5A",
+      "title": "Dumbbell Squat Jumps"
+    },
+    {
+      "id": "7bIzl01moZc",
+      "title": "Kettlebell Swings"
+    },
+    {
+      "id": "JWExVh6hRrI",
+      "title": "Split Stance Romanian Deadlifts"
+    },
+    {
+      "id": "QffukPkOKsg",
+      "title": "Kettlebell Romanian Deadlifts"
+    },
+    {
+      "id": "VJpw-_FZdi8",
+      "title": "Dumbbell Lateral Raises"
+    },
+    {
+      "id": "80Ro5q41PJw",
+      "title": "Alternating Dumbbell Press"
+    },
+    {
+      "id": "JDiuwl1C6gY",
+      "title": "Dumbbell Bicep Curls"
+    },
+    {
+      "id": "AwnvtTwmTt0",
+      "title": "Kettlebell Goblet Squats"
+    },
+    {
+      "id": "pFDyKWvEBow",
+      "title": "Standing Dumbbell Press"
+    },
+    {
+      "id": "uyjFVVPrycU",
+      "title": "Wide Grip Pulldowns"
+    },
+    {
+      "id": "lucmyeFhqWQ",
+      "title": "Medball Slams"
+    }
   ]
 }

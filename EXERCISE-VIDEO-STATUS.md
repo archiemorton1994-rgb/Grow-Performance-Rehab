@@ -4,16 +4,17 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**71 of 669 recorded (10.6%). 448 still to go.**
+**94 of 685 recorded (13.7%). 441 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
 
 ## Uploads not yet used by the app
 
-The channel had **69 videos** as at 2026-08-13. 68 of them are attached to an exercise; the 1 below is not.
+The channel had **93 videos** as at 2026-08-17. 91 of them are attached to an exercise; the 2 below are not.
 
 Each one is either a movement the app does not have — in which case the exercise needs adding — or one where two videos could each claim the same exercise and the choice has not been made.
 
+- Single Arm Cable Rows  — https://www.youtube.com/shorts/U5EdqKJDX6s
 - Kettlebell Swings  — https://www.youtube.com/shorts/7bIzl01moZc
 
 ## Recorded
@@ -30,12 +31,20 @@ Each one is either a movement the app does not have — in which case the exerci
 - Banded Lateral Walk
 - Banded March
 - Banded Monster Walk
+- Banded Pallof Press
 - Barbell Bulgarian Split Squat
 - Barbell Good Morning
 - Bench Dumbbell Reverse Fly
+- Bent-Knee Calf Raise
+- Bent-Knee Single-Leg Calf Raise
 - Box Jump (Step-Down)
 - Box Squat
 - Bulgarian Split Squat
+- Cable Hip Abduction
+- Cable Hip Extension
+- Cable Hip Flexion
+- Cable Lateral Raise
+- Calf Raise
 - Chin-Up
 - DB Bicep Curl
 - DB Bulgarian Split Squat
@@ -51,6 +60,7 @@ Each one is either a movement the app does not have — in which case the exerci
 - Doorway Chest Opener
 - Doorway Chest Stretch
 - Dumbbell Bench Press
+- Dumbbell Walking Lunge
 - Glute Bridge
 - Goblet Squat
 - Gorilla Row
@@ -61,7 +71,12 @@ Each one is either a movement the app does not have — in which case the exerci
 - KB Swing (Explosive)
 - KB Swing (Steady)
 - Kneeling Rock-Back
+- Landmine Goblet Squat
 - Landmine Press
+- Landmine Romanian Deadlift
+- Landmine Single-Arm Row
+- Landmine Split Squat
+- Landmine Split-Stance Romanian Deadlift
 - Lat Pulldown
 - Lateral Lunge
 - Loaded Jump Squat
@@ -74,9 +89,15 @@ Each one is either a movement the app does not have — in which case the exerci
 - Push-Up
 - Seated Box Jump
 - Seated Cable Row
+- Seated Calf Raise
+- Seated DB Lateral Raise
+- Seated DB Shoulder Press
 - Seated Shoulder External Rotation (Band)
 - Seated Single-Arm Cable Row
 - Seated Wide-Grip Cable Row
+- Shoulder CARs (Controlled Articular Rotations)
+- Single Arm Cable Extension
+- Single-Arm Cable Curl
 - Single-Arm Dumbbell Overhead Press
 - Skater Jump
 - Sled Push/Pull Complex
@@ -85,14 +106,17 @@ Each one is either a movement the app does not have — in which case the exerci
 - Squat Jump
 - Standing Dumbbell Row
 - Supine Med Ball Throw
+- Tib Raise
 - Trap Bar Deadlift
 - Trap Bar Jump
 - Trap Bar Romanian Deadlift
 - Trap Bar Row
+- Walking Lunges
+- Weighted Seated Calf Raise
 
 ## Still to record
 
-**448 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+**441 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
 
 A further 150 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
 
@@ -110,7 +134,7 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Single-Leg Hinge
 - Towel Row (Door Handle)
 
-### Accessories — the supporting work in every strength session (155)
+### Accessories — the supporting work in every strength session (150)
 
 - 45 Degree Hyperextension
 - Ab Wheel Rollout
@@ -123,7 +147,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Band Bicep Curl
 - Banded Glute Bridge
 - Banded Hip Thrust
-- Banded Pallof Press
 - Banded Pull-Apart
 - Barbell Bent-Over Row
 - Barbell Hip Thrust
@@ -142,7 +165,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Cable Pull-Through
 - Cable Tricep Pushdown
 - Cable Woodchop
-- Calf Raise
 - Chest Supported Row
 - Close-Grip Bench Press
 - Copenhagen Plank
@@ -183,7 +205,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Diamond Push-Up
 - Donkey Kick
 - Dumbbell Front Raise
-- Dumbbell Walking Lunge
 - External Rotation (Band)
 - EZ Bar Curl
 - EZ Bar Skull Crushers
@@ -229,11 +250,9 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Rowing Intervals (Easy)
 - Rowing Machine Pyramid (Easy)
 - Seal Row
-- Seated DB Shoulder Press
 - Seated Hamstring Curl
 - Shuttle Run (10 m x 6)
 - Side Plank
-- Single Arm Cable Extension
 - Single Leg Hip Thrust
 - Single-Arm KB / DB Swing
 - Single-Arm Towel Row (Door Handle)
@@ -277,28 +296,65 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Bird Dog  _(used in 3 places)_
 - Chin Tuck  _(used in 3 places)_
 - Elbow Flexion / Extension ROM  _(used in 3 places)_
+- Isometric Shoulder Extension Press (Wall)  _(used in 3 places)_
+- Open-and-Close Fist Pumps  _(used in 3 places)_
 - Prone Thoracic Extension  _(used in 3 places)_
 - Quad Set (isometric)  _(used in 3 places)_
+- Seated Ankle Pump (Small Range)  _(used in 3 places)_
+- Seated Isometric Calf Press  _(used in 3 places)_
 - Seated Toe Raise  _(used in 3 places)_
 - Single-Leg Glute Bridge  _(used in 3 places)_
+- Supine Straight-Leg Raise  _(used in 3 places)_
 - Wall Slide  _(used in 3 places)_
+- Band Chest Press (Light, Short Range)  _(used in 2 places)_
 - Band Curl (light, high reps)  _(used in 2 places)_
 - Band Finger Extension  _(used in 2 places)_
 - Band Pushdown (light, high reps)  _(used in 2 places)_
-- Isometric Shoulder Extension Press (Wall)  _(used in 2 places)_
+- Band Straight-Arm Press-Down (Short Range)  _(used in 2 places)_
+- Glute Set (isometric)  _(used in 2 places)_
+- Isometric Adductor Squeeze (Ball or Towel)  _(used in 2 places)_
+- Isometric Ankle Press (In and Out)  _(used in 2 places)_
+- Isometric Band Row Hold (Light)  _(used in 2 places)_
+- Isometric Chest Press Into Wall  _(used in 2 places)_
+- Isometric Elbow Extension Press (Thigh)  _(used in 2 places)_
+- Isometric Elbow Flexion Hold (Table)  _(used in 2 places)_
+- Isometric Elbow Press (Bend and Straighten)  _(used in 2 places)_
+- Isometric Hip Abduction (Wall Press)  _(used in 2 places)_
+- Isometric Neck Press (Hand Resistance)  _(used in 2 places)_
+- Isometric Pec Squeeze (Palms Together)  _(used in 2 places)_
+- Isometric Shoulder External Rotation (Doorframe)  _(used in 2 places)_
+- Isometric Shoulder Flexion Press (Wall)  _(used in 2 places)_
+- Isometric Supination Hold (Towel)  _(used in 2 places)_
 - Isometric Wrist Extension Hold  _(used in 2 places)_
-- Open-and-Close Fist Pumps  _(used in 2 places)_
+- Isometric Wrist Flexion Hold  _(used in 2 places)_
+- Long-Lever Adductor Squeeze  _(used in 2 places)_
+- Pain-Free Elbow Bend and Straighten  _(used in 2 places)_
+- Pain-Free Wrist Glide  _(used in 2 places)_
 - Pallof Press (Isometric Hold)  _(used in 2 places)_
-- Seated Ankle Pump (Small Range)  _(used in 2 places)_
-- Seated Isometric Calf Press  _(used in 2 places)_
-- Supine Straight-Leg Raise  _(used in 2 places)_
+- Pendulum Shoulder Swing  _(used in 2 places)_
+- Prone Knee Bend Hold  _(used in 2 places)_
+- Scapular Setting (Isometric Squeeze)  _(used in 2 places)_
+- Scapular Setting (Isometric)  _(used in 2 places)_
+- Scapular Setting (Shoulder Blade Set)  _(used in 2 places)_
+- Seated Heel Raise (Bodyweight)  _(used in 2 places)_
+- Seated Hip March (Low Lift)  _(used in 2 places)_
+- Seated Lat Press-Down Hold (Chair)  _(used in 2 places)_
+- Short-Arc Quad Extension (Towel Roll)  _(used in 2 places)_
+- Soft Towel Squeeze  _(used in 2 places)_
+- Supine Abdominal Brace with Breathing  _(used in 2 places)_
+- Supine Heel Slide (Braced)  _(used in 2 places)_
+- Supine Isometric Hamstring Press (Bent Knee)  _(used in 2 places)_
+- Supine Pelvic Tilt (Small Range)  _(used in 2 places)_
+- Supine Rib Breathing (Hands on Ribs)  _(used in 2 places)_
+- Supported Heel Slide  _(used in 2 places)_
+- Supported Neck Nod (Head Resting)  _(used in 2 places)_
+- Supported Neck Rotation (Small Range)  _(used in 2 places)_
+- Supported Shoulder Slide (Table)  _(used in 2 places)_
 - Terminal Knee Extension (band)  _(used in 2 places)_
 - Thoracic Cat-Cow  _(used in 2 places)_
 - Wall Angel  _(used in 2 places)_
 - Adductor Side-Lying Stretch
 - Ankle Circles
-- Band Chest Press (Light, Short Range)
-- Band Straight-Arm Press-Down (Short Range)
 - Bicep Stretch (arm back)
 - Book Opener (thoracic rotation)
 - Calf Stretch (Wall)
@@ -313,73 +369,36 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Eccentric Wrist Extension
 - Figure-4 Glute Stretch
 - Floor Angel
-- Glute Set (isometric)
 - Heel Drop (eccentric)
 - Hip Flexor Stretch
 - Hip Hinge Against Wall
 - Incline Push-Up (slow)
-- Isometric Adductor Squeeze (Ball or Towel)
-- Isometric Ankle Press (In and Out)
-- Isometric Band Row Hold (Light)
-- Isometric Chest Press Into Wall
-- Isometric Elbow Extension Press (Thigh)
-- Isometric Elbow Flexion Hold (Table)
-- Isometric Elbow Press (Bend and Straighten)
-- Isometric Hip Abduction (Wall Press)
-- Isometric Neck Press (Hand Resistance)
-- Isometric Pec Squeeze (Palms Together)
-- Isometric Shoulder External Rotation (Doorframe)
-- Isometric Shoulder Flexion Press (Wall)
-- Isometric Supination Hold (Towel)
 - Isometric Wall Sit
-- Isometric Wrist Flexion Hold
 - Lateral Band Walk
 - Levator Scapulae Stretch
-- Long-Lever Adductor Squeeze
 - McGill Side Plank
 - Neck Side Stretch
 - Nordic Curl Negative (slow)
 - Overhead Tricep Stretch
-- Pain-Free Elbow Bend and Straighten
-- Pain-Free Wrist Glide
 - Pec Minor Stretch
 - Pec Minor Stretch (doorway)
-- Pendulum Shoulder Swing
 - Pigeon Pose
 - Pronator Self-Release
-- Prone Knee Bend Hold
 - Prone Shoulder External Rotation
 - Prone T-Spine Extension
-- Scapular Setting (Isometric Squeeze)
-- Scapular Setting (Isometric)
-- Scapular Setting (Shoulder Blade Set)
-- Seated Heel Raise (Bodyweight)
-- Seated Hip March (Low Lift)
-- Seated Lat Press-Down Hold (Chair)
-- Short-Arc Quad Extension (Towel Roll)
 - Shoulder CAR (Controlled Articular Rotation)
 - Side-Lying Hip Abduction
 - Single-Leg Calf Raise
 - Single-Leg Calf Raise (Eccentric)
 - Slow Step-Down
 - Slow Step-Down (eccentric)
-- Soft Towel Squeeze
 - Soleus Stretch
 - Standing Calf Raise (Bodyweight)
 - Standing Calf Raise (loaded)
 - Standing Calf Raise (slow eccentric)
 - Standing Hamstring Stretch
 - Standing Quad Stretch
-- Supine Abdominal Brace with Breathing
 - Supine Hamstring Stretch (Strap)
-- Supine Heel Slide (Braced)
-- Supine Isometric Hamstring Press (Bent Knee)
-- Supine Pelvic Tilt (Small Range)
-- Supine Rib Breathing (Hands on Ribs)
-- Supported Heel Slide
-- Supported Neck Nod (Head Resting)
-- Supported Neck Rotation (Small Range)
-- Supported Shoulder Slide (Table)
 - Thoracic Extension (foam roll)
 - Thoracic Extension over Rolled Towel
 - Thread the Needle (Thoracic Rotation)
@@ -391,7 +410,7 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Wrist Extensor Stretch
 - Wrist Flexor Stretch
 
-### Warm-ups (24)
+### Warm-ups (23)
 
 - Adductor Rockback
 - Ankle Dorsiflexion Drill
@@ -412,7 +431,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Jump Rope Warm-Up
 - Kneeling Thoracic Rotation
 - Rowing Machine Warm-Up
-- Shoulder CARs (Controlled Articular Rotations)
 - Standing Hamstring Reach
 - Stationary Bike Warm-Up
 - Thoracic Extension on Floor
@@ -475,7 +493,7 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Speed Good Morning (bar only)
 - Speed Squat Ramp (bar only)
 
-### Finishers (80)
+### Finishers (79)
 
 - Alternating Jump Lunge
 - Assault Bike (Easy Pace)
@@ -556,7 +574,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Treadmill Incline Walk
 - Treadmill Sprint Intervals
 - Unbroken Carry Finisher
-- Walking Lunges
 
 ### Cool-downs and stretching (7)
 
