@@ -27,7 +27,7 @@ import { SESSION_META } from '@/lib/session-meta';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 
 interface TrainTutorialStep {
-  spotlightRef: 'equipment' | 'kpi' | 'additional';
+  spotlightRef: 'equipment' | 'kpi';
   iconName: string;
   iconLabel: string;
   title: string;
@@ -47,7 +47,11 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     iconName: 'flash-outline',
     iconLabel: 'KPI',
     title: 'Your strength foundation',
-    body: 'Squat, Bench, and Deadlift drive your 1RM and strength tracking, everything else is measured against these.',
+    // Absorbed the old "Every other way to train" step. That one spotlighted a
+    // section headed ADDITIONAL SESSIONS containing four cards named Lower
+    // Body, Upper Body, Full Body and Conditioning, to say they were four ways
+    // to train — a card spent telling the user what they were already reading.
+    body: 'Squat, Bench and Deadlift drive your 1RM and everything else is measured against them. Below, Lower, Upper, Full Body and Conditioning cover the rest of the week.',
   },
   {
     // Same region as the step above — Custom sits in that grid — but it is a
@@ -59,13 +63,6 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     iconLabel: 'Custom',
     title: 'Or build your own',
     body: 'Custom asks what you are training for and how long you have — 30, 45 or 60 minutes — then builds to fit. Your warm-up, mobility, activation and main lift are always kept.',
-  },
-  {
-    spotlightRef: 'additional',
-    iconName: 'grid-outline',
-    iconLabel: 'More',
-    title: 'Every other way to train',
-    body: 'Lower Body, Upper Body, Full Body, and Conditioning cover the rest, pick whichever fits your day.',
   },
 ] as const;
 

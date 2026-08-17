@@ -41,8 +41,33 @@ import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
 import { getCoachMessages, hasActionableAdvice, type CoachAction } from '@/lib/coach';
 
+/**
+ * THE TOUR, REBUILT — and mostly by deleting.
+ *
+ * It ran to eighteen cards across five tabs before the user had done anything,
+ * and length was the whole problem: nobody reads eighteen, so the ones that
+ * mattered were never reached. It is twelve now, and the cuts followed three
+ * rules.
+ *
+ * DO NOT NARRATE AN EMPTY SCREEN. Five steps described data a first-run user
+ * does not have — a training block with no sessions in it, a program rotation
+ * that has not started, badges nobody has earned, charts that "fill in as you
+ * log". Being told about a number you cannot see teaches you the app is talking
+ * to someone else.
+ *
+ * SAY IT ONCE. The streak was explained on Home, again on Profile and again on
+ * Stats. It is explained here, and nowhere else.
+ *
+ * EARN THE STEP. Anything self-evident from its own heading went. "Additional
+ * Sessions" is a heading above four named cards; a card explaining that they
+ * are four ways to train is a card spent on nothing.
+ *
+ * What went IN is the assistant, which was in the app and in no tour — the one
+ * place that says what the app has noticed about your training, behind a button
+ * most people would never press unprompted.
+ */
 interface HomeTutorialStep {
-  spotlightRef: 'session' | 'block' | 'streak' | 'program' | 'achievements';
+  spotlightRef: 'session' | 'coach' | 'streak';
   iconName: string;
   iconLabel: string;
   title: string;
@@ -55,35 +80,21 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
     iconName: 'flash-outline',
     iconLabel: 'Today',
     title: 'Start here every day',
-    body: "This card always shows today's recommended session. Tap Start and the whole workout gets built for you.",
+    body: "This card always shows what to train today, rotating through Squat, Bench and Deadlift. Tap Start and the whole session gets built for you.",
   },
   {
-    spotlightRef: 'block',
-    iconName: 'stats-chart-outline',
-    iconLabel: 'Progress',
-    title: 'Your training block',
-    body: "Shows how many sessions until your next test week, and which cycle you're on overall.",
+    spotlightRef: 'coach',
+    iconName: 'chatbubble-ellipses-outline',
+    iconLabel: 'Assistant',
+    title: 'What the app has noticed',
+    body: 'Everything it has to say lives behind this button — when you are due a lighter week, when one side of your training is getting thin, when a weight looks stale. It stays out of your way until you open it.',
   },
   {
     spotlightRef: 'streak',
     iconName: 'flame-outline',
     iconLabel: 'Streak',
-    title: 'Keep the streak alive',
-    body: 'Counts consistent weeks, not perfect ones. Hit your weekly goal and this keeps climbing.',
-  },
-  {
-    spotlightRef: 'program',
-    iconName: 'repeat-outline',
-    iconLabel: 'Program',
-    title: 'Your program rotation',
-    body: "Rotates through Squat, Bench, and Deadlift. This shows which one's next and how far through the cycle you are.",
-  },
-  {
-    spotlightRef: 'achievements',
-    iconName: 'trophy-outline',
-    iconLabel: 'Badges',
-    title: "Badges you've earned",
-    body: 'Milestones, strength PBs, and consistency streaks all unlock badges here. Tap in anytime to see the full list.',
+    title: 'Consistent, not perfect',
+    body: 'Your streak counts weeks you hit your goal, not days in a row. Miss a session and it survives; miss a week and it starts again.',
   },
 ] as const;
 
@@ -552,16 +563,14 @@ export default function HomeScreen() {
   // The block-progress row only renders once showBlockProgress is true (a
   // brand-new user with zero sessions doesn't have one yet) - skip that step
   // entirely rather than spotlighting nothing.
-  const homeEffectiveTutorial = useMemo(
-    () => HOME_TUTORIAL.filter((s) => s.spotlightRef !== 'block' || showBlockProgress),
-    [showBlockProgress]
-  );
+  // Nothing to filter any more: the step that needed a training block to exist
+  // was cut, along with the other four that described a screen a first-run user
+  // has not filled in yet. Kept as a memo so the shape below is unchanged.
+  const homeEffectiveTutorial = useMemo(() => HOME_TUTORIAL, []);
   const [tutStep, setTutStep] = useState<number | null>(null);
   const sessionCardRef = useRef<View>(null);
-  const blockRowRef = useRef<View>(null);
   const streakTileRef = useRef<View>(null);
-  const programTileRef = useRef<View>(null);
-  const achievementsTileRef = useRef<View>(null);
+  const coachButtonRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
   useEffect(() => {
@@ -577,10 +586,8 @@ export default function HomeScreen() {
     if (tutStep === null || homeEffectiveTutorial[tutStep] == null) return;
     const refLookup = {
       session: sessionCardRef,
-      block: blockRowRef,
+      coach: coachButtonRef,
       streak: streakTileRef,
-      program: programTileRef,
-      achievements: achievementsTileRef,
     };
     const target = refLookup[homeEffectiveTutorial[tutStep].spotlightRef];
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -599,7 +606,7 @@ export default function HomeScreen() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next >= homeEffectiveTutorial.length) {
-        setTourActiveTab(1); // hand off to Profile
+        setTourActiveTab(2); // hand off to Train
         return null;
       }
       return next;
@@ -659,11 +666,13 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
-            <CoachButton
-              onPress={() => setCoachOpen((v) => !v)}
-              hasAdvice={coachHasAdvice}
-              open={coachOpen}
-            />
+            <View ref={coachButtonRef} collapsable={false}>
+              <CoachButton
+                onPress={() => setCoachOpen((v) => !v)}
+                hasAdvice={coachHasAdvice}
+                open={coachOpen}
+              />
+            </View>
             <Pressable
               onPress={() => router.push('/(tabs)/profile')}
               style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.8 }]}
@@ -825,7 +834,7 @@ export default function HomeScreen() {
 
           {/* Block progress — standalone slim row between hero card and stats strip */}
           {completedSessions.length > 0 && showBlockProgress && (
-            <View ref={blockRowRef} collapsable={false}>
+            <View collapsable={false}>
               <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
                 <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
                 <View style={styles.blockBarTrack}>
@@ -875,7 +884,6 @@ export default function HomeScreen() {
 
             {/* Your Program */}
             <Pressable
-              ref={programTileRef}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -917,7 +925,6 @@ export default function HomeScreen() {
 
             {/* Achievements */}
             <Pressable
-              ref={achievementsTileRef}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -72,15 +72,14 @@ const STATS_TUTORIAL: readonly StatsTutorialStep[] = [
     iconName: 'swap-horizontal-outline',
     iconLabel: 'Views',
     title: 'Four ways to look at your training',
-    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for volume trends, and History for every session logged.',
+    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for volume and where the work landed, and History for every session you have logged.',
   },
-  {
-    spotlightRef: 'stats',
-    iconName: 'stats-chart-outline',
-    iconLabel: 'Overview',
-    title: 'Your training, summarised',
-    body: 'This week, your current streak, and your all-time total. Charts and personal bests fill in as you log sessions.',
-  },
+  // The second step was cut. It described "this week, your current streak and
+  // your all-time total" — a streak already explained on Home, over three zeroes
+  // and an empty chart, with the words "fill in as you log sessions" admitting
+  // there was nothing to look at. A tour card pointing at a blank panel is worse
+  // than no card: it spends the user's attention on the app's future rather than
+  // on anything they can use now.
 ] as const;
 
 const BAR_CHART_HEIGHT = 100;
@@ -3687,7 +3686,7 @@ export default function StatsScreen() {
       if (next >= STATS_TUTORIAL.length) {
         // Last screen of the tour - complete it and hand off to the demo
         // session, exactly like the old COACH_STEPS completion did.
-        setTourActiveTab(null);
+        setTourActiveTab(1); // hand off to Profile, the last stop
         setTourComplete(true);
         setTourJustCompleted(true);
         setTimeout(() => router.navigate('/session?demo=true' as any), 150);

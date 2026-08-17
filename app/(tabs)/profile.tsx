@@ -167,28 +167,21 @@ const PROFILE_TUTORIAL: readonly ProfileTutorialStep[] = [
     iconName: 'person-outline',
     iconLabel: 'You',
     title: 'This is you',
-    body: 'Your goals and experience level from onboarding, they shape every session the app builds.',
+    // Kept, and made concrete. "They shape every session" is the kind of claim
+    // a user nods at and does not believe; naming what actually changes is what
+    // makes the Profile worth revisiting when their training changes.
+    body: 'Your goal and experience level, taken from onboarding. They decide how heavy your sessions start, how fast the weight climbs, and whether you get a strength test at all.',
   },
-  {
-    spotlightRef: 'stats',
-    iconName: 'stats-chart-outline',
-    iconLabel: 'Stats',
-    title: 'Your training at a glance',
-    body: 'Total sessions, your current streak, and how many you have logged this week.',
-  },
-  {
-    spotlightRef: 'strength',
-    iconName: 'trending-up-outline',
-    iconLabel: 'Strength',
-    title: 'Strength, tracked over time',
-    body: "Log a 1RM and this fills in with your lift-to-bodyweight ratios, so you can see real progress, not just numbers.",
-  },
+  // Two steps cut. "Your training at a glance" was the third explanation of the
+  // streak in one tour, over a row of zeroes. "Strength, tracked over time" said
+  // "log a 1RM and this fills in" — a card describing an empty panel and asking
+  // the user to come back later.
   {
     spotlightRef: 'settings',
     iconName: 'settings-outline',
     iconLabel: 'Settings',
     title: 'Everything else lives here',
-    body: 'Equipment, reminders, units, appearance, account, and this guided tour if you ever want to replay it.',
+    body: 'Equipment, reminders, units, light or dark, your account — and this tour, if you ever want to run it again.',
   },
 ] as const;
 
@@ -867,7 +860,7 @@ export default function ProfileScreen() {
       if (prev === null) return null;
       const next = prev + 1;
       if (next >= PROFILE_TUTORIAL.length) {
-        setTourActiveTab(2); // hand off to Train
+        setTourActiveTab(null); // Profile is the end of the tour
         return null;
       }
       return next;

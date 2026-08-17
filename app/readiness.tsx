@@ -72,19 +72,25 @@ const READINESS_TUTORIAL = [
     iconName: 'medical-outline',
     iconLabel: 'Pain',
     title: 'Any pain today?',
-    body: "Tap a region if anything is sore, and we'll automatically swap exercises away from that area so you can train safely.",
+    // Rewritten when the acute protocols landed. The old copy described only
+    // half of what naming a sore area does — "swap exercises away from that
+    // area" — and left out the half that matters most: the rehab work you are
+    // given INSTEAD, which is deliberately gentle and comes with a pain limit.
+    // Someone who reads "swap away" and then finds five isometric holds in
+    // their session has been told the wrong thing about their own workout.
+    body: 'Tap anywhere that is sore. The app takes the exercises that would aggravate it out of your session, and puts gentle work for that area in — nothing that stretches or hard-loads it, and a pain limit to stay inside.',
   },
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
     title: 'How are you feeling?',
-    body: 'Pick your energy honestly: low energy gets a lighter session, high energy pushes harder. We adjust the weight automatically.',
+    body: 'Answer honestly: low energy gets a lighter session, high energy pushes harder. The weights move with it.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
     title: 'How long have you got?',
-    body: '30 min = core lift only. 45 min adds accessories and prehab. 60 min is the full session with a finisher.',
+    body: '30 minutes is your warm-up and main lift. 45 adds accessories and rehab work. 60 is the full session with a finisher on the end.',
   },
 ] as const;
 
