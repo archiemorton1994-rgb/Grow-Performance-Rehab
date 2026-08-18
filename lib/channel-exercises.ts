@@ -1363,4 +1363,122 @@ export const CHANNEL_EXERCISES: ChannelExercise[] = [
       },
     },
   },
+  // ───────────────────────────────────────────────────────────────────────────
+  // THIRD BATCH — 10 more uploads. Five matched exercises the app already had;
+  // these four are the movements it did not carry. All four are warm-up and
+  // knee/hip rehab work, which is the part of the catalogue the channel is
+  // filling in fastest.
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    collection: 'PREHAB',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Banded VMO Extensions".
+    template: {
+      id: 'ch-banded-vmo-extension',
+      name: 'Banded VMO Extension',
+      sets: 3,
+      reps: '15 each side',
+      cue: 'Band behind the knee, stand with a soft bend and straighten the leg fully against it, squeezing the inner quad just above the knee for a second at the top - the last few degrees are the whole exercise',
+      suggestedLoad: 'Light band',
+      category: 'prehab',
+      targetRegions: ['quads', 'knee'],
+      videoId: '',
+      movementPattern: 'rehabilitation',
+      primaryMuscle: 'Vastus medialis',
+      secondaryMuscles: ['Quadriceps'],
+      equipmentRequired: 'resistance bands',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'VMO Wall Sit',
+        cue: 'Narrow stance against the wall at 90 degrees and hold - the same inner-quad work without a band',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREP',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Leg Swings".
+    template: {
+      id: 'ch-leg-swing',
+      name: 'Leg Swing',
+      sets: 1,
+      reps: '12 each leg',
+      cue: 'Hold something steady and swing one leg forwards and back, letting the range build over the first few - loose and rhythmic, never forced to the end of range',
+      suggestedLoad: 'Bodyweight',
+      category: 'prep',
+      targetRegions: ['hip_groin', 'hamstrings', 'quads'],
+      videoId: '',
+      movementPattern: 'mobility',
+      primaryMuscle: 'Hip flexors',
+      secondaryMuscles: ['Hamstrings', 'Glutes'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Bodyweight Hip Hinge',
+        cue: 'Slow hinges on the spot to warm the same hips and hamstrings without the swing',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREP',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Lateral Leg Swings".
+    template: {
+      id: 'ch-lateral-leg-swing',
+      name: 'Lateral Leg Swing',
+      sets: 1,
+      reps: '12 each leg',
+      cue: 'Facing your support, swing one leg across the body and out to the side - hips stay square and the torso stays still, so the movement happens at the hip and not the waist',
+      suggestedLoad: 'Bodyweight',
+      category: 'prep',
+      targetRegions: ['hip_groin', 'glutes'],
+      videoId: '',
+      movementPattern: 'mobility',
+      primaryMuscle: 'Hip adductors',
+      secondaryMuscles: ['Gluteus medius', 'Hip flexors'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'beginner',
+      isUnilateral: true,
+      swapAlternative: {
+        name: 'Leg Swing',
+        cue: 'Forwards and back instead of across - the same hip, the other direction',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
+  {
+    collection: 'PREHAB',
+    sessionType: 'squat',
+    tier: 'bodyweight',
+    // Demonstrated by the channel video "Seated Butterflies".
+    template: {
+      id: 'ch-seated-butterfly',
+      name: 'Seated Butterfly',
+      sets: 2,
+      reps: '30-45 seconds',
+      cue: 'Sat down, soles of the feet together and heels drawn towards you, let the knees settle outwards under their own weight - press gently with the elbows only if it stays comfortable',
+      suggestedLoad: 'Bodyweight',
+      category: 'prehab',
+      targetRegions: ['hip_groin', 'glutes'],
+      videoId: '',
+      movementPattern: 'mobility',
+      primaryMuscle: 'Hip adductors',
+      secondaryMuscles: ['Gluteus medius'],
+      equipmentRequired: 'bodyweight',
+      difficulty: 'beginner',
+      isUnilateral: false,
+      swapAlternative: {
+        name: '90/90 Hip Switch',
+        cue: 'Sat with both knees bent at right angles, rotate the pair side to side - the same hips, moving rather than held',
+        suggestedLoad: 'Bodyweight',
+      },
+    },
+  },
 ];

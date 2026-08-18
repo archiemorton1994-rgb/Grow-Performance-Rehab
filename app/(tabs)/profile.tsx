@@ -40,6 +40,7 @@ import {
   useAppStore,
 } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
+import { bodyweightIssue } from '@/lib/bodyweight';
 import {
   isNotificationsSupported,
   requestNotificationPermission,
@@ -71,35 +72,6 @@ const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
 
 /** A number the user could plausibly have meant to type. Rejects "1e5", "12abc" and "". */
 const TYPED_NUMBER = /^\d+(\.\d+)?$/;
-
-/**
- * What is wrong with a typed bodyweight, in words and in the user's own unit, or
- * null when nothing is. Shared by both places bodyweight can be edited here.
- *
- * Both used to check `> 0` alone, which accepted 9999 and 0.0001 without comment.
- * Bodyweight scales every load the app prescribes, so an absurd one is not a
- * cosmetic profile error: the session screen refuses to log the weights it then
- * suggests (its own 500 kg ceiling), and nothing on screen connects the two.
- *
- * The quoted range is rounded INWARD when converted, so every number the message
- * names as acceptable really is accepted.
- */
-function bodyweightIssue(text: string, unit: WeightUnit): string | null {
-  const trimmed = text.trim();
-  if (!TYPED_NUMBER.test(trimmed)) {
-    return `Enter your bodyweight as a number, for example ${unit === 'kg' ? '80' : '176'}`;
-  }
-  const kg = displayUnitToKg(parseFloat(trimmed), unit);
-  const min = Math.ceil(kgToDisplayUnit(MIN_BODYWEIGHT_KG, unit));
-  const max = Math.floor(kgToDisplayUnit(MAX_BODYWEIGHT_KG, unit));
-  if (kg < MIN_BODYWEIGHT_KG) {
-    return `That looks too low. Enter a bodyweight between ${min} and ${max} ${unit}.`;
-  }
-  if (kg > MAX_BODYWEIGHT_KG) {
-    return `That looks too high. Your bodyweight sets your starting weights, so it needs to be between ${min} and ${max} ${unit}.`;
-  }
-  return null;
-}
 
 function getLegalUrls() {
   try {

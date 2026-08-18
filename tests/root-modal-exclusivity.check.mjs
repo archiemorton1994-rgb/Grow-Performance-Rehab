@@ -48,27 +48,35 @@ const bad = (label, hint) => {
 };
 const check = (label, cond, hint) => (cond ? ok(label) : bad(label, hint));
 
+// Comments in this file discuss Modals at length, so assertions about their
+// ABSENCE have to read code rather than prose - the same trap that made an
+// earlier version of this check pass on its own explanation.
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 const rootLayout = read('app/_layout.tsx');
 const tabsLayout = read('app/(tabs)/_layout.tsx');
 
-console.log('\n[1] Weekly weight prompt vs achievement toast');
+console.log('\n[1] The weekly weight prompt no longer exists');
 
+// It was a root-level Modal that re-armed whenever completedSessions changed,
+// so the app asked for a bodyweight on opening, again after onboarding, and
+// again after the first session - and when the user had never set one it could
+// not be dismissed at all. Testers reported all three.
+//
+// These assertions used to pin its deferral, which is the weaker guarantee: a
+// modal that is correctly held back is still a modal the next change can show at
+// the wrong moment. Bodyweight is asked ONCE now, in onboarding, and keeping it
+// fresh is handled by the assistant message, the Settings dot and the opt-in
+// reminder - three channels that interrupt nobody.
 check(
-  'WeeklyWeightPrompt accepts a `deferred` prop',
-  /function WeeklyWeightPrompt\(\s*\{[^}]*deferred/.test(rootLayout),
-  'the prompt must be suppressible while another root Modal is showing'
+  'no weight prompt component remains',
+  !/WeeklyWeightPrompt/.test(rootLayout),
+  'reinstating a recurring modal here is the bug testers reported'
 );
 
 check(
-  'its Modal visibility is gated on `deferred`',
-  /visible=\{\s*showPrompt\s*&&\s*!deferred\s*\}/.test(rootLayout),
-  'expected visible={showPrompt && !deferred} on the weight prompt Modal'
-);
-
-check(
-  'it is rendered with deferred bound to the toast state',
-  /<WeeklyWeightPrompt\s+deferred=\{\s*currentToast\s*!==\s*null\s*\|\|/.test(rootLayout),
-  'expected deferred to start with currentToast !== null'
+  'and the root layout presents no Modal of its own at all',
+  !/<Modal/.test(stripComments(rootLayout)),
+  'the crash panel and the weight prompt were the only two - a modal-free root is what makes the collision impossible here'
 );
 
 console.log('\n[2] Tour intro vs achievement toast');
@@ -128,25 +136,17 @@ check(
   'session-summary must not appear in the canShowRootModal expression'
 );
 
-// The gate above was applied to the badge toast alone, which is why this file
-// went green while the weight prompt presented over session-summary anyway.
-// Its trigger is "sessions completed > 0 and no prompt recorded yet", which
-// first becomes true the instant a user finishes their FIRST session — so
-// unlike the badge case it fired on every new account, not just the ones that
-// unlocked something. Every root Modal goes through the same gate now.
+// The gate above was once applied to the badge toast alone, which is why this
+// file went green while the weight prompt presented over session-summary
+// anyway. That prompt has since been deleted outright (see section 1), so the
+// toast is the only root-level presentation left — and it still goes through
+// the gate, because the next one added must too.
 check(
   'the toast drain honours the root-modal gate',
   /if\s*\(!canShowRootModal\)\s*return;/.test(rootLayout),
   'the badge toast queue must not pop while the user is off the tabs'
 );
 
-check(
-  'the weight prompt honours the root-modal gate too',
-  /<WeeklyWeightPrompt\s+deferred=\{\s*currentToast\s*!==\s*null\s*\|\|\s*!canShowRootModal\s*\}/.test(
-    rootLayout
-  ),
-  'expected <WeeklyWeightPrompt deferred={currentToast !== null || !canShowRootModal} /> - deferring only against the toast lets it present over the session-summary fullScreenModal and freeze the app'
-);
 
 console.log('\n[5] The achievement sheet can always be escaped');
 
@@ -166,7 +166,6 @@ console.log('\n[6] The session-summary celebration is a banner, not a second mod
 
 // Comments in these files talk *about* Modals at length, so strip them first —
 // otherwise the assertion is satisfied or broken by prose rather than by code.
-const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 const banner = stripComments(read('components/AchievementBanner.tsx'));
 const summary = read('app/session-summary.tsx');
 

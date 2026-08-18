@@ -8,30 +8,16 @@ import {
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack, router, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import {
-  AppState,
-  AppStateStatus,
-  Modal,
-  View,
-  Text,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LayoutAnimationConfig } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { GrowIcon } from '@/components/GrowIcon';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/lib/store';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { useColors } from '@/constants/colors';
-import { kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import {
   scheduleWorkoutReminder,
   scheduleMissedWorkoutNudge,
@@ -101,228 +87,21 @@ if (Platform.OS !== 'web') {
   });
 }
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
 /**
- * `deferred` holds this modal back while another root-level Modal is on screen.
+ * THE WEEKLY WEIGHT PROMPT IS GONE.
  *
- * Two native Modals presented at once break touch routing on BOTH of them and
- * the whole app reads as frozen — see the same note in (tabs)/_layout.tsx,
- * which already guards the tour intro against the achievement toast. This
- * prompt was the unguarded third: its effect keys off completedSessions.length,
- * so it re-arms on every session completion, which is exactly when a badge
- * toast is most likely to be up.
+ * It was a root-level Modal that re-armed whenever completedSessions changed,
+ * so the app asked for a bodyweight on opening, again after onboarding, and
+ * again after the first session. Testers reported all three, and when the user
+ * had never set a weight it could not be dismissed at all.
+ *
+ * Bodyweight is asked ONCE now, during onboarding, where answering is optional.
+ * Keeping it fresh is handled without interrupting anyone: the assistant on
+ * Home already carries a "Your logged weight is getting old" message with an
+ * Update action, Profile shows a dot on Settings when it goes stale, and there
+ * is an opt-in reminder notification. A recurring modal on top of three
+ * existing channels was not a fourth reminder, it was a nag.
  */
-function WeeklyWeightPrompt({ deferred = false }: { deferred?: boolean }) {
-  const C = useColors();
-  const {
-    hasHydrated,
-    lastWeightPromptedAt,
-    setLastWeightPromptedAt,
-    userProfile,
-    setUserProfile,
-    weightUnit,
-    completedSessions,
-    onboardingComplete,
-    tourComplete,
-  } = useAppStore();
-  const { isAuthenticated } = useAuth();
-
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [weightText, setWeightText] = useState('');
-
-  // Also wait for the guided tour to be done/skipped - it and the achievement
-  // toast are separate root/tab-level Modals; this one shouldn't compete with
-  // them for the screen right after a fresh onboarding completes.
-  const isReadyToPrompt = hasHydrated && isAuthenticated && onboardingComplete && tourComplete;
-  const neverSetWeight = userProfile.bodyweightKg === 0;
-
-  useEffect(() => {
-    if (!isReadyToPrompt) return;
-    const hasCompletedSessions = completedSessions.length > 0;
-    const shouldPrompt =
-      (hasCompletedSessions || neverSetWeight) &&
-      (!lastWeightPromptedAt || Date.now() - lastWeightPromptedAt > SEVEN_DAYS_MS);
-    if (shouldPrompt && !showPrompt) {
-      const display =
-        userProfile.bodyweightKg > 0
-          ? String(kgToDisplayUnit(userProfile.bodyweightKg, weightUnit))
-          : '';
-      setWeightText(display);
-      setShowPrompt(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReadyToPrompt, lastWeightPromptedAt, completedSessions.length, neverSetWeight]);
-
-  const trimmed = weightText.trim();
-  const parsedWeight = /^\d+(\.\d+)?$/.test(trimmed) ? parseFloat(trimmed) : NaN;
-  const isValidInput = !isNaN(parsedWeight) && parsedWeight > 0;
-  const hasText = trimmed.length > 0;
-  const inputInvalid = hasText && !isValidInput;
-  // When no weight has ever been set, require a valid value - cannot skip or confirm empty
-  const canConfirm = neverSetWeight ? isValidInput : !inputInvalid;
-
-  const dismiss = () => {
-    if (neverSetWeight) return; // no dismissal without a weight when never set
-    setLastWeightPromptedAt(Date.now());
-    setShowPrompt(false);
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const confirm = () => {
-    if (!canConfirm) return;
-    if (isValidInput) {
-      setUserProfile({ bodyweightKg: displayUnitToKg(parsedWeight, weightUnit) });
-    }
-    setLastWeightPromptedAt(Date.now());
-    setShowPrompt(false);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const styles = useMemo(() => makePromptStyles(C), [C]);
-
-  return (
-    <Modal
-      // Gated on `deferred` rather than on showPrompt alone, so the prompt
-      // stays armed and simply presents once the other modal has gone.
-      visible={showPrompt && !deferred}
-      transparent
-      animationType="fade"
-      onRequestClose={neverSetWeight ? undefined : dismiss}
-    >
-      <Pressable style={styles.overlay} onPress={neverSetWeight ? undefined : dismiss}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.iconWrap}>
-            <GrowIcon name="scale" size={28} color={C.primaryText} />
-          </View>
-          <Text style={styles.title}>Update Your Weight</Text>
-          <Text style={styles.sub}>
-            {userProfile.bodyweightKg > 0
-              ? `Your last recorded weight is ${kgToDisplayUnit(userProfile.bodyweightKg, weightUnit)} ${weightUnit}. Still accurate?`
-              : 'Enter your body weight to help calibrate your sessions.'}
-          </Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.input, inputInvalid && styles.inputError]}
-              value={weightText}
-              onChangeText={setWeightText}
-              placeholder={weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 176'}
-              placeholderTextColor={C.textTertiary}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-              onSubmitEditing={confirm}
-              autoFocus
-              testID="weight-prompt-input"
-            />
-            <Text style={styles.unit}>{weightUnit}</Text>
-          </View>
-          {inputInvalid && <Text style={styles.errorText}>Please enter a positive number</Text>}
-          <Pressable
-            onPress={confirm}
-            style={[styles.confirmBtn, !canConfirm && styles.confirmBtnDisabled]}
-            disabled={!canConfirm}
-            testID="weight-prompt-confirm"
-          >
-            <Text style={styles.confirmText}>
-              {isValidInput ? 'Save & Continue' : neverSetWeight ? 'Enter your weight' : 'Skip'}
-            </Text>
-          </Pressable>
-          {userProfile.bodyweightKg > 0 && (
-            <Pressable onPress={dismiss} style={styles.dismissBtn}>
-              <Text style={styles.dismissText}>Skip for this week</Text>
-            </Pressable>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-function makePromptStyles(C: ReturnType<typeof useColors>) {
-  return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 24,
-    },
-    card: {
-      width: '100%',
-      backgroundColor: C.surface,
-      borderRadius: 20,
-      padding: 24,
-      alignItems: 'center',
-    },
-    iconWrap: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
-      backgroundColor: C.primarySurface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-    },
-    title: {
-      fontSize: 20,
-      fontFamily: 'Inter_700Bold',
-      color: C.text,
-      marginBottom: 8,
-      textAlign: 'center',
-    },
-    sub: {
-      fontSize: 14,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginBottom: 20,
-    },
-    inputRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      alignSelf: 'stretch',
-      marginBottom: 6,
-    },
-    input: {
-      flex: 1,
-      height: 48,
-      backgroundColor: C.surfaceTertiary,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: C.primary,
-      paddingHorizontal: 14,
-      fontSize: 18,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.text,
-      textAlign: 'center',
-    },
-    inputError: { borderColor: C.error },
-    errorText: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.error,
-      alignSelf: 'flex-start',
-      marginBottom: 14,
-      marginTop: 2,
-    },
-    unit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
-    confirmBtn: {
-      width: '100%',
-      backgroundColor: C.primary,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginBottom: 10,
-      marginTop: 14,
-    },
-    confirmBtnDisabled: { backgroundColor: C.border, opacity: 0.7 },
-    confirmText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
-    dismissBtn: { paddingVertical: 10 },
-    dismissText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
-  });
-}
 
 // Screens that manage their own navigation after a user action (e.g. completing
 // a session). The gate must never redirect away from these screens — doing so
@@ -638,9 +417,6 @@ function RootLayoutNav() {
             path. */}
         <Stack.Screen name="custom-session" options={{ headerShown: false }} />
       </Stack>
-      {/* Only one root-level Modal may be presented at a time, and only over
-          the tabs — see canShowRootModal above. */}
-      <WeeklyWeightPrompt deferred={currentToast !== null || !canShowRootModal} />
       {currentToast &&
         (isSummaryToast(currentToast) ? (
           <AchievementUnlockedSheet

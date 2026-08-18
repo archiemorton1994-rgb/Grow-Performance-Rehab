@@ -46,6 +46,8 @@ import {
 } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { requestNotificationPermission, scheduleBodyweightReminder } from '@/lib/notifications';
+import { ASSUMED_BODYWEIGHT_KG, TYPED_NUMBER, bodyweightIssue } from '@/lib/bodyweight';
+import { displayUnitToKg, kgToDisplayUnit } from '@/lib/utils';
 
 const EXPERIENCE_OPTIONS: {
   value: ExperienceLevel;
@@ -178,42 +180,23 @@ const WELCOME_PILLARS = [
  */
 const WELCOME_INDEX = 0;
 const THEME_INDEX = 1;
-const NAME_INDEX = 2;
-const SEX_INDEX = 3;
-const EXPERIENCE_INDEX = 4;
-const BODYWEIGHT_INDEX = 5;
-const GOALS_INDEX = 6;
-const EQUIPMENT_INDEX = 7;
-const LIFTS_INDEX = 8;
-const TEST_WEEK_INDEX = 9;
-const CELEBRATION_INDEX = 10;
-
-/** A number the user could plausibly have meant to type. Rejects "1e5", "12abc" and "". */
-const TYPED_NUMBER = /^\d+(\.\d+)?$/;
-
 /**
- * What is wrong with the typed bodyweight, in words, or null when nothing is.
- *
- * The old gate was `parseFloat(bodyweight) > 0`, which accepted 9999, 0.0001 and
- * "1e5" (parseFloat reads that as 100000). Bodyweight scales every starting load
- * the app prescribes, so those are not merely odd profile entries — they produce
- * sessions the app then refuses to let you log.
- *
- * It returns the message rather than a boolean because refusing without saying
- * why is the actual complaint: the button greys out and nothing explains it.
+ * Units sits beside theme, and before anything personal is asked, for the same
+ * reason theme does: it is a no-wrong-answer question, and it changes how every
+ * screen AFTER it reads. It has to come before bodyweight in particular — that
+ * step used to assume kilograms whatever the user thought they were typing.
  */
-export function bodyweightIssue(text: string): string | null {
-  const trimmed = text.trim();
-  if (!TYPED_NUMBER.test(trimmed)) return 'Enter your bodyweight as a number, for example 75';
-  const kg = parseFloat(trimmed);
-  if (kg < MIN_BODYWEIGHT_KG) {
-    return `That looks too low. Enter a bodyweight between ${MIN_BODYWEIGHT_KG} and ${MAX_BODYWEIGHT_KG} kg.`;
-  }
-  if (kg > MAX_BODYWEIGHT_KG) {
-    return `That looks too high. Your bodyweight sets your starting weights, so it needs to be between ${MIN_BODYWEIGHT_KG} and ${MAX_BODYWEIGHT_KG} kg.`;
-  }
-  return null;
-}
+const UNITS_INDEX = 2;
+const NAME_INDEX = 3;
+const SEX_INDEX = 4;
+const EXPERIENCE_INDEX = 5;
+const BODYWEIGHT_INDEX = 6;
+const GOALS_INDEX = 7;
+const EQUIPMENT_INDEX = 8;
+const LIFTS_INDEX = 9;
+const TEST_WEEK_INDEX = 10;
+const CELEBRATION_INDEX = 11;
+
 
 /**
  * The same for a best-lift entry, where blank is a legitimate answer — the step
@@ -284,6 +267,8 @@ function OnboardingFlow() {
     completedSessions,
     themePreference,
     setThemePreference,
+    weightUnit,
+    setWeightUnit,
     setTestWeekFrequency,
     saveOnboardingDraft,
   } = useAppStore();
@@ -458,7 +443,7 @@ function OnboardingFlow() {
     return () => clearTimeout(t);
   }, [currentIndex, SCREEN_WIDTH]);
 
-  const bodyweightError = bodyweight.trim() === '' ? null : bodyweightIssue(bodyweight);
+  const bodyweightError = bodyweight.trim() === '' ? null : bodyweightIssue(bodyweight, weightUnit);
   const liftIssues = useMemo(
     () => [oneRepMaxIssue(ormSquat), oneRepMaxIssue(ormBench), oneRepMaxIssue(ormDeadlift)],
     [ormSquat, ormBench, ormDeadlift]
@@ -467,6 +452,10 @@ function OnboardingFlow() {
   const canContinue = useCallback((): boolean => {
     switch (currentIndex) {
       case WELCOME_INDEX:
+        return true;
+      case UNITS_INDEX:
+        // Always answerable: a unit is already set (kg by default), so there is
+        // nothing to validate and nothing that can block the button.
         return true;
       case THEME_INDEX:
         return true;
@@ -477,7 +466,10 @@ function OnboardingFlow() {
       case EXPERIENCE_INDEX:
         return experience !== null;
       case BODYWEIGHT_INDEX:
-        return bodyweightIssue(bodyweight) === null;
+        // Blank moves on. The step is optional and says so, so gating Continue
+        // on a number made it optional in words only - which is how a question
+        // nobody has to answer becomes a wall.
+        return bodyweight.trim() === '' || bodyweightIssue(bodyweight, weightUnit) === null;
       case GOALS_INDEX:
         return goals.length > 0;
       case EQUIPMENT_INDEX:
@@ -499,7 +491,18 @@ function OnboardingFlow() {
       sex: sex ?? 'other',
       experienceLevel: experience ?? 'beginner',
       goals: goals.length > 0 ? goals : ['fitness'],
-      bodyweightKg: parseFloat(bodyweight) || 75,
+      // Converted from whatever unit the user picked. This used to be
+      // parseFloat(bodyweight) straight into a kg field, so a US user typing
+      // 176 lb was recorded as 176 KILOS and every starting weight in the app
+      // was scaled from it.
+      //
+      // Blank is a legitimate answer - the step says so - and then the app has
+      // to assume something, because the load maths needs a number. It assumes
+      // ASSUMED_BODYWEIGHT_KG and the step says that figure out loud, which is
+      // the difference between an assumption and a guess nobody agreed to.
+      bodyweightKg: TYPED_NUMBER.test(bodyweight.trim())
+        ? displayUnitToKg(parseFloat(bodyweight.trim()), weightUnit)
+        : ASSUMED_BODYWEIGHT_KG,
     });
     setEquipmentTiers(equipment);
     setTestWeekFrequency(testFrequency);
@@ -769,7 +772,86 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 2: Name */}
+          {/* Screen 2: Units. Beside theme and before anything personal, because
+              it is the other no-wrong-answer question and it changes how every
+              screen after it READS. It has to come before bodyweight in
+              particular: that step used to assume kilograms whatever the user
+              thought they were typing, so someone entering 176 pounds was told
+              their bodyweight was implausibly high. */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <View style={styles.screenContent}>
+              <View style={styles.iconCircle}>
+                <GrowIcon name="scale" size={56} color={C.primaryText} />
+              </View>
+              <Text style={styles.question}>Kilos or pounds?</Text>
+              <Text style={styles.hint}>
+                Every weight in the app uses this, and you can change it anytime in settings
+              </Text>
+              <View style={[styles.optionList, { marginTop: 4 }]}>
+                {(
+                  [
+                    {
+                      value: 'kg',
+                      label: 'Kilograms',
+                      icon: 'dumbbell' as const,
+                      desc: 'kg - the default in the UK, Europe and most gyms',
+                    },
+                    {
+                      value: 'lbs',
+                      label: 'Pounds',
+                      icon: 'dumbbell' as const,
+                      desc: 'lbs - the default in the US',
+                    },
+                  ] as const
+                ).map(({ value, label, icon, desc }) => {
+                  const selected = weightUnit === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => {
+                        haptic();
+                        setWeightUnit(value);
+                      }}
+                      style={({ pressed }) => [
+                        styles.optionCard,
+                        selected && styles.optionCardSelected,
+                        pressed && styles.optionCardPressed,
+                      ]}
+                      testID={`units-${value}`}
+                    >
+                      <View
+                        style={[
+                          styles.optionIcon,
+                          {
+                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
+                          },
+                        ]}
+                      >
+                        <GrowIcon
+                          name={icon}
+                          size={28}
+                          color={selected ? C.primaryText : C.textSecondary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
+                          {desc}
+                        </Text>
+                      </View>
+                      <View style={[styles.radio, selected && styles.radioSelected]}>
+                        {selected && <View style={styles.radioDot} />}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* Screen 3: Name */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -795,7 +877,7 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 3: Biological Sex */}
+          {/* Screen 4: Biological Sex */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -846,7 +928,7 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 4: Experience */}
+          {/* Screen 5: Experience */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -896,7 +978,11 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 5: Bodyweight */}
+          {/* Screen 6: Bodyweight. OPTIONAL, and it says so.
+              The app used to ask for this three times: here, on opening, and
+              again after the first session, via a root pop-up that could not be
+              dismissed until a number was typed. Testers reported all three. It
+              is asked once, here, and skipping is a real answer. */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -908,14 +994,18 @@ function OnboardingFlow() {
                 <GrowIcon name="scale" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
-              <Text style={styles.hint}>Used to personalise your lifting loads</Text>
+              <Text style={styles.hint}>
+                Used to scale your starting loads. Leave it blank if you would rather not say - the
+                app assumes {kgToDisplayUnit(ASSUMED_BODYWEIGHT_KG, weightUnit)} {weightUnit}, and
+                you can set it later in Profile.
+              </Text>
               <View style={[styles.inputWrap, styles.numericInputWrap]}>
                 <TextInput
                   ref={bwInputRef}
                   style={[styles.textInput, styles.numericInput]}
                   value={bodyweight}
                   onChangeText={setBodyweight}
-                  placeholder="75"
+                  placeholder={String(kgToDisplayUnit(ASSUMED_BODYWEIGHT_KG, weightUnit))}
                   placeholderTextColor={C.textTertiary}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
@@ -923,7 +1013,7 @@ function OnboardingFlow() {
                   selectTextOnFocus
                   testID="bodyweight-input"
                 />
-                <Text style={styles.unitLabel}>kg</Text>
+                <Text style={styles.unitLabel}>{weightUnit}</Text>
               </View>
               {bodyweightError !== null && (
                 <Text
@@ -943,7 +1033,7 @@ function OnboardingFlow() {
             </ScrollView>
           </View>
 
-          {/* Screen 6: Goals */}
+          {/* Screen 7: Goals */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
@@ -976,7 +1066,7 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 7: Equipment.
+          {/* Screen 8: Equipment.
               Compact by design, and now scrollable as a backstop. On a 4.7-inch
               phone the fifth tile (Full Gym) was sliced through and the closing
               line about changing it later was entirely off screen — on the step
@@ -1082,7 +1172,7 @@ function OnboardingFlow() {
             </ScrollView>
           </View>
 
-          {/* Screen 8: Key Lifts (optional) */}
+          {/* Screen 9: Key Lifts (optional) */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <ScrollView
               style={{ flex: 1 }}
@@ -1132,7 +1222,7 @@ function OnboardingFlow() {
             </ScrollView>
           </View>
 
-          {/* Screen 9: Strength test weeks.
+          {/* Screen 10: Strength test weeks.
               Its own screen, not a block appended to the best-lifts step. Put
               there, it fell below the fold behind three inputs and a skip link
               — the question was invisible unless you scrolled, which for a
@@ -1201,7 +1291,7 @@ function OnboardingFlow() {
             </View>
           </View>
 
-          {/* Screen 10: Profile Built! */}
+          {/* Screen 11: Profile Built! */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>

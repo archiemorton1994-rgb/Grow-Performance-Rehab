@@ -224,6 +224,41 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   // video "Tib Raises"
   'Tib Raise': 'https://www.youtube.com/shorts/di7H803LkK0',
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // THIRD BATCH — 10 more uploads.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  // Already in the app:
+  // video "Wall Sit"
+  'Wall Sit': 'https://www.youtube.com/shorts/jiU3ETsPeKU',
+  // video "Spanish Squats"
+  'Spanish Squat': 'https://www.youtube.com/shorts/a7NjWDSBxHI',
+  // video "Bodyweight Squats"
+  'Bodyweight Squat': 'https://www.youtube.com/shorts/PYhFE-z9RFY',
+  // video "Hip Hinges" - the app's unloaded hinge
+  'Bodyweight Hip Hinge': 'https://www.youtube.com/shorts/GzW9LKufDVM',
+  // video "Bent Knee Ankle Dorsiflexion" - the app's entry is the same
+  // knee-over-toe wall drill, which is the bent-knee version by definition
+  'Ankle Dorsiflexion Drill': 'https://www.youtube.com/shorts/xVFiyGocri0',
+
+  // Added to the app for these videos (lib/channel-exercises.ts):
+  // video "Banded VMO Extensions"
+  'Banded VMO Extension': 'https://www.youtube.com/shorts/IOTqFAgZuKc',
+  // video "Leg Swings"
+  'Leg Swing': 'https://www.youtube.com/shorts/wx2ZP3GTHTA',
+  // video "Lateral Leg Swings"
+  'Lateral Leg Swing': 'https://www.youtube.com/shorts/LoMfSTdFTgg',
+  // video "Seated Butterflies"
+  'Seated Butterfly': 'https://www.youtube.com/shorts/mRNLmtW2bQ8',
+
+  // NEEDS A DECISION: "Single Leg Romanian Deadlift" (tZQ94VAPp1w).
+  // The app carries this movement twice, as Single-Leg Hip Hinge (Bodyweight)
+  // and Single-Leg Hip Hinge (DB). They are the same pattern under a different
+  // name, and which one the video shows depends on whether it is loaded — a
+  // question the title does not answer. Attaching it to the wrong one would put
+  // a dumbbell demo on a bodyweight card, so it waits for someone who has seen
+  // the video to say which.
+
   // DELIBERATELY UNUSED: "Single Arm Cable Rows" (U5EdqKJDX6s).
   // The app's Seated Single-Arm Cable Row is already mapped to "Seated Single
   // Arm Rows" (OmgSriop7qM), which matches its name and its seated position.

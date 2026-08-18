@@ -2,8 +2,48 @@
   "$comment": "Snapshot of every video on @GrowPerformanceRehabilitation. Used by `npm run video-status` to report which uploads are not yet attached to an exercise. Refresh it whenever new videos go up - see CHANNEL-REFRESH.md.",
   "channel": "@GrowPerformanceRehabilitation",
   "channelId": "UCp7CeSgTe519dmGuCxgMFJg",
-  "capturedOn": "2026-08-17",
+  "capturedOn": "2026-08-18",
   "videos": [
+    {
+      "id": "tZQ94VAPp1w",
+      "title": "Single Leg Romanian Deadlift"
+    },
+    {
+      "id": "PYhFE-z9RFY",
+      "title": "Bodyweight Squats"
+    },
+    {
+      "id": "xVFiyGocri0",
+      "title": "Bent Knee Ankle Dorsiflexion"
+    },
+    {
+      "id": "GzW9LKufDVM",
+      "title": "Hip Hinges"
+    },
+    {
+      "id": "mRNLmtW2bQ8",
+      "title": "Seated Butterflies"
+    },
+    {
+      "id": "LoMfSTdFTgg",
+      "title": "Lateral Leg Swings"
+    },
+    {
+      "id": "wx2ZP3GTHTA",
+      "title": "Leg Swings"
+    },
+    {
+      "id": "IOTqFAgZuKc",
+      "title": "Banded VMO Extensions"
+    },
+    {
+      "id": "a7NjWDSBxHI",
+      "title": "Spanish Squats"
+    },
+    {
+      "id": "jiU3ETsPeKU",
+      "title": "Wall Sit"
+    },
     {
       "id": "SU3KkNX7cCg",
       "title": "Single Arm Cable Tricep Extensions"

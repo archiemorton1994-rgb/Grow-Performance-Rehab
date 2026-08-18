@@ -46,6 +46,8 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(__dir, '..', p), 'utf8');
 const storeSrc = read('lib/store.ts');
 const onboardingSrc = read('app/onboarding.tsx');
+const bodyweightSrc = read('lib/bodyweight.ts');
+const utilsSrc = read('lib/utils.ts');
 const profileSrc = read('app/(tabs)/profile.tsx');
 const layoutSrc = read('app/_layout.tsx');
 
@@ -127,10 +129,26 @@ console.log('\n[2] Onboarding says what is wrong with a number it will not take'
 
 // The screens' own "is this a number a human typed" rule, lifted with them —
 // rejecting "1e5" is half of what is being tested here.
-const onboardingNumber = extractLine(onboardingSrc, 'const TYPED_NUMBER =', 'onboarding TYPED_NUMBER');
-const bodyweightIssue = new Function(
-  `${toJs(boundsSrc)}\n${onboardingNumber}\n${toJs(extractBlock(onboardingSrc, 'function bodyweightIssue(', 'onboarding bodyweightIssue'))}\nreturn bodyweightIssue;`
+// bodyweightIssue moved to lib/bodyweight.ts, shared by onboarding and Profile.
+// There used to be two copies and they had drifted: Profile's understood kg and
+// lbs, onboarding's assumed kg - so "176" typed by a US user during onboarding
+// was read as 176 KILOS and refused as implausible, while the same number in
+// Profile was accepted as 80 kg. It takes a unit now, so this does too.
+const onboardingNumber = extractLine(bodyweightSrc, 'export const TYPED_NUMBER =', 'TYPED_NUMBER').replace('export ', '');
+const LB_PER_KG_LINE = extractLine(utilsSrc, 'const LB_PER_KG =', 'LB_PER_KG');
+const conversions = ['kgToDisplayUnit', 'displayUnitToKg']
+  .map((name) => toJs(extractBlock(utilsSrc, `export function ${name}(`, name).replace('export ', '')))
+  .join('\n');
+const bodyweightIssueRaw = new Function(
+  `${toJs(boundsSrc)}
+${LB_PER_KG_LINE}
+${conversions}
+${onboardingNumber}
+${toJs(extractBlock(bodyweightSrc, 'export function bodyweightIssue(', 'bodyweightIssue').replace('export ', ''))}
+return bodyweightIssue;`
 )();
+/** The onboarding case: kilograms, the default and what these inputs mean. */
+const bodyweightIssue = (text) => bodyweightIssueRaw(text, 'kg');
 const oneRepMaxIssue = new Function(
   `${toJs(boundsSrc)}\n${onboardingNumber}\n${toJs(extractBlock(storeSrc, 'function isPlausibleOneRepMaxKg(', 'isPlausibleOneRepMaxKg'))}\n${toJs(extractBlock(onboardingSrc, 'function oneRepMaxIssue(', 'onboarding oneRepMaxIssue'))}\nreturn oneRepMaxIssue;`
 )();
@@ -181,8 +199,10 @@ check(
 // the value reaching the store.
 check(
   'the bodyweight step will not advance while there is something wrong',
-  /case BODYWEIGHT_INDEX:\s*\n\s*return bodyweightIssue\(bodyweight\) === null;/.test(onboardingSrc),
-  'canContinue must consult the validator, not re-implement > 0'
+  /case BODYWEIGHT_INDEX:[sS]{0,340}?return bodyweight.trim() === '' || bodyweightIssue(bodyweight, weightUnit) === null;/.test(
+    onboardingSrc
+  ),
+  'canContinue must consult the validator - and let blank through, because the step is optional'
 );
 check(
   'the best-lifts step will not advance while there is something wrong',
@@ -206,7 +226,7 @@ const CONVERSION = `
   function displayUnitToKg(v, unit) { return unit === 'lbs' ? parseFloat((v / 2.20462).toFixed(2)) : v; }
 `;
 const profileIssue = new Function(
-  `${toJs(boundsSrc)}\n${CONVERSION}\n${extractLine(profileSrc, 'const TYPED_NUMBER =', 'profile TYPED_NUMBER')}\n${toJs(extractBlock(profileSrc, 'function bodyweightIssue(', 'profile bodyweightIssue'))}\nreturn bodyweightIssue;`
+  `${toJs(boundsSrc)}\n${CONVERSION}\n${extractLine(bodyweightSrc, 'export const TYPED_NUMBER =', 'TYPED_NUMBER').replace('export ', '')}\n${toJs(extractBlock(bodyweightSrc, 'export function bodyweightIssue(', 'bodyweightIssue').replace('export ', ''))}\nreturn bodyweightIssue;`
 )();
 
 for (const input of ['9999', '0.0001', '1e5', '0', 'abc']) {

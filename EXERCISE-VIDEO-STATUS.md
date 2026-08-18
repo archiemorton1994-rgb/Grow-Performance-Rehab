@@ -4,16 +4,17 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**94 of 685 recorded (13.7%). 441 still to go.**
+**103 of 689 recorded (14.9%). 436 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
 
 ## Uploads not yet used by the app
 
-The channel had **93 videos** as at 2026-08-17. 91 of them are attached to an exercise; the 2 below are not.
+The channel had **103 videos** as at 2026-08-18. 100 of them are attached to an exercise; the 3 below are not.
 
 Each one is either a movement the app does not have — in which case the exercise needs adding — or one where two videos could each claim the same exercise and the choice has not been made.
 
+- Single Leg Romanian Deadlift  — https://www.youtube.com/shorts/tZQ94VAPp1w
 - Single Arm Cable Rows  — https://www.youtube.com/shorts/U5EdqKJDX6s
 - Kettlebell Swings  — https://www.youtube.com/shorts/7bIzl01moZc
 
@@ -23,6 +24,7 @@ Each one is either a movement the app does not have — in which case the exerci
 - Alternating Dumbbell Bench Press
 - Alternating Dumbbell Curl
 - Alternating Dumbbell Overhead Press
+- Ankle Dorsiflexion Drill
 - Back Squat
 - Band Face Pull
 - Band Pull-Apart
@@ -32,11 +34,14 @@ Each one is either a movement the app does not have — in which case the exerci
 - Banded March
 - Banded Monster Walk
 - Banded Pallof Press
+- Banded VMO Extension
 - Barbell Bulgarian Split Squat
 - Barbell Good Morning
 - Bench Dumbbell Reverse Fly
 - Bent-Knee Calf Raise
 - Bent-Knee Single-Leg Calf Raise
+- Bodyweight Hip Hinge
+- Bodyweight Squat
 - Box Jump (Step-Down)
 - Box Squat
 - Bulgarian Split Squat
@@ -78,7 +83,9 @@ Each one is either a movement the app does not have — in which case the exerci
 - Landmine Split Squat
 - Landmine Split-Stance Romanian Deadlift
 - Lat Pulldown
+- Lateral Leg Swing
 - Lateral Lunge
+- Leg Swing
 - Loaded Jump Squat
 - Med Ball Floor Chest Pass
 - Med Ball Overhead Slam
@@ -88,6 +95,7 @@ Each one is either a movement the app does not have — in which case the exerci
 - Pull-Up
 - Push-Up
 - Seated Box Jump
+- Seated Butterfly
 - Seated Cable Row
 - Seated Calf Raise
 - Seated DB Lateral Raise
@@ -102,6 +110,7 @@ Each one is either a movement the app does not have — in which case the exerci
 - Skater Jump
 - Sled Push/Pull Complex
 - Sled Row
+- Spanish Squat
 - Split Squat Jump
 - Squat Jump
 - Standing Dumbbell Row
@@ -112,29 +121,28 @@ Each one is either a movement the app does not have — in which case the exerci
 - Trap Bar Romanian Deadlift
 - Trap Bar Row
 - Walking Lunges
+- Wall Sit
 - Weighted Seated Calf Raise
 
 ## Still to record
 
-**441 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+**436 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
 
 A further 150 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
 
-### Main lifts — the squat, bench and deadlift variations a session is built around (11)
+### Main lifts — the squat, bench and deadlift variations a session is built around (9)
 
 - Barbell Bench Press
 - Barbell Deadlift
 - Barbell Row
 - Bodyweight Good Morning
-- Bodyweight Hip Hinge
-- Bodyweight Squat
 - Lying Leg Curl
 - Pallof Press
 - Romanian Deadlift
 - Single-Leg Hinge
 - Towel Row (Door Handle)
 
-### Accessories — the supporting work in every strength session (150)
+### Accessories — the supporting work in every strength session (148)
 
 - 45 Degree Hyperextension
 - Ab Wheel Rollout
@@ -261,7 +269,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Sled Backward Drag
 - Sled Drag
 - Sled Push (Steady)
-- Spanish Squat
 - Sprint Interval (30s)
 - Squat to Stand
 - Stability Ball Hamstring Curl
@@ -280,7 +287,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Treadmill Hill Sprints
 - Tricep Dips (Bench)
 - Wall Ball (Light)
-- Wall Sit
 - Weighted Dips
 - Weighted Plank
 - Weighted Push-Up
@@ -410,10 +416,9 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Wrist Extensor Stretch
 - Wrist Flexor Stretch
 
-### Warm-ups (23)
+### Warm-ups (22)
 
 - Adductor Rockback
-- Ankle Dorsiflexion Drill
 - Assault Bike Warm-Up
 - Band Pull-Apart (Warm-Up)
 - Banded Hip Circle
