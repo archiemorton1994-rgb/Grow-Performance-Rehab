@@ -874,7 +874,7 @@ const MAX_UNEARNED_JUMP = 0.05;
  * training; a deadlift is unaffected, because one grid step there is under 2%
  * and never reaches this gate at all.
  */
-const CLEAN_SESSIONS_PER_BIG_JUMP = 3;
+export const CLEAN_SESSIONS_PER_BIG_JUMP = 3;
 
 /**
  * The most a single session may add when separating one feedback tier from
@@ -1670,7 +1670,16 @@ export function generateWorkout(
    * after it at every one of those call sites. An awkward position is a much
    * smaller problem than a test suite quietly passing the wrong data.
    */
-  exerciseStuckStreak?: Record<string, number>
+  exerciseStuckStreak?: Record<string, number>,
+  /**
+   * Where each exercise currently sits in its rep range, earned over previous
+   * sessions. Appended LAST for the same reason exerciseStuckStreak was.
+   *
+   * Absent, or absent for a given exercise, means "use what the catalogue says"
+   * - which is every account before its first session, all timed and AMRAP
+   * work, and all rehab dosing, forever.
+   */
+  exerciseRepTarget?: Record<string, string>
 ): Exercise[] {
   const layoff = getLayoff(daysSinceLastSession);
   // Screen first, then fill the swap slots — so the alternatives on offer are
@@ -1699,12 +1708,24 @@ export function generateWorkout(
     strengthSessionCount,
     sessionType
   );
-  return fillSwapAlternatives(
+  const withSwaps = fillSwapAlternatives(
     screened,
     readiness,
     equipmentTier,
     profile,
     strengthSessionCount + getLocalDayIndex()
+  );
+
+  /**
+   * Apply the rep target the user has EARNED, over the catalogue's default.
+   *
+   * Last, and on the final list, so it lands on the exercises actually being
+   * shown: a swapped-in substitute keeps its own prescription rather than
+   * inheriting the rep count of the movement it replaced.
+   */
+  if (!exerciseRepTarget) return withSwaps;
+  return withSwaps.map((ex) =>
+    ex.id && exerciseRepTarget[ex.id] ? { ...ex, reps: exerciseRepTarget[ex.id] } : ex
   );
 }
 

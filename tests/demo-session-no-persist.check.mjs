@@ -148,7 +148,7 @@ if (sessionHandleCompleteLine === -1) {
   for (const { pattern, name } of persistenceCalls) {
     // Find the call within handleComplete's scope (search after handleCompleteLine, up to ~120 lines)
     const callLine = lineOf(pattern, sessionHandleCompleteLine);
-    const handleCompleteEnd = sessionHandleCompleteLine + 120; // handleComplete is ~100 lines
+    const handleCompleteEnd = sessionHandleCompleteLine + 160; // ~140 lines since double progression records the prescribed target
     if (callLine === -1 || callLine > handleCompleteEnd) {
       // Call not present in handleComplete — skip (may not apply to this session type)
       continue;
@@ -375,18 +375,20 @@ if (completeSessionLine === -1) {
     'completeSession not called — store may not receive session data'
   );
 } else {
-  // It should be inside sessionHandleCompleteLine..sessionHandleCompleteLine+120
+  // It should be inside sessionHandleCompleteLine..+160. The window is a
+  // proximity heuristic for "called from handleComplete", not a line budget -
+  // it was 120 until double progression added the target-reps recording.
   if (
     sessionHandleCompleteLine !== -1 &&
     completeSessionLine >= sessionHandleCompleteLine &&
-    completeSessionLine <= sessionHandleCompleteLine + 120
+    completeSessionLine <= sessionHandleCompleteLine + 160
   ) {
     ok(`completeSession({ at line ${completeSessionLine} is inside session-level handleComplete`);
   } else if (sessionHandleCompleteLine !== -1) {
     fail(
       'completeSession({ is inside session-level handleComplete',
       `completeSession({ is at line ${completeSessionLine}, but session-level handleComplete ` +
-        `spans lines ${sessionHandleCompleteLine}–${sessionHandleCompleteLine + 120}. ` +
+        `spans lines ${sessionHandleCompleteLine}–${sessionHandleCompleteLine + 160}. ` +
         'If this call is outside the guarded handleComplete it will run in demo mode.'
     );
   }

@@ -78,26 +78,71 @@ failure are pinned by tests.
 
 ---
 
-## What is done, and what is not
+## Wired into sessions
 
-**Done and tested** (`lib/rep-scheme.ts`, `tests/rep-scheme.check.mjs`, 39 checks):
+It is live. On finishing a session the app works out where each exercise's reps
+go next, saves it, and the next session's card shows the earned target.
 
-- the goal x tier table above, as editable data
+Measured on a 40 kg accessory whose template says 12 reps, with honest answers:
+
+| Session | Card says | Next |
+|---|---|---|
+| 1 | 40 kg x 12 | 42.5 kg x 8-12 |
+| 2 | 42.5 kg x 8-12 | 42.5 kg x 9-12 |
+| 3 | 42.5 kg x 9-12 | 42.5 kg x 10-12 |
+| 4 | 42.5 kg x 10-12 | 42.5 kg x 11-12 |
+| 5 | 42.5 kg x 11-12 | 42.5 kg x 12 |
+| 6 | 42.5 kg x 12 | 45 kg x 8-12 |
+
+**Something moves every session.** Before this, the same exercise showed no
+change at all for three sessions and then jumped.
+
+### Two things the wiring had to get right
+
+**The two gates cancelled each other.** Topping out the reps asks for more
+weight, but the load engine separately refuses any jump over 5% until three
+clean sessions have banked it — a rule from when load was the only lever.
+Climbing 8 reps to 12 already takes four sessions, so both gates fired and the
+weight never moved at all: twelve simulated sessions, reps cycling, 40 kg
+throughout. Topping out the range now banks the jump, because that IS the
+earning.
+
+**A held load looked like a stall.** While reps climb the weight holds, which
+the engine records the same way it records a failure. Left alone, three good
+sessions of rep progress would have been indistinguishable from three failures
+and would have earned a 10% deload. Rep progress is excluded from the stall
+counter.
+
+### The three difficulty buttons now mean three things
+
+Measured before this change, "Easy" and "Too easy" produced an identical jump at
+every weight, because the percentage between them was smaller than one plate.
+Reps are a finer grid, so the same answers can finally differ:
+
+- **Too easy** — straight to the top of the range. The weight is wrong, and
+  creeping up one rep at a time wastes weeks getting there.
+- **Easy** — two reps.
+- **Normal** — one rep.
+- **Hard** — nothing moves.
+
+## Where it stands
+
+**Live and tested** — `lib/rep-scheme.ts` (39 checks) and the wiring
+(`tests/double-progression-wiring.check.mjs`, 17 checks):
+
+- the goal × tier table above, as editable data
 - goal-aware rest, effort targets and the last-set rule
-- the double-progression logic, including everything it refuses to touch
-- a parser that correctly ignores 367 of the catalogue's 689 prescriptions
-  because they are times, AMRAPs or tempo work
+- double progression, end to end: recorded on completion, applied to the next
+  session's card
+- everything it refuses to touch — a parser that correctly ignores 367 of the
+  catalogue's 689 prescriptions because they are times, AMRAPs or tempo work
 
-**Not yet wired into a session.** Using it live needs one more thing the app does
-not have: a memory of *where each exercise currently sits in its rep range*. Load
-is remembered per exercise (`lastLoggedWeights`); reps are not. That is a store
-field, a migration, and a change to how the session card renders its target.
+**Already in the app, so left alone:** warm-up ramps for main lifts (the
+50/70/85% build-up the spec asks for already generates), and exercise tiering,
+which the tiers here map onto rather than duplicating.
 
-It is deliberately a separate step. This half is pure logic with no way to break
-an existing session; the next half changes what every card shows, and is worth
-doing on its own with its own eyes on it.
-
-**Already in the app, so left alone:** warm-up ramps for main lifts (50/70/85%
-style build-ups already generate), and the three-button difficulty feedback,
-which is a coarser version of the same auto-regulation idea and should probably
-be re-expressed in these terms once the above lands.
+**Not done yet.** The effort target and the goal-aware rest are computed but not
+shown on the card — the card still displays the category-based rest it always
+did. That is a UI change on the busiest screen in the app and worth its own pass
+with eyes on it. Until then the numbers exist and nothing depends on them, so
+nothing is misreported.

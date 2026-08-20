@@ -6,6 +6,8 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import { performanceForLog } from '@/lib/set-performance';
+import { nextPrescription } from '@/lib/rep-scheme';
+import { CLEAN_SESSIONS_PER_BIG_JUMP } from '@/lib/workout-engine';
 import {
   getTrainingBalanceNudge as getBalanceNudge,
   type BalanceNudge,
@@ -253,6 +255,17 @@ export interface ExerciseLog {
   feedbackRating?: FeedbackRating;
   /** Populated for cardio exercises (Custom session type: 'cardio'). */
   cardioData?: CardioLogData;
+  /**
+   * The reps the card ASKED for, as prescribed ("8-10", "12 each side").
+   *
+   * Recorded because double progression needs to know whether the target was
+   * met, and "12 reps logged" only answers that against the target that was on
+   * screen at the time. Without it the app compares this session's result to
+   * next session's prescription, which is how a rep target quietly creeps.
+   */
+  targetReps?: string;
+  /** The category, so the next prescription knows which tier this was. */
+  category?: ExerciseCategory;
 }
 
 export interface OneRepMax {
@@ -507,6 +520,20 @@ interface AppState {
    */
   exerciseStuckStreak: Record<string, number>;
   /**
+   * Where each exercise currently sits in its rep range, as a prescription
+   * string ("9-10", "12 each side").
+   *
+   * The missing half of progression. Load was remembered per exercise and reps
+   * were not, so the only lever the engine had was weight - and the smallest
+   * honest step is a 2.5 kg plate, which is 12.5% of a 20 kg dumbbell press.
+   * With nowhere for reps to go, an honest "normal" session under about 50 kg
+   * moved nothing at all, three sessions running.
+   *
+   * Absent for an exercise means "use whatever the catalogue says", which is
+   * also what every existing account will have on upgrade.
+   */
+  exerciseRepTarget: Record<string, string>;
+  /**
    * Records how each exercise performed in the most recent session it appeared in.
    * Set by `completeSession` based on actual set completion data, then updated
    * by in-session or post-session thumbs/tooEasy feedback. The workout engine
@@ -718,6 +745,7 @@ export const useAppStore = create<AppState>()(
       profilePhotoUri: null,
       exerciseNormalStreak: {},
       exerciseStuckStreak: {},
+      exerciseRepTarget: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
       savedTemplates: [],
@@ -953,6 +981,13 @@ export const useAppStore = create<AppState>()(
           // instead of consecutive 'normal' ones, so a genuinely stuck lift can
           // be told apart from one that just had a single off day.
           const newStuckStreak = { ...state.exerciseStuckStreak };
+          const newRepTarget = { ...state.exerciseRepTarget };
+          // Exercises whose REPS moved this session. The load must stay put for
+          // these: adding a plate on top of an extra rep is two jumps at once,
+          // which is the overshoot double progression exists to prevent.
+          const repsStillClimbing = new Set<string>();
+          /** Exercises whose weight rises this session because the reps topped out. */
+          const earnedTheJump = new Set<string>();
           for (const log of session.exerciseLogs) {
             if (!log.exerciseId) continue;
             // Skipped outright: the user never performed it, so it must not
@@ -963,6 +998,46 @@ export const useAppStore = create<AppState>()(
             const perfWithFeedback = performanceForLog(log.sets, log.feedbackRating);
             if (perfWithFeedback === null) continue;
             newPerformance[log.exerciseId] = perfWithFeedback;
+
+            // ── Double progression: where do the reps go next? ───────────────
+            //
+            // Reps climb inside the range first; the weight only moves once the
+            // top of the range has been earned. Load progression downstream is
+            // gated on that, so the two levers cannot both fire in one session
+            // and hand someone more weight AND more reps at the same time.
+            if (log.targetReps && log.category) {
+              const hitEverySet =
+                log.sets.length > 0 && log.sets.every((set) => set.completed && !set.skipped);
+              const next = nextPrescription(
+                newRepTarget[log.exerciseId] ?? log.targetReps,
+                log.targetReps,
+                hitEverySet && perfWithFeedback !== 'failed',
+                get().userProfile.goals,
+                log.category,
+                log.feedbackRating
+              );
+              if (next) {
+                newRepTarget[log.exerciseId] = next.reps;
+                // Reps went up, so the weight does not. Adding a plate on top of
+                // an extra rep is two jumps in one session, which is the
+                // overshoot double progression exists to prevent.
+                if (next.addLoad) {
+                  // The rep range has been topped out, so the step up in weight
+                  // is EARNED. The engine otherwise refuses any jump larger
+                  // than 5% until three clean sessions have banked it - a rule
+                  // written when load was the only lever, and one that double
+                  // counts now: climbing 8 reps to 12 already took four
+                  // sessions. Left alone, the two gates cancel and the weight
+                  // never moves at all, which is exactly what the simulation
+                  // showed on a 40 kg accessory.
+                  newStreak[log.exerciseId] = CLEAN_SESSIONS_PER_BIG_JUMP;
+                  earnedTheJump.add(log.exerciseId);
+                } else {
+                  repsStillClimbing.add(log.exerciseId);
+                  newPerformance[log.exerciseId] = 'failed';
+                }
+              }
+            }
             // Streak counts consecutive 'normal' sessions for this exercise (no feedback,
             // all sets completed). Any explicit feedback or raw failure resets to 0.
             //
@@ -970,7 +1045,9 @@ export const useAppStore = create<AppState>()(
             //   perfWithFeedback 'normal' && prev was not  → 1  (new run begins)
             //   perfWithFeedback 'failed' or 'easy'        → 0  (run broken; reset)
             const prevPerf = state.lastSessionPerformance[log.exerciseId];
-            if (perfWithFeedback !== 'normal') {
+            if (earnedTheJump.has(log.exerciseId)) {
+              // Already set to the banked value above - leave it.
+            } else if (perfWithFeedback !== 'normal') {
               newStreak[log.exerciseId] = 0;
             } else if (prevPerf === 'normal') {
               newStreak[log.exerciseId] = (state.exerciseNormalStreak[log.exerciseId] ?? 1) + 1;
@@ -980,7 +1057,10 @@ export const useAppStore = create<AppState>()(
             }
             // Stuck streak: consecutive 'failed' sessions, same shape as the
             // normal streak above but for the opposite outcome.
-            if (perfWithFeedback !== 'failed') {
+            // A load held because the REPS are climbing is progress, not a stall.
+            // Without this exclusion three good sessions in a row would look
+            // identical to three failures and earn a 10% deload.
+            if (perfWithFeedback !== 'failed' || repsStillClimbing.has(log.exerciseId)) {
               newStuckStreak[log.exerciseId] = 0;
             } else if (prevPerf === 'failed') {
               newStuckStreak[log.exerciseId] = (state.exerciseStuckStreak[log.exerciseId] ?? 1) + 1;
@@ -995,6 +1075,7 @@ export const useAppStore = create<AppState>()(
             lastSessionPerformance: newPerformance,
             exerciseNormalStreak: newStreak,
             exerciseStuckStreak: newStuckStreak,
+            exerciseRepTarget: newRepTarget,
             // A genuine test-week session clears any postponement — the thing
             // it was standing in for has now actually happened.
             ...(session.isTestWeek
@@ -1044,6 +1125,7 @@ export const useAppStore = create<AppState>()(
           lastSessionPerformance: {},
           exerciseNormalStreak: {},
           exerciseStuckStreak: {},
+          exerciseRepTarget: {},
           exerciseFeedback: {},
           testWeekDeferred: false,
           earnedBadges: [],

@@ -2266,6 +2266,7 @@ export default function SessionScreen() {
     setReviewPromptShown,
     exerciseNormalStreak,
     exerciseStuckStreak,
+    exerciseRepTarget,
     lastSessionPerformance,
     pendingCustomExercises,
     clearPendingCustomExercises,
@@ -2469,7 +2470,8 @@ export default function SessionScreen() {
       lastSessionPerformance,
       undefined,
       loadUnitAtStart.current,
-      exerciseStuckStreak
+      exerciseStuckStreak,
+      exerciseRepTarget
     );
   }, [
     sessionType,
@@ -2487,6 +2489,7 @@ export default function SessionScreen() {
     lastLoggedWeights,
     exerciseNormalStreak,
     exerciseStuckStreak,
+    exerciseRepTarget,
     lastSessionPerformance,
   ]);
 
@@ -3400,6 +3403,11 @@ export default function SessionScreen() {
         note: exerciseNotes[i] || undefined,
         ...(rating != null ? { feedbackRating: rating } : {}),
         ...(cardio != null ? { cardioData: cardio } : {}),
+        // What was ASKED for, recorded alongside what was done. Double
+        // progression compares the two, and the target has to be the one that
+        // was on the card at the time, not the one next session will show.
+        targetReps: ex.reps,
+        category: ex.category,
       };
     });
 

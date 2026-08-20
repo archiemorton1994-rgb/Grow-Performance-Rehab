@@ -306,7 +306,9 @@ export function nextPrescription(
   baseReps: string,
   achievedAllSets: boolean,
   goals: readonly FitnessGoal[] | undefined,
-  category: ExerciseCategory
+  category: ExerciseCategory,
+  /** What the user said about how it felt, if they said anything. */
+  rating?: 'very_easy' | 'easy' | 'hard'
 ): NextPrescription | null {
   // Tier 3 keeps the dose it was written with.
   //
@@ -353,10 +355,36 @@ export function nextPrescription(
     };
   }
 
-  const nextMin = Math.min(parsed.min + 1, ceiling);
+  /**
+   * How big a step the reps take, taken from the answer the user already gives.
+   *
+   * The three difficulty buttons had two outcomes between them: measured across
+   * every weight, "Easy" and "Too easy" produced an identical jump, because the
+   * percentage between them was smaller than one plate. Answering honestly and
+   * answering generously got you the same session.
+   *
+   * Reps are a finer grid than plates, so the same three answers can finally
+   * mean three different things:
+   *
+   *   too easy   go straight to the top of the range - the weight is wrong, and
+   *              creeping up one rep at a time wastes weeks getting there
+   *   easy       two reps
+   *   normal     one rep
+   *
+   * "Hard" never reaches this line: it is a failed performance, and the branch
+   * above holds everything where it is.
+   */
+  const step = rating === 'very_easy' ? Math.max(1, ceiling - parsed.min) : rating === 'easy' ? 2 : 1;
+  const nextMin = Math.min(parsed.min + step, ceiling);
+
   return {
     reps: formatReps(nextMin, ceiling, parsed.suffix),
     addLoad: false,
-    note: `One more rep at the same weight - ${nextMin} to beat`,
+    note:
+      rating === 'very_easy' && nextMin === ceiling
+        ? `That was too easy - straight to ${ceiling} reps at this weight`
+        : nextMin - parsed.min > 1
+          ? `Two more reps at the same weight - ${nextMin} to beat`
+          : `One more rep at the same weight - ${nextMin} to beat`,
   };
 }
