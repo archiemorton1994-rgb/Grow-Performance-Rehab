@@ -58,7 +58,13 @@ import {
   TIER_ORDER,
   FitnessGoal,
 } from '@/lib/store';
-import { effortHint, prescriptionFor, restSecondsFor, tierOf } from '@/lib/rep-scheme';
+import {
+  effortHint,
+  parseReps,
+  prescriptionFor,
+  restSecondsFor,
+  tierOf,
+} from '@/lib/rep-scheme';
 import { uploadUserData } from '@/lib/sync';
 import { ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from '@/lib/acute-rehab';
 import { videoUrlFor } from '@/lib/exercise-videos';
@@ -1281,12 +1287,32 @@ export function ExerciseCard({
    * is being asked against nothing. With a target on screen it becomes
    * checkable - you were meant to leave two, did you?
    *
-   * Deliberately in plain English rather than the industry's "RIR 2", and
-   * deliberately absent from timed work and from anything that is not a working
-   * set, where reps in reserve is not a thing that exists.
+   * Deliberately in plain English rather than the industry's "RIR 2".
+   *
+   * ── WHERE IT MUST NOT APPEAR ─────────────────────────────────────────────
+   * Reps in reserve is a question about a WORKING SET, and the first version
+   * asked it everywhere the goal table had a row. Generating real sessions
+   * showed what that meant on screen: "Leave about 2-3 reps in the tank" under
+   * a Broad Jump prescribed "4 explosive", and under a Leg Press Activation
+   * prescribed "15 slow". Neither is effort-limited - one is a maximal jump
+   * whose whole point is quality, the other is a priming drill - and saying
+   * otherwise is not a harmless extra line, it is wrong coaching.
+   *
+   * Two gates, and both use rules that already exist rather than a new list:
+   *
+   *   TIER   only main lifts and accessories. Activation, power primers and
+   *          prehab are drills and clinical doses; their instruction is "as
+   *          prescribed", and the physiotherapist has already given it.
+   *   REPS   only a prescription the app can actually count. parseReps refuses
+   *          times, distances, AMRAPs and anything asked for explosively or
+   *          slowly, which is the same set of things you cannot leave two reps
+   *          back on.
    */
+  const goalTier = tierOf(exercise.category);
   const effortTargets = useMemo(() => {
     if (exercise.type === 'cardio' || isTimeExercise) return null;
+    if (goalTier !== 'tier1' && goalTier !== 'tier2') return null;
+    if (!parseReps(exercise.reps)) return null;
     const scheme = prescriptionFor(goals, exercise.category);
     if (!scheme) return null;
     const lines: string[] = [];
@@ -1295,7 +1321,15 @@ export function ExerciseCard({
     if (exercise.sets > 1 || !scheme.lastSetToFailure) lines.push(effortHint(scheme, false));
     if (scheme.lastSetToFailure) lines.push(effortHint(scheme, true));
     return lines.length > 0 ? lines : null;
-  }, [exercise.type, exercise.category, exercise.sets, isTimeExercise, goals]);
+  }, [
+    exercise.type,
+    exercise.category,
+    exercise.sets,
+    exercise.reps,
+    goalTier,
+    isTimeExercise,
+    goals,
+  ]);
 
   /**
    * Rest, where the goal actually changes the answer.
@@ -1308,7 +1342,6 @@ export function ExerciseCard({
    * powerlifter and someone chasing size, who want three minutes and ninety
    * seconds respectively.
    */
-  const goalTier = tierOf(exercise.category);
   const goalRestSeconds =
     goalTier === 'tier1' || goalTier === 'tier2' ? restSecondsFor(goals, exercise.category) : null;
 

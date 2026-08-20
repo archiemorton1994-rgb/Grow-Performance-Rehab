@@ -29,6 +29,7 @@ import {
   effortHint,
   measuredRating,
   nextPrescription,
+  parseReps,
   prescriptionFor,
   restSecondsFor,
 } from '../lib/rep-scheme.ts';
@@ -219,6 +220,32 @@ check(
   'a one-set exercise is not told to both save reps and go to failure',
   /exercise\.sets > 1 \|\| !scheme\.lastSetToFailure/.test(sessionCode),
   'with one set there is no set that is not the last one'
+);
+
+// GENERATING REAL SESSIONS IS WHAT CAUGHT THIS.
+//
+// The first version showed an effort target anywhere the goal table had a row,
+// which put "Leave about 2-3 reps in the tank" under a Broad Jump prescribed
+// "4 explosive" and under a Leg Press Activation prescribed "15 slow". Neither
+// is effort-limited - one is a maximal jump whose whole point is quality, the
+// other is a priming drill - so that line was not a harmless extra, it was
+// wrong coaching on the busiest screen in the app.
+check(
+  'drills and clinical doses get no effort target at all',
+  /if \(goalTier !== 'tier1' && goalTier !== 'tier2'\) return null;/.test(sessionCode),
+  'activation, power primers and prehab are prescribed by a physiotherapist; their instruction is "as written"'
+);
+check(
+  'and neither does anything the app cannot count the reps of',
+  /if \(!parseReps\(exercise\.reps\)\) return null;/.test(sessionCode),
+  'parseReps already refuses times, distances, AMRAPs, explosive and tempo work - the same set of things you cannot leave two reps back on'
+);
+check(
+  'the rules it leans on really do refuse those prescriptions',
+  parseReps('4 explosive') === null &&
+    parseReps('15 slow') === null &&
+    parseReps('30s each') === null,
+  ''
 );
 check(
   'the card is given the goals it needs to answer any of this',

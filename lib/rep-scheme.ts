@@ -254,7 +254,11 @@ export function restSecondsFor(
 ): number | null {
   const p = prescriptionFor(goals, category);
   if (!p) return null;
-  return Math.round((p.restSeconds.min + p.restSeconds.max) / 2);
+  // Rounded to five seconds because it is read off a clock by a person.
+  // The midpoint of a 45-60 s window is 52.5, and a timer counting down from
+  // 53 seconds looks like an accident rather than a prescription.
+  const midpoint = (p.restSeconds.min + p.restSeconds.max) / 2;
+  return Math.round(midpoint / 5) * 5;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,21 +268,47 @@ export function restSecondsFor(
 /**
  * A rep prescription the app can count, or null when it is not that kind of set.
  *
- * The catalogue's `reps` field is free text holding at least five different
+ * The catalogue's `reps` field is free text holding at least eight different
  * kinds of thing: a count ("12"), a range ("8-10"), a per-side count
- * ("15 each side"), a duration ("45s each side", "3 min") and an instruction
- * ("AMRAP - max clean reps", "5 explosive").
+ * ("15 each side"), a shared count ("20 total"), a DISTANCE ("40m",
+ * "500 m", "20 steps forward"), a duration ("45s each side", "3 min"), an
+ * instruction ("AMRAP - max clean reps", "5 explosive") and a whole circuit
+ * round bolted together with plus signs ("10 each side + 16 total").
  *
- * Only the first three can be added to. A duration or an AMRAP returning null is
- * the point rather than a limitation: adding a rep to a three-minute carry is
- * meaningless, an AMRAP already asks for every rep there is, and "5 explosive"
- * is chosen for a quality that more reps would destroy.
+ * Only the first four are repetitions. Everything else returning null is the
+ * point rather than a limitation.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE DISTANCES ARE WHY THIS IS SO STRICT
+ * ─────────────────────────────────────────────────────────────────────────────
+ * The first version of this read any leading number and kept the rest as an
+ * opaque suffix, on the theory that "40" and "m" could be progressed and
+ * reprinted separately. They cannot. A metre is not a rep, and the goal table
+ * has no opinion about 40 of them - so a completed 40 m farmer's carry came back
+ * as "8-12 m", and a 500 m row came back as "8-12 m". Measured across the
+ * catalogue: 159 of 243 countable tier-1/tier-2 prescriptions were CUT by a
+ * single good session, the worst by 99%.
+ *
+ * A carry, a sled drag and a rowing interval are prescribed in distance for the
+ * same reason a plank is prescribed in seconds, and this refuses all of them for
+ * the same reason it already refused the plank.
  */
 export function parseReps(reps: string): { min: number; max: number; suffix: string } | null {
   const text = reps.trim();
   if (/\b\d+\s*(s|sec|secs|seconds|min|mins|minutes)\b/i.test(text)) return null;
   if (/amrap|max\b|failure/i.test(text)) return null;
   if (/explosive|slow/i.test(text)) return null;
+  // Distance, not repetitions. "\bm\b" cannot catch "min" - the time rule above
+  // has already taken those - and it must not catch the "m" inside a word.
+  if (/\d\s*m\b|\bmetres?\b|\bmeters?\b|\bsteps?\b|\blengths?\b|\bfloors?\b/i.test(text))
+    return null;
+  // A circuit round is several prescriptions in one string ("10 each side + 16
+  // total"). Progressing the first number and reprinting the others verbatim
+  // describes a session nobody wrote.
+  if (text.includes('+')) return null;
+  // A complex is one continuous set of several movements; "6 of each" is its
+  // structure, not a rep target to negotiate upward.
+  if (/\bof each\b|unbroken/i.test(text)) return null;
 
   const range = text.match(/^(\d+)\s*-\s*(\d+)(.*)$/);
   if (range) {
@@ -380,6 +410,25 @@ export function nextPrescription(
   const base = parseReps(baseReps);
   const scheme = prescriptionFor(goals, category);
   const baseHasRange = !!base && base.max > base.min;
+
+  /**
+   * THE GOAL TABLE ONLY DESCRIBES A NUMBER THAT SITS INSIDE ITS RANGE.
+   *
+   * Where the template gives a range, that range wins and none of this applies.
+   * Where it gives a single number, the table is asked what range that number
+   * sits in - which is a sensible question for a 12-rep accessory and a
+   * meaningless one for a 20-rep glute bridge or a 40-rep march. Answering it
+   * anyway declared the exercise "topped out" on the spot and reset it to the
+   * goal's own floor, so a physiotherapist's 20 became 8 the first time anybody
+   * completed it. Across the catalogue that silently cut 159 of 243 countable
+   * prescriptions after one good session.
+   *
+   * A number above the ceiling is not a number this table has anything to say
+   * about, so it says nothing and the template stands. Load progression is
+   * untouched and carries on as it did before double progression existed.
+   */
+  if (!baseHasRange && base && scheme && base.max > scheme.reps.max) return null;
+
   const ceiling = baseHasRange ? base!.max : (scheme?.reps.max ?? parsed.max);
   const floor = baseHasRange ? base!.min : (scheme?.reps.min ?? parsed.min);
   const topOfRange = () => formatReps(floor, ceiling, parsed.suffix);
@@ -501,6 +550,21 @@ export function measuredRating(
   // class of exercise where being wrong turns prehab into an injury.
   const tier = tierOf(category);
   if (tier !== 'tier1' && tier !== 'tier2') return null;
+
+  /**
+   * PER-SIDE TARGETS ARE NOT COMPARABLE TO A SINGLE LOGGED NUMBER.
+   *
+   * "12 each side" asks for 24 repetitions and one box to type them into. The
+   * bar prefills 12, which is the reading the app intends - but somebody who
+   * counts the way the sentence reads types 24, and 24 against a ceiling of 12
+   * is a 100% overshoot. That is the app adding weight because a user did
+   * exactly what they were told, in the only other sensible unit.
+   *
+   * Nothing on the screen can tell the two readings apart, so this declines to
+   * guess. The three feedback buttons still work on these exercises, and so does
+   * ordinary load progression; only the silent measurement steps back.
+   */
+  if (/\beach\b|\bper side\b/i.test(targetReps)) return null;
 
   const target = parseReps(targetReps);
   if (!target) return null;

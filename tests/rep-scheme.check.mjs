@@ -25,6 +25,7 @@
  *   2. Prehab dosing is clinical. "2 x 15 each side" on a rotator cuff is not an
  *      opening bid, and the first version was walking it up to 20.
  */
+import { readFileSync } from 'fs';
 import {
   REP_SCHEME,
   intentFor,
@@ -191,6 +192,107 @@ check(
   nextPrescription('8-10', '8-10', true, ['strength'], 'main') !== null &&
     nextPrescription('8-10', '8-10', true, ['strength'], 'accessory') !== null,
   ''
+);
+
+console.log('\n[8] Over the whole catalogue: nothing loses work it was not paid for');
+
+/**
+ * THE INVARIANT THIS SECTION EXISTS FOR.
+ *
+ * Reps may only drop when the weight goes up. That is the deal double
+ * progression makes, and the sections above check it on hand-written examples.
+ * Hand-written examples were not enough: run against the real catalogue, the
+ * first version CUT 159 of 243 countable tier-1/tier-2 prescriptions after a
+ * single good session, and its worst answer turned a 500 m rowing interval into
+ * an 8-12 m one.
+ *
+ * Two causes, both fixed and both asserted below. The parser read any leading
+ * number and kept the rest as opaque text, so a distance looked like a rep
+ * count. And the goal table was asked what range a single number sits in even
+ * when the number was far above the table's own ceiling, which declared the
+ * exercise topped out on the spot and reset it to the goal's floor.
+ *
+ * So this walks all 797 entries rather than a list of examples. A rule about a
+ * catalogue has to be checked against the catalogue.
+ */
+const dbSrc = readFileSync(new URL('../lib/exercise-db.ts', import.meta.url), 'utf8');
+const lifting = [];
+for (const block of dbSrc.split(/\n\s*\{\s*\n/)) {
+  const name = block.match(/name:\s*'((?:[^'\\]|\\.)*)'/);
+  const cat = block.match(/category:\s*'(\w+)'/);
+  const reps = block.match(/reps:\s*'((?:[^'\\]|\\.)*)'/);
+  const load = block.match(/suggestedLoad:\s*'((?:[^'\\]|\\.)*)'/);
+  if (!name || !cat || !reps) continue;
+  const t = tierOf(cat[1]);
+  if (t !== 'tier1' && t !== 'tier2') continue;
+  lifting.push({ name: name[1], category: cat[1], reps: reps[1], load: load ? load[1] : '' });
+}
+
+check(
+  'the catalogue was actually read',
+  lifting.length > 300,
+  `found only ${lifting.length} tier-1/tier-2 entries - the parse above has drifted from the file`
+);
+
+const unearned = [];
+const countable = [];
+for (const goals of [['strength'], ['muscle'], ['fat_loss'], ['rehab']]) {
+  for (const e of lifting) {
+    const before = parseReps(e.reps);
+    if (!before) continue;
+    if (goals[0] === 'strength') countable.push(e);
+    const loadable = !/^bodyweight$/i.test(e.load.trim());
+    const next = nextPrescription(e.reps, e.reps, true, goals, e.category, undefined, loadable);
+    if (!next) continue;
+    const after = parseReps(next.reps);
+    if (!after) continue;
+    if (after.min < before.min && !next.addLoad)
+      unearned.push(`${goals[0]}: ${e.name} "${e.reps}" -> "${next.reps}"`);
+  }
+}
+
+check(
+  'no prescription in the catalogue loses reps without the weight going up',
+  unearned.length === 0,
+  `${unearned.length} do, e.g. ${unearned.slice(0, 3).join(' | ')}`
+);
+
+check(
+  'and enough of the catalogue is still countable for the feature to mean anything',
+  countable.length > 150,
+  `only ${countable.length} parse - refusing too much is its own failure`
+);
+
+// The specific shapes that caused it, named so a future parser change is told
+// exactly what it broke.
+check(
+  'a distance is not a rep count',
+  parseReps('500 m') === null &&
+    parseReps('40m') === null &&
+    parseReps('30 m each side') === null &&
+    parseReps('20 steps forward') === null,
+  'a carry and a rowing interval are prescribed in distance for the same reason a plank is prescribed in seconds'
+);
+check(
+  'a circuit round is not one set',
+  parseReps('10 each side + 16 total') === null && parseReps('20 + 16 total + 15') === null,
+  'progressing the first number and reprinting the rest verbatim describes a session nobody wrote'
+);
+check(
+  'a complex is not a rep target to negotiate upward',
+  parseReps('6 of each, unbroken') === null,
+  ''
+);
+check(
+  'a number above the goal ceiling is left exactly as the physiotherapist wrote it',
+  nextPrescription('20', '20', true, ['muscle'], 'accessory') === null &&
+    nextPrescription('15 each', '15 each', true, ['strength'], 'accessory') === null,
+  'the goal table has no opinion about a 20-rep glute bridge, and answering anyway reset it to 8'
+);
+check(
+  'but the case the feature was built for still works',
+  nextPrescription('12', '12', true, ['muscle'], 'accessory')?.addLoad === true,
+  'a 12-rep accessory sits at the top of the 8-12 muscle range, which is a sensible thing to say about it'
 );
 
 console.log(`\nrep-scheme: ${passed} passed, ${failed} failed`);
