@@ -512,6 +512,10 @@ export default function ProfileScreen() {
     setActiveModal('edit');
   };
 
+  // 1RM tracking needs a barbell, and Train already tells people so. Same
+  // question, same answer, so it is asked the same way here.
+  const hasFullGym = (equipmentTiers ?? []).includes('fullgym');
+
   const openEquipment = () => {
     setEditTiers(
       equipmentTiers && equipmentTiers.length > 0 ? [...equipmentTiers] : ['bodyweight']
@@ -999,11 +1003,27 @@ export default function ProfileScreen() {
             );
           })()}
 
-        {/* Strength 1RM prompt — shown when no lifts have been logged yet */}
-        {oneRepMaxes.length === 0 && (
+        {/* LOG A 1RM - BUT ONLY IF YOU CAN, AND WITH SOMEWHERE TO GO.
+
+            Two faults, both found by opening this screen as a user who chose
+            No Equipment. The Train tab tells that user in as many words that
+            1RM tracking needs Full Gym; this card then invited them to log
+            one anyway, so the app contradicted itself across two screens. And
+            it was a plain View - no press handler, no destination - asking for
+            something whose only entry point is the calculator two taps away on
+            the Stats Strength tab, with nothing anywhere pointing at it. */}
+        {oneRepMaxes.length === 0 && hasFullGym && (
           <Animated.View entering={FadeInDown.delay(90).duration(400)} style={{ marginBottom: 12 }}>
-            <View
-              style={[styles.ratioCard, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}
+            <Pressable
+              onPress={() => router.push('/(tabs)/workouts?tab=strength' as never)}
+              testID="profile-log-1rm"
+              accessibilityRole="button"
+              accessibilityLabel="Log a one-rep max"
+              style={({ pressed }) => [
+                styles.ratioCard,
+                { flexDirection: 'row', alignItems: 'center', gap: 14 },
+                pressed && { opacity: 0.85 },
+              ]}
             >
               <View
                 style={{
@@ -1029,7 +1049,8 @@ export default function ProfileScreen() {
                   to track your bodyweight multipliers
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+            </Pressable>
           </Animated.View>
         )}
         </View>

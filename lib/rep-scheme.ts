@@ -88,12 +88,30 @@ const GOAL_INTENT: Record<FitnessGoal, Intent> = {
   rehab: 'hypertrophy',
 };
 
-/** Which intent to program for when the user picked more than one goal. */
+/**
+ * Which intent to program for when the user picked more than one goal.
+ *
+ * REHAB OUTRANKS EVERYTHING, INCLUDING STRENGTH.
+ *
+ * Strength wins every other tie because it is the least forgiving to get wrong:
+ * a 5-rep prescription trained as 15 is a different session, whereas a 12-rep
+ * prescription trained as 8 is merely a heavier one. Erring toward the more
+ * specific answer is the safer mistake.
+ *
+ * It is not the safer mistake here. Rehab plus strength was resolving to
+ * strength, which prescribed 3-5 rep main lifts - near-maximal triples - to
+ * somebody who had just told the app they are rehabbing an injury. The effort
+ * target was already softened for them (see softenForRehab), so they were being
+ * told to leave 2-3 reps back on a set of three, which is both unsafe and
+ * incoherent as a prescription.
+ *
+ * Someone rehabbing who also wants to get strong still gets stronger; they get
+ * there through a rep range their tissue can tolerate. That is what a
+ * physiotherapist would write, and this app is one.
+ */
 export function intentFor(goals: readonly FitnessGoal[] | undefined): Intent {
   const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
-  // Strength wins a tie because it is the least forgiving to get wrong: a
-  // 5-rep prescription trained as 15 is a different session, whereas a 12-rep
-  // prescription trained as 8 is merely a heavier one.
+  if (active.includes('rehab')) return GOAL_INTENT.rehab;
   if (active.some((g) => GOAL_INTENT[g] === 'strength')) return 'strength';
   if (active.some((g) => GOAL_INTENT[g] === 'hypertrophy')) return 'hypertrophy';
   return 'endurance';

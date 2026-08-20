@@ -156,6 +156,7 @@ export default function HomeScreen() {
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
+  const hasFullGym = profileEquipment.includes('fullgym');
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<(typeof ALL_TIERS)[number][]>([]);
@@ -740,6 +741,35 @@ export default function HomeScreen() {
                     <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
                   </Pressable>
                 ))}
+                {/* THE SAME PROMISE THE TRAIN TAB MAKES, ON THE SCREEN THAT
+                    SHOWS IT FIRST.
+
+                    These three are named after the barbell lifts and drawn
+                    with a barbell, and for someone who chose No Equipment that
+                    is the very first thing the app shows them - three pictures
+                    of kit they just said they do not have. The sessions do
+                    adapt, and Train says so in as many words; this is the
+                    screen a brand-new user actually lands on, and it said
+                    nothing at all. */}
+                {!hasFullGym && (
+                  <Pressable
+                    onPress={() => router.push('/(tabs)/profile')}
+                    style={({ pressed }) => [styles.kitCallout, pressed && { opacity: 0.7 }]}
+                    testID="home-first-session-kit-note"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={14}
+                      color={C.primaryText}
+                    />
+                    <Text style={styles.kitCalloutText}>
+                      Named after the barbell lifts - every session adapts to the equipment you
+                      have.
+                    </Text>
+                    <Ionicons name="chevron-forward" size={12} color={C.primaryText} />
+                  </Pressable>
+                )}
               </Animated.View>
             ) : (
               <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
@@ -1615,6 +1645,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 2,
     },
     firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+
+    kitCallout: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 7,
+      backgroundColor: C.primarySurface,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginTop: 12,
+    },
+    kitCalloutText: {
+      flex: 1,
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.primaryText,
+      lineHeight: 15,
+    },
 
     calibrationCompleteCard: {
       flexDirection: 'row',

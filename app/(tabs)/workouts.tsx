@@ -13,7 +13,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -3660,9 +3660,29 @@ export default function StatsScreen() {
     [oneRepMaxes]
   );
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>(
-    'overview'
+  /**
+   * Which sub-tab to open on, when something sent the user here for a reason.
+   *
+   * Profile invites people to log a 1RM, and the calculator that does it lives
+   * on the Strength tab with nothing pointing at it. A screen that asks for
+   * something has to be able to hand you the thing that does it.
+   *
+   * Cleared as soon as it is applied. This is a tab route, so the screen stays
+   * mounted - a param left lying around would drag the user back to Strength
+   * every time they opened Stats afterwards.
+   */
+  const tabParams = useLocalSearchParams<{ tab?: string }>();
+  const requestedTab = (['overview', 'strength', 'history', 'progress'] as const).find(
+    (t) => t === tabParams.tab
   );
+  const [activeTab, setActiveTab] = useState<'overview' | 'strength' | 'history' | 'progress'>(
+    requestedTab ?? 'overview'
+  );
+  useEffect(() => {
+    if (!requestedTab) return;
+    setActiveTab(requestedTab);
+    router.setParams({ tab: undefined });
+  }, [requestedTab]);
 
   // Scroll refs — one per sub-tab ScrollView; used to scroll back to top on tab activation.
   const overviewScrollRef = useRef<ScrollView>(null);

@@ -1300,12 +1300,32 @@ const comebackBadges: BadgeSeed[] = [
   },
 ];
 
-// ─── 24. Pain Warrior Badges ─────────────────────────────────────────────────
+// ─── 24. Training Smart Badges ───────────────────────────────────────────────
+//
+// WHAT THESE REWARD, AND WHAT THEY USED TO SAY THEY REWARDED
+// ──────────────────────────────────────────────────────────
+// The criterion is `hadAches` — the user reported a niggle at the readiness
+// screen and trained the session the app adapted for them. That is exactly the
+// behaviour a physiotherapist wants: say something hurts, and train around it.
+//
+// The names said the opposite. "Pain Warrior", "Adapts & Overcomes" and, at
+// twenty sessions, "Unbreakable" are the vocabulary of pushing through pain —
+// the single behaviour this app exists to talk people out of. A rehab product
+// handing out a trophy called Unbreakable to somebody on their twentieth
+// painful session is teaching the wrong lesson at the worst possible moment.
+//
+// So the criteria are untouched and the names now describe the thing actually
+// being praised: listening, and adapting. The last one carries the sentence the
+// app should be saying by then.
+//
+// IDS ARE LOAD-BEARING AND DO NOT CHANGE. Earned badges are persisted by id, so
+// renaming an id would silently un-earn every badge anyone already holds. Only
+// `name` and `description` move here.
 const painWarriorBadges: BadgeSeed[] = [
   {
     id: 'pain_warrior_1',
-    name: 'Adapts & Overcomes',
-    description: 'Complete a session with a pain adaptation active',
+    name: 'Spoke Up',
+    description: 'Report an ache and let the session adapt around it',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
     icon: 'shield-outline',
@@ -1313,8 +1333,8 @@ const painWarriorBadges: BadgeSeed[] = [
   },
   {
     id: 'pain_warrior_3',
-    name: 'Resilient Athlete',
-    description: 'Complete 3 sessions with pain adaptation active',
+    name: 'Smart Move',
+    description: 'Adapt 3 sessions around how your body felt',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
     icon: 'shield-outline',
@@ -1322,8 +1342,8 @@ const painWarriorBadges: BadgeSeed[] = [
   },
   {
     id: 'pain_warrior_5',
-    name: 'Pain Warrior',
-    description: 'Complete 5 sessions with pain adaptation active',
+    name: 'Body Aware',
+    description: 'Adapt 5 sessions around how your body felt',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
     icon: 'shield-checkmark-outline',
@@ -1331,8 +1351,8 @@ const painWarriorBadges: BadgeSeed[] = [
   },
   {
     id: 'pain_warrior_10',
-    name: 'Adaptive Master',
-    description: 'Complete 10 sessions with pain adaptation active',
+    name: 'Adaptable',
+    description: 'Adapt 10 sessions around how your body felt',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
     icon: 'shield-checkmark-outline',
@@ -1340,11 +1360,11 @@ const painWarriorBadges: BadgeSeed[] = [
   },
   {
     id: 'pain_warrior_20',
-    name: 'Unbreakable',
-    description: 'Complete 20 sessions with pain adaptation active',
+    name: 'Still Listening',
+    description: 'Adapt 20 sessions - if it has hurt this long, get it looked at',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
-    icon: 'trophy-outline',
+    icon: 'shield-checkmark-outline',
     color: C.blue,
   },
 ];
@@ -1626,7 +1646,7 @@ const CATEGORY_ICON: Record<BadgeCategory, string> = {
   recovery: 'leaf-outline',
   duration: 'hourglass-outline', // length of a session
   comeback: 'refresh-outline', // returning
-  pain_warrior: 'bandage-outline', // training around an injury
+  pain_warrior: 'bandage-outline', // training around an injury, not through it
   endurance: 'battery-charging-outline', // showing up on empty
   exercise_milestone: 'ribbon-outline', // a specific lift, first time
 };
@@ -1712,7 +1732,7 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   recovery: 'Recovery',
   duration: 'Session Duration',
   comeback: 'Comebacks',
-  pain_warrior: 'Pain Warrior',
+  pain_warrior: 'Training Smart',
   endurance: 'No Excuses',
   exercise_milestone: 'Exercise Milestones',
 };

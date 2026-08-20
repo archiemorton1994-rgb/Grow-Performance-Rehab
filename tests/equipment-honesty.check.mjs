@@ -443,6 +443,75 @@ check(
   `no pulling movement in ${missingPull.join(', ')}`
 );
 
+// ─── The app must not offer a barbell feature to someone with no barbell ─────
+//
+// Found by opening every screen as a user who chose No Equipment. Train says, in
+// as many words, "Add Full Gym to unlock barbell lifts and 1RM tracking". Two
+// other screens then contradicted it:
+//
+//   HOME    the very first thing a new user sees is three sessions named after
+//           the barbell lifts and drawn with a barbell, and said nothing about
+//           adapting. Train's note existed; the screen people actually land on
+//           did not have it.
+//   PROFILE invited that same user to "Log a 1RM". It was also a plain View with
+//           no press handler, asking for something whose only entry point is a
+//           calculator two taps away on the Stats Strength tab.
+//
+// One question - do you own a barbell - answered the same way everywhere.
+console.log('\n[Kit honesty across screens]');
+
+const { readFileSync: readSrc } = await import('fs');
+const src = (p) => readSrc(new URL(`../${p}`, import.meta.url), 'utf8');
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+const home = stripComments(src('app/(tabs)/index.tsx'));
+const profile = stripComments(src('app/(tabs)/profile.tsx'));
+const stats = stripComments(src('app/(tabs)/workouts.tsx'));
+const train = stripComments(src('app/(tabs)/train.tsx'));
+
+check(
+  'Train still makes the promise the other screens have to keep',
+  /Add Full Gym to unlock barbell lifts and 1RM/.test(train),
+  'this is the sentence the checks below exist to keep the rest of the app consistent with'
+);
+check(
+  'all three screens decide it from the same fact',
+  [home, profile, train].every((s) => /fullgym/.test(s) && /hasFullGym/.test(s)),
+  'a second way of asking is how two screens start disagreeing'
+);
+check(
+  'the first-session chooser explains why it is showing barbell names',
+  /home-first-session-kit-note/.test(home) &&
+    /every session adapts to the equipment you/.test(home),
+  'three pictures of kit the user just said they do not have, with no explanation'
+);
+check(
+  'and only to the people who need the explanation',
+  /\{!hasFullGym && \([\s\S]{0,400}?home-first-session-kit-note/.test(home),
+  'a full-gym user does not need telling their barbell session uses a barbell'
+);
+check(
+  'the 1RM invitation is not shown to someone who cannot act on it',
+  /oneRepMaxes\.length === 0 && hasFullGym && \(/.test(profile),
+  'Train tells this user 1RM tracking needs Full Gym, and then Profile asked them for one'
+);
+check(
+  'and it now goes somewhere',
+  /profile-log-1rm/.test(profile) && /workouts\?tab=strength/.test(profile),
+  'it was a plain View: it asked for something and offered no way to do it'
+);
+check(
+  'Stats can be opened straight onto the tab that holds the calculator',
+  /useLocalSearchParams<\{ tab\?: string \}>/.test(stats) &&
+    /requestedTab \?\? 'overview'/.test(stats),
+  ''
+);
+check(
+  'and the instruction is cleared once obeyed',
+  /router\.setParams\(\{ tab: undefined \}\)/.test(stats),
+  'Stats is a tab route and stays mounted, so a param left behind would drag the user to Strength every time they opened it'
+);
+
 // ─── Result ──────────────────────────────────────────────────────────────────
 console.log(
   failures === 0
