@@ -21,9 +21,17 @@ failure a set should go, and how long you rest.
 3-5 rep max-effort prescription is the wrong shape for someone rehabbing, so it
 gets the forgiving rep range and an effort target a long way from failure.
 
-**If you pick more than one goal, strength wins.** A 5-rep prescription trained
-as 15 is a different session; a 12-rep prescription trained as 8 is just a
-heavier one. Erring toward the more specific answer is the safer mistake.
+**If you pick more than one goal, strength wins - unless one of them is rehab.**
+A 5-rep prescription trained as 15 is a different session; a 12-rep prescription
+trained as 8 is just a heavier one. Erring toward the more specific answer is the
+safer mistake almost everywhere.
+
+It is not the safer mistake alongside rehab. Rehab + strength resolved to
+strength, so someone who had just told the app they are rehabbing an injury was
+prescribed 3-5 rep main lifts - near-maximal triples - with the softened rehab
+effort target bolted on top telling them to leave 2-3 reps back on a set of
+three. Unsafe and incoherent at once. **Rehab now outranks everything.** They
+still get stronger; they get there through a rep range the tissue can tolerate.
 
 ---
 
@@ -127,15 +135,16 @@ Reps are a finer grid, so the same answers can finally differ:
 
 ## Where it stands
 
-**Live and tested** — `lib/rep-scheme.ts` (39 checks) and the wiring
+**Live and tested** — `lib/rep-scheme.ts` (47 checks) and the wiring
 (`tests/double-progression-wiring.check.mjs`, 17 checks):
 
 - the goal × tier table above, as editable data
 - goal-aware rest, effort targets and the last-set rule
 - double progression, end to end: recorded on completion, applied to the next
   session's card
-- everything it refuses to touch — a parser that correctly ignores 367 of the
-  catalogue's 689 prescriptions because they are times, AMRAPs or tempo work
+- everything it refuses to touch — a parser that correctly ignores 447 of the
+  catalogue's 797 prescriptions because they are times, distances, AMRAPs, tempo
+  work or whole circuit rounds
 
 **Already in the app, so left alone:** warm-up ramps for main lifts (the
 50/70/85% build-up the spec asks for already generates), and exercise tiering,
@@ -150,6 +159,12 @@ the rest timer counts down the goal's number rather than the category's.
 | Muscle / General | Leave about 1-2 reps in the tank, last set close to failure | 2.5 min |
 | Fat loss | Leave about 2-3 reps in the tank | 75 s |
 | Rehab | Leave about 2-3 reps in the tank | 2.5 min |
+
+**And it only appears where reps in reserve is a real question.** Not on timed
+work, not on a Broad Jump prescribed "4 explosive", not on a Leg Press
+Activation prescribed "15 slow", and not on prehab - a drill is judged on
+quality and a clinical dose is judged on being followed. Main lifts and
+accessories with countable reps, and nothing else.
 
 Rest only follows the goal on the lifts. Prehab, activation and power-primer work
 already carry rest written per category — 30-45 s for a mechanical drill, 45-60 s
