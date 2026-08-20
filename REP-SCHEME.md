@@ -141,8 +141,112 @@ Reps are a finer grid, so the same answers can finally differ:
 50/70/85% build-up the spec asks for already generates), and exercise tiering,
 which the tiers here map onto rather than duplicating.
 
-**Not done yet.** The effort target and the goal-aware rest are computed but not
-shown on the card — the card still displays the category-based rest it always
-did. That is a UI change on the busiest screen in the app and worth its own pass
-with eyes on it. Until then the numbers exist and nothing depends on them, so
-nothing is misreported.
+**Now on the card.** The effort target is printed under the target weight, and
+the rest timer counts down the goal's number rather than the category's.
+
+| Goal | Main lift effort | Rest |
+|---|---|---|
+| Strength / Power | Leave about 1-2 reps in the tank | 4 min |
+| Muscle / General | Leave about 1-2 reps in the tank, last set close to failure | 2.5 min |
+| Fat loss | Leave about 2-3 reps in the tank | 75 s |
+| Rehab | Leave about 2-3 reps in the tank | 2.5 min |
+
+Rest only follows the goal on the lifts. Prehab, activation and power-primer work
+already carry rest written per category — 30-45 s for a mechanical drill, 45-60 s
+for a neuro one — and the goal table has one number covering all three, so using
+it there would trade a specific answer for a vaguer one.
+
+**And displaying it caught a real one.** Rehab is mapped to the hypertrophy row,
+which carries "last set close to failure". Right for the rep range, wrong for the
+effort — so someone rehabbing a shoulder was being programmed a maximal set on
+their main lift, and if they had also ticked muscle or strength it happened by a
+different route as well. Invisible for as long as the number was computed and
+never shown. Rehab now overrides the effort outright: never to failure, and never
+fewer than 2-3 reps kept back. It wins this one rather than losing the tie-break,
+because being wrong about a rep range costs a mediocre session and being wrong
+here costs an injury, to someone who has told the app they already have one.
+
+---
+
+## Reading the reps, not just the buttons
+
+Everything the app knew about how a session felt came from three buttons.
+Buttons are a report; reps are a measurement — and someone prescribed 8-12 who
+logs 20 has already typed in better evidence than any answer they could tap.
+
+So the last set of every lift is now read. No new question, no extra tap, and it
+works for the user who never touches the feedback buttons, which the buttons by
+definition cannot.
+
+It takes a lot to fire — a rep count has to clear a proportional guard **and** an
+absolute one, because one extra rep means something different on a triple than on
+a calf raise, and a single rep either way is a miscount rather than a
+prescription error:
+
+| Target | Logged | Verdict |
+|---|---|---|
+| 8-12 | 13 | nothing |
+| 8-12 | 15 | easy |
+| 8-12 | 18 | too easy |
+| 5 | 6 | nothing |
+| 5 | 8 | too easy |
+| 20 | 22 | nothing |
+
+Erring toward silence is deliberate: a missed signal costs one session, a false
+one adds weight to a bar that did not deserve it.
+
+**The last set, and only the last.** On a main lift every set below the top is a
+stated fraction of one number, so beating a warm-up's target proves nothing. On a
+hypertrophy accessory the last set is the one taken closest to failure. Both
+point at the same set.
+
+**"Too Hard" is never overruled by it.** A rep count is evidence about a weight;
+"Too Hard" is a person saying they were at their limit. Answering that with more
+weight because the arithmetic disagreed is the worst thing the app could do.
+
+**And what it will not read:** clinical dosing (beating "2 x 15 each side" on a
+rotator cuff is not an argument for more weight), timed holds, AMRAPs, and any
+exercise with a set left unfinished.
+
+### Nothing to add is not the same as "add nothing"
+
+43 catalogue lifts are bodyweight with a countable rep range. Topping out the
+range used to tell those "the weight goes up and the reps start again" — and then
+no weight went up, because there is none, so the earned reps were thrown away and
+the same range was climbed again, forever. Reading the reps makes the top of the
+range arrive faster, so this stopped being theoretical. Those lifts now hold at
+the top, which is at least honest. The app decides which are which from what was
+actually lifted, not from the load sentence, because "Bodyweight + 10-20 kg
+plate" is both.
+
+---
+
+## The warm-up asymmetry
+
+One place the feedback rules contradicted themselves.
+
+"Easy" on a warm-up was correctly ignored — it is a fraction of the working
+weight, so an honest answer to it is Easy every time. **"Too Hard" on the same
+warm-up failed the whole lift**: held the load, and counted toward the three
+stalled sessions that earn a 10% deload. A lifter with a stiff first set who
+answered honestly and then went on to lift their full working weight was punished
+for saying so. The generous answer to the same set was not.
+
+It is settled by one question: **did they get past it?**
+
+- Working set came in at or above the weight they refused → they got past it, and
+  nothing changes.
+- Working set came in under it, or was never answered → it stands, and the load
+  holds.
+
+The weights are what make this safe, and the first attempt without them was
+wrong. "The working set was answered" is not the same as "the working set carried
+the prescription": saying Too Hard mid-ramp backs the exercise off and caps every
+set after it, so the working set gets answered at a *reduced* weight. Reading
+that as "nothing to change" left the prescription exactly where someone had just
+demonstrated they could not lift it — measured on a lifter with a 60 kg limit
+prescribed 102.5 kg, the weight never came down at all. Both the fix and that
+failure are pinned by tests.
+
+What it still cannot do is **earn** anything. The best a lift with a "Too Hard"
+anywhere in it can score is "nothing changes".

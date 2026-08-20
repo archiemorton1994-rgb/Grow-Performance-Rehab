@@ -333,10 +333,61 @@ check(
   feedbackRatingFor(['easy'], { isRamped: true, sets: 1 }) === 'very_easy',
   'with one set there is no warm-up to discount'
 );
+// THE ASYMMETRY THIS FILE USED TO ENFORCE.
+//
+// "Easy" on a warm-up was correctly ignored - it is a fraction of the working
+// weight, so an honest answer to it is Easy every time. "Too Hard" on the same
+// warm-up failed the whole lift: held the load AND counted toward the three
+// stalled sessions that earn a 10% deload. A stiff first set, answered
+// honestly, was punished; the generous answer to it was not.
+//
+// It is settled by what was lifted afterwards, and ONLY by that. The first
+// attempt asked whether the working set had been answered, which is a different
+// question with a dangerous answer - see section [6] of ramp-collapse, where a
+// lifter refuses 72.5 kg, the exercise correctly backs them off, and the working
+// set then gets answered at 57.5 kg. Reading that as "nothing to change" left
+// the prescription at 102.5 kg forever.
+const RAMP_KG = [40, 57.5, 90, 102.5];
+const KPI_KG = { ...KPI, loggedKg: RAMP_KG };
 check(
-  'Too Hard on a warm-up still counts against the whole exercise',
-  feedbackRatingFor(['too_hard', null, null, 'easy'], KPI) === 'hard',
-  'half the working weight being too much is the strongest evidence there is'
+  'a warm-up called too hard, and then the full working weight lifted anyway',
+  feedbackRatingFor(['too_hard', null, null, 'challenging'], KPI_KG) === null,
+  'they got past it - and this used to hold the load and move them a third of the way to a 10% deload'
+);
+check(
+  'but not if they backed off and never got there',
+  feedbackRatingFor(['too_hard', null, null, 'challenging'], { ...KPI, loggedKg: [40, 57.5, 35, 35] }) === 'hard',
+  'the working set carrying LESS than the weight refused is the opposite of evidence the prescription was fine'
+);
+check(
+  'and it cannot earn a jump either, however good the working set felt',
+  feedbackRatingFor(['too_hard', null, null, 'easy'], KPI_KG) === null,
+  'the best a lift with a Too Hard in it can score is that nothing changes'
+);
+check(
+  'with the working set unanswered, the warm-up is the only evidence and stands',
+  feedbackRatingFor(['too_hard', null, null, null], KPI_KG) === 'hard',
+  'nothing overruled it - including the case where the working set was never reached'
+);
+check(
+  'with no logged weights at all, it stands too',
+  feedbackRatingFor(['too_hard', null, null, 'challenging'], KPI) === 'hard',
+  'a resumed session has no per-set answers to recompute from, and unproven must fall to holding the load'
+);
+check(
+  'clearing the lightest refusal does not clear the heaviest',
+  feedbackRatingFor(['too_hard', 'too_hard', null, 'challenging'], { ...KPI, loggedKg: [40, 57.5, 50, 50] }) === 'hard',
+  'on a climbing ramp the first Too Hard is the lightest of them'
+);
+check(
+  'Too Hard on the working set is still Too Hard',
+  feedbackRatingFor([null, null, null, 'too_hard'], KPI) === 'hard',
+  ''
+);
+check(
+  'an accessory has no warm-ups, so Too Hard anywhere still counts',
+  feedbackRatingFor(['easy', 'too_hard', 'easy']) === 'hard',
+  'every set of an accessory carries the same target, so every answer is about it'
 );
 
 check(

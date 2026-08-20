@@ -321,20 +321,66 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
  * going easy is not a nudge, it is the whole signal, and it earns the whole
  * jump. The +5 rung is still reachable there through a run of clean sessions.
  *
- * "Too Hard" counts wherever it was said, warm-up included. A set at half the
- * working weight being too much is the strongest evidence there is that the
- * prescription is wrong, and it is the one answer that must never be thrown
- * away — the same reasoning as the guardrail above.
+ * "Too Hard" is never thrown away, but on a ramp it is read against what was
+ * actually lifted afterwards. One question settles it: DID THEY GET PAST IT?
+ *
+ *   working set came in at or above the weight they refused  —  they got past it
+ *   working set came in under it, or was never answered      —  it stands
+ *
+ * That closes the one place this file contradicted itself. "Easy" on a warm-up
+ * was correctly ignored — it is a fraction of the working weight, so an honest
+ * answer to it is Easy every time. "Too Hard" on the same warm-up failed the
+ * whole lift, held the load AND counted toward the three stalled sessions that
+ * earn a 10% deload. A lifter with a stiff first set who answered honestly and
+ * then went on to lift their full working weight was punished for saying so;
+ * the generous answer to the same set was not.
+ *
+ * The weights are what make this safe, and the first attempt without them was
+ * wrong. "The working set was answered" is not the same as "the working set
+ * carried the prescription": saying Too Hard mid-ramp backs the exercise off and
+ * caps every set after it, so the working set gets answered at a REDUCED weight
+ * — and reading that as "nothing to change" would have left the prescription
+ * exactly where someone had just demonstrated they could not lift it. Measured on
+ * a lifter with a 60 kg limit prescribed 102.5 kg: the anchor never moved.
+ *
+ * Two things it still cannot do. It cannot EARN anything — the best a lift with a
+ * Too Hard anywhere in it can score is "nothing changes", so this is never a
+ * route to more weight. And with no logged weights to check — a session resumed
+ * after the answers were discarded — it cannot prove anyone got past anything, so
+ * it falls back to holding the load, which is the safe direction.
  */
 export function feedbackRatingFor(
   answers: (SetFeedback | null)[],
-  ramp?: { isRamped: boolean; sets: number }
+  ramp?: {
+    isRamped: boolean;
+    sets: number;
+    /**
+     * What each set actually carried, kg, in order. Optional: without it an
+     * earlier "Too Hard" simply stands, which is what it did before any of this.
+     */
+    loggedKg?: number[];
+  }
 ): 'very_easy' | 'easy' | 'hard' | null {
-  if (answers.includes('too_hard')) return 'hard';
   if (ramp?.isRamped) {
     const working = Math.max(0, (ramp.sets > 0 ? ramp.sets : answers.length) - 1);
-    return answers[working] === 'easy' ? 'very_easy' : null;
+    const top = answers[working];
+    if (top === 'too_hard') return 'hard';
+    // The heaviest weight they refused, not the first. On a climbing ramp the
+    // first Too Hard is the lightest of them, and clearing that one proves
+    // nothing about the one above it.
+    const heaviestRefused = answers.reduce(
+      (worst, a, i) =>
+        a === 'too_hard' && i !== working ? Math.max(worst, ramp.loggedKg?.[i] ?? 0) : worst,
+      0
+    );
+    if (answers.some((a, i) => a === 'too_hard' && i !== working)) {
+      const workingKg = ramp.loggedKg?.[working] ?? 0;
+      const gotPastIt = heaviestRefused > 0 && workingKg >= heaviestRefused;
+      return top && gotPastIt ? null : 'hard';
+    }
+    return top === 'easy' ? 'very_easy' : null;
   }
+  if (answers.includes('too_hard')) return 'hard';
   const easyCount = answers.filter((a) => a === 'easy').length;
   if (easyCount >= 2) return 'very_easy';
   if (easyCount === 1) return 'easy';

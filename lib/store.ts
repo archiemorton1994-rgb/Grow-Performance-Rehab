@@ -6,7 +6,7 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import { performanceForLog } from '@/lib/set-performance';
-import { nextPrescription } from '@/lib/rep-scheme';
+import { combineWithMeasuredReps, measuredRating, nextPrescription } from '@/lib/rep-scheme';
 import { CLEAN_SESSIONS_PER_BIG_JUMP } from '@/lib/workout-engine';
 import {
   getTrainingBalanceNudge as getBalanceNudge,
@@ -995,7 +995,19 @@ export const useAppStore = create<AppState>()(
             // failures and the in-session rating are all judged in one place -
             // see lib/set-performance.ts, which exists so this rule can be
             // tested without standing up the whole store.
-            const perfWithFeedback = performanceForLog(log.sets, log.feedbackRating);
+            //
+            // Before any of that: what did the REPS say? The three feedback
+            // buttons are a report and the rep count is a measurement, and
+            // someone prescribed 8-12 who logged 20 has already proved the
+            // weight was light more convincingly than any button could - with
+            // no extra tap, and whether or not they ever touch the buttons.
+            // "Too Hard" is never overruled by it; see combineWithMeasuredReps.
+            const measured =
+              log.targetReps && log.category
+                ? measuredRating(log.targetReps, log.sets, log.category)
+                : null;
+            const effectiveRating = combineWithMeasuredReps(log.feedbackRating, measured);
+            const perfWithFeedback = performanceForLog(log.sets, effectiveRating ?? undefined);
             if (perfWithFeedback === null) continue;
             newPerformance[log.exerciseId] = perfWithFeedback;
 
@@ -1014,7 +1026,13 @@ export const useAppStore = create<AppState>()(
                 hitEverySet && perfWithFeedback !== 'failed',
                 get().userProfile.goals,
                 log.category,
-                log.feedbackRating
+                effectiveRating ?? undefined,
+                // Is there anything to add? 43 catalogue lifts are bodyweight
+                // with a countable rep range, and telling those "the weight
+                // goes up" threw the earned reps away for a weight that never
+                // arrived. What was actually lifted answers it without
+                // pattern-matching a load sentence.
+                log.sets.some((set) => set.weight > 0)
               );
               if (next) {
                 newRepTarget[log.exerciseId] = next.reps;

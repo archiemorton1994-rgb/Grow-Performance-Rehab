@@ -56,7 +56,9 @@ import {
   useAppStore,
   STRENGTH_SESSION_TYPES,
   TIER_ORDER,
+  FitnessGoal,
 } from '@/lib/store';
+import { effortHint, prescriptionFor, restSecondsFor, tierOf } from '@/lib/rep-scheme';
 import { uploadUserData } from '@/lib/sync';
 import { ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from '@/lib/acute-rehab';
 import { videoUrlFor } from '@/lib/exercise-videos';
@@ -185,16 +187,23 @@ function progressionIconFor(exercise: Exercise) {
 
 function RestTimer({
   category,
+  seconds,
   trigger = 0,
   onTimerEnd,
 }: {
   category: Exercise['category'];
+  /**
+   * Goal-aware rest, when the goal has an opinion. A back squat wants three
+   * minutes for someone chasing strength and ninety seconds for someone chasing
+   * size, and the category map alone could not tell them apart.
+   */
+  seconds?: number | null;
   trigger?: number;
   onTimerEnd?: () => void;
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const duration = REST_PERIOD_SECONDS[category] ?? 0;
+  const duration = seconds ?? REST_PERIOD_SECONDS[category] ?? 0;
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
   // should hit zero. `secondsLeft` is derived from (endAt - Date.now()) on
   // every tick, so backgrounding, scroll jank, or device sleep can never
@@ -1164,6 +1173,7 @@ export function ExerciseCard({
   swapBtnRef,
   previousNote,
   onOpenPlates,
+  goals,
 }: {
   exercise: Exercise;
   index: number;
@@ -1201,6 +1211,8 @@ export function ExerciseCard({
    *  session. Shown once, above the card, until they write a new one. */
   previousNote?: string | null;
   onOpenPlates?: () => void;
+  /** The training goals from onboarding, which decide the effort target and the rest. */
+  goals?: readonly FitnessGoal[];
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1258,6 +1270,47 @@ export function ExerciseCard({
   // append only to a string that is nothing but a number or a range.
   const repsIsBareCount = /^[\d\s.,\-–—+x×/]+$/.test(repsLabel.trim());
   const repDisplay = isTimeExercise || !repsIsBareCount ? repsLabel : `${repsLabel} reps`;
+
+  /**
+   * HOW HARD, not just how heavy.
+   *
+   * The card has always said what to lift and how many times, and never how
+   * close to your limit to get. "3 x 10" with no effort target is half a
+   * prescription: the same ten reps can be a warm-up or a maximal set, and
+   * without saying which, the Easy / Challenging / Too Hard question underneath
+   * is being asked against nothing. With a target on screen it becomes
+   * checkable - you were meant to leave two, did you?
+   *
+   * Deliberately in plain English rather than the industry's "RIR 2", and
+   * deliberately absent from timed work and from anything that is not a working
+   * set, where reps in reserve is not a thing that exists.
+   */
+  const effortTargets = useMemo(() => {
+    if (exercise.type === 'cardio' || isTimeExercise) return null;
+    const scheme = prescriptionFor(goals, exercise.category);
+    if (!scheme) return null;
+    const lines: string[] = [];
+    // A one-set exercise has no set that is not the last one, so pairing the two
+    // lines there would contradict itself.
+    if (exercise.sets > 1 || !scheme.lastSetToFailure) lines.push(effortHint(scheme, false));
+    if (scheme.lastSetToFailure) lines.push(effortHint(scheme, true));
+    return lines.length > 0 ? lines : null;
+  }, [exercise.type, exercise.category, exercise.sets, isTimeExercise, goals]);
+
+  /**
+   * Rest, where the goal actually changes the answer.
+   *
+   * Only the lifting tiers. Prehab, activation and power-primer work already
+   * carry rest periods written per category - 30-45 s for a mechanical drill,
+   * 45-60 s for a neuro one - and the goal table has a single number covering
+   * all three, so applying it there would trade a specific answer for a vaguer
+   * one. On the lifts it is the other way round: one number covered a
+   * powerlifter and someone chasing size, who want three minutes and ninety
+   * seconds respectively.
+   */
+  const goalTier = tierOf(exercise.category);
+  const goalRestSeconds =
+    goalTier === 'tier1' || goalTier === 'tier2' ? restSecondsFor(goals, exercise.category) : null;
 
   const isPast = exerciseState === 'past';
   const isFuture = exerciseState === 'future';
@@ -1432,6 +1485,18 @@ export function ExerciseCard({
                       <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
                     </View>
                   )}
+                  {effortTargets && (
+                    <View style={styles.effortRow} testID={`effort-target-${index}`}>
+                      <Ionicons name="speedometer-outline" size={11} color={C.textTertiary} />
+                      <View style={styles.effortLines}>
+                        {effortTargets.map((line) => (
+                          <Text key={line} style={styles.effortText}>
+                            {line}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </View>
                 <Ionicons
                   name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -1566,7 +1631,11 @@ export function ExerciseCard({
                   )}
 
                   {exercise.type !== 'cardio' && !isTimedCardioWarmup(exercise) && (
-                    <RestTimer category={exercise.category} trigger={effectiveTimerTrigger} />
+                    <RestTimer
+                      category={exercise.category}
+                      seconds={goalRestSeconds}
+                      trigger={effectiveTimerTrigger}
+                    />
                   )}
 
                   {exercise.type !== 'cardio' &&
@@ -3394,7 +3463,27 @@ export default function SessionScreen() {
     // erased, and the muscle map and exercise history key off the exercise, not
     // the load.
     const exerciseLogs: ExerciseLog[] = exercises.map((ex, i) => {
-      const rating = inSessionFeedback[ex.id];
+      // RECOMPUTED HERE, WITH THE WEIGHTS.
+      //
+      // The live value in inSessionFeedback is worked out one tap at a time,
+      // when only the answers are to hand. This is the one point in the session
+      // where the answers AND what was actually lifted both exist, and the
+      // difference matters for exactly one case: a warm-up called Too Hard.
+      // Whether that fails the whole lift depends on whether the working set
+      // then carried the weight that was refused, which no amount of answers can
+      // say on its own - see feedbackRatingFor.
+      //
+      // A resumed session has no per-set answers (they are scratch working and
+      // deliberately not persisted), so it keeps the live value, which is the
+      // conservative one.
+      const answers = setAnswers[ex.id];
+      const rating = answers?.some((a) => a != null)
+        ? feedbackRatingFor(answers, {
+            isRamped: ex.category === 'main',
+            sets: ex.sets,
+            loggedKg: (exerciseData[i]?.sets ?? []).map((set) => set.weight),
+          })
+        : inSessionFeedback[ex.id];
       const cardio = exerciseData[i]?.cardioData ?? undefined;
       return {
         exerciseId: ex.id,
@@ -3724,6 +3813,7 @@ export default function SessionScreen() {
               swapBtnRef={index === 0 ? swapBtnRef : undefined}
               previousNote={isDemo ? null : getLastExerciseNote(exercise.id, exercise.name)}
               onOpenPlates={isDemo ? undefined : () => setPlateModalIndex(index)}
+              goals={userProfile.goals}
             />
           );
           return card;
@@ -4255,6 +4345,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.primaryText,
       marginTop: 2,
       fontStyle: 'italic' as const,
+    },
+    effortRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: 4,
+      marginTop: 3,
+    },
+    effortLines: {
+      flex: 1,
+      gap: 1,
+    },
+    effortText: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
     },
     progressionNoteRow: {
       flexDirection: 'row' as const,

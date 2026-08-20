@@ -111,7 +111,12 @@ console.log('\n[1] Neither timer is keyed on where the exercise sits');
 
 const timerBlock = SESSION_SRC.slice(
   SESSION_SRC.indexOf('{exercise.type !== \'cardio\' && isTimedCardioWarmup'),
-  SESSION_SRC.indexOf('<RestTimer category=')
+  // Anchored on the tag alone, not on its first prop. Adding a second prop to
+  // <RestTimer> wrapped it across lines, indexOf missed, and the slice silently
+  // became the whole rest of the file - which of course contains `index`, so
+  // this reported the bug it exists to catch on a change that had nothing to do
+  // with it. A source anchor that moves when the formatter runs is not an anchor.
+  SESSION_SRC.indexOf('<RestTimer')
 );
 
 check(

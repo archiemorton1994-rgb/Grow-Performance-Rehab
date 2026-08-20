@@ -196,13 +196,40 @@ export const REP_SCHEME: Record<Intent, Record<ExerciseTier, RepPrescription>> =
   },
 };
 
+/**
+ * REHAB NEVER GOES TO FAILURE, WHATEVER ELSE WAS TICKED.
+ *
+ * Rehab is mapped to the hypertrophy row of the table, which is right for the
+ * rep range and wrong for the effort: that row carries "last set close to
+ * failure" and a 1-2 rep reserve. So someone rehabbing a shoulder was being
+ * programmed a maximal set on their main lift - and if they had also ticked
+ * muscle or strength, the same thing happened by a different route.
+ *
+ * This was invisible for as long as the effort target was computed and never
+ * shown. It is on the card now, so it has to be right.
+ *
+ * Rehab wins this one outright rather than by the usual tie-break. The rep
+ * range tie-break is about specificity - a 5-rep prescription trained as 15 is
+ * a different session - and being wrong there costs a mediocre workout. Being
+ * wrong here costs an injury, and the person has told the app they already have
+ * one.
+ */
+function softenForRehab(p: RepPrescription): RepPrescription {
+  return {
+    ...p,
+    lastSetToFailure: false,
+    rir: { min: Math.max(p.rir.min, 2), max: Math.max(p.rir.max, 3) },
+  };
+}
+
 export function prescriptionFor(
   goals: readonly FitnessGoal[] | undefined,
   category: ExerciseCategory
 ): RepPrescription | null {
   const tier = tierOf(category);
   if (!tier) return null;
-  return REP_SCHEME[intentFor(goals)][tier];
+  const p = REP_SCHEME[intentFor(goals)][tier];
+  return goals?.includes('rehab') ? softenForRehab(p) : p;
 }
 
 /**
@@ -308,7 +335,17 @@ export function nextPrescription(
   goals: readonly FitnessGoal[] | undefined,
   category: ExerciseCategory,
   /** What the user said about how it felt, if they said anything. */
-  rating?: 'very_easy' | 'easy' | 'hard'
+  rating?: 'very_easy' | 'easy' | 'hard',
+  /**
+   * Whether there is any weight on this exercise to add.
+   *
+   * False for the 43 bodyweight lifts in the catalogue that carry a countable
+   * rep range. Topping out the range on those used to hand back "the weight goes
+   * up and the reps start again" - and then no weight went up, because there is
+   * none, so the earned reps were thrown away and the user climbed the same
+   * range again, forever. Holding at the top is at least honest.
+   */
+  loadable: boolean = true
 ): NextPrescription | null {
   // Tier 3 keeps the dose it was written with.
   //
@@ -348,6 +385,13 @@ export function nextPrescription(
   const topOfRange = () => formatReps(floor, ceiling, parsed.suffix);
 
   if (parsed.min >= ceiling) {
+    if (!loadable) {
+      return {
+        reps: formatReps(ceiling, ceiling, parsed.suffix),
+        addLoad: false,
+        note: 'Top of the rep range - hold here until you can make the movement harder',
+      };
+    }
     return {
       reps: topOfRange(),
       addLoad: true,
@@ -387,4 +431,121 @@ export function nextPrescription(
           ? `Two more reps at the same weight - ${nextMin} to beat`
           : `One more rep at the same weight - ${nextMin} to beat`,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OBJECTIVE AUTO-REGULATION: WHAT THE REPS SAY
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A set that carries enough to judge a prescription by.
+ *
+ * Structurally the store's SetLog, declared narrowly so this file stays free of
+ * store imports and can be tested on plain objects.
+ */
+export interface LoggedSet {
+  reps: number;
+  completed: boolean;
+  skipped?: boolean;
+}
+
+/**
+ * THE WEIGHT WAS TOO LIGHT, AND THE LOG ALREADY PROVES IT.
+ *
+ * WHY THIS EXISTS
+ * ───────────────
+ * Everything the app knew about how a session felt came from three buttons.
+ * Buttons are a report; reps are a measurement. Someone prescribed 8-12 who
+ * logs 20 has demonstrated the weight is wrong more convincingly than any
+ * answer they could tap, and they have already typed the evidence in — the rep
+ * count is a required field on every set.
+ *
+ * So this reads it. No new question, no extra tap, and it works for the user who
+ * never touches the feedback buttons at all, which the buttons by definition
+ * cannot.
+ *
+ * WHY THE LAST SET
+ * ────────────────
+ * On a main lift the last set is the working set — every rung below it is a
+ * stated fraction of one number, so beating a warm-up's rep target proves
+ * nothing (see lib/auto-regulation.ts, which has the same rule for the same
+ * reason). On a hypertrophy accessory the last set is the one taken closest to
+ * failure. Both point at the same set, and it is the only one worth reading.
+ *
+ * WHY IT TAKES A LOT TO FIRE
+ * ──────────────────────────
+ * Two guards, and a rep count has to clear both:
+ *
+ *   - a PROPORTION, because one extra rep means something different on a 3-rep
+ *     squat than on a 20-rep calf raise
+ *   - an ABSOLUTE margin, because a single rep either way is miscounting, a
+ *     half rep argued into a whole one, or a good day - not a prescription
+ *     error
+ *
+ * Erring toward silence is deliberate. A missed signal costs one session; a
+ * false one adds weight to a bar that did not deserve it.
+ */
+const OVERSHOOT_EASY_RATIO = 1.2;
+const OVERSHOOT_EASY_REPS = 2;
+const OVERSHOOT_VERY_EASY_RATIO = 1.5;
+const OVERSHOOT_VERY_EASY_REPS = 3;
+
+export function measuredRating(
+  targetReps: string,
+  sets: readonly LoggedSet[],
+  category: ExerciseCategory
+): 'very_easy' | 'easy' | null {
+  // Tier 3 is a clinical dose, and beating it is not an argument for more
+  // weight. "2 x 15 each side" on a rotator cuff done for 20 means the person
+  // felt good, not that the physiotherapist was wrong - and this is the exact
+  // class of exercise where being wrong turns prehab into an injury.
+  const tier = tierOf(category);
+  if (tier !== 'tier1' && tier !== 'tier2') return null;
+
+  const target = parseReps(targetReps);
+  if (!target) return null;
+
+  // An exercise with a set left unfinished is not evidence the weight was
+  // light, whatever the sets before it did.
+  if (sets.length === 0) return null;
+  if (!sets.every((s) => s.completed && !s.skipped)) return null;
+
+  const last = sets[sets.length - 1];
+  const logged = last?.reps ?? 0;
+  if (logged <= 0) return null;
+
+  const ceiling = target.max;
+  if (ceiling <= 0) return null;
+  const over = logged - ceiling;
+  const ratio = logged / ceiling;
+
+  if (over >= OVERSHOOT_VERY_EASY_REPS && ratio >= OVERSHOOT_VERY_EASY_RATIO) return 'very_easy';
+  if (over >= OVERSHOOT_EASY_REPS && ratio >= OVERSHOOT_EASY_RATIO) return 'easy';
+  return null;
+}
+
+/**
+ * What the user SAID, and what the reps SHOWED, resolved into one answer.
+ *
+ * THE ONE RULE THAT MATTERS: "Too Hard" is never overruled.
+ *
+ * A rep count is evidence about a weight. "Too Hard" is a person telling the app
+ * they were at their limit, and the app answering that with more weight because
+ * the arithmetic disagreed would be the single worst thing it could do - it is
+ * the guardrail the whole auto-regulation file is built around, and it does not
+ * stop applying because a different signal is louder.
+ *
+ * Above that line the two are combined by taking whichever says the session was
+ * easier. Both are evidence in the same direction; the stronger one wins. In
+ * particular a user who never taps a button still progresses, which is the
+ * point.
+ */
+export function combineWithMeasuredReps(
+  said: 'very_easy' | 'easy' | 'hard' | null | undefined,
+  measured: 'very_easy' | 'easy' | null
+): 'very_easy' | 'easy' | 'hard' | null {
+  if (said === 'hard') return 'hard';
+  const rank = (r: 'very_easy' | 'easy' | null | undefined) =>
+    r === 'very_easy' ? 2 : r === 'easy' ? 1 : 0;
+  return rank(said) >= rank(measured) ? (said ?? null) : measured;
 }
