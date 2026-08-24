@@ -51,16 +51,40 @@ function setupCors(app: express.Application) {
   });
 }
 
+/**
+ * THE BODY LIMIT IS THE SIZE OF A USER'S TRAINING HISTORY.
+ *
+ * express.json() defaults to 100 kb, and PUT /api/user/data carries the whole
+ * of a user's history in one request. Measured against the real payload shape,
+ * a logged session weighs about 3.2 kb, so the default is exhausted at roughly
+ * THIRTY-ONE SESSIONS - about ten weeks of training three times a week.
+ *
+ * What makes that dangerous is how quietly it fails. The upload is deliberately
+ * silent (see lib/sync.ts: local data is the source of truth and the next
+ * foreground retries), so a 413 surfaces nowhere at all. Cloud backup simply
+ * stops, the app carries on working perfectly, and nothing is wrong until the
+ * user signs out or moves to a new phone - at which point sign-out has wiped
+ * the device and the server copy is ten weeks stale.
+ *
+ * It would also have passed every test and every day of use by anybody who had
+ * not yet trained for ten weeks, which at launch is everybody.
+ *
+ * 5 mb is roughly ten years of training three times a week, and is still small
+ * enough that a runaway body is rejected rather than swallowed.
+ */
+const MAX_SYNC_BODY = '5mb';
+
 function setupBodyParsing(app: express.Application) {
   app.use(
     express.json({
+      limit: MAX_SYNC_BODY,
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
     })
   );
 
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: false, limit: MAX_SYNC_BODY }));
 }
 
 function setupRequestLogging(app: express.Application) {
