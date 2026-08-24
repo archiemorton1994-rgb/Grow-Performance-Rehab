@@ -351,6 +351,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       tagDeviceOwner(data.user.id);
       setUser(data.user);
+      /**
+       * CACHED HERE TOO, NOT ONLY ON THE LAUNCH CHECK.
+       *
+       * The offline path on launch falls back to loadCachedUser(), and that
+       * cache was written in exactly one place: a successful /api/auth/me at
+       * startup. So it did not exist yet for somebody who had only just signed
+       * in, and their FIRST offline open landed on the sign-in screen with a
+       * valid token and all of their data sitting on the device.
+       *
+       * Measured: sign in, then cold start with no network, and the app opens
+       * on "Welcome to Grow". One successful launch first and it opens on their
+       * own home screen. The protection worked from the second launch onwards,
+       * which is the wrong way round - a new user with no signal is the person
+       * most likely to conclude the app has lost their account.
+       */
+      void cacheUser(data.user);
       setHasSignedOut(false);
       await configureRevenueCat(data.user.id);
       await refreshSubscription();

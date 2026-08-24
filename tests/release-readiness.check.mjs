@@ -182,5 +182,38 @@ check(
   'the build config change must not have disturbed the environment'
 );
 
+// ─── The offline fallback has to exist before it is needed ───────────────────
+//
+// Not signing people out on a network failure is only half of it. The launch
+// path recovers the identity from loadCachedUser(), and that cache was written
+// in exactly ONE place: a successful /api/auth/me at startup. Signing in did not
+// write it.
+//
+// So the protection began working on the SECOND launch, which is the wrong way
+// round. Measured in the browser: sign in, then cold start with no network, and
+// the app opened on "Welcome to Grow" holding a valid token and a full local
+// store. One successful launch first and it opened on the user's own home
+// screen. The person it locked out is a new user with no signal, who is exactly
+// the person most likely to decide the app has lost their account.
+console.log('\n[Offline recognition]');
+
+check(
+  'signing in writes the cached identity, not just the token',
+  /setUser\(data\.user\);[\s\S]{0,900}?void cacheUser\(data\.user\);[\s\S]{0,120}?setHasSignedOut\(false\);/.test(
+    auth
+  ),
+  'the offline launch path reads this cache, and it did not exist yet for somebody who had only just signed in'
+);
+check(
+  'and the launch check still writes it too',
+  (auth.match(/cacheUser\(data\.user\)/g) ?? []).length >= 2,
+  'both routes into the app have to leave the same thing behind'
+);
+check(
+  'the offline path still reads it',
+  /const cached = await loadCachedUser\(\)/.test(auth) && /setUser\(cached\)/.test(auth),
+  ''
+);
+
 console.log(`\nrelease-readiness: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
