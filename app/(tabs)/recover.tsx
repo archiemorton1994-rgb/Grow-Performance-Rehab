@@ -60,7 +60,7 @@ const RESTORE_TUTORIAL: readonly RestoreTutorialStep[] = [
     // and short-range work with a pain limit attached, and deliberately no
     // stretching of the injured tissue. Someone expecting a circuit and given
     // five holds will think it is broken unless the tour says so first.
-    body: 'Name the area that hurts and you get gentle, low-load work built for it — nothing that stretches or loads a sore muscle hard, and a pain limit to stay inside.',
+    body: 'Name the area that hurts and you get gentle, low-load work built for it. Nothing that stretches or loads a sore muscle hard, and a pain limit to stay inside.',
   },
 ] as const;
 
@@ -169,7 +169,7 @@ function getSessionInfo(
       // Picking an area now builds the low-load, pain-free protocol for that
       // area instead, so the card has to say so before they pick.
       description:
-        'Pick the area that is sore. You get gentle, low-load work for it — holds and short controlled movements, nothing that stretches or strains the spot that hurts. Stay inside a pain-free range throughout.',
+        'Pick the area that is sore. You get gentle, low-load work for it: holds and short controlled movements, nothing that stretches or strains the spot that hurts. Stay inside a pain-free range throughout.',
       cta: 'Choose Area & Start',
       sessionType: 'prehab',
     },

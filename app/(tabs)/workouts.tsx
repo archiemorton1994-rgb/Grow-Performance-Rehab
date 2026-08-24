@@ -4161,7 +4161,7 @@ export default function StatsScreen() {
                     return {
                       // The unit belongs beside the number, not glued onto the
                       // label — "Squat kg" reads as a different statistic.
-                      value: best > 0 ? String(Math.round(kgToDisplayUnit(best, weightUnit))) : '—',
+                      value: best > 0 ? String(Math.round(kgToDisplayUnit(best, weightUnit))) : '-',
                       hint: best > 0 ? weightUnit : undefined,
                       label: LIFT_LABELS[lift],
                     };

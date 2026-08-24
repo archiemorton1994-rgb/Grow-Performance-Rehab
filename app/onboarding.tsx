@@ -148,7 +148,7 @@ const WELCOME_PILLARS = [
   {
     icon: 'sliders' as const,
     title: 'Built around you',
-    body: 'Adapts to your equipment, energy and pain — with the right load every session.',
+    body: 'Adapts to your equipment, energy and pain, with the right load every session.',
   },
   {
     icon: 'dumbbell' as const,
@@ -792,18 +792,16 @@ function OnboardingFlow() {
                   [
                     {
                       value: 'kg',
-                      label: 'Kilograms',
+                      label: 'Kilograms (kg)',
                       icon: 'dumbbell' as const,
-                      desc: 'kg - the default in the UK, Europe and most gyms',
                     },
                     {
                       value: 'lbs',
-                      label: 'Pounds',
+                      label: 'Pounds (lbs)',
                       icon: 'dumbbell' as const,
-                      desc: 'lbs - the default in the US',
                     },
                   ] as const
-                ).map(({ value, label, icon, desc }) => {
+                ).map(({ value, label, icon }) => {
                   const selected = weightUnit === value;
                   return (
                     <Pressable
@@ -836,9 +834,6 @@ function OnboardingFlow() {
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                           {label}
-                        </Text>
-                        <Text style={[styles.optionDesc, selected && styles.optionDescSelected]}>
-                          {desc}
                         </Text>
                       </View>
                       <View style={[styles.radio, selected && styles.radioSelected]}>
@@ -994,10 +989,23 @@ function OnboardingFlow() {
                 <GrowIcon name="scale" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
+              {/* IT NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
+
+                  Skipping still falls back to ASSUMED_BODYWEIGHT_KG internally,
+                  because the first session has to start somewhere. Saying that
+                  number out loud is a different matter: the people most likely
+                  to leave this blank are the ones least likely to want a guess
+                  about their weight read back to them, and the guess will be
+                  furthest out for exactly those people. It was in the
+                  placeholder too, sitting in the box before they typed.
+
+                  What replaces it is also just true. Starting loads are an
+                  opening bid; what actually sets the weight is the answers and
+                  the reps from the first few sessions. */}
               <Text style={styles.hint}>
-                Used to scale your starting loads. Leave it blank if you would rather not say - the
-                app assumes {kgToDisplayUnit(ASSUMED_BODYWEIGHT_KG, weightUnit)} {weightUnit}, and
-                you can set it later in Profile.
+                Used to set your starting weights. Would rather not say? Leave it blank and the app
+                will tune your weights from how your first few sessions go. You can add it any time
+                in Profile.
               </Text>
               <View style={[styles.inputWrap, styles.numericInputWrap]}>
                 <TextInput
@@ -1005,7 +1013,7 @@ function OnboardingFlow() {
                   style={[styles.textInput, styles.numericInput]}
                   value={bodyweight}
                   onChangeText={setBodyweight}
-                  placeholder={String(kgToDisplayUnit(ASSUMED_BODYWEIGHT_KG, weightUnit))}
+                  placeholder="Optional"
                   placeholderTextColor={C.textTertiary}
                   keyboardType="decimal-pad"
                   returnKeyType="next"

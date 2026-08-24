@@ -72,7 +72,7 @@ function getContextMessage(
 function getNonStrengthMessage(sessionCount: number, mix: string): string {
   if (sessionCount === 0) return "Welcome to your program. Let's build something lasting.";
   if (sessionCount === 1) return 'First session in the books. The habit has begun.';
-  if (sessionCount < 6) return `Early days — ${mix.toLowerCase()} is taking shape.`;
+  if (sessionCount < 6) return `Early days, and ${mix.toLowerCase()} is taking shape.`;
   return `This is your program: ${mix.toLowerCase()}. Built from what you actually train.`;
 }
 

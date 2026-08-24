@@ -1980,7 +1980,7 @@ export function NoMaxTestBanner({ visible }: { visible: boolean }) {
           }}
         >
           A fair strength test has to be heavy, and you have told us you are rehabbing. This is your
-          normal session instead — your weights keep climbing as they have been. Drop rehab from your
+          normal session instead, and your weights keep climbing as they have been. Drop rehab from your
           goals in Profile if you want the test back.
         </Text>
       </View>
@@ -2004,27 +2004,79 @@ export function NoMaxTestBanner({ visible }: { visible: boolean }) {
  * So there is no dismiss control, and no persisted "seen it" flag: it is part of
  * the protocol, not a notification about it.
  */
-export function PainFreeRangeBanner({ text }: { text: string | null }) {
+/**
+ * It can be put away, but it cannot be deleted.
+ *
+ * Asked for directly: the box "needs to be able to be closed. currently you
+ * cant press X to get rid of it, leading to a really cluttered screen". True,
+ * and it sat above the exercise list for the whole session on a 4.7-inch phone.
+ *
+ * What it carries is not a notification. It is the pain limit for a session
+ * built around something that hurts NOW, and it is the only place that limit is
+ * stated: the acute exercises carry technique cues, not the rule. So the X
+ * collapses it to one line rather than removing it, and tapping the line opens
+ * it again. The clutter is what goes, which is the complaint, and the sentence
+ * that makes the session safe stays on the screen it governs.
+ */
+export function PainFreeRangeBanner({
+  text,
+  dismissed = false,
+  onDismiss,
+  onRestore,
+}: {
+  text: string | null;
+  dismissed?: boolean;
+  onDismiss?: () => void;
+  onRestore?: () => void;
+}) {
   const C = useColors();
   if (!text) return null;
+
+  const shell = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: C.warningLight,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.warning + '44',
+    gap: 8,
+  };
+
+  if (dismissed) {
+    return (
+      <Pressable
+        onPress={onRestore}
+        style={shell}
+        testID="pain-free-range-banner-collapsed"
+        accessibilityRole="button"
+        accessibilityLabel="Show the pain-free rule"
+      >
+        <Ionicons name="medkit-outline" size={14} color={C.warning} />
+        <Text
+          style={{
+            flex: 1,
+            fontSize: 12,
+            fontFamily: 'Inter_600SemiBold',
+            color: C.warning,
+          }}
+        >
+          Keep it pain-free
+        </Text>
+        <Ionicons name="chevron-down" size={14} color={C.warning} />
+      </Pressable>
+    );
+  }
+
   return (
     <Animated.View
       entering={FadeInDown.duration(350)}
       testID="pain-free-range-banner"
       accessibilityRole="alert"
-      style={{
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginHorizontal: 16,
-        marginBottom: 6,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: C.warningLight,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: C.warning + '44',
-        gap: 8,
-      }}
+      style={{ ...shell, alignItems: 'flex-start', paddingVertical: 10 }}
     >
       <Ionicons name="medkit-outline" size={16} color={C.warning} />
       <View style={{ flex: 1 }}>
@@ -2050,6 +2102,18 @@ export function PainFreeRangeBanner({ text }: { text: string | null }) {
           {text}
         </Text>
       </View>
+      {onDismiss && (
+        <Pressable
+          onPress={onDismiss}
+          style={{ padding: 4, alignItems: 'center', justifyContent: 'center' }}
+          testID="pain-free-banner-dismiss"
+          accessibilityLabel="Collapse"
+          accessibilityRole="button"
+          hitSlop={8}
+        >
+          <Ionicons name="close" size={16} color={C.warning} />
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -2242,7 +2306,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     // in-session effect, so the single biggest thing these taps do — set the
     // weight you are given next week — went unexplained, and an answer whose
     // consequence you cannot see is one people stop giving.
-    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time — bigger jumps when you say Easy, no jump at all after Too Hard.',
+    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time. Bigger jumps when you say Easy, no jump at all after Too Hard.',
     demoForceFeedback: true,
   },
   {
@@ -2649,6 +2713,7 @@ export default function SessionScreen() {
   const [showAbandonModal, setShowAbandonModal] = useState(false);
   const [showDemoComplete, setShowDemoComplete] = useState(false);
   const [painBannerDismissed, setPainBannerDismissed] = useState(false);
+  const [painFreeBannerDismissed, setPainFreeBannerDismissed] = useState(false);
   const [restoreFailed, setRestoreFailed] = useState(false);
   const [barTimerTrigger, setBarTimerTrigger] = useState(0);
   const [notesVisible, setNotesVisible] = useState<boolean[]>([]);
@@ -2864,6 +2929,7 @@ export default function SessionScreen() {
   const activeIndexRef = useRef<number>(0);
   const exerciseIdsRef = useRef<string[]>([]);
   const painBannerDismissedRef = useRef(false);
+  const painFreeBannerDismissedRef = useRef(false);
   const inSessionFeedbackRef = useRef<Record<string, FeedbackRating | null>>({});
   // Ref to always-current activeSession (used in effects whose deps don't include activeSession)
   const activeSessionRef = useRef(activeSession);
@@ -2890,7 +2956,8 @@ export default function SessionScreen() {
   }, [exercises]);
   useEffect(() => {
     painBannerDismissedRef.current = painBannerDismissed;
-  }, [painBannerDismissed]);
+    painFreeBannerDismissedRef.current = painFreeBannerDismissed;
+  }, [painBannerDismissed, painFreeBannerDismissed]);
   useEffect(() => {
     inSessionFeedbackRef.current = inSessionFeedback;
   }, [inSessionFeedback]);
@@ -2979,6 +3046,7 @@ export default function SessionScreen() {
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
         painBannerDismissed: painBannerDismissedRef.current,
+        painFreeBannerDismissed: painFreeBannerDismissedRef.current,
       });
     };
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
@@ -3058,6 +3126,7 @@ export default function SessionScreen() {
     setNotesVisible(restoredNotes.map((n) => n.length > 0));
     setActiveIndex(Math.min(stored.activeIndex, exs.length - 1));
     if (stored.painBannerDismissed) setPainBannerDismissed(true);
+    if (stored.painFreeBannerDismissed) setPainFreeBannerDismissed(true);
     if (stored.inSessionFeedback) setInSessionFeedback(stored.inSessionFeedback);
     // Signal that we need to scroll to the restored active card once it reports its layout
     pendingScrollToActiveRef.current = true;
@@ -3210,10 +3279,17 @@ export default function SessionScreen() {
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: exerciseIdsRef.current,
         painBannerDismissed: painBannerDismissedRef.current,
+        painFreeBannerDismissed: painFreeBannerDismissedRef.current,
       });
     }, SNAPSHOT_THROTTLE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseData, inSessionFeedback, activeIndex, painBannerDismissed]);
+  }, [
+    exerciseData,
+    inSessionFeedback,
+    activeIndex,
+    painBannerDismissed,
+    painFreeBannerDismissed,
+  ]);
 
   useEffect(
     () => () => {
@@ -3663,6 +3739,7 @@ export default function SessionScreen() {
       elapsedSeconds,
       exerciseIds: exercises.map((ex) => ex.id),
       painBannerDismissed,
+      painFreeBannerDismissed,
     });
     setShowAbandonModal(false);
     router.dismissAll();
@@ -3764,7 +3841,12 @@ export default function SessionScreen() {
 
       <NoMaxTestBanner visible={isTestWeek && !runsMaxTest} />
 
-      <PainFreeRangeBanner text={painFreeText} />
+      <PainFreeRangeBanner
+        text={painFreeText}
+        dismissed={painFreeBannerDismissed}
+        onDismiss={() => setPainFreeBannerDismissed(true)}
+        onRestore={() => setPainFreeBannerDismissed(false)}
+      />
       <RestoreFailedBanner visible={restoreFailed} onDismiss={() => setRestoreFailed(false)} />
 
       <KeyboardAwareScrollViewCompat

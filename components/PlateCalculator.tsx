@@ -132,7 +132,7 @@ export function PlateCalculator({
                 <View style={[styles.shortfall, { backgroundColor: C.surfaceTertiary }]}>
                   <Ionicons name="information-circle-outline" size={14} color={C.textSecondary} />
                   <Text style={[styles.shortfallText, { color: C.textSecondary }]}>
-                    Closest you can load is {plan.achievable} {weightUnit} — {plan.shortfall}{' '}
+                    Closest you can load is {plan.achievable} {weightUnit}, which is {plan.shortfall}{' '}
                     {weightUnit} under.
                   </Text>
                 </View>

@@ -78,7 +78,7 @@ const READINESS_TUTORIAL = [
     // given INSTEAD, which is deliberately gentle and comes with a pain limit.
     // Someone who reads "swap away" and then finds five isometric holds in
     // their session has been told the wrong thing about their own workout.
-    body: 'Tap anywhere that is sore. The app takes the exercises that would aggravate it out of your session, and puts gentle work for that area in — nothing that stretches or hard-loads it, and a pain limit to stay inside.',
+    body: 'Tap anywhere that is sore. The app takes the exercises that would aggravate it out of your session and puts gentle work for that area in. Nothing that stretches or hard-loads it, and a pain limit to stay inside.',
   },
   {
     iconName: 'battery-half-outline',
@@ -572,7 +572,7 @@ export default function ReadinessScreen() {
               </Pressable>
               <Pressable onPress={handleDisableTests} hitSlop={6} testID="disable-test-weeks">
                 <Text style={styles.testDeferLink}>
-                  I don&apos;t train these lifts — turn test weeks off →
+                  I don&apos;t train these lifts. Turn them off →
                 </Text>
               </Pressable>
             </View>
@@ -583,7 +583,7 @@ export default function ReadinessScreen() {
             <Ionicons name="checkmark-circle-outline" size={16} color={C.primaryText} />
             <Text style={styles.testDeferConfirmText}>
               {testsDisabled
-                ? "Test weeks are off. Today's a normal session — you can turn them back on in Profile › Settings."
+                ? "Test weeks are off, so today is a normal session. You can turn them back on in Profile › Settings."
                 : "Test postponed. We'll ask again next session, today's a normal one."}
             </Text>
           </View>
@@ -1389,7 +1389,7 @@ const prehabDiagramMaxHeight =
             <Text style={styles.introTitle}>Your first test week</Text>
             <Text style={styles.introBody}>
               You&apos;ve earned this. Over the next three sessions you&apos;ll test each of your
-              main lifts once — squat, then bench, then deadlift.
+              main lifts once: squat, then bench, then deadlift.
             </Text>
 
             <View style={styles.introSteps}>
@@ -1408,7 +1408,7 @@ const prehabDiagramMaxHeight =
               <View style={styles.introStep}>
                 <Text style={styles.introStepNum}>3</Text>
                 <Text style={styles.introStepText}>
-                  The weight and your reps give us your one-rep max — the most you could lift for
+                  The weight and your reps give us your one-rep max, the most you could lift for
                   a single rep.
                 </Text>
               </View>

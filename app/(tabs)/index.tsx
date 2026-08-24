@@ -88,7 +88,7 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
     iconName: 'chatbubble-ellipses-outline',
     iconLabel: 'Assistant',
     title: 'What the app has noticed',
-    body: 'Everything it has to say lives behind this button — when you are due a lighter week, when one side of your training is getting thin, when a weight looks stale. It stays out of your way until you open it.',
+    body: 'Everything it has to say lives behind this button: when you are due a lighter week, when one side of your training is getting thin, when a weight looks stale. It stays out of your way until you open it.',
   },
   {
     spotlightRef: 'streak',

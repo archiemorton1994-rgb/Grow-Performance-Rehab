@@ -272,7 +272,7 @@ const sessionSrc = readFileSync(new URL('../app/session.tsx', import.meta.url), 
 
 check(
   'the session screen renders the pain-free banner',
-  /<PainFreeRangeBanner\s+text=\{painFreeText\}\s*\/>/.test(sessionSrc),
+  /<PainFreeRangeBanner\b[\s\S]{0,240}?text=\{painFreeText\}/.test(sessionSrc),
   'the banner is not on the screen'
 );
 check(
@@ -280,15 +280,55 @@ check(
   /exercises\.some\(\(ex\) => ex\.id\?\.startsWith\('acute-'\)\)/.test(sessionSrc),
   'the trigger must be read off the exercises, not re-derived from the pain inputs'
 );
-// Scoped to the component and its own JSX rather than to "onDismiss within 900
-// characters of the name" — the loose version failed the moment a DIFFERENT,
-// legitimately dismissible banner was added next to it in the render.
+/**
+ * IT COLLAPSES. IT DOES NOT DISAPPEAR.
+ *
+ * This check used to require no dismiss control at all, on the grounds that the
+ * pain rule sets the dose for everything under it and is not a notification.
+ * That reasoning still holds and is why the rule below is what it is; what
+ * changed is that the banner also sat above the exercise list for a whole
+ * session on a 4.7-inch phone, and was reported as making the screen unusable:
+ * "needs to be able to be closed. currently you cant press X to get rid of it,
+ * leading to a really cluttered screen".
+ *
+ * Both things are true, so the close button shrinks it to a single line instead
+ * of removing it. The bulk goes and the sentence stays. What this section
+ * protects is that nothing turns that back into a real dismissal, because the
+ * acute exercises carry technique cues and not the rule: if this line goes, the
+ * pain limit is nowhere on the screen it governs.
+ */
+const painFreeComponent = sessionSrc.slice(
+  sessionSrc.indexOf('export function PainFreeRangeBanner'),
+  sessionSrc.indexOf('function RestoreFailedBanner')
+);
+
 check(
-  'it has no dismiss control',
-  /export function PainFreeRangeBanner\(\{\s*text\s*\}: \{\s*text: string \| null;?\s*\}\)/.test(
-    sessionSrc
-  ) && !/<PainFreeRangeBanner(?:\s+(?!\/>)[^>])*onDismiss/.test(sessionSrc),
-  'the pain rule sets the dose for everything under it — it is not a notification'
+  'the pain-free banner component was found',
+  painFreeComponent.length > 400,
+  'it has moved and this section is checking nothing'
+);
+check(
+  'being dismissed never removes it from the screen',
+  !/if \(!text \|\| dismissed\) return null;/.test(painFreeComponent) &&
+    /if \(!text\) return null;/.test(painFreeComponent),
+  'returning null on dismiss takes the only statement of the pain limit off the screen'
+);
+check(
+  'dismissing collapses it to a line that still names the rule',
+  /pain-free-range-banner-collapsed/.test(painFreeComponent) &&
+    /if \(dismissed\) \{/.test(painFreeComponent),
+  ''
+);
+check(
+  'and the collapsed line can be opened again',
+  /onRestore/.test(painFreeComponent) &&
+    /onRestore=\{\(\) => setPainFreeBannerDismissed\(false\)\}/.test(sessionSrc),
+  'collapsing something with no way back is a dismissal with extra steps'
+);
+check(
+  'the rule itself still appears in full somewhere on the screen',
+  /\{text\}/.test(painFreeComponent),
+  ''
 );
 check(
   'it falls back to the shared rule when several regions hurt',

@@ -112,9 +112,9 @@ export function getLayoffMessage(
   return {
     id: 'layoff',
     icon: 'hourglass-outline',
-    title: layoff.reset ? `${away} away — starting fresh` : `${away} since your last session`,
+    title: layoff.reset ? `${away} away, starting fresh` : `${away} since your last session`,
     body: layoff.reset
-      ? `Weights that old stop being a useful guide, so today is worked out from your profile again — the way it was on day one. A few sessions and it will be reading your own numbers.${testNote}`
+      ? `Weights that old stop being a useful guide, so today is worked out from your profile again, the way it was on day one. A few sessions and it will be reading your own numbers.${testNote}`
       : layoff.slight
         ? `Today's weights come down a touch from where you left off. They climb back as soon as you are training again.${testNote}`
         : `Today's weights are about ${Math.round(layoff.factor * 100)}% of where you left off. They climb back as soon as you are training again.${testNote}`,
@@ -136,7 +136,7 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
         id: 'first-session',
         icon: 'flash-outline',
         title: 'Start where you are',
-        body: "Your first session is already built and waiting. It will not be perfect yet — the app learns what you can handle from what you actually lift.",
+        body: "Your first session is already built and waiting. It will not be perfect yet. The app learns what you can handle from what you actually lift.",
         tone: 'info',
         action: { label: 'Start training', kind: 'start-session' },
       },

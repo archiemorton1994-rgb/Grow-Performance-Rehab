@@ -675,6 +675,75 @@ console.log('\n[10] The session screen tells the engine which gym the user is in
   );
 }
 
+// ─── The summary's "vs last time" badge ──────────────────────────────────────
+//
+// Reported from use: "it said something like 'Goblet Squat Primer
+// +0.009999999999999999999787 vs last time'".
+//
+// Two faults in one line. It printed the raw subtraction, and two weights a
+// hundredth apart come out of binary floating point looking like that. And it
+// hardcoded "kg" while the rest of the screen respected the user's choice, so
+// somebody training in pounds was shown a kilogram number wearing their own
+// unit. The second is the worse one: a long number looks broken, a wrong unit
+// looks right.
+//
+// Rounding only the LABEL would have hidden the number and kept the wrong
+// verdict, because a hundredth of a kilogram had also been ruled a personal
+// best. The comparison itself is now made on what gets shown.
+console.log('\n[8] The summary compares what it prints');
+
+{
+  const summary = readFileSync(new URL('../app/session-summary.tsx', import.meta.url), 'utf8');
+
+  check(
+    'the badge label goes through formatWeight like every other weight',
+    /label: \(r, unit\) => `\+\$\{formatWeight\(r\.deltaWeight, unit\)\} vs last time`/.test(summary),
+    'it interpolated r.deltaWeight straight into the string'
+  );
+  check(
+    'the "lighter than last time" badge too',
+    /label: \(r, unit\) => `\$\{formatWeight\(r\.deltaWeight, unit\)\} lighter than last time`/.test(
+      summary
+    ),
+    ''
+  );
+  check(
+    'neither one hardcodes a unit any more',
+    !/\$\{r\.deltaWeight\} kg/.test(summary),
+    'a pounds user was shown kilograms labelled kg, which is right about the label and wrong about the number'
+  );
+  check(
+    'and the label is actually given the unit at the call site',
+    /meta\.label\(r, weightUnit\)/.test(summary),
+    'a label that takes a unit and is never handed one is the same bug with a type annotation'
+  );
+  check(
+    'the gain or drop is decided at display precision, not full float',
+    /const shownNow = kgToDisplayUnit\(thisBest\.weight, weightUnit\)/.test(summary) &&
+      /shownNow > shownBefore/.test(summary),
+    'two sets a hundredth of a kilogram apart are the same set: nothing in a gym can express the difference'
+  );
+  check(
+    'and the unit is a dependency of the block that decides it',
+    /\}, \[session, getExerciseHistory, categoryMap, weightUnit\]\);/.test(summary),
+    'switching units would otherwise leave the old verdicts on screen'
+  );
+
+  // The arithmetic itself, run rather than read.
+  const noisyDelta = 2.51 - 2.5;
+  check(
+    'the case from the report really is a float artefact',
+    String(noisyDelta).length > 6,
+    `2.51 - 2.5 = ${noisyDelta}`
+  );
+  check(
+    'and formatWeight turns it into something a person can read',
+    !/\d\.\d{4}/.test(formatWeight(noisyDelta, 'kg')) &&
+      !/\d\.\d{4}/.test(formatWeight(noisyDelta, 'lbs')),
+    `got "${formatWeight(noisyDelta, 'kg')}" and "${formatWeight(noisyDelta, 'lbs')}"`
+  );
+}
+
 console.log('');
 if (failures > 0) {
   console.error(`pounds-loadable: ${failures}/${total} check(s) FAILED\n`);

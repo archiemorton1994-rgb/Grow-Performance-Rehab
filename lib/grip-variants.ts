@@ -102,7 +102,7 @@ export const GRIP_VARIANTS: Record<string, GripVariant[]> = {
     {
       name: 'Toes-Out 45 Degree Hyperextension',
       cueSuffix:
-        'Turn the feet out to roughly 45 degrees on the platform and start each rep by squeezing the glutes — same load, work shifts off the erectors and onto the glutes.',
+        'Turn the feet out to roughly 45 degrees on the platform and start each rep by squeezing the glutes. Same load, but the work shifts off the erectors and onto the glutes.',
     },
   ],
 };

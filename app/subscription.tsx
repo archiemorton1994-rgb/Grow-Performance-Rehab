@@ -49,7 +49,7 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
   {
     icon: 'medkit-outline',
     title: 'Trains around pain',
-    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session adapts — or swaps to recovery.`,
+    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session adapts, or swaps to recovery.`,
   },
   {
     icon: 'trending-up-outline',

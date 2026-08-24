@@ -348,6 +348,64 @@ check(
   doubled.join(' | ')
 );
 
+// ─── Every warning above the list can be put away ────────────────────────────
+//
+// Reported from use: "the 'Keep it pain free' yellow box that appears at the top
+// of the session needs to be able to be closed. currently you cant press X to
+// get rid of it, leading to a really cluttered screen".
+//
+// It sits above the exercise list for the whole session, and on a 4.7-inch phone
+// that is a real slice of the screen given away permanently to a sentence you
+// read once. The adaptation banner next to it has always had a close button, so
+// a session with a sore area reported showed two yellow boxes, one of which
+// could be put away and one of which could not.
+//
+// Dismissing it softens nothing: the instruction is repeated on every affected
+// card, and Skip is on the logging bar throughout.
+console.log('\n[6] The banners above the exercise list can all be dismissed');
+
+const painFreeBanner = SESSION_SRC.slice(
+  SESSION_SRC.indexOf('export function PainFreeRangeBanner'),
+  SESSION_SRC.indexOf('RestoreFailedBanner')
+);
+
+check(
+  'the pain-free banner was found',
+  painFreeBanner.length > 200,
+  'it has moved and this section is testing nothing'
+);
+check(
+  'it takes a dismissed flag and shrinks on it',
+  /dismissed\?: boolean;/.test(painFreeBanner) && /if \(dismissed\) \{/.test(painFreeBanner),
+  ''
+);
+check(
+  'it draws a close button',
+  /pain-free-banner-dismiss/.test(painFreeBanner) && /name="close"/.test(painFreeBanner),
+  'there was no way to put it away at all'
+);
+// Deliberately NOT a full dismissal. This one carries the pain limit for a
+// session built around something that hurts right now, and it is the only place
+// that limit is stated. tests/acute-rehab.check.mjs owns that rule.
+check(
+  'but it shrinks rather than vanishing, unlike the one beside it',
+  /pain-free-range-banner-collapsed/.test(painFreeBanner),
+  ''
+);
+check(
+  'the screen holds its own state for it, separate from the adaptation banner',
+  /const \[painFreeBannerDismissed, setPainFreeBannerDismissed\] = useState\(false\)/.test(
+    SESSION_SRC
+  ) && /onDismiss=\{\(\) => setPainFreeBannerDismissed\(true\)\}/.test(SESSION_SRC),
+  'they carry different instructions, so one X must not take the other away'
+);
+check(
+  'and dismissing it survives a resume',
+  /painFreeBannerDismissed: painFreeBannerDismissedRef\.current,/.test(SESSION_SRC) &&
+    /if \(stored\.painFreeBannerDismissed\) setPainFreeBannerDismissed\(true\);/.test(SESSION_SRC),
+  'a banner that comes back every time the app is reopened has not really been dismissed'
+);
+
 console.log('');
 if (failures > 0) {
   console.error(`session-card-signals: ${failures}/${total} check(s) FAILED\n`);

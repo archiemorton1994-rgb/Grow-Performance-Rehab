@@ -154,7 +154,7 @@ const PROFILE_TUTORIAL: readonly ProfileTutorialStep[] = [
     iconName: 'settings-outline',
     iconLabel: 'Settings',
     title: 'Everything else lives here',
-    body: 'Equipment, reminders, units, light or dark, your account — and this tour, if you ever want to run it again.',
+    body: 'Equipment, reminders, units, light or dark, your account, and this tour if you ever want to run it again.',
   },
 ] as const;
 
@@ -2128,7 +2128,7 @@ export default function ProfileScreen() {
                 <View style={styles.navBtnText}>
                   <Text style={styles.navLabel}>Version</Text>
                 </View>
-                <Text style={styles.navSub}>{Constants.expoConfig?.version ?? '—'}</Text>
+                <Text style={styles.navSub}>{Constants.expoConfig?.version ?? 'Unknown'}</Text>
               </View>
 
               <View style={styles.settingDivider} />

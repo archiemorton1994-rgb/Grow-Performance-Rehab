@@ -676,7 +676,7 @@ export default function AchievementsScreen() {
                     <View style={{ flex: 1, gap: 8 }}>
                       <Text style={[styles.hintText, { color: C.textSecondary }]}>
                         This one needs strength test weeks, which you have turned off. Nothing wrong
-                        with that — it is not counted in your total.
+                        with that, and it is not counted in your total.
                       </Text>
                       <Pressable
                         onPress={() => {

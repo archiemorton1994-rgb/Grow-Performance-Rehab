@@ -63,7 +63,7 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     iconName: 'construct-outline',
     iconLabel: 'Custom',
     title: 'Or build your own',
-    body: 'Custom asks what you are training for and how long you have — 30, 45 or 60 minutes — then builds to fit. Your warm-up, mobility, activation and main lift are always kept.',
+    body: 'Custom asks what you are training for and how long you have (30, 45 or 60 minutes), then builds to fit. Your warm-up, mobility, activation and main lift are always kept.',
   },
 ] as const;
 

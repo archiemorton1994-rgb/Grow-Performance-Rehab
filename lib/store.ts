@@ -242,6 +242,9 @@ export interface ActiveSession {
   customExercises?: CustomExercise[];
   /** Whether the user has already dismissed the pain-adaptation banner. Persisted so it stays gone on session resume. */
   painBannerDismissed?: boolean;
+  /** Same, for the acute pain-free rule banner. Its own flag because it is
+   *  its own banner carrying its own clinical instruction. */
+  painFreeBannerDismissed?: boolean;
   /** Per-exercise in-session feedback captured so far; restored on resume. */
   inSessionFeedback?: Record<string, FeedbackRating>;
 }

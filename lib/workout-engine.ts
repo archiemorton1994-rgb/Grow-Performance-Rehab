@@ -2090,7 +2090,7 @@ export function applyInjurySafety(
       screened.push({
         ...ex,
         sets: setsFor(ex),
-        safetyNote: `Take care with your ${labelForHit(hits[0]).toLowerCase()} here — this involves ${STRESS_TAG_LABELS[hits[0]]}`,
+        safetyNote: `Take care with your ${labelForHit(hits[0]).toLowerCase()} here. This involves ${STRESS_TAG_LABELS[hits[0]]}`,
       });
       usedNames.add(ex.name.toLowerCase());
       return;
@@ -2904,7 +2904,7 @@ export function generate1RMWorkout(
     const eachSide = /each side/i.test(e.reps);
     return {
       ...e,
-      name: `${base} — Max Reps Test`,
+      name: `${base}: Max Reps Test`,
       reps: eachSide ? 'Max clean reps each side' : 'Max clean reps',
     };
   });
@@ -2922,7 +2922,7 @@ export function generate1RMWorkout(
           ...e,
           suggestedLoad: `${topKg} kg`,
           loadKg: [topKg],
-          cue: `Load ${say(topKg)} and do as many clean reps as you can. Around ${TEST_EXPECTED_REPS} means you are exactly where the app thinks you are, so there is no target to beat — just be honest. Stop the moment form slips — that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
+          cue: `Load ${say(topKg)} and do as many clean reps as you can. Around ${TEST_EXPECTED_REPS} means you are exactly where the app thinks you are, so there is no target to beat. Just be honest, and stop the moment form slips: that last ugly rep does not count and is where people get hurt. Your one-rep max is worked out from the weight and how many reps you managed.`,
         };
       }
       if (e.category === 'prep') {
@@ -2932,7 +2932,7 @@ export function generate1RMWorkout(
           ...e,
           suggestedLoad: `${ladder.join(' / ')} kg`,
           loadKg: ladder,
-          cue: `Work up to the test weight: ${ladder.map(say).join(', ')}. These are warm-ups, not work sets — stop each one well short of hard.`,
+          cue: `Work up to the test weight: ${ladder.map(say).join(', ')}. These are warm-ups, not work sets, so stop each one well short of hard.`,
         };
       }
       return e;

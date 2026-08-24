@@ -242,7 +242,7 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
       // come. On the last set there are none, and the line read as a warning
       // about something that could not happen.
       const more =
-        setIndex < plan.plannedKg.length - 1 ? ' — no more increases this exercise' : '';
+        setIndex < plan.plannedKg.length - 1 ? '. No more increases this exercise' : '';
       return {
         kg,
         reason: plan.isRamped ? 'back_off' : 'decrease',
@@ -256,18 +256,18 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
       // set that carries the prescription; below it, holding the number would
       // throw the rest of the ramp away — see the header.
       if (!plan.isRamped || setIndex - 1 >= workingSetIndex(plan)) {
-        return withCap(base, 'hold', 'Same weight again — you said that one was challenging');
+        return withCap(base, 'hold', 'Same weight again. You said that one was challenging');
       }
       return withCap(
         rampRungKg(plan, setIndex, base, false),
         'ramp_hold',
-        'Still warming up — on to your next planned weight'
+        'Still warming up. On to your next planned weight'
       );
     }
 
     case 'easy': {
       if (!plan.isRamped) {
-        return withCap(adjustKg(base, EASY_STEP), 'increase', 'Up 10% — that one felt easy');
+        return withCap(adjustKg(base, EASY_STEP), 'increase', 'Up 10%. That one felt easy');
       }
       return withCap(
         rampRungKg(plan, setIndex, base, true),

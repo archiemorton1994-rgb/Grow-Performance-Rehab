@@ -168,12 +168,31 @@ function bestCompletedSet(sets: SetLog[]): { weight: number; reps: number } | nu
   );
 }
 
+/**
+ * The badge under each exercise on the summary.
+ *
+ * TWO THINGS THESE LABELS USED TO GET WRONG.
+ *
+ * They printed the raw subtraction. Two weights a hundredth apart came out of
+ * binary floating point as 0.009999999999999787, and that is what went on the
+ * card: "Goblet Squat Primer +0.009999999999999787 kg vs last time". Every
+ * other weight in the app goes through formatWeight, and these did not.
+ *
+ * And they hardcoded "kg" while the rest of the screen respected the user's
+ * choice, so somebody training in pounds was shown a kilogram number labelled
+ * as their own unit. That is the worse of the two: a long number looks broken,
+ * a wrong unit looks right.
+ */
 const BADGE_META: Record<
   BadgeKind,
-  { label: (r: ExerciseRow) => string; icon: string; tone: 'up' | 'down' | 'neutral' | 'first' }
+  {
+    label: (r: ExerciseRow, unit: WeightUnit) => string;
+    icon: string;
+    tone: 'up' | 'down' | 'neutral' | 'first';
+  }
 > = {
   'gain-weight': {
-    label: (r) => `+${r.deltaWeight} kg vs last time`,
+    label: (r, unit) => `+${formatWeight(r.deltaWeight, unit)} vs last time`,
     icon: 'trending-up',
     tone: 'up',
   },
@@ -183,7 +202,7 @@ const BADGE_META: Record<
     tone: 'up',
   },
   drop: {
-    label: (r) => `${r.deltaWeight} kg lighter than last time`,
+    label: (r, unit) => `${formatWeight(r.deltaWeight, unit)} lighter than last time`,
     icon: 'trending-down',
     tone: 'down',
   },
@@ -324,9 +343,9 @@ function StatDeltaTile({
  */
 function ProgressionRules({ P }: { P: CardPalette }) {
   const rows: { badge: string; tone: 'up' | 'hold'; text: string }[] = [
-    { badge: '↑', tone: 'up', text: 'You rated a set Easy — the biggest jump, 5 to 7.5 kg.' },
-    { badge: '↑', tone: 'up', text: 'Every set completed, no rating — a steady 2.5 kg. Three of those in a row earns 5 kg.' },
-    { badge: '=', tone: 'hold', text: 'You rated a set Too Hard, or left one incomplete — the weight holds until you clear it.' },
+    { badge: '↑', tone: 'up', text: 'You rated a set Easy, so you get the biggest jump: 5 to 7.5 kg.' },
+    { badge: '↑', tone: 'up', text: 'Every set completed and nothing rated, so a steady 2.5 kg. Three of those in a row earns 5 kg.' },
+    { badge: '=', tone: 'hold', text: 'You rated a set Too Hard, or left one incomplete, so the weight holds until you clear it.' },
   ];
   return (
     <View style={{ gap: 10, marginTop: 2 }}>
@@ -650,7 +669,7 @@ function ProgressTab({
                           marginTop: 1,
                         }}
                       >
-                        {meta.label(r)}
+                        {meta.label(r, weightUnit)}
                       </Text>
                     </View>
                     <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.muted }}>
@@ -849,15 +868,28 @@ export default function SessionSummaryScreen() {
           }
         }
 
+        /**
+         * Compared at the precision the user reads, not at full float.
+         *
+         * Two sets a hundredth of a kilogram apart are the same set. Nothing in
+         * a gym can express the difference, and comparing the raw numbers called
+         * it a personal best and printed "+0.009999999999999787 vs last time".
+         * Rounding only the label would have hidden the number and kept the
+         * wrong verdict, so the comparison itself is made on what gets shown:
+         * if the two weights print identically, they matched.
+         */
+        const shownNow = kgToDisplayUnit(thisBest.weight, weightUnit);
+        const shownBefore = prevBest ? kgToDisplayUnit(prevBest.weight, weightUnit) : 0;
+
         if (!prevBest) {
           badge = 'first';
-        } else if (thisBest.weight > prevBest.weight) {
+        } else if (shownNow > shownBefore) {
           badge = 'gain-weight';
           deltaWeight = thisBest.weight - prevBest.weight;
-        } else if (thisBest.weight === prevBest.weight && thisBest.reps > prevBest.reps) {
+        } else if (shownNow === shownBefore && thisBest.reps > prevBest.reps) {
           badge = 'gain-reps';
           deltaReps = thisBest.reps - prevBest.reps;
-        } else if (thisBest.weight < prevBest.weight) {
+        } else if (shownNow < shownBefore) {
           badge = 'drop';
           deltaWeight = prevBest.weight - thisBest.weight;
         } else {
@@ -883,7 +915,7 @@ export default function SessionSummaryScreen() {
 
     const hasWeighted = rows.some((r) => r.isWeighted);
     return { totalSets, totalReps, totalVolumeKg, rows, hasWeighted };
-  }, [session, getExerciseHistory, categoryMap]);
+  }, [session, getExerciseHistory, categoryMap, weightUnit]);
 
   // The previous completed session of this same sessionType, aggregated the
   // same way, purely so the Progress tab can show "vs last time" on the
@@ -1318,7 +1350,7 @@ export default function SessionSummaryScreen() {
       return `Up ${format(delta)} on your last test. That is ${liftSessionCount} session${liftSessionCount === 1 ? '' : 's'} of work showing up.`;
     }
     if (delta === 0) return 'Level with your last test. Holding a max is its own result.';
-    return `Down ${format(Math.abs(delta))} on your last test. One number on one day — it happens.`;
+    return `Down ${format(Math.abs(delta))} on your last test. One number on one day. It happens.`;
   };
 
   const heroCaption =
@@ -1330,7 +1362,7 @@ export default function SessionSummaryScreen() {
         ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
         : heroKind === 'milestone'
           ? bestPbRow
-            ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} — and a new best on ${bestPbRow.exerciseName}`
+            ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'}, and a new best on ${bestPbRow.exerciseName}`
             : `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} and counting`
           : streakDays >= 1
             ? `${streakDays} day streak. Keep it going.`
@@ -1355,13 +1387,13 @@ export default function SessionSummaryScreen() {
   const stats: { label: string; value: string; accent?: boolean }[] =
     heroKind === 'test' && testedReps !== null
       ? testRail(
-          previousTestReps !== null ? repsWord(previousTestReps) : '—',
+          previousTestReps !== null ? repsWord(previousTestReps) : '-',
           testDeltaReps,
           repsWord
         )
       : heroKind === 'test' && testedOrm
         ? testRail(
-            previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '—',
+            previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '-',
             testDeltaKg,
             (n) => formatWeight(n, weightUnit)
           )

@@ -411,6 +411,66 @@ check(
   'if the draft could influence routing, a half-filled form could let someone into the app'
 );
 
+// ─── What the two optional steps say ─────────────────────────────────────────
+console.log('\n[Copy on the units and bodyweight steps]');
+
+check(
+  'the unit step gives the choice and leaves it there',
+  !/default in the (UK|US)/.test(onboardingSrc) &&
+    /Kilograms \(kg\)/.test(onboardingSrc) &&
+    /Pounds \(lbs\)/.test(onboardingSrc),
+  'it explained where each unit is "usually used", which is a geography lesson nobody asked for on a two-option question'
+);
+check(
+  'and still says it can be changed later',
+  /change it anytime in settings/.test(onboardingSrc),
+  'the one piece of context worth keeping'
+);
+
+/**
+ * THE BODYWEIGHT STEP NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
+ *
+ * Skipping still falls back to ASSUMED_BODYWEIGHT_KG internally, because the
+ * first session has to start somewhere. Printing that number is a different
+ * matter. The people most likely to leave this blank are the ones least likely
+ * to want a guess about their weight read back to them, and it is exactly those
+ * people the guess will be furthest out for. It was in the placeholder too,
+ * sitting in the box before they had typed anything.
+ */
+// Comments stripped first: the comment explaining WHY the number is no longer
+// printed necessarily names the constant, and matching your own explanation is
+// a way of failing a check that has nothing wrong with it.
+const bwStep = onboardingSrc
+  .slice(onboardingSrc.indexOf('Your current bodyweight'), onboardingSrc.indexOf('bodyweight-error'))
+  .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '');
+check(
+  'the bodyweight step found itself, so the checks below mean something',
+  bwStep.length > 200,
+  'the step has moved and this section has gone blind'
+);
+check(
+  'it never prints the assumed figure at the user',
+  !/ASSUMED_BODYWEIGHT_KG/.test(bwStep),
+  'it said "the app assumes 165.3 lbs", and put the same number in the input as a placeholder'
+);
+check(
+  'the placeholder is not a number either',
+  /placeholder="Optional"/.test(bwStep),
+  'a guessed weight sitting in the box is the same problem in a quieter voice'
+);
+check(
+  'and it says what actually happens instead, which is also true',
+  /tune your weights from how your first few sessions go/.test(bwStep),
+  'starting loads are an opening bid; the answers and the reps are what set the weight'
+);
+check(
+  'the fallback itself is untouched, because a first session needs a number',
+  /ASSUMED_BODYWEIGHT_KG/.test(onboardingSrc),
+  'this is about what is said out loud, not about how the app works'
+);
+
 console.log('');
 if (failures > 0) {
   console.error(`onboarding-answers: ${failures}/${total} check(s) FAILED\n`);
