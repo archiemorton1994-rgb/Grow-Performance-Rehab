@@ -32,9 +32,13 @@ function setupCors(app: express.Application) {
 
     const origin = req.header('origin');
 
-    // Allow localhost origins for Expo web development (any port)
+    // Expo web development runs on an arbitrary localhost port, so the origin
+    // cannot be listed in advance. That is a development need and it is gated
+    // on development: in production a page on the user's own machine is not
+    // an origin this API has any reason to answer.
     const isLocalhost =
-      origin?.startsWith('http://localhost:') || origin?.startsWith('http://127.0.0.1:');
+      process.env.NODE_ENV === 'development' &&
+      (origin?.startsWith('http://localhost:') || origin?.startsWith('http://127.0.0.1:'));
 
     if (origin && (origins.has(origin) || isLocalhost)) {
       res.header('Access-Control-Allow-Origin', origin);
@@ -105,7 +109,16 @@ function setupRequestLogging(app: express.Application) {
       const duration = Date.now() - start;
 
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      /**
+       * GET /api/user/data answers with a whole training history, which can
+       * run to megabytes. Every one of those responses was being stringified
+       * in full so that 79 characters of it could be printed and the rest
+       * thrown away, on the hot path of the busiest endpoint the app has.
+       */
+      const TOO_BIG_TO_LOG = 2000;
+      if (capturedJsonResponse && path === '/api/user/data') {
+        logLine += ' :: [body omitted]';
+      } else if (capturedJsonResponse) {
         const isAuthRoute = path.startsWith('/api/auth');
         const logBody = isAuthRoute
           ? Object.fromEntries(
@@ -114,7 +127,11 @@ function setupRequestLogging(app: express.Application) {
               )
             )
           : capturedJsonResponse;
-        logLine += ` :: ${JSON.stringify(logBody)}`;
+        const serialised = JSON.stringify(logBody);
+        logLine +=
+          serialised.length > TOO_BIG_TO_LOG
+            ? ' :: [body omitted]'
+            : ` :: ${serialised}`;
       }
 
       if (logLine.length > 80) {
@@ -296,13 +313,26 @@ function setupErrorHandler(app: express.Application) {
     };
 
     const status = error.status || error.statusCode || 500;
-    const message = error.message || 'Internal Server Error';
 
     console.error('Internal Server Error:', err);
 
     if (res.headersSent) {
       return next(err);
     }
+
+    /**
+     * The client is told THAT it failed, not what failed. `error.message` on
+     * an unexpected 500 is whatever threw: a Postgres error naming a column
+     * or a constraint, a filesystem path, a library internal. None of that is
+     * useful to the app and all of it is useful to somebody mapping the
+     * server. It still goes to the log above, which is where it belongs.
+     *
+     * Deliberate errors keep their message. Anything below 500 was thrown by
+     * this code to be read by a human, and blanking those would replace real
+     * guidance with a shrug.
+     */
+    const message =
+      status < 500 ? (error.message ?? 'Request failed.') : 'Something went wrong. Please try again.';
 
     return res.status(status).json({ message });
   });

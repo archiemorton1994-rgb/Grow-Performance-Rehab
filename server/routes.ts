@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Express, Request, Response } from 'express';
 import { createServer, type Server } from 'node:http';
+import { randomInt } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import { storage } from './storage';
@@ -20,6 +21,39 @@ const REQUEST_RATE_LIMIT_MAX = 3;
 const VERIFY_RATE_LIMIT_MAX = 10;
 const OTP_MAX_FAILURES = 5;
 
+/**
+ * A CEILING ON THE WHOLE ENDPOINT, NOT JUST ON EACH ADDRESS.
+ *
+ * Every limit above is keyed on the email address, which stops somebody
+ * pestering one person and stops nothing else. Requesting a code is
+ * unauthenticated and the address is chosen by the caller, so a script
+ * looping over made-up addresses met no limit at all. Each pass sent a real
+ * email through Resend, so the cost was the mail quota and, more expensively,
+ * the sending reputation of the domain - and every distinct address also
+ * added a permanent entry to the rate-limit map and a row to its table.
+ *
+ * The number is deliberately far above any plausible run of real sign-ins and
+ * far below what makes a flood worth running. It is a backstop, not a quota:
+ * a genuine user is stopped by the per-address limit long before this.
+ */
+const GLOBAL_REQUEST_WINDOW_MS = 10 * 60 * 1000;
+const GLOBAL_REQUEST_MAX = 200;
+
+/** Prune the rate-limit maps once they hold more than this many addresses. */
+const PRUNE_ABOVE_TRACKED_EMAILS = 500;
+
+let globalRequestCount = 0;
+let globalRequestWindowStart = Date.now();
+
+function exceedsGlobalRequestCeiling(now: number): boolean {
+  if (now - globalRequestWindowStart > GLOBAL_REQUEST_WINDOW_MS) {
+    globalRequestWindowStart = now;
+    globalRequestCount = 0;
+  }
+  globalRequestCount++;
+  return globalRequestCount > GLOBAL_REQUEST_MAX;
+}
+
 class PersistedRateLimitMap {
   private mem = new Map<string, number[]>();
   private ready = false;
@@ -35,8 +69,29 @@ class PersistedRateLimitMap {
     return this.mem.get(email) ?? [];
   }
 
+  /**
+   * Entries whose window has fully passed are dropped on write.
+   *
+   * Without this the map is keyed by every email address that has ever hit
+   * the endpoint and never shrinks - and the endpoint is unauthenticated, so
+   * "every address that has ever hit it" is a number an attacker chooses. It
+   * grows in the database too, and loadRateLimits() reads the whole table
+   * into memory at startup.
+   *
+   * This is exact rather than an eviction policy: an entry with no timestamp
+   * inside the window is already treated as absent by isRateLimited, so
+   * dropping it changes nothing except how much is being held.
+   */
+  private prune(now: number): void {
+    const windowStart = now - RATE_LIMIT_WINDOW_MS;
+    for (const [key, ts] of this.mem) {
+      if (ts.length === 0 || ts[ts.length - 1] <= windowStart) this.mem.delete(key);
+    }
+  }
+
   set(email: string, timestamps: number[]): void {
     this.mem.set(email, timestamps);
+    if (this.mem.size > PRUNE_ABOVE_TRACKED_EMAILS) this.prune(Date.now());
     if (this.ready) {
       storage
         .saveRateLimits(this.storeName, email, timestamps)
@@ -156,8 +211,25 @@ function extractToken(req: Request): string | null {
   return auth.slice(7);
 }
 
+/**
+ * A LOGIN CODE IS A CREDENTIAL, SO IT COMES FROM THE CRYPTO RNG.
+ *
+ * This used Math.random(), which in V8 is xorshift128+: fast, uniform, and
+ * NOT unpredictable. The generator state can be recovered from a modest run
+ * of outputs, and every request in this process draws from the same stream.
+ *
+ * That matters here because requesting codes is cheap and unauthenticated.
+ * An attacker requests a run of codes for addresses they own, recovers the
+ * state from them, then triggers a code for somebody else and knows what it
+ * is. The five-failure lockout does not help: a predicted code needs one
+ * attempt, not five.
+ *
+ * randomInt draws from the OS CSPRNG. Same six digits, same uniform range,
+ * no recoverable state. There is no reason for a credential to come from
+ * anywhere else.
+ */
 function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
 }
 
 async function sendOtpEmail(email: string, code: string): Promise<void> {
@@ -177,7 +249,11 @@ async function sendOtpEmail(email: string, code: string): Promise<void> {
   const { data, error } = await resendClient.emails.send({
     from: 'Grow Performance <noreply@growperformanceandrehab.com>',
     to: email,
-    subject: `Your Grow login code: ${code}`,
+    // NOT in the subject. A subject line is the part of an email that shows
+    // up on a lock screen, on a watch face, and in the notification banner
+    // over somebody's shoulder, and it is retained in more places than the
+    // body. The code belongs where you have to open the message to read it.
+    subject: 'Your Grow login code',
     html: `
       <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px">
         <h2 style="color:#2f6b46;margin-bottom:8px">Your login code</h2>
@@ -211,6 +287,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const normalised = email.trim().toLowerCase();
 
     if (isRateLimited(otpRateLimitStore, REQUEST_RATE_LIMIT_MAX, normalised)) {
+      return res
+        .status(429)
+        .json({ message: 'Too many attempts. Please wait 10 minutes before trying again.' });
+    }
+
+    // Checked after the per-address limit so one noisy address is charged to
+    // itself first, and before anything is generated or sent so a flood costs
+    // no mail and no state.
+    if (exceedsGlobalRequestCeiling(Date.now())) {
+      console.warn('[OTP] Global request ceiling hit; refusing further codes this window.');
       return res
         .status(429)
         .json({ message: 'Too many attempts. Please wait 10 minutes before trying again.' });
