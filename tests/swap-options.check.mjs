@@ -1,28 +1,40 @@
 /**
- * Contract test: the swap button always has something to offer.
+ * Contract test: the swap button offers two labelled choices.
  *
  * WHY THIS MATTERS
  * ────────────────
  * "Tap the swap icon on any card to get an alternative for the same muscle
- * group. Useful if equipment is taken or something hurts." That is what the
- * in-session tutorial promises. What it delivered depended entirely on whether
- * someone had hand-written an alternative onto that particular template.
+ * group." That is what the in-session tutorial used to promise, and what it
+ * delivered depended entirely on whether somebody had hand-written an
+ * alternative onto that particular template. Measured across the pickable
+ * catalogue before the fill was added: a quarter had two, a quarter had one
+ * forever, and a quarter had none at all - for those the button did nothing.
  *
- * Measured across the 447 pickable exercises before this change:
+ * Sections [1] to [5] hold that fill in place. Sections [6] to [8] are the
+ * second half of the problem, which the fill did not solve: the two slots came
+ * out of one ranking, so the sheet showed two alternatives and could not say
+ * why either was there. A user taps swap for one of exactly two reasons -
  *
- *   226  have both swapAlternative and comfortVariant  → two options
- *   103  have only swapAlternative                     → ONE option, forever
- *   118  have neither                                  → the button does nothing
+ *   "the cable station is taken"   → this movement, different kit
+ *   "my shoulder has had enough"   → different movement, same muscles
  *
- * So for a quarter of the catalogue the swap button was inert, and for another
- * quarter it offered a single fixed answer — the same substitute today, next
- * week and next year. "The rack is taken" is not a problem one alternative
- * solves.
+ * - and the sheet answered neither. Slot one is now the equipment answer and
+ * slot two the muscle answer, both on screen at once and both labelled, with a
+ * way back to the original. See lib/exercise-swaps.ts.
  *
- * These assertions run the REAL generator across session types, tiers and
- * complaints, because the fill happens at generation time and has to survive
- * everything layered on top of it — comfort variants, grip variants, kettlebell
- * renaming and the injury screen.
+ * WHAT THESE ASSERTIONS ARE FOR
+ * ─────────────────────────────
+ * A label nobody checks is a label that drifts, so an option called "the same
+ * movement with different kit" is verified to be one - against kitOf directly
+ * rather than against the rule under test, which will happily agree with
+ * itself.
+ *
+ * They run the REAL generator across session types, tiers, complaints and
+ * seeds, because the fill happens at generation time and has to survive
+ * everything layered on top of it - comfort variants, grip variants, kettlebell
+ * renaming and the injury screen - and because which alternative comes up
+ * rotates with the session count, so a rule that leaks on the third session
+ * leaks past a test that only builds the first.
  *
  * Run:  npx tsx tests/swap-options.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -30,9 +42,23 @@
 
 globalThis.__DEV__ = false;
 
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { restrictedTagsFor, restrictedTagsOn } from '../lib/exercise-safety.ts';
-import { getRegionsByExerciseNameMap } from '../lib/exercise-db.ts';
+import { getRegionsByExerciseNameMap, getAllPickableExercises } from '../lib/exercise-db.ts';
+import {
+  isEquipmentVariant,
+  isSameMuscleAlternative,
+  muscleGroupOf,
+  movementCoreOf,
+  kitOf,
+  MUSCLE_GROUP_LABELS,
+  SWAP_KIND_HEADINGS,
+} from '../lib/exercise-swaps.ts';
+
+const __dir = dirname(fileURLToPath(import.meta.url));
 
 let failures = 0;
 let total = 0;
@@ -53,7 +79,18 @@ const profile = {
   bodyweightKg: 80,
 };
 
-const TYPES = ['lower_body', 'upper_body', 'full_body', 'squat', 'bench', 'conditioning'];
+// 'deadlift' earns its place here: it is the session whose main lift shares a
+// muscle group with half the cooldown catalogue, so it is where a same-muscle
+// alternative first reaches for a floor stretch.
+const TYPES = [
+  'lower_body',
+  'upper_body',
+  'full_body',
+  'squat',
+  'bench',
+  'deadlift',
+  'conditioning',
+];
 const TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
 
 function build(painRegion = undefined, prof = profile, seed = 0) {
@@ -236,6 +273,351 @@ check(
         `${s.from} [${s.own.join(', ') || 'untagged'}] → ${s.to} [${s.altRegions.join(', ') || 'untagged'}]`
     )
     .join('; ')
+);
+
+// ─── 6. Each option says what it is, and is what it says ─────────────────────
+console.log('\n[6] The two options mean two different things');
+
+/**
+ * The point of the change. Both slots used to come out of one ranking, so the
+ * sheet showed two alternatives and could not say why either was there. Slot
+ * one is now "the same movement, different kit" and slot two is "a different
+ * movement, same muscles" — and a label that is not checked is a label that
+ * drifts.
+ */
+const templates = new Map(
+  getAllPickableExercises().map((p) => [p.template.name.toLowerCase(), p.template])
+);
+
+const unlabelled = [];
+const misKind = [];
+const misMuscle = [];
+const noReason = [];
+let equipmentOffers = 0;
+let movementOffers = 0;
+
+for (const { type, tier, ex } of sessions) {
+  for (const e of ex.filter(SWAPPABLE)) {
+    const source = templates.get(e.name.toLowerCase());
+    const self = {
+      name: e.name,
+      equipmentRequired: source?.equipmentRequired,
+      movementPattern: source?.movementPattern,
+      primaryMuscle: e.primaryMuscle ?? source?.primaryMuscle,
+    };
+    for (const [name, kind, reason] of [
+      [e.swapName, e.swapKind, e.swapReason],
+      [e.swap2Name, e.swap2Kind, e.swap2Reason],
+    ]) {
+      if (!name) continue;
+      if (!kind) unlabelled.push(`${type}/${tier}: ${e.name} → ${name}`);
+      if (!reason) noReason.push(`${type}/${tier}: ${e.name} → ${name}`);
+      if (kind === 'equipment') equipmentOffers++;
+      if (kind === 'movement') movementOffers++;
+
+      const candidate = templates.get(String(name).toLowerCase());
+      if (!candidate || !source) continue;
+
+      // An equipment option must actually be one.
+      if (kind === 'equipment' && !isEquipmentVariant(self, candidate)) {
+        misKind.push(`${type}/${tier}: ${e.name} → ${name}`);
+      }
+      // A movement option that NAMES a muscle group must share it. The generic
+      // fallback wording is allowed not to: 63 of the 689 templates record no
+      // muscle group at all, and saying "for the same job" is the honest answer
+      // there.
+      if (kind === 'movement' && reason && /same (.+) work\./.test(reason)) {
+        const named = /same (.+) work\./.exec(reason)[1];
+        const group = muscleGroupOf(candidate.primaryMuscle);
+        if (!group || MUSCLE_GROUP_LABELS[group] !== named) {
+          misMuscle.push(`${type}/${tier}: ${e.name} → ${name} (says "${named}")`);
+        }
+      }
+    }
+  }
+}
+
+check(
+  `every option offered says which of the two it is (${equipmentOffers} kit, ${movementOffers} muscle)`,
+  unlabelled.length === 0,
+  unlabelled.slice(0, 6).join(' | ')
+);
+check(
+  'and carries the line explaining it',
+  noReason.length === 0,
+  noReason.slice(0, 6).join(' | ')
+);
+check(
+  'an option labelled "same exercise, different kit" is one',
+  misKind.length === 0,
+  misKind.slice(0, 6).join(' | ')
+);
+check(
+  'and one that names a muscle group trains it',
+  misMuscle.length === 0,
+  misMuscle.slice(0, 6).join(' | ')
+);
+
+/**
+ * Coverage, stated rather than assumed. Only about a third of working-block
+ * exercises HAVE an equipment variant — a push-up and a Nordic curl have no
+ * other way to be loaded — so the promise is "two labelled options", not "one
+ * of each". This asserts the equipment slot is genuinely working, without
+ * pretending it can always be filled.
+ */
+const working = sessions
+  .flatMap(({ ex }) => ex)
+  .filter((e) => ['main', 'accessory', 'explosive', 'finisher', 'core'].includes(e.category));
+const withKit = working.filter(
+  (e) => e.swapKind === 'equipment' || e.swap2Kind === 'equipment'
+).length;
+check(
+  `a meaningful share of the lifting gets a kit alternative (${withKit}/${working.length})`,
+  working.length > 0 && withKit >= Math.floor(working.length * 0.2),
+  'if this drops, the equipment rule has stopped matching anything'
+);
+
+/**
+ * Checked against kitOf directly rather than against isEquipmentVariant, which
+ * is the function under test and will happily agree with itself. Delete the
+ * "the kit must differ" line from the rule and every check that asks the rule
+ * whether it was obeyed still passes.
+ */
+const sameKitOffers = [];
+for (const { type, tier, ex } of sessions) {
+  for (const e of ex.filter(SWAPPABLE)) {
+    const source = templates.get(e.name.toLowerCase());
+    if (!source) continue;
+    for (const [name, kind] of [
+      [e.swapName, e.swapKind],
+      [e.swap2Name, e.swap2Kind],
+    ]) {
+      if (kind !== 'equipment' || !name) continue;
+      const candidate = templates.get(String(name).toLowerCase());
+      if (!candidate) continue;
+      const from = kitOf(e.name, source.equipmentRequired);
+      const to = kitOf(candidate.name, candidate.equipmentRequired);
+      if (!from || !to || from === to) {
+        sameKitOffers.push(`${type}/${tier}: ${e.name} [${from}] → ${name} [${to}]`);
+      }
+    }
+  }
+}
+check(
+  'a kit alternative genuinely uses different kit',
+  sameKitOffers.length === 0,
+  sameKitOffers.slice(0, 6).join(' | ')
+);
+
+/** The alternatives a physiotherapist wrote onto the template itself. Those are
+ *  a considered choice and are exempt below - a Band Pull-Apart is filed as
+ *  prehab and is still the right regression for an inverted row somebody cannot
+ *  yet do. The rule is for what the app derives on its own. */
+const authoredFor = (t) =>
+  new Set([
+    ...(t.injuryFriendlyAlternatives ?? []),
+    t.swapAlternative?.name,
+    t.comfortVariant?.name,
+  ].filter(Boolean));
+
+/**
+ * A main lift's alternative has to be able to carry the main lift's sets and
+ * reps, because a swap keeps the slot's prescription. Without the
+ * same-category rule a barbell deadlift was offered a Supine Spinal Twist -
+ * both are lower-back work, one of them is a stretch you hold on the floor.
+ */
+const wrongBlock = [];
+for (const { type, tier, ex } of [...sessions, ...b]) {
+  for (const e of ex.filter((x) =>
+    ['main', 'accessory', 'explosive', 'finisher', 'core'].includes(x.category)
+  )) {
+    const from = templates.get(e.name.toLowerCase());
+    const authored = from ? authoredFor(from) : new Set();
+    for (const name of [e.swapName, e.swap2Name]) {
+      if (!name) continue;
+      const candidate = templates.get(String(name).toLowerCase());
+      if (!candidate) continue;
+      if (authored.has(candidate.name)) continue;
+      if (candidate.category === 'cooldown' || candidate.category === 'prehab') {
+        wrongBlock.push(`${type}/${tier}: ${e.name} (${e.category}) → ${name} (${candidate.category})`);
+      }
+    }
+  }
+}
+check(
+  'no lifting block is offered a stretch or a rehab drill instead',
+  wrongBlock.length === 0,
+  wrongBlock.slice(0, 6).join(' | ')
+);
+
+/**
+ * And across the rotations the sessions above do not reach.
+ *
+ * Which same-muscle alternative comes up is seeded on the session count, so a
+ * rule that leaks on the third session leaks past a test that only builds the
+ * first. Sweeping the seed on the bodyweight tier is where it shows: that tier
+ * has the fewest loaded alternatives, so the search runs furthest down the
+ * list and reaches the stretches soonest.
+ */
+const seedSweep = [];
+for (let seed = 0; seed < 12; seed++) {
+  for (const type of ['upper_body', 'bench', 'deadlift']) {
+    const ex = generateWorkout(
+      type,
+      'bodyweight',
+      { hasAches: false, energy: 'normal', timeAvailable: '60' },
+      profile,
+      undefined,
+      undefined,
+      seed
+    );
+    for (const e of ex) {
+      if (!['main', 'accessory', 'explosive', 'finisher', 'core'].includes(e.category)) continue;
+      const from = templates.get(e.name.toLowerCase());
+      const authored = from ? authoredFor(from) : new Set();
+      for (const name of [e.swapName, e.swap2Name]) {
+        if (!name || authored.has(name)) continue;
+        const candidate = templates.get(String(name).toLowerCase());
+        if (!candidate) continue;
+        if (candidate.category === 'cooldown' || candidate.category === 'prehab') {
+          seedSweep.push(
+            `seed ${seed} ${type}: ${e.name} → ${name} (${candidate.category})`
+          );
+        }
+      }
+    }
+  }
+}
+check(
+  'and not on any of the first twelve rotations either',
+  seedSweep.length === 0,
+  [...new Set(seedSweep)].slice(0, 6).join(' | ')
+);
+
+// ─── 7. The two cases that were asked for ────────────────────────────────────
+console.log('\n[7] The examples the change was specified with');
+
+const T = (name) => templates.get(name.toLowerCase());
+
+check(
+  'a cable Pallof press offers the banded one as the same movement',
+  isEquipmentVariant(T('Pallof Press'), T('Banded Pallof Press')),
+  'the exact case: one movement, two pieces of kit'
+);
+check(
+  'and NOT as a different exercise, because it is the same exercise',
+  !isSameMuscleAlternative(T('Pallof Press'), T('Banded Pallof Press')),
+  'an alternative that satisfies both belongs in the kit slot, or it is offered twice'
+);
+check(
+  'a shoulder press offers a lateral raise as different work for the same muscles',
+  isSameMuscleAlternative(T('DB Shoulder Press'), T('DB Lateral Raise')),
+  'Anterior deltoid and Lateral deltoid are two strings for one muscle group'
+);
+check(
+  'and NOT as the same movement with other kit',
+  !isEquipmentVariant(T('DB Shoulder Press'), T('DB Lateral Raise')),
+  'pressing and raising are not the same movement'
+);
+check(
+  'but not a Spanish squat, which is a different exercise ending in the same word',
+  !isEquipmentVariant(T('Back Squat'), T('Spanish Squat')) &&
+    !isEquipmentVariant(T('Back Squat'), T('Sissy Squat')),
+  'same pattern, same muscle, same last word - and a band-loaded knee rehab movement is not a barbell squat with different kit'
+);
+check(
+  'a barbell back squat offers a goblet squat when the rack is taken',
+  isEquipmentVariant(T('Back Squat'), T('Goblet Squat')),
+  'the catalogue names squat variations after where the weight sits, not after the kit, so the exact-name rule cannot see this one'
+);
+
+/**
+ * The near rule compares the last word of two names, which is the movement
+ * right up until a name ends in Warm-Up, Intervals or Drill. Left open it
+ * offered a Rowing Machine Warm-Up as "the same movement with dumbbells" as a
+ * goblet squat warm-up.
+ */
+check(
+  'a rowing warm-up is not the same movement as a squat warm-up',
+  !isEquipmentVariant(T('Rowing Machine Warm-Up'), T('Goblet Squat + Arm Swing Warm-Up')),
+  'both names end in "Up", and that is all they have in common'
+);
+check(
+  'nor is one three-movement round the same movement as another',
+  !isEquipmentVariant(
+    T('Sled Push + Fast Bear Crawl + Assault Bike'),
+    T('Prowler Push/Pull + Bike')
+  ),
+  'same pattern, same muscle, both ending in "Bike", different kit - and still two different circuits'
+);
+check(
+  'and leg press intervals are not dumbbell lunge intervals',
+  !isEquipmentVariant(T('Leg Press Intervals'), T('DB Lunge Intervals')),
+  'a round of something is not one movement'
+);
+check(
+  'the kit comes from the name when the equipment field disagrees with it',
+  kitOf('Cable Bicep Curl', 'barbell') === 'cable machine' &&
+    kitOf('Banded Pallof Press', 'bodyweight') === 'resistance band',
+  '51 of the 689 templates have an equipmentRequired that describes the tier rather than the tool'
+);
+check(
+  'and "full gym" is treated as no answer, because nobody picks up a full gym',
+  kitOf('Sled Row', 'full gym') === 'sled' && kitOf('Some Unnamed Lift', 'full gym') === null,
+  'a tier is not a piece of equipment'
+);
+check(
+  'a variation in brackets is not an equipment variant of the plain movement',
+  movementCoreOf('Pallof Press (Isometric Hold)') !== movementCoreOf('Pallof Press'),
+  'same tool, different exercise — exactly the confusion the split is meant to remove'
+);
+
+// ─── 8. The sheet is a choice, not a queue ───────────────────────────────────
+console.log('\n[8] Both options are on screen at once');
+
+const sessionSrc = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
+// Comments quote the old copy in order to explain what replaced it, so the
+// assertions below read the source with them taken out.
+const sessionCode = sessionSrc
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '');
+
+check(
+  'both alternatives are rendered together',
+  /testID={\`swap-option-/.test(sessionSrc) &&
+    sessionSrc.includes('options.map((option) =>'),
+  'the old sheet showed one at a time, so seeing the second meant accepting the first'
+);
+check(
+  'picking one sets the choice rather than incrementing it',
+  /handleSwapChoice = useCallback\(\(index: number, choice: 0 \| 1 \| 2\)/.test(sessionSrc) &&
+    !sessionCode.includes('handleSwapConfirm'),
+  'a cycle cannot be gone back through'
+);
+check(
+  'and there is a way back to the original',
+  sessionSrc.includes('testID="swap-revert"') &&
+    sessionSrc.includes('handleSwapChoice(swapModal.index, 0)'),
+  'once swapped, the old sheet had no route back to what the app had programmed'
+);
+check(
+  'the dead end is gone',
+  !sessionCode.includes('No further alternatives are available for this exercise'),
+  'that message was the third tap of a three-tap cycle'
+);
+check(
+  'each option is headed by what it is',
+  sessionSrc.includes('SWAP_KIND_HEADINGS[option.kind]') &&
+    SWAP_KIND_HEADINGS.equipment === 'Same exercise, different kit' &&
+    SWAP_KIND_HEADINGS.movement === 'Different exercise, same muscles',
+  'two options with no labels is the problem this replaced'
+);
+check(
+  'and the tutorial promises what the sheet now does',
+  /two alternatives: the same exercise with different equipment, and a different exercise for the same muscles/.test(
+    sessionSrc
+  ),
+  'the tour said "an alternative for the same muscle group", which was half of it'
 );
 
 console.log('');

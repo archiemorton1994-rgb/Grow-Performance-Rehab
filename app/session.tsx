@@ -98,6 +98,7 @@ import {
   TEST_EXPECTED_REPS,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
+import { SWAP_KIND_HEADINGS } from '@/lib/exercise-swaps';
 import {
   feedbackRatingFor,
   nextAnchorKg,
@@ -2209,6 +2210,13 @@ const DEMO_EXERCISES: Exercise[] = [
     swapName: 'Goblet Squat',
     swapCue: 'Hold a weight at chest height. Sit deep, elbows tracking inside knees.',
     swapLoad: '16 kg',
+    swapKind: 'equipment',
+    swapReason: 'Same movement, dumbbells instead.',
+    swap2Name: 'Barbell Reverse Lunge',
+    swap2Cue: 'Step back, drop the back knee, drive through the front heel.',
+    swap2Load: '40 kg',
+    swap2Kind: 'movement',
+    swap2Reason: 'Different exercise, same quads work.',
   },
   {
     id: 'demo-rdl',
@@ -2224,6 +2232,12 @@ const DEMO_EXERCISES: Exercise[] = [
     swapName: 'Dumbbell RDL',
     swapCue: 'Same hinge pattern, dumbbells either side. Keep the DBs close to your legs.',
     swapLoad: '20 kg',
+    swapKind: 'equipment',
+    swapReason: 'Same movement, dumbbells instead.',
+    swap2Name: 'Back Extension',
+    swap2Cue: 'Hinge at the hips, spine long. Squeeze the glutes to come up.',
+    swap2Kind: 'movement',
+    swap2Reason: 'Different exercise, same hamstrings work.',
   },
   {
     id: 'demo-leg-curl',
@@ -2316,7 +2330,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'shuffle-outline',
     iconLabel: 'Swap',
     title: 'Swap any exercise',
-    body: 'Tap the swap icon on any card to get an alternative for the same muscle group. Useful if equipment is taken or something hurts.',
+    body: 'Tap the swap icon on any card for two alternatives: the same exercise with different equipment, and a different exercise for the same muscles. Useful when a machine is taken or something is bothering you.',
   },
   {
     spotlightRef: 'progressBar',
@@ -3399,12 +3413,23 @@ export default function SessionScreen() {
     });
   }, []);
 
-  const handleSwapConfirm = useCallback((index: number) => {
+/**
+   * Pick one of the two alternatives, or put the original back.
+   *
+   * This used to be a cycle: tap swap, get option one; tap again, get option
+   * two; tap again, "No further alternatives are available for this exercise."
+   * So seeing the second option meant accepting the first, there was no way
+   * back to what you started with, and the sheet's last state was a dead end.
+   *
+   * swapCount keeps its meaning - 0 original, 1 first alternative, 2 second -
+   * because it is persisted in a paused session and read back on resume. What
+   * changed is that the user now sets it rather than increments it.
+   */
+  const handleSwapChoice = useCallback((index: number, choice: 0 | 1 | 2) => {
     setExerciseData((prev) => {
-      const cur = prev[index]?.swapCount ?? 0;
-      if (cur >= 2) return prev;
+      if (!prev[index] || prev[index].swapCount === choice) return prev;
       const next = [...prev];
-      next[index] = { ...next[index], swapCount: (cur + 1) as 0 | 1 | 2 };
+      next[index] = { ...next[index], swapCount: choice };
       return next;
     });
     setSwapModal(null);
@@ -4193,7 +4218,17 @@ export default function SessionScreen() {
         </View>
       </Modal>
 
-      {/* Swap Modal */}
+      {/*
+        Swap Modal - two labelled alternatives, both offered at once.
+
+        The old sheet cycled: one alternative at a time, "swap again" to see the
+        next, and no way back to the original. That made a choice into a
+        sequence, so seeing the second option cost you the first. Both are now
+        on screen with what each one IS - the same movement with different kit,
+        or different work for the same muscles - because those are the two
+        reasons anybody taps this button and the sheet never said which it was
+        answering. See lib/exercise-swaps.ts.
+      */}
       <Modal
         visible={!!swapModal}
         transparent
@@ -4209,12 +4244,30 @@ export default function SessionScreen() {
             {swapModal &&
               (() => {
                 const swapCount = exerciseData[swapModal.index]?.swapCount ?? 0;
-                const origExercise = exercises[swapModal.index];
-                const swap2Name = origExercise?.swap2Name;
-                const swap2Cue = origExercise?.swap2Cue;
-                const swap2Load = origExercise?.swap2Load;
+                // The card shows the swapped-in exercise once a swap is live;
+                // the sheet has to show what the slot was originally, or
+                // "back to" offers to put back the thing you are already doing.
+                const original = exercises[swapModal.index] ?? swapModal.exercise;
+                const options = [
+                  {
+                    choice: 1 as const,
+                    name: original.swapName,
+                    cue: original.swapCue,
+                    load: original.swapLoad,
+                    kind: original.swapKind,
+                    reason: original.swapReason,
+                  },
+                  {
+                    choice: 2 as const,
+                    name: original.swap2Name,
+                    cue: original.swap2Cue,
+                    load: original.swap2Load,
+                    kind: original.swap2Kind,
+                    reason: original.swap2Reason,
+                  },
+                ].filter((o) => !!o.name);
 
-                if (swapCount === 2 || (swapCount === 1 && !swap2Name)) {
+                if (options.length === 0) {
                   return (
                     <>
                       <View style={styles.swapFrom}>
@@ -4222,39 +4275,8 @@ export default function SessionScreen() {
                         <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
                       </View>
                       <Text style={[styles.swapNote, { marginTop: 16, textAlign: 'center' }]}>
-                        No further alternatives are available for this exercise. Keep going!
+                        There is no alternative for this one. Skip it if you need to.
                       </Text>
-                    </>
-                  );
-                }
-
-                if (swapCount === 1 && swap2Name) {
-                  return (
-                    <>
-                      <View style={styles.swapFrom}>
-                        <Text style={styles.swapFromLabel}>Replace</Text>
-                        <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
-                      </View>
-                      <View style={styles.swapArrow}>
-                        <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
-                      </View>
-                      <View style={styles.swapTo}>
-                        <Text style={styles.swapToLabel}>With</Text>
-                        <Text style={styles.swapToName}>{swap2Name}</Text>
-                        <Text style={styles.swapToCue}>{swap2Cue}</Text>
-                        {swap2Load && (
-                          <Text style={styles.swapToLoad}>
-                            {convertLoadString(swap2Load, weightUnit)}
-                          </Text>
-                        )}
-                      </View>
-                      <Text style={styles.swapNote}>A second alternative for this exercise.</Text>
-                      <Pressable
-                        onPress={() => handleSwapConfirm(swapModal.index)}
-                        style={styles.swapConfirmBtn}
-                      >
-                        <Text style={styles.swapConfirmText}>Swap again</Text>
-                      </Pressable>
                     </>
                   );
                 }
@@ -4262,31 +4284,75 @@ export default function SessionScreen() {
                 return (
                   <>
                     <View style={styles.swapFrom}>
-                      <Text style={styles.swapFromLabel}>Replace</Text>
-                      <Text style={styles.swapFromName}>{swapModal.exercise.name}</Text>
+                      <Text style={styles.swapFromLabel}>
+                        {swapCount > 0 ? 'Instead of' : 'Currently doing'}
+                      </Text>
+                      <Text style={styles.swapFromName}>{original.name}</Text>
                     </View>
-                    <View style={styles.swapArrow}>
-                      <Ionicons name="arrow-down" size={18} color={C.textTertiary} />
-                    </View>
-                    <View style={styles.swapTo}>
-                      <Text style={styles.swapToLabel}>With</Text>
-                      <Text style={styles.swapToName}>{swapModal.exercise.swapName}</Text>
-                      <Text style={styles.swapToCue}>{swapModal.exercise.swapCue}</Text>
-                      {swapModal.exercise.swapLoad && (
-                        <Text style={styles.swapToLoad}>
-                          {convertLoadString(swapModal.exercise.swapLoad, weightUnit)}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={styles.swapNote}>
-                      This alternative targets the same muscles with less demand.
-                    </Text>
-                    <Pressable
-                      onPress={() => handleSwapConfirm(swapModal.index)}
-                      style={styles.swapConfirmBtn}
+
+                    <ScrollView
+                      style={styles.swapOptionScroll}
+                      contentContainerStyle={styles.swapOptionList}
+                      showsVerticalScrollIndicator={false}
                     >
-                      <Text style={styles.swapConfirmText}>Use this exercise instead</Text>
-                    </Pressable>
+                      {options.map((option) => {
+                        const selected = swapCount === option.choice;
+                        const isKit = option.kind === 'equipment';
+                        return (
+                          <Pressable
+                            key={option.choice}
+                            onPress={() => handleSwapChoice(swapModal.index, option.choice)}
+                            style={[styles.swapOption, selected && styles.swapOptionSelected]}
+                            testID={`swap-option-${option.choice}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Swap to ${option.name}`}
+                          >
+                            <View style={styles.swapOptionHead}>
+                              <Ionicons
+                                name={isKit ? 'barbell-outline' : 'body-outline'}
+                                size={13}
+                                color={C.primaryText}
+                              />
+                              <Text style={styles.swapOptionKind} numberOfLines={2}>
+                                {option.kind
+                                  ? SWAP_KIND_HEADINGS[option.kind]
+                                  : 'Another option'}
+                              </Text>
+                              {selected && (
+                                <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
+                              )}
+                            </View>
+                            <Text style={styles.swapToName}>{option.name}</Text>
+                            {!!option.cue && (
+                              <Text style={styles.swapToCue} numberOfLines={2}>
+                                {option.cue}
+                              </Text>
+                            )}
+                            {!!option.load && (
+                              <Text style={styles.swapToLoad}>
+                                {convertLoadString(option.load, weightUnit)}
+                              </Text>
+                            )}
+                            {!!option.reason && (
+                              <Text style={styles.swapOptionReason}>{option.reason}</Text>
+                            )}
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+
+                    {swapCount > 0 && (
+                      <Pressable
+                        onPress={() => handleSwapChoice(swapModal.index, 0)}
+                        style={styles.swapRevertBtn}
+                        testID="swap-revert"
+                      >
+                        <Ionicons name="arrow-undo-outline" size={15} color={C.textSecondary} />
+                        <Text style={styles.swapRevertText} numberOfLines={1}>
+                          Back to {original.name}
+                        </Text>
+                      </Pressable>
+                    )}
                   </>
                 );
               })()}
@@ -4300,7 +4366,6 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
       {tutStep !== null && effectiveTutorial[tutStep] != null && (
         <CoachMark
           visible
@@ -4703,17 +4768,57 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 2,
     },
     swapFromName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
-    swapArrow: { paddingVertical: 4 },
-    swapTo: {
+    /* Both alternatives are on screen at once, so on a small phone with two
+       long cues the list has to be able to scroll rather than push the buttons
+       off the bottom. 300 leaves the title, the current exercise and the close
+       button visible at 375x667. */
+    swapOptionScroll: { width: '100%', maxHeight: 300, marginTop: 8 },
+    swapOptionList: { gap: 10, paddingBottom: 4 },
+    swapOption: {
       width: '100%',
       padding: 12,
-      backgroundColor: C.primarySurface,
+      backgroundColor: C.surfaceTertiary,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: C.primaryMuted,
-      marginBottom: 12,
+      borderColor: C.border,
     },
-    swapToLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.primaryText, marginBottom: 2 },
+    swapOptionSelected: {
+      backgroundColor: C.primarySurface,
+      borderColor: C.primary,
+    },
+    swapOptionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+    swapOptionKind: {
+      flex: 1,
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryText,
+      letterSpacing: 0.2,
+    },
+    swapOptionReason: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: 6,
+    },
+    swapRevertBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      marginTop: 12,
+      width: '100%',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    swapRevertText: {
+      flexShrink: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
     swapToName: {
       fontSize: 14,
       fontFamily: 'Inter_700Bold',
@@ -4735,15 +4840,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center',
       marginBottom: 16,
     },
-    swapConfirmBtn: {
-      width: '100%',
-      backgroundColor: C.primary,
-      paddingVertical: 13,
-      borderRadius: 12,
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    swapConfirmText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textInverse },
     congratsModal: { gap: 0 },
     congratsIcon: {
       width: 80,

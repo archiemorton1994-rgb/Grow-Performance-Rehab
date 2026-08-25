@@ -46,7 +46,19 @@ import {
   getWeeklyUpperBodyExercises,
   getWeeklyFullBodyExercises,
   getAllPickableExercises,
+  type PickableExercise,
 } from './exercise-db';
+import {
+  isEquipmentVariant,
+  isSameMuscleAlternative,
+  kitOf,
+  movementCoreOf,
+  movementNounOf,
+  muscleGroupOf,
+  swapReasonFor,
+  type MuscleGroup,
+  type SwapKind,
+} from './exercise-swaps';
 import { applyGripVariant } from './grip-variants';
 import {
   DROPPABLE_CATEGORIES,
@@ -119,6 +131,22 @@ export interface Exercise {
   swap2Name?: string;
   swap2Cue?: string;
   swap2Load?: string;
+  /**
+   * WHAT each alternative is, and one line saying so.
+   *
+   * The two slots used to come out of one ranking, which meant the sheet
+   * showed two things and could not say why either was there. A user taps
+   * swap for one of two reasons - the kit is taken, or they want different
+   * work for the same muscles - and now each slot answers one of them. See
+   * lib/exercise-swaps.ts.
+   *
+   * Undefined on the injury-screen revert, which sets swapName to the
+   * exercise it removed and labels that itself.
+   */
+  swapKind?: SwapKind;
+  swapReason?: string;
+  swap2Kind?: SwapKind;
+  swap2Reason?: string;
   isDumbbellExercise?: boolean;
   /** Surface a contextual note in the session UI when load was derived from last session data. */
   progressionNote?: string;
@@ -1757,14 +1785,47 @@ const TIER_RANK: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
  * ranking means the exercise the app picks FOR you and the ones it offers you
  * are drawn from the same idea of what is alike.
  */
-function rankedAlternatives(
+/**
+ * Everything the user could safely be offered instead of `original`.
+ *
+ * Pulled out of rankedAlternatives so the equipment picker applies exactly
+ * the same filters. Two pickers with two copies of "is this safe for them"
+ * is one copy away from the swap sheet offering what the injury screen just
+ * removed, which is the failure tests/swap-options.check.mjs section [3]
+ * exists to catch.
+ */
+interface AlternativePool {
+  pickable: PickableExercise[];
+  byName: Map<string, PickableExercise>;
+  source?: ExerciseTemplate;
+  isUsable: (p: PickableExercise) => boolean;
+}
+
+/**
+ * The catalogue keyed by lower-cased name, built once.
+ *
+ * getAllPickableExercises() is itself cached, but this map was being rebuilt
+ * from its 689 entries on every call — once per exercise per session, and the
+ * contract tests generate thousands of sessions.
+ */
+let _pickableByName: Map<string, PickableExercise> | null = null;
+function pickableByName(): Map<string, PickableExercise> {
+  if (!_pickableByName) {
+    _pickableByName = new Map(
+      getAllPickableExercises().map((p) => [p.template.name.toLowerCase(), p])
+    );
+  }
+  return _pickableByName;
+}
+
+function alternativePool(
   original: Exercise,
   banned: Set<StressTag>,
   tier: EquipmentTier,
   usedNames: Set<string>
-): ExerciseTemplate[] {
+): AlternativePool {
   const pickable = getAllPickableExercises();
-  const byName = new Map(pickable.map((p) => [p.template.name.toLowerCase(), p]));
+  const byName = pickableByName();
   const source = byName.get(original.name.toLowerCase())?.template;
   const internal = toInternalTier(tier);
 
@@ -1783,11 +1844,27 @@ function rankedAlternatives(
   // barbell ones are spinal loading) and got handed a leg curl as their main
   // lift, because the dumbbell and bodyweight squats were invisible to it.
   const tierRank = TIER_RANK.indexOf(internal);
-  const isUsable = (p: (typeof pickable)[number]) =>
+  const isUsable = (p: PickableExercise) =>
     p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
     !usedNames.has(p.template.name.toLowerCase()) &&
     canSubstituteFor(region, p.template.primaryMuscle) &&
     isClean(p.template);
+
+  return { pickable, byName, source, isUsable };
+}
+
+function rankedAlternatives(
+  original: Exercise,
+  banned: Set<StressTag>,
+  tier: EquipmentTier,
+  usedNames: Set<string>
+): ExerciseTemplate[] {
+  const { pickable, byName, source, isUsable } = alternativePool(
+    original,
+    banned,
+    tier,
+    usedNames
+  );
 
   const ranked: ExerciseTemplate[] = [];
   const push = (t: ExerciseTemplate) => {
@@ -1910,29 +1987,138 @@ function findSafeReplacement(
  * with the swap button that is already on every card.
  */
 /**
- * Gives every exercise two alternatives to swap to.
+ * Gives every exercise two alternatives to swap to, and says what each one is.
  *
- * The swap button offers up to two stand-ins, both hardcoded on the template:
- * `swapAlternative` and `comfortVariant`. Measured across the 447 pickable
- * exercises: 226 have both, 103 have only one, and 118 have neither. So for a
- * quarter of the catalogue the swap button did nothing at all, and for another
- * quarter it offered a single fixed answer — the same substitute today, next
- * week and next year. "Equipment is taken" is not a problem one alternative
- * solves.
+ * WHAT CHANGED AND WHY
+ * ────────────────────
+ * Both slots used to come out of one ranking, so the sheet showed two things
+ * and could not tell you why either was there. On a good day that was two
+ * versions of the same idea; on a bad day two movements sharing nothing but a
+ * muscle. Meanwhile a user taps swap for one of exactly two reasons:
  *
- * The hand-authored ones still lead: someone chose them for that exercise, and
- * a derived match is a guess by comparison. Only the empty slots are filled,
- * from the same ranking the injury screen uses — same category, same movement
- * pattern, same muscle, within the user's equipment, and never something the
- * user's reported complaint rules out. A swap that hands you an exercise you
+ *   "The cable station is taken"   → this movement, different kit
+ *   "My shoulder has had enough"   → different movement, same muscles
+ *
+ * So slot one is now the equipment answer and slot two is the muscle answer,
+ * each labelled. See lib/exercise-swaps.ts for what makes two exercises one or
+ * the other.
+ *
+ * WHAT IT KEEPS
+ * ─────────────
+ * Hand-authored alternatives still lead. `swapAlternative` and
+ * `comfortVariant` were chosen movement by movement by a physiotherapist and a
+ * derived match is a guess by comparison — so they are CLASSIFIED into the slot
+ * they fit rather than displaced from it. Only what the catalogue leaves empty
+ * is filled, from the same safety-filtered pool the injury screen draws on:
+ * within the user's equipment, the right half of the body, and never something
+ * their reported complaint rules out. A swap that hands you an exercise you
  * cannot do is worse than no swap.
  *
- * Seeded, so the derived options differ between sessions rather than being the
+ * WHERE IT FALLS SHORT, HONESTLY
+ * ──────────────────────────────
+ * Measured over generated sessions across every type and tier: 94% of
+ * swappable exercises have a same-muscle alternative, and 23% of the lifting
+ * blocks have an equipment variant. A Nordic curl, an inverted row and most
+ * warm-up drills simply have no other way to be loaded, and the rule that finds
+ * the rest is deliberately strict - see isEquipmentVariant, where loosening it
+ * bought ten points of coverage and started calling a Spanish squat a back
+ * squat.
+ *
+ * So when the equipment slot comes up empty it takes a second same-muscle
+ * option and is labelled as one. Two alternatives that say what they are beat
+ * one that says what it is and one that pretends.
+ *
+ * Seeded, so the derived options move between sessions rather than being the
  * same two forever, and never duplicate something already in today's session.
  */
 /** How many alternatives the swap sheet can show. Two, because swapCount is
  *  0 | 1 | 2 and is persisted in resumed sessions. */
 const SWAP_OPTIONS = 2;
+
+interface SwapOption {
+  name: string;
+  cue?: string;
+  load?: string;
+  kind: SwapKind;
+  reason: string;
+}
+
+/**
+ * The catalogue indexed by the three things that make one exercise an
+ * alternative for another, built once and in a fixed order.
+ *
+ * Without this the fill walked all 689 templates for every exercise in every
+ * session, running the safety filter on each — which took the swap fill from
+ * about a second to six minutes across the contract tests. The comparisons are
+ * cheap; doing them 689 times when a hash lookup returns the four candidates
+ * that could possibly match is not.
+ *
+ * Every list is stored in the display order: closest equipment tier first, then
+ * alphabetically, so which alternative you are offered never depends on the
+ * order the catalogue file happened to grow in.
+ */
+interface SwapIndex {
+  /** Movement with the kit stripped out: 'pallof press'. The exact rule. */
+  byCore: Map<string, PickableExercise[]>;
+  /** movementPattern | primaryMuscle | movement noun. The near rule. */
+  byNear: Map<string, PickableExercise[]>;
+  byGroup: Map<MuscleGroup, PickableExercise[]>;
+}
+
+const nearKey = (c: { movementPattern?: string; primaryMuscle?: string; name: string }) =>
+  `${c.movementPattern ?? ''}|${c.primaryMuscle ?? ''}|${movementNounOf(c.name)}`;
+
+let _swapIndex: SwapIndex | null = null;
+function swapIndex(): SwapIndex {
+  if (_swapIndex) return _swapIndex;
+  const closeness = (p: PickableExercise) => -Math.max(...p.tiers.map((t) => TIER_RANK.indexOf(t)));
+  const ordered = [...getAllPickableExercises()].sort(
+    (x, y) => closeness(x) - closeness(y) || x.template.name.localeCompare(y.template.name)
+  );
+  const byCore = new Map<string, PickableExercise[]>();
+  const byNear = new Map<string, PickableExercise[]>();
+  const byGroup = new Map<MuscleGroup, PickableExercise[]>();
+  const push = <K>(map: Map<K, PickableExercise[]>, key: K, p: PickableExercise) => {
+    const list = map.get(key);
+    if (list) list.push(p);
+    else map.set(key, [p]);
+  };
+  for (const p of ordered) {
+    push(byCore, movementCoreOf(p.template.name), p);
+    push(byNear, nearKey(p.template), p);
+    const group = muscleGroupOf(p.template.primaryMuscle);
+    if (group) push(byGroup, group, p);
+  }
+  _swapIndex = { byCore, byNear, byGroup };
+  return _swapIndex;
+}
+
+/**
+ * Rotate the starting point so the offered alternatives move between sessions.
+ *
+ * Seeded rather than random: regenerating the same session has to produce the
+ * same sheet, or a resumed session offers different swaps from the one that was
+ * paused.
+ */
+function rotate<T>(list: T[], seed: number): T[] {
+  if (list.length === 0) return list;
+  const offset = Math.abs(seed) % list.length;
+  return [...list.slice(offset), ...list.slice(0, offset)];
+}
+
+function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
+  return {
+    name: t.name,
+    cue: t.cue,
+    load: t.suggestedLoad,
+    kind,
+    reason: swapReasonFor(
+      kind,
+      kitOf(t.name, t.equipmentRequired),
+      muscleGroupOf(t.primaryMuscle)
+    ),
+  };
+}
 
 export function fillSwapAlternatives(
   exercises: Exercise[],
@@ -1963,6 +2149,21 @@ export function fillSwapAlternatives(
     // purpose: that is the revert, and it is labelled as one. Leave it alone.
     if (ex.safetyNote) return ex;
 
+    // `inSession` still contains this exercise's own name, so it can never be
+    // offered as its own alternative.
+    const used = new Set(inSession);
+    const { byName, source, isUsable } = alternativePool(ex, banned, tier, used);
+    // What the comparison needs to know about the exercise on the card. The
+    // generated exercise carries the name it is shown under, which is not
+    // always the catalogue's — grip variants and kettlebell relabelling rewrite
+    // it — so the name comes from the card and the metadata from the template.
+    const self = {
+      name: ex.name,
+      equipmentRequired: source?.equipmentRequired,
+      movementPattern: source?.movementPattern,
+      primaryMuscle: ex.primaryMuscle ?? source?.primaryMuscle,
+    };
+
     /**
      * A hand-authored alternative is only kept if it is actually usable.
      *
@@ -1973,30 +2174,122 @@ export function fillSwapAlternatives(
      * behind the swap button. The app removed the thing and then offered it
      * back one tap later.
      */
-    const usable = (n?: string) =>
-      !!n && n !== ex.name && restrictedTagsOn(n, banned).length === 0;
-
-    const options: { name: string; cue?: string; load?: string }[] = [];
-    if (usable(ex.swapName)) {
-      options.push({ name: ex.swapName!, cue: ex.swapCue, load: ex.swapLoad });
+    const authored: { name: string; cue?: string; load?: string }[] = [];
+    if (ex.swapName && ex.swapName !== ex.name && restrictedTagsOn(ex.swapName, banned).length === 0) {
+      authored.push({ name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
     }
-    if (usable(ex.swap2Name) && ex.swap2Name !== options[0]?.name) {
-      options.push({ name: ex.swap2Name!, cue: ex.swap2Cue, load: ex.swap2Load });
+    if (
+      ex.swap2Name &&
+      ex.swap2Name !== ex.name &&
+      ex.swap2Name !== authored[0]?.name &&
+      restrictedTagsOn(ex.swap2Name, banned).length === 0
+    ) {
+      authored.push({ name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
     }
 
+    let equipment: SwapOption | null = null;
+    let movement: SwapOption | null = null;
+
+    // (1) Classify what the physiotherapist already wrote. An authored option
+    //     whose template is missing from the catalogue still counts — it is a
+    //     considered choice — and lands in the muscle slot, which is the
+    //     weaker claim of the two and so the safe place for an unknown.
+    for (const option of authored) {
+      const t = byName.get(option.name.toLowerCase())?.template;
+      const isKit = t ? isEquipmentVariant(self, t) : false;
+      const kind: SwapKind = isKit ? 'equipment' : 'movement';
+      const filled: SwapOption = {
+        ...option,
+        kind,
+        reason: swapReasonFor(
+          kind,
+          t ? kitOf(t.name, t.equipmentRequired) : kitOf(option.name),
+          t ? muscleGroupOf(t.primaryMuscle) : muscleGroupOf(self.primaryMuscle)
+        ),
+      };
+      if (kind === 'equipment' && !equipment) equipment = filled;
+      else if (!movement) movement = filled;
+    }
+    for (const option of [equipment, movement]) {
+      if (option) used.add(option.name.toLowerCase());
+    }
+
+    // (2) Fill whichever slot the catalogue left empty, from the index rather
+    //     than by walking the catalogue. Only candidates that could possibly
+    //     match are looked at, and the safety filter — the expensive part — is
+    //     the LAST test applied, on the one candidate that got that far.
+    const index = swapIndex();
+    const firstMatch = (
+      list: PickableExercise[] | undefined,
+      matches: (t: ExerciseTemplate) => boolean
+    ): ExerciseTemplate | undefined => {
+      for (const p of rotate(list ?? [], seed + i)) {
+        if (used.has(p.template.name.toLowerCase())) continue;
+        if (!matches(p.template)) continue;
+        if (!isUsable(p)) continue;
+        return p.template;
+      }
+      return undefined;
+    };
+
+    const take = (option: SwapOption) => {
+      used.add(option.name.toLowerCase());
+      return option;
+    };
+
+    if (!equipment && source) {
+      const isKit = (t: ExerciseTemplate) => isEquipmentVariant(self, t);
+      const match =
+        firstMatch(index.byCore.get(movementCoreOf(ex.name)), isKit) ??
+        firstMatch(index.byNear.get(nearKey(self)), isKit);
+      if (match) equipment = take(describe('equipment', match));
+    }
+
+    const group = source ? muscleGroupOf(self.primaryMuscle) : null;
+    const inGroup = group ? index.byGroup.get(group) : undefined;
+    const isSameMuscle = (t: ExerciseTemplate) => isSameMuscleAlternative(self, t);
+    // Same category first. A main lift swapped for an accessory keeps the main
+    // lift's sets and reps, which is how a lateral raise ends up prescribed as
+    // a heavy five-by-five — so a main lift stays in its own category or goes
+    // without.
+    const nextSameMuscle = () =>
+      firstMatch(inGroup, (t) => t.category === ex.category && isSameMuscle(t)) ??
+      (ex.category === 'main'
+        ? undefined
+        : // Crossing block is allowed, but not into a stretch or a rehab drill.
+          // Those carry the slot's sets and reps when swapped in, and a
+          // Supine Spinal Twist prescribed as three sets of eight is not the
+          // deadlift the user came to do.
+          firstMatch(
+            inGroup,
+            (t) => t.category !== 'cooldown' && t.category !== 'prehab' && isSameMuscle(t)
+          ));
+
+    if (!movement) {
+      const match = nextSameMuscle();
+      if (match) movement = take(describe('movement', match));
+    }
+
+    // (3) Most exercises have no equipment variant at all — a Nordic curl and
+    //     an inverted row have no other way to be loaded. Rather than show one
+    //     option and an empty space, the slot takes a second same-muscle
+    //     alternative and is labelled as one.
+    const options = [equipment, movement].filter((o): o is SwapOption => o != null);
+    if (options.length < SWAP_OPTIONS && inGroup) {
+      const match = nextSameMuscle();
+      if (match) options.push(take(describe('movement', match)));
+    }
+
+    // (4) And where the catalogue records no muscle group at all — 63 of the
+    //     689 templates are 'Full body', 'Cardiovascular system' or blank — fall
+    //     back to the ranking the injury screen uses, so the button still does
+    //     something. Labelled as the weaker claim it is.
     if (options.length < SWAP_OPTIONS) {
-      // `inSession` still contains this exercise's own name, so it can never be
-      // offered as its own alternative.
-      const used = new Set(inSession);
-      for (const o of options) used.add(o.name.toLowerCase());
       const ranked = rankedAlternatives(ex, banned, tier, used).filter((t) => t.name !== ex.name);
-      // Rotate the starting point so the offered alternatives move between
-      // sessions rather than being the same top matches forever.
-      const offset = ranked.length > 0 ? Math.abs(seed + i) % ranked.length : 0;
-      for (let n = 0; n < ranked.length && options.length < SWAP_OPTIONS; n++) {
-        const t = ranked[(offset + n) % ranked.length];
+      for (const t of rotate(ranked, seed + i)) {
+        if (options.length >= SWAP_OPTIONS) break;
         if (options.some((o) => o.name === t.name)) continue;
-        options.push({ name: t.name, cue: t.cue, load: t.suggestedLoad });
+        options.push(take(describe('movement', t)));
       }
     }
 
@@ -2005,9 +2298,13 @@ export function fillSwapAlternatives(
       swapName: options[0]?.name,
       swapCue: options[0]?.cue,
       swapLoad: options[0]?.load,
+      swapKind: options[0]?.kind,
+      swapReason: options[0]?.reason,
       swap2Name: options[1]?.name,
       swap2Cue: options[1]?.cue,
       swap2Load: options[1]?.load,
+      swap2Kind: options[1]?.kind,
+      swap2Reason: options[1]?.reason,
       hasSwap: options.length > 0,
     };
   });
