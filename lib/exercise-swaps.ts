@@ -321,7 +321,7 @@ export interface SwapCandidate {
 }
 
 /**
- * Words that say where the load sits, not which exercise it is.
+ * Words that say how the lift is set up, not which exercise it is.
  *
  * The near rule needs one more constraint than "same pattern, same muscle, same
  * last word", because that lets everything ending in Squat match everything
@@ -329,11 +329,20 @@ export interface SwapCandidate {
  * movement - as "the same exercise" as a barbell back squat, which is the exact
  * confusion the two-option split is meant to remove.
  *
- * These eight words describe a bar position. A back squat, a front squat and a
- * goblet squat are one movement with the weight held somewhere else, which is
+ * The first eight describe where the bar sits. A back squat, a front squat and
+ * a goblet squat are one movement with the weight held somewhere else, which is
  * precisely what "the rack is taken, give me a squat I can do" is asking for.
- * Spanish, Sissy, Bulgarian, Cossack, Pistol, Box and Wall are not on the list
+ *
+ * The last four describe the position you are in rather than the exercise: a
+ * standing calf raise and a calf raise, an overhead press and an alternating
+ * dumbbell overhead press. Adding them found 24 more pairs across the catalogue
+ * and not one wrong one, which is the test any addition here has to pass -
+ * every word on this list is one that a physiotherapist would agree does not
+ * change what you are doing.
+ *
+ * Spanish, Sissy, Bulgarian, Cossack, Pistol, Box and Wall are NOT on the list
  * because they name a different movement that happens to end in the same word.
+ * Neither is Incline, Decline or Deficit: those change the exercise.
  *
  * The other way to qualify is for one of the two names to be the bare movement -
  * 'Squat', 'Deadlift', 'Row' with nothing but kit in front of it. A name that
@@ -341,7 +350,8 @@ export interface SwapCandidate {
  * version of it. (Push-Up does not qualify: its core is two words, and it finds
  * Weighted Push-Up through the exact rule instead.)
  */
-const LOAD_POSITION = new Set([
+const SETUP_ONLY = new Set([
+  // where the bar sits
   'back',
   'front',
   'goblet',
@@ -350,6 +360,11 @@ const LOAD_POSITION = new Set([
   'hack',
   'sumo',
   'safety',
+  // what position you are in
+  'seated',
+  'standing',
+  'lying',
+  'alternating',
 ]);
 
 const wordsOf = (name: string) => movementCoreOf(name).split(' ').filter(Boolean);
@@ -360,14 +375,14 @@ const isBareMovement = (name: string) => {
   return words.length === 1 && words[0] === movementNounOf(name);
 };
 
-/** Do the two names differ only in where the weight is held? */
-function differsOnlyByLoadPosition(a: string, b: string): boolean {
+/** Do the two names differ only in how the lift is set up? */
+function differsOnlyBySetup(a: string, b: string): boolean {
   const left = new Set(wordsOf(a));
   const right = new Set(wordsOf(b));
   const only = [...left]
     .filter((w) => !right.has(w))
     .concat([...right].filter((w) => !left.has(w)));
-  return only.length > 0 && only.every((w) => LOAD_POSITION.has(w));
+  return only.length > 0 && only.every((w) => SETUP_ONLY.has(w));
 }
 
 /**
@@ -411,7 +426,7 @@ export function isEquipmentVariant(source: SwapCandidate, candidate: SwapCandida
     movementNounOf(candidate.name) === noun &&
     (isBareMovement(source.name) ||
       isBareMovement(candidate.name) ||
-      differsOnlyByLoadPosition(source.name, candidate.name)) &&
+      differsOnlyBySetup(source.name, candidate.name)) &&
     !!source.movementPattern &&
     source.movementPattern === candidate.movementPattern &&
     !!source.primaryMuscle &&

@@ -520,6 +520,20 @@ check(
   'pressing and raising are not the same movement'
 );
 check(
+  'standing and seated versions of a lift are the same lift',
+  isEquipmentVariant(T('Calf Raise'), T('Standing Calf Raise')) &&
+    isEquipmentVariant(T('Overhead Press'), T('Standing Overhead Press')) &&
+    isEquipmentVariant(T('Cable Lateral Raise'), T('Seated DB Lateral Raise')),
+  'the position you are in is not the exercise - these differ only by a setup word and the kit'
+);
+check(
+  'but an incline is not a setup word, it is a different exercise',
+  !isEquipmentVariant(T('Barbell Bench Press'), T('Incline DB Press')) &&
+    !isEquipmentVariant(T('Push-Up'), T('Incline Push-Up')) &&
+    !isEquipmentVariant(T('Push-Up'), T('Deficit Push-Up')),
+  'incline, decline and deficit change what the lift trains; seated and standing do not'
+);
+check(
   'but not a Spanish squat, which is a different exercise ending in the same word',
   !isEquipmentVariant(T('Back Squat'), T('Spanish Squat')) &&
     !isEquipmentVariant(T('Back Squat'), T('Sissy Squat')),
