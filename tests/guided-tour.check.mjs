@@ -37,6 +37,9 @@
 globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
+// Sections 8 and 9 do not read the copy against other copy. They BUILD the
+// session the card is describing and check the card against it.
+import { generateWorkout } from '../lib/workout-engine.ts';
 
 let failures = 0;
 let total = 0;
@@ -297,6 +300,198 @@ check(
   bestsRendered
     ? 'Progress leads with the personal-best list and the tour does not mention it'
     : 'the tour promises a personal-best list that is no longer there'
+);
+
+// --- 8. The readiness answers do what their cards say -----------------------
+console.log('\n[8] Each readiness answer is described by what it actually changes');
+
+/**
+ * WHY THIS SECTION EXISTS.
+ *
+ * Two of the three readiness cards were wrong, and both had been wrong for a
+ * long time, because nothing anywhere connected the words to the builder:
+ *
+ *   The energy card said "the weights move with it". They do not. Energy
+ *   changes the SET COUNT on the main lift and which finisher you get; the load
+ *   comes from personalizeLoad, which never sees the answer. Somebody who says
+ *   "low", is promised a lighter bar, and gets last week's number concludes the
+ *   app ignored them.
+ *
+ *   The time card put the finisher at 60 minutes. It arrives at 45.
+ *
+ * So this does not compare strings to strings. It generates the session at each
+ * answer and checks the card against what came out.
+ */
+const PROBE_PROFILE = {
+  name: 'Probe',
+  sex: 'male',
+  experienceLevel: 'intermediate',
+  goals: ['muscle'],
+  bodyweightKg: 80,
+};
+const buildSession = (over) =>
+  generateWorkout(
+    'squat',
+    'fullgym',
+    { hasAches: false, painRegion: null, energy: 'normal', timeAvailable: '60', ...over },
+    PROBE_PROFILE,
+    {},
+    undefined,
+    10,
+    {},
+    {},
+    {},
+    3,
+    'kg'
+  );
+
+const readinessBlock = readiness.slice(
+  readiness.indexOf('const READINESS_TUTORIAL'),
+  readiness.indexOf('] as const;', readiness.indexOf('const READINESS_TUTORIAL'))
+);
+/** One step of the readiness tutorial, by the label printed on its card. */
+const readinessStep = (iconLabel) => {
+  const at = readinessBlock.indexOf(`iconLabel: '${iconLabel}'`);
+  if (at === -1) return '';
+  const next = readinessBlock.indexOf('iconLabel:', at + 12);
+  return userFacingCopy(readinessBlock.slice(at, next === -1 ? readinessBlock.length : next));
+};
+const energyCopy = readinessStep('Energy');
+const timeCopy = readinessStep('Time');
+
+check(
+  'the energy and time cards were both found',
+  energyCopy.length > 0 && timeCopy.length > 0,
+  'everything below this is vacuous if they were not'
+);
+
+const mainLiftOf = (w) => w.find((e) => e.category === 'main');
+const eLow = mainLiftOf(buildSession({ energy: 'low' }));
+const eNormal = mainLiftOf(buildSession({ energy: 'normal' }));
+const eHigh = mainLiftOf(buildSession({ energy: 'high' }));
+
+check(
+  `energy moves the set count (${eLow?.sets} / ${eNormal?.sets} / ${eHigh?.sets})`,
+  eLow != null && eLow.sets < eNormal.sets && eNormal.sets < eHigh.sets,
+  'if this stops being true the card describing it has to change with it'
+);
+check(
+  'and the card is about sets',
+  /\bset\b/i.test(energyCopy),
+  'the only two things this answer changes are sets and the finisher, so those are what it can honestly promise'
+);
+check(
+  'energy does NOT move the weight on the bar',
+  eLow?.suggestedLoad === eNormal?.suggestedLoad &&
+    eNormal?.suggestedLoad === eHigh?.suggestedLoad,
+  `low "${eLow?.suggestedLoad}", normal "${eNormal?.suggestedLoad}", high "${eHigh?.suggestedLoad}" - if these now differ, the card saying the weight is not part of this has become the lie`
+);
+check(
+  'and the card says so, out loud',
+  /not change the weight/i.test(energyCopy),
+  'saying nothing is not enough here: "a lighter session" is read as "a lighter bar", which is exactly the wrong expectation to leave someone with'
+);
+
+// The badges printed on the exercise cards themselves, so the words on the tour
+// card are the words the user is about to see on screen.
+const sessionSrc = read('app/session.tsx');
+const BLOCK_LABELS = Object.fromEntries(
+  [
+    ...sessionSrc.matchAll(
+      /^\s+(prep|mechanical|neuro|main|accessory|prehab|finisher|cooldown): \{[^}]*label: '([^']+)'/gm
+    ),
+  ].map((m) => [m[1], m[2]])
+);
+check(
+  `the on-card block names were read off the session screen (${Object.keys(BLOCK_LABELS).length})`,
+  Object.keys(BLOCK_LABELS).length >= 8,
+  'without these the duration checks below cannot say which word the card should have used'
+);
+
+const categoriesAt = (t) => new Set(buildSession({ timeAvailable: t }).map((e) => e.category));
+const cat30 = categoriesAt('30');
+const cat45 = categoriesAt('45');
+const cat60 = categoriesAt('60');
+const addedBy = (before, after) => [...after].filter((c) => !before.has(c));
+
+/** The sentence of the time card that starts with a given duration. */
+const durationClause = (mins) =>
+  timeCopy.split(/(?=\b(?:30|45|60)\b)/).find((p) => p.trimStart().startsWith(mins)) ?? '';
+
+check(
+  'the finisher is promised at 45, which is where it first appears',
+  cat45.has('finisher') && durationClause('45').includes(BLOCK_LABELS.finisher ?? 'Finisher'),
+  'it used to be promised at 60, one step too late, so a 45-minute session ended with a block the card had not mentioned'
+);
+for (const [mins, plus] of [
+  ['45', addedBy(cat30, cat45)],
+  ['60', addedBy(cat45, cat60)],
+]) {
+  const clause = durationClause(mins);
+  const unmentioned = plus.filter((c) => !clause.includes(BLOCK_LABELS[c] ?? c));
+  check(
+    `the ${mins}-minute clause names everything ${mins} adds`,
+    clause.length > 0 && unmentioned.length === 0,
+    `unnamed: ${unmentioned.map((c) => BLOCK_LABELS[c] ?? c).join(', ') || '(no clause found)'} - the card is describing a session the builder does not make`
+  );
+}
+
+// --- 9. The in-session tutorial names controls that are on the screen -------
+console.log('\n[9] The session tutorial points at real buttons');
+
+/**
+ * "Tap 'Watch form' for a video demo" survived in this app for a long time.
+ * There has never been a control called Watch form: the video is a red YouTube
+ * glyph in the icon row under the exercise name. A first-timer reads the card,
+ * scans the screen for a button with that name, and does not find one.
+ */
+const sessionBlock = sessionSrc.slice(
+  sessionSrc.indexOf('const SESSION_TUTORIAL'),
+  sessionSrc.indexOf('\n];', sessionSrc.indexOf('const SESSION_TUTORIAL'))
+);
+const sessionStep = (iconLabel) => {
+  const at = sessionBlock.indexOf(`iconLabel: '${iconLabel}'`);
+  if (at === -1) return '';
+  const next = sessionBlock.indexOf('iconLabel:', at + 12);
+  return userFacingCopy(sessionBlock.slice(at, next === -1 ? sessionBlock.length : next));
+};
+const videoCopy = sessionStep('Exercise');
+const logCopy = sessionStep('Log sets');
+
+check(
+  'the video and log steps were both found',
+  videoCopy.length > 0 && logCopy.length > 0,
+  'everything below this is vacuous if they were not'
+);
+check(
+  'no step tells the user to tap a label the app does not have',
+  // userFacingCopy, not the raw block. The comment above that step explains why
+  // the phrase was wrong, and quotes it - which is precisely the failure mode
+  // this file's userFacingCopy docblock was written about. A test that reads
+  // source has to be told which part of it is the product.
+  !/Watch form/i.test(userFacingCopy(sessionBlock)),
+  'the video control is an icon, not a named button; sending somebody hunting for a button by that name is a dead end'
+);
+check(
+  'the video step is honest about the exercises nobody has filmed',
+  /youtube\.com\/results\?search_query/.test(sessionSrc) === /search/i.test(videoCopy),
+  'most movements have no filmed demo and the button falls back to a search; promising a demo every time makes the fallback look like a fault'
+);
+check(
+  'the log step matches boxes that really do arrive filled in',
+  (/parseTargetRepsForPrefill/.test(sessionSrc) && /computeInitialWeight/.test(sessionSrc)) ===
+    /filled in/i.test(logCopy),
+  'both boxes are prefilled from the prescription, so asking the user to "type the weight and reps" describes work the app has already done'
+);
+check(
+  'and it names the button it tells you to tap',
+  /Did It/.test(logCopy) && /Did It/.test(sessionSrc.replace(sessionBlock, '')),
+  'the card has to name a control that is rendered somewhere other than the card itself'
+);
+check(
+  'the log step explains the rep floor, which the app enforces',
+  /export function metRepFloor/.test(read('lib/rep-scheme.ts')) === /fewer reps/i.test(logCopy),
+  'logging under the range stops the weight climbing, and that rule was written into the engine without ever being said to anyone'
 );
 
 console.log('');

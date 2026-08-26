@@ -2388,7 +2388,11 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
     title: 'Your first exercise',
-    body: "Tap 'Watch form' for a video demo before you start. Work through exercises in order, the app builds them to flow.",
+    // There has never been a control labelled "Watch form". The video is a red
+    // YouTube glyph in the icon row under the exercise name, and when the app
+    // has no filmed demo for that movement it opens a search instead - which is
+    // most of them, so it is worth saying rather than looking like a fault.
+    body: 'Tap the red video icon for a form demo. If that one has not been filmed yet it opens a search instead. Work through the exercises in order, the app builds them to flow.',
   },
   {
     spotlightRef: 'sessionBar',
@@ -2396,7 +2400,11 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'create-outline',
     iconLabel: 'Log sets',
     title: 'Log every set',
-    body: 'Type the weight and reps, then tap the green button to save the set. The app remembers your weights and auto-suggests next time.',
+    // "Type the weight and reps" asks for work the app has already done: both
+    // boxes arrive filled in with the prescription, so a set that went to plan
+    // is one tap. And the reps are not decoration - logging under the range
+    // holds the weight where it is. That rule was invisible everywhere.
+    body: 'Both boxes arrive filled in with the target, so a set that went to plan is one tap on Did It. Change either if you did something different. Log fewer reps than asked and the app holds your weight there rather than adding to it.',
   },
   {
     spotlightRef: 'sessionBar',

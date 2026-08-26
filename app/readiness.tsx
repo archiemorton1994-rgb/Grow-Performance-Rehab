@@ -78,19 +78,54 @@ const READINESS_TUTORIAL = [
     // given INSTEAD, which is deliberately gentle and comes with a pain limit.
     // Someone who reads "swap away" and then finds five isometric holds in
     // their session has been told the wrong thing about their own workout.
-    body: 'Tap anywhere that is sore. The app takes the exercises that would aggravate it out of your session and puts gentle work for that area in. Nothing that stretches or hard-loads it, and a pain limit to stay inside.',
+    // "Tap anywhere that is sore" described the body map, which is on the NEXT
+    // screen. What this card is spotlighting is a No / Yes pair.
+    body: 'Tap Yes and mark where it hurts. The app takes the exercises that would aggravate it out of your session and puts gentle work for that area in. Nothing that stretches or hard-loads it, and a pain limit to stay inside.',
   },
   {
     iconName: 'battery-half-outline',
     iconLabel: 'Energy',
     title: 'How are you feeling?',
-    body: 'Answer honestly: low energy gets a lighter session, high energy pushes harder. The weights move with it.',
+    /**
+     * THE WEIGHT DOES NOT MOVE WITH THIS, AND THE CARD USED TO SAY IT DID.
+     *
+     * Generate the same squat session at low, normal and high and the main
+     * lift comes out at the same load every time. What energy actually changes
+     * is the SET COUNT on the main lift (4 / 5 / 6) and which finisher you get
+     * (Light Sled Drag / Sled Push Intervals / Sled Push/Pull Complex).
+     *
+     * The load comes from personalizeLoad - last logged weight, your rating of
+     * it, your 1RM, time off - and energy is not one of its inputs. Telling
+     * somebody who has just said "low" that the weight will drop, and then
+     * showing them last week's number, reads as the app ignoring them. So the
+     * card now says the true thing AND says the weight is not part of it,
+     * because that is the sentence that stops the confusion.
+     *
+     * tests/guided-tour.check.mjs generates all three and fails if the loads
+     * ever stop matching, which is the signal to re-read this.
+     */
+    body: 'Low takes a set off your main lift and gives you an easier finisher, high adds a set and a harder one. It does not change the weight on the bar, which comes from what you lifted last time.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
     title: 'How long have you got?',
-    body: '30 minutes is your warm-up and main lift. 45 adds accessories and rehab work. 60 is the full session with a finisher on the end.',
+    /**
+     * Counted, not guessed. Generating a squat session at each duration gives
+     * 7, 10 and 13 exercises:
+     *
+     *   30  Warm-Up x4, Activation, KPI Lift (a set lighter), Accessory
+     *   45  + Power Primer, + 2nd Accessory, + Prehab, + FINISHER
+     *   60  + 2nd Activation, + Cool Down
+     *
+     * The old copy promised the finisher at 60. It is already there at 45, and
+     * what 60 actually adds is priming at the front and breathing at the back.
+     *
+     * The block names are capitalised because they are the badges printed on
+     * the cards themselves - see categoryColors in app/session.tsx - so the
+     * words here are the words the user is about to read.
+     */
+    body: '30 is your Warm-Up, KPI Lift and one Accessory. 45 adds a Power Primer, a second Accessory, Prehab and a Finisher. 60 adds a second Activation drill and a Cool Down.',
   },
 ] as const;
 
