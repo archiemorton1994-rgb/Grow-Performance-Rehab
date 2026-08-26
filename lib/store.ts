@@ -549,6 +549,16 @@ interface AppState {
    * the gate reads hasActiveSubscription from RevenueCat and nothing else.
    */
   hasEverSubscribed: boolean;
+  /**
+   * Which reminder audience this person is in, and when they entered it.
+   *
+   * Only the daily prompt uses it, to taper: daily for a fortnight, weekly
+   * after that. Recorded per audience rather than once, so a subscription
+   * lapsing starts a fresh fortnight rather than inheriting a clock that ran
+   * out months ago.
+   */
+  reminderPromptKind: string | null;
+  reminderPromptSince: string | null;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
   reminderTime: string;
   /** Whether the "missed workout" nudge notification is enabled. */
@@ -666,6 +676,8 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   /** Sets hasEverSubscribed once. See the field for why it exists. */
   markHasSubscribed: () => void;
+  /** Records the audience and, only when it CHANGES, restarts its clock. */
+  noteReminderAudience: (kind: string, nowIso: string) => void;
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
@@ -823,6 +835,8 @@ export const useAppStore = create<AppState>()(
       coachSeen: {},
       reminderEnabled: false,
       hasEverSubscribed: false,
+      reminderPromptKind: null,
+      reminderPromptSince: null,
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
@@ -958,6 +972,13 @@ export const useAppStore = create<AppState>()(
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
       markHasSubscribed: () => {
         if (!get().hasEverSubscribed) set({ hasEverSubscribed: true });
+      },
+      noteReminderAudience: (kind, nowIso) => {
+        const s = get();
+        // Only on a CHANGE. Writing it every launch would keep resetting the
+        // fortnight, and the prompt would never taper.
+        if (s.reminderPromptKind === kind && s.reminderPromptSince) return;
+        set({ reminderPromptKind: kind, reminderPromptSince: nowIso });
       },
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
@@ -2019,6 +2040,13 @@ export const useAppStore = create<AppState>()(
         }
         if (!('reviewPromptShown' in persistedState)) {
           persistedState.reviewPromptShown = false;
+        }
+        if (!('reminderPromptKind' in persistedState)) {
+          // Null means "not seen yet", and the first launch after upgrading
+          // stamps it, so an existing user starts their fortnight from now
+          // rather than being dropped straight to weekly.
+          persistedState.reminderPromptKind = null;
+          persistedState.reminderPromptSince = null;
         }
         if (!('hasEverSubscribed' in persistedState)) {
           // Somebody upgrading who is subscribed right now gets it set on the

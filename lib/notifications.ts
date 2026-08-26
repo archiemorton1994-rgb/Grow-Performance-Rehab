@@ -84,9 +84,47 @@ export function reminderAudienceFor(
   return hasEverSubscribed ? 'lapsed' : 'never-subscribed';
 }
 
+/** Expo counts Sunday as 1. Falls back to Monday when there is no start date. */
+function weekdayFor(since: string | null): number {
+  const t = since ? Date.parse(since) : NaN;
+  if (!Number.isFinite(t)) return 2;
+  return new Date(t).getDay() + 1;
+}
+
+/** How long a subscription prompt stays daily before it drops to weekly. */
+export const DAILY_PROMPT_DAYS = 14;
+
+/**
+ * How often the prompt should fire.
+ *
+ * A daily sales notification with no end is the kind of thing that earns an
+ * uninstall, and the person it keeps reaching is by definition the one it is
+ * not working on. So it tapers: daily for a fortnight, weekly after that. It
+ * never stops entirely, because somebody may simply have been away.
+ *
+ * Somebody who is training keeps their daily reminder. That one is a service,
+ * not a pitch, and they asked for it.
+ *
+ * The start date is when THIS audience began, not when the app was installed, so a
+ * subscription lapsing starts a fresh fortnight rather than inheriting a clock
+ * that ran out months ago.
+ */
+export function promptCadenceFor(
+  audience: ReminderAudience,
+  since: string | null,
+  now: number = Date.now()
+): 'daily' | 'weekly' {
+  if (audience === 'training') return 'daily';
+  if (!since) return 'daily';
+  const started = Date.parse(since);
+  if (!Number.isFinite(started)) return 'daily';
+  return now - started < DAILY_PROMPT_DAYS * 86400000 ? 'daily' : 'weekly';
+}
+
 export async function scheduleWorkoutReminder(
   timeStr: string,
-  audience: ReminderAudience = 'training'
+  audience: ReminderAudience = 'training',
+  since: string | null = null
 ): Promise<void> {
   if (!isNotificationsSupported()) return;
 
@@ -96,6 +134,7 @@ export async function scheduleWorkoutReminder(
   const hour = parseInt(hourStr, 10);
   const minute = parseInt(minuteStr ?? '0', 10);
 
+  const cadence = promptCadenceFor(audience, since);
   const voice = audience === 'training' ? null : AUDIENCE_COPY[audience];
   const bodies = voice ? voice.bodies : REMINDER_BODIES;
   const body = bodies[Math.floor(Math.random() * bodies.length)];
@@ -113,11 +152,22 @@ export async function scheduleWorkoutReminder(
       },
       sound: true,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
+    trigger:
+      cadence === 'weekly'
+        ? {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            // Derived from the day the prompt started rather than from today, so
+            // re-scheduling on every launch does not walk the notification
+            // around the week. Expo counts Sunday as 1.
+            weekday: weekdayFor(since),
+            hour,
+            minute,
+          }
+        : {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+          },
   });
 }
 

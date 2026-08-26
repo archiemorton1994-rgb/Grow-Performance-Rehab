@@ -362,20 +362,30 @@ function RootLayoutNav() {
    */
   const hasEverSubscribed = useAppStore((s) => s.hasEverSubscribed);
   const markHasSubscribed = useAppStore((s) => s.markHasSubscribed);
+  const reminderPromptKind = useAppStore((s) => s.reminderPromptKind);
+  const reminderPromptSince = useAppStore((s) => s.reminderPromptSince);
+  const noteReminderAudience = useAppStore((s) => s.noteReminderAudience);
   useEffect(() => {
     if (hasActiveSubscription) markHasSubscribed();
   }, [hasActiveSubscription, markHasSubscribed]);
+
+  const reminderAudience = reminderAudienceFor(hasActiveSubscription, hasEverSubscribed);
+  useEffect(() => {
+    if (!hasHydrated) return;
+    noteReminderAudience(reminderAudience, new Date().toISOString());
+  }, [hasHydrated, reminderAudience, noteReminderAudience]);
 
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web') return;
     if (reminderEnabled) {
       scheduleWorkoutReminder(
         reminderTime,
-        reminderAudienceFor(hasActiveSubscription, hasEverSubscribed)
+        reminderAudience,
+        reminderPromptKind === reminderAudience ? reminderPromptSince : null
       ).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasHydrated, hasActiveSubscription, hasEverSubscribed]);
+  }, [hasHydrated, reminderAudience, reminderPromptKind, reminderPromptSince]);
 
   const nudgeEnabled = useAppStore((s) => s.nudgeEnabled);
   const streakProtectionEnabled = useAppStore((s) => s.streakProtectionEnabled);

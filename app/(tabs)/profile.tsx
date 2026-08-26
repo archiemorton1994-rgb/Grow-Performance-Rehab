@@ -724,7 +724,7 @@ export default function ProfileScreen() {
         return;
       }
       setReminderEnabled(true);
-      await scheduleWorkoutReminder(reminderTime, reminderAudience);
+      await scheduleWorkoutReminder(reminderTime, reminderAudience, reminderSince);
       if (Platform.OS !== 'web')
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -737,12 +737,17 @@ export default function ProfileScreen() {
   // Through the shared helper, so turning reminders on here and the app
   // re-scheduling them on launch cannot pick two different messages.
   const hasEverSubscribed = useAppStore((st) => st.hasEverSubscribed);
+  const reminderPromptKind = useAppStore((st) => st.reminderPromptKind);
+  const reminderPromptSince = useAppStore((st) => st.reminderPromptSince);
   const reminderAudience = reminderAudienceFor(hasActiveSubscription, hasEverSubscribed);
+  // Null when the stored clock belongs to a different audience, which reads as
+  // "this one has only just started" and so keeps it daily.
+  const reminderSince = reminderPromptKind === reminderAudience ? reminderPromptSince : null;
 
   const handleReminderTimeChange = async (time: string) => {
     setReminderTime(time);
     if (reminderEnabled) {
-      await scheduleWorkoutReminder(time, reminderAudience);
+      await scheduleWorkoutReminder(time, reminderAudience, reminderSince);
     }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };

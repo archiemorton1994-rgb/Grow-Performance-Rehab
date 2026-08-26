@@ -248,14 +248,39 @@ check(
   !audienceStrings.some((v) => / - |—|–/.test(v)),
   ''
 );
+// EVERY call site, counted structurally. The first version of this named the
+// exact argument text, so it went red the moment a third argument was added
+// even though the call had got MORE correct, not less.
+const reminderCalls = [];
+for (const file of ['app/_layout.tsx', 'app/(tabs)/profile.tsx']) {
+  const src = stripComments(read(file));
+  let at = src.indexOf('scheduleWorkoutReminder(');
+  while (at !== -1) {
+    const open = src.indexOf('(', at);
+    let depth = 0;
+    let args = 1;
+    for (let i = open; i < src.length; i++) {
+      const c = src[i];
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0) break; }
+      else if (c === ',' && depth === 1) args++;
+    }
+    reminderCalls.push({ file, args });
+    at = src.indexOf('scheduleWorkoutReminder(', at + 1);
+  }
+}
 check(
-  'both callers choose an audience rather than taking the default',
-  /scheduleWorkoutReminder\(\s*reminderTime,\s*reminderAudienceFor\(/.test(
-    stripComments(read('app/_layout.tsx'))
-  ) && /scheduleWorkoutReminder\(reminderTime, reminderAudience\)/.test(
-    stripComments(read('app/(tabs)/profile.tsx'))
-  ),
-  'a caller that forgets falls back to the training wording, which is the bug'
+  `every reminder call site was found (${reminderCalls.length})`,
+  reminderCalls.length >= 3,
+  'the callers have moved and this rule has gone blind'
+);
+check(
+  'every caller passes both the audience and its start date',
+  reminderCalls.every((c) => c.args === 3),
+  reminderCalls
+    .filter((c) => c.args !== 3)
+    .map((c) => `${c.file} passes ${c.args}`)
+    .join(', ') + ' - a caller that forgets falls back to the training wording, daily, for ever'
 );
 check(
   'and both get it from the same helper',
@@ -268,6 +293,95 @@ check(
   'the flag that separates them decides no access',
   !/hasEverSubscribed/.test(stripComments(read('lib/auth-context.tsx'))),
   'it exists to pick a message. The moment it reaches the gate it is deciding who gets in'
+);
+
+console.log('\n[1d] The subscription prompt tapers rather than nagging for ever');
+
+/**
+ * A daily sales notification with no end earns an uninstall, and the person it
+ * keeps reaching is by definition the one it is not working on. Daily for a
+ * fortnight, weekly after that, and never off entirely, because somebody may
+ * simply have been away.
+ *
+ * Somebody who is training keeps their daily reminder whatever the clock says.
+ * That one is a service they asked for, not a pitch.
+ *
+ * promptCadenceFor is lifted out and run, because what matters is the mapping
+ * over time, not the shape of the comparison.
+ */
+const cadenceFn = (() => {
+  const at = notificationsCode.indexOf('export function promptCadenceFor(');
+  if (at === -1) return null;
+  const open = notificationsCode.indexOf('{', notificationsCode.indexOf('): ', at));
+  let depth = 0;
+  for (let i = open; i < notificationsCode.length; i++) {
+    if (notificationsCode[i] === '{') depth++;
+    else if (notificationsCode[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        const body = notificationsCode.slice(open + 1, i);
+        const days = /DAILY_PROMPT_DAYS = (\d+)/.exec(notificationsCode)?.[1] ?? '14';
+        return Function(
+          'audience',
+          'since',
+          'now',
+          'const DAILY_PROMPT_DAYS = ' + days + ';' + body
+        );
+      }
+    }
+  }
+  return null;
+})();
+const DAY = 86400000;
+const NOW = 1_800_000_000_000;
+const ago = (d) => new Date(NOW - d * DAY).toISOString();
+const promptDays = Number(/DAILY_PROMPT_DAYS = (\d+)/.exec(notificationsCode)?.[1] ?? NaN);
+
+check(
+  `promptCadenceFor could be read and run, over ${promptDays} days`,
+  cadenceFn != null && Number.isFinite(promptDays) && promptDays >= 7,
+  'the checks below prove nothing without it, and a taper shorter than a week is not a taper'
+);
+check(
+  'a subscriber keeps a daily reminder however long they have had it',
+  cadenceFn?.('training', ago(400), NOW) === 'daily',
+  'their reminder is a service they turned on, not a pitch'
+);
+check(
+  'a new prompt starts daily',
+  cadenceFn?.('never-subscribed', ago(0), NOW) === 'daily' &&
+    cadenceFn?.('never-subscribed', ago(promptDays - 1), NOW) === 'daily',
+  ''
+);
+check(
+  `and drops to weekly after ${promptDays} days`,
+  cadenceFn?.('never-subscribed', ago(promptDays), NOW) === 'weekly' &&
+    cadenceFn?.('lapsed', ago(promptDays + 60), NOW) === 'weekly',
+  'this is the whole point: it stops being daily, and it does not stop entirely'
+);
+check(
+  'an unknown or missing start date is treated as new, not as overdue',
+  cadenceFn?.('lapsed', null, NOW) === 'daily' &&
+    cadenceFn?.('lapsed', 'not a date', NOW) === 'daily',
+  'dropping somebody straight to weekly because a field was empty is the wrong way to be wrong'
+);
+
+check(
+  'the clock only restarts when the audience actually changes',
+  /if \(s\.reminderPromptKind === kind && s\.reminderPromptSince\) return;/.test(read('lib/store.ts')),
+  'stamping it on every launch would reset the fortnight for ever and the prompt would never taper'
+);
+check(
+  'a clock belonging to a different audience is not reused',
+  /reminderPromptKind === reminderAudience \? reminderPromptSince : null/.test(
+    read('app/_layout.tsx')
+  ),
+  'a subscription lapsing has to start a fresh fortnight, not inherit one that ran out months ago'
+);
+check(
+  'the weekly slot is derived from the start date, not from today',
+  /weekday: weekdayFor\(since\)/.test(notificationsCode),
+  're-scheduling on every launch would otherwise walk the notification around the week'
 );
 
 console.log('\n[2] The clinical notes reach the person they were written for');
