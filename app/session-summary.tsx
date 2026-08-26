@@ -227,16 +227,24 @@ function getNextHint(
   exerciseNormalStreak: Record<string, number>,
   exerciseFeedback: Record<string, ExerciseFeedback>,
   weightUnit: WeightUnit,
-  ratedHard: boolean
+  ratedHard: boolean,
+  repNote?: string
 ): string | null {
   if (!isLatestSession || bestWeightKg <= 0) return null;
   const perf = lastSessionPerformance[exerciseId];
   if (perf === 'failed') {
     const ratedDown = exerciseFeedback[exerciseId]?.thumbs === 'down';
-    // Three different things reach 'failed' and only one of them is an
-    // unfinished set. Saying "a set was left incomplete" to someone who
-    // finished every set and simply answered "Too Hard" is the app telling
-    // them they did something they did not do.
+    // FOUR things reach 'failed' and only one of them is an unfinished set.
+    // The fourth is double progression: while the reps are climbing inside the
+    // range the load must hold, and the store records that hold as 'failed'
+    // (lib/store.ts, repsStillClimbing). Read literally, this screen told
+    // somebody who completed every set and EARNED an extra rep that they had
+    // left a set incomplete.
+    //
+    // The rep note is the truth in that case, and lib/rep-scheme.ts already
+    // wrote it — "One more rep at the same weight" — so it is preferred over
+    // the load sentence whenever it exists.
+    if (repNote) return `Next time: ${repNote.charAt(0).toLowerCase()}${repNote.slice(1)}.`;
     const why = ratedHard
       ? 'You rated a set Too Hard'
       : ratedDown
@@ -493,6 +501,7 @@ function ProgressTab({
   previousTotals,
   isLatestSession,
   lastSessionPerformance,
+  exerciseRepNote,
   exerciseNormalStreak,
   exerciseStuckStreak,
   exerciseFeedback,
@@ -512,6 +521,8 @@ function ProgressTab({
   previousTotals: { totalVolumeKg: number; totalReps: number } | null;
   isLatestSession: boolean;
   lastSessionPerformance: Record<string, ExercisePerformance>;
+  /** The plain-English reason each rep target moved, from lib/rep-scheme.ts. */
+  exerciseRepNote: Record<string, string>;
   exerciseNormalStreak: Record<string, number>;
   exerciseStuckStreak: Record<string, number>;
   exerciseFeedback: Record<string, ExerciseFeedback>;
@@ -626,7 +637,8 @@ function ProgressTab({
                 exerciseNormalStreak,
                 exerciseFeedback,
                 weightUnit,
-                r.ratedHard
+                r.ratedHard,
+                exerciseRepNote[r.exerciseId]
               );
               const stuckStreak = exerciseStuckStreak[r.exerciseId] ?? 0;
               const showPlateauNudge = isLatestSession && stuckStreak >= 3;
@@ -760,6 +772,7 @@ export default function SessionSummaryScreen() {
   const updateSessionNotes = useAppStore((s) => s.updateSessionNotes);
   const lastSessionPerformance = useAppStore((s) => s.lastSessionPerformance);
   const exerciseNormalStreak = useAppStore((s) => s.exerciseNormalStreak);
+  const exerciseRepNote = useAppStore((s) => s.exerciseRepNote);
   const exerciseStuckStreak = useAppStore((s) => s.exerciseStuckStreak);
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
   const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
@@ -1119,7 +1132,10 @@ export default function SessionSummaryScreen() {
       : `${Math.floor(durationSeconds / 60)}m`;
   const topWeightKg =
     summary.rows.length > 0 ? Math.max(0, ...summary.rows.map((r) => r.bestWeight)) : 0;
-  const streakDays = getStreakDays();
+  // WEEKS, despite the name. getStreakDays counts consecutive Monday-to-Sunday
+  // weeks that hit the weekly goal — see lib/store.ts. Both places it is
+  // printed used to call them days.
+  const streakWeeks = getStreakDays();
   const pbCount = summary.rows.filter((r) => r.badge === 'gain-weight').length;
 
   // Responsive compact-diagram sizing: larger on tall phones, smaller on short
@@ -1364,8 +1380,8 @@ export default function SessionSummaryScreen() {
           ? bestPbRow
             ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'}, and a new best on ${bestPbRow.exerciseName}`
             : `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} and counting`
-          : streakDays >= 1
-            ? `${streakDays} day streak. Keep it going.`
+          : streakWeeks >= 1
+            ? `${streakWeeks} week${streakWeeks === 1 ? '' : 's'} in a row. Keep it going.`
             : 'Nice work today.';
 
   // On a test the rail carries the story of this lift rather than today's
@@ -1470,6 +1486,7 @@ export default function SessionSummaryScreen() {
             previousTotals={previousTotals}
             isLatestSession={isLatestSession}
             lastSessionPerformance={lastSessionPerformance}
+            exerciseRepNote={exerciseRepNote}
             exerciseNormalStreak={exerciseNormalStreak}
             exerciseStuckStreak={exerciseStuckStreak}
             exerciseFeedback={exerciseFeedback}
@@ -1652,11 +1669,11 @@ export default function SessionSummaryScreen() {
 
                   {/* Footer */}
                   <View style={styles.cardFooter}>
-                    {streakDays >= 1 ? (
+                    {streakWeeks >= 1 ? (
                       <View style={styles.footerStreak}>
                         <Ionicons name="flame" size={13} color={SAGE.accent} />
                         <Text style={styles.footerStreakText}>
-                          {streakDays} day{streakDays > 1 ? 's' : ''} streak
+                          {streakWeeks} week{streakWeeks > 1 ? 's' : ''} in a row
                         </Text>
                       </View>
                     ) : (

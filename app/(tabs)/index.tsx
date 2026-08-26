@@ -39,7 +39,7 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
-import { getCoachMessages, hasActionableAdvice, type CoachAction } from '@/lib/coach';
+import { getCoachMessages, hasActionableAdvice, type CoachAction , weekdayForTrainingWeek } from '@/lib/coach';
 import { resumeParams } from '@/lib/resume-params';
 
 /**
@@ -144,6 +144,11 @@ export default function HomeScreen() {
     skipTour,
     balanceNudgeDismissedAt,
     dismissBalanceNudge,
+    coachDismissedAt,
+    dismissCoachMessage,
+    exerciseStuckStreak,
+    oneRepMaxes,
+    getAllExerciseProgress,
   } = useAppStore();
 
   const [coachOpen, setCoachOpen] = useState(false);
@@ -241,8 +246,15 @@ export default function HomeScreen() {
   // haven't hit the goal yet. Only show from Wednesday onwards to avoid
   // alarming people who simply haven't trained early in the week.
   const goal = weeklyStreakGoal ?? 2;
+  // Sunday is 7 here, not 0. The training week runs Monday to Sunday, so the
+  // raw getDay() numbering hid this on the single last day it could be acted
+  // on. weekdayForTrainingWeek is shared with lib/coach.ts so the two rules
+  // cannot drift apart again.
   const missedStreakWarning =
-    completedSessions.length >= 3 && streak > 0 && weekCount < goal && new Date().getDay() >= 3;
+    completedSessions.length >= 3 &&
+    streak > 0 &&
+    weekCount < goal &&
+    weekdayForTrainingWeek(new Date()) >= 3;
 
   const [milestoneToastDismissed, setMilestoneToastDismissed] = useState(false);
 
@@ -281,7 +293,7 @@ export default function HomeScreen() {
       streak,
       consecutiveActiveWeeks,
       daysSinceLast,
-      weekday: new Date().getDay(),
+      weekday: weekdayForTrainingWeek(new Date()),
       bodyweightStale: isWeightReminderVisible(),
       balance: {
         sessionTypes,
@@ -289,6 +301,15 @@ export default function HomeScreen() {
         dismissedAt: balanceNudgeDismissedAt,
         now: Date.now(),
       },
+      // What the training itself has been doing. All of it already stored; see
+      // lib/coach-insights.ts for what gets read out of it.
+      sessions: completedSessions,
+      progress: getAllExerciseProgress(),
+      stuckStreak: exerciseStuckStreak,
+      hasOneRepMax: oneRepMaxes.length > 0,
+      weightUnit,
+      dismissedAt: coachDismissedAt,
+      now: Date.now(),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -900,7 +921,19 @@ export default function HomeScreen() {
               <Text style={styles.summaryBigNum}>{streak}</Text>
               <Text style={styles.summaryCardTitle}>WEEK STREAK</Text>
               <Text style={styles.summaryCardSub}>
-                {streak > 0 ? 'Keep it going' : 'Get started'}
+                {/*
+                  A week only joins the streak once it has hit the goal, so this
+                  reads 0 for the whole of somebody's first week. It used to say
+                  "Get started" underneath that 0 — to a person who had just
+                  finished a session and come back to the home screen. When the
+                  current week is under way, say how far into it they are
+                  instead; the streak number itself is honest and stays.
+                */}
+                {streak > 0
+                  ? 'Keep it going'
+                  : weekCount > 0
+                    ? `${weekCount} of ${goal} this week`
+                    : 'Get started'}
               </Text>
             </View>
 
@@ -1061,8 +1094,10 @@ export default function HomeScreen() {
             onClose={() => setCoachOpen(false)}
             onAction={handleCoachAction}
             onDismiss={(id) => {
-              // Only the balance observation is dismissible; see CoachMessage.
+              // Balance keeps its own field because it is persisted on every
+              // existing device; everything else goes in the generic record.
               if (id === 'balance') dismissBalanceNudge(Date.now());
+              else dismissCoachMessage(id, Date.now());
             }}
             top={insets.top + (Platform.OS === 'web' ? 67 : 0) + 62}
             tailRight={38}

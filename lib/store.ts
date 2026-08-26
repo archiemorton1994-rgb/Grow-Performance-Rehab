@@ -483,6 +483,16 @@ interface AppState {
    *  Persisted, because dismissing it has to survive closing the app —
    *  otherwise it is a snooze that pretends to be an answer. */
   balanceNudgeDismissedAt: number | null;
+  /**
+   * When each assistant message was last waved away, by message id.
+   *
+   * Generic, because the panel now carries messages that have no natural end -
+   * an observation about a chronic knee, a note explaining how the app works.
+   * The original single balanceNudgeDismissedAt field is kept as it is rather
+   * than migrated into this: it is persisted on every existing device and a
+   * migration would be all risk and no benefit for one entry.
+   */
+  coachDismissedAt: Record<string, number>;
   /** Whether the daily workout reminder is enabled. */
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
@@ -542,6 +552,16 @@ interface AppState {
    */
   exerciseRepTarget: Record<string, string>;
   /**
+   * The plain-English reason the rep target moved, per exercise.
+   *
+   * lib/rep-scheme.ts writes one for every decision it makes and the field is
+   * commented "for the card". Nothing kept it, so the reason was computed and
+   * thrown away every session — and the session summary, having no better
+   * source, read the internal 'failed' flag instead and told people who had
+   * completed every set that they had left one incomplete.
+   */
+  exerciseRepNote: Record<string, string>;
+  /**
    * Records how each exercise performed in the most recent session it appeared in.
    * Set by `completeSession` based on actual set completion data, then updated
    * by in-session or post-session thumbs/tooEasy feedback. The workout engine
@@ -584,6 +604,7 @@ interface AppState {
   updateLastLoggedWeights: (weights: Record<string, number>) => void;
   setReviewPromptShown: (shown: boolean) => void;
   dismissBalanceNudge: (ts: number) => void;
+  dismissCoachMessage: (id: string, ts: number) => void;
   /** The one training-balance observation worth showing right now, or null.
    *  See lib/training-balance.ts for what it will and will not say. */
   getTrainingBalanceNudge: (now: number) => BalanceNudge | null;
@@ -741,6 +762,7 @@ export const useAppStore = create<AppState>()(
       lastLoggedWeights: {},
       reviewPromptShown: false,
       balanceNudgeDismissedAt: null,
+      coachDismissedAt: {},
       reminderEnabled: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
@@ -754,6 +776,7 @@ export const useAppStore = create<AppState>()(
       exerciseNormalStreak: {},
       exerciseStuckStreak: {},
       exerciseRepTarget: {},
+      exerciseRepNote: {},
       lastSessionPerformance: {},
       pendingCustomExercises: [],
       savedTemplates: [],
@@ -836,6 +859,8 @@ export const useAppStore = create<AppState>()(
         })),
       setReviewPromptShown: (shown) => set({ reviewPromptShown: shown }),
       dismissBalanceNudge: (ts) => set({ balanceNudgeDismissedAt: ts }),
+      dismissCoachMessage: (id, ts) =>
+        set((state) => ({ coachDismissedAt: { ...state.coachDismissedAt, [id]: ts } })),
 
       /**
        * The store side of the balance nudge: gather the history, hand it to a
@@ -990,6 +1015,7 @@ export const useAppStore = create<AppState>()(
           // be told apart from one that just had a single off day.
           const newStuckStreak = { ...state.exerciseStuckStreak };
           const newRepTarget = { ...state.exerciseRepTarget };
+          const newRepNote: Record<string, string> = {};
           // Exercises whose REPS moved this session. The load must stay put for
           // these: adding a plate on top of an extra rep is two jumps at once,
           // which is the overshoot double progression exists to prevent.
@@ -1048,6 +1074,7 @@ export const useAppStore = create<AppState>()(
               );
               if (next) {
                 newRepTarget[log.exerciseId] = next.reps;
+                if (next.note) newRepNote[log.exerciseId] = next.note;
                 // Reps went up, so the weight does not. Adding a plate on top of
                 // an extra rep is two jumps in one session, which is the
                 // overshoot double progression exists to prevent.
@@ -1106,6 +1133,11 @@ export const useAppStore = create<AppState>()(
             exerciseNormalStreak: newStreak,
             exerciseStuckStreak: newStuckStreak,
             exerciseRepTarget: newRepTarget,
+            // Replaced wholesale rather than merged: the note describes what
+            // happened in THIS session, and a stale one left over from three
+            // weeks ago on an exercise that was not trained today would be read
+            // as today's news.
+            exerciseRepNote: newRepNote,
             // A genuine test-week session clears any postponement — the thing
             // it was standing in for has now actually happened.
             ...(session.isTestWeek
@@ -1156,6 +1188,7 @@ export const useAppStore = create<AppState>()(
           exerciseNormalStreak: {},
           exerciseStuckStreak: {},
           exerciseRepTarget: {},
+          exerciseRepNote: {},
           exerciseFeedback: {},
           testWeekDeferred: false,
           earnedBadges: [],

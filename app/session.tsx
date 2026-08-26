@@ -18,6 +18,7 @@ import * as Notifications from 'expo-notifications';
 import * as StoreReview from 'expo-store-review';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
@@ -2342,6 +2343,19 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
 ];
 
 export default function SessionScreen() {
+  /**
+   * The phone stays awake for as long as this screen is open.
+   *
+   * Without it the device locks on its normal timer, which for most people is
+   * between thirty seconds and two minutes. Log a set, put the phone on the
+   * bench, do the set, pick it back up: locked. Face ID with a sweaty face or
+   * Touch ID with chalked hands fails often enough that people end up typing a
+   * passcode, once per set, on top of the two taps the app itself asks for.
+   *
+   * Scoped to the component so it releases the moment the session screen is
+   * left, and the phone behaves normally everywhere else in the app.
+   */
+  useKeepAwake();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     sessionType: string;
