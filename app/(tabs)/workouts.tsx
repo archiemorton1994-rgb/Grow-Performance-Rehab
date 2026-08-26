@@ -79,7 +79,10 @@ const STATS_TUTORIAL: readonly StatsTutorialStep[] = [
     iconName: 'swap-horizontal-outline',
     iconLabel: 'Views',
     title: 'Four ways to look at your training',
-    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for volume and where the work landed, and History for every session you have logged.',
+    // Progress leads with the personal-best list now, so that is what it is
+    // named by. "Volume and where the work landed" described the two sections
+    // UNDER the one a user sees first.
+    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for your personal bests and training volume, and History for every session you have logged.',
   },
   // The second step was cut. It described "this week, your current streak and
   // your all-time total" — a streak already explained on Home, over three zeroes

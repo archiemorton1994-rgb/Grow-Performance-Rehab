@@ -242,7 +242,7 @@ const EXPLAINERS: { id: string; icon: string; title: string; body: string }[] = 
     id: 'how-reps',
     icon: 'repeat-outline',
     title: 'Reps move before weight does',
-    body: 'When you see a range like 8 to 12, the app walks you up it one rep at a time and only adds weight once you have cleared the top. It is a smaller step than a plate and it is the reason progress keeps going when adding weight would stall.',
+    body: 'When you see a range like 8 to 12, the app walks you up it one rep at a time and only adds weight once you have cleared the top. A smaller step than a plate, and the reason progress keeps going when adding weight would stall. Log fewer reps than the range asks and it holds you there rather than pushing on.',
   },
   {
     id: 'how-pain',
@@ -255,6 +255,21 @@ const EXPLAINERS: { id: string; icon: string; title: string; body: string }[] = 
     icon: 'swap-horizontal-outline',
     title: 'Every exercise has two alternatives',
     body: 'Tap the swap icon on any card for the same exercise with different equipment, and a different exercise for the same muscles. Useful when a machine is taken or something is bothering you, and you can always go back.',
+  },
+  {
+    /**
+     * The assistant explaining itself is not as circular as it looks.
+     *
+     * The tour teaches the sparkle once, on the first run, and people skip the
+     * tour. This is the only other place the meaning of a symbol that changes
+     * on its own is written down, and it sits in the how-it-works section of
+     * the full assistant screen, which is exactly where somebody goes when they
+     * want to know what a thing does.
+     */
+    id: 'how-assistant',
+    icon: 'sparkles-outline',
+    title: 'What the blue button is for',
+    body: 'It gathers what the app has noticed since you last looked: worth reading, never urgent. The symbol turns into a sparkle when something is new, the panel shows the three that matter most, and the line at the bottom of it opens everything else.',
   },
   {
     id: 'how-time',

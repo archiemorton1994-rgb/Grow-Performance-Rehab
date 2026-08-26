@@ -285,12 +285,16 @@ export default function CoachMark({
           <Text style={[styles.title, { color: COACH.text }]}>{title}</Text>
           <Text style={[styles.body, { color: COACH.textSecondary }]}>{body}</Text>
 
+          {/* Named so the tour can be WALKED, not just read. Every tour claim in
+              this app is a claim about a screen, and the only way to check one
+              is to advance the cards over the real thing and look. */}
           <View style={styles.actions}>
-            <Pressable onPress={onSkip} hitSlop={12}>
+            <Pressable onPress={onSkip} hitSlop={12} testID="coachmark-skip">
               <Text style={[styles.skipText, { color: COACH.textTertiary }]}>{skipLabel}</Text>
             </Pressable>
             <Pressable
               onPress={onNext}
+              testID="coachmark-next"
               style={({ pressed }) => [
                 styles.nextBtn,
                 { backgroundColor: COACH.accent },

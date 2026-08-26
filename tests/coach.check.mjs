@@ -42,6 +42,7 @@ import {
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const home = readFileSync(join(__dir, '../app/(tabs)/index.tsx'), 'utf8');
+const coachSrc = readFileSync(join(__dir, '../lib/coach.ts'), 'utf8');
 const bubble = readFileSync(join(__dir, '../components/CoachBubble.tsx'), 'utf8');
 
 let failures = 0;
@@ -98,13 +99,26 @@ check(
  * notes, which fill a spare slot until they have each been waved away. So the
  * only way to reach it is with nothing to flag AND nothing left to explain.
  */
-const allExplainersSeen = {
-  'how-load': NOW,
-  'how-reps': NOW,
-  'how-pain': NOW,
-  'how-swap': NOW,
-  'how-time': NOW,
-};
+/**
+ * Read off the source rather than hand-listed.
+ *
+ * A hand-written list goes stale the moment a note is added, and it goes stale
+ * QUIETLY: this fixture is the only way to reach the all-clear, so a sixth
+ * explainer turns "the all-clear is unreachable" into the failure message,
+ * which is a puzzle rather than an instruction. Deriving it means adding a note
+ * costs nothing here and removing one still cannot break it.
+ */
+const EXPLAINER_IDS = [
+  ...coachSrc
+    .slice(coachSrc.indexOf('const EXPLAINERS'), coachSrc.indexOf('interface Bucket'))
+    .matchAll(/id: '([a-z-]+)'/g),
+].map((m) => m[1]);
+const allExplainersSeen = Object.fromEntries(EXPLAINER_IDS.map((id) => [id, NOW]));
+check(
+  `every how-it-works note was found (${EXPLAINER_IDS.length})`,
+  EXPLAINER_IDS.length >= 5,
+  `found: ${EXPLAINER_IDS.join(', ') || 'none'} - if this is empty the all-clear check below proves nothing`
+);
 check(
   'a user with nothing to flag and nothing left to learn gets the all-clear',
   ids(ask({ dismissedAt: allExplainersSeen })).includes('all-clear'),

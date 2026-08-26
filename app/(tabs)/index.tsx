@@ -92,11 +92,28 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
     body: "This card always shows what to train today, rotating through Squat, Bench and Deadlift. Tap Start and the whole session gets built for you.",
   },
   {
+    /**
+     * THE SYMBOL IS THE PART THAT HAS TO BE TAUGHT.
+     *
+     * This step was written when the assistant was a grey speech bubble that
+     * only ever raised problems, and it said so: three examples, all faults,
+     * ending on "it stays out of your way until you open it".
+     *
+     * None of that is the button any more. It is sapphire, it says as much
+     * about what is going well as what is not, and it swaps its glyph for a
+     * sparkle when there is something unread - which is the ONLY way a user
+     * finds out there is anything to read. A tour that leaves that out ships a
+     * changing symbol nobody has been told the meaning of.
+     *
+     * The card wears the sparkle rather than the resting bubble for the same
+     * reason: on a first run the button is already sparkling, so a card showing
+     * a speech bubble is a picture of something that is not on screen.
+     */
     spotlightRef: 'coach',
-    iconName: 'chatbubble-ellipses-outline',
+    iconName: 'sparkles',
     iconLabel: 'Assistant',
-    title: 'What the app has noticed',
-    body: 'Everything it has to say lives behind this button: when you are due a lighter week, when one side of your training is getting thin, when a weight looks stale. It stays out of your way until you open it.',
+    title: 'Your assistant',
+    body: 'The blue button is what the app has noticed: a personal best, a lift that has stalled, a week worth taking lighter. It shows the three that matter most, with the rest one tap behind. When the symbol turns into a sparkle, there is something new.',
   },
   {
     spotlightRef: 'streak',

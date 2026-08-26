@@ -194,6 +194,111 @@ check(
   'the limit that makes the protocol safe is unmentioned'
 );
 
+// --- 6. The tour describes the app that shipped, not the one it was written for
+console.log('\n[6] The assistant step matches the assistant');
+
+/**
+ * WHY A COPY TEST, AND WHY THIS COPY.
+ *
+ * Tour copy is the one kind of text nobody re-reads. It is written once against
+ * a screen, the screen changes underneath it, and nothing fails: the card still
+ * renders, the spotlight still lands, and the words quietly stop being true.
+ *
+ * The assistant is the sharpest case in this app because it now has a symbol
+ * that CHANGES ON ITS OWN. A user who has not been told what the sparkle means
+ * has been given a notification with no legend. The step used to describe a
+ * grey speech bubble that only ever raised problems and ended on "it stays out
+ * of your way until you open it" - a fair description of a feature that no
+ * longer exists.
+ *
+ * So the three things asserted here are the three that go stale silently: the
+ * glyph on the card, the meaning of the glyph on the button, and the count the
+ * panel actually shows.
+ */
+const homeSrc = read('app/(tabs)/index.tsx');
+const homeBlock = blockOf(homeSrc, 'HOME_TUTORIAL') ?? '';
+const coachAt = homeBlock.indexOf("spotlightRef: 'coach'");
+const assistantStep = coachAt === -1 ? '' : homeBlock.slice(coachAt, homeBlock.indexOf('},', coachAt));
+const assistantCopy = userFacingCopy(assistantStep);
+const assistantIcon = /iconName: '([a-z-]+)'/.exec(assistantStep)?.[1] ?? null;
+
+const bubbleSrc = read('components/CoachBubble.tsx');
+// Both glyphs the button can wear, lifted from the button itself rather than
+// named here - the point is that the card and the button agree, and a hardcoded
+// pair in a test agrees with nothing.
+const glyphs = /hasNews[^\n]*\?\s*'([a-z-]+)'\s*:\s*'([a-z-]+)'/.exec(bubbleSrc);
+const newsGlyph = glyphs?.[1] ?? null;
+const restGlyph = glyphs?.[2] ?? null;
+
+check(
+  'the tour introduces the assistant at all',
+  assistantStep.length > 0 && assistantCopy.length > 0,
+  'no Home step spotlights the coach button, so the only entry point to everything the app has noticed goes unexplained'
+);
+check(
+  'the button has two glyphs and the test can see both',
+  newsGlyph != null && restGlyph != null,
+  'CoachButton no longer switches glyph on hasNews, or it does it in a shape this cannot read - the checks below are worthless until that is fixed'
+);
+check(
+  `the card wears a glyph the button actually shows (${assistantIcon})`,
+  assistantIcon != null && (assistantIcon === newsGlyph || assistantIcon === restGlyph),
+  `card shows "${assistantIcon}", button shows "${newsGlyph}" or "${restGlyph}" - a card picturing something that is not on screen teaches the wrong thing to look for`
+);
+check(
+  `the copy says what the "${newsGlyph}" glyph means`,
+  newsGlyph != null &&
+    new RegExp(newsGlyph.replace(/s$/, ''), 'i').test(assistantCopy),
+  'the symbol changes on its own and this is the only place its meaning is taught; without it the user gets a notification with no legend'
+);
+check(
+  'and it does not sell the assistant as problems only',
+  /personal best|going well|beat|praise|well done/i.test(assistantCopy),
+  'it reports what is going right as often as what is not, and a step that lists three faults sets people up to expect a nag'
+);
+
+// The count on the card is a claim about MAX_MESSAGES. Read the number.
+const coachSrc = read('lib/coach.ts');
+const maxMessages = Number(/MAX_MESSAGES\s*=\s*(\d+)/.exec(coachSrc)?.[1] ?? NaN);
+const WORD = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five' };
+check(
+  `the copy names the number the panel really shows (${maxMessages})`,
+  Number.isFinite(maxMessages) &&
+    new RegExp(`\\b(${maxMessages}|${WORD[maxMessages] ?? '\\u0000'})\\b`, 'i').test(assistantCopy),
+  'the step promises a specific number of messages; change MAX_MESSAGES and the promise is wrong'
+);
+check(
+  'and the rest really are one tap behind them',
+  /testID="coach-see-all"/.test(bubbleSrc),
+  'the step tells the user the others are reachable from the panel, and that footer is the tap it means'
+);
+
+// --- 7. Stats names the view by what leads it -------------------------------
+console.log('\n[7] The Stats card and the Progress view agree');
+
+/**
+ * One card describes four views in one sentence, so each view gets about six
+ * words and they had better be the right six. Progress gained a personal-best
+ * list at the top of it; the sentence still described the two sections below
+ * that, which is how a user reads "volume" and scrolls past the thing they
+ * actually came for.
+ */
+const statsSrc = read('app/(tabs)/workouts.tsx');
+const statsCopy = userFacingCopy(blockOf(statsSrc, 'STATS_TUTORIAL') ?? '');
+const bestsRendered = /<RecentBestsSection/.test(statsSrc);
+check(
+  'all four views are named',
+  ['Overview', 'Strength', 'Progress', 'History'].every((v) => statsCopy.includes(v)),
+  'the whole job of this card is the map; a view left off it is a view nobody opens'
+);
+check(
+  'the personal-best list is described exactly when it is rendered',
+  bestsRendered === /personal best/i.test(statsCopy),
+  bestsRendered
+    ? 'Progress leads with the personal-best list and the tour does not mention it'
+    : 'the tour promises a personal-best list that is no longer there'
+);
+
 console.log('');
 if (failures > 0) {
   console.error(`guided-tour: ${failures}/${total} check(s) FAILED\n`);
