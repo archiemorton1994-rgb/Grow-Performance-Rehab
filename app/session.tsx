@@ -81,6 +81,7 @@ import {
   convertLoadString,
   isHeavierThan,
   snapToLoadable,
+  formatWeight,
 } from '@/lib/utils';
 import {
   Exercise,
@@ -1597,6 +1598,27 @@ export function ExerciseCard({
                   90" was recorded once and then only visible by scrolling
                   through history. It belongs at the top of the exercise it is
                   about, on the day you are about to do it again. */}
+              {/* WHAT YOU ACTUALLY DID LAST TIME.
+
+                  The weight from last time was already fed back twice: it
+                  prefills the logging box, and it sets the target printed on
+                  the card. The REPS were not fed back anywhere, and "how many
+                  did I get last time" is the question a lifter asks at the rack
+                  on every set.
+
+                  previousSessionData already carried them into this component
+                  and the value was dropped on the floor. This is a dead prop
+                  being rendered, not a new feature. */}
+              {lastSessionHint && lastSessionHint.reps > 0 && (
+                <View style={styles.lastTimeRow}>
+                  <Ionicons name="time-outline" size={12} color={C.textTertiary} />
+                  <Text style={styles.lastTimeText}>
+                    Last time: {formatWeight(lastSessionHint.weight, weightUnit)} x{' '}
+                    {lastSessionHint.reps}
+                  </Text>
+                </View>
+              )}
+
               {previousNote && !note && (
                 <View style={styles.recalledNote}>
                   <Ionicons name="bookmark" size={12} color={C.primaryText} />
@@ -2022,16 +2044,33 @@ export function NoMaxTestBanner({ visible }: { visible: boolean }) {
  */
 export function PainFreeRangeBanner({
   text,
+  avoid,
   dismissed = false,
   onDismiss,
   onRestore,
 }: {
   text: string | null;
+  /**
+   * What this protocol deliberately leaves out, and why.
+   *
+   * There are 102 of these across the 19 body regions, hand-written - that
+   * pulling on a hamstring still knitting back together pulls the repairing
+   * fibres apart, that a Nordic negative is the heaviest demand there is on a
+   * hamstring. Only the one-line pain rule ever reached a user; the other 102
+   * existed in lib/acute-rehab.ts and a contract test and nowhere else.
+   *
+   * Folded away by default. During a session the rule is the thing that has to
+   * be read, and five more bullets stacked on top of it is how nobody reads
+   * either. One tap for anybody who wants to know why their session looks the
+   * way it does.
+   */
+  avoid?: string[];
   dismissed?: boolean;
   onDismiss?: () => void;
   onRestore?: () => void;
 }) {
   const C = useColors();
+  const [avoidOpen, setAvoidOpen] = useState(false);
   if (!text) return null;
 
   const shell = {
@@ -2103,6 +2142,54 @@ export function PainFreeRangeBanner({
         >
           {text}
         </Text>
+        {!!avoid?.length && (
+          <>
+            <Pressable
+              onPress={() => setAvoidOpen((v) => !v)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}
+              testID="acute-avoid-toggle"
+              accessibilityRole="button"
+              accessibilityLabel="Why this session leaves things out"
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Inter_600SemiBold',
+                  color: C.warning,
+                  textDecorationLine: 'underline',
+                }}
+              >
+                Why this session leaves things out
+              </Text>
+              <Ionicons
+                name={avoidOpen ? 'chevron-up' : 'chevron-down'}
+                size={13}
+                color={C.warning}
+              />
+            </Pressable>
+            {avoidOpen && (
+              <View style={{ marginTop: 6, gap: 5 }} testID="acute-avoid-list">
+                {avoid.map((line) => (
+                  <View key={line} style={{ flexDirection: 'row', gap: 6 }}>
+                    <Text style={{ fontSize: 12, color: C.warning, opacity: 0.85 }}>-</Text>
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        fontFamily: 'Inter_400Regular',
+                        color: C.warning,
+                        opacity: 0.85,
+                        lineHeight: 17,
+                      }}
+                    >
+                      {line}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        )}
       </View>
       {onDismiss && (
         <Pressable
@@ -2734,6 +2821,19 @@ export default function SessionScreen() {
       return ACUTE_PROTOCOL_NOTES[painRegions[0]].disclaimer;
     }
     return PAIN_FREE_RULE;
+  }, [exercises, painRegions]);
+
+  /**
+   * The same protocol's "what this leaves out, and why" list.
+   *
+   * Only for a single named region: with two complaints the session is a blend
+   * of two protocols and neither list describes what is actually on screen.
+   */
+  const painFreeAvoid = useMemo(() => {
+    const hasAcuteWork = exercises.some((ex) => ex.id?.startsWith('acute-'));
+    if (!hasAcuteWork) return undefined;
+    if (painRegions?.length === 1) return ACUTE_PROTOCOL_NOTES[painRegions[0]]?.avoid;
+    return undefined;
   }, [exercises, painRegions]);
 
   const [exerciseNotes, setExerciseNotes] = useState<string[]>([]);
@@ -3882,6 +3982,7 @@ export default function SessionScreen() {
 
       <PainFreeRangeBanner
         text={painFreeText}
+        avoid={painFreeAvoid}
         dismissed={painFreeBannerDismissed}
         onDismiss={() => setPainFreeBannerDismissed(true)}
         onRestore={() => setPainFreeBannerDismissed(false)}
@@ -5357,6 +5458,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     painAdaptDismiss: { padding: 4, alignItems: 'center', justifyContent: 'center' },
     // Comfort adaptation note on exercise cards
+    lastTimeRow: {
+      flexDirection: 'row',
+      gap: 6,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    lastTimeText: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+    },
     recalledNote: {
       flexDirection: 'row',
       gap: 7,

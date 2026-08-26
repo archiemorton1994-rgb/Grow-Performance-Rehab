@@ -82,15 +82,53 @@ export const REMINDER_TIME_OPTIONS: string[] = [
 
 export const STREAK_TIME_OPTIONS: string[] = ['17:00', '18:00', '19:00', '20:00', '21:00'];
 
-const NUDGE_ID = 'grow-missed-workout';
-const NUDGE_INTERVAL_SECONDS = 72000; // 20 hours
-
-const NUDGE_BODIES = [
-  "Ready for today's session? Your next workout is waiting.",
-  "You haven't trained today. Even 30 minutes makes a difference.",
-  'Consistency is everything. Time to get one in.',
-  'Your body is ready. Come get a session in.',
-  "Don't break the streak - your workout is right here.",
+/**
+ * THE APP COULD ONLY EVER TALK TO PEOPLE WHO WERE ALREADY COMING BACK.
+ *
+ * The missed-workout nudge is the only reminder on by default, and it was a
+ * SINGLE one-shot alarm twenty hours out, re-armed only when the app was opened
+ * or a session finished. There is no push server and no background task, so if
+ * somebody stopped opening the app they got exactly one notification, ever, and
+ * then silence. The reminder that mattered - the one on day nine, when they had
+ * drifted rather than decided - could not exist.
+ *
+ * A LADDER OF ONE-SHOTS solves it without a server. Every rung is scheduled at
+ * the same moment, and every app open cancels and re-arms the whole set, so an
+ * active user never sees anything past the first. Only somebody who has
+ * genuinely stopped opening the app walks down it.
+ *
+ * The wording escalates, and the later rungs answer the actual reason people do
+ * not come back after a fortnight: not knowing what a return costs them. The
+ * app already handles it - see getLayoff in lib/workout-engine.ts - so the
+ * message can say so.
+ */
+// The first rung keeps the identifier the previous single-alarm version used,
+// so an alarm it scheduled is still cancelled rather than left to fire twice.
+const NUDGE_RUNGS: { id: string; hours: number; title: string; body: string }[] = [
+  {
+    id: 'grow-missed-workout',
+    hours: 20,
+    title: "Ready for today's workout?",
+    body: 'Your next session is built and waiting.',
+  },
+  {
+    id: 'grow-missed-workout-3d',
+    hours: 24 * 3,
+    title: 'Your session is still here',
+    body: 'Three days off changes nothing. Pick up exactly where you left it.',
+  },
+  {
+    id: 'grow-missed-workout-7d',
+    hours: 24 * 7,
+    title: 'A week off is not a setback',
+    body: 'Come back and the first session comes back lighter on purpose, then climbs again. Nothing to make up.',
+  },
+  {
+    id: 'grow-missed-workout-14d',
+    hours: 24 * 14,
+    title: 'Still here when you are',
+    body: 'Your history, your weights and your programme are exactly as you left them. One session is all it takes to start reading your numbers again.',
+  },
 ];
 
 export async function scheduleMissedWorkoutNudge(): Promise<void> {
@@ -98,30 +136,35 @@ export async function scheduleMissedWorkoutNudge(): Promise<void> {
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
   await cancelMissedWorkoutNudge();
-  try {
-    const body = NUDGE_BODIES[Math.floor(Math.random() * NUDGE_BODIES.length)];
-    await Notifications.scheduleNotificationAsync({
-      identifier: NUDGE_ID,
-      content: {
-        title: "Ready for today's workout?",
-        body,
-        sound: true,
-        data: { screen: 'train' },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: NUDGE_INTERVAL_SECONDS,
-        repeats: false,
-      },
-    });
-  } catch {}
+  for (const rung of NUDGE_RUNGS) {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: rung.id,
+        content: {
+          title: rung.title,
+          body: rung.body,
+          sound: true,
+          data: { screen: 'train' },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: rung.hours * 3600,
+          repeats: false,
+        },
+      });
+    } catch {}
+  }
 }
 
+/** Clears every rung, not just the first. Cancelling one and leaving three
+ *  behind would notify somebody who came back yesterday. */
 export async function cancelMissedWorkoutNudge(): Promise<void> {
   if (!isNotificationsSupported()) return;
-  try {
-    await Notifications.cancelScheduledNotificationAsync(NUDGE_ID);
-  } catch {}
+  for (const rung of NUDGE_RUNGS) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(rung.id);
+    } catch {}
+  }
 }
 
 const STREAK_PROTECTION_ID = 'grow-streak-protection';
