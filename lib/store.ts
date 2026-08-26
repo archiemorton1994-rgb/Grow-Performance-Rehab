@@ -19,6 +19,7 @@ import {
 } from '@/lib/training-balance';
 import {
   COMEBACK_SESSIONS,
+  estimateOrmFromAmrap,
   getReturnWindow as computeReturnWindow,
   setLastTrainedDate,
   type ReturnWindow,
@@ -312,6 +313,27 @@ export interface ExerciseAppearance {
   date: string;
   bestSetWeight: number;
   avgWorkingWeight: number;
+  /**
+   * Reps on the heaviest set, and an estimated one-rep max from the pair.
+   *
+   * WHY THE WEIGHT ALONE WAS NOT ENOUGH.
+   * The app deliberately climbs reps before it adds weight - eight, then nine,
+   * then ten at the same load, and only then a plate. Charting the weight on
+   * its own therefore hides the entire first half of every progression: a
+   * lifter who went from eight reps to twelve at the same weight saw a flat
+   * line, on the exact mechanic the app is built around, and concluded they
+   * were not progressing.
+   *
+   * The estimate is Epley, the same formula estimateOrmFromAmrap already uses
+   * for AMRAP sets, so a weight-and-rep pair becomes one number that moves when
+   * either half of it does.
+   *
+   * Optional because every appearance recorded before this change has no rep
+   * count. Readers fall back to bestSetWeight, so an old chart keeps working
+   * and simply starts carrying reps from the next session on.
+   */
+  bestSetReps?: number;
+  estimatedOrmKg?: number;
 }
 
 /** All-time progress for a single weighted exercise, aggregated across every completed session. */
@@ -493,6 +515,16 @@ interface AppState {
    * migration would be all risk and no benefit for one entry.
    */
   coachDismissedAt: Record<string, number>;
+  /**
+   * Assistant messages already shown, keyed by SIGNATURE rather than id.
+   *
+   * The id alone is not enough: 'personal-best' is the same id whether it is
+   * reporting a deadlift from six weeks ago or one set an hour ago. The
+   * signature pairs the id with the title, and the title carries the number, so
+   * the button's badge lights again the moment the underlying fact changes and
+   * stays quiet while it has not. See messageSignature in lib/coach.ts.
+   */
+  coachSeen: Record<string, number>;
   /** Whether the daily workout reminder is enabled. */
   reminderEnabled: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
@@ -605,6 +637,7 @@ interface AppState {
   setReviewPromptShown: (shown: boolean) => void;
   dismissBalanceNudge: (ts: number) => void;
   dismissCoachMessage: (id: string, ts: number) => void;
+  markCoachSeen: (signatures: string[], ts: number) => void;
   /** The one training-balance observation worth showing right now, or null.
    *  See lib/training-balance.ts for what it will and will not say. */
   getTrainingBalanceNudge: (now: number) => BalanceNudge | null;
@@ -763,6 +796,7 @@ export const useAppStore = create<AppState>()(
       reviewPromptShown: false,
       balanceNudgeDismissedAt: null,
       coachDismissedAt: {},
+      coachSeen: {},
       reminderEnabled: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
@@ -861,6 +895,23 @@ export const useAppStore = create<AppState>()(
       dismissBalanceNudge: (ts) => set({ balanceNudgeDismissedAt: ts }),
       dismissCoachMessage: (id, ts) =>
         set((state) => ({ coachDismissedAt: { ...state.coachDismissedAt, [id]: ts } })),
+      markCoachSeen: (signatures, ts) =>
+        set((state) => {
+          // Capped, and oldest-first, because a signature carries a number in
+          // it: every personal best a user ever sets adds one and nothing would
+          // ever remove them. 200 is far more than the badge needs to be
+          // correct and small enough to never matter to the payload.
+          const next = { ...state.coachSeen };
+          for (const sig of signatures) next[sig] = ts;
+          const keys = Object.keys(next);
+          if (keys.length > 200) {
+            keys
+              .sort((a, b) => (next[a] ?? 0) - (next[b] ?? 0))
+              .slice(0, keys.length - 200)
+              .forEach((k) => delete next[k]);
+          }
+          return { coachSeen: next };
+        }),
 
       /**
        * The store side of the balance nudge: gather the history, hand it to a
@@ -1661,6 +1712,14 @@ export const useAppStore = create<AppState>()(
             const bestSetWeight = workingSets.reduce((b, s) => (s.weight > b ? s.weight : b), 0);
             const avgWorkingWeight =
               workingSets.reduce((sum, s) => sum + s.weight, 0) / workingSets.length;
+            // The reps that went with the heaviest set. Where two sets tie on
+            // weight the better one is the one with more reps, which is also
+            // the honest answer to "what was your best set".
+            const bestSetReps = workingSets
+              .filter((s) => s.weight === bestSetWeight)
+              .reduce((b, s) => (s.reps > b ? s.reps : b), 0);
+            const estimatedOrmKg =
+              bestSetReps > 0 ? estimateOrmFromAmrap(bestSetWeight, bestSetReps) : undefined;
             /**
              * Keyed by the CANONICAL NAME, not by the exercise id.
              *
@@ -1690,7 +1749,13 @@ export const useAppStore = create<AppState>()(
             // the most recent id/session-type for an exercise that may have moved.
             entry.exerciseId = log.exerciseId;
             entry.sessionType = session.sessionType;
-            entry.appearances.push({ date: session.date, bestSetWeight, avgWorkingWeight });
+            entry.appearances.push({
+              date: session.date,
+              bestSetWeight,
+              avgWorkingWeight,
+              bestSetReps: bestSetReps > 0 ? bestSetReps : undefined,
+              estimatedOrmKg,
+            });
           }
         }
         return Array.from(map.values());

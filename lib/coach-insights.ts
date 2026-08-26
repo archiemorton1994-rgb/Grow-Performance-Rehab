@@ -408,3 +408,78 @@ export function volumeChange(
   if (Math.abs(pct) < 10) return null;
   return { pct, thisMonthKg: current.kg, lastMonthKg: previous.kg };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Personal bests
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface BestEvent {
+  name: string;
+  kg: number;
+  reps?: number;
+  /** Epley from the pair, where reps were recorded. Comparable across a lift
+   *  whose weight held while the reps climbed. */
+  estimatedOrmKg?: number;
+  previousKg: number;
+  date: string;
+}
+
+/**
+ * Every weight a lift has been beaten at, newest first.
+ *
+ * DERIVED, NOT STORED, because it already was and then was not. The summary
+ * screen works a personal best out immediately after a session, counts it in
+ * the headline, and throws it away; nothing writes it down and no other screen
+ * recomputes it. Every appearance is in the history, so a best is simply an
+ * appearance that beat everything before it, and the whole list can be
+ * recovered whenever it is wanted.
+ *
+ * The FIRST appearance of a lift is never a best. Beating nothing is not an
+ * achievement, and counting it would hand somebody a wall of trophies for
+ * turning up.
+ */
+export function allPersonalBests(progress: ExerciseProgress[], limit = 20): BestEvent[] {
+  const out: BestEvent[] = [];
+  for (const p of progress) {
+    let ceiling = 0;
+    for (let i = 0; i < p.appearances.length; i++) {
+      const a = p.appearances[i];
+      const kg = a.bestSetWeight;
+      if (kg <= 0) continue;
+      if (i === 0) {
+        ceiling = kg;
+        continue;
+      }
+      if (kg > ceiling) {
+        out.push({
+          name: p.exerciseName,
+          kg,
+          reps: a.bestSetReps,
+          estimatedOrmKg: a.estimatedOrmKg,
+          previousKg: ceiling,
+          date: a.date,
+        });
+        ceiling = kg;
+      }
+    }
+  }
+  return out
+    .sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime())
+    .slice(0, limit);
+}
+
+/**
+ * What to plot for a lift: an estimated one-rep max where the reps are known,
+ * and the raw weight where they are not.
+ *
+ * Every appearance recorded before reps were stored has no rep count, so a
+ * chart drawn purely from the estimate would start partway along. Falling back
+ * keeps the line continuous and simply gets more truthful from the point reps
+ * started being kept.
+ */
+export function plottedStrength(a: {
+  bestSetWeight: number;
+  estimatedOrmKg?: number;
+}): number {
+  return a.estimatedOrmKg && a.estimatedOrmKg > 0 ? a.estimatedOrmKg : a.bestSetWeight;
+}

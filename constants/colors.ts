@@ -17,6 +17,31 @@ const LightColors = {
    *  happen to coincide; in DarkColors they do not. */
   primaryText: '#2f6b46',
 
+  /**
+   * SAPPHIRE - the assistant, and nothing else.
+   *
+   * The assistant is the one part of the app that is not the app talking about
+   * your session; it is something talking to you ABOUT your training. Giving it
+   * the brand green made it read as another panel. A colour used nowhere else
+   * means the button is recognisable at a glance and the panel announces what
+   * it is before a word of it has been read.
+   *
+   * Held to the same contrast floor as everything else, and pinned by
+   * tests/assistant-identity.check.mjs: assistantInk on assistantSurface and on
+   * the ordinary background, and assistantOnFill on assistantFill.
+   *
+   * assistantFill      the button and the panel header, a solid block
+   * assistantOnFill    text and icons sitting on that block
+   * assistantInk       sapphire used as foreground ink on an ordinary surface
+   * assistantSurface   the panel's own tinted ground
+   * assistantMuted     chips and dividers inside the panel
+   */
+  assistantFill: '#1e3a8a',
+  assistantOnFill: '#ffffff',
+  assistantInk: '#1d4ed8',
+  assistantSurface: '#f2f5fd',
+  assistantMuted: '#dde6fa',
+
   background: '#fafbfa',
   surface: '#ffffff',
   surfaceSecondary: '#f5f6f5',
@@ -162,6 +187,16 @@ const DarkColors = {
    *  is the bright green, which clears AA on every dark surface the app uses
    *  (6.9:1 on primaryMuted, its worst case, up to 12:1 on the background). */
   primaryText: '#4ade80',
+
+  /** See the note on LightColors.assistantFill. Dark mode needs the ink bright
+   *  rather than deep - the light-theme #1d4ed8 lands at 2.4:1 on this
+   *  background - and the surface a tinted near-black rather than a tinted
+   *  near-white. */
+  assistantFill: '#1e3a8a',
+  assistantOnFill: '#ffffff',
+  assistantInk: '#7aa7ff',
+  assistantSurface: '#0b1020',
+  assistantMuted: '#1c2846',
 
   background: '#000000',
   surface: '#111111',

@@ -42,7 +42,11 @@ import {
 import { PainInsightSheet } from '@/components/PainInsightSheet';
 // The same anchor the assistant uses, for the same reason: the first three
 // sessions of an exercise are estimates from a questionnaire, not lifts.
-import { MIN_APPEARANCES } from '@/lib/coach-insights';
+import {
+  MIN_APPEARANCES,
+  allPersonalBests,
+  plottedStrength,
+} from '@/lib/coach-insights';
 import {
   getExerciseTargetRegionsMap,
   getExerciseNameMap,
@@ -3257,12 +3261,123 @@ const EG_RIGHT = 8;
 const EG_TOP = 14;
 const EG_BOTTOM = 28;
 
+/**
+ * Every weight you have ever beaten, newest first.
+ *
+ * WHY THIS DID NOT EXIST.
+ * A personal best was already being worked out - on the summary screen,
+ * immediately after a session, counted in the headline, and then thrown away.
+ * Nothing wrote it down and no other screen recomputed it, so the one moment
+ * worth remembering in a training week survived for exactly one screen.
+ *
+ * Derived rather than stored: a best is an appearance that beat everything
+ * before it, and every appearance is already in the history. See
+ * allPersonalBests. Nothing new is recorded and old accounts get their whole
+ * back catalogue the moment they open the tab.
+ *
+ * Note this is a different thing from the "Personal Bests" section on the
+ * Overview tab, which is tested one-rep maxes. These are bests you set by
+ * training, which is most of them.
+ */
+function RecentBestsSection({
+  bests,
+  weightUnit,
+  C,
+}: {
+  bests: ReturnType<typeof allPersonalBests>;
+  weightUnit: 'kg' | 'lbs';
+  C: ReturnType<typeof useColors>;
+}) {
+  const styles = useMemo(() => makeStyles(C), [C]);
+  if (bests.length === 0) {
+    return (
+      <View style={[styles.bestsCard, { alignItems: 'center', gap: 6, paddingVertical: 22 }]}>
+        <Ionicons name="trophy-outline" size={26} color={C.textTertiary} />
+        <Text
+          style={{
+            fontSize: 13,
+            fontFamily: 'Inter_500Medium',
+            color: C.textSecondary,
+            textAlign: 'center',
+          }}
+        >
+          Beat a weight you have lifted before and it lands here
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.bestsCard} testID="recent-bests">
+      {bests.map((b, i) => (
+        <View
+          key={`${b.name}-${b.date}`}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            paddingVertical: 10,
+            borderTopWidth: i === 0 ? 0 : 1,
+            borderTopColor: C.borderLight,
+          }}
+        >
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: i === 0 ? C.primaryMuted : C.surfaceTertiary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons
+              name="trophy"
+              size={15}
+              color={i === 0 ? C.primaryText : C.textTertiary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
+              numberOfLines={1}
+            >
+              {b.name}
+            </Text>
+            <Text
+              style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
+            >
+              {formatShortDate(b.date)} · beat {formatWeight(b.previousKg, weightUnit)}
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
+              {formatWeight(b.kg, weightUnit)}
+            </Text>
+            {!!b.reps && (
+              <Text
+                style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textSecondary }}
+              >
+                x {b.reps}
+              </Text>
+            )}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function ExerciseGraph({
   appearances,
   weightUnit,
   C,
 }: {
-  appearances: { date: string; bestSetWeight: number }[];
+  appearances: {
+    date: string;
+    bestSetWeight: number;
+    bestSetReps?: number;
+    estimatedOrmKg?: number;
+  }[];
   weightUnit: 'kg' | 'lbs';
   C: ReturnType<typeof useColors>;
 }) {
@@ -3307,7 +3422,20 @@ function ExerciseGraph({
   const innerW = chartWidth - EG_LEFT - EG_RIGHT;
   const innerH = EG_H - EG_TOP - EG_BOTTOM;
 
-  const weights = appearances.map((a) => a.bestSetWeight);
+  /**
+   * THE LINE IS STRENGTH, NOT WEIGHT.
+   *
+   * The app climbs reps before it adds weight - eight, then nine, then ten at
+   * the same load, and only then a plate. A chart of the weight alone therefore
+   * draws a flat line through the entire first half of every progression, on
+   * the exact mechanic the app is built around, and a lifter who went from
+   * eight reps to twelve concludes they are not progressing.
+   *
+   * plottedStrength is an estimated one-rep max where the reps are known and
+   * the raw weight where they are not, so a chart that predates reps being
+   * stored stays continuous and simply gets more truthful from that point on.
+   */
+  const weights = appearances.map(plottedStrength);
   const pbWeight = Math.max(...weights);
   const minWeight = Math.min(...weights);
   const range = pbWeight - minWeight || 1;
@@ -3316,7 +3444,7 @@ function ExerciseGraph({
     EG_LEFT + (appearances.length > 1 ? (i / (appearances.length - 1)) * innerW : innerW / 2);
   const toY = (w: number) => EG_TOP + innerH - ((w - minWeight) / range) * innerH;
 
-  const points = appearances.map((a, i) => ({ x: toX(i), y: toY(a.bestSetWeight), ...a }));
+  const points = appearances.map((a, i) => ({ x: toX(i), y: toY(plottedStrength(a)), ...a }));
   const pathD = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
     .join(' ');
@@ -3443,6 +3571,7 @@ function ExerciseGraph({
         >
           <Text style={{ fontSize: 12, fontFamily: 'Inter_700Bold', color: C.background }}>
             {formatWeight(selectedPoint.bestSetWeight, weightUnit)}
+            {selectedPoint.bestSetReps ? ` x ${selectedPoint.bestSetReps}` : ''}
           </Text>
           <Text
             style={{
@@ -3677,7 +3806,22 @@ export default function StatsScreen() {
     setTourComplete,
     setTourJustCompleted,
     skipTour,
+    getAllExerciseProgress,
   } = useAppStore();
+
+  /**
+   * Derived on the fly rather than stored: a personal best is an appearance
+   * that beat everything before it, and every appearance is already kept. See
+   * allPersonalBests - the summary screen was computing this after every
+   * session and discarding it.
+   */
+  const recentBests = useMemo(
+    () => allPersonalBests(getAllExerciseProgress(), 8),
+    // completedSessions is the dependency that actually changes; the selector
+    // itself is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getAllExerciseProgress, completedSessions]
+  );
 
   const historyFilter = historyTypeFilter;
   const setHistoryFilter = setHistoryTypeFilter;
@@ -4755,6 +4899,17 @@ export default function StatsScreen() {
                 largest heading turning up second, underneath a card. A page
                 whose biggest type appears halfway down has no top, which is
                 part of why this tab reads as a pile rather than a structure. */}
+            {/* First on the tab on purpose. This is the one section that
+                answers "am I getting stronger" with a yes and a number, and it
+                was the one the app computed every session and discarded. */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Recent bests</Text>
+              <Text style={styles.sectionSub}>
+                Every weight you have beaten, newest first
+              </Text>
+            </View>
+            <RecentBestsSection bests={recentBests} weightUnit={weightUnit} C={C} />
+
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Volume</Text>
               <Text style={styles.sectionSub}>Total weight moved each week</Text>
@@ -5019,6 +5174,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.primaryDark,
     },
 
+    bestsCard: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
     drillDownCard: {
       backgroundColor: C.surface,
       borderRadius: 16,

@@ -1,6 +1,11 @@
 import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, WeightUnit } from './store';
 import { getTrainingBalanceNudge, type BalanceInput } from './training-balance';
-import { COMEBACK_SESSIONS, describeTimeAway, getLayoff } from './workout-engine';
+import {
+  COMEBACK_SESSIONS,
+  describeTimeAway,
+  getLayoff,
+  getSessionLabel,
+} from './workout-engine';
 import { ACUTE_PROTOCOL_NOTES } from './acute-rehab';
 import { formatWeight } from './utils';
 import {
@@ -622,4 +627,94 @@ const QUIET_IDS = new Set([
 /** True when there is something worth a badge on the button. */
 export function hasActionableAdvice(messages: CoachMessage[]): boolean {
   return messages.some((m) => !QUIET_IDS.has(m.id));
+}
+
+/**
+ * The numbers the assistant panel shows above its messages.
+ *
+ * WHY A SNAPSHOT AND NOT MORE MESSAGES.
+ * A message is something that happened and needs saying. These are the three
+ * facts a user checks every time regardless - am I on track this week, is the
+ * streak alive, is the work going up - and turning each into a sentence would
+ * fill the panel with things nobody needed told. As a strip they cost one line
+ * and answer the question before it is asked.
+ *
+ * Everything here is already computed elsewhere in the panel; this only gathers
+ * it, so the strip can never disagree with the messages underneath it.
+ */
+export interface CoachSnapshot {
+  weekCount: number;
+  weeklyGoal: number;
+  streak: number;
+  /** Change in total weight moved, this month against last. Null until there
+   *  are two comparable months. */
+  volumeDeltaPct: number | null;
+  /** What the app would train next, and why in one clause. */
+  nextSession: { type: SessionType; label: string; reason: string } | null;
+}
+
+export function getCoachSnapshot(input: CoachInput): CoachSnapshot {
+  const now = input.now ?? Date.now();
+  const sessions = input.sessions ?? [];
+  const volume = volumeChange(sessions, now);
+
+  /**
+   * The recommendation, in priority order.
+   *
+   * The balance rule first, because it is the only one built on a considered
+   * idea of what a week should contain. Failing that, whatever has gone longest
+   * without being trained - which is a weaker claim, so it is worded as one.
+   */
+  let nextSession: CoachSnapshot['nextSession'] = null;
+  const balance = getTrainingBalanceNudge(input.balance);
+  if (balance) {
+    nextSession = {
+      type: balance.suggestion,
+      label: getSessionLabel(balance.suggestion),
+      reason: 'evens out your recent mix',
+    };
+  } else if (sessions.length >= 2) {
+    const lastSeen = new Map<SessionType, number>();
+    for (const s of sessions) {
+      const t = new Date(s.date).getTime();
+      const prev = lastSeen.get(s.sessionType);
+      if (prev === undefined || t > prev) lastSeen.set(s.sessionType, t);
+    }
+    let oldest: SessionType | null = null;
+    let oldestAt = Infinity;
+    for (const [type, at] of lastSeen) {
+      if (at < oldestAt) {
+        oldestAt = at;
+        oldest = type;
+      }
+    }
+    if (oldest && lastSeen.size >= 2) {
+      const days = Math.floor((now - oldestAt) / DAY_MS);
+      nextSession = {
+        type: oldest,
+        label: getSessionLabel(oldest),
+        reason: days >= 1 ? `${days} days since you last did one` : 'longest since you trained it',
+      };
+    }
+  }
+
+  return {
+    weekCount: input.weekCount,
+    weeklyGoal: input.weeklyGoal,
+    streak: input.streak,
+    volumeDeltaPct: volume ? volume.pct : null,
+    nextSession,
+  };
+}
+
+/**
+ * What makes a message "new" to the button's badge.
+ *
+ * The id alone is not enough: 'personal-best' is the same id whether it is
+ * reporting a deadlift from six weeks ago or one set an hour ago. The title
+ * carries the number, so pairing the two means the badge lights again the
+ * moment the underlying fact changes and stays quiet while it has not.
+ */
+export function messageSignature(m: CoachMessage): string {
+  return `${m.id}|${m.title}`;
 }

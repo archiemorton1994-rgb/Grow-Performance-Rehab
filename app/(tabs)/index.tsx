@@ -39,7 +39,14 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
-import { getCoachMessages, hasActionableAdvice, type CoachAction , weekdayForTrainingWeek } from '@/lib/coach';
+import {
+  getCoachMessages,
+  getCoachSnapshot,
+  hasActionableAdvice,
+  messageSignature,
+  weekdayForTrainingWeek,
+  type CoachAction,
+} from '@/lib/coach';
 import { resumeParams } from '@/lib/resume-params';
 
 /**
@@ -146,6 +153,8 @@ export default function HomeScreen() {
     dismissBalanceNudge,
     coachDismissedAt,
     dismissCoachMessage,
+    coachSeen,
+    markCoachSeen,
     exerciseStuckStreak,
     oneRepMaxes,
     getAllExerciseProgress,
@@ -284,9 +293,13 @@ export default function HomeScreen() {
    * they can be read and tested in one place instead of being spread across
    * five conditions in a JSX tree.
    */
-  const coachMessages = useMemo(() => {
+  /**
+   * Built once and read by both the messages and the snapshot strip above
+   * them, so the two can never disagree about the same week.
+   */
+  const coachInput = useMemo(() => {
     const sessionTypes = completedSessions.map((s) => s.sessionType);
-    return getCoachMessages({
+    return {
       sessionCount: completedSessions.length,
       weekCount,
       weeklyGoal: goal,
@@ -310,7 +323,7 @@ export default function HomeScreen() {
       weightUnit,
       dismissedAt: coachDismissedAt,
       now: Date.now(),
-    });
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     completedSessions,
@@ -321,7 +334,37 @@ export default function HomeScreen() {
     daysSinceLast,
     balanceNudgeDismissedAt,
   ]);
-  const coachHasAdvice = hasActionableAdvice(coachMessages);
+
+  const coachMessages = useMemo(() => getCoachMessages(coachInput), [coachInput]);
+  const coachSnapshot = useMemo(() => getCoachSnapshot(coachInput), [coachInput]);
+
+  /**
+   * The button answers "has anything changed since you last looked".
+   *
+   * Not "is any of this a problem" - that is hasActionableAdvice, and it is the
+   * right question for a red alert dot and the wrong one for this. The marker
+   * here is a different GLYPH rather than a warning dot, so it reads as an
+   * invitation rather than an alarm, and a personal best set an hour ago is
+   * exactly the kind of thing worth being invited to look at.
+   *
+   * What it must not do is light for something already read. A user who has
+   * seen the knee message four times does not need a fifth badge for it, which
+   * is why the signature carries the title and not just the id.
+   */
+  const coachHasNews = useMemo(
+    () => coachMessages.some((m) => coachSeen[messageSignature(m)] === undefined),
+    [coachMessages, coachSeen]
+  );
+
+  /**
+   * The seen map AS IT WAS when the panel was opened.
+   *
+   * Opening marks everything seen, so rendering against the live map meant the
+   * NEW markers were cleared in the same tick they would have been drawn in and
+   * nobody ever saw one. Freezing it at open time means the markers survive the
+   * visit they belong to and are gone by the next.
+   */
+  const seenAtOpen = useRef<Record<string, number>>({});
 
   const handleCoachAction = useCallback(
     (action: CoachAction) => {
@@ -682,8 +725,16 @@ export default function HomeScreen() {
             )}
             <View ref={coachButtonRef} collapsable={false}>
               <CoachButton
-                onPress={() => setCoachOpen((v) => !v)}
-                hasAdvice={coachHasAdvice}
+                onPress={() => {
+                  if (!coachOpen) {
+                    // Freeze what was already seen BEFORE marking, or the NEW
+                    // markers clear in the same tick they would be drawn in.
+                    seenAtOpen.current = coachSeen;
+                    markCoachSeen(coachMessages.map(messageSignature), Date.now());
+                  }
+                  setCoachOpen((v) => !v);
+                }}
+                hasNews={coachHasNews}
                 open={coachOpen}
               />
             </View>
@@ -1091,6 +1142,8 @@ export default function HomeScreen() {
         {coachOpen && (
           <CoachBubble
             messages={coachMessages}
+            snapshot={coachSnapshot}
+            seen={seenAtOpen.current}
             onClose={() => setCoachOpen(false)}
             onAction={handleCoachAction}
             onDismiss={(id) => {
