@@ -93,12 +93,19 @@ const sourceFiles = [
   ...walk(join(ROOT, 'components')),
   ...walk(join(ROOT, 'lib')),
 ];
+/**
+ * The assistant has two surfaces and both wear the colour: the home-screen
+ * panel, and the full screen behind it. Anything else is a borrower, and this
+ * list is the whole point of the section - it is what keeps sapphire meaning
+ * "assistant" rather than meaning "somebody liked blue".
+ */
+const ASSISTANT_FILES = ['CoachBubble.tsx', 'assistant.tsx'];
 const borrowers = sourceFiles.filter((f) => {
-  if (f.endsWith('CoachBubble.tsx')) return false;
+  if (ASSISTANT_FILES.some((name) => f.endsWith(name))) return false;
   return /C\.assistant[A-Z]/.test(readFileSync(f, 'utf8'));
 });
 check(
-  'only CoachBubble paints with the assistant palette',
+  'only the assistant paints with the assistant palette',
   borrowers.length === 0,
   `borrowed by: ${borrowers.map((f) => f.replace(ROOT, '')).join(', ')} - the colour only identifies the assistant while nothing else wears it`
 );
@@ -313,6 +320,63 @@ check(
   'and the trend is null until there are two months to compare',
   getCoachSnapshot(baseInput).volumeDeltaPct === null,
   ''
+);
+
+// ─── 7. Three in the panel, all of them one tap away ─────────────────────────
+console.log('\n[7] The panel is a summary of something you can open in full');
+
+/**
+ * THE DESIGN QUESTION THIS ANSWERS.
+ *
+ * Three at once is a briefing and six is a to-do list nobody reads, so the
+ * panel stays at three. But the app now has a dozen observations it can make,
+ * and a user who only ever sees the top three has no way of knowing the other
+ * nine were considered at all. That is the difference between an app that nags
+ * and one that has actually looked.
+ *
+ * The answer is not a longer bubble. It is a panel that says how much it is
+ * summarising, and a screen behind it that shows the lot - both reading from
+ * the same buckets, which is the only reason they can never contradict.
+ */
+const assistantScreen = read('app/assistant.tsx');
+const layout = read('app/_layout.tsx');
+
+check(
+  'the panel says how many it is not showing',
+  /testID="coach-see-all"/.test(bubble) && /moreCount > 0/.test(bubble),
+  'saying the number is what turns the panel from "here is some advice" into "here is the top of what I found"'
+);
+check(
+  'and the count comes from the same buckets the three came from',
+  /getCoachBriefing\(coachInput\)\.total/.test(home),
+  'two sources would eventually disagree, and the panel would be promising a screen that shows something else'
+);
+check(
+  'the full screen groups by what you would do about each thing',
+  /Needs you/.test(assistantScreen) &&
+    /Going well/.test(assistantScreen) &&
+    /Your training/.test(assistantScreen),
+  '"what needs me" and "what is going well" are two different visits and should not be interleaved'
+);
+check(
+  'it shows every how-it-works note, including ones dismissed on the home screen',
+  /howItWorks: CoachMessage\[\] = EXPLAINERS\.map/.test(read('lib/coach.ts')),
+  'on the panel they compete for a slot; here somebody has navigated to a reference on purpose, and a reference that hides the page you dismissed three weeks ago is a bad reference'
+);
+check(
+  'and it can act and dismiss, not only list',
+  /assistant-dismiss-/.test(assistantScreen) && /assistant-action-/.test(assistantScreen),
+  'a read-only list is a report, not an assistant'
+);
+check(
+  'the route is presented as a sheet',
+  /name="assistant"/.test(layout) && /presentation: 'modal'/.test(layout),
+  'it is the panel getting bigger, not a place you navigate to and lose your place from'
+);
+check(
+  'both surfaces wear the same colour',
+  /C\.assistantFill/.test(assistantScreen) && /C\.assistantFill/.test(bubble),
+  'arriving at the full screen has to read as the same thing getting bigger'
 );
 
 console.log(`\nassistant-identity: ${passed} passed, ${failed} failed\n`);

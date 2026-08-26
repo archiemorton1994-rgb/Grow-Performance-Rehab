@@ -40,6 +40,7 @@ import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/noti
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
 import {
+  getCoachBriefing,
   getCoachMessages,
   getCoachSnapshot,
   hasActionableAdvice,
@@ -337,6 +338,17 @@ export default function HomeScreen() {
 
   const coachMessages = useMemo(() => getCoachMessages(coachInput), [coachInput]);
   const coachSnapshot = useMemo(() => getCoachSnapshot(coachInput), [coachInput]);
+  /**
+   * How much the panel is NOT showing.
+   *
+   * Same buckets, same order - getCoachBriefing and getCoachMessages both read
+   * what buildCoachBuckets produced, so this number can never disagree with
+   * what the full screen then lists.
+   */
+  const coachMore = useMemo(() => {
+    const total = getCoachBriefing(coachInput).total;
+    return Math.max(0, total - coachMessages.length);
+  }, [coachInput, coachMessages.length]);
 
   /**
    * The button answers "has anything changed since you last looked".
@@ -1144,6 +1156,11 @@ export default function HomeScreen() {
             messages={coachMessages}
             snapshot={coachSnapshot}
             seen={seenAtOpen.current}
+            moreCount={coachMore}
+            onOpenAll={() => {
+              setCoachOpen(false);
+              router.push('/assistant');
+            }}
             onClose={() => setCoachOpen(false)}
             onAction={handleCoachAction}
             onDismiss={(id) => {

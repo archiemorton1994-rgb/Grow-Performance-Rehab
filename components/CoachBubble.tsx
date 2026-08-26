@@ -116,6 +116,8 @@ export function CoachBubble({
   messages,
   snapshot,
   seen,
+  moreCount,
+  onOpenAll,
   onClose,
   onAction,
   onDismiss,
@@ -129,6 +131,17 @@ export function CoachBubble({
   snapshot: CoachSnapshot;
   /** Signatures already shown to this user; see messageSignature. */
   seen: Record<string, number>;
+  /**
+   * How many observations exist that this panel is not showing.
+   *
+   * The panel stays at three - three at once is a briefing and six is a to-do
+   * list nobody reads. But a user who only ever sees three has no way of
+   * knowing the rest were considered, which is the difference between an app
+   * that nags and one that has looked. Saying the number is what turns the
+   * panel from "here is some advice" into "here is the top of what I found".
+   */
+  moreCount: number;
+  onOpenAll: () => void;
   onClose: () => void;
   onAction: (action: CoachAction) => void;
   /** Called for messages that carry `dismissible`. See the note on the field. */
@@ -307,6 +320,28 @@ export function CoachBubble({
               );
             })}
           </ScrollView>
+
+          {moreCount > 0 && (
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onOpenAll();
+              }}
+              style={({ pressed }) => [
+                styles.seeAll,
+                { borderTopColor: C.assistantMuted },
+                pressed && { opacity: 0.75 },
+              ]}
+              testID="coach-see-all"
+              accessibilityRole="button"
+              accessibilityLabel={`See all ${moreCount + messages.length} observations`}
+            >
+              <Text style={[styles.seeAllText, { color: C.assistantInk }]}>
+                {moreCount} more {moreCount === 1 ? 'observation' : 'observations'}
+              </Text>
+              <Ionicons name="arrow-forward" size={13} color={C.assistantInk} />
+            </Pressable>
+          )}
         </View>
       </Animated.View>
     </>
@@ -401,4 +436,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   actionText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  seeAllText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

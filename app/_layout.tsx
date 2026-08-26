@@ -406,6 +406,12 @@ function RootLayoutNav() {
           name="session-summary"
           options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }}
         />
+        {/* Presented as a sheet: it is the home-screen panel getting bigger,
+            not a place you navigate to and lose your place from. */}
+        <Stack.Screen
+          name="assistant"
+          options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="achievements" options={{ headerShown: false }} />
         <Stack.Screen name="program" options={{ headerShown: false }} />
         <Stack.Screen name="past-sessions" options={{ headerShown: false }} />

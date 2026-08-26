@@ -271,7 +271,15 @@ interface Bucket {
   teaching: CoachMessage[];
 }
 
-export function getCoachMessages(input: CoachInput): CoachMessage[] {
+/**
+ * Everything the app has to say, sorted by kind and not yet cut down.
+ *
+ * Split out from getCoachMessages so the same work feeds two surfaces that want
+ * different amounts of it. The home-screen panel takes three; the full
+ * assistant screen shows the lot. They must never disagree about what is true,
+ * which they cannot if only one of them decides it.
+ */
+function buildCoachBuckets(input: CoachInput): Bucket {
   const b: Bucket = { cautions: [], info: [], good: [], teaching: [] };
   const now = input.now ?? Date.now();
   /**
@@ -299,16 +307,15 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
   // history to be true, and a panel full of "not enough data" is worse than one
   // clear sentence.
   if (input.sessionCount === 0) {
-    return [
-      {
-        id: 'first-session',
-        icon: 'flash-outline',
-        title: 'Start where you are',
-        body: "Your first session is already built and waiting. It will not be perfect yet. The app learns what you can handle from what you actually lift.",
-        tone: 'info',
-        action: { label: 'Start training', kind: 'start-session' },
-      },
-    ];
+    b.info.push({
+      id: 'first-session',
+      icon: 'flash-outline',
+      title: 'Start where you are',
+      body: "Your first session is already built and waiting. It will not be perfect yet. The app learns what you can handle from what you actually lift.",
+      tone: 'info',
+      action: { label: 'Start training', kind: 'start-session' },
+    });
+    return b;
   }
 
   // ── Back after a break ─────────────────────────────────────────────────────
@@ -547,10 +554,6 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
     });
   }
 
-  // ── Choosing what to show ──────────────────────────────────────────────────
-  // At most two problems, then something that is not one if there is anything,
-  // then whatever else fits. See the design rules at the top: a panel that
-  // opens onto three things you have done wrong is one people stop opening.
   /**
    * Rotate the good news rather than always leading with the same kind.
    *
@@ -559,6 +562,9 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
    * the deadlift" sixteen weeks running. All of them were true and by week four
    * nobody was reading them. Seeded on session count so it is stable within a
    * day and different by the next session.
+   *
+   * Rotation belongs here rather than in the panel, so the full screen lists
+   * them in the same order the panel would have picked from.
    */
   const rotated = (list: CoachMessage[]) => {
     if (list.length < 2) return list;
@@ -567,6 +573,18 @@ export function getCoachMessages(input: CoachInput): CoachMessage[] {
   };
   b.good = rotated(b.good);
 
+  return b;
+}
+
+/**
+ * The three the home-screen panel shows.
+ *
+ * At most two problems, then something that is not one if there is anything,
+ * then whatever else fits. See the design rules at the top: a panel that opens
+ * onto three things you have done wrong is one people stop opening.
+ */
+export function getCoachMessages(input: CoachInput): CoachMessage[] {
+  const b = buildCoachBuckets(input);
   const chosen: CoachMessage[] = [];
   const take = (list: CoachMessage[], limit: number) => {
     let n = limit;
@@ -717,4 +735,61 @@ export function getCoachSnapshot(input: CoachInput): CoachSnapshot {
  */
 export function messageSignature(m: CoachMessage): string {
   return `${m.id}|${m.title}`;
+}
+
+/**
+ * Everything the assistant has to say, grouped, for the full screen.
+ *
+ * WHY THIS EXISTS ALONGSIDE THE THREE
+ * ───────────────────────────────────
+ * Three at once is a briefing and six is a to-do list nobody reads, so the
+ * panel stays at three. But the app now has a dozen things it can observe, and
+ * a user who only ever sees the top three has no way of knowing the other nine
+ * were ever considered. That is the difference between an app that nags and one
+ * that has actually looked: the panel is the summary, this is the file behind
+ * it.
+ *
+ * Grouped by what the user would do about each one rather than by tone, because
+ * "what needs me" and "what is going well" are two different visits.
+ */
+export interface CoachBriefing {
+  /** Things worth acting on. */
+  needsYou: CoachMessage[];
+  /** Observations about the training that are neither good nor bad. */
+  yourTraining: CoachMessage[];
+  /** Things that are going well. */
+  goingWell: CoachMessage[];
+  /**
+   * How the app works, ALL of it, regardless of what has been waved away.
+   *
+   * On the panel these rotate and a dismissed one stays gone, because there it
+   * is competing for a slot. Here it is a reference section somebody has
+   * navigated to on purpose, and a reference that hides the page you dismissed
+   * three weeks ago is a bad reference.
+   */
+  howItWorks: CoachMessage[];
+  /** Everything except the reference section. What the panel is a summary of. */
+  total: number;
+}
+
+export function getCoachBriefing(input: CoachInput): CoachBriefing {
+  const b = buildCoachBuckets(input);
+  const needsYou = b.cautions;
+  // The teaching pick is already in howItWorks below, so it is not repeated.
+  const yourTraining = b.info;
+  const goingWell = b.good;
+  const howItWorks: CoachMessage[] = EXPLAINERS.map((e) => ({
+    id: e.id,
+    icon: e.icon,
+    title: e.title,
+    body: e.body,
+    tone: 'info' as const,
+  }));
+  return {
+    needsYou,
+    yourTraining,
+    goingWell,
+    howItWorks,
+    total: needsYou.length + yourTraining.length + goingWell.length,
+  };
 }
