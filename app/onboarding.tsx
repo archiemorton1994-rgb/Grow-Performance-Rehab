@@ -264,6 +264,7 @@ function OnboardingFlow() {
     setUserProfile,
     addOneRepMax,
     bodyweightUpdatedAt,
+    setReminderEnabled,
     completedSessions,
     themePreference,
     setThemePreference,
@@ -407,6 +408,10 @@ function OnboardingFlow() {
       (async () => {
         const granted = await requestNotificationPermission();
         if (granted) {
+          // Granting it used to schedule nothing repeating. Somebody who said
+          // yes to reminders got the same silence as somebody who said no,
+          // until they happened to find the toggle in settings.
+          setReminderEnabled(true);
           await scheduleBodyweightReminder(bodyweightUpdatedAt, completedSessions.length > 0);
         }
       })();
@@ -1318,6 +1323,22 @@ function OnboardingFlow() {
                 <CelebSummaryPill icon="flag" label={goalLabel(goals[0] ?? null)} />
                 <CelebSummaryPill icon="dumbbell" label={equipmentLabel(equipment)} />
               </Animated.View>
+              {/*
+                THE SYSTEM PERMISSION DIALOG IS ABOUT TO APPEAR OVER THIS.
+
+                It fires automatically the moment this screen is reached, and
+                the screen said "Profile Ready" and nothing about reminders - so
+                the first thing a new user saw was an unexplained iOS dialog on
+                top of a celebration. On iOS that prompt appears once, ever, and
+                a reflexive "Don't Allow" is permanent.
+
+                One line, before the dialog, so the answer is an answer to
+                something.
+              */}
+              <Animated.Text style={[styles.celebNotifyNote, celebSummaryStyle]}>
+                We will ask about reminders next. They are one nudge when a
+                session is due, and you can turn them off any time.
+              </Animated.Text>
               <Animated.View style={[{ width: '100%', marginTop: 28 }, celebSummaryStyle]}>
                 <Pressable
                   onPress={handleComplete}
@@ -1750,6 +1771,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textSecondary,
       textAlign: 'center',
       marginBottom: 24,
+    },
+    celebNotifyNote: {
+      fontSize: 13,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 19,
+      marginTop: 18,
+      paddingHorizontal: 24,
+      maxWidth: 340,
     },
     celebSummary: {
       flexDirection: 'row',

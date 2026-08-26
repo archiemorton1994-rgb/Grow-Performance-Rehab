@@ -3277,7 +3277,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'flex-end',
     },
     sheet: {
-      backgroundColor: C.background,
+      // The other three sheets in the app use surface. This one used
+      // background, which in dark mode is pure black sitting behind a dimmed
+      // pure-black overlay: the sheet had no visible edge.
+      backgroundColor: C.surface,
       borderTopLeftRadius: 22,
       borderTopRightRadius: 22,
       paddingHorizontal: 18,

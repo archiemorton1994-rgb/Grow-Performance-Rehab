@@ -40,6 +40,9 @@ import {
   PANEL_BG,
 } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
+// The same anchor the assistant uses, for the same reason: the first three
+// sessions of an exercise are estimates from a questionnaire, not lifts.
+import { MIN_APPEARANCES } from '@/lib/coach-insights';
 import {
   getExerciseTargetRegionsMap,
   getExerciseNameMap,
@@ -1766,6 +1769,25 @@ function SessionHistoryList({
                           </Pressable>
                         );
                       })}
+                      {!!session.painSeverity && (
+                        <View
+                          style={{
+                            justifyContent: 'center',
+                            paddingHorizontal: 2,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontFamily: 'Inter_500Medium',
+                              color: C.textTertiary,
+                            }}
+                          >
+                            {session.painSeverity.charAt(0).toUpperCase() +
+                              session.painSeverity.slice(1)}
+                          </Text>
+                        </View>
+                      )}
                       {overflow > 0 && (
                         <View
                           style={{
@@ -3462,6 +3484,29 @@ function ExerciseDetailSheet({
   const count = progress?.appearances.length ?? 0;
   const firstDate = progress?.appearances[0]?.date ?? null;
 
+  /**
+   * HOW FAR THIS LIFT HAS ACTUALLY COME.
+   *
+   * All-time best, session count and the date first logged were already sitting
+   * side by side here, and the app never subtracted one from the other. Nowhere
+   * in the app did. The history is deliberately stored oldest-first, so the
+   * starting weight was one array index away the whole time.
+   *
+   * Measured from the FOURTH session, not the first. The first three are the
+   * calibration window - the weight then is an estimate from a profile
+   * questionnaire rather than something anybody lifted - so measuring from it
+   * reports the app correcting its own guess as if the user had got stronger.
+   * Same anchor as lib/coach-insights.ts, and for the same reason.
+   */
+  const gain = useMemo(() => {
+    const a = progress?.appearances ?? [];
+    if (a.length < MIN_APPEARANCES + 1) return null;
+    const from = a[MIN_APPEARANCES];
+    const bestSince = Math.max(...a.slice(MIN_APPEARANCES).map((x) => x.bestSetWeight));
+    if (!from || from.bestSetWeight <= 0 || bestSince <= from.bestSetWeight) return null;
+    return { fromKg: from.bestSetWeight, toKg: bestSince, date: from.date };
+  }, [progress]);
+
   return (
     <Modal
       visible={progress !== null}
@@ -3565,6 +3610,22 @@ function ExerciseDetailSheet({
               </Text>
             </View>
           </View>
+
+          {gain && (
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Inter_500Medium',
+                color: C.primaryText,
+                textAlign: 'center',
+                marginTop: 10,
+              }}
+              testID="exercise-gain-line"
+            >
+              Up {formatWeight(gain.toKg - gain.fromKg, weightUnit)} since{' '}
+              {formatShortDate(gain.date)}, from {formatWeight(gain.fromKg, weightUnit)}.
+            </Text>
+          )}
 
           {/* Progression graph */}
           <View

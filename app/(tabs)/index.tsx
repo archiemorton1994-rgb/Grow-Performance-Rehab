@@ -1463,6 +1463,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     summaryCard: {
       width: '47%' as any,
+      // The Your Program tile carries an extra line, so without a floor the two
+      // tiles in a row are different heights and the 2x2 grid steps.
+      minHeight: 148,
+      justifyContent: 'center' as const,
       backgroundColor: C.surface,
       borderRadius: 18,
       padding: 12,

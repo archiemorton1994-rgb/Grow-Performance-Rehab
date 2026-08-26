@@ -1442,18 +1442,24 @@ export default function SessionSummaryScreen() {
         bottomOffset={24}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Summary / Progress tab switcher ── */}
+        {/* ── Summary / Progress tab switcher ──
+
+            Painted from SAGE, not from the device theme. This whole screen is a
+            fixed cream-and-sage page by design (see CardPalette at the top of
+            this file) so the two tabs read as one continuous moment. The
+            controls sitting on top of it still followed light/dark, which put
+            dark-mode chrome on a cream page for anybody not in light mode. */}
         <View style={styles.tabSwitcherRow}>
-          <View style={[styles.tabSwitcher, { backgroundColor: C.surfaceTertiary }]}>
+          <View style={[styles.tabSwitcher, { backgroundColor: SAGE.pillBg }]}>
             <Pressable
               onPress={() => setActiveTab('summary')}
-              style={[styles.tabBtn, activeTab === 'summary' && { backgroundColor: C.surface }]}
+              style={[styles.tabBtn, activeTab === 'summary' && { backgroundColor: SAGE.cardGradient[0] }]}
               testID="summary-tab-summary"
             >
               <Text
                 style={[
                   styles.tabBtnText,
-                  { color: activeTab === 'summary' ? C.text : C.textTertiary },
+                  { color: activeTab === 'summary' ? SAGE.text : SAGE.faint },
                 ]}
               >
                 Certificate
@@ -1461,13 +1467,13 @@ export default function SessionSummaryScreen() {
             </Pressable>
             <Pressable
               onPress={() => setActiveTab('progress')}
-              style={[styles.tabBtn, activeTab === 'progress' && { backgroundColor: C.surface }]}
+              style={[styles.tabBtn, activeTab === 'progress' && { backgroundColor: SAGE.cardGradient[0] }]}
               testID="summary-tab-progress"
             >
               <Text
                 style={[
                   styles.tabBtnText,
-                  { color: activeTab === 'progress' ? C.text : C.textTertiary },
+                  { color: activeTab === 'progress' ? SAGE.text : SAGE.faint },
                 ]}
               >
                 Progress
