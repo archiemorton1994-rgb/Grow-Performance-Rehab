@@ -45,9 +45,12 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   equipment_usage: 'Use different equipment tiers in your sessions.',
   test_week: 'Complete a 1RM test week to unlock this.',
   time_based: 'Train at a consistent time of day.',
-  variety: 'Mix up your session types - try them all.',
+  variety: 'Mix up your session types and work through them all.',
   recovery: 'Add prehab or flexibility sessions to your routine.',
-  duration_based: 'Complete a longer session (45 or 60 min) to unlock.',
+  // Not "(45 or 60 min)". Quick & Dirty is duration_based and wants thirty
+  // minute sessions, so that hint contradicted the description printed two
+  // lines above it. This says where the answer is set instead.
+  duration_based: 'Session length is chosen on the readiness screen, before you start.',
   comeback: 'Come back after a break and train again.',
   pain_adaptation: 'Complete sessions while managing a pain region.',
   low_energy: 'Log a session even on a low-energy day.',

@@ -293,6 +293,21 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
     if (!ormsByLift[orm.lift]) ormsByLift[orm.lift] = [];
     ormsByLift[orm.lift].push(orm);
   }
+  /**
+   * Has any lift actually been BEATEN?
+   *
+   * goal_strength_pb is called "Personal Best" and its description says "Set a
+   * new 1RM personal best". It used to award on oneRepMaxes.length >= 2, which
+   * is not a personal best - it is two numbers. Onboarding writes up to three
+   * of them in one go, before the user has trained at all, so a single session
+   * afterwards handed out a badge for something that had not happened.
+   *
+   * Measured against the FIRST entry for that lift and using the best later
+   * one, not the latest, so a heavy day still counts after a light test day.
+   * earnedBadges is append-only (see awardNewBadges), so tightening this
+   * cannot take the badge back off anyone who already has it.
+   */
+  let beatenAFirstEntry = false;
   for (const liftKey of ['squat', 'bench', 'deadlift'] as const) {
     const entries = ormsByLift[liftKey];
     if (!entries || entries.length < 2) continue;
@@ -302,6 +317,8 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
     const firstWeight = sorted[0].weight;
     const latestWeight = sorted[sorted.length - 1].weight;
     if (firstWeight <= 0) continue;
+    const bestAfterFirst = Math.max(...sorted.slice(1).map((e) => e.weight));
+    if (bestAfterFirst > firstWeight) beatenAFirstEntry = true;
     const improvement = ((latestWeight - firstWeight) / firstWeight) * 100;
     for (const pct of [5, 10, 20, 30, 50]) {
       awardIf(improvement >= pct, `progress_${liftKey}_${pct}pct`);
@@ -403,7 +420,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(strengthSessions >= 25, 'goal_strength_25');
   awardIf(strengthSessions >= 50, 'goal_strength_50');
   awardIf(strengthSessions >= 100, 'goal_strength_100');
-  awardIf(s.total >= 1 && state.oneRepMaxes.length >= 2, 'goal_strength_pb'); // at least 2 tests = at least one follow-up PB
+  awardIf(s.total >= 1 && beatenAFirstEntry, 'goal_strength_pb');
   // Muscle
   awardIf(s.total >= 1, 'goal_muscle_1');
   awardIf(s.total >= 10, 'goal_muscle_10');
@@ -439,15 +456,14 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.total >= 50, 'goal_fitness_50');
   awardIf(s.total >= 100, 'goal_fitness_100');
   // All types with 5 sessions each
-  const allTypesDone = [
-    'squat',
-    'bench',
-    'deadlift',
-    'conditioning',
-    'prehab',
-    'flexibility',
-    'custom',
-  ].every((t) => (s.byType[t] ?? 0) >= 5);
+  // Buckets, not raw types: somebody who trains Lower / Upper / Full Body
+  // instead of Squat / Bench / Deadlift could never earn this, which is the
+  // exact problem typeMap above exists to solve. Strictly more permissive - a
+  // KPI-only user gets the identical result, since squat feeds the lower
+  // bucket.
+  const allTypesDone = ['lower', 'upper', 'full', 'conditioning', 'prehab', 'flex', 'custom'].every(
+    (t) => (bucketCounts[t] ?? 0) >= 5
+  );
   awardIf(allTypesDone, 'goal_fitness_all');
   // Rehab
   const prehabCount = s.byType['prehab'] ?? 0;

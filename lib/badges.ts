@@ -185,7 +185,16 @@ const STREAK_DATA: [number, string][] = [
 const streakBadges: BadgeSeed[] = STREAK_DATA.map(([n, name]) => ({
   id: `streak_${n}wk`,
   name,
-  description: `Train at least 2× per week for ${n} consecutive weeks`,
+  /**
+   * NOT "2x per week". The engine counts consecutive weeks that hit
+   * state.weeklyStreakGoal, which the user sets themselves and which defaults
+   * to two. Somebody who has set their goal to four trains three times a week,
+   * earns nothing, and reads a badge telling them two was enough.
+   *
+   * Their goal is already how the home screen frames the streak ("2 of 3 this
+   * week"), so this is also the wording they already know.
+   */
+  description: `Hit your weekly session goal for ${n} consecutive weeks`,
   category: 'streak',
   criteriaType: 'streak_weeks',
   icon: 'flame-outline',
@@ -202,20 +211,30 @@ const LIFT_META: Record<'squat' | 'bench' | 'deadlift', LiftMeta> = {
   deadlift: { color: C.red, icon: 'body-outline', label: 'Deadlift' },
 };
 
-const PROGRESS_TIERS: [number, string, string][] = [
-  [5, 'First Gains', 'Your first measurable improvement'],
-  [10, 'Getting Stronger', '10% stronger than when you started'],
-  [20, 'Rising Fast', '20% stronger than your first test'],
-  [30, 'Breakthrough', '30% stronger than when you started'],
-  [50, 'Transformed', '50% stronger - a completely different athlete'],
+/**
+ * Name and threshold only.
+ *
+ * Each tier used to carry a third string that was appended to the description
+ * after a spaced hyphen: "Improve your bench 1RM by 10% - 10% stronger than
+ * when you started". Two problems in one line. It said the same thing twice,
+ * and the hyphen was doing a dash's job, which is the tic this app has a rule
+ * against. The flavour belongs in the NAME, which already has it: Bench
+ * Getting Stronger, Bench Transformed.
+ */
+const PROGRESS_TIERS: [number, string][] = [
+  [5, 'First Gains'],
+  [10, 'Getting Stronger'],
+  [20, 'Rising Fast'],
+  [30, 'Breakthrough'],
+  [50, 'Transformed'],
 ];
 
 const strengthProgressBadges: BadgeSeed[] = (['squat', 'bench', 'deadlift'] as const).flatMap(
   (lift) =>
-    PROGRESS_TIERS.map(([pct, name, descSuffix]) => ({
+    PROGRESS_TIERS.map(([pct, name]) => ({
       id: `progress_${lift}_${pct}pct`,
       name: `${LIFT_META[lift].label} ${name}`,
-      description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}% - ${descSuffix}`,
+      description: `Improve your ${LIFT_META[lift].label.toLowerCase()} 1RM by ${pct}%`,
       category: 'strength_progress' as BadgeCategory,
       criteriaType: 'strength_improvement' as BadgeCriteriaType,
       icon: LIFT_META[lift].icon,
@@ -400,7 +419,7 @@ const consistencyBadges: BadgeSeed[] = [
   {
     id: 'consistent_7x_1wk',
     name: 'Perfect Week',
-    description: 'Train every single day of a calendar week',
+    description: 'Train 7 or more times in a single week',
     category: 'consistency',
     criteriaType: 'consistency_habit',
     icon: 'star-outline',
@@ -436,7 +455,7 @@ const consistencyBadges: BadgeSeed[] = [
   {
     id: 'consistent_morning_10',
     name: 'Morning 10',
-    description: 'Complete 10 sessions before 9am',
+    description: 'Complete 10 sessions before 7am',
     category: 'consistency',
     criteriaType: 'consistency_habit',
     icon: 'sunny-outline',
@@ -445,7 +464,7 @@ const consistencyBadges: BadgeSeed[] = [
   {
     id: 'consistent_morning_30',
     name: 'Morning Devotee',
-    description: 'Complete 30 sessions before 9am',
+    description: 'Complete 30 sessions before 7am',
     category: 'consistency',
     criteriaType: 'consistency_habit',
     icon: 'sunny-outline',
@@ -525,7 +544,7 @@ const goalsBadges: BadgeSeed[] = [
   {
     id: 'goal_muscle_10',
     name: 'Pump Chaser',
-    description: 'Complete 10 sessions targeting muscle',
+    description: 'Complete 10 sessions',
     category: 'goals',
     criteriaType: 'goal_progress',
     icon: 'body-outline',
@@ -534,7 +553,7 @@ const goalsBadges: BadgeSeed[] = [
   {
     id: 'goal_muscle_25',
     name: 'Hypertrophy Habit',
-    description: 'Complete 25 sessions targeting muscle',
+    description: 'Complete 25 sessions',
     category: 'goals',
     criteriaType: 'goal_progress',
     icon: 'body-outline',
@@ -543,7 +562,7 @@ const goalsBadges: BadgeSeed[] = [
   {
     id: 'goal_muscle_50',
     name: 'Mass Builder',
-    description: 'Complete 50 sessions targeting muscle',
+    description: 'Complete 50 sessions',
     category: 'goals',
     criteriaType: 'goal_progress',
     icon: 'body-outline',
@@ -552,7 +571,7 @@ const goalsBadges: BadgeSeed[] = [
   {
     id: 'goal_muscle_100',
     name: 'Muscle Machine',
-    description: 'Complete 100 sessions targeting muscle',
+    description: 'Complete 100 sessions',
     category: 'goals',
     criteriaType: 'goal_progress',
     icon: 'trophy-outline',
@@ -1043,7 +1062,7 @@ const varietyBadges: BadgeSeed[] = [
   {
     id: 'variety_all_types',
     name: 'Complete Athlete',
-    description: 'Complete at least one session of every type',
+    description: 'Complete sessions of 7 different types',
     category: 'variety',
     criteriaType: 'variety',
     icon: 'star-outline',
@@ -1361,7 +1380,7 @@ const painWarriorBadges: BadgeSeed[] = [
   {
     id: 'pain_warrior_20',
     name: 'Still Listening',
-    description: 'Adapt 20 sessions - if it has hurt this long, get it looked at',
+    description: 'Adapt 20 sessions. If it has hurt this long, get it looked at.',
     category: 'pain_warrior',
     criteriaType: 'pain_adaptation',
     icon: 'shield-checkmark-outline',
@@ -1417,7 +1436,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
   {
     id: 'exercise_all_three_lifts',
     name: 'Triple Threat',
-    description: 'Complete at least one Squat Session, Bench Session, and Deadlift Session',
+    description: 'Complete at least one lower, upper and full body session',
     category: 'variety',
     criteriaType: 'variety',
     icon: 'barbell-outline',
@@ -1480,7 +1499,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
   {
     id: 'exercise_full_spectrum',
     name: 'Full Spectrum',
-    description: 'Complete at least one session of every available type',
+    description: 'Train 7 of the session types the app offers',
     category: 'variety',
     criteriaType: 'variety',
     icon: 'star-outline',
