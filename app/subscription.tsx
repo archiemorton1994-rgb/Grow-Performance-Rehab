@@ -20,15 +20,16 @@ import Purchases, {
 } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
-import { EXERCISE_COUNT } from '@/lib/exercise-db';
+import { DISTINCT_EXERCISE_COUNT } from '@/lib/exercise-db';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
+import { periodWordsFor } from '@/lib/subscription-period';
 import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
 const STATS = [
-  { value: `${EXERCISE_COUNT}+`, label: 'exercises' },
+  { value: `${DISTINCT_EXERCISE_COUNT}+`, label: 'exercises' },
   { value: `${SESSION_TYPE_COUNT}`, label: 'session types' },
   { value: `${PAIN_ADAPTATION_REGION_COUNT}`, label: 'pain zones' },
 ];
@@ -44,7 +45,11 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
   {
     icon: 'sparkles-outline',
     title: 'Every session, planned',
-    body: 'Exercises, sets and weights picked from what you actually lifted last time.',
+    // Not "exercises, sets and weights". The exercises come from the rotation
+    // and the pools, and the set counts come from the template plus your
+    // readiness answers. What genuinely comes from last time is the load and
+    // the rep target, and those are the parts worth claiming.
+    body: 'Weights and rep targets set from what you actually lifted last time, not a fixed plan.',
   },
   {
     icon: 'medkit-outline',
@@ -59,7 +64,11 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
   {
     icon: 'play-skip-forward-outline',
     title: 'Never lose a session',
-    body: 'Stop mid-workout and pick up exactly where you left off.',
+    // "Pick up exactly where you left off" with no condition was a promise the
+    // app keeps for a day. A saved session is discarded on the first launch
+    // after 24 hours (app/_layout.tsx), which is a sensible rule and an
+    // unpleasant surprise if nobody mentions it.
+    body: 'Stop mid-workout and pick up where you left off any time that day.',
   },
 ];
 
@@ -233,8 +242,12 @@ export default function SubscriptionScreen() {
             await Purchases.restorePurchases();
             await refreshSubscription();
           } catch {
+            // Reached only from the alreadyOwned branch, so ownership is not
+            // in doubt: the store has just said this Apple ID has it. What
+            // failed is the restore, and by far the likeliest reason is the
+            // network. "Still processing" was a guess dressed as a diagnosis.
             setErrorMsg(
-              'Your subscription is still processing. Please wait a moment and try Restore again.'
+              'You already have this subscription, but it could not be restored just now. Check your connection and tap Restore below.'
             );
           } finally {
             setRestoring(false);
@@ -272,9 +285,12 @@ export default function SubscriptionScreen() {
         // restorePurchases() resolves successfully even when there's nothing to
         // restore - without this, the button just silently reverts and leaves
         // the user guessing whether it worked.
+        // The condition here is "no ACTIVE entitlement", which is not the same
+        // as "never bought anything". Somebody whose subscription lapsed has a
+        // purchase history and was being told they had none.
         Alert.alert(
           'Nothing to restore',
-          "We couldn't find a previous purchase for this account."
+          'No active subscription was found for this Apple ID. If you cancelled, access lasts until the end of the period you paid for.'
         );
       }
     } catch {
@@ -286,6 +302,11 @@ export default function SubscriptionScreen() {
 
   const priceString = offering?.product?.priceString ?? '';
   const trialText = getTrialText(offering, trialEligible);
+  // Every "month" on this screen now comes from here. When the store has not
+  // told us the period, these are empty strings and the copy below simply
+  // stops mentioning one, the same way it stops mentioning a price it does
+  // not have.
+  const period = periodWordsFor(offering);
 
   return (
     // Scrollable rather than a fixed flex column. The auto-renew notice and the
@@ -349,7 +370,9 @@ export default function SubscriptionScreen() {
       <View style={styles.planCard}>
         <View style={styles.planCardTop}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.planName}>Grow Monthly</Text>
+            <Text style={styles.planName}>
+              {period.planWord ? `Grow ${period.planWord}` : 'Grow'}
+            </Text>
             {loadingOffering ? (
               <ActivityIndicator size="small" color={C.primaryText} style={{ marginTop: 4 }} />
             ) : offeringError ? (
@@ -362,7 +385,7 @@ export default function SubscriptionScreen() {
             ) : (
               <Text style={styles.planPrice}>
                 {priceString}
-                <Text style={styles.planPer}> / month</Text>
+                {period.per ? <Text style={styles.planPer}> / {period.per}</Text> : null}
               </Text>
             )}
           </View>
@@ -382,7 +405,7 @@ export default function SubscriptionScreen() {
             above is disabled with a Retry offered. */}
         <Text style={styles.planSub}>
           {priceString
-            ? `${trialText.sub ? `${trialText.sub} ` : ''}${priceString}/month. Cancel anytime.`
+            ? `${trialText.sub ? `${trialText.sub} ` : ''}${priceString}${period.per ? `/${period.per}` : ''}. Cancel anytime.`
             : 'Cancel anytime.'}
         </Text>
       </View>
@@ -474,8 +497,8 @@ export default function SubscriptionScreen() {
       {/* Sub-legal auto-renew notice */}
       <Text style={styles.legalSmall}>
         {priceString
-          ? `Renews at ${priceString}/month unless cancelled 24 hrs before period end.`
-          : 'Auto-renews monthly unless cancelled at least 24 hours before period end.'}
+          ? `Renews at ${priceString}${period.per ? `/${period.per}` : ''} unless cancelled at least 24 hours before period end.`
+          : 'Renews automatically unless cancelled at least 24 hours before period end.'}
       </Text>
     </ScrollView>
   );

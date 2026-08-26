@@ -445,7 +445,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ ok: true });
   });
 
-  const legalPageHtml = (title: string, body: string) => `<!DOCTYPE html>
+  /**
+   * `updated` is a required parameter, not a constant in the template.
+   *
+   * It used to be the literal "April 2026" baked into the shared shell, while
+   * each page's body was passed in and edited independently. Editing the terms
+   * could therefore never move the date on them, which is the one thing a
+   * "last updated" line exists to do. Required, so a third page cannot inherit
+   * somebody else's date by saying nothing.
+   */
+  const legalPageHtml = (title: string, updated: string, body: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -464,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 </head>
 <body>
   <h1>${title}</h1>
-  <p class="updated">Last updated: April 2026</p>
+  <p class="updated">Last updated: ${updated}</p>
   ${body}
   <p style="margin-top:48px;color:#888;font-size:13px">Grow Performance &amp; Rehab · <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a></p>
 </body>
@@ -501,15 +510,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).send(
       legalPageHtml(
         'Privacy Policy',
+        'August 2026',
         `
       <p>This Privacy Policy describes how Grow Performance &amp; Rehab ("Grow", "we", "us", or "our") collects, uses, and protects information about you when you use our mobile application and related services (collectively, the "Service").</p>
 
       <h2>1. Information We Collect</h2>
       <p><strong>Information you provide directly:</strong></p>
       <ul>
-        <li><strong>Email address</strong> - collected when you create an account. Used exclusively to send your one-time login code and to identify your account.</li>
-        <li><strong>Profile information</strong> - name, sex, experience level, fitness goals, and bodyweight. Stored on your device and synced to our servers (linked to your account) so your programme carries over across devices, and used to personalise your training programme.</li>
-        <li><strong>Workout data</strong> - session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored on your device and synced to our servers (linked to your account) to power your progress tracking and keep it available across devices.</li>
+        <li><strong>Email address.</strong> Collected when you create an account. Used exclusively to send your one-time login code and to identify your account.</li>
+        <li><strong>Profile information.</strong> Name, sex, experience level, fitness goals, and bodyweight. Stored on your device and synced to our servers (linked to your account) so your programme carries over across devices, and used to personalise your training programme.</li>
+        <li><strong>Workout data.</strong> Session logs, weights lifted, pain regions, readiness ratings, and exercise feedback. Stored on your device and synced to our servers (linked to your account) to power your progress tracking and keep it available across devices.</li>
       </ul>
       <p><strong>Information collected automatically:</strong></p>
       <ul>
@@ -531,10 +541,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <h2>3. Third-Party Services</h2>
       <p>We use a limited number of trusted third-party services to operate the Service:</p>
       <ul>
-        <li><strong>RevenueCat</strong> - manages your subscription and in-app purchase receipts. RevenueCat receives your anonymised app user ID and subscription status. RevenueCat does not receive your email address. See <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's Privacy Policy</a>.</li>
-        <li><strong>Resend</strong> - delivers your one-time login code by email. Resend processes your email address solely to deliver transactional messages on our behalf. See <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
-        <li><strong>Apple App Store</strong> - handles subscription billing. We do not store or process your payment card details. See <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
-        <li><strong>Replit</strong> - hosts our server and database infrastructure. Replit stores your data on our behalf as our infrastructure provider; it does not use your data for its own purposes. See <a href="https://replit.com/site/privacy" target="_blank">Replit's Privacy Policy</a>.</li>
+        <li><strong>RevenueCat.</strong> Manages your subscription and in-app purchase receipts. RevenueCat receives your anonymised app user ID and subscription status. RevenueCat does not receive your email address. See <a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat's Privacy Policy</a>.</li>
+        <li><strong>Resend.</strong> Delivers your one-time login code by email. Resend processes your email address solely to deliver transactional messages on our behalf. See <a href="https://resend.com/legal/privacy-policy" target="_blank">Resend's Privacy Policy</a>.</li>
+        <li><strong>Apple App Store.</strong> Handles subscription billing. We do not store or process your payment card details. See <a href="https://www.apple.com/legal/privacy/" target="_blank">Apple's Privacy Policy</a>.</li>
+        <li><strong>Replit.</strong> Hosts our server and database infrastructure. Replit stores your data on our behalf as our infrastructure provider; it does not use your data for its own purposes. See <a href="https://replit.com/site/privacy" target="_blank">Replit's Privacy Policy</a>.</li>
       </ul>
 
       <h2>4. Data Storage and Security</h2>
@@ -542,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>No method of transmission or storage is 100% secure. While we take reasonable steps to protect your information, we cannot guarantee absolute security.</p>
 
       <h2>5. Data Retention and Deletion</h2>
-      <p>We retain your account data for as long as your account is active. You can permanently delete your account and all associated data at any time from Settings within the app ("Delete account"), and this takes effect immediately. You can also request deletion by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>, and we will action the request within 30 days.</p>
+      <p>We retain your account data for as long as your account is active. You can permanently delete your account and all associated data from Settings within the app ("Delete account"), and this takes effect immediately. Settings sits behind an active subscription, so if yours has lapsed, email us instead and we will action it. You can also request deletion by emailing us at <a href="mailto:hello@growperformanceandrehab.com">hello@growperformanceandrehab.com</a>, and we will action the request within 30 days.</p>
 
       <h2>6. Children's Privacy</h2>
       <p>The Service is not directed at children under the age of 13 (or under 16 in the European Economic Area). We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us and we will promptly delete it.</p>
@@ -565,6 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).send(
       legalPageHtml(
         'Terms of Service',
+        'August 2026',
         `
       <p>These Terms of Service ("Terms") govern your access to and use of the Grow Performance &amp; Rehab mobile application and related services (collectively, the "Service"), provided by Grow Performance &amp; Rehab ("Grow", "we", "us", or "our"). By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</p>
 
@@ -577,8 +588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <h2>3. Subscriptions and Billing</h2>
       <p>Access to the Service requires an active subscription.</p>
       <ul>
-        <li><strong>Price:</strong> £4.99 per month (or equivalent in your local currency as displayed at checkout).</li>
-        <li><strong>Free trial:</strong> New subscribers receive a 14-day free trial. You will not be charged until the trial period ends.</li>
+        <li><strong>Price:</strong> The current price and billing period are shown in the app before you subscribe, and again on the App Store payment sheet, in your own currency.</li>
+        <li><strong>Free trial:</strong> An introductory free period may be offered. Apple grants it once per Apple ID rather than once per Grow account, so it is not available to everyone. The app asks the App Store whether your Apple ID is eligible and shows the offer, and its length, only when it is.</li>
         <li><strong>Automatic renewal:</strong> Your subscription renews automatically at the end of each billing period unless you cancel at least 24 hours before the renewal date.</li>
         <li><strong>Cancellation:</strong> You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period; no partial refunds are provided for unused time.</li>
         <li><strong>Billing:</strong> All billing is handled by Apple through the App Store. We do not process or store your payment card details.</li>
@@ -608,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       <p>The Service is provided "as is" and "as available" without warranties of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or free of viruses or other harmful components.</p>
 
       <h2>8. Limitation of Liability</h2>
-      <p>To the maximum extent permitted by applicable law, Grow Performance &amp; Rehab shall not be liable for any indirect, incidental, special, consequential, or punitive damages - including but not limited to personal injury, loss of profits, loss of data, or business interruption - arising out of or related to your use of the Service, even if we have been advised of the possibility of such damages.</p>
+      <p>To the maximum extent permitted by applicable law, Grow Performance &amp; Rehab shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to personal injury, loss of profits, loss of data, or business interruption, arising out of or related to your use of the Service, even if we have been advised of the possibility of such damages.</p>
 
       <h2>9. Governing Law</h2>
       <p>These Terms are governed by and construed in accordance with the laws of England and Wales. Any disputes arising under these Terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>

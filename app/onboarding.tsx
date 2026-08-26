@@ -1371,10 +1371,31 @@ function OnboardingFlow() {
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
                 Profile Ready!
               </Animated.Text>
+              {/*
+                NO TRIAL PROMISE HERE. THE APP DOES NOT KNOW YET.
+
+                This line used to read "The first 14 days are on us". Nothing in
+                the app grants a single free day: access is whatever RevenueCat
+                reports, and any free period comes from Apple's introductory
+                offer on the product. Apple grants that offer once per APPLE ID,
+                not once per Grow account.
+
+                So a returning user, or anyone reinstalling on a new phone, was
+                told by name that their first fortnight was free, and then landed
+                two screens later on a paywall whose button says only "Subscribe"
+                and whose card shows the full price with no trial badge. The
+                paywall goes to real lengths not to make that claim - see
+                getTrialText in app/subscription.tsx, which asks the store about
+                THIS Apple ID and stays quiet unless the answer is a clear yes.
+                This screen asked nobody, and invented the number 14.
+
+                The paywall is the only screen that can honestly talk about a
+                trial, because it is the only one that has asked.
+              */}
               <Animated.Text style={[styles.celebName, celebTitleStyle]}>
                 {name.trim()
-                  ? `The first 14 days are on us, ${name.trim().split(' ')[0]}`
-                  : 'The first 14 days are on us'}
+                  ? `Your plan is ready, ${name.trim().split(' ')[0]}`
+                  : 'Your plan is ready'}
               </Animated.Text>
               <Animated.View style={[styles.celebSummary, celebSummaryStyle]}>
                 <CelebSummaryPill icon="dumbbell" label={experienceLabel(experience)} />

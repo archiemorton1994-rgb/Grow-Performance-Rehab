@@ -20693,3 +20693,16 @@ export function getExerciseNameMap(): Record<string, string> {
 spliceChannelExercises();
 
 export const EXERCISE_COUNT = Object.keys(getExerciseNameMap()).length;
+
+/**
+ * Distinct MOVEMENTS, which is what "exercises" means to somebody reading it.
+ *
+ * EXERCISE_COUNT counts catalogue entries, and the same movement is filed under
+ * several ids so it can appear in different pools and at different equipment
+ * tiers. That is the right number for the internal sanity checks that use it,
+ * and the wrong one to print on the paywall: 979 entries are 707 movements, so
+ * "979+ exercises" counted a lot of them twice.
+ */
+export const DISTINCT_EXERCISE_COUNT = new Set(
+  Object.values(getExerciseNameMap()).map((name) => name.toLowerCase().trim())
+).size;

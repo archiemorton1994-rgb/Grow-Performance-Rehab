@@ -145,10 +145,23 @@ export const PAIN_CATEGORIES = {
   },
 };
 
-export const PAIN_ADAPTATION_REGION_COUNT =
-  PAIN_CATEGORIES.upper.regions.length +
-  PAIN_CATEGORIES.torso.regions.length +
-  PAIN_CATEGORIES.lower.regions.length;
+/**
+ * Every region a user can actually flag, which is all five groups.
+ *
+ * This used to add upper, torso and lower and stop, silently leaving out
+ * upper_muscles and lower_muscles. The body diagram on the readiness screen
+ * offers all nineteen (see REGION_FRONT and REGION_BACK in app/(tabs)/recover
+ * .tsx, and tests/prehab-regions.check.mjs, which proves every one of them has
+ * rehab work behind it). The paywall prints this number as "pain zones", so
+ * the app was underselling itself by seven.
+ *
+ * Summed over Object.values rather than three named groups, so a sixth group
+ * cannot be forgotten the same way.
+ */
+export const PAIN_ADAPTATION_REGION_COUNT = Object.values(PAIN_CATEGORIES).reduce(
+  (total, group) => total + group.regions.length,
+  0
+);
 
 export interface ExerciseFeedback {
   tooEasy: boolean;

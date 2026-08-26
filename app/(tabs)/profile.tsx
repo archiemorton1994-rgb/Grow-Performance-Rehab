@@ -600,7 +600,7 @@ export default function ProfileScreen() {
   const handleReset = () => {
     Alert.alert(
       'Reset Progress',
-      'This will clear your workout history, stats, strength tests, badges, and the weights the app has learned for you - your next session starts from scratch. Your bodyweight log is kept. This cannot be undone.',
+      'This will clear your workout history, stats, strength tests, badges, and the weights the app has learned for you. Your next session starts from scratch. Your bodyweight log is kept. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -750,7 +750,7 @@ export default function ProfileScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch {
-      Alert.alert('Something went wrong', "Couldn't select that photo - please try again.");
+      Alert.alert('Something went wrong', "Couldn't select that photo. Please try again.");
     }
   };
 
@@ -1073,23 +1073,36 @@ export default function ProfileScreen() {
                 <Ionicons name="checkmark-circle" size={24} color={C.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
+                {/*
+                  THREE THINGS THIS CARD USED TO CLAIM AND COULD NOT KNOW.
+
+                  "Grow Monthly" named a billing period. This screen never asks
+                  the store anything, and the paywall itself now reads the
+                  period off the package because the product need not be
+                  monthly at all.
+
+                  "Renews {date}" was printed from entitlement.expirationDate,
+                  which the store returns whether or not auto-renew is still on.
+                  Somebody who cancelled yesterday was told their subscription
+                  renews on the day it actually ends. "Active until" is true
+                  either way. Saying which of the two it is needs willRenew off
+                  the entitlement, which means editing the RevenueCat file, and
+                  that is not a change to make unasked.
+
+                  "Expires in N days" was Math.ceil of a millisecond gap, so it
+                  rounded UP: six days and five hours printed as seven, and the
+                  last day printed "1 days". A date has neither problem, and a
+                  trial does not "expire" if it is about to start charging.
+                */}
                 <Text style={styles.infoCardTitle}>
-                  {isOnTrial ? 'Free trial active' : 'Grow Monthly'}
+                  {isOnTrial ? 'Free trial active' : 'Subscription active'}
                 </Text>
                 <Text style={styles.infoCardSub}>
-                  {isOnTrial && expiryDate
-                    ? (() => {
-                        const daysLeft = Math.max(
-                          0,
-                          Math.ceil(
-                            (new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                          )
-                        );
-                        return daysLeft > 0 ? `Expires in ${daysLeft} days` : 'Tap to manage';
-                      })()
-                    : expiryDate
-                      ? `Renews ${new Date(expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                      : 'Active'}
+                  {expiryDate
+                    ? `${isOnTrial ? 'Free trial ends' : 'Active until'} ${new Date(
+                        expiryDate
+                      ).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                    : 'Tap to manage'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
@@ -1105,7 +1118,12 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoCardTitle}>Subscribe to Grow</Text>
-                <Text style={styles.infoCardSub}>£4.99/month · cancel anytime</Text>
+                {/* No number here. The price and the currency belong to the
+                    App Store, and this screen has not asked it anything - see
+                    the paywall, which fetches priceString and says nothing about
+                    money at all when it cannot. A pound sign shown to somebody
+                    in Ohio is wrong twice over. */}
+                <Text style={styles.infoCardSub}>See the price and subscribe</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
             </Pressable>
@@ -2038,8 +2056,11 @@ export default function ProfileScreen() {
                     <Text style={styles.navLabel}>Manage Subscription</Text>
                     <Text style={styles.navSub}>
                       {isOnTrial
-                        ? 'Free trial - change or cancel anytime'
-                        : 'Change plan or cancel'}
+                        ? 'Free trial. Change or cancel anytime.'
+                        // Not "change plan". There is one package (see
+                        // fetchOffering in app/subscription.tsx), so there is
+                        // nothing to change it to.
+                        : 'View or cancel in the App Store'}
                     </Text>
                   </View>
                   <Ionicons name="open-outline" size={14} color={C.textTertiary} />
@@ -2058,7 +2079,7 @@ export default function ProfileScreen() {
                   </View>
                   <View style={styles.navBtnText}>
                     <Text style={styles.navLabel}>Subscribe to Grow</Text>
-                    <Text style={styles.navSub}>£4.99/month · cancel anytime</Text>
+                    <Text style={styles.navSub}>See the price and subscribe</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
                 </Pressable>
