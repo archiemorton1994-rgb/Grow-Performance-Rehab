@@ -557,11 +557,38 @@ const OVERSHOOT_EASY_REPS = 2;
 const OVERSHOOT_VERY_EASY_RATIO = 1.5;
 const OVERSHOOT_VERY_EASY_REPS = 3;
 
+/**
+ * AND THE SAME MEASUREMENT, IN THE OTHER DIRECTION.
+ *
+ * The rep count was read as evidence only when it went UP. Somebody prescribed
+ * 8-12 who logged 5, 5, 5 and ticked each set off was recorded as a clean
+ * normal session: the load held, the clean-session streak advanced toward a
+ * weight jump, and the rep floor was raised from 8 to 9 with the note "One more
+ * rep at the same weight - 9 to beat". The app asked a person who managed five
+ * to come back and do nine.
+ *
+ * That asymmetry is the same shape as the one the warm-up ramp work fixed on
+ * the load side: the app believed the good news and ignored the bad. A rep
+ * count is a measurement whichever way it points.
+ *
+ * Measured against the FLOOR of the range rather than the ceiling, because the
+ * floor is what the prescription actually asks for - the top of the range is a
+ * target to work towards, not a pass mark.
+ *
+ * A PROPORTION RATHER THAN A COUNT, because the same number of missing reps
+ * means completely different things at different volumes. Two short of twelve
+ * is a slow last set; two short of four is a failed heavy single. A quarter
+ * below the floor says the same thing at both ends, and it leaves the ordinary
+ * case alone - dropping a rep on the last set of a straight-sets scheme is what
+ * fatigue looks like, not failure.
+ */
+const UNDERSHOOT_HARD_RATIO = 0.75;
+
 export function measuredRating(
   targetReps: string,
   sets: readonly LoggedSet[],
   category: ExerciseCategory
-): 'very_easy' | 'easy' | null {
+): 'very_easy' | 'easy' | 'hard' | null {
   // Tier 3 is a clinical dose, and beating it is not an argument for more
   // weight. "2 x 15 each side" on a rotator cuff done for 20 means the person
   // felt good, not that the physiotherapist was wrong - and this is the exact
@@ -603,7 +630,52 @@ export function measuredRating(
 
   if (over >= OVERSHOOT_VERY_EASY_REPS && ratio >= OVERSHOOT_VERY_EASY_RATIO) return 'very_easy';
   if (over >= OVERSHOOT_EASY_REPS && ratio >= OVERSHOOT_EASY_RATIO) return 'easy';
+
+  // Short of what was asked. See UNDERSHOOT_HARD_RATIO.
+  const floor = target.min;
+  if (floor > 0) {
+    if (logged / floor <= UNDERSHOOT_HARD_RATIO) return 'hard';
+  }
   return null;
+}
+
+/**
+ * Did they actually reach the bottom of the rep range they were given?
+ *
+ * Double progression means: hit the floor, and next time the floor goes up one.
+ * The engine was checking only that every set had been ticked off, never what
+ * was typed into them - so somebody prescribed 8-12 who logged 7, 7, 7 was
+ * moved to 9-12, then 10-12, then 11-12, then handed more weight. The floor ran
+ * away from a lifter who never reached it.
+ *
+ * measuredRating catches the severe version of this and calls the session hard.
+ * This is the quieter half: not bad enough to hold the load, just not the
+ * evidence a step up needs.
+ *
+ * Returns TRUE whenever it cannot tell, and there are five ways it cannot:
+ * a clinical dose it has no business judging, a per-side target whose unit is
+ * ambiguous, an AMRAP or timed target with no countable floor, sets that were
+ * not all completed (already judged in lib/set-performance.ts), and a set ticked
+ * off with no rep count typed in - where the tick is the only signal there is
+ * and refusing to progress on it would punish somebody for not typing.
+ */
+export function metRepFloor(
+  targetReps: string,
+  sets: readonly LoggedSet[],
+  category: ExerciseCategory
+): boolean {
+  const tier = tierOf(category);
+  if (tier !== 'tier1' && tier !== 'tier2') return true;
+  if (/\beach\b|\bper side\b/i.test(targetReps)) return true;
+
+  const target = parseReps(targetReps);
+  if (!target || target.min <= 0) return true;
+  if (sets.length === 0) return true;
+  if (!sets.every((s) => s.completed && !s.skipped)) return true;
+
+  const logged = sets[sets.length - 1]?.reps ?? 0;
+  if (logged <= 0) return true;
+  return logged >= target.min;
 }
 
 /**
@@ -621,13 +693,21 @@ export function measuredRating(
  * easier. Both are evidence in the same direction; the stronger one wins. In
  * particular a user who never taps a button still progresses, which is the
  * point.
+ *
+ * A MEASURED SHORTFALL COUNTS AS "TOO HARD" TOO.
+ *
+ * The rule above is about not overruling caution, and reps well below the floor
+ * are caution arriving from the other direction. So either signal saying the
+ * session was hard settles it, including against a tapped "Easy" - somebody who
+ * managed five of a prescribed eight and called it easy has still only managed
+ * five, and the next session is built on what was lifted.
  */
 export function combineWithMeasuredReps(
   said: 'very_easy' | 'easy' | 'hard' | null | undefined,
-  measured: 'very_easy' | 'easy' | null
+  measured: 'very_easy' | 'easy' | 'hard' | null
 ): 'very_easy' | 'easy' | 'hard' | null {
-  if (said === 'hard') return 'hard';
-  const rank = (r: 'very_easy' | 'easy' | null | undefined) =>
+  if (said === 'hard' || measured === 'hard') return 'hard';
+  const rank = (r: 'very_easy' | 'easy' | 'hard' | null | undefined) =>
     r === 'very_easy' ? 2 : r === 'easy' ? 1 : 0;
   return rank(said) >= rank(measured) ? (said ?? null) : measured;
 }

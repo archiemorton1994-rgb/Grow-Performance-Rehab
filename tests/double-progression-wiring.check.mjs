@@ -72,8 +72,13 @@ check(
 );
 check(
   'a failed performance blocks it too',
-  /hitEverySet && perfWithFeedback !== 'failed'/.test(store),
+  /hitEverySet && reachedTheFloor && perfWithFeedback !== 'failed'/.test(store),
   ''
+);
+check(
+  'and so does falling short of the rep floor',
+  store.includes('const reachedTheFloor = metRepFloor(log.targetReps, log.sets, log.category);'),
+  'ticking every box is not the same as doing the reps - without this the floor climbs away from anyone who never reaches it'
 );
 check(
   'the earned target is persisted',

@@ -6,7 +6,12 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import { performanceForLog } from '@/lib/set-performance';
-import { combineWithMeasuredReps, measuredRating, nextPrescription } from '@/lib/rep-scheme';
+import {
+  combineWithMeasuredReps,
+  measuredRating,
+  metRepFloor,
+  nextPrescription,
+} from '@/lib/rep-scheme';
 import { CLEAN_SESSIONS_PER_BIG_JUMP } from '@/lib/workout-engine';
 import {
   getTrainingBalanceNudge as getBalanceNudge,
@@ -1023,10 +1028,14 @@ export const useAppStore = create<AppState>()(
             if (log.targetReps && log.category) {
               const hitEverySet =
                 log.sets.length > 0 && log.sets.every((set) => set.completed && !set.skipped);
+              // Ticking every box is not the same as doing the reps. See
+              // metRepFloor - without this the rep floor climbed away from
+              // anyone who consistently fell a rep or two short of it.
+              const reachedTheFloor = metRepFloor(log.targetReps, log.sets, log.category);
               const next = nextPrescription(
                 newRepTarget[log.exerciseId] ?? log.targetReps,
                 log.targetReps,
-                hitEverySet && perfWithFeedback !== 'failed',
+                hitEverySet && reachedTheFloor && perfWithFeedback !== 'failed',
                 get().userProfile.goals,
                 log.category,
                 effectiveRating ?? undefined,

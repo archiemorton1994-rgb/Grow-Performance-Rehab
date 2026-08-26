@@ -35,6 +35,9 @@ import {
   nextPrescription,
   effortHint,
   restSecondsFor,
+  measuredRating,
+  combineWithMeasuredReps,
+  metRepFloor,
 } from '../lib/rep-scheme.ts';
 
 let passed = 0;
@@ -293,6 +296,87 @@ check(
   'but the case the feature was built for still works',
   nextPrescription('12', '12', true, ['muscle'], 'accessory')?.addLoad === true,
   'a 12-rep accessory sits at the top of the 8-12 muscle range, which is a sensible thing to say about it'
+);
+
+// ─── The reps count in both directions ───────────────────────────────────────
+console.log('\n[reps as evidence] a rep count is a measurement whichever way it points');
+
+/**
+ * The gap this closes. measuredRating read the rep count as evidence only when
+ * it went UP. Somebody prescribed 8-12 who logged 5, 5, 5 and ticked every set
+ * was recorded as a clean normal session: the load held, the clean-session
+ * streak advanced toward a weight jump, and the rep floor was RAISED to 9-12
+ * with the note "One more rep at the same weight - 9 to beat". The app asked
+ * somebody who managed five to come back and do nine.
+ */
+const done = (reps) => reps.map((r) => ({ weight: 60, reps: r, completed: true, skipped: false }));
+
+check(
+  'reps well below the floor read as hard',
+  measuredRating('8-12', done([5, 5, 5]), 'main') === 'hard',
+  'five of a prescribed eight to twelve is not a normal session'
+);
+check(
+  'and the same on a single-number target',
+  measuredRating('10', done([6, 6, 6]), 'main') === 'hard',
+  ''
+);
+check(
+  'one rep short is not held against anybody',
+  measuredRating('8-12', done([7, 7, 7]), 'main') === null &&
+    measuredRating('10', done([9, 9, 9]), 'main') === null,
+  'dropping a rep on the last set of a straight-sets scheme is fatigue, not failure'
+);
+check(
+  'the overshoot side still works',
+  measuredRating('8-12', done([16, 16, 16]), 'main') === 'easy',
+  'the good news must keep arriving too'
+);
+
+check(
+  'a measured shortfall is not overruled by tapping Easy',
+  combineWithMeasuredReps('easy', 'hard') === 'hard',
+  'somebody who managed five of eight and called it easy has still only managed five'
+);
+check(
+  'and Too Hard is still never overruled by a big rep count',
+  combineWithMeasuredReps('hard', 'very_easy') === 'hard',
+  'the guardrail the whole auto-regulation file is built around'
+);
+
+console.log('\n[rep floor] the floor only climbs when the floor was reached');
+
+check(
+  'reaching the floor earns the step up',
+  metRepFloor('8-12', done([8, 8, 8]), 'main') === true,
+  ''
+);
+check(
+  'falling short of it does not',
+  metRepFloor('8-12', done([7, 7, 7]), 'main') === false,
+  'without this the floor climbs 8, 9, 10, 11 away from a lifter who never reaches it'
+);
+check(
+  'a set ticked with no rep count typed still progresses',
+  metRepFloor('8-12', done([0, 0, 0]), 'main') === true,
+  'the tick is the only signal there is, and refusing to progress on it punishes somebody for not typing'
+);
+check(
+  'a per-side target is left alone',
+  metRepFloor('12 each side', done([6, 6, 6]), 'main') === true,
+  '"12 each side" asks for 24 reps and one box to type them into; nothing on screen tells the two readings apart'
+);
+check(
+  'and a clinical dose is nobody else\'s business',
+  metRepFloor('15', done([8, 8]), 'prehab') === true &&
+    metRepFloor('2 x 15', done([10, 10]), 'prehab') === true &&
+    measuredRating('15', done([8, 8]), 'prehab') === null,
+  'beating or missing a rotator cuff dose is not an argument about load'
+);
+check(
+  'an AMRAP has no floor to miss',
+  metRepFloor('AMRAP', done([3, 3, 3]), 'main') === true,
+  ''
 );
 
 console.log(`\nrep-scheme: ${passed} passed, ${failed} failed`);
