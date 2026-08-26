@@ -313,13 +313,53 @@ check(
 console.log('\n[9] The profile card claims nothing the store has not told it');
 
 const profileCode = stripComments(profileSrc);
+/**
+ * The card may say "Renews" now, but only when the store has said it will.
+ *
+ * expirationDate comes back whether or not auto-renew is on, so the old card
+ * told somebody who had cancelled the day before that their subscription
+ * renewed on the very date it ran out. willRenew is the field that separates
+ * those, and it is READ ONLY: the gate in app/_layout.tsx consults
+ * hasActiveSubscription and nothing else, which the last check in this block
+ * exists to keep true.
+ */
+const { subscriptionDateLabel } = await import('../lib/subscription-period.ts');
 check(
-  'it does not say a subscription renews',
-  // The bare word, anywhere in the code of this screen. Matching only the
-  // template form let a mutation put 'Renews' back as a plain ternary arm and
-  // sail through, which is the whole failure mode this is here to stop.
-  !/\bRenews\b/.test(profileCode),
-  'expirationDate is returned whether or not auto-renew is on, so somebody who cancelled yesterday was told their subscription renews on the day it ends. Saying which needs willRenew off the entitlement, which means editing the RevenueCat file'
+  'a cancelled subscription is said to END, not to renew',
+  subscriptionDateLabel(false, false) === 'Ends',
+  'this is the case that was wrong: the date is when access stops'
+);
+check(
+  'a renewing subscription is still said to renew',
+  subscriptionDateLabel(false, true) === 'Renews',
+  ''
+);
+check(
+  'a trial that will convert names the charge, not an expiry',
+  subscriptionDateLabel(true, true) === 'First charge',
+  'a trial about to start billing does not "expire", and that is the date worth knowing'
+);
+check(
+  'a trial that will not convert says so',
+  subscriptionDateLabel(true, false) === 'Free trial ends',
+  ''
+);
+check(
+  'the card gets the wording from that one function',
+  /subscriptionDateLabel\(isOnTrial, willRenew\)/.test(profileCode),
+  'a second copy of these four cases is a second copy to get wrong'
+);
+
+const authSrc = read('lib/auth-context.tsx');
+check(
+  'willRenew is read off the entitlement and defaults to false',
+  /const willRenew = entitlement\?\.willRenew \?\? false;/.test(authSrc),
+  'an unknown answer has to produce the cautious wording, not a promise to bill again'
+);
+check(
+  'and the gate still reads nothing but isActive',
+  !/willRenew/.test(read('app/_layout.tsx')),
+  'this field is for display. The moment it reaches the gate it is deciding who gets in, which is a different change entirely'
 );
 check(
   'it does not count down days from a rounded-up gap',

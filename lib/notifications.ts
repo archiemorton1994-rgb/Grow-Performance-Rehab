@@ -37,7 +37,9 @@ export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
-      title: 'Grow - Time to Train',
+      // No dash. The app name is already the label on the notification on both
+      // platforms, so repeating it only made room for the tic.
+      title: 'Time to train',
       body,
       data: { screen: 'train', url: 'growperformance:///(tabs)' },
       sound: true,
@@ -114,8 +116,12 @@ const NUDGE_RUNGS: { id: string; hours: number; title: string; body: string }[] 
   {
     id: 'grow-missed-workout-3d',
     hours: 24 * 3,
-    title: 'Your session is still here',
-    body: 'Three days off changes nothing. Pick up exactly where you left it.',
+    // NOT "your session is still here". A saved in-progress session is
+    // discarded on the first launch after 24 hours (app/_layout.tsx), so by the
+    // time this rung fires at 72 the session it promised has been gone for two
+    // days. What IS still true is that the next one is already built.
+    title: 'Three days is nothing',
+    body: 'Your next session is built and waiting whenever you are ready.',
   },
   {
     id: 'grow-missed-workout-7d',
@@ -127,7 +133,11 @@ const NUDGE_RUNGS: { id: string; hours: number; title: string; body: string }[] 
     id: 'grow-missed-workout-14d',
     hours: 24 * 14,
     title: 'Still here when you are',
-    body: 'Your history, your weights and your programme are exactly as you left them. One session is all it takes to start reading your numbers again.',
+    // The first sentence is true whatever has happened to the subscription:
+    // nothing is deleted when an entitlement lapses. "One session is all it
+    // takes" was not, because somebody whose subscription has run out meets the
+    // paywall before they meet a session. Promise the data, not the training.
+    body: 'Nothing has been lost. Your history, your weights and your programme are exactly as you left them.',
   },
 ];
 

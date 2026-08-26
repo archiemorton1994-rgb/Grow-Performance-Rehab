@@ -110,6 +110,57 @@ check(
   'the reason people do not come back after a fortnight is not knowing what it costs them, and the app already handles it - see getLayoff'
 );
 
+/**
+ * NO RUNG MAY PROMISE A SAVED SESSION IT KNOWS HAS BEEN DELETED.
+ *
+ * A half-finished session is discarded on the first launch after 24 hours, in
+ * app/_layout.tsx. The 72-hour rung read "Your session is still here / Three
+ * days off changes nothing. Pick up exactly where you left it." By the time it
+ * fired, the session it named had been gone for two days, and tapping the
+ * notification opened an app with nothing to resume.
+ *
+ * The window is read off the layout rather than written here, so moving the
+ * discard rule re-opens the question instead of quietly making more rungs lie.
+ */
+const layout = read('app/_layout.tsx');
+const discardHours = Number(
+  /age > (\d+) \* 60 \* 60 \* 1000/.exec(stripComments(layout))?.[1] ?? NaN
+);
+check(
+  `the saved-session discard window was found (${discardHours} hours)`,
+  Number.isFinite(discardHours) && discardHours > 0,
+  'without it the rule below proves nothing'
+);
+
+const RESUME_CLAIM = /session is still here|pick (?:it )?up (?:exactly )?where you left|resume your session|session is waiting/i;
+const rungBlocks = [
+  ...notificationsCode.matchAll(
+    /hours:\s*([0-9*\s]+),\s*title:\s*(?:'([^']*)'|"([^"]*)"),\s*body:\s*(?:'([^']*)'|"([^"]*)")/g
+  ),
+].map((m) => ({
+  // eslint-disable-next-line no-eval
+  hours: Function('return ' + m[1])(),
+  copy: (m[2] ?? m[3] ?? '') + ' ' + (m[4] ?? m[5] ?? ''),
+}));
+check(
+  `every rung's copy was read (${rungBlocks.length})`,
+  rungBlocks.length >= 3,
+  'the rung shape has changed and this rule has gone blind'
+);
+const liars = rungBlocks.filter((r) => r.hours > discardHours && RESUME_CLAIM.test(r.copy));
+check(
+  'no rung that fires after the discard window promises a saved session',
+  liars.length === 0,
+  liars
+    .map((r) => `${r.hours}h: "${r.copy}"`)
+    .join(' | ') + ` - the session is deleted after ${discardHours} hours`
+);
+check(
+  'the first rung, which fires inside the window, may still say it',
+  rungBlocks.some((r) => r.hours <= discardHours),
+  'if no rung fires inside the window the ladder has lost its earliest and most useful step'
+);
+
 console.log('\n[2] The clinical notes reach the person they were written for');
 
 check(

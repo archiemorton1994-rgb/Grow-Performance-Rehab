@@ -114,6 +114,62 @@ check(
   'otherwise Home offers to resume a session from the history that was just deleted'
 );
 
+/**
+ * THE RULE THAT WOULD HAVE CAUGHT THE LAST OMISSION.
+ *
+ * resetProgress clears a field precisely because that field decides a future
+ * prescription. Every one of those is therefore also a field a new phone has to
+ * get back, or signing in on a new handset silently performs half a reset.
+ *
+ * exerciseRepTarget and exerciseRepNote were exactly that: the rep targets the
+ * app earns for you through double progression, cleared by the reset, and the
+ * only part of progression that never left the phone. The weights restored and
+ * the rep targets quietly went back to the catalogue default, undoing weeks of
+ * progress with no message, while the privacy policy promised the opposite.
+ *
+ * The exclusions are deliberate and each has a reason, which is the point of
+ * listing them here rather than not having the rule.
+ */
+const NOT_SYNCED = {
+  activeSession: 'a half-finished session belongs to the handset it was started on',
+  completedCount: 'derived from completedSessions, which is synced',
+  newlyUnlockedBadges: 'a queue of pop-ups still to show, not a fact about the user',
+  resetPendingUpload: 'a flag about THIS device\'s upload state',
+  calibrationBannerDismissed: 'a dismissal on this device',
+  exerciseRepNote: 'travels with exerciseRepTarget; see the check below',
+};
+const syncBody = store.slice(
+  store.indexOf('getDataForSync: () => {'),
+  store.indexOf('getInternalTier:') > store.indexOf('getDataForSync: () => {')
+    ? store.indexOf('}, ', store.indexOf('getDataForSync: () => {'))
+    : store.length
+);
+const clearedFields = [...new Set([...resetBody.matchAll(/^\s{10}([a-zA-Z]+):/gm)].map((m) => m[1]))];
+check(
+  `the reset clears ${clearedFields.length} fields and the test can see them`,
+  clearedFields.length >= 8,
+  'the reset body has moved and this rule has gone blind'
+);
+const unsynced = clearedFields.filter(
+  (f) => !NOT_SYNCED[f] && !new RegExp(`\\b${f}: s\\.${f}`).test(syncBody)
+);
+check(
+  'every field the reset clears is also a field a new phone gets back',
+  unsynced.length === 0,
+  `missing from getDataForSync: ${unsynced.join(', ')} - a new phone would restore the rest and silently reset these`
+);
+check(
+  'the learned rep targets are among them',
+  /exerciseRepTarget: s\.exerciseRepTarget/.test(syncBody) &&
+    /exerciseRepNote: s\.exerciseRepNote/.test(syncBody),
+  'these were the only part of progression that never left the phone'
+);
+check(
+  'and an older payload without them leaves the device alone',
+  /exerciseRepTarget: \(data\.exerciseRepTarget as any\) \?\? s\.exerciseRepTarget/.test(store),
+  'an absent field must not wipe what is already here'
+);
+
 console.log('\n[1b] A reset survives a failed upload');
 
 check(

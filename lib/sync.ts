@@ -23,6 +23,11 @@ export interface SyncPayload {
   lastSessionPerformance: Record<string, string>;
   exerciseNormalStreak: Record<string, number>;
   exerciseStuckStreak: Record<string, number>;
+  /** Optional for the same reason the fields below are: a payload written by an
+   *  older build will not carry them, and an absent field must leave whatever is
+   *  on the device alone rather than wiping it. */
+  exerciseRepTarget?: Record<string, string>;
+  exerciseRepNote?: Record<string, string>;
   savedTemplates: any[];
   /**
    * Weigh-ins, the streak goal, and the badge wall.

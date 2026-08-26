@@ -25,6 +25,19 @@ interface SubscriptionStatus {
   isActive: boolean;
   isOnTrial: boolean;
   expiryDate: string | null;
+  /**
+   * Is the subscription set to bill again at expiryDate, or does it simply end
+   * there?
+   *
+   * expirationDate is returned by the store either way, so the profile card
+   * printed "Renews 4 Sep" at somebody who had cancelled the day before, on the
+   * very date their access runs out. This is the one bit of information that
+   * tells those two apart.
+   *
+   * Display only. The gate reads isActive and nothing else, and this field is
+   * never consulted anywhere near it.
+   */
+  willRenew: boolean;
 }
 
 interface AuthContextValue {
@@ -34,6 +47,7 @@ interface AuthContextValue {
   hasActiveSubscription: boolean;
   isOnTrial: boolean;
   expiryDate: string | null;
+  willRenew: boolean;
   hasSignedOut: boolean;
   requestCode: (email: string) => Promise<{ devCode?: string }>;
   verifyCode: (email: string, code: string) => Promise<void>;
@@ -50,6 +64,7 @@ const AuthContext = createContext<AuthContextValue>({
   hasActiveSubscription: false,
   isOnTrial: false,
   expiryDate: null,
+  willRenew: false,
   hasSignedOut: false,
   requestCode: async () => ({}),
   verifyCode: async () => {},
@@ -169,10 +184,10 @@ type SubscriptionCheckResult = SubscriptionStatus & { checkFailed?: boolean };
 async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
   if (RC_DEV_BYPASS) {
     if (__DEV__) console.warn('[Auth] RC_DEV_BYPASS active - subscription gate skipped');
-    return { isActive: true, isOnTrial: true, expiryDate: null };
+    return { isActive: true, isOnTrial: true, expiryDate: null, willRenew: false };
   }
   if (!RC_API_KEY) {
-    return { isActive: false, isOnTrial: false, expiryDate: null };
+    return { isActive: false, isOnTrial: false, expiryDate: null, willRenew: false };
   }
   try {
     const info = await Purchases.getCustomerInfo();
@@ -180,11 +195,20 @@ async function getSubscriptionStatus(): Promise<SubscriptionCheckResult> {
     const entitlement = info.entitlements.active['premium'];
     const onTrial = active && entitlement?.periodType === 'TRIAL';
     const expiryDate = entitlement?.expirationDate ?? null;
-    return { isActive: active, isOnTrial: onTrial, expiryDate };
+    // Defaults to false when the entitlement is missing, so an unknown answer
+    // produces the cautious wording rather than a promise to bill again.
+    const willRenew = entitlement?.willRenew ?? false;
+    return { isActive: active, isOnTrial: onTrial, expiryDate, willRenew };
   } catch (e) {
     if (__DEV__)
       console.warn('[Auth] getCustomerInfo failed - keeping existing subscription state', e);
-    return { isActive: false, isOnTrial: false, expiryDate: null, checkFailed: true };
+    return {
+      isActive: false,
+      isOnTrial: false,
+      expiryDate: null,
+      willRenew: false,
+      checkFailed: true,
+    };
   }
 }
 
@@ -194,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [isOnTrial, setIsOnTrial] = useState(false);
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
+  const [willRenew, setWillRenew] = useState(false);
   const [hasSignedOut, setHasSignedOut] = useState(false);
   const appStateRef = useRef(AppState.currentState);
 
@@ -203,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasActiveSubscription(status.isActive);
     setIsOnTrial(status.isOnTrial);
     setExpiryDate(status.expiryDate);
+    setWillRenew(status.willRenew);
   }, []);
 
   useEffect(() => {
@@ -446,6 +472,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasActiveSubscription,
         isOnTrial,
         expiryDate,
+        willRenew,
         hasSignedOut,
         requestCode,
         verifyCode,
@@ -465,12 +492,13 @@ export function useAuth() {
 }
 
 export function useSubscription(): SubscriptionStatus & { refresh: () => Promise<void> } {
-  const { hasActiveSubscription, isOnTrial, expiryDate, refreshSubscription } =
+  const { hasActiveSubscription, isOnTrial, expiryDate, willRenew, refreshSubscription } =
     useContext(AuthContext);
   return {
     isActive: hasActiveSubscription,
     isOnTrial,
     expiryDate,
+    willRenew,
     refresh: refreshSubscription,
   };
 }

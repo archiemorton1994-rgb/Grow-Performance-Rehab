@@ -58,6 +58,7 @@ import {
 } from '@/lib/notifications';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { useAuth, useSubscription } from '@/lib/auth-context';
+import { subscriptionDateLabel } from '@/lib/subscription-period';
 import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/lib/utils';
 import { router } from 'expo-router';
@@ -410,7 +411,7 @@ export default function ProfileScreen() {
   } = useAppStore();
 
   const { user, signOut, deleteAccount } = useAuth();
-  const { isActive: hasActiveSubscription, isOnTrial, expiryDate } = useSubscription();
+  const { isActive: hasActiveSubscription, isOnTrial, expiryDate, willRenew } = useSubscription();
 
   const effectiveTier = storeGetEffectiveTier();
   const streak = getStreakDays();
@@ -635,10 +636,20 @@ export default function ProfileScreen() {
       signOut();
       return;
     }
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut },
-    ]);
+    // The paywall's own sign-out has warned about this for a while; this one
+    // did not. signOut tries a single upload capped at five seconds and then
+    // clears the entire persisted store and reloads. Everything on the phone
+    // goes: sessions, one-rep maxes, badges, weigh-ins, the learned weights.
+    // That is deliberate, because two people sharing a handset must not share
+    // an account, and it is not something to discover afterwards.
+    Alert.alert(
+      'Sign out?',
+      'Anything not yet synced to this account will be cleared from this phone. Sign back in with the same email to get it back.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: signOut },
+      ]
+    );
   };
 
   const handleSendFeedback = () => {
@@ -1099,7 +1110,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Text style={styles.infoCardSub}>
                   {expiryDate
-                    ? `${isOnTrial ? 'Free trial ends' : 'Active until'} ${new Date(
+                    ? `${subscriptionDateLabel(isOnTrial, willRenew)} ${new Date(
                         expiryDate
                       ).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
                     : 'Tap to manage'}

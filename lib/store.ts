@@ -1691,6 +1691,20 @@ export const useAppStore = create<AppState>()(
           lastSessionPerformance: s.lastSessionPerformance,
           exerciseNormalStreak: s.exerciseNormalStreak,
           exerciseStuckStreak: s.exerciseStuckStreak,
+          /**
+           * The rep targets the app has earned for you, and the note explaining
+           * the last change.
+           *
+           * These were the only part of progression that never left the phone.
+           * Everything around them syncs - the weights, the streaks, the
+           * performance ratings - so a new phone restored your loads and then
+           * quietly reset every rep target to the catalogue default, undoing
+           * weeks of double progression without saying anything. The privacy
+           * policy meanwhile promised your progress carries over across
+           * devices.
+           */
+          exerciseRepTarget: s.exerciseRepTarget,
+          exerciseRepNote: s.exerciseRepNote,
           savedTemplates: s.savedTemplates,
           bodyweightLog: s.bodyweightLog,
           bodyweightUpdatedAt: s.bodyweightUpdatedAt,
@@ -1841,6 +1855,8 @@ export const useAppStore = create<AppState>()(
               (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
             exerciseNormalStreak: data.exerciseNormalStreak ?? s.exerciseNormalStreak,
             exerciseStuckStreak: data.exerciseStuckStreak ?? s.exerciseStuckStreak,
+            exerciseRepTarget: (data.exerciseRepTarget as any) ?? s.exerciseRepTarget,
+            exerciseRepNote: (data.exerciseRepNote as any) ?? s.exerciseRepNote,
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
             weeklyStreakGoal: data.weeklyStreakGoal ?? s.weeklyStreakGoal,
             earnedBadges: data.earnedBadges ?? s.earnedBadges,

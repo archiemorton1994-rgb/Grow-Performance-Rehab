@@ -56,3 +56,17 @@ export function periodWordsFor(pkg: PurchasesPackage | null | undefined): Period
   const byType = BY_TYPE[String(pkg.packageType)];
   return byType ?? UNKNOWN;
 }
+
+/**
+ * What the date on the subscription card actually means.
+ *
+ * expirationDate comes back from the store whether or not auto-renew is still
+ * on, so the card used to print "Renews 4 Sep" at somebody who had cancelled
+ * the day before, on the very date their access runs out. willRenew is the one
+ * field that tells those apart, and it defaults to false, so an unknown answer
+ * gives the cautious wording rather than a promise to bill again.
+ */
+export function subscriptionDateLabel(isOnTrial: boolean, willRenew: boolean): string {
+  if (isOnTrial) return willRenew ? 'First charge' : 'Free trial ends';
+  return willRenew ? 'Renews' : 'Ends';
+}
