@@ -214,5 +214,76 @@ check(
   'a snapshot with nothing logged in it is not worth a banner'
 );
 
+console.log('\n[?] A day off does not throw the session away');
+
+/**
+ * IT USED TO DELETE AFTER TWENTY-FOUR HOURS, SILENTLY.
+ *
+ * Start on Saturday morning, get interrupted, open the app on Sunday: the sets
+ * were gone, with no warning and no notice. Home has always offered both
+ * answers on that card, Resume and an X to start fresh, so the choice existed.
+ * The automatic delete was taking it away before the user ever saw it.
+ *
+ * A week rather than forever, because the load maths backs weights off after a
+ * layoff and resuming a fortnight-old session would train against numbers the
+ * app has since moved past. Long enough that ordinary life does not cost you a
+ * session; short enough that nothing ancient is offered.
+ */
+const layoutSrc = readFileSync(new URL('../app/_layout.tsx', import.meta.url), 'utf8');
+const homeSrc = readFileSync(new URL('../app/(tabs)/index.tsx', import.meta.url), 'utf8');
+const windowMs = (() => {
+  const m = /ACTIVE_SESSION_MAX_AGE_MS = ([0-9 *]+);/.exec(layoutSrc);
+  // eslint-disable-next-line no-new-func
+  return m ? Function('return (' + m[1] + ');')() : NaN;
+})();
+const windowDays = windowMs / 86400000;
+
+check(
+  `the discard window is a named constant (${windowDays} days)`,
+  Number.isFinite(windowMs),
+  'a bare literal here is a rule nothing can read, and the notification ladder needs to ask what it is'
+);
+check(
+  'a session survives at least a couple of days',
+  windowDays >= 2,
+  'at one day, anyone who trains in the morning and reopens the app the next day loses their sets'
+);
+check(
+  'but not indefinitely',
+  windowDays <= 30,
+  'the weights in a month-old session are not the weights the app would give you today'
+);
+check(
+  'and the discard is still automatic past that point',
+  /age > ACTIVE_SESSION_MAX_AGE_MS/.test(layoutSrc),
+  'without it a stale session sits on Home for ever'
+);
+
+check(
+  'Home offers both answers, not just Resume',
+  /testID="resume-session"/.test(homeSrc) && /testID="discard-active-session"/.test(homeSrc),
+  'this is the choice the automatic delete was making on the user\'s behalf'
+);
+check(
+  'the card says how old the session is',
+  /activeSessionAge/.test(homeSrc),
+  '"12/24 sets" from this morning and the same from last Tuesday are different decisions'
+);
+check(
+  'and it says nothing for one saved today',
+  /if \(days <= 0\) return '';/.test(homeSrc),
+  '"today" beside a Resume button is noise'
+);
+check(
+  'starting fresh says what is actually lost',
+  /Start fresh\?/.test(homeSrc) && /will be lost/.test(homeSrc),
+  'and that it is only the in-progress sets, not the history'
+);
+check(
+  'it does not claim the history goes with it',
+  /history and your weights are not affected/.test(homeSrc),
+  'the word "lost" beside a training app needs bounding, or nobody taps it'
+);
+
 console.log(`\nsession-resume-fidelity: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

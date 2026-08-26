@@ -45,6 +45,7 @@ import {
   isNotificationsSupported,
   requestNotificationPermission,
   scheduleWorkoutReminder,
+  reminderAudienceFor,
   cancelWorkoutReminder,
   formatReminderTime,
   REMINDER_TIME_OPTIONS,
@@ -723,7 +724,7 @@ export default function ProfileScreen() {
         return;
       }
       setReminderEnabled(true);
-      await scheduleWorkoutReminder(reminderTime);
+      await scheduleWorkoutReminder(reminderTime, reminderAudience);
       if (Platform.OS !== 'web')
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -733,10 +734,15 @@ export default function ProfileScreen() {
     }
   };
 
+  // Through the shared helper, so turning reminders on here and the app
+  // re-scheduling them on launch cannot pick two different messages.
+  const hasEverSubscribed = useAppStore((st) => st.hasEverSubscribed);
+  const reminderAudience = reminderAudienceFor(hasActiveSubscription, hasEverSubscribed);
+
   const handleReminderTimeChange = async (time: string) => {
     setReminderTime(time);
     if (reminderEnabled) {
-      await scheduleWorkoutReminder(time);
+      await scheduleWorkoutReminder(time, reminderAudience);
     }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };

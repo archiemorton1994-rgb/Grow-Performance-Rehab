@@ -263,7 +263,14 @@ export default function SubscriptionScreen() {
 
   const handleRestore = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!RC_API_KEY) return;
+    if (!RC_API_KEY) {
+      if (!__DEV__) {
+        setErrorMsg(
+          'This copy of the app cannot reach the App Store, so there is nothing to restore from.'
+        );
+      }
+      return;
+    }
     setErrorMsg('');
     setRestoring(true);
     try {
@@ -307,6 +314,26 @@ export default function SubscriptionScreen() {
   // stops mentioning one, the same way it stops mentioning a price it does
   // not have.
   const period = periodWordsFor(offering);
+  /**
+   * THIS BUILD CANNOT REACH THE STORE AT ALL.
+   *
+   * Not "the fetch failed" - there was never a fetch. Without the RevenueCat
+   * key, configureRevenueCat returns early, getOfferings is never called, and
+   * getSubscriptionStatus reports isActive false, which puts every user on this
+   * screen and keeps them here.
+   *
+   * That part is correct: failing closed is the right way round for a paywall.
+   * What was not correct is that the screen gave no sign of it. There was no
+   * price and no error (offeringError only goes true when a real fetch throws),
+   * the Subscribe button stayed fully enabled because its disable rule began
+   * with !!RC_API_KEY, and pressing it did nothing at all. Restore returned on
+   * its first line, silently. Every user, one screen, a live-looking button
+   * that does nothing, no message, no way in and no clue why.
+   *
+   * That is one mis-wired EAS secret away in any release build, and it would
+   * be invisible until it was everybody. So the screen now says so.
+   */
+  const storeUnavailable = !RC_API_KEY && !__DEV__;
 
   return (
     // Scrollable rather than a fixed flex column. The auto-renew notice and the
@@ -373,7 +400,11 @@ export default function SubscriptionScreen() {
             <Text style={styles.planName}>
               {period.planWord ? `Grow ${period.planWord}` : 'Grow'}
             </Text>
-            {loadingOffering ? (
+            {storeUnavailable ? (
+              <Text style={styles.priceUnavail} testID="store-unavailable">
+                Store unavailable
+              </Text>
+            ) : loadingOffering ? (
               <ActivityIndicator size="small" color={C.primaryText} style={{ marginTop: 4 }} />
             ) : offeringError ? (
               <View style={styles.retryRow}>
@@ -404,7 +435,9 @@ export default function SubscriptionScreen() {
             With no price it now says nothing about money at all, and the CTA
             above is disabled with a Retry offered. */}
         <Text style={styles.planSub}>
-          {priceString
+          {storeUnavailable
+            ? 'This copy of the app cannot reach the App Store, so it cannot show a price or take a payment. Please contact us and we will sort it out.'
+            : priceString
             ? `${trialText.sub ? `${trialText.sub} ` : ''}${priceString}${period.per ? `/${period.per}` : ''}. Cancel anytime.`
             : 'Cancel anytime.'}
         </Text>
@@ -435,10 +468,11 @@ export default function SubscriptionScreen() {
           part that reads as a broken app to a reviewer. */}
       <Pressable
         onPress={handlePurchase}
-        disabled={purchasing || (!!RC_API_KEY && !__DEV__ && (loadingOffering || !offering))}
+        disabled={purchasing || storeUnavailable || (!!RC_API_KEY && !__DEV__ && (loadingOffering || !offering))}
         style={({ pressed }) => [
           styles.ctaBtn,
           purchasing && styles.ctaBtnLoading,
+          storeUnavailable && styles.ctaBtnLoading,
           !!RC_API_KEY && !__DEV__ && !purchasing && (loadingOffering || !offering) &&
             styles.ctaBtnLoading,
           pressed && styles.ctaBtnPressed,

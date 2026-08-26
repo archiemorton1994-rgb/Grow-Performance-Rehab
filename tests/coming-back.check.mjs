@@ -123,9 +123,15 @@ check(
  * discard rule re-opens the question instead of quietly making more rungs lie.
  */
 const layout = read('app/_layout.tsx');
-const discardHours = Number(
-  /age > (\d+) \* 60 \* 60 \* 1000/.exec(stripComments(layout))?.[1] ?? NaN
-);
+// Read off the NAMED constant, which is what the window is now. The first
+// version of this matched the inline arithmetic and went blind the moment the
+// number was given a name, which it caught itself.
+const discardHours = (() => {
+  const m = /ACTIVE_SESSION_MAX_AGE_MS = ([0-9 *]+);/.exec(stripComments(layout));
+  if (!m) return NaN;
+  // eslint-disable-next-line no-new-func
+  return Function('return (' + m[1] + ') / (60 * 60 * 1000);')();
+})();
 check(
   `the saved-session discard window was found (${discardHours} hours)`,
   Number.isFinite(discardHours) && discardHours > 0,
@@ -159,6 +165,109 @@ check(
   'the first rung, which fires inside the window, may still say it',
   rungBlocks.some((r) => r.hours <= discardHours),
   'if no rung fires inside the window the ladder has lost its earliest and most useful step'
+);
+
+console.log('\n[1c] The daily reminder knows who it is talking to');
+
+/**
+ * "Your session is ready. Let's go." fired every day for everybody with
+ * reminders on, including people the gate sends straight to the paywall. They
+ * tap it, meet a paywall, and learn to ignore the app's notifications, which is
+ * worse than not sending it.
+ *
+ * Three audiences now, and the rule that matters most is what they may NOT say.
+ * Apple grants an introductory offer once per Apple ID rather than once per Grow
+ * account, and nothing has asked the store anything at the moment a
+ * notification is scheduled. A daily notification promising fourteen free days
+ * to somebody Apple will charge immediately is the celebration-screen mistake
+ * on a repeating timer.
+ *
+ * reminderAudienceFor is LIFTED OUT AND RUN rather than regexed, because what
+ * matters is the mapping, not the wording of the if.
+ */
+const audienceFn = (() => {
+  const at = notificationsCode.indexOf('export function reminderAudienceFor(');
+  if (at === -1) return null;
+  const open = notificationsCode.indexOf('{', notificationsCode.indexOf(')', at));
+  let depth = 0;
+  for (let i = open; i < notificationsCode.length; i++) {
+    if (notificationsCode[i] === '{') depth++;
+    else if (notificationsCode[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        const body = notificationsCode.slice(open + 1, i);
+        return Function('hasActiveSubscription', 'hasEverSubscribed', body);
+      }
+    }
+  }
+  return null;
+})();
+check(
+  'reminderAudienceFor could be read off the source and run',
+  audienceFn != null,
+  'the three checks below prove nothing without it'
+);
+check(
+  'a subscriber gets the training reminder',
+  audienceFn?.(true, true) === 'training' && audienceFn?.(true, false) === 'training',
+  'somebody who is paying should be reminded to train, not sold to'
+);
+check(
+  'somebody who has never subscribed is not told they lapsed',
+  audienceFn?.(false, false) === 'never-subscribed',
+  ''
+);
+check(
+  'and somebody who had it and lost it is not treated as new',
+  audienceFn?.(false, true) === 'lapsed',
+  'the two need different words: one has nothing yet, the other has everything and cannot reach it'
+);
+
+const audienceCopy = notifications.slice(
+  notifications.indexOf('const AUDIENCE_COPY'),
+  notifications.indexOf('export function reminderAudienceFor')
+);
+const audienceStrings = [...audienceCopy.matchAll(/'([^'\n]{10,})'/g)].map((m) => m[1]);
+check(
+  `both audiences have their own copy (${audienceStrings.length} lines)`,
+  audienceStrings.length >= 6,
+  'the block has moved and the rules below have gone blind'
+);
+check(
+  'no reminder promises a free trial, or a number of free days',
+  !audienceStrings.some((v) => /free trial|days free|\d+ days on us|trial/i.test(v)),
+  'eligibility is per Apple ID and nothing has asked the store at the moment this is scheduled. The paywall asks, and the paywall is the only screen allowed to name an offer'
+);
+check(
+  'nor a price',
+  !audienceStrings.some((v) => /[£$€]\s?\d/.test(v)),
+  'the same rule the rest of the app now follows'
+);
+check(
+  'no spaced hyphen doing a dash job',
+  !audienceStrings.some((v) => / - |—|–/.test(v)),
+  ''
+);
+check(
+  'both callers choose an audience rather than taking the default',
+  /scheduleWorkoutReminder\(\s*reminderTime,\s*reminderAudienceFor\(/.test(
+    stripComments(read('app/_layout.tsx'))
+  ) && /scheduleWorkoutReminder\(reminderTime, reminderAudience\)/.test(
+    stripComments(read('app/(tabs)/profile.tsx'))
+  ),
+  'a caller that forgets falls back to the training wording, which is the bug'
+);
+check(
+  'and both get it from the same helper',
+  /reminderAudienceFor\(hasActiveSubscription, hasEverSubscribed\)/.test(
+    read('app/(tabs)/profile.tsx')
+  ),
+  'two copies of this mapping is two chances to disagree about who somebody is'
+);
+check(
+  'the flag that separates them decides no access',
+  !/hasEverSubscribed/.test(stripComments(read('lib/auth-context.tsx'))),
+  'it exists to pick a message. The moment it reaches the gate it is deciding who gets in'
 );
 
 console.log('\n[2] The clinical notes reach the person they were written for');

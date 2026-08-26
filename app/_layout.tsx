@@ -20,6 +20,7 @@ import { useAppStore } from '@/lib/store';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import {
   scheduleWorkoutReminder,
+  reminderAudienceFor,
   scheduleMissedWorkoutNudge,
   scheduleStreakProtectionAlert,
   cancelStreakProtectionAlert,
@@ -316,23 +317,65 @@ function RootLayoutNav() {
   const activeSession = useAppStore((s) => s.activeSession);
   const clearActiveSession = useAppStore((s) => s.clearActiveSession);
 
+  /**
+   * A half-finished session is kept for a WEEK, not a day.
+   *
+   * At 24 hours this deleted, with no warning and no notice, the sets of anyone
+   * who started on Saturday morning, got interrupted, and opened the app on
+   * Sunday. They came back to nothing and no explanation. Home already offers
+   * both answers on that card - Resume, and an X to start fresh - so the
+   * choice existed; the automatic delete was taking it away before the user
+   * ever saw it.
+   *
+   * A week rather than forever, because after that the prescription genuinely
+   * is stale, and the load maths already backs the weights off after a layoff
+   * (see getLayoff), so resuming a fortnight-old session would train against
+   * numbers the app has since moved on from. Seven days is long enough that
+   * nobody loses a session to ordinary life, and short enough that nothing
+   * ancient is offered.
+   *
+   * tests/session-resume-fidelity.check.mjs pins this window and the card that
+   * shows its age.
+   */
   useEffect(() => {
     if (!hasHydrated) return;
     if (activeSession?.savedAt) {
       const age = Date.now() - new Date(activeSession.savedAt).getTime();
-      if (age > 24 * 60 * 60 * 1000) {
+      if (age > ACTIVE_SESSION_MAX_AGE_MS) {
         clearActiveSession();
       }
     }
   }, [hasHydrated, activeSession, clearActiveSession]);
 
+  /**
+   * The daily reminder now says something different to somebody who cannot open
+   * a session.
+   *
+   * "Your session is ready. Let's go." fired every day for everybody with
+   * reminders on, including people the gate sends straight to the paywall. They
+   * tap it, hit a paywall, and learn to ignore the app's notifications, which
+   * is a worse outcome than not sending it.
+   *
+   * Same alarm, same time they chose, different words. Re-scheduled when the
+   * subscription state changes, or the message would be whatever it was on the
+   * day it was set.
+   */
+  const hasEverSubscribed = useAppStore((s) => s.hasEverSubscribed);
+  const markHasSubscribed = useAppStore((s) => s.markHasSubscribed);
+  useEffect(() => {
+    if (hasActiveSubscription) markHasSubscribed();
+  }, [hasActiveSubscription, markHasSubscribed]);
+
   useEffect(() => {
     if (!hasHydrated || Platform.OS === 'web') return;
     if (reminderEnabled) {
-      scheduleWorkoutReminder(reminderTime).catch(() => {});
+      scheduleWorkoutReminder(
+        reminderTime,
+        reminderAudienceFor(hasActiveSubscription, hasEverSubscribed)
+      ).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasHydrated]);
+  }, [hasHydrated, hasActiveSubscription, hasEverSubscribed]);
 
   const nudgeEnabled = useAppStore((s) => s.nudgeEnabled);
   const streakProtectionEnabled = useAppStore((s) => s.streakProtectionEnabled);
@@ -448,6 +491,15 @@ function RootLayoutNav() {
   );
 }
 
+/**
+ * How long a half-finished session survives before the app throws it away.
+ *
+ * Was 24 hours, which deleted the sets of anyone who started on Saturday and
+ * opened the app on Sunday. Named and exported so the contract test pins the
+ * window rather than a magic number, and so the notification ladder can ask
+ * whether a rung fires after it.
+ */
+export const ACTIVE_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,

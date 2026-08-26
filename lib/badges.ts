@@ -1499,7 +1499,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
   {
     id: 'exercise_full_spectrum',
     name: 'Full Spectrum',
-    description: 'Train 7 of the session types the app offers',
+    description: 'Complete at least 3 sessions of every type',
     category: 'variety',
     criteriaType: 'variety',
     icon: 'star-outline',

@@ -540,6 +540,15 @@ interface AppState {
   coachSeen: Record<string, number>;
   /** Whether the daily workout reminder is enabled. */
   reminderEnabled: boolean;
+  /**
+   * Has this person ever had an active subscription on this device?
+   *
+   * Set once, never cleared except by a full reset, and used for one thing: to
+   * tell "has not started yet" from "had it and lost it" so the daily reminder
+   * can say the right of two honest things. It decides no access whatsoever;
+   * the gate reads hasActiveSubscription from RevenueCat and nothing else.
+   */
+  hasEverSubscribed: boolean;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
   reminderTime: string;
   /** Whether the "missed workout" nudge notification is enabled. */
@@ -655,6 +664,8 @@ interface AppState {
    *  See lib/training-balance.ts for what it will and will not say. */
   getTrainingBalanceNudge: (now: number) => BalanceNudge | null;
   setReminderEnabled: (enabled: boolean) => void;
+  /** Sets hasEverSubscribed once. See the field for why it exists. */
+  markHasSubscribed: () => void;
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
@@ -811,6 +822,7 @@ export const useAppStore = create<AppState>()(
       coachDismissedAt: {},
       coachSeen: {},
       reminderEnabled: false,
+      hasEverSubscribed: false,
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
@@ -944,6 +956,9 @@ export const useAppStore = create<AppState>()(
         });
       },
       setReminderEnabled: (enabled) => set({ reminderEnabled: enabled }),
+      markHasSubscribed: () => {
+        if (!get().hasEverSubscribed) set({ hasEverSubscribed: true });
+      },
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
@@ -2004,6 +2019,12 @@ export const useAppStore = create<AppState>()(
         }
         if (!('reviewPromptShown' in persistedState)) {
           persistedState.reviewPromptShown = false;
+        }
+        if (!('hasEverSubscribed' in persistedState)) {
+          // Somebody upgrading who is subscribed right now gets it set on the
+          // next launch by the effect in app/_layout.tsx, so the only people who
+          // briefly read as "never subscribed" are the ones who are not.
+          persistedState.hasEverSubscribed = false;
         }
         if (!('reminderEnabled' in persistedState)) {
           persistedState.reminderEnabled = false;

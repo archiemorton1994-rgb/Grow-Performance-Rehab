@@ -590,8 +590,28 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   // Recovery volume
   awardIf(s.recoveryCount >= 10, 'exercise_recovery_10');
   awardIf(s.recoveryCount >= 25, 'exercise_recovery_25');
-  // Full spectrum: all 7 session types attempted
-  awardIf(s.distinctTypesUsed.size >= 7, 'exercise_full_spectrum');
+  /**
+   * Full Spectrum is a STEP UP from Complete Athlete, not a copy of it.
+   *
+   * Both used to award on distinctTypesUsed.size >= 7, so they were the same
+   * rule under two names and always unlocked in the same instant, forever. A
+   * cabinet with two badges for one achievement is a cabinet that is quietly
+   * lying about how much is in it.
+   *
+   * The family now reads as a ladder, and each rung is a real step:
+   *   Complete Athlete    one session of each of the seven types
+   *   Full Spectrum       three of each
+   *   Jack of All         five of each  (goal_fitness_all)
+   *
+   * Buckets rather than raw types, like everything else here, so somebody
+   * training Lower / Upper / Full Body can earn it too.
+   */
+  awardIf(
+    ['lower', 'upper', 'full', 'conditioning', 'prehab', 'flex', 'custom'].every(
+      (t) => (bucketCounts[t] ?? 0) >= 3
+    ),
+    'exercise_full_spectrum'
+  );
   // Strength sampler: 5 of each strength type
   awardIf(
     (bucketCounts['lower'] ?? 0) >= 5 &&

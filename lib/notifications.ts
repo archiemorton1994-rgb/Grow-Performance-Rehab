@@ -23,7 +23,71 @@ const REMINDER_BODIES = [
   'Another session, another step forward.',
 ];
 
-export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
+/**
+ * WHO THE DAILY REMINDER IS FOR, AND WHY IT IS NOT ONE MESSAGE.
+ *
+ * "Your session is ready. Let's go." went to everybody who had turned reminders
+ * on, every day, including people who cannot open a session. Somebody without a
+ * subscription taps it, gets the paywall, and learns to ignore the app's
+ * notifications. That is the worst outcome of the three: the reminder still
+ * fires, and it has taught them to swipe it away.
+ *
+ * So the alarm is the same alarm, at the same time they chose, with a message
+ * that fits where they actually are.
+ *
+ * NOTE ON WHAT THESE MAY NOT SAY. Not one word about a free trial or its
+ * length. Apple grants an introductory offer once per Apple ID rather than once
+ * per Grow account, and this app has not asked the store anything at the moment
+ * a notification is scheduled. The paywall asks, and the paywall is the only
+ * screen allowed to name an offer. A notification promising fourteen free days
+ * to somebody Apple will charge immediately is the same mistake the celebration
+ * screen used to make, delivered daily.
+ */
+export type ReminderAudience = 'training' | 'never-subscribed' | 'lapsed';
+
+const AUDIENCE_COPY: Record<
+  Exclude<ReminderAudience, 'training'>,
+  { title: string; bodies: string[] }
+> = {
+  'never-subscribed': {
+    title: 'Your plan is ready',
+    bodies: [
+      'Built around the answers you gave. Open Grow to get started.',
+      'Your first session is waiting whenever you are.',
+      'Everything is set up. All that is left is to start.',
+    ],
+  },
+  lapsed: {
+    title: 'Your training is still here',
+    bodies: [
+      'Your history, your weights and your programme are exactly as you left them.',
+      'Nothing has been lost. Pick up whenever you are ready.',
+      'Everything you built is still here waiting for you.',
+    ],
+  },
+};
+
+/**
+ * Which of the three a person is, decided once so every caller agrees.
+ *
+ * "Never subscribed" and "lapsed" are told apart by hasEverSubscribed, a flag
+ * the app sets the first time it sees an active entitlement. It is not read
+ * back from the store, because the store cannot answer "did this person ever
+ * pay us" in a way we can rely on offline, and because getting it wrong here
+ * only picks the warmer of two honest messages.
+ */
+export function reminderAudienceFor(
+  hasActiveSubscription: boolean,
+  hasEverSubscribed: boolean
+): ReminderAudience {
+  if (hasActiveSubscription) return 'training';
+  return hasEverSubscribed ? 'lapsed' : 'never-subscribed';
+}
+
+export async function scheduleWorkoutReminder(
+  timeStr: string,
+  audience: ReminderAudience = 'training'
+): Promise<void> {
   if (!isNotificationsSupported()) return;
 
   await cancelWorkoutReminder();
@@ -32,16 +96,21 @@ export async function scheduleWorkoutReminder(timeStr: string): Promise<void> {
   const hour = parseInt(hourStr, 10);
   const minute = parseInt(minuteStr ?? '0', 10);
 
-  const body = REMINDER_BODIES[Math.floor(Math.random() * REMINDER_BODIES.length)];
+  const voice = audience === 'training' ? null : AUDIENCE_COPY[audience];
+  const bodies = voice ? voice.bodies : REMINDER_BODIES;
+  const body = bodies[Math.floor(Math.random() * bodies.length)];
 
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
       // No dash. The app name is already the label on the notification on both
       // platforms, so repeating it only made room for the tic.
-      title: 'Time to train',
+      title: voice ? voice.title : 'Time to train',
       body,
-      data: { screen: 'train', url: 'growperformance:///(tabs)' },
+      data: {
+        screen: audience === 'training' ? 'train' : 'subscription',
+        url: 'growperformance:///(tabs)',
+      },
       sound: true,
     },
     trigger: {

@@ -112,12 +112,78 @@ check(
   'an empty pill is worse than no pill'
 );
 
+/**
+ * The disable rule is LIFTED OUT AND RUN, rather than matched as a string.
+ *
+ * Matching the text meant the check passed for whatever the expression happened
+ * to say, and the expression said the wrong thing for over a year: it began
+ * with !!RC_API_KEY, so a build with no key at all left the button fully
+ * enabled. Every user on the paywall, pressing a live-looking button that did
+ * nothing, with no price and no error, because offeringError only goes true
+ * when a real fetch throws and without a key there is never a fetch.
+ *
+ * Running it means the three states are checked, not the wording.
+ */
+const disabledExpr = (() => {
+  const at = code.indexOf('disabled={purchasing');
+  if (at === -1) return null;
+  const open = code.indexOf('{', at);
+  let depth = 0;
+  for (let i = open; i < code.length; i++) {
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}') {
+      depth--;
+      if (depth === 0) return code.slice(open + 1, i);
+    }
+  }
+  return null;
+})();
 check(
-  'the CTA is disabled when there is nothing to buy',
-  /disabled=\{purchasing \|\| \(!!RC_API_KEY && !__DEV__ && \(loadingOffering \|\| !offering\)\)\}/.test(
-    code
-  ),
+  'the CTA disable rule could be read off the source',
+  disabledExpr != null,
+  'the button has moved and the three checks below prove nothing'
+);
+const isDisabled = (state) =>
+  Function(
+    'purchasing',
+    'storeUnavailable',
+    'RC_API_KEY',
+    '__DEV__',
+    'loadingOffering',
+    'offering',
+    'return !!(' + (disabledExpr ?? 'false') + ');'
+  )(
+    state.purchasing ?? false,
+    state.storeUnavailable ?? false,
+    state.RC_API_KEY ?? 'appl_test',
+    state.__DEV__ ?? false,
+    state.loadingOffering ?? false,
+    state.offering ?? {}
+  );
+check(
+  'it is disabled while the offering is still loading',
+  isDisabled({ loadingOffering: true, offering: null }),
   'it looked fully live with no offering loaded; pressing it only printed an error'
+);
+check(
+  'it is disabled when this build cannot reach the store at all',
+  isDisabled({ storeUnavailable: true, RC_API_KEY: '', offering: null }),
+  'without a key there is no price, no error and no purchase, so an enabled button is a lie the size of the whole app'
+);
+check(
+  'and it is live when there is something to buy',
+  !isDisabled({}),
+  'a paywall that can never be bought from is worse than the bug it was fixing'
+);
+check(
+  'storeUnavailable means exactly "no key, and not a dev build"',
+  /const storeUnavailable = !RC_API_KEY && !__DEV__;/.test(code),
+  'in dev the purchase is deliberately faked, so the button has to stay live there'
+);
+check(
+  'and the screen says so rather than showing a blank price',
+  /testID="store-unavailable"/.test(code) && /cannot reach the App Store/.test(code),
+  'silence here is indistinguishable from a broken app, and it would be every user at once'
 );
 
 console.log('\n[3] There is a way off the screen');

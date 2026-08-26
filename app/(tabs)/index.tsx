@@ -617,11 +617,32 @@ export default function HomeScreen() {
     });
   };
 
+  /**
+   * How long ago the unfinished session was saved, in words.
+   *
+   * Empty for one saved today, because "today" beside a Resume button is noise.
+   */
+  const activeSessionAge = useMemo(() => {
+    if (!activeSession?.savedAt) return '';
+    const then = new Date(activeSession.savedAt);
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86400000);
+    if (days <= 0) return '';
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
+  }, [activeSession]);
+
   const handleDiscardActiveSession = () => {
-    Alert.alert('Discard session?', 'Your in-progress session will be lost.', [
-      { text: 'Keep it', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => clearActiveSession() },
-    ]);
+    Alert.alert(
+      'Start fresh?',
+      `${activeSession?.completedSetsCount ?? 0} logged ${
+        (activeSession?.completedSetsCount ?? 0) === 1 ? 'set' : 'sets'
+      } will be lost. Your history and your weights are not affected.`,
+      [
+        { text: 'Keep it', style: 'cancel' },
+        { text: 'Start fresh', style: 'destructive', onPress: () => clearActiveSession() },
+      ]
+    );
   };
 
   const lastSessionDurationLabel =
@@ -1089,11 +1110,16 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.resumeTitle}>Session in progress</Text>
+                {/* The age matters now that a session survives a week rather
+                    than a day. "12/24 sets" from this morning and "12/24 sets"
+                    from last Tuesday are different decisions, and the X beside
+                    this is the other half of that decision. */}
                 <Text style={styles.resumeSub}>
                   {activeSession.displayLabel ??
                     SESSION_META[activeSession.sessionType]?.label ??
                     activeSession.sessionName}{' '}
                   · {activeSession.completedSetsCount}/{activeSession.totalSets} sets
+                  {activeSessionAge ? ` · ${activeSessionAge}` : ''}
                 </Text>
               </View>
               <Pressable
