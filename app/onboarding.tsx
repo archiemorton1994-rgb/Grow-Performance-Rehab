@@ -193,8 +193,27 @@ const EXPERIENCE_INDEX = 5;
 const BODYWEIGHT_INDEX = 6;
 const GOALS_INDEX = 7;
 const EQUIPMENT_INDEX = 8;
-const LIFTS_INDEX = 9;
-const TEST_WEEK_INDEX = 10;
+/**
+ * TEST WEEKS IS ASKED BEFORE THE BEST LIFTS, AND THAT ORDER IS THE POINT.
+ *
+ * It ran the other way round, and the best-lifts screen gave no reason for the
+ * three numbers it wanted. Somebody who then chose "no test weeks" on the very
+ * next screen had just been made to dig out three maxes for a feature they were
+ * about to decline, with nothing anywhere telling them the numbers do anything
+ * else.
+ *
+ * They do. A 1RM sets the working weight the app prescribes on day one, via
+ * workingWeightFromOrm; test weeks only RE-set it every twelve sessions. So the
+ * fix was never to drop the question for somebody who opts out. It was to ask
+ * the bigger question first, and then say on the lifts screen itself what the
+ * numbers are for given the answer just given.
+ *
+ * If anything they matter MORE to somebody who declined: with testing off,
+ * nothing ever re-calibrates those weights automatically, so the number typed
+ * here is the only starting point the app will ever be handed.
+ */
+const TEST_WEEK_INDEX = 9;
+const LIFTS_INDEX = 10;
 const CELEBRATION_INDEX = 11;
 
 
@@ -528,13 +547,16 @@ function OnboardingFlow() {
     if (!canContinue()) return;
     hapticMedium();
     Keyboard.dismiss();
-    if (currentIndex < TEST_WEEK_INDEX) {
+    if (currentIndex < LIFTS_INDEX) {
       goTo(currentIndex + 1);
-    } else if (currentIndex === TEST_WEEK_INDEX) {
+    } else if (currentIndex === LIFTS_INDEX) {
       // The last question, so the profile is written here. It must not be
       // written earlier: an answer given after the save is an answer that gets
       // ignored, which is exactly what happened when the save sat on the
       // best-lifts step and the test-week choice came after it.
+      //
+      // The two screens have since swapped, so the save moved with them. It
+      // follows whichever question is last, never a particular screen.
       saveAndComplete();
       goTo(CELEBRATION_INDEX);
     }
@@ -589,10 +611,19 @@ function OnboardingFlow() {
   const handleSkipLifts = useCallback(() => {
     haptic();
     Keyboard.dismiss();
-    // Skipping the lifts must still land on the test-week question, not jump
-    // past it — and the save now happens there, once the answer exists.
-    goTo(TEST_WEEK_INDEX);
-  }, [haptic, goTo]);
+    // The boxes are cleared because "I don't know my best lifts" is an answer:
+    // a half-typed number left behind in one of them would go on to become a
+    // prescribed working weight.
+    setOrmSquat('');
+    setOrmBench('');
+    setOrmDeadlift('');
+    // Lifts is the last question now, so this link finishes onboarding rather
+    // than advancing to another screen, and it has to run the same save the
+    // Continue button runs. Without that, skipping the lifts would throw away
+    // the test-week answer given one screen earlier.
+    saveAndComplete();
+    goTo(CELEBRATION_INDEX);
+  }, [haptic, goTo, saveAndComplete]);
 
   const toggleGoal = useCallback(
     (goal: FitnessGoal) => {
@@ -1185,67 +1216,23 @@ function OnboardingFlow() {
             </ScrollView>
           </View>
 
-          {/* Screen 9: Key Lifts (optional) */}
-          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 24 }]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.iconCircle}>
-                <GrowIcon name="podium" size={56} color={C.primaryText} />
-              </View>
-              <Text style={styles.question}>Your best lifts</Text>
-              <Text style={styles.hint}>
-                {"Optional - leave blank if you're new or returning after a break"}
-              </Text>
-              <View style={styles.liftRows}>
-                <LiftInput
-                  label="Back Squat"
-                  value={ormSquat}
-                  onChangeText={setOrmSquat}
-                  testID="orm-squat"
-                  sessionType="squat"
-                  sex={sex}
-                  error={liftIssues[0]}
-                />
-                <LiftInput
-                  label="Bench Press"
-                  value={ormBench}
-                  onChangeText={setOrmBench}
-                  testID="orm-bench"
-                  sessionType="bench"
-                  sex={sex}
-                  error={liftIssues[1]}
-                />
-                <LiftInput
-                  label="Deadlift"
-                  value={ormDeadlift}
-                  onChangeText={setOrmDeadlift}
-                  testID="orm-deadlift"
-                  sessionType="deadlift"
-                  sex={sex}
-                  error={liftIssues[2]}
-                />
-              </View>
-              <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
-                <Text style={styles.skipText}>{"I don't know my best lifts"}</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-
-          {/* Screen 10: Strength test weeks.
+          {/* Screen 9: Strength test weeks.
               Its own screen, not a block appended to the best-lifts step. Put
-              there, it fell below the fold behind three inputs and a skip link
-              — the question was invisible unless you scrolled, which for a
+              there, it fell below the fold behind three inputs and a skip link,
+              so the question was invisible unless you scrolled, which for a
               decision that shapes the whole programme is worse than not asking.
-              Asked immediately after the lifts are named, so the "these three
-              lifts" it refers to are still on screen behind you. */}
+
+              Asked BEFORE the best lifts, because it is the larger decision and
+              it changes what the smaller one is for. See TEST_WEEK_INDEX. It
+              names the three lifts itself, so it stands on its own without the
+              best-lifts screen having come first. */}
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
+              {/* Not the podium: the best-lifts screen wears that, and these two
+                  now sit next to each other. Two consecutive screens under an
+                  identical illustration read as if the swipe did nothing. */}
               <View style={styles.iconCircle}>
-                <GrowIcon name="podium" size={56} color={C.primaryText} />
+                <GrowIcon name="trend" size={56} color={C.primaryText} />
               </View>
               <Text style={styles.question}>Test your strength?</Text>
               <Text style={styles.hint}>
@@ -1264,7 +1251,11 @@ function OnboardingFlow() {
                     {
                       value: 'never' as const,
                       label: 'No thanks',
-                      desc: "These lifts aren't part of my training",
+                      // Not "these lifts are not part of my training", which
+                      // was untrue: the squat, bench and deadlift rotation runs
+                      // either way (see isOnStrengthProgramme). Only the
+                      // max-out weeks stop.
+                      desc: 'We adjust your weights from what you log instead',
                       icon: 'leaf' as const,
                     },
                   ] as const
@@ -1302,6 +1293,73 @@ function OnboardingFlow() {
               </View>
               <Text style={styles.testOptHint}>You can change this anytime in settings</Text>
             </View>
+          </View>
+
+          {/* Screen 10: Key Lifts (optional).
+              The last question in the flow, which is why saveAndComplete fires
+              here and why the skip link finishes rather than advancing.
+
+              Still asked of somebody who has just declined test weeks, because
+              a 1RM sets the weight prescribed on day one and test weeks only
+              re-set it later. The hint below says which of those two readings
+              applies, given the answer one screen back. */}
+          <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.screenScrollContent, { paddingBottom: 24 }]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.iconCircle}>
+                <GrowIcon name="podium" size={56} color={C.primaryText} />
+              </View>
+              <Text style={styles.question}>Your best lifts</Text>
+              {/*
+                SAY WHAT THE NUMBERS ARE FOR, GIVEN THE ANSWER JUST GIVEN.
+
+                The old line said only that the step was optional, which left
+                somebody who had just declined test weeks with no idea why they
+                were still being asked for three maxes. Both readings are true
+                and they are different, so the screen says whichever applies.
+              */}
+              <Text style={styles.hint}>
+                {testFrequency === 'never'
+                  ? "Optional. These set the weights we start you on, and with test weeks off nothing will re-set them for you later. Leave them blank and we start conservative, then build from what you log."
+                  : "Optional. These set the weights we start you on, and we re-test them every 12 sessions. Leave them blank and we start conservative, then build from what you log."}
+              </Text>
+              <View style={styles.liftRows}>
+                <LiftInput
+                  label="Back Squat"
+                  value={ormSquat}
+                  onChangeText={setOrmSquat}
+                  testID="orm-squat"
+                  sessionType="squat"
+                  sex={sex}
+                  error={liftIssues[0]}
+                />
+                <LiftInput
+                  label="Bench Press"
+                  value={ormBench}
+                  onChangeText={setOrmBench}
+                  testID="orm-bench"
+                  sessionType="bench"
+                  sex={sex}
+                  error={liftIssues[1]}
+                />
+                <LiftInput
+                  label="Deadlift"
+                  value={ormDeadlift}
+                  onChangeText={setOrmDeadlift}
+                  testID="orm-deadlift"
+                  sessionType="deadlift"
+                  sex={sex}
+                  error={liftIssues[2]}
+                />
+              </View>
+              <Pressable onPress={handleSkipLifts} style={styles.skipLink}>
+                <Text style={styles.skipText}>{"I don't know my best lifts"}</Text>
+              </Pressable>
+            </ScrollView>
           </View>
 
           {/* Screen 11: Profile Built! */}
@@ -1378,7 +1436,7 @@ function OnboardingFlow() {
                   ? 'Get Started'
                   : // "Save & Continue" belongs on the screen where the profile
                     // is actually written — the last question, whichever that is.
-                    currentIndex === TEST_WEEK_INDEX
+                    currentIndex === LIFTS_INDEX
                     ? 'Save & Continue'
                     : currentIndex === THEME_INDEX
                       ? 'Looks good'
