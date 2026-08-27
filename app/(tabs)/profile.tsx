@@ -13,6 +13,7 @@ import {
   Switch,
   Linking,
   Image,
+  Share,
 } from 'react-native';
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
@@ -40,6 +41,7 @@ import {
   useAppStore,
 } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
+import { buildPhysioSummary } from '@/lib/physio-summary';
 import { bodyweightIssue } from '@/lib/bodyweight';
 import {
   isNotificationsSupported,
@@ -630,6 +632,26 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleSharePhysioSummary = async () => {
+    const text = buildPhysioSummary({
+      profile: userProfile,
+      sessions: completedSessions,
+      oneRepMaxes,
+      weightUnit,
+    });
+    if (Platform.OS === 'web') {
+      // No native share sheet here. Better a clear no than a button that looks
+      // broken.
+      Alert.alert('Not available here', 'Open Grow on your phone to share this summary.');
+      return;
+    }
+    try {
+      await Share.share({ message: text });
+    } catch {
+      // A cancelled share sheet throws on some platforms. Nothing to report.
+    }
   };
 
   const handleSignOut = () => {
@@ -1685,6 +1707,28 @@ export default function ProfileScreen() {
                   {lastSyncedLabel}
                 </Text>
               </View>
+              {/*
+                THE THING THE ASSISTANT'S ADVICE USED TO DEAD-END INTO.
+
+                The app already knows what a clinician spends a consultation
+                extracting: which area was flagged, on which dates, how bad it
+                was said to be, and what the person was lifting while it hurt.
+                The assistant will even say "worth having someone look at it" -
+                and there was nowhere for any of it to go.
+
+                Plain text through the system share sheet, so it works with
+                whatever they use: mail, messages, notes.
+              */}
+              <Pressable
+                onPress={handleSharePhysioSummary}
+                style={styles.signOutBtn}
+                testID="share-physio-summary"
+              >
+                <Ionicons name="share-outline" size={16} color={C.primaryText} />
+                <Text style={[styles.signOutText, { color: C.primaryText }]}>
+                  Summary for your physio
+                </Text>
+              </Pressable>
               <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">
                 <Ionicons name="log-out-outline" size={16} color={C.error} />
                 <Text style={styles.signOutText}>Sign out</Text>
