@@ -156,6 +156,18 @@ const MILESTONE_DATA: [number, string, string][] = [
  *  AchievementUnlockedSheet and session-summary to detect/celebrate milestones
  *  and compute "N sessions to go," so they can't drift from the real badges. */
 export const MILESTONE_SESSION_THRESHOLDS = MILESTONE_DATA.map(([n]) => n);
+
+/**
+ * The one badge in the catalogue not earned by training.
+ *
+ * Awarded when somebody reaches the end of the guided tour's practice session
+ * (the demo-complete modal in app/session.tsx), and the only unlock whose
+ * sheet sends the user on to the achievements screen with its explainer open.
+ *
+ * Named here so the engine, the award site and the root layout cannot drift
+ * onto three different spellings of one string.
+ */
+export const TOUR_WELCOME_BADGE_ID = 'onboarding_complete';
 const milestoneBadges: BadgeSeed[] = MILESTONE_DATA.map(([n, name, description]) => ({
   id: `milestone_${n}`,
   name,
@@ -478,7 +490,7 @@ const goalsBadges: BadgeSeed[] = [
   {
     id: 'goal_strength_1rm',
     name: 'Strength Seeker',
-    description: 'Log your first strength 1RM test',
+    description: 'Record your first strength one-rep max',
     category: 'goals',
     criteriaType: 'goal_progress',
     icon: 'barbell-outline',

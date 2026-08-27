@@ -19,6 +19,7 @@ import type {
   EquipmentTier,
 } from '@/lib/store';
 import { isoWeek } from '@/lib/utils';
+import { TOUR_WELCOME_BADGE_ID } from '@/lib/badges';
 
 export interface BadgeEvalState {
   completedSessions: CompletedSession[];
@@ -489,7 +490,7 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   // completing the onboarding form — skipping or exiting the tour early must
   // NOT earn it. Do NOT reintroduce profile-setup awards here — badges are a
   // training reward (plus this one welcome badge), not a profile-completion one.
-  awardIf(state.tourGenuinelyCompleted, 'onboarding_complete');
+  awardIf(state.tourGenuinelyCompleted, TOUR_WELCOME_BADGE_ID);
 
   // ── 17. Equipment ─────────────────────────────────────────────────────────
   awardIf(s.uniqueEquipmentUsed.has('bodyweight'), 'equip_bodyweight');

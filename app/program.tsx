@@ -28,6 +28,7 @@ import {
   SESSION_DISPLAY_NAMES,
 } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
+import { programContextMessage, sessionsUntilTest } from '@/lib/test-week-copy';
 import { daysSince } from '@/lib/utils';
 import { resumeParams } from '@/lib/resume-params';
 
@@ -42,25 +43,22 @@ const SESSION_IMAGES: Partial<Record<string, any>> = {
   deadlift: require('@/assets/images/sessions/deadlift.png'),
 };
 
-function getContextMessage(
-  completedCount: number,
-  testWeekFrequency: number,
-  testWeek: boolean
-): string {
-  if (completedCount === 0) return "Welcome to your program. Let's build something lasting.";
-  if (testWeek) return "Test week is here - show yourself how far you've come.";
-  const sessionsToTest = testWeekFrequency - (completedCount % testWeekFrequency);
-  if (sessionsToTest <= 2) {
-    const s = sessionsToTest === 1 ? 'session' : 'sessions';
-    return `${sessionsToTest} ${s} until your next strength test - finish strong.`;
-  }
-  if (completedCount === 1) return 'First session in the books. The habit has begun.';
-  const cycleSession = completedCount % 9;
-  if (cycleSession === 0) return 'New cycle started. Each one builds on the last.';
-  if (cycleSession >= 7) return 'Final stretch of this cycle - finish it strong.';
-  if (completedCount < 6) return 'Early days - this is where the foundations are laid.';
-  return 'Momentum is building. Every session moves the needle.';
-}
+/*
+ * getContextMessage MOVED TO lib/test-week-copy.ts as programContextMessage,
+ * and not only for tidiness.
+ *
+ * It took a plain `testWeekFrequency: number`, and the caller passed
+ * `cycleLength` - which is the frequency with 'never' aliased to 12 so the arc
+ * dots below have something to draw. So somebody who had switched strength
+ * tests off, and still trains the barbell lifts, was told "2 sessions until
+ * your next strength test" about a schedule they had cancelled. If they went
+ * looking for it they found nothing, because isTestWeekDue is permanently false
+ * for them.
+ *
+ * The replacement takes the real TestWeekFrequency, gates every sentence that
+ * mentions a test on it, and is run by tests/test-week-honesty.check.mjs rather
+ * than read.
+ */
 
 /**
  * Copy for someone who is not running the barbell rotation.
@@ -131,8 +129,9 @@ export default function ProgramScreen() {
   const cycleLength = testWeekFrequency === 'never' ? 12 : testWeekFrequency;
   const progCyclePos = strengthCount % cycleLength;
   const progCycleLength = cycleLength;
-  const progSessToTest =
-    strengthCount > 0 ? cycleLength - (strengthCount % cycleLength) : cycleLength;
+  // null when strength tests are off, which is what stops the tile below from
+  // counting down to an event that will never arrive.
+  const progSessToTest = sessionsUntilTest(testWeekFrequency, strengthCount);
 
   // What this person actually trains, most-used first — used in place of the
   // hardcoded "Squat · Bench · Deadlift" subtitle.
@@ -149,7 +148,7 @@ export default function ProgramScreen() {
   }, [completedSessions]);
 
   const contextMsg = onStrengthProgramme
-    ? getContextMessage(strengthCount, cycleLength, testWeek)
+    ? programContextMessage(testWeekFrequency, strengthCount, testWeek)
     : getNonStrengthMessage(completedSessions.length, trainingMix);
 
   const timeline = useMemo(() => {
@@ -326,12 +325,23 @@ export default function ProgramScreen() {
             <Text style={styles.cycleLabel}>sessions done</Text>
           </View>
           <View style={styles.cycleDivider} />
+          {/*
+            THE GATE IS THE FREQUENCY, NOT THE PROGRAMME.
+
+            This read onStrengthProgramme, which is about what the user trains.
+            Whether a test is coming is about what they agreed to, and the two
+            are different people: somebody who squats, benches and deadlifts and
+            turned strength tests OFF is on the strength programme and is never
+            tested. They were shown a live countdown to it. progSessToTest is
+            null for them now and they get their week streak, which is the same
+            thing the non-strength branch already showed.
+          */}
           <View style={styles.cycleCard}>
             <Text style={styles.cycleNumber}>
-              {onStrengthProgramme ? progSessToTest : getStreakDays()}
+              {progSessToTest !== null ? progSessToTest : getStreakDays()}
             </Text>
             <Text style={styles.cycleLabel}>
-              {onStrengthProgramme ? 'until test' : 'week streak'}
+              {progSessToTest !== null ? 'until test' : 'week streak'}
             </Text>
           </View>
         </View>

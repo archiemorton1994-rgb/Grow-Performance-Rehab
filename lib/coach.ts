@@ -1,4 +1,5 @@
-import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, WeightUnit } from './store';
+import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, TestWeekFrequency, WeightUnit } from './store';
+import { noMaxAssistantCopy } from './test-week-copy';
 import { getTrainingBalanceNudge, type BalanceInput } from './training-balance';
 import {
   COMEBACK_SESSIONS,
@@ -137,6 +138,14 @@ export interface CoachInput {
   stuckStreak: Record<string, number>;
   /** False when the user has never logged a tested max. */
   hasOneRepMax: boolean;
+  /**
+   * What the user agreed to, not what they train.
+   *
+   * Here so the "no max on record" nudge can stop pointing an opted-out user at
+   * a test week. It is the only rule that reads it; everything else in this
+   * file is about what has been logged.
+   */
+  testWeekFrequency: TestWeekFrequency;
   /** The unit every weight in these messages is written in. */
   weightUnit: WeightUnit;
   /** When each message id was last waved away. */
@@ -480,13 +489,14 @@ function buildCoachBuckets(input: CoachInput): Bucket {
     input.sessionCount >= 8 &&
     !hidden('prompt-1rm', 30)
   ) {
+    const copy = noMaxAssistantCopy(input.testWeekFrequency);
     b.info.push({
       id: 'prompt-1rm',
       icon: 'barbell-outline',
-      title: 'You have never tested a max',
-      body: 'Your main lifts are working from what you log week to week, which is a good guide. A tested max on one of them gives every percentage in the programme something real to hang off.',
+      title: copy.title,
+      body: copy.body,
       tone: 'info',
-      action: { label: 'Test a lift', kind: 'open-stats' },
+      action: { label: copy.actionLabel, kind: 'open-stats' },
       dismissible: true,
     });
   }

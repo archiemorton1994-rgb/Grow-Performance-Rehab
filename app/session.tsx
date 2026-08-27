@@ -3676,13 +3676,14 @@ export default function SessionScreen() {
   const currentPhaseLabel = phaseLabelMap[activePhaseCategory] ?? activePhaseCategory;
   const progress = totalSets > 0 ? completedSetsCount / totalSets : 0;
 
+  // The isDemo branch below is unreachable and kept only as a guard: see
+  // markTourGenuinelyCompleted in lib/store.ts. Two contract tests read the
+  // lines around it, so keep both this comment and that branch short.
   const handleComplete = () => {
     if (isDemo) {
       setTourComplete(true);
       setSessionTutorialShown(true);
       setTourJustCompleted(true);
-      // Only path that reaches this point without skipping or exiting early —
-      // earns the one-time welcome badge for genuinely finishing the tour.
       markTourGenuinelyCompleted();
       router.navigate('/(tabs)' as any);
       return;
@@ -4338,8 +4339,25 @@ export default function SessionScreen() {
               }
             </Text>
             <Pressable
+              testID="demo-complete-continue"
               onPress={() => {
                 setShowDemoComplete(false);
+                /**
+                 * THE END OF THE TOUR, AND THE ONLY PLACE THAT CAN SAY SO.
+                 *
+                 * markTourGenuinelyCompleted sets the flag the badge engine
+                 * reads and then re-runs it, which queues Welcome Aboard. The
+                 * queue is drained by the root layout, which will only present
+                 * while the user is inside (tabs) - so the award has to happen
+                 * before the navigation below, and the navigation has to be
+                 * into the tabs. Both are true here.
+                 *
+                 * Not called on the showcase branch: that practice session runs
+                 * before anyone has subscribed and is not the tour.
+                 * Not called from skipTut either - skipping is not finishing,
+                 * and the badge says "start to finish".
+                 */
+                if (!isShowcase) markTourGenuinelyCompleted();
                 router.replace((isShowcase ? '/offer' : '/(tabs)') as any);
               }}
               style={({ pressed }) => ({

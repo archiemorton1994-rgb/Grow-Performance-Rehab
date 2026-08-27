@@ -911,7 +911,26 @@ export const useAppStore = create<AppState>()(
       saveOnboardingDraft: (draft) => set({ onboardingDraft: draft }),
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
-      setTestWeekFrequency: (freq) => set({ testWeekFrequency: freq }),
+      /**
+       * TURNING TESTS ON ALSO CLEARS ANY OUTSTANDING POSTPONEMENT.
+       *
+       * testWeekDeferred is set when somebody postpones a due test, and it is
+       * persisted and independent of this setting. Without clearing it, the
+       * sequence "postpone a test, switch tests off, switch them back on months
+       * later" handed the user an all-out max attempt on their very next
+       * strength session, because `due` is `testWeekDeferred || count % freq`.
+       * A postponement from before they opted out is not a promise they made.
+       *
+       * Switching OFF deliberately leaves it alone: nothing is scheduled while
+       * the frequency is 'never' anyway, and preserving it means someone who
+       * turns tests off and straight back on again in the same minute has not
+       * silently lost a deferral they still meant.
+       */
+      setTestWeekFrequency: (freq) =>
+        set((s) => ({
+          testWeekFrequency: freq,
+          testWeekDeferred: freq === 'never' ? s.testWeekDeferred : false,
+        })),
       deferTestWeek: () => set({ testWeekDeferred: true }),
       setUserProfile: (profile) => {
         // Last line of defence for the one field the load maths multiplies by.
@@ -1042,6 +1061,33 @@ export const useAppStore = create<AppState>()(
           sessionTutorialShown: true,
           tourSkipNonce: s.tourSkipNonce + 1,
         })),
+      /**
+       * THE END OF THE GUIDED TOUR, AND THE ONE BADGE NOT EARNED BY TRAINING.
+       *
+       * Sets the flag lib/badge-engine.ts reads for TOUR_WELCOME_BADGE_ID and
+       * re-runs the engine, which queues "Welcome Aboard" for the root layout
+       * to present.
+       *
+       * IT HAD NEVER FIRED FOR ANYONE. Until now this had exactly one call
+       * site: the isDemo branch of handleComplete in app/session.tsx, which is
+       * unreachable. handleComplete only arrives there as onCompleteSession,
+       * whose button renders solely when every set of every exercise is marked
+       * complete, and demo mode hard-codes every set mutator to a no-op - so
+       * that condition is false for the whole of the practice session. The
+       * tutorial's real ending goes through advanceTut into the demo-complete
+       * modal, and that modal's button navigated away without awarding
+       * anything. A finished, catalogued, artworked badge that nobody could
+       * earn.
+       *
+       * The call now lives on that modal's button, which is the control a user
+       * actually reaches, and it fires before the navigation into the tabs
+       * because the root layout will only present an unlock while the user is
+       * inside (tabs).
+       *
+       * Deliberately NOT called from skipTut, and not on the showcase branch:
+       * skipping is not finishing, and the showcase's practice session runs
+       * before anybody has subscribed and is not the tour.
+       */
       markTourGenuinelyCompleted: () => {
         set({ tourGenuinelyCompleted: true });
         get().awardNewBadges();

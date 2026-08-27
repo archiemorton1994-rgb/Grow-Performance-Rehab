@@ -38,6 +38,15 @@ interface AchievementUnlockedSheetProps {
   /** Resolved Badge objects — provided for the 2–4 simultaneous case so we
    *  can render individual icons + names instead of a generic subtitle. */
   badges?: Badge[];
+  /**
+   * Where "View all badges" goes. Defaults to the plain achievements screen.
+   *
+   * The one caller that overrides it is the guided tour's welcome badge, which
+   * sends the user to /achievements?tour=1 so the screen's own explainer opens
+   * with it. Somebody who just earned their fifth streak badge does not need
+   * to be told what a shelf is.
+   */
+  viewAllHref?: string;
   onDismiss: () => void;
 }
 
@@ -47,6 +56,7 @@ export default function AchievementUnlockedSheet({
   badgeColor,
   sessionCount,
   badges,
+  viewAllHref = '/achievements',
   onDismiss,
 }: AchievementUnlockedSheetProps) {
   const C = useColors();
@@ -117,7 +127,7 @@ export default function AchievementUnlockedSheet({
 
   const handleViewBadges = () => {
     dismiss();
-    setTimeout(() => router.push('/achievements'), EXIT_MS + 20);
+    setTimeout(() => router.push(viewAllHref as never), EXIT_MS + 20);
   };
 
   const isSingle = badgeCount === 1;

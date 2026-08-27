@@ -35,12 +35,14 @@ import {
   FitnessGoal,
   MAX_BODYWEIGHT_KG,
   MIN_BODYWEIGHT_KG,
+  SESSION_ORDER,
   Sex,
   TIER_ORDER,
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
 import { uploadUserData } from '@/lib/sync';
+import { nextTestNotice } from '@/lib/test-week-copy';
 import { buildPhysioSummary } from '@/lib/physio-summary';
 import { bodyweightIssue } from '@/lib/bodyweight';
 import {
@@ -123,7 +125,13 @@ const SETTINGS_DESTINATIONS: {
   blurb: string;
 }[] = [
   { section: 'Profile', icon: 'person-outline', blurb: 'Name, bodyweight, goals, equipment' },
-  { section: 'Preferences', icon: 'options-outline', blurb: 'Units, appearance, reminders' },
+  // Named the thing people actually go looking for. Somebody hunting for
+  // strength tests saw six rows, none of which said strength, test or 1RM.
+  {
+    section: 'Preferences',
+    icon: 'options-outline',
+    blurb: 'Units, appearance, reminders, strength tests',
+  },
   { section: 'Subscription', icon: 'card-outline', blurb: 'Plan and billing' },
   { section: 'Account', icon: 'mail-outline', blurb: 'Email and sign-out' },
   { section: 'App', icon: 'information-circle-outline', blurb: 'Version, tutorial, support' },
@@ -147,7 +155,7 @@ const PROFILE_TUTORIAL: readonly ProfileTutorialStep[] = [
     // Kept, and made concrete. "They shape every session" is the kind of claim
     // a user nods at and does not believe; naming what actually changes is what
     // makes the Profile worth revisiting when their training changes.
-    body: 'Your goal and experience level, taken from onboarding. They decide how heavy your sessions start, how fast the weight climbs, and whether you get a strength test at all.',
+    body: 'Your goal and experience level, taken from onboarding. They decide how heavy your sessions start, how fast the weight climbs, and which sessions you are offered.',
   },
   // Two steps cut. "Your training at a glance" was the third explanation of the
   // streak in one tour, over a row of zeroes. "Strength, tracked over time" said
@@ -378,6 +386,7 @@ export default function ProfileScreen() {
     resetProgress,
     testWeekFrequency,
     setTestWeekFrequency,
+    testWeekDeferred,
     userProfile,
     setUserProfile,
     getEffectiveTier: storeGetEffectiveTier,
@@ -765,6 +774,19 @@ export default function ProfileScreen() {
    * it. Anything older than a day says the date, because at that point the
    * answer is probably no and vagueness would be hiding it.
    */
+  // Only the barbell lifts advance the test-week count - conditioning,
+  // mobility, prehab and custom sessions never do - which is the same rule
+  // getTestWeekProgress uses, and why this cannot just count
+  // completedSessions.length.
+  const strengthSessionCount = useMemo(
+    () => completedSessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).length,
+    [completedSessions]
+  );
+  const testWeekNotice = useMemo(
+    () => nextTestNotice(testWeekFrequency, strengthSessionCount, testWeekDeferred),
+    [testWeekFrequency, strengthSessionCount, testWeekDeferred]
+  );
+
   const lastSyncedLabel = useMemo(() => {
     if (!lastSyncedAt) return 'Not backed up to your account yet';
     const t = Date.parse(lastSyncedAt);
@@ -2072,6 +2094,21 @@ export default function ProfileScreen() {
                   </Pressable>
                 ))}
               </View>
+              {/*
+                SAY WHAT HAPPENS NEXT.
+
+                This control had no feedback beyond the button highlighting, for
+                a setting that decides whether the next session is a max
+                attempt. Somebody switching tests back on could be handed one
+                immediately - see setTestWeekFrequency in lib/store.ts - and
+                nothing told them. nextTestNotice returns null when tests are
+                off, so this row simply is not there for anyone who has declined.
+              */}
+              {testWeekNotice ? (
+                <Text style={styles.settingItemNotice} testID="next-test-notice">
+                  {testWeekNotice}
+                </Text>
+              ) : null}
 
               <View style={styles.settingDivider} />
 
@@ -2780,6 +2817,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 10,
+    },
+    settingItemNotice: {
+      fontSize: 12,
+      lineHeight: 17,
+      fontFamily: 'Inter_500Medium',
+      color: C.primaryText,
+      backgroundColor: C.primaryMuted,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      marginTop: 10,
     },
     settingDivider: { height: 1, backgroundColor: C.borderLight, marginVertical: 16 },
     freqRow: { flexDirection: 'row', gap: 10 },

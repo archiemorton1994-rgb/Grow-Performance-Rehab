@@ -312,8 +312,35 @@ check(
 );
 check(
   '"until test" is replaced rather than left counting down',
-  /onStrengthProgramme \? 'until test' : 'week streak'/.test(program),
+  /progSessToTest !== null \? 'until test' : 'week streak'/.test(program),
   ''
+);
+/**
+ * AND THE GATE IS THE FREQUENCY, NOT THE PROGRAMME.
+ *
+ * This check used to require the tile to read
+ * `onStrengthProgramme ? 'until test' : 'week streak'`, which was the gate that
+ * carried the bug. onStrengthProgramme is about what somebody trains; whether a
+ * test is coming is about what they agreed to, and the two are different
+ * people. A user who squats, benches and deadlifts and has turned strength
+ * tests off IS on the strength programme, is never tested, and was shown a live
+ * countdown to it - which they could then never find, because isTestWeekDue is
+ * permanently false for them.
+ *
+ * sessionsUntilTest returns null when the frequency is 'never', so the tile
+ * falls back to the week streak for them, exactly as it already did for
+ * non-barbell users.
+ */
+check(
+  'and the countdown itself is gated on the frequency',
+  /const progSessToTest = sessionsUntilTest\(testWeekFrequency, strengthCount\);/.test(program),
+  'the frequency is aliased to 12 for the arc dots, so any arithmetic reading cycleLength lies to an opted-out user'
+);
+check(
+  'the context line is too',
+  /programContextMessage\(testWeekFrequency,/.test(program) &&
+    !/getContextMessage\(strengthCount, cycleLength/.test(program),
+  'getContextMessage took a plain number and was handed the aliased cycleLength'
 );
 check(
   'the subtitle is no longer unconditionally the three lifts',

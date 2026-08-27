@@ -99,7 +99,22 @@ const dateAgo = (n) => daysAgo(n).slice(0, 10);
 // ─── 1. Every badge is reachable, and nothing is awarded that does not exist ──
 console.log('\n[1] The catalogue and the engine describe the same set of badges');
 
+/**
+ * Badge ids the engine can award.
+ *
+ * Nearly all of them are written as string literals at the award site. One is
+ * not: TOUR_WELCOME_BADGE_ID, pulled into a named constant in lib/badges.ts so
+ * the engine, the award site in app/session.tsx and the root layout's
+ * "which unlock is this" comparison cannot drift onto three spellings of the
+ * same string. So identifiers are followed back to their definition rather than
+ * being read as unreachable.
+ */
 const literals = new Set([...engineSrc.matchAll(/'([a-z0-9_]+)'\s*\)\s*;/g)].map((m) => m[1]));
+const badgesSrc = readFileSync(new URL('../lib/badges.ts', import.meta.url), 'utf8');
+for (const [, ident] of engineSrc.matchAll(/awardIf\([^;]*?,\s*([A-Z][A-Z0-9_]+)\s*\)\s*;/g)) {
+  const def = badgesSrc.match(new RegExp(`\\b${ident}\\s*=\\s*'([a-z0-9_]+)'`));
+  if (def) literals.add(def[1]);
+}
 const templates = [...engineSrc.matchAll(/`([^`]*\$\{[^`]*)`/g)].map((m) => m[1]);
 const tmplRe = templates.map(
   (t) => new RegExp('^' + t.replace(/\$\{[^}]+\}/g, '[a-z0-9_]+') + '$')

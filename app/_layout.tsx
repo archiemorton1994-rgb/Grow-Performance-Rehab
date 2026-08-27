@@ -25,7 +25,7 @@ import {
   scheduleStreakProtectionAlert,
   cancelStreakProtectionAlert,
 } from '@/lib/notifications';
-import { BADGE_MAP, Badge } from '@/lib/badges';
+import { BADGE_MAP, Badge, TOUR_WELCOME_BADGE_ID } from '@/lib/badges';
 import AchievementUnlockedSheet from '@/components/AchievementUnlockedSheet';
 
 /** A toast queue item: either an individual badge or a batched-summary token. */
@@ -522,6 +522,21 @@ function RootLayoutNav() {
             badges={[currentToast]}
             badgeColor={currentToast.color}
             sessionCount={completedSessions.length}
+            /**
+             * The tour's last beat.
+             *
+             * Welcome Aboard is awarded by the practice session's final button
+             * and is the only badge in the app not earned by training. Sending
+             * it to ?tour=1 opens the achievements screen with its explainer,
+             * which is how the tour ends: a real badge lands, and then the
+             * shelf it landed on is shown. Every other unlock goes to the plain
+             * screen, because by then the user knows what this place is.
+             */
+            viewAllHref={
+              currentToast.id === TOUR_WELCOME_BADGE_ID
+                ? '/achievements?tour=1'
+                : '/achievements'
+            }
             onDismiss={() => setCurrentToast(null)}
           />
         ))}

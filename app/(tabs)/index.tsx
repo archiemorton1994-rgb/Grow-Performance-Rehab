@@ -76,7 +76,7 @@ import { resumeParams } from '@/lib/resume-params';
  * most people would never press unprompted.
  */
 interface HomeTutorialStep {
-  spotlightRef: 'session' | 'coach' | 'streak';
+  spotlightRef: 'session' | 'trainElse' | 'coach' | 'streak' | 'achievements';
   iconName: string;
   iconLabel: string;
   title: string;
@@ -85,11 +85,37 @@ interface HomeTutorialStep {
 
 const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
   {
+    /**
+     * THIS CARD DESCRIBED THE WRONG SCREEN.
+     *
+     * It said "Tap Start and the whole session gets built for you", and
+     * sessionCardRef wraps a conditional: with zero completed sessions the hero
+     * is the first-session CHOOSER, which has three rows and no Start button at
+     * all. A brand-new user running the tour is looking at the chooser, so the
+     * card and the screen disagreed for exactly the audience the tour exists
+     * for. It now says what both variants actually do.
+     */
     spotlightRef: 'session',
     iconName: 'flash-outline',
     iconLabel: 'Today',
     title: 'Start here every day',
-    body: "This card always shows what to train today, rotating through Squat, Bench and Deadlift. Tap Start and the whole session gets built for you.",
+    body: 'This card is what to train next, rotating through Squat, Bench and Deadlift. Pick one and the whole session gets built for you: warm-up, main lift, accessories and the weight for every set.',
+  },
+  {
+    /**
+     * THE WAY OUT, WHICH THE APP NEVER MENTIONED.
+     *
+     * Everything on this screen points at one recommended session, and a lot of
+     * people will open the app wanting something else: a conditioning day, ten
+     * minutes of mobility, a sore shoulder seen to. All of that exists, one tab
+     * across, and nothing told them. A button is not enough on its own - the
+     * first run is the only time anyone is looking at the furniture.
+     */
+    spotlightRef: 'trainElse',
+    iconName: 'grid-outline',
+    iconLabel: 'Train',
+    title: 'You do not have to do this one',
+    body: 'Train something else opens the Train tab, where you can pick any lift, a conditioning or full body day, mobility work, or build a session around the time you have. Nothing here is compulsory.',
   },
   {
     /**
@@ -121,6 +147,28 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
     iconLabel: 'Streak',
     title: 'Consistent, not perfect',
     body: 'Your streak counts weeks you hit your goal, not days in a row. Miss a session and it survives; miss a week and it starts again.',
+  },
+  {
+    /**
+     * ACHIEVEMENTS WERE CUT FROM THIS TOUR, AND THE REASON NO LONGER HOLDS.
+     *
+     * The header above lists five steps that were removed for narrating an
+     * empty screen, and one of them was "badges nobody has earned". That was
+     * right at the time. It is not right any more, because the tour now ends by
+     * awarding one: finishing the practice session earns Welcome Aboard and the
+     * user watches it land. A step that explains the shelf a minute before
+     * something appears on it is not narrating an empty screen, it is setting
+     * up the only thing in this tour that happens TO the user rather than being
+     * described at them.
+     *
+     * The number is deliberately not quoted here. It comes from the catalogue
+     * and the catalogue grows; the achievements screen counts them itself.
+     */
+    spotlightRef: 'achievements',
+    iconName: 'trophy-outline',
+    iconLabel: 'Badges',
+    title: 'Something to collect',
+    body: 'Badges unlock on their own as you train: sessions logged, weeks kept, a lift moved, an area you looked after. You never chase them. Tap here any time to see what you have and what is next.',
   },
 ] as const;
 
@@ -338,6 +386,7 @@ export default function HomeScreen() {
       progress: getAllExerciseProgress(),
       stuckStreak: exerciseStuckStreak,
       hasOneRepMax: oneRepMaxes.length > 0,
+      testWeekFrequency,
       weightUnit,
       dismissedAt: coachDismissedAt,
       now: Date.now(),
@@ -560,6 +609,21 @@ export default function HomeScreen() {
     );
   };
 
+  /**
+   * Out of the recommendation and into the whole catalogue.
+   *
+   * No active-session guard here on purpose. Train raises its own "Session in
+   * progress" alert when a card is picked (showActiveSessionPrompt, with
+   * Resume / Discard / Cancel), so the guard is not lost by leaving it out, it
+   * just happens one screen later and with better options than this screen
+   * could offer. Duplicating it here would mean two alerts to dismiss to reach
+   * a tab that is safe to look at.
+   */
+  const handleTrainSomethingElse = useCallback(() => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/(tabs)/train');
+  }, []);
+
   const handleStartSuggested = () => {
     const go = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -678,6 +742,12 @@ export default function HomeScreen() {
   const sessionCardRef = useRef<View>(null);
   const streakTileRef = useRef<View>(null);
   const coachButtonRef = useRef<View>(null);
+  // One ref, two render branches. The hero card is either the first-session
+  // chooser or the today card and never both, so whichever is mounted is the
+  // one that measures - which is also why the button has to exist in BOTH
+  // branches or this step spotlights nothing for a brand-new user.
+  const trainElseRef = useRef<View>(null);
+  const achievementsTileRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
   useEffect(() => {
@@ -693,8 +763,10 @@ export default function HomeScreen() {
     if (tutStep === null || homeEffectiveTutorial[tutStep] == null) return;
     const refLookup = {
       session: sessionCardRef,
+      trainElse: trainElseRef,
       coach: coachButtonRef,
       streak: streakTileRef,
+      achievements: achievementsTileRef,
     };
     const target = refLookup[homeEffectiveTutorial[tutStep].spotlightRef];
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -863,6 +935,19 @@ export default function HomeScreen() {
                     <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
                   </Pressable>
                 ))}
+                <View ref={trainElseRef} collapsable={false} style={styles.trainElseWrap}>
+                  <Pressable
+                    onPress={handleTrainSomethingElse}
+                    style={({ pressed }) => [styles.trainElseBtn, pressed && { opacity: 0.8 }]}
+                    testID="home-train-something-else"
+                    accessibilityRole="button"
+                    accessibilityLabel="Train something else"
+                  >
+                    <Ionicons name="grid-outline" size={15} color={C.primaryText} />
+                    <Text style={styles.trainElseText}>Train something else</Text>
+                    <Ionicons name="chevron-forward" size={13} color={C.primaryText} />
+                  </Pressable>
+                </View>
                 {/* THE SAME PROMISE THE TRAIN TAB MAKES, ON THE SCREEN THAT
                     SHOWS IT FIRST.
 
@@ -956,6 +1041,19 @@ export default function HomeScreen() {
                     color={sessionEquipmentOverride !== null ? C.primaryText : C.textTertiary}
                   />
                 </Pressable>
+                <View ref={trainElseRef} collapsable={false} style={styles.trainElseWrap}>
+                  <Pressable
+                    onPress={handleTrainSomethingElse}
+                    style={({ pressed }) => [styles.trainElseBtn, pressed && { opacity: 0.8 }]}
+                    testID="home-train-something-else"
+                    accessibilityRole="button"
+                    accessibilityLabel="Train something else"
+                  >
+                    <Ionicons name="grid-outline" size={15} color={C.primaryText} />
+                    <Text style={styles.trainElseText}>Train something else</Text>
+                    <Ionicons name="chevron-forward" size={13} color={C.primaryText} />
+                  </Pressable>
+                </View>
                 <Pressable
                   onPress={handleStartSuggested}
                   style={({ pressed }) => [
@@ -1081,6 +1179,8 @@ export default function HomeScreen() {
 
             {/* Achievements */}
             <Pressable
+              ref={achievementsTileRef}
+              collapsable={false}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1536,6 +1636,28 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 15,
     },
     startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
+
+    /**
+     * Deliberately quieter than startBtn, and deliberately not silent.
+     *
+     * It sits directly above the primary button, so it has to be obviously the
+     * second choice - no fill, a hairline border, the accent as ink rather than
+     * as background. But it is the only thing on this screen that says the rest
+     * of the app exists, so it is a real button and not a text link.
+     */
+    trainElseWrap: { marginBottom: 10 },
+    trainElseBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 7,
+      borderRadius: 12,
+      paddingVertical: 11,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    trainElseText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     equipmentChip: {
       flexDirection: 'row' as const,
