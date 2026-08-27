@@ -313,8 +313,8 @@ function TabsInner() {
             </View>
             <Text style={[styles.introTitle, { color: C.text }]}>Let&apos;s take a tour!</Text>
             <Text style={[styles.introBody, { color: C.textSecondary }]}>
-              A 60-second walkthrough of the five tabs, then a quick practice session so logging a
-              real one feels familiar.
+              A quick walkthrough of the five tabs, then a practice session so logging a real one
+              feels familiar. There is a badge at the end for finishing it.
             </Text>
             <Pressable
               onPress={startTour}

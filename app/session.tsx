@@ -4335,7 +4335,7 @@ export default function SessionScreen() {
               {
                 isShowcase
                   ? 'Every session is built like that one, around what you have, how you feel and what you lifted last time.'
-                  : 'Your programme is ready. Sessions rotate automatically, just show up and the app handles the planning.'
+                  : 'Your programme is ready. It will suggest squat, bench and deadlift in turn, and Train something else on the home screen gets you a different kind of day whenever you want one.'
               }
             </Text>
             <Pressable
@@ -4372,7 +4372,7 @@ export default function SessionScreen() {
               })}
             >
               <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
-                {isShowcase ? 'Continue' : 'Start my first session →'}
+                {isShowcase ? 'Continue' : 'Take me to my plan →'}
               </Text>
             </Pressable>
           </Animated.View>
