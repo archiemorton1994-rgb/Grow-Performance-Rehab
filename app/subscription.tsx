@@ -20,7 +20,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
-import { DISTINCT_EXERCISE_COUNT } from '@/lib/exercise-db';
+import { distinctExerciseCount } from '@/lib/exercise-db';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
 import { periodWordsFor } from '@/lib/subscription-period';
 import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
@@ -28,8 +28,11 @@ import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
-const STATS = [
-  { value: `${DISTINCT_EXERCISE_COUNT}+`, label: 'exercises' },
+// Built when the paywall first renders, not when the bundle loads. The
+// exercise count walks the whole catalogue, and this is the only screen that
+// wants it.
+const buildStats = () => [
+  { value: `${distinctExerciseCount()}+`, label: 'exercises' },
   { value: `${SESSION_TYPE_COUNT}`, label: 'session types' },
   { value: `${PAIN_ADAPTATION_REGION_COUNT}`, label: 'pain zones' },
 ];
@@ -314,6 +317,8 @@ export default function SubscriptionScreen() {
   // stops mentioning one, the same way it stops mentioning a price it does
   // not have.
   const period = periodWordsFor(offering);
+  // Once per mount, not once per bundle. See buildStats.
+  const stats = useMemo(buildStats, []);
   /**
    * THIS BUILD CANNOT REACH THE STORE AT ALL.
    *
@@ -370,7 +375,7 @@ export default function SubscriptionScreen() {
 
       {/* Stat chips */}
       <View style={styles.statsRow}>
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <View key={s.label} style={styles.statChip}>
             <Text style={styles.statValue}>{s.value}</Text>
             <Text style={styles.statLabel}>{s.label}</Text>

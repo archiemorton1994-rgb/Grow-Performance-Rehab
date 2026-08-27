@@ -559,6 +559,17 @@ interface AppState {
    */
   reminderPromptKind: string | null;
   reminderPromptSince: string | null;
+  /**
+   * When the server last accepted this device's data.
+   *
+   * uploadUserData swallows every failure by design, because local is the
+   * source of truth and a failed upload is retried on the next foreground. The
+   * cost of that is a whole class of problem nobody can see: a payload that has
+   * outgrown the body limit, an expired token, a server that has been down for
+   * a week. Nothing in the app has ever told a user whether their training is
+   * backed up at all. This is what lets it.
+   */
+  lastSyncedAt: string | null;
   /** Time for the daily workout reminder in "HH:MM" format (24-hour). */
   reminderTime: string;
   /** Whether the "missed workout" nudge notification is enabled. */
@@ -678,6 +689,8 @@ interface AppState {
   markHasSubscribed: () => void;
   /** Records the audience and, only when it CHANGES, restarts its clock. */
   noteReminderAudience: (kind: string, nowIso: string) => void;
+  /** Called by uploadUserData on success. See lastSyncedAt. */
+  markSynced: (nowIso: string) => void;
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
@@ -837,6 +850,7 @@ export const useAppStore = create<AppState>()(
       hasEverSubscribed: false,
       reminderPromptKind: null,
       reminderPromptSince: null,
+      lastSyncedAt: null,
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
@@ -973,6 +987,7 @@ export const useAppStore = create<AppState>()(
       markHasSubscribed: () => {
         if (!get().hasEverSubscribed) set({ hasEverSubscribed: true });
       },
+      markSynced: (nowIso) => set({ lastSyncedAt: nowIso }),
       noteReminderAudience: (kind, nowIso) => {
         const s = get();
         // Only on a CHANGE. Writing it every launch would keep resetting the
@@ -2040,6 +2055,9 @@ export const useAppStore = create<AppState>()(
         }
         if (!('reviewPromptShown' in persistedState)) {
           persistedState.reviewPromptShown = false;
+        }
+        if (!('lastSyncedAt' in persistedState)) {
+          persistedState.lastSyncedAt = null;
         }
         if (!('reminderPromptKind' in persistedState)) {
           // Null means "not seen yet", and the first launch after upgrading

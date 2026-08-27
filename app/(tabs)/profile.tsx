@@ -734,6 +734,30 @@ export default function ProfileScreen() {
     }
   };
 
+  const lastSyncedAt = useAppStore((st) => st.lastSyncedAt);
+  /**
+   * "Backed up 2 hours ago", in words, or the honest alternative.
+   *
+   * Deliberately not a bare timestamp. The question a user is asking is "is my
+   * training safe", and a date they have to do arithmetic on does not answer
+   * it. Anything older than a day says the date, because at that point the
+   * answer is probably no and vagueness would be hiding it.
+   */
+  const lastSyncedLabel = useMemo(() => {
+    if (!lastSyncedAt) return 'Not backed up to your account yet';
+    const t = Date.parse(lastSyncedAt);
+    if (!Number.isFinite(t)) return 'Not backed up to your account yet';
+    const mins = Math.floor((Date.now() - t) / 60000);
+    if (mins < 2) return 'Backed up just now';
+    if (mins < 60) return `Backed up ${mins} minutes ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Backed up ${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+    return `Last backed up ${new Date(t).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+    })}`;
+  }, [lastSyncedAt]);
+
   // Through the shared helper, so turning reminders on here and the app
   // re-scheduling them on launch cannot pick two different messages.
   const hasEverSubscribed = useAppStore((st) => st.hasEverSubscribed);
@@ -1633,6 +1657,32 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.accountEmail} numberOfLines={1}>
                   {user?.email ?? 'Not signed in'}
+                </Text>
+              </View>
+              {/*
+                WHERE YOUR TRAINING ACTUALLY LIVES.
+
+                uploadUserData swallows every failure by design, because local
+                is the source of truth and the next foreground retries. The cost
+                is a whole class of problem nobody can see: a payload that has
+                outgrown the body limit, an expired token, a server down for a
+                week. Nothing in the app has ever told anyone whether their
+                training is backed up at all.
+
+                It sits directly above Sign out on purpose. That button clears
+                the phone, and this is the sentence that says whether that is
+                safe.
+              */}
+              <View style={styles.accountRow} testID="last-synced-row">
+                <View style={styles.accountIcon}>
+                  <Ionicons
+                    name={lastSyncedAt ? 'cloud-done-outline' : 'cloud-offline-outline'}
+                    size={18}
+                    color={lastSyncedAt ? C.primaryText : C.textTertiary}
+                  />
+                </View>
+                <Text style={styles.accountEmail} numberOfLines={2}>
+                  {lastSyncedLabel}
                 </Text>
               </View>
               <Pressable onPress={handleSignOut} style={styles.signOutBtn} testID="sign-out-btn">

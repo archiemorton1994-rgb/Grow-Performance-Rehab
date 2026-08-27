@@ -57,9 +57,29 @@ export interface SyncPayload {
  * no signal was otherwise undone by the next launch restoring the server copy.
  * Silence is still the default; the boolean is there for callers that care.
  */
+/**
+ * Records a successful upload, so the app can tell the user their years of
+ * training are actually somewhere other than this phone.
+ *
+ * Written HERE rather than at the six call sites, because a seventh caller
+ * added later would otherwise be silently missing from the answer. The store's
+ * only import from this file is `import type`, which is erased, so there is no
+ * runtime cycle; and the import below sits inside the function so it is not
+ * evaluated at module load.
+ */
+async function noteUploadTime(): Promise<void> {
+  try {
+    const { useAppStore } = await import('@/lib/store');
+    useAppStore.getState().markSynced(new Date().toISOString());
+  } catch {
+    // A timestamp is a nicety. It must never be able to fail an upload.
+  }
+}
+
 export async function uploadUserData(payload: SyncPayload): Promise<boolean> {
   try {
     await apiRequest('PUT', '/api/user/data', payload);
+    void noteUploadTime();
     return true;
   } catch {
     // Silent - local data is always source of truth; upload retry on next foreground

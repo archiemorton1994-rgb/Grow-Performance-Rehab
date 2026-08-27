@@ -20692,7 +20692,20 @@ export function getExerciseNameMap(): Record<string, string> {
 // evaluated at module load and would otherwise be short by thirty.
 spliceChannelExercises();
 
-export const EXERCISE_COUNT = Object.keys(getExerciseNameMap()).length;
+/**
+ * LAZY, because this used to run on every cold start.
+ *
+ * getExerciseNameMap deep-walks every collection in the database. As a top
+ * level const it ran at module load, before anything rendered, on every launch:
+ * 65ms on a developer's desktop, and a few hundred on the cheap Android this
+ * app is meant to work on. Nothing needs it until a screen asks, and only two
+ * things ever ask - the paywall's stats row and a contract test.
+ *
+ * getExerciseNameMap memoises, so the two counts below share one walk.
+ */
+export function exerciseCount(): number {
+  return Object.keys(getExerciseNameMap()).length;
+}
 
 /**
  * Distinct MOVEMENTS, which is what "exercises" means to somebody reading it.
@@ -20703,6 +20716,6 @@ export const EXERCISE_COUNT = Object.keys(getExerciseNameMap()).length;
  * and the wrong one to print on the paywall: 979 entries are 707 movements, so
  * "979+ exercises" counted a lot of them twice.
  */
-export const DISTINCT_EXERCISE_COUNT = new Set(
-  Object.values(getExerciseNameMap()).map((name) => name.toLowerCase().trim())
-).size;
+export function distinctExerciseCount(): number {
+  return new Set(Object.values(getExerciseNameMap()).map((name) => name.toLowerCase().trim())).size;
+}

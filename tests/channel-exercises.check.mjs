@@ -23,7 +23,7 @@
 
 globalThis.__DEV__ = false;
 
-import { getAllPickableExercises, EXERCISE_COUNT, tierRequiredFor } from '../lib/exercise-db.ts';
+import { getAllPickableExercises, exerciseCount, tierRequiredFor } from '../lib/exercise-db.ts';
 import { CHANNEL_EXERCISES } from '../lib/channel-exercises.ts';
 import { EXERCISE_VIDEOS, videoUrlFor } from '../lib/exercise-videos.ts';
 
@@ -54,8 +54,8 @@ check(
 );
 
 check(
-  `the catalogue counts them (${EXERCISE_COUNT} entries)`,
-  EXERCISE_COUNT > 800,
+  `the catalogue counts them (${exerciseCount()} entries)`,
+  exerciseCount() > 800,
   'EXERCISE_COUNT is evaluated at module load and must run after the splice'
 );
 

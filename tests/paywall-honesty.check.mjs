@@ -343,13 +343,13 @@ console.log('\n[8] Every number on the paywall counts what it claims to count');
 
 const db = await import('../lib/exercise-db.ts');
 check(
-  `distinct movements (${db.DISTINCT_EXERCISE_COUNT}) is fewer than catalogue rows (${db.EXERCISE_COUNT})`,
-  db.DISTINCT_EXERCISE_COUNT > 0 && db.DISTINCT_EXERCISE_COUNT < db.EXERCISE_COUNT,
+  `distinct movements (${db.distinctExerciseCount()}) is fewer than catalogue rows (${db.exerciseCount()})`,
+  db.distinctExerciseCount() > 0 && db.distinctExerciseCount() < db.exerciseCount(),
   'the same movement is filed under several ids so it can appear in several pools'
 );
 check(
   'the exercises stat counts movements, not catalogue rows',
-  /DISTINCT_EXERCISE_COUNT\}\+`, label: 'exercises'/.test(code),
+  /distinctExerciseCount\(\)\}\+`, label: 'exercises'/.test(code),
   'EXERCISE_COUNT counted the same exercise once per pool it appears in'
 );
 
