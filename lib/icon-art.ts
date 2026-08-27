@@ -53,11 +53,33 @@ export type GrowIconName =
   | 'clock'
   | 'moon'
   | 'sun'
+  // ── First-run chrome: the tour, the offer, the assistant ──
+  | 'compass'
+  | 'gift'
+  | 'sparkle'
+  | 'medal'
   // ── Set feedback: how hard was that set ──
   | 'effort1'
   | 'effort2'
   | 'effort3'
   | 'effort4';
+
+/**
+ * A struck seal: an N-lobed rosette, as on a certificate.
+ *
+ * Built rather than hand-drawn because the maths is the point — every lobe has
+ * to be identical or the thing reads as a wobble instead of a seal, and 32
+ * hand-typed coordinates is 32 chances to be 0.3 out.
+ */
+function seal(lobes: number, outer: number, inner: number, cy = 24): string {
+  const pts: string[] = [];
+  for (let i = 0; i < lobes * 2; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i * Math.PI) / lobes - Math.PI / 2;
+    pts.push(`${(24 + r * Math.cos(a)).toFixed(2)} ${(cy + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return `M${pts.join(' L')} Z`;
+}
 
 /** Four ascending bars, `filled` of them solid. See the effort* entries. */
 function effortMeter(filled: number): ArtShape[] {
@@ -198,10 +220,27 @@ export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
     { k: 'circle', cx: 32, cy: 15, r: 3.4, fill: 'glyph' },
     { k: 'circle', cx: 12, cy: 30, r: 3.4, fill: 'glyph' },
   ],
+  /**
+   * THE CELEBRATION, AND THE MOST-LOOKED-AT DRAWING IN THE APP.
+   *
+   * It renders at 120px on "Profile Ready!" — the payoff for twelve screens of
+   * questions — and it was a ring with a tick through it. A ring with a tick is
+   * the checkmark-circle every icon pack ships and every app uses for "form
+   * submitted". At that size, on that screen, it read as a system confirmation
+   * rather than as a moment.
+   *
+   * It is a struck seal now: a rosette, a raised face and a tick. Deliberately
+   * the same family as the badge medallions, because this IS the first award
+   * the app gives anyone, and the achievements they meet at the end of the tour
+   * should look like they came from the same place.
+   */
   check: [
-    { k: 'circle', cx: 24, cy: 24, r: 20, fill: 'glyph', o: 0.3 },
-    { k: 'circle', cx: 24, cy: 24, r: 20, stroke: 'glyph', sw: 3.4 },
-    { k: 'path', d: 'M14 24.5 L21 31.5 L34 17.5', stroke: 'glyph', sw: 5 },
+    { k: 'path', d: seal(16, 22, 18.4), fill: 'glyph', o: 0.34 },
+    { k: 'circle', cx: 24, cy: 24, r: 16.5, fill: 'glyph' },
+    // 'face' ink, which nothing else in this set uses. It is legitimate here
+    // and only here: this stroke sits on the disc directly above it, so what is
+    // behind it is known. See faceInkFor in lib/icon-material.ts.
+    { k: 'path', d: 'M15.5 24.5 L21.5 30.5 L32.5 18.5', stroke: 'face', sw: 4.4 },
   ],
 
   // ── Pillars & chrome ───────────────────────────────────────────────────────
@@ -247,6 +286,70 @@ export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
   effort2: effortMeter(2),
   effort3: effortMeter(3),
   effort4: effortMeter(4),
+
+  // ── First-run chrome ───────────────────────────────────────────────────────
+  // Three drawings that replace the last stock Ionicons standing in as
+  // illustration on the screens a new user meets before they have trained once:
+  // the tour's invitation, the offer between the showcase and the paywall, and
+  // the assistant's all-clear.
+
+  /**
+   * A compass rose: the tour's "let's go and have a look round".
+   *
+   * The needle is a rhombus split along its own axis, one half lit and one half
+   * shaded, which is how a real compass needle is painted. Drawn first as a
+   * small pointer inside a filled ring and it vanished into it — a needle has
+   * to be the biggest thing in the circle or the icon is just a circle.
+   */
+  compass: [
+    { k: 'circle', cx: 24, cy: 24, r: 20, fill: 'glyph', o: 0.24 },
+    { k: 'circle', cx: 24, cy: 24, r: 20, stroke: 'glyph', sw: 3.2 },
+    { k: 'path', d: 'M34.5 13.5 L27.2 27.2 L20.8 20.8 Z', fill: 'glyph' },
+    { k: 'path', d: 'M13.5 34.5 L20.8 20.8 L27.2 27.2 Z', fill: 'glyph', o: 0.55 },
+  ],
+
+  /** A wrapped box with a ribbon, for the trial offer. */
+  gift: [
+    { k: 'rect', x: 6, y: 19, w: 36, h: 23, rx: 3.5, fill: 'glyph', o: 0.32 },
+    { k: 'rect', x: 4, y: 14, w: 40, h: 9, rx: 3, fill: 'glyph' },
+    { k: 'rect', x: 20.5, y: 14, w: 7, h: 28, rx: 1.5, fill: 'glyph' },
+    { k: 'path', d: 'M24 14 C24 8 20 4 16 6 C12.5 7.8 14.5 13 24 14 Z', fill: 'glyph' },
+    { k: 'path', d: 'M24 14 C24 8 28 4 32 6 C35.5 7.8 33.5 13 24 14 Z', fill: 'glyph' },
+  ],
+
+  /** A four-point star with two smaller companions: something new to read. */
+  sparkle: [
+    {
+      k: 'path',
+      d: 'M20 6 C21.4 15.6 24.4 18.6 34 20 C24.4 21.4 21.4 24.4 20 34 C18.6 24.4 15.6 21.4 6 20 C15.6 18.6 18.6 15.6 20 6 Z',
+      fill: 'glyph',
+    },
+    {
+      k: 'path',
+      d: 'M35 27 C35.8 31.2 36.8 32.2 41 33 C36.8 33.8 35.8 34.8 35 39 C34.2 34.8 33.2 33.8 29 33 C33.2 32.2 34.2 31.2 35 27 Z',
+      fill: 'glyph',
+      o: 0.42,
+    },
+    {
+      k: 'path',
+      d: 'M12 33 C12.5 35.6 13.4 36.5 16 37 C13.4 37.5 12.5 38.4 12 41 C11.5 38.4 10.6 37.5 8 37 C10.6 36.5 11.5 35.6 12 33 Z',
+      fill: 'glyph',
+      o: 0.42,
+    },
+  ],
+
+  /** A ribboned medal, for anywhere achievements are named. */
+  medal: [
+    { k: 'path', d: 'M14 4 L21 4 L26.5 17 L19.5 17 Z', fill: 'glyph', o: 0.42 },
+    { k: 'path', d: 'M34 4 L27 4 L21.5 17 L28.5 17 Z', fill: 'glyph', o: 0.42 },
+    { k: 'path', d: seal(14, 16, 13.4, 30), fill: 'glyph', o: 0.34 },
+    { k: 'circle', cx: 24, cy: 30, r: 11.6, fill: 'glyph' },
+    {
+      k: 'path',
+      d: 'M24 23 L26 27.6 L31 28.2 L27.3 31.6 L28.3 36.5 L24 34 L19.7 36.5 L20.7 31.6 L17 28.2 L22 27.6 Z',
+      fill: 'face',
+    },
+  ],
 
   sun: [
     { k: 'circle', cx: 24, cy: 24, r: 10, fill: 'glyph' },

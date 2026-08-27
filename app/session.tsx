@@ -4303,16 +4303,14 @@ export default function SessionScreen() {
           >
             <View
               style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: C.primarySurface,
+                width: 88,
+                height: 88,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 4,
               }}
             >
-              <Ionicons name="checkmark-circle" size={52} color={C.primaryText} />
+              <GrowIcon name="check" size={88} color={C.primaryText} />
             </View>
             <Text
               style={{

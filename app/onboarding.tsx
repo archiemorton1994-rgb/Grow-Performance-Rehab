@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { GrowIcon } from '@/components/GrowIcon';
+import { GrowIcon, GrowIconTile } from '@/components/GrowIcon';
 import type { GrowIconName } from '@/lib/icon-art';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
@@ -720,9 +720,12 @@ function OnboardingFlow() {
               <View style={styles.welcomeFeatureList}>
                 {WELCOME_PILLARS.map((pillar) => (
                   <View key={pillar.title} style={styles.welcomePillar}>
-                    <View style={styles.welcomePillarIcon}>
-                      <GrowIcon name={pillar.icon} size={18} color={C.primaryText} />
-                    </View>
+                    <GrowIconTile
+                      name={pillar.icon}
+                      size={38}
+                      color={C.primaryText}
+                      face={C.primaryMuted}
+                    />
                     <View style={styles.welcomePillarText}>
                       <Text style={styles.welcomePillarTitle}>{pillar.title}</Text>
                       <Text style={styles.welcomePillarBody}>{pillar.body}</Text>
@@ -740,7 +743,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="palette" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="palette"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Choose your look</Text>
               <Text style={styles.hint}>Updates live, and you can change it anytime in settings</Text>
@@ -776,20 +785,12 @@ function OnboardingFlow() {
                       ]}
                       testID={`theme-${value}`}
                     >
-                      <View
-                        style={[
-                          styles.optionIcon,
-                          {
-                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
-                          },
-                        ]}
-                      >
-                        <GrowIcon
-                          name={icon}
-                          size={28}
-                          color={selected ? C.primaryText : C.textSecondary}
-                        />
-                      </View>
+                      <GrowIconTile
+                        name={icon}
+                        size={52}
+                        color={selected ? C.primaryText : C.textSecondary}
+                        face={selected ? C.primaryMuted : C.surfaceTertiary}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                           {label}
@@ -817,7 +818,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="scale" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="scale"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Kilos or pounds?</Text>
               <Text style={styles.hint}>
@@ -853,20 +860,12 @@ function OnboardingFlow() {
                       ]}
                       testID={`units-${value}`}
                     >
-                      <View
-                        style={[
-                          styles.optionIcon,
-                          {
-                            backgroundColor: selected ? C.primaryMuted : C.surfaceTertiary,
-                          },
-                        ]}
-                      >
-                        <GrowIcon
-                          name={icon}
-                          size={28}
-                          color={selected ? C.primaryText : C.textSecondary}
-                        />
-                      </View>
+                      <GrowIconTile
+                        name={icon}
+                        size={52}
+                        color={selected ? C.primaryText : C.textSecondary}
+                        face={selected ? C.primaryMuted : C.surfaceTertiary}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                           {label}
@@ -886,7 +885,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="profile" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="profile"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>What should we call you?</Text>
               <Text style={styles.hint}>Personalises your experience</Text>
@@ -912,7 +917,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="chart" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="chart"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Your biological sex</Text>
               <Text style={styles.hint}>Helps us calibrate your lifting loads</Text>
@@ -933,13 +944,12 @@ function OnboardingFlow() {
                       ]}
                       testID={`sex-${opt.value}`}
                     >
-                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <GrowIcon
-                          name={opt.icon}
-                          size={22}
-                          color={selected ? C.textInverse : C.primaryText}
-                        />
-                      </View>
+                      <GrowIconTile
+                        name={opt.icon}
+                        size={52}
+                        color={selected ? C.textInverse : C.primaryText}
+                        face={selected ? C.primaryText : C.primaryMuted}
+                      />
                       <Text
                         style={[
                           styles.optionLabel,
@@ -963,7 +973,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="dumbbell" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="dumbbell"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>How long have you been training?</Text>
               <Text style={styles.hint}>Sets the right starting weights</Text>
@@ -984,13 +1000,12 @@ function OnboardingFlow() {
                       ]}
                       testID={`experience-${opt.value}`}
                     >
-                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <GrowIcon
-                          name={opt.icon}
-                          size={22}
-                          color={selected ? C.textInverse : C.primaryText}
-                        />
-                      </View>
+                      <GrowIconTile
+                        name={opt.icon}
+                        size={52}
+                        color={selected ? C.textInverse : C.primaryText}
+                        face={selected ? C.primaryText : C.primaryMuted}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                           {opt.label}
@@ -1022,7 +1037,13 @@ function OnboardingFlow() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <GrowIcon name="scale" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="scale"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Your current bodyweight</Text>
               {/* IT NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
@@ -1081,7 +1102,13 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={styles.screenContent}>
               <View style={styles.iconCircle}>
-                <GrowIcon name="flag" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="flag"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>What are you training for?</Text>
               <Text style={styles.hint}>Select all that apply</Text>
@@ -1124,7 +1151,13 @@ function OnboardingFlow() {
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.iconCircle, styles.iconCircleCompact]}>
-                <GrowIcon name="dumbbell" size={24} color={C.primaryText} />
+                <GrowIconTile
+                  name="dumbbell"
+                  size={44}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={[styles.question, styles.questionCompact]}>
                 What do you have access to?
@@ -1232,7 +1265,13 @@ function OnboardingFlow() {
                   now sit next to each other. Two consecutive screens under an
                   identical illustration read as if the swipe did nothing. */}
               <View style={styles.iconCircle}>
-                <GrowIcon name="trend" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="trend"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Test your strength?</Text>
               <Text style={styles.hint}>
@@ -1271,13 +1310,12 @@ function OnboardingFlow() {
                       style={[styles.optionCard, selected && styles.optionCardSelected]}
                       testID={`onboarding-test-${opt.value}`}
                     >
-                      <View style={[styles.optionIcon, selected && styles.optionIconSelected]}>
-                        <GrowIcon
-                          name={opt.icon}
-                          size={22}
-                          color={selected ? C.textInverse : C.primaryText}
-                        />
-                      </View>
+                      <GrowIconTile
+                        name={opt.icon}
+                        size={52}
+                        color={selected ? C.textInverse : C.primaryText}
+                        face={selected ? C.primaryText : C.primaryMuted}
+                      />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                           {opt.label}
@@ -1311,7 +1349,13 @@ function OnboardingFlow() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.iconCircle}>
-                <GrowIcon name="podium" size={56} color={C.primaryText} />
+                <GrowIconTile
+                  name="podium"
+                  size={96}
+                  color={C.primaryText}
+                  face={C.primaryMuted}
+                  shape="circle"
+                />
               </View>
               <Text style={styles.question}>Your best lifts</Text>
               {/*
@@ -1366,7 +1410,7 @@ function OnboardingFlow() {
           <View style={[styles.screen, { width: SCREEN_WIDTH }]}>
             <View style={[styles.screenContent, styles.celebContent]}>
               <Animated.View style={[styles.celebIconWrap, checkAnimStyle]}>
-                <GrowIcon name="check" size={120} color={C.primaryDark} />
+                <GrowIcon name="check" size={132} color={C.primaryDark} />
               </Animated.View>
               <Animated.Text style={[styles.celebTitle, celebTitleStyle]}>
                 Profile Ready!
@@ -1601,11 +1645,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 24,
       paddingTop: 28,
     },
+    // Layout only. The disc itself is drawn by GrowIconTile, which lights it
+    // rather than flat-filling it - see components/GrowIcon.tsx.
     iconCircle: {
       width: 96,
       height: 96,
-      borderRadius: 48,
-      backgroundColor: C.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 24,
@@ -1906,12 +1950,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 14,
     },
     welcomePillarIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 11,
-      backgroundColor: C.primaryMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: 38,
+      height: 38,
     },
     welcomePillarText: {
       flex: 1,

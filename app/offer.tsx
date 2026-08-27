@@ -13,6 +13,7 @@ import { useColors } from '@/constants/colors';
 import { useAppStore } from '@/lib/store';
 import { configureRevenueCat } from '@/lib/auth-context';
 import { periodWordsFor, getTrialText } from '@/lib/subscription-period';
+import { GrowIconTile } from '@/components/GrowIcon';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
@@ -116,10 +117,12 @@ export default function OfferScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
       <View style={styles.middle}>
         <Animated.View entering={FadeInDown.duration(360)} style={styles.ring}>
-          <Ionicons
-            name={hasTrial ? 'gift-outline' : 'sparkles-outline'}
-            size={58}
+          <GrowIconTile
+            name={hasTrial ? 'gift' : 'sparkle'}
+            size={112}
             color={C.primaryText}
+            face={C.primaryMuted}
+            shape="circle"
           />
         </Animated.View>
 
@@ -166,11 +169,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 28 },
     middle: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    // Layout only. GrowIconTile draws the disc.
     ring: {
       width: 112,
       height: 112,
-      borderRadius: 56,
-      backgroundColor: C.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 30,

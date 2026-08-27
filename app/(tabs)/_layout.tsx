@@ -2,6 +2,7 @@ import { Tabs, router, useSegments } from 'expo-router';
 import { Platform, StyleSheet, View, Image, Modal, Text, Pressable } from 'react-native';
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { GrowIconTile } from '@/components/GrowIcon';
 import { ScrollToTopProvider, useScrollToTopTrigger } from '@/lib/scroll-to-top-context';
 import Animated, {
   FadeIn,
@@ -301,8 +302,14 @@ function TabsInner() {
       >
         <View style={styles.introOverlay}>
           <View style={[styles.introCard, { backgroundColor: C.surface, borderColor: C.primary }]}>
-            <View style={[styles.introIconRing, { backgroundColor: C.primarySurface }]}>
-              <Ionicons name="compass-outline" size={30} color={C.primaryText} />
+            <View style={styles.introIconRing}>
+              <GrowIconTile
+                name="compass"
+                size={60}
+                color={C.primaryText}
+                face={C.primaryMuted}
+                shape="circle"
+              />
             </View>
             <Text style={[styles.introTitle, { color: C.text }]}>Let&apos;s take a tour!</Text>
             <Text style={[styles.introBody, { color: C.textSecondary }]}>

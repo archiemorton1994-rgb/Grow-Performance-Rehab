@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/colors';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
 import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
-import { GrowIcon } from '@/components/GrowIcon';
+import { GrowIconTile } from '@/components/GrowIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -176,7 +176,13 @@ export default function ShowcaseScreen() {
         {CARDS.map((card) => (
           <View key={card.title} style={[styles.page, { width: SCREEN_WIDTH }]}>
             <Animated.View entering={FadeIn.duration(320)} style={styles.iconRing}>
-              <GrowIcon name={card.icon as never} size={62} color={C.primaryText} />
+              <GrowIconTile
+                name={card.icon as never}
+                size={108}
+                color={C.primaryText}
+                face={C.primaryMuted}
+                shape="circle"
+              />
             </Animated.View>
             <Animated.Text entering={FadeInDown.delay(60).duration(320)} style={styles.eyebrow}>
               {card.eyebrow.toUpperCase()}
@@ -235,11 +241,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     dotActive: { width: 20, backgroundColor: C.primary },
     skip: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     page: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+    // Layout only. GrowIconTile draws the disc, lit rather than flat-filled.
     iconRing: {
       width: 108,
       height: 108,
-      borderRadius: 54,
-      backgroundColor: C.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 26,

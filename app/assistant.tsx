@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { GrowIcon } from '@/components/GrowIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -364,7 +365,7 @@ export default function AssistantScreen() {
 
         {briefing.total === 0 && (
           <View style={[styles.empty, { borderColor: C.borderLight, backgroundColor: C.surface }]}>
-            <Ionicons name="checkmark-circle-outline" size={30} color={C.primaryText} />
+            <GrowIcon name="check" size={34} color={C.primaryText} />
             <Text style={[styles.emptyTitle, { color: C.text }]}>Nothing to flag</Text>
             <Text style={[styles.emptyBody, { color: C.textSecondary }]}>
               Your training is balanced and your numbers are current. Train a few more sessions and
