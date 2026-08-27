@@ -22,7 +22,7 @@ import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
 import { distinctExerciseCount } from '@/lib/exercise-db';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
-import { periodWordsFor } from '@/lib/subscription-period';
+import { periodWordsFor, getTrialText } from '@/lib/subscription-period';
 import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
 import { getApiUrl } from '@/lib/query-client';
 
@@ -74,46 +74,6 @@ const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: str
     body: 'Stop mid-workout and pick up where you left off any time that day.',
   },
 ];
-
-/**
- * What the card promises, given the offer AND whether this person can have it.
- *
- * `trialEligible` is the half that was missing. Apple grants an introductory
- * offer once per Apple ID, so anyone who has tried the app before — trial used,
- * subscription cancelled, or simply reinstalling on a new phone — was shown
- * "Start 14-Day Free Trial", tapped it, and was charged the full month
- * immediately by Apple's own sheet. They believe they signed up for a free
- * trial and see a charge the same day. That is a refund request, a one-star
- * review, and a fair accusation of a misleading claim.
- *
- * Ineligible users get the honest version: Subscribe, and the price.
- */
-function getTrialText(
-  pkg: PurchasesPackage | null,
-  trialEligible: boolean
-): { badge: string; cta: string; sub: string } {
-  if (!trialEligible) {
-    return { badge: '', cta: 'Subscribe', sub: '' };
-  }
-  const intro = pkg?.product?.introPrice;
-  if (intro && intro.price === 0 && intro.periodNumberOfUnits > 0) {
-    const n = intro.periodNumberOfUnits;
-    const unit = (intro.periodUnit as string).toUpperCase();
-    let period = `${n}-day`;
-    if (unit === 'WEEK') period = n === 1 ? '1-week' : `${n}-week`;
-    else if (unit === 'MONTH') period = n === 1 ? '1-month' : `${n}-month`;
-    else if (unit === 'YEAR') period = n === 1 ? '1-year' : `${n}-year`;
-    return {
-      badge: `${period} free trial`,
-      cta: `Start ${period.charAt(0).toUpperCase() + period.slice(1)} Free Trial`,
-      sub: `Try free for ${period.replace('-', ' ')}, then`,
-    };
-  }
-  // No introPrice on the package: the store is not offering a trial on this
-  // product, whatever this app would like to say. Claiming "14 days free" here
-  // was a hardcoded promise nothing backed.
-  return { badge: '', cta: 'Subscribe', sub: '' };
-}
 
 function getLegalUrls() {
   try {

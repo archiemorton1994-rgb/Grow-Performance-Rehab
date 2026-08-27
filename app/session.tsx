@@ -2465,8 +2465,20 @@ export default function SessionScreen() {
     equipment: string;
     displayLabel?: string;
     demo?: string;
+    /** 'true' when this demo was launched from the pre-paywall showcase. */
+    showcase?: string;
   }>();
   const isDemo = params.demo === 'true';
+  /**
+   * The same practice session, reached from two places, ending in two places.
+   *
+   * From the guided tour it finishes the tour and drops the user into the tabs.
+   * From the showcase it must do neither: the tour has not happened yet, and
+   * the tabs are behind a paywall this person has not passed. It goes to the
+   * offer instead, and leaves tourComplete alone so the real tour still runs
+   * for them once they subscribe.
+   */
+  const isShowcase = params.showcase === 'true';
 
   const VALID_SESSION_TYPES: SessionType[] = [
     'squat',
@@ -2912,6 +2924,10 @@ export default function SessionScreen() {
       const next = prev + 1;
       if (next >= effectiveTutorial.length) {
         setSessionTutorialShown(true);
+        if (isShowcase) {
+          setShowDemoComplete(true);
+          return null;
+        }
         if (isDemo) {
           setTourComplete(true);
           setTourJustCompleted(true);
@@ -2926,6 +2942,10 @@ export default function SessionScreen() {
   const skipTut = useCallback(() => {
     setTutStep(null);
     setSessionTutorialShown(true);
+    if (isShowcase) {
+      router.replace('/offer' as never);
+      return;
+    }
     if (isDemo) {
       setTourComplete(true);
       setTourJustCompleted(true);
@@ -4302,7 +4322,7 @@ export default function SessionScreen() {
                 textAlign: 'center',
               }}
             >
-              {"You're all set!"}
+              {isShowcase ? 'That is how it works' : "You're all set!"}
             </Text>
             <Text
               style={{
@@ -4314,13 +4334,15 @@ export default function SessionScreen() {
               }}
             >
               {
-                "Your programme is ready. Sessions rotate automatically, just show up and the app handles the planning."
+                isShowcase
+                  ? 'Every session is built like that one, around what you have, how you feel and what you lifted last time.'
+                  : 'Your programme is ready. Sessions rotate automatically, just show up and the app handles the planning.'
               }
             </Text>
             <Pressable
               onPress={() => {
                 setShowDemoComplete(false);
-                router.navigate('/(tabs)' as any);
+                router.replace((isShowcase ? '/offer' : '/(tabs)') as any);
               }}
               style={({ pressed }) => ({
                 marginTop: 8,
@@ -4334,7 +4356,7 @@ export default function SessionScreen() {
               })}
             >
               <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
-                Start my first session →
+                {isShowcase ? 'Continue' : 'Start my first session →'}
               </Text>
             </Pressable>
           </Animated.View>

@@ -550,6 +550,18 @@ interface AppState {
    */
   hasEverSubscribed: boolean;
   /**
+   * Has this person been shown what the app does?
+   *
+   * The showcase sits between signing in and the paywall, so that nobody is
+   * asked to pay for something they have not seen. Once through, they go
+   * straight to the paywall on every later launch: a pitch you cannot get past
+   * is worse than no pitch.
+   *
+   * It gates a SCREEN, never access. The subscription gate reads
+   * hasActiveSubscription and nothing else.
+   */
+  showcaseComplete: boolean;
+  /**
    * Which reminder audience this person is in, and when they entered it.
    *
    * Only the daily prompt uses it, to taper: daily for a fortnight, weekly
@@ -687,6 +699,7 @@ interface AppState {
   setReminderEnabled: (enabled: boolean) => void;
   /** Sets hasEverSubscribed once. See the field for why it exists. */
   markHasSubscribed: () => void;
+  setShowcaseComplete: (done: boolean) => void;
   /** Records the audience and, only when it CHANGES, restarts its clock. */
   noteReminderAudience: (kind: string, nowIso: string) => void;
   /** Called by uploadUserData on success. See lastSyncedAt. */
@@ -848,6 +861,7 @@ export const useAppStore = create<AppState>()(
       coachSeen: {},
       reminderEnabled: false,
       hasEverSubscribed: false,
+      showcaseComplete: false,
       reminderPromptKind: null,
       reminderPromptSince: null,
       lastSyncedAt: null,
@@ -988,6 +1002,7 @@ export const useAppStore = create<AppState>()(
         if (!get().hasEverSubscribed) set({ hasEverSubscribed: true });
       },
       markSynced: (nowIso) => set({ lastSyncedAt: nowIso }),
+      setShowcaseComplete: (done) => set({ showcaseComplete: done }),
       noteReminderAudience: (kind, nowIso) => {
         const s = get();
         // Only on a CHANGE. Writing it every launch would keep resetting the
@@ -2055,6 +2070,12 @@ export const useAppStore = create<AppState>()(
         }
         if (!('reviewPromptShown' in persistedState)) {
           persistedState.reviewPromptShown = false;
+        }
+        if (!('showcaseComplete' in persistedState)) {
+          // An existing user has already paid, so the gate never sends them
+          // here; and if their subscription later lapses, seeing what they are
+          // being asked to pay for again is the right outcome, not a bug.
+          persistedState.showcaseComplete = false;
         }
         if (!('lastSyncedAt' in persistedState)) {
           persistedState.lastSyncedAt = null;

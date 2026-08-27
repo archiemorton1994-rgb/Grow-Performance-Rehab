@@ -70,3 +70,52 @@ export function subscriptionDateLabel(isOnTrial: boolean, willRenew: boolean): s
   if (isOnTrial) return willRenew ? 'First charge' : 'Free trial ends';
   return willRenew ? 'Renews' : 'Ends';
 }
+
+/**
+ * MOVED HERE FROM app/subscription.tsx, and exported.
+ *
+ * Two screens now make a claim about a trial: the paywall, and the offer
+ * screen that sits between the showcase and it. Two implementations of "what
+ * are we allowed to say about a free period" is exactly the class of bug this
+ * app has spent a week removing, so there is one, and a contract test runs it
+ * rather than reading it.
+ */
+/**
+ * What the card promises, given the offer AND whether this person can have it.
+ *
+ * `trialEligible` is the half that was missing. Apple grants an introductory
+ * offer once per Apple ID, so anyone who has tried the app before — trial used,
+ * subscription cancelled, or simply reinstalling on a new phone — was shown
+ * "Start 14-Day Free Trial", tapped it, and was charged the full month
+ * immediately by Apple's own sheet. They believe they signed up for a free
+ * trial and see a charge the same day. That is a refund request, a one-star
+ * review, and a fair accusation of a misleading claim.
+ *
+ * Ineligible users get the honest version: Subscribe, and the price.
+ */
+export function getTrialText(
+  pkg: PurchasesPackage | null,
+  trialEligible: boolean
+): { badge: string; cta: string; sub: string } {
+  if (!trialEligible) {
+    return { badge: '', cta: 'Subscribe', sub: '' };
+  }
+  const intro = pkg?.product?.introPrice;
+  if (intro && intro.price === 0 && intro.periodNumberOfUnits > 0) {
+    const n = intro.periodNumberOfUnits;
+    const unit = (intro.periodUnit as string).toUpperCase();
+    let period = `${n}-day`;
+    if (unit === 'WEEK') period = n === 1 ? '1-week' : `${n}-week`;
+    else if (unit === 'MONTH') period = n === 1 ? '1-month' : `${n}-month`;
+    else if (unit === 'YEAR') period = n === 1 ? '1-year' : `${n}-year`;
+    return {
+      badge: `${period} free trial`,
+      cta: `Start ${period.charAt(0).toUpperCase() + period.slice(1)} Free Trial`,
+      sub: `Try free for ${period.replace('-', ' ')}, then`,
+    };
+  }
+  // No introPrice on the package: the store is not offering a trial on this
+  // product, whatever this app would like to say. Claiming "14 days free" here
+  // was a hardcoded promise nothing backed.
+  return { badge: '', cta: 'Subscribe', sub: '' };
+}

@@ -116,6 +116,7 @@ function RootLayoutNav() {
   // the app - re-rendered on every set logged, every note keystroke and every
   // autosave. There were four such calls in here.
   const onboardingComplete = useAppStore((s) => s.onboardingComplete);
+  const showcaseComplete = useAppStore((s) => s.showcaseComplete);
   const hasHydrated = useAppStore((s) => s.hasHydrated);
   const { isLoading, isAuthenticated, hasActiveSubscription } = useAuth();
   const segments = useSegments();
@@ -267,12 +268,36 @@ function RootLayoutNav() {
       if (currentPath !== 'onboarding') timer = setTimeout(() => router.replace('/onboarding'), 0);
     } else if (!isAuthenticated) {
       if (currentPath !== 'auth') timer = setTimeout(() => router.replace('/auth'), 0);
+    } else if (!hasActiveSubscription && !showcaseComplete) {
+      /**
+       * SHOW THE APP BEFORE ASKING ANYONE TO PAY FOR IT.
+       *
+       * The order used to be onboarding, sign in, PAY, and only then the guided
+       * tour and the practice session. Every download invested ten minutes and
+       * handed over card details before experiencing a single thing Grow does.
+       *
+       * The showcase and the offer sit outside (tabs) on purpose. Moving the tab
+       * tour in front of the gate would have meant an unsubscribed user was
+       * inside the app, and anyone who skipped the tour was simply in. The
+       * practice session the showcase ends on is a root-level route in demo
+       * mode, which cannot write to the store, so nothing is exposed and the
+       * paywall keeps exactly the reach it had.
+       *
+       * The offer screen is not redirected away from: it is the second half of
+       * this same flow. It marks the showcase seen on mount, so this branch
+       * stops applying the moment it is reached.
+       */
+      if (currentPath !== 'showcase' && currentPath !== 'offer') {
+        timer = setTimeout(() => router.replace('/showcase'), 0);
+      }
     } else if (!hasActiveSubscription) {
       if (currentPath !== 'subscription') timer = setTimeout(() => router.replace('/subscription'), 0);
     } else if (
       currentPath === 'onboarding' ||
       currentPath === 'auth' ||
-      currentPath === 'subscription'
+      currentPath === 'subscription' ||
+      currentPath === 'showcase' ||
+      currentPath === 'offer'
     ) {
       // Only force into the tabs from a gate screen — once the user is fully
       // cleared and already somewhere else in the app (tabs, achievements,
@@ -296,6 +321,7 @@ function RootLayoutNav() {
     isLoading,
     hasHydrated,
     onboardingComplete,
+    showcaseComplete,
     isAuthenticated,
     hasActiveSubscription,
     isOnTransientScreen,
@@ -452,6 +478,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="showcase" options={{ headerShown: false }} />
+        <Stack.Screen name="offer" options={{ headerShown: false }} />
         <Stack.Screen name="subscription" options={{ headerShown: false }} />
         <Stack.Screen name="readiness" options={{ headerShown: false }} />
         <Stack.Screen name="session" options={{ headerShown: false }} />

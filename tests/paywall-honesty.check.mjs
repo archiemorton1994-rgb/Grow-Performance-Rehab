@@ -80,16 +80,59 @@ check(
   'the fallback used to assert a trial that nothing in the store backed'
 );
 
+/**
+ * getTrialText moved to lib/subscription-period.ts and is RUN here.
+ *
+ * It moved because two screens now make a claim about a trial: the paywall, and
+ * the offer screen between the showcase and it. Two implementations of "what
+ * are we allowed to say about a free period" is the class of bug this app has
+ * spent a week removing.
+ *
+ * Running it beats regexing it. These four cases are the whole contract, and
+ * the wording of the ifs is nobody's business.
+ */
+const { getTrialText } = await import('../lib/subscription-period.ts');
+const withIntro = (days) => ({
+  product: {
+    identifier: 'p',
+    introPrice: { price: 0, periodNumberOfUnits: days, periodUnit: 'DAY' },
+    subscriptionPeriod: 'P1M',
+  },
+  packageType: 'MONTHLY',
+});
 check(
-  'an ineligible user is offered a plain Subscribe',
-  /cta: 'Subscribe'/.test(code),
+  'an ineligible user is offered a plain Subscribe, whatever the store is offering',
+  (() => {
+    const t = getTrialText(withIntro(14), false);
+    return t.cta === 'Subscribe' && t.badge === '' && t.sub === '';
+  })(),
+  'Apple grants the introductory offer once per Apple ID, so a returning customer promised a trial is charged in full the same day'
+);
+check(
+  'an eligible user is told the length the STORE is offering',
+  (() => {
+    const t = getTrialText(withIntro(7), true);
+    return /7-day/.test(t.badge) && /7-Day/i.test(t.cta);
+  })(),
+  'the app used to hardcode 14, which would be a lie the moment the product changed'
+);
+check(
+  'and 14 days reads as 14 days',
+  /14-day/.test(getTrialText(withIntro(14), true).badge),
   ''
 );
-
 check(
-  'the copy is gated on eligibility before anything else',
-  /if \(!trialEligible\) \{\s*\r?\n?\s*return \{ badge: '', cta: 'Subscribe', sub: '' \};/.test(code),
-  'the eligibility answer has to reach the wording, not just be fetched'
+  'an eligible user gets no trial claim when the store is not offering one',
+  (() => {
+    const t = getTrialText({ product: { identifier: 'p' }, packageType: 'MONTHLY' }, true);
+    return t.cta === 'Subscribe' && t.badge === '';
+  })(),
+  'eligibility is permission to receive an offer, not proof that one exists'
+);
+check(
+  'and no package at all makes no claim either',
+  getTrialText(null, true).badge === '',
+  ''
 );
 
 check(
