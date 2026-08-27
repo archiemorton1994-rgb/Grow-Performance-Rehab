@@ -38,6 +38,8 @@ import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/wo
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
 import {
   getCoachBriefing,
@@ -214,6 +216,8 @@ export default function HomeScreen() {
     setTourJustCompleted,
     tourActiveTab,
     setTourActiveTab,
+    tourEnterAtLastStep,
+    setTourEnterAtLastStep,
     skipTour,
     balanceNudgeDismissedAt,
     dismissBalanceNudge,
@@ -748,14 +752,23 @@ export default function HomeScreen() {
   // branches or this step spotlights nothing for a brand-new user.
   const trainElseRef = useRef<View>(null);
   const achievementsTileRef = useRef<View>(null);
-  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const scrollHint = useScrollIndicator();
 
   useEffect(() => {
     if (tourActiveTab === 0) {
-      const t = setTimeout(() => setTutStep(0), 300);
+      // entryStepFor is what makes Back across a tab boundary land on the card
+      // the user was reading rather than on this tab's first one. The flag is
+      // consumed here so a later forward arrival opens at the start again.
+      const at = entryStepFor(tourEnterAtLastStep, homeEffectiveTutorial.length);
+      const t = setTimeout(() => {
+        setTutStep(at);
+        if (tourEnterAtLastStep) setTourEnterAtLastStep(false);
+      }, 300);
       return () => clearTimeout(t);
     }
     setTutStep(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourActiveTab]);
 
   useEffect(() => {
@@ -792,6 +805,27 @@ export default function HomeScreen() {
     });
   }, [setTourActiveTab, homeEffectiveTutorial]);
 
+  /**
+   * Back one card, or to the last card of the previous tab.
+   *
+   * tourBackTarget is what decides which, and it knows the tour's real order -
+   * Home, Train, Restore, Stats, Profile - rather than assuming tab minus one,
+   * which is wrong for every tab in the chain. A null target means this is the
+   * first card of the whole tour and CoachMark is not given an onPrev at all,
+   * so no control renders.
+   */
+  const backHomeTut = useCallback(() => {
+    const target = tourBackTarget(0, tutStep);
+    if (target === null) return;
+    if (target.kind === 'step') {
+      setTutStep(target.step);
+      return;
+    }
+    setTutStep(null);
+    setTourEnterAtLastStep(true);
+    setTourActiveTab(target.tab);
+  }, [tutStep, setTourActiveTab, setTourEnterAtLastStep]);
+
   const skipHomeTut = useCallback(() => {
     setTutStep(null);
     skipTour();
@@ -812,9 +846,14 @@ export default function HomeScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={[
             styles.inner,
-            { paddingBottom: Platform.OS === 'web' ? 84 + 24 : tabBarHeight + 24 },
+            // The tab bar is 83pt (49 + inset) and tabBarHeight already
+            // rounds that up to 84. The old +24 on top of it reserved 108pt of
+            // screen for an 83pt bar, which is 25pt of a screen that was 83pt
+            // short. +8 is a clear gap, not a hole.
+            { paddingBottom: Platform.OS === 'web' ? 84 + 8 : tabBarHeight + 8 },
           ]}
           showsVerticalScrollIndicator={false}
+          {...scrollHint.handlers}
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
@@ -993,8 +1032,22 @@ export default function HomeScreen() {
                 <View style={styles.todayCardTop}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.todayLabel}>Today</Text>
-                    <Text style={styles.todaySessionName}>{suggestedMeta.label}</Text>
-                    <Text style={styles.todaySessionSub}>{suggestedMeta.subtitle}</Text>
+                    {/*
+                      numberOfLines is load-bearing, not tidiness.
+
+                      The session artwork used to be 112pt and set this row's
+                      height on its own. At 76 the text column wins instead, and
+                      the column is only ~182pt wide - so without this the card
+                      would be one line taller on the days squat comes up (its
+                      subtitle is longer than deadlift's) and the whole screen
+                      would fit on some days and not others.
+                    */}
+                    <Text style={styles.todaySessionName} numberOfLines={1}>
+                      {suggestedMeta.label}
+                    </Text>
+                    <Text style={styles.todaySessionSub} numberOfLines={1}>
+                      {suggestedMeta.subtitle}
+                    </Text>
                   </View>
                   <View style={styles.todayIcon}>
                     <Image
@@ -1011,6 +1064,7 @@ export default function HomeScreen() {
                     {lastSessionDurationLabel ? ` · ${lastSessionDurationLabel}` : ''}
                   </Text>
                 )}
+                <View style={styles.chipRow}>
                 <Pressable
                   onPress={openEquipmentSheet}
                   style={({ pressed }) => [
@@ -1049,10 +1103,11 @@ export default function HomeScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Train something else"
                   >
-                    <Ionicons name="grid-outline" size={15} color={C.primaryText} />
+                    <Ionicons name="grid-outline" size={14} color={C.primaryText} />
                     <Text style={styles.trainElseText}>Train something else</Text>
-                    <Ionicons name="chevron-forward" size={13} color={C.primaryText} />
+                    <Ionicons name="chevron-forward" size={12} color={C.primaryText} />
                   </Pressable>
+                </View>
                 </View>
                 <Pressable
                   onPress={handleStartSuggested}
@@ -1173,8 +1228,7 @@ export default function HomeScreen() {
                 resizeMode="contain"
               />
               <Text style={styles.summaryBigNum}>{completedSessions.length}</Text>
-              <Text style={styles.summaryCardTitle}>TOTAL</Text>
-              <Text style={styles.summaryCardSub}>Workouts</Text>
+              <Text style={styles.summaryCardTitle}>TOTAL WORKOUTS</Text>
             </Pressable>
 
             {/* Achievements */}
@@ -1195,7 +1249,6 @@ export default function HomeScreen() {
               />
               <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
               <Text style={styles.summaryCardTitle}>ACHIEVEMENTS</Text>
-              <Text style={styles.summaryCardSub}>Unlocked</Text>
             </Pressable>
           </Animated.View>
 
@@ -1288,7 +1341,10 @@ export default function HomeScreen() {
             </Animated.View>
           ) : null}
 
-        </ScrollView>
+        </ScrollView>
+        {/* Home fits one screen on an iPhone 12 and up. On a 667pt SE it does
+            not, and nothing used to say so. */}
+        <ScrollIndicator {...scrollHint.state} top={8} bottom={96} />
 
         {/* The assistant's bubble. Rendered OUTSIDE the ScrollView so it floats
             over the page rather than adding to its height — the whole point of
@@ -1509,6 +1565,7 @@ export default function HomeScreen() {
           total={homeEffectiveTutorial.length}
           onNext={advanceHomeTut}
           onSkip={skipHomeTut}
+          onPrev={tourBackTarget(0, tutStep) ? backHomeTut : undefined}
           bottomOffset={(Platform.OS === 'web' ? 84 : tabBarHeight) + 16}
           iconName={homeEffectiveTutorial[tutStep].iconName}
           iconLabel={homeEffectiveTutorial[tutStep].iconLabel}
@@ -1569,7 +1626,11 @@ const modalStyles = StyleSheet.create({
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    inner: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, gap: 16 },
+    // Home is meant to fit on one screen. Every number here was measured
+    // against a 390x844 device, not chosen: see the budget in the commit that
+    // introduced them. Four 16px gaps were 64px of air on a screen that was
+    // 197px over.
+    inner: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, gap: 12 },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingEyebrow: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
@@ -1601,12 +1662,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     todayCard: {
       backgroundColor: C.surface,
       borderRadius: 20,
-      padding: 20,
+      padding: 16,
       borderWidth: 1,
       borderColor: C.border,
       ...shadowStyle(C.shadow, 0.18, 14, 6, 5),
     },
-    todayCardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+    todayCardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     todayLabel: {
       fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
@@ -1617,9 +1678,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     todaySessionName: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     todaySessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    // 112 was the single tallest thing on the home screen and the session
+    // artwork is perfectly legible smaller. This is 36px of the ~197 that had
+    // to come out.
     todayIcon: {
-      width: 112,
-      height: 112,
+      width: 76,
+      height: 76,
       borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1645,19 +1709,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
      * as background. But it is the only thing on this screen that says the rest
      * of the app exists, so it is a real button and not a text link.
      */
-    trainElseWrap: { marginBottom: 10 },
+    // The equipment chip and this share a row. Stacked they cost 90px on a
+    // screen that had to lose 197; side by side they cost 41 and read as what
+    // they are, two secondary controls above one primary button.
+    chipRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginBottom: 10,
+    },
+    trainElseWrap: { flex: 1 },
     trainElseBtn: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      gap: 7,
+      gap: 5,
       borderRadius: 12,
-      paddingVertical: 11,
+      paddingVertical: 8,
+      paddingHorizontal: 8,
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.surfaceSecondary,
     },
-    trainElseText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    trainElseText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     equipmentChip: {
       flexDirection: 'row' as const,
@@ -1666,9 +1740,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignSelf: 'flex-start' as const,
       backgroundColor: C.surfaceSecondary,
       borderRadius: 20,
-      paddingHorizontal: 12,
+      paddingHorizontal: 11,
       paddingVertical: 6,
-      marginBottom: 10,
       borderWidth: 1,
       borderColor: C.border,
     },
@@ -1694,36 +1767,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     summaryGrid: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
-      gap: 12,
+      gap: 10,
     },
     summaryCard: {
       width: '47%' as any,
       // The Your Program tile carries an extra line, so without a floor the two
       // tiles in a row are different heights and the 2x2 grid steps.
-      minHeight: 148,
+      minHeight: 112,
       justifyContent: 'center' as const,
       backgroundColor: C.surface,
       borderRadius: 18,
-      padding: 12,
+      padding: 10,
       alignItems: 'center' as const,
       borderWidth: 1,
       borderColor: C.borderLight,
-      gap: 4,
+      gap: 3,
     },
     summaryCardImage: {
-      width: 52,
-      height: 52,
-      marginBottom: 2,
-    },
-    summaryIconBox: {
-      width: 72,
-      height: 72,
-      borderRadius: 18,
-      backgroundColor: C.surfaceSecondary,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      marginBottom: 2,
-      gap: 2,
+      width: 38,
+      height: 38,
+      marginBottom: 1,
     },
     summaryCardTitle: {
       fontSize: 11,
@@ -1757,7 +1820,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
-      marginTop: -8,
+      marginTop: -6,
       marginBottom: 14,
     },
 
@@ -1893,17 +1956,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
 
+    // The brand-new user's card is the tallest thing on Home: three of these
+    // rows are 237pt on their own. Measured, not guessed - see the budget in
+    // tests/home-fits.check.mjs.
     firstChoiceRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingVertical: 11,
+      paddingVertical: 9,
       borderTopWidth: 1,
       borderTopColor: C.borderLight,
     },
     firstChoiceIcon: {
-      width: 56,
-      height: 56,
+      width: 46,
+      height: 46,
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',

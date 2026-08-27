@@ -26,9 +26,11 @@ import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META } from '@/lib/session-meta';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 
 interface TrainTutorialStep {
-  spotlightRef: 'equipment' | 'kpi';
+  spotlightRef: 'equipment' | 'kpi' | 'custom';
   iconName: string;
   iconLabel: string;
   title: string;
@@ -59,7 +61,7 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     // different idea and was going unexplained. The builder is the only place
     // in the app that asks how long you have got, and a user who never opens it
     // never finds that out.
-    spotlightRef: 'kpi',
+    spotlightRef: 'custom',
     iconName: 'construct-outline',
     iconLabel: 'Custom',
     title: 'Or build your own',
@@ -101,6 +103,8 @@ export default function TrainScreen() {
     clearSessionEquipmentOverride,
     tourActiveTab,
     setTourActiveTab,
+    tourEnterAtLastStep,
+    setTourEnterAtLastStep,
     skipTour,
   } = useAppStore();
 
@@ -134,29 +138,50 @@ export default function TrainScreen() {
   // before measuring it — "Additional Sessions" sits below the fold on most
   // screens, so without this the tutorial would spotlight whatever happened
   // to already be on screen instead of actually scrolling to it.
+  // Custom is a card INSIDE the kpi section, not a section of its own, so it
+  // scrolls to the same place and only differs in what gets measured.
+  const customRef = useRef<View>(null);
   const sectionScrollY = useRef<{ equipment: number; kpi: number; additional: number }>({
     equipment: 0,
     kpi: 0,
     additional: 0,
   });
   const SCROLL_TOP_PADDING = 90;
+  const scrollHint = useScrollIndicator();
 
   useEffect(() => {
     if (tourActiveTab === 2) {
-      const t = setTimeout(() => setTutStep(0), 300);
+      // entryStepFor is what makes Back across a tab boundary land on the card
+      // the user was reading rather than on this tab's first one. The flag is
+      // consumed here so a later forward arrival opens at the start again.
+      const at = entryStepFor(tourEnterAtLastStep, TRAIN_TUTORIAL.length);
+      const t = setTimeout(() => {
+        setTutStep(at);
+        if (tourEnterAtLastStep) setTourEnterAtLastStep(false);
+      }, 300);
       return () => clearTimeout(t);
     }
     setTutStep(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourActiveTab]);
 
   useEffect(() => {
     setTutSpotlight(null);
     if (tutStep === null) return;
-    const refLookup = { equipment: equipmentRef, kpi: kpiRef, additional: additionalRef };
+    const refLookup = {
+      equipment: equipmentRef,
+      kpi: kpiRef,
+      additional: additionalRef,
+      custom: customRef,
+    };
     const stepKey = TRAIN_TUTORIAL[tutStep].spotlightRef;
     const target = refLookup[stepKey];
+    // sectionScrollY holds onLayout offsets for the three top-level SECTIONS.
+    // Custom is a card within the kpi section and has no offset of its own -
+    // asking for one would read undefined and scroll to NaN.
+    const scrollKey = stepKey === 'custom' ? 'kpi' : stepKey;
     scrollRef.current?.scrollTo({
-      y: Math.max(0, sectionScrollY.current[stepKey] - SCROLL_TOP_PADDING),
+      y: Math.max(0, sectionScrollY.current[scrollKey] - SCROLL_TOP_PADDING),
       animated: true,
     });
     const timer = setTimeout(() => {
@@ -182,6 +207,27 @@ export default function TrainScreen() {
       return next;
     });
   }, [setTourActiveTab]);
+
+  /**
+   * Back one card, or to the last card of the previous tab.
+   *
+   * tourBackTarget is what decides which, and it knows the tour's real order -
+   * Home, Train, Restore, Stats, Profile - rather than assuming tab minus one,
+   * which is wrong for every tab in the chain. A null target means this is the
+   * first card of the whole tour and CoachMark is not given an onPrev at all,
+   * so no control renders.
+   */
+  const backTrainTut = useCallback(() => {
+    const target = tourBackTarget(2, tutStep);
+    if (target === null) return;
+    if (target.kind === 'step') {
+      setTutStep(target.step);
+      return;
+    }
+    setTutStep(null);
+    setTourEnterAtLastStep(true);
+    setTourActiveTab(target.tab);
+  }, [tutStep, setTourActiveTab, setTourEnterAtLastStep]);
 
   const skipTrainTut = useCallback(() => {
     setTutStep(null);
@@ -350,6 +396,7 @@ export default function TrainScreen() {
             },
           ]}
           showsVerticalScrollIndicator={false}
+          {...scrollHint.handlers}
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>Train</Text>
@@ -457,6 +504,8 @@ export default function TrainScreen() {
               return (
                 <Pressable
                   key={type}
+                  ref={type === 'custom' ? customRef : undefined}
+                  collapsable={type === 'custom' ? false : undefined}
                   onPress={() => handleSelect(type)}
                   style={({ pressed }) => [
                     styles.sessionCard,
@@ -547,6 +596,9 @@ export default function TrainScreen() {
           </Animated.View>
           </View>
         </ScrollView>
+        {/* Full Body and Conditioning are the last two cards on this tab and
+            nothing on screen said they were there. */}
+        <ScrollIndicator {...scrollHint.state} top={70} bottom={92} />
       </View>
 
       {/* Equipment picker sheet */}
@@ -677,6 +729,7 @@ export default function TrainScreen() {
           total={TRAIN_TUTORIAL.length}
           onNext={advanceTrainTut}
           onSkip={skipTrainTut}
+          onPrev={tourBackTarget(2, tutStep) ? backTrainTut : undefined}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
           iconName={TRAIN_TUTORIAL[tutStep].iconName}
           iconLabel={TRAIN_TUTORIAL[tutStep].iconLabel}

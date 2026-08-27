@@ -478,6 +478,14 @@ interface AppState {
    *  tutorial. Null when no tour is in progress. NOT persisted - a killed
    *  app just re-lands on the intro card rather than resuming mid-tour. */
   tourActiveTab: number | null;
+  /**
+   * Enter the next tab's tutorial at its LAST card rather than its first.
+   *
+   * Set only by the tour's Back control when it crosses a tab boundary, and
+   * cleared by the entry effect that consumes it. NOT persisted: a killed app
+   * restarts the tour from its intro, not halfway back through it.
+   */
+  tourEnterAtLastStep: boolean;
   /** Bumped every time the tour is skipped, from the intro card or from any
    *  tab's own tutorial, so the tabs layout (which owns the "find it in
    *  Settings" toast) can react regardless of where the skip happened.
@@ -721,6 +729,7 @@ interface AppState {
   setTourComplete: (complete: boolean) => void;
   setTourJustCompleted: (v: boolean) => void;
   setTourActiveTab: (tab: number | null) => void;
+  setTourEnterAtLastStep: (v: boolean) => void;
   /** Abandons the tour from wherever it currently is - the intro card or any
    *  tab's own in-page tutorial - and bumps tourSkipNonce for the toast. */
   skipTour: () => void;
@@ -885,6 +894,7 @@ export const useAppStore = create<AppState>()(
       tourComplete: false,
       tourJustCompleted: false,
       tourActiveTab: null,
+      tourEnterAtLastStep: false,
       tourSkipNonce: 0,
       tourGenuinelyCompleted: false,
       readinessTutorialShown: false,
@@ -1054,6 +1064,7 @@ export const useAppStore = create<AppState>()(
         }),
       setTourJustCompleted: (v) => set({ tourJustCompleted: v }),
       setTourActiveTab: (tab) => set({ tourActiveTab: tab }),
+      setTourEnterAtLastStep: (v) => set({ tourEnterAtLastStep: v }),
       skipTour: () =>
         set((s) => ({
           tourComplete: true,
@@ -2017,7 +2028,8 @@ export const useAppStore = create<AppState>()(
         const {
           sessionEquipmentOverride: _transient,
           tourJustCompleted: _tourJustCompleted,
-          tourActiveTab: _tourActiveTab,
+          tourActiveTab: _tourActiveTab,
+          tourEnterAtLastStep: _tourEnterAtLastStep,
           tourSkipNonce: _tourSkipNonce,
           // newlyUnlockedBadges is a queue of pop-ups still to show, not a
           // record of anything. What the user actually owns is `earnedBadges`,

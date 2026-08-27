@@ -29,6 +29,8 @@ import {
 } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { programContextMessage, sessionsUntilTest } from '@/lib/test-week-copy';
+import { nonStrengthContextMessage } from '@/lib/program-copy';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import { daysSince } from '@/lib/utils';
 import { resumeParams } from '@/lib/resume-params';
 
@@ -60,20 +62,6 @@ const SESSION_IMAGES: Partial<Record<string, any>> = {
  * than read.
  */
 
-/**
- * Copy for someone who is not running the barbell rotation.
- *
- * Deliberately says nothing about cycles, blocks or strength tests — none of
- * which are happening to them. getContextMessage above talks of little else,
- * which is why it needed a counterpart rather than a tweak.
- */
-function getNonStrengthMessage(sessionCount: number, mix: string): string {
-  if (sessionCount === 0) return "Welcome to your program. Let's build something lasting.";
-  if (sessionCount === 1) return 'First session in the books. The habit has begun.';
-  if (sessionCount < 6) return `Early days, and ${mix.toLowerCase()} is taking shape.`;
-  return `This is your program: ${mix.toLowerCase()}. Built from what you actually train.`;
-}
-
 function getLastTrainedLabel(
   completedSessions: CompletedSession[],
   sessionType: SessionType
@@ -90,6 +78,7 @@ function getLastTrainedLabel(
 
 export default function ProgramScreen() {
   const insets = useSafeAreaInsets();
+  const scrollHint = useScrollIndicator();
   const C = useColors();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -101,14 +90,25 @@ export default function ProgramScreen() {
     getCurrentSessionType,
     getThisWeekCount,
     getStreakDays,
+    weeklyStreakGoal,
     equipmentTiers,
     sessionEquipmentOverride,
     activeSession,
     clearActiveSession,
   } = useAppStore();
 
-  const testWeek = isTestWeekDue();
   const onStrengthProgramme = isOnStrengthProgramme();
+  /**
+   * A DUE TEST ONLY MEANS ANYTHING ON THE BARBELL ROTATION.
+   *
+   * isTestWeekDue() is about the strength-session count and knows nothing about
+   * what the user has been training lately. Someone who did twelve barbell
+   * sessions and then six weeks of conditioning is off the programme by
+   * isOnStrengthProgramme's own reckoning, and still has a test outstanding -
+   * so this screen drew a trophy and the words "Strength Test" over their next
+   * conditioning session, and the start button sent isTestWeek:'true' with it.
+   */
+  const testWeek = isTestWeekDue() && onStrengthProgramme;
   const suggestedNext = getCurrentSessionType();
 
   const strengthCount = useMemo(
@@ -149,7 +149,13 @@ export default function ProgramScreen() {
 
   const contextMsg = onStrengthProgramme
     ? programContextMessage(testWeekFrequency, strengthCount, testWeek)
-    : getNonStrengthMessage(completedSessions.length, trainingMix);
+    : nonStrengthContextMessage({
+        sessionCount: completedSessions.length,
+        mix: trainingMix,
+        weekCount: getThisWeekCount(),
+        weeklyGoal: weeklyStreakGoal,
+        streakWeeks: getStreakDays(),
+      });
 
   const timeline = useMemo(() => {
     const items: {
@@ -194,9 +200,17 @@ export default function ProgramScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strengthCount, testWeekFrequency, onStrengthProgramme, completedSessions, suggestedNext]);
 
+  /**
+   * Every session type, not just the three barbell lifts.
+   *
+   * It was built over SESSION_ORDER only, so a timeline row for a conditioning,
+   * mobility or full-body session looked up a key the map did not have and
+   * rendered a blank line. The `as Record<SessionType, string>` cast is what
+   * stopped the typechecker saying so.
+   */
   const lastTrained = useMemo(() => {
     const result = {} as Record<SessionType, string>;
-    for (const type of SESSION_ORDER) {
+    for (const type of Object.keys(SESSION_META) as SessionType[]) {
       result[type] = getLastTrainedLabel(completedSessions, type);
     }
     return result;
@@ -297,6 +311,7 @@ export default function ProgramScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
+        {...scrollHint.handlers}
       >
         {/* Subtitle */}
         <Text style={styles.subtitle}>
@@ -463,6 +478,7 @@ export default function ProgramScreen() {
           );
         })}
       </ScrollView>
+      <ScrollIndicator {...scrollHint.state} top={8} bottom={24} />
     </View>
   );
 }

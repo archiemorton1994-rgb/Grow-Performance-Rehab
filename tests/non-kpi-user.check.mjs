@@ -348,10 +348,60 @@ check(
     /trainingMix/.test(program),
   'it read "Squat · Bench · Deadlift" to everyone'
 );
+/**
+ * RUN IT, DO NOT LOOK FOR IT.
+ *
+ * This used to assert that a function called getNonStrengthMessage existed in
+ * program.tsx. It did exist, and it had four branches of which TWO WERE
+ * UNREACHABLE - isOnStrengthProgramme returns true below its evidence
+ * threshold, so nobody with zero or one sessions is ever on that path. The
+ * check passed throughout. Existence was never the thing worth guarding.
+ *
+ * nonStrengthContextMessage now lives in lib/program-copy.ts, is pure, and is
+ * executed here across the states a real conditioning-and-mobility user passes
+ * through.
+ */
+const { nonStrengthContextMessage } = await import('../lib/program-copy.ts');
+const NON_KPI_STATES = [
+  { sessionCount: 3, mix: 'Conditioning · Mobility', weekCount: 0, weeklyGoal: 3, streakWeeks: 0 },
+  { sessionCount: 8, mix: 'Conditioning · Mobility', weekCount: 2, weeklyGoal: 3, streakWeeks: 1 },
+  { sessionCount: 12, mix: 'Conditioning', weekCount: 3, weeklyGoal: 3, streakWeeks: 4 },
+  { sessionCount: 40, mix: 'Mobility · Full Body', weekCount: 1, weeklyGoal: 3, streakWeeks: 5 },
+  { sessionCount: 300, mix: 'Conditioning · Mobility', weekCount: 0, weeklyGoal: 2, streakWeeks: 0 },
+];
+const nonKpiLines = NON_KPI_STATES.map(nonStrengthContextMessage);
 check(
-  'there is copy that does not mention cycles or tests',
-  /function getNonStrengthMessage\(/.test(program),
-  'getContextMessage talks of little else'
+  `there is copy that does not mention cycles or tests (${nonKpiLines.length} states)`,
+  nonKpiLines.every((l) => !/\b(cycle|block|test|1RM|squat|bench|deadlift)\b/i.test(l)),
+  nonKpiLines.filter((l) => /\b(cycle|block|test|1RM|squat|bench|deadlift)\b/i.test(l)).join(' | ')
+);
+check(
+  'and it says something DIFFERENT as their training changes',
+  new Set(nonKpiLines).size === nonKpiLines.length,
+  `${new Set(nonKpiLines).size} distinct lines from ${nonKpiLines.length} states: ${nonKpiLines.join(' | ')}`
+);
+check(
+  'it names what they actually train, every time',
+  nonKpiLines.every((l, i) => l.toLowerCase().includes(NON_KPI_STATES[i].mix.toLowerCase())),
+  nonKpiLines.join(' | ')
+);
+check(
+  'a week one session short is told so',
+  /One more session this week/.test(
+    nonStrengthContextMessage({
+      sessionCount: 20,
+      mix: 'Conditioning',
+      weekCount: 2,
+      weeklyGoal: 3,
+      streakWeeks: 0,
+    })
+  ),
+  'the most useful thing this screen knows about a non-barbell user is how close their week is'
+);
+check(
+  'and the copy follows house style',
+  !nonKpiLines.some((l) => /—|–|―|--/.test(l)),
+  nonKpiLines.filter((l) => /—|–|―|--/.test(l)).join(' | ')
 );
 
 // ─── 4. The countdown is hidden when there is nothing to count to ────────────

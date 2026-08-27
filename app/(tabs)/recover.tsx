@@ -25,6 +25,8 @@ import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
 import { BodyDiagram, BODY_DIAGRAM_LABELS } from '@/components/BodyDiagram';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 
 interface RestoreTutorialStep {
   spotlightRef: 'recovery' | 'mobility' | 'prehab';
@@ -386,6 +388,8 @@ export default function RecoverScreen() {
     clearSessionEquipmentOverride,
     tourActiveTab,
     setTourActiveTab,
+    tourEnterAtLastStep,
+    setTourEnterAtLastStep,
     skipTour,
   } = useAppStore();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -572,6 +576,7 @@ export default function RecoverScreen() {
   const activeInfo = activeModal === 'mobility' ? SESSION_INFO['mobility'] : null;
 
   const scrollRef = useRef<ScrollView>(null);
+  const scrollHint = useScrollIndicator();
   useScrollToTopRegister(
     'recover',
     useCallback(() => {
@@ -589,10 +594,18 @@ export default function RecoverScreen() {
 
   useEffect(() => {
     if (tourActiveTab === 3) {
-      const t = setTimeout(() => setTutStep(0), 300);
+      // entryStepFor is what makes Back across a tab boundary land on the card
+      // the user was reading rather than on this tab's first one. The flag is
+      // consumed here so a later forward arrival opens at the start again.
+      const at = entryStepFor(tourEnterAtLastStep, RESTORE_TUTORIAL.length);
+      const t = setTimeout(() => {
+        setTutStep(at);
+        if (tourEnterAtLastStep) setTourEnterAtLastStep(false);
+      }, 300);
       return () => clearTimeout(t);
     }
     setTutStep(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourActiveTab]);
 
   useEffect(() => {
@@ -622,6 +635,27 @@ export default function RecoverScreen() {
     });
   }, [setTourActiveTab]);
 
+  /**
+   * Back one card, or to the last card of the previous tab.
+   *
+   * tourBackTarget is what decides which, and it knows the tour's real order -
+   * Home, Train, Restore, Stats, Profile - rather than assuming tab minus one,
+   * which is wrong for every tab in the chain. A null target means this is the
+   * first card of the whole tour and CoachMark is not given an onPrev at all,
+   * so no control renders.
+   */
+  const backRestoreTut = useCallback(() => {
+    const target = tourBackTarget(3, tutStep);
+    if (target === null) return;
+    if (target.kind === 'step') {
+      setTutStep(target.step);
+      return;
+    }
+    setTutStep(null);
+    setTourEnterAtLastStep(true);
+    setTourActiveTab(target.tab);
+  }, [tutStep, setTourActiveTab, setTourEnterAtLastStep]);
+
   const skipRestoreTut = useCallback(() => {
     setTutStep(null);
     skipTour();
@@ -640,6 +674,7 @@ export default function RecoverScreen() {
         },
       ]}
       showsVerticalScrollIndicator={false}
+      {...scrollHint.handlers}
     >
       <View style={[styles.header, { paddingBottom: 8 }]}>
         <Text style={styles.title}>Restore</Text>
@@ -1015,6 +1050,9 @@ export default function RecoverScreen() {
         </View>
       </Modal>
     </ScrollView>
+    {/* Prehab sits below the fold on a short screen, and it is the one people
+        arrive at this tab looking for. */}
+    <ScrollIndicator {...scrollHint.state} top={8} bottom={92} />
 
     {tutStep !== null && (
       <CoachMark
@@ -1025,6 +1063,7 @@ export default function RecoverScreen() {
         total={RESTORE_TUTORIAL.length}
         onNext={advanceRestoreTut}
         onSkip={skipRestoreTut}
+        onPrev={tourBackTarget(3, tutStep) ? backRestoreTut : undefined}
         bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
         iconName={RESTORE_TUTORIAL[tutStep].iconName}
         iconLabel={RESTORE_TUTORIAL[tutStep].iconLabel}

@@ -70,6 +70,15 @@ interface CoachMarkProps {
   skipLabel?: string;
   onNext: () => void;
   onSkip: () => void;
+  /**
+   * Go back one card, or to the last card of the previous tab.
+   *
+   * OPTIONAL, and absent means "there is nowhere to go back to" - the control
+   * is not rendered at all rather than rendered disabled. That is the state of
+   * the very first card of the tour, and of the practice session's tutorial,
+   * which Profile launches with a one-way navigation.
+   */
+  onPrev?: () => void;
   /** Called when user swipes left on the card (tab tour advancement). */
   onSwipeLeft?: () => void;
   /** Pixels from screen bottom to card bottom edge when the card sits below the
@@ -93,6 +102,7 @@ export default function CoachMark({
   skipLabel = 'Skip all',
   onNext,
   onSkip,
+  onPrev,
   onSwipeLeft,
   bottomOffset = 0,
   iconName,
@@ -292,17 +302,39 @@ export default function CoachMark({
             <Pressable onPress={onSkip} hitSlop={12} testID="coachmark-skip">
               <Text style={[styles.skipText, { color: COACH.textTertiary }]}>{skipLabel}</Text>
             </Pressable>
-            <Pressable
-              onPress={onNext}
-              testID="coachmark-next"
-              style={({ pressed }) => [
-                styles.nextBtn,
-                { backgroundColor: COACH.accent },
-                pressed && { opacity: 0.85 },
-              ]}
-            >
-              <Text style={[styles.nextText, { color: COACH.accentText }]}>{ctaLabel}</Text>
-            </Pressable>
+            {/* The two controls that move through the tour, together. Back on
+                the far left of a three-way space-between would sit in the
+                middle of the row and read as the main action. */}
+            <View style={styles.navCluster}>
+              {onPrev ? (
+                <Pressable
+                  onPress={onPrev}
+                  hitSlop={10}
+                  testID="coachmark-prev"
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous step"
+                  style={({ pressed }) => [
+                    styles.backBtn,
+                    { borderColor: COACH.dotInactive },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Ionicons name="chevron-back" size={15} color={COACH.textSecondary} />
+                  <Text style={[styles.backText, { color: COACH.textSecondary }]}>Back</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={onNext}
+                testID="coachmark-next"
+                style={({ pressed }) => [
+                  styles.nextBtn,
+                  { backgroundColor: COACH.accent },
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text style={[styles.nextText, { color: COACH.accentText }]}>{ctaLabel}</Text>
+              </Pressable>
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -387,6 +419,27 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
+  },
+  navCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  // Outlined rather than filled, and narrower than Next, so the row still has
+  // exactly one obvious next thing to press.
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingLeft: 10,
+    paddingRight: 13,
+    paddingVertical: 10,
+    borderRadius: 13,
+    borderWidth: 1,
+  },
+  backText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
   },
   nextBtn: {
     paddingHorizontal: 22,

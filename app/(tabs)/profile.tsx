@@ -25,6 +25,8 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
 import { StatStrip } from '@/components/StatStrip';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -419,6 +421,8 @@ export default function ProfileScreen() {
     setThemePreference,
     tourActiveTab,
     setTourActiveTab,
+    tourEnterAtLastStep,
+    setTourEnterAtLastStep,
     skipTour,
   } = useAppStore();
 
@@ -441,7 +445,8 @@ export default function ProfileScreen() {
    * list whose sections are all still at y=0.
    */
   const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null);
-  const settingsScrollRef = useRef<ScrollView>(null);
+  const settingsScrollRef = useRef<ScrollView>(null);
+  const scrollHint = useScrollIndicator();
   const settingsSectionY = useRef<Record<string, number>>({});
   useEffect(() => {
     if (activeModal !== 'settings' || !pendingSettingsSection) return;
@@ -884,10 +889,18 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (tourActiveTab === 1) {
-      const t = setTimeout(() => setTutStep(0), 300);
+      // entryStepFor is what makes Back across a tab boundary land on the card
+      // the user was reading rather than on this tab's first one. The flag is
+      // consumed here so a later forward arrival opens at the start again.
+      const at = entryStepFor(tourEnterAtLastStep, PROFILE_TUTORIAL.length);
+      const t = setTimeout(() => {
+        setTutStep(at);
+        if (tourEnterAtLastStep) setTourEnterAtLastStep(false);
+      }, 300);
       return () => clearTimeout(t);
     }
     setTutStep(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourActiveTab]);
 
   useEffect(() => {
@@ -959,6 +972,27 @@ export default function ProfileScreen() {
     });
   }, [setTourActiveTab]);
 
+  /**
+   * Back one card, or to the last card of the previous tab.
+   *
+   * tourBackTarget is what decides which, and it knows the tour's real order -
+   * Home, Train, Restore, Stats, Profile - rather than assuming tab minus one,
+   * which is wrong for every tab in the chain. A null target means this is the
+   * first card of the whole tour and CoachMark is not given an onPrev at all,
+   * so no control renders.
+   */
+  const backProfileTut = useCallback(() => {
+    const target = tourBackTarget(1, tutStep);
+    if (target === null) return;
+    if (target.kind === 'step') {
+      setTutStep(target.step);
+      return;
+    }
+    setTutStep(null);
+    setTourEnterAtLastStep(true);
+    setTourActiveTab(target.tab);
+  }, [tutStep, setTourActiveTab, setTourEnterAtLastStep]);
+
   const skipProfileTut = useCallback(() => {
     setTutStep(null);
     skipTour();
@@ -974,9 +1008,12 @@ export default function ProfileScreen() {
           { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 24 },
         ]}
         showsVerticalScrollIndicator={false}
+        onLayout={scrollHint.handlers.onLayout}
+        onContentSizeChange={scrollHint.handlers.onContentSizeChange}
         scrollEventThrottle={16}
         onScroll={(e) => {
           scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+          scrollHint.handlers.onScroll(e);
         }}
       >
         <View ref={headerRef} collapsable={false}>
@@ -1263,7 +1300,8 @@ export default function ProfileScreen() {
           ))}
         </Animated.View>
         </View>
-      </ScrollView>
+      </ScrollView>
+      <ScrollIndicator {...scrollHint.state} top={8} bottom={92} />
 
       {/* Edit Details Modal */}
       <Modal
@@ -2367,6 +2405,7 @@ export default function ProfileScreen() {
           total={PROFILE_TUTORIAL.length}
           onNext={advanceProfileTut}
           onSkip={skipProfileTut}
+          onPrev={tourBackTarget(1, tutStep) ? backProfileTut : undefined}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 84 : 50) + 16}
           iconName={PROFILE_TUTORIAL[tutStep].iconName}
           iconLabel={PROFILE_TUTORIAL[tutStep].iconLabel}

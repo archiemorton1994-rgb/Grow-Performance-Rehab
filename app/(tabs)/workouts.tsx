@@ -65,6 +65,8 @@ import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib
 import { togglePainFilter } from '@/lib/filter-utils';
 import { noOneRepMaxHint } from '@/lib/test-week-copy';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 
 interface StatsTutorialStep {
   spotlightRef: 'tabs' | 'stats';
@@ -2542,6 +2544,8 @@ function PBHistorySection({
   weightUnit: 'kg' | 'lbs';
   C: ReturnType<typeof useColors>;
 }) {
+  // Declared before the early return below, because hooks cannot be.
+  const [showAllPbs, setShowAllPbs] = useState(false);
   const strengthOrms = useMemo(
     () => orms.filter((o) => LIFT_TYPES.includes(o.lift as SessionType)),
     [orms]
@@ -2580,6 +2584,20 @@ function PBHistorySection({
 
   const liftsWithData = LIFT_TYPES.filter((lift) => grouped[lift].length > 0);
 
+  /**
+   * PER LIFT, not across the whole card.
+   *
+   * A shared budget spent top-down would show eight squat PBs and none for
+   * deadlift, which is worse than showing four of each: the point of this card
+   * is comparing the three lifts, and the newest entry for every lift is the
+   * one people are looking for. Four rows is enough to see a direction.
+   */
+  const COLLAPSED_PER_LIFT = 4;
+  const hiddenCount = liftsWithData.reduce(
+    (acc, lift) => acc + Math.max(0, grouped[lift].length - COLLAPSED_PER_LIFT),
+    0
+  );
+
   return (
     <View
       style={{
@@ -2592,7 +2610,11 @@ function PBHistorySection({
       }}
     >
       {liftsWithData.map((lift, liftIdx) => {
-        const entries = grouped[lift];
+        // Newest first, so a collapsed list is the recent history rather than
+        // an arbitrary window of it.
+        const entries = showAllPbs
+          ? grouped[lift]
+          : grouped[lift].slice(0, COLLAPSED_PER_LIFT);
         const best = allTimeBests[lift];
         return (
           <View key={lift}>
@@ -2654,6 +2676,29 @@ function PBHistorySection({
           </View>
         );
       })}
+      {hiddenCount > 0 && !showAllPbs && (
+        <Pressable
+          onPress={() => setShowAllPbs(true)}
+          testID="pb-show-all"
+          accessibilityRole="button"
+          accessibilityLabel={`Show all personal bests, ${hiddenCount} more`}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 13,
+            borderTopWidth: 1,
+            borderTopColor: C.borderLight,
+            backgroundColor: pressed ? C.primaryMuted : 'transparent',
+          })}
+        >
+          <Ionicons name="chevron-down" size={15} color={C.primaryText} />
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
+            Show all ({hiddenCount} more)
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -3807,6 +3852,8 @@ export default function StatsScreen() {
     getEffectiveTier,
     tourActiveTab,
     setTourActiveTab,
+    tourEnterAtLastStep,
+    setTourEnterAtLastStep,
     setTourComplete,
     setTourJustCompleted,
     skipTour,
@@ -3899,6 +3946,12 @@ export default function StatsScreen() {
   const strengthScrollRef = useRef<ScrollView>(null);
   const historyScrollRef = useRef<ScrollView>(null);
   const progressScrollRef = useRef<ScrollView>(null);
+  // One per sub-tab. The three that are not showing are display:none, so their
+  // measured viewport is 0 and their indicator renders nothing.
+  const ovHint = useScrollIndicator();
+  const stHint = useScrollIndicator();
+  const hiHint = useScrollIndicator();
+  const prHint = useScrollIndicator();
 
   // Smooth-scroll the incoming sub-tab to the top whenever the active tab changes.
   useEffect(() => {
@@ -3937,10 +3990,17 @@ export default function StatsScreen() {
   useEffect(() => {
     if (tourActiveTab === 4) {
       setActiveTab('overview'); // both spotlight targets only exist on Overview
-      const t = setTimeout(() => setTutStep(0), 300);
+      // entryStepFor is what makes Back across a tab boundary land on the card
+      // the user was reading rather than on this tab's first one.
+      const at = entryStepFor(tourEnterAtLastStep, STATS_TUTORIAL.length);
+      const t = setTimeout(() => {
+        setTutStep(at);
+        if (tourEnterAtLastStep) setTourEnterAtLastStep(false);
+      }, 300);
       return () => clearTimeout(t);
     }
     setTutStep(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourActiveTab]);
 
   useEffect(() => {
@@ -3986,6 +4046,27 @@ export default function StatsScreen() {
       return next;
     });
   }, [setTourActiveTab, setTourComplete, setTourJustCompleted]);
+
+  /**
+   * Back one card, or to the last card of the previous tab.
+   *
+   * tourBackTarget is what decides which, and it knows the tour's real order -
+   * Home, Train, Restore, Stats, Profile - rather than assuming tab minus one,
+   * which is wrong for every tab in the chain. A null target means this is the
+   * first card of the whole tour and CoachMark is not given an onPrev at all,
+   * so no control renders.
+   */
+  const backStatsTut = useCallback(() => {
+    const target = tourBackTarget(4, tutStep);
+    if (target === null) return;
+    if (target.kind === 'step') {
+      setTutStep(target.step);
+      return;
+    }
+    setTutStep(null);
+    setTourEnterAtLastStep(true);
+    setTourActiveTab(target.tab);
+  }, [tutStep, setTourActiveTab, setTourEnterAtLastStep]);
 
   const skipStatsTut = useCallback(() => {
     setTutStep(null);
@@ -4254,6 +4335,7 @@ export default function StatsScreen() {
             style={{ flex: 1, display: activeTab === 'overview' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
+            {...ovHint.handlers}
           >
             {/* 3 key stat pills */}
             <StatStrip
@@ -4322,6 +4404,7 @@ export default function StatsScreen() {
             style={{ flex: 1, display: activeTab === 'strength' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
+            {...stHint.handlers}
           >
             {/* THE SHAPE OF THIS TAB IS CONDITIONAL, and it has to be.
                 Everything below the heaviest-lifts list is built on 1RMs, which
@@ -4465,6 +4548,7 @@ export default function StatsScreen() {
               style={{ flex: 1 }}
               contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
               showsVerticalScrollIndicator={false}
+              {...hiHint.handlers}
             >
               {/* Pain Patterns — moved here from Overview; only shown when there is pain data */}
               {hasAnyPainHistory && (
@@ -4900,6 +4984,7 @@ export default function StatsScreen() {
             style={{ flex: 1, display: activeTab === 'progress' ? 'flex' : 'none' }}
             contentContainerStyle={[styles.tabContent, { paddingBottom: tabPaddingBottom }]}
             showsVerticalScrollIndicator={false}
+            {...prHint.handlers}
           >
             {/* Each group is introduced by its heading, rather than the tab's
                 largest heading turning up second, underneath a card. A page
@@ -4935,6 +5020,10 @@ export default function StatsScreen() {
               C={C}
             />
           </ScrollView>
+          <ScrollIndicator {...ovHint.state} top={8} bottom={92} />
+          <ScrollIndicator {...stHint.state} top={8} bottom={92} />
+          <ScrollIndicator {...hiHint.state} top={8} bottom={92} />
+          <ScrollIndicator {...prHint.state} top={8} bottom={92} />
         </View>
       )}
 
@@ -5074,6 +5163,7 @@ export default function StatsScreen() {
           total={STATS_TUTORIAL.length}
           onNext={advanceStatsTut}
           onSkip={skipStatsTut}
+          onPrev={tourBackTarget(4, tutStep) ? backStatsTut : undefined}
           bottomOffset={insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 80}
           iconName={STATS_TUTORIAL[tutStep].iconName}
           iconLabel={STATS_TUTORIAL[tutStep].iconLabel}

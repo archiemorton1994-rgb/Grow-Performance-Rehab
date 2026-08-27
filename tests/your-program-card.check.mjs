@@ -115,9 +115,24 @@ if (!bigNumBlockMatch) {
 }
 
 // ─── test 5: height invariant — total stacked content ≤ 72pt ────────────────
-// Parse lineHeight values and check icon(32) + gaps(4) + them ≤ 72.
-const ICON_SIZE = 32;
-const GAP = 2; // gap: 2 in summaryIconBox, applied between each of 3 children = 2 gaps
+//
+// IT WAS MEASURING A BOX THAT DOES NOT RENDER. ICON_SIZE and GAP were taken
+// from `summaryIconBox`, a style with no JSX reference anywhere in the app: the
+// tiles moved to `summaryCardImage` in a redesign and that block was left
+// behind. So this passed comfortably at 32 + 2 + 2 while the tile actually
+// stacked a 52pt image with 4pt gaps, and it would have gone on passing at any
+// image size at all.
+//
+// Both numbers are read out of the real styles now. The tile is the thing being
+// guarded, so the tile is the thing that has to be measured.
+const iconMatch = indexSrc.match(/summaryCardImage\s*:\s*\{[^}]*height\s*:\s*(\d+)/);
+const gapMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
+if (!iconMatch) fail('summaryCardImage height found — the tile artwork is what sets this budget');
+else ok(`summaryCardImage height read from the screen: ${iconMatch[1]}pt`);
+if (!gapMatch) fail('summaryCard gap found');
+else ok(`summaryCard gap read from the screen: ${gapMatch[1]}pt`);
+const ICON_SIZE = iconMatch ? parseInt(iconMatch[1], 10) : 999;
+const GAP = gapMatch ? parseInt(gapMatch[1], 10) : 999;
 
 const bigNumLineHeightMatch = indexSrc.match(/summaryBigNum\s*:\s*\{[^}]*lineHeight\s*:\s*(\d+)/);
 const cycleLabelLineHeightMatch = indexSrc.match(
@@ -129,15 +144,41 @@ if (!bigNumLineHeightMatch || !cycleLabelLineHeightMatch) {
 } else {
   const bigNumLH = parseInt(bigNumLineHeightMatch[1], 10);
   const cycleLabelLH = parseInt(cycleLabelLineHeightMatch[1], 10);
-  const totalHeight = ICON_SIZE + GAP + cycleLabelLH + GAP + bigNumLH;
-  if (totalHeight <= 72) {
-    ok(
-      `Height invariant: icon(${ICON_SIZE}) + gaps(${GAP * 2}) + cycleLabel(${cycleLabelLH}) + bigNum(${bigNumLH}) = ${totalHeight}pt ≤ 72pt`
-    );
+
+  // WHAT THIS ACTUALLY GUARDS.
+  //
+  // Your Program is the only tile with five children; the other three have
+  // four. summaryGrid is flexWrap with the default alignItems:'stretch', so
+  // that one extra child sets the height of the entire first row and the 2x2
+  // grid steps by exactly cycleLabel + one gap. Home has no room to spare - it
+  // was 83pt over a 390x844 screen before this round - so the step has to stay
+  // small enough to read as a grid rather than as two mismatched rows.
+  const STEP_MAX = 16;
+  const step = cycleLabelLH + GAP;
+  if (step <= STEP_MAX) {
+    ok(`Grid step: cycleLabel(${cycleLabelLH}) + gap(${GAP}) = ${step}pt ≤ ${STEP_MAX}pt`);
   } else {
     fail(
-      `Height invariant: stacked content ${totalHeight}pt must be ≤ 72pt`,
-      `icon(${ICON_SIZE}) + gaps(${GAP * 2}) + cycleLabel(${cycleLabelLH}) + bigNum(${bigNumLH}) = ${totalHeight}pt — reduce a lineHeight or icon size`
+      `Grid step: the first row stands ${step}pt taller than the second`,
+      'Your Program carries one child more than the other tiles and stretch makes it set the whole row. Shrink summaryCycleLabel lineHeight or summaryCard gap.'
+    );
+  }
+
+  // And the tile's own content must still fit the four-child tiles' floor plus
+  // that step, or minHeight is doing nothing and the rows drift apart further.
+  const minHeightMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?minHeight\s*:\s*(\d+)/);
+  const minH = minHeightMatch ? parseInt(minHeightMatch[1], 10) : 0;
+  const padMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?padding\s*:\s*(\d+)/);
+  const pad = padMatch ? parseInt(padMatch[1], 10) : 0;
+  // image + gap + number + gap + title, i.e. the four-child tile, ignoring the
+  // 11pt title's own line box which is the same in every tile.
+  const fourChild = ICON_SIZE + GAP + bigNumLH + GAP + 13;
+  if (minH > 0 && fourChild <= minH - pad * 2 + STEP_MAX) {
+    ok(`Tile floor: four-child content ${fourChild}pt fits minHeight ${minH} with padding ${pad}`);
+  } else {
+    fail(
+      `Tile floor: four-child content is ${fourChild}pt against minHeight ${minH} - padding ${pad * 2}`,
+      'the floor no longer floors anything, so every tile is content-sized and the grid height is whatever the copy happens to be'
     );
   }
 }
