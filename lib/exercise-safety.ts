@@ -380,7 +380,12 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   calf_shin: ['high_impact', 'ankle_load', 'calf_lengthen'],
   quads: ['deep_knee_flexion', 'open_chain_knee', 'high_impact', 'quad_hipflexor_lengthen'],
   hamstrings: ['loaded_hinge', 'high_impact', 'hamstring_lengthen', 'hip_end_range'],
-  glutes: ['loaded_hinge', 'high_impact', 'hip_end_range'],
+  // "Deep squats and lunges, which take the hip into the loaded, folded
+  // position the tissue least tolerates right now" - glutes.avoid, third
+  // line. Measured before adding it: 144 deep squat or lunge cards served to
+  // a sore glute, a Back Squat among them AS THE MAIN LIFT. The tag spares
+  // Bodyweight and Goblet Squats on purpose, so the region keeps leg work.
+  glutes: ['loaded_hinge', 'high_impact', 'hip_end_range', 'deep_knee_flexion'],
   // horizontal_press is what actually loads a strained pec. Without it this
   // region could remove flyes and dips and nothing else, so bench press stood.
   chest: ['shoulder_end_range', 'horizontal_press', 'pec_lengthen'],

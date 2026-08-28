@@ -66,7 +66,7 @@ function sweep() {
   const cards = [];
   for (const sessionType of ['lower_body', 'full_body', 'deadlift', 'squat', 'bench']) {
     for (const tier of ['bodyweight', 'bands', 'dumbbells', 'fullgym']) {
-      for (const region of ['quads', 'knee', 'hip_groin', 'hamstrings', 'front_shoulder']) {
+      for (const region of ['quads', 'knee', 'hip_groin', 'hamstrings', 'front_shoulder', 'glutes']) {
         for (const severity of ['mild', 'severe']) {
           for (const timeAvailable of ['60', '45'])
           for (let seed = 0; seed < 10; seed++) {
@@ -122,6 +122,18 @@ const FORBIDDEN = {
   knee: [/\bwall sit\b/i],
   hip_groin: [/copenhagen/i, /butterfly stretch/i, /groin stretch/i],
   hamstrings: [/nordic/i, /hamstrings? stretch/i, /feel hamstring/i],
+  // "Deep squats and lunges, which take the hip into the loaded, folded
+  // position the tissue least tolerates right now". The region restricted
+  // loaded hinges and impact, which is lines one, two and four of its avoid
+  // list, and had nothing for line three. Measured before the rule was added:
+  // 144 deep squat or lunge cards over 160 sessions, a Back Squat among them
+  // AS THE MAIN LIFT, 24 times.
+  glutes: [
+    /bulgarian|split squat/i,
+    /lunge/i,
+    /back squat|hack squat|leg press|cossack|pistol/i,
+    /pigeon pose|figure-?4/i,
+  ],
 };
 
 for (const [region, patterns] of Object.entries(FORBIDDEN)) {
@@ -141,7 +153,8 @@ check(
   /wall sit/i.test(ACUTE_PROTOCOL_NOTES.quads.avoid) &&
     /copenhagen/i.test(ACUTE_PROTOCOL_NOTES.hip_groin.avoid) &&
     /nordic/i.test(ACUTE_PROTOCOL_NOTES.hamstrings.avoid) &&
-    /stretch/i.test(ACUTE_PROTOCOL_NOTES.hamstrings.avoid),
+    /stretch/i.test(ACUTE_PROTOCOL_NOTES.hamstrings.avoid) &&
+    /deep squats and lunges/i.test(ACUTE_PROTOCOL_NOTES.glutes.avoid),
   'if the protocol stops naming these, this test is guarding words nobody uses any more'
 );
 
