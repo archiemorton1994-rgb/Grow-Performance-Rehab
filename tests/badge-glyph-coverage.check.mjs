@@ -38,6 +38,8 @@ const { BADGE_GLYPHS, BADGE_ID_GLYPHS, TIER_METALS, LOCKED_METAL } = await impor
   '../lib/badge-art.ts'
 );
 const { BADGE_CATEGORY_LABELS, BADGE_TIER_COLORS, BADGE_CATALOG } = await import('../lib/badges.ts');
+const { STAGE_GLYPHS, STAGE_MEMBERS, stageFor } = await import('../lib/badge-stages.ts');
+const { glyphFor } = await import('../lib/badge-art.ts');
 
 let failures = 0;
 let total = 0;
@@ -190,6 +192,10 @@ const overflowing = [];
 for (const [name, shapes] of [
   ...Object.entries(BADGE_GLYPHS),
   ...Object.entries(BADGE_ID_GLYPHS),
+  // The rungs are most of the artwork now, and they are BUILT rather than
+  // typed, so an off-by-one in a generator moves every stage of a family at
+  // once. This is the check that catches it.
+  ...Object.entries(STAGE_GLYPHS),
 ]) {
   let worst = 0;
   for (const s of shapes) worst = Math.max(worst, shapeRadius(s));
@@ -239,7 +245,76 @@ for (const [tier, metal] of [...Object.entries(TIER_METALS), ['locked', LOCKED_M
 }
 check('glyph ink is legible on every face', weak.length === 0, weak.join('; '));
 
-// ─── 5. No Ionicons left on a badge ───────────────────────────────────────────
+// ─── 5. The ladders ───────────────────────────────────────────────────────────
+//
+// Each category is drawn at several stages so a row of five is five different
+// pictures rather than one picture in four metals. Before this existed: 277
+// badges, 33 drawings, 8.4 badges per picture, and Milestones was twenty-six
+// identical staircases.
+console.log('\n[5] Ladders — badges do not all share one picture');
+
+const distinctDrawings = new Set(
+  BADGE_CATALOG.map((b) => JSON.stringify(glyphFor(b.category, b.id)))
+);
+const perPicture = BADGE_CATALOG.length / distinctDrawings.size;
+check(
+  `${BADGE_CATALOG.length} badges over ${distinctDrawings.size} drawings — ${perPicture.toFixed(1)} per picture`,
+  perPicture <= 3,
+  'a row of five on the achievements screen has to be five different things'
+);
+
+// A badge with no rung silently falls back to its family's single drawing,
+// which is the exact defect the ladders exist to remove — and it fails quietly,
+// so nothing on screen says anything is wrong.
+const noRung = BADGE_CATALOG.filter((b) => !BADGE_ID_GLYPHS[b.id] && !stageFor(b.id));
+check(
+  'every badge sits on a rung or carries its own drawing',
+  noRung.length === 0,
+  noRung.length
+    ? `${noRung.length} fell through, e.g. ${noRung.slice(0, 4).map((b) => b.id).join(', ')}`
+    : ''
+);
+
+const orphanRungs = Object.keys(STAGE_MEMBERS).filter((k) => !STAGE_GLYPHS[k]);
+check('every rung listed has a drawing', orphanRungs.length === 0, orphanRungs.join(', '));
+
+const undrawnRungs = Object.keys(STAGE_GLYPHS).filter((k) => !STAGE_MEMBERS[k]);
+check(
+  'every drawing belongs to a rung',
+  undrawnRungs.length === 0,
+  `drawn but unreachable: ${undrawnRungs.join(', ')}`
+);
+
+// Two rungs of one ladder that are byte-identical is a ladder with a missing
+// step: the progression stalls and two stages look the same.
+const byRung = new Map();
+for (const [rung, shapes] of Object.entries(STAGE_GLYPHS)) {
+  const key = JSON.stringify(shapes);
+  byRung.set(key, [...(byRung.get(key) ?? []), rung]);
+}
+const dupRungs = [...byRung.values()].filter((l) => l.length > 1);
+check(
+  `all ${Object.keys(STAGE_GLYPHS).length} rung drawings are distinct`,
+  dupRungs.length === 0,
+  dupRungs.map((l) => l.join(' = ')).join('; ')
+);
+
+// And no ladder so short that a category is still mostly one picture.
+const perCategory = new Map();
+for (const b of BADGE_CATALOG) {
+  const e = perCategory.get(b.category) ?? { n: 0, pics: new Set() };
+  e.n++;
+  e.pics.add(JSON.stringify(glyphFor(b.category, b.id)));
+  perCategory.set(b.category, e);
+}
+const crowded = [...perCategory.entries()].filter(([, e]) => e.n / e.pics.size > 6.5);
+check(
+  'no category leaves more than six badges on one picture',
+  crowded.length === 0,
+  crowded.map(([c, e]) => `${c}: ${e.n} badges over ${e.pics.size}`).join('; ')
+);
+
+// ─── 6. No Ionicons left on a badge ───────────────────────────────────────────
 console.log('\n[5] Regression — badges are not rendered with UI icons again');
 
 // The unlock sheet is back in scope.
