@@ -178,13 +178,13 @@ const styles = StyleSheet.create({
     maxWidth: 600,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     lineHeight: 40,
   },
   message: {
-    fontSize: 15,
+    fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontWeight: '600',
     textAlign: 'center',
-    fontSize: 15,
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 18,
     width: '100%',
   },

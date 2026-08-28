@@ -64,7 +64,7 @@ export function StatStrip({
               </Text>
               {item.hint ? (
                 <Text
-                  style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: colors.primaryText }}
+                  style={{ fontSize: 12, fontFamily: 'Inter_600SemiBold', color: colors.primaryText }}
                 >
                   {item.hint}
                 </Text>

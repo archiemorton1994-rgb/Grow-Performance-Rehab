@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   glanceRow: { flexDirection: 'row', alignItems: 'center' },
   glanceDivider: { width: 1, height: 22, opacity: 0.25 },
   glanceValue: { fontSize: 17, fontFamily: 'Inter_700Bold' },
-  glanceLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', letterSpacing: 0.5, opacity: 0.75 },
+  glanceLabel: { fontSize: 9, fontFamily: 'Inter_500Medium', letterSpacing: 0.5, opacity: 0.75 },
 
   suggestion: {
     flexDirection: 'row',
@@ -406,9 +406,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  suggestionLabel: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
+  suggestionLabel: { fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 0.8 },
   suggestionTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },
-  suggestionReason: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  suggestionReason: { fontSize: 12, fontFamily: 'Inter_400Regular' },
 
   divider: { height: 1, marginHorizontal: 14 },
   row: { flexDirection: 'row', gap: 10, padding: 14, alignItems: 'flex-start' },
@@ -420,9 +420,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { fontSize: 15, fontFamily: 'Inter_600SemiBold', flexShrink: 1 },
+  title: { fontSize: 14, fontFamily: 'Inter_600SemiBold', flexShrink: 1 },
   newPill: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 },
-  newPillText: { fontSize: 11, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  newPillText: { fontSize: 8, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
   body: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   action: {
     alignSelf: 'flex-start',
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 4,
   },
-  actionText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  actionText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   seeAll: {
     flexDirection: 'row',
     alignItems: 'center',

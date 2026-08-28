@@ -2457,7 +2457,7 @@ export default function CustomSessionScreen() {
                       >
                         <Text
                           style={{
-                            fontSize: 11,
+                            fontSize: 10,
                             fontFamily: 'Inter_600SemiBold',
                             color: C.primaryText,
                             textTransform: 'uppercase' as const,
@@ -2470,7 +2470,7 @@ export default function CustomSessionScreen() {
                     </View>
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontFamily: 'Inter_400Regular',
                         color: C.textSecondary,
                       }}
@@ -2490,7 +2490,7 @@ export default function CustomSessionScreen() {
                       marginTop: -4,
                       marginBottom: 8,
                       backgroundColor: C.surfaceSecondary,
-                      borderRadius: 8,
+                      borderRadius: 10,
                       borderWidth: 1,
                       borderColor: C.primary,
                       paddingHorizontal: 12,
@@ -2509,7 +2509,7 @@ export default function CustomSessionScreen() {
                     </Text>
                     <TextInput
                       style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontFamily: 'Inter_400Regular',
                         color: C.text,
                         paddingVertical: 0,
@@ -3030,9 +3030,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 6,
       paddingBottom: 10,
     },
-    heroTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
+    heroTitle: { fontSize: 19, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
     heroSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.primaryDarkText,
       opacity: 0.75,
@@ -3050,7 +3050,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 12,
       paddingVertical: 10,
       marginBottom: 10,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_500Medium',
       color: C.primaryDarkText,
     },
@@ -3076,12 +3076,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 10,
     },
     startPlanEstimate: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryText,
     },
     startGroupLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_700Bold',
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -3094,7 +3094,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
       padding: 14,
@@ -3103,19 +3103,19 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     goalCardActive: { borderColor: C.primary, backgroundColor: C.primaryMuted },
     goalCardTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
     goalCardBlurb: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
     },
     startFocusBlurb: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       marginTop: 8,
     },
     startPlanLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_700Bold',
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -3130,7 +3130,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 4,
     },
     planChip: {
-      fontSize: 11,
+      fontSize: 11.5,
       fontFamily: 'Inter_600SemiBold',
       color: C.textSecondary,
       backgroundColor: C.surfaceSecondary,
@@ -3144,7 +3144,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 15,
       marginTop: 22,
     },
@@ -3156,12 +3156,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 6,
       paddingHorizontal: 18,
       paddingVertical: 15,
-      borderRadius: 12,
+      borderRadius: 14,
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
-    ghostBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    ghostBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     linkBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -3195,7 +3195,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.text,
     },
     stepFilterNote: {
-      fontSize: 11,
+      fontSize: 11.5,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       marginTop: 4,
@@ -3216,13 +3216,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       height: 34,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
     minuteChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
-    minuteChipText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    minuteChipText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     minuteChipTextActive: { color: C.primaryText, fontFamily: 'Inter_700Bold' },
     stepFooter: {
       flexDirection: 'row',
@@ -3239,7 +3239,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     reviewBlockHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
     reviewBlockTitle: {
       flex: 1,
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_700Bold',
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -3247,7 +3247,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     reviewEditText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     reviewSkipped: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       paddingLeft: 20,
@@ -3263,9 +3263,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 11,
       marginBottom: 6,
     },
-    reviewRowName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    reviewRowName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
     reviewRowMeta: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
@@ -3303,7 +3303,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
     sheetClear: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     sheetGroupLabel: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
       color: C.textSecondary,
       marginBottom: 8,
@@ -3312,7 +3312,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sheetChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     sheetDoneBtn: {
       backgroundColor: C.primaryDark,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 2,
@@ -3328,7 +3328,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     headerCenter: { flex: 1, alignItems: 'center' },
     headerTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
     headerSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -3349,7 +3349,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     nameInput: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_600SemiBold',
       color: C.text,
       padding: 0,
@@ -3383,7 +3383,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
     },
     equipChipText: {
-      fontSize: 11,
+      fontSize: 11.5,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
@@ -3424,7 +3424,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     railItem: {
       paddingVertical: 10,
       paddingHorizontal: 10,
-      borderRadius: 8,
+      borderRadius: 10,
     },
     railItemActive: {
       backgroundColor: C.primaryDark,
@@ -3453,7 +3453,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     searchIcon: { marginRight: 8 },
     searchInput: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_400Regular',
       color: C.text,
       height: 42,
@@ -3495,7 +3495,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     templateCard: {
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
       padding: 12,
@@ -3530,7 +3530,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
       padding: 14,
@@ -3548,7 +3548,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 8,
     },
     categoryPillText: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: 'Inter_600SemiBold',
       textTransform: 'uppercase',
       letterSpacing: 0.4,
@@ -3564,21 +3564,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primaryMuted,
     },
     recentPillText: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryText,
       letterSpacing: 0.2,
     },
     freshChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     exerciseCardPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
-    exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
+    exerciseName: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text, marginBottom: 2 },
     exercisePrimary: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       marginBottom: 3,
     },
-    exerciseMeta: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    exerciseMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     checkCircle: {
       width: 26,
@@ -3600,7 +3600,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 8,
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 8,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: C.border,
       paddingHorizontal: 12,
@@ -3609,7 +3609,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     selectionHintText: {
       flex: 1,
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
@@ -3642,11 +3642,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10,
       paddingVertical: 5,
       backgroundColor: C.primaryMuted,
-      borderRadius: 8,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: C.primary,
     },
-    saveTemplateBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    saveTemplateBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     emptiedToast: {
       position: 'absolute',
       left: 16,
@@ -3683,7 +3683,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 6,
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderWidth: 1,
@@ -3696,7 +3696,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     trayChipDragHandle: { marginRight: 1 },
     trayChipBody: { alignItems: 'center' },
-    trayChipName: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text, maxWidth: 90 },
+    trayChipName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text, maxWidth: 90 },
     trayChipMeta: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     trayChipRemove: { padding: 2, marginLeft: 2 },
     insertCursor: {
@@ -3712,7 +3712,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: C.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 14,
       gap: 8,
     },
@@ -3738,9 +3738,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
       marginBottom: 2,
     },
-    modalTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text },
     modalSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 20,
@@ -3767,7 +3767,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     stepperValue: {
       flex: 1,
       textAlign: 'center',
-      fontSize: 20,
+      fontSize: 22,
       fontFamily: 'Inter_700Bold',
       color: C.text,
     },
@@ -3792,7 +3792,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
       alignItems: 'center',
     },
-    modalCancelText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    modalCancelText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     modalSaveBtn: {
       flex: 2,
       paddingVertical: 13,
@@ -3801,7 +3801,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
     },
     modalSaveBtnDisabled: { opacity: 0.45 },
-    modalSaveText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    modalSaveText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     updateExistingBtn: {
       flexDirection: 'row',
@@ -3817,7 +3817,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     updateExistingText: {
       flex: 1,
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryText,
     },
@@ -3841,7 +3841,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: C.text,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 12,
       paddingHorizontal: 14,
       ...shadowStyle('#000', 0.22, 10, 4, 12),

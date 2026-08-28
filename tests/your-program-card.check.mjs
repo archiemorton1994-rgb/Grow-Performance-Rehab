@@ -125,17 +125,7 @@ if (!bigNumBlockMatch) {
 //
 // Both numbers are read out of the real styles now. The tile is the thing being
 // guarded, so the tile is the thing that has to be measured.
-// The height may be a literal or a named constant. Resolve the identifier
-// rather than forcing the screen back to a magic number: the constant exists
-// so the style and the <GrowIconTile size> cannot drift apart, which is the
-// same thing this budget is guarding. Same fix badge-copy.check.mjs needed
-// when the badge ids moved behind constants.
-const iconRaw = indexSrc.match(/summaryCardImage\s*:\s*\{[^}]*height\s*:\s*([A-Za-z0-9_]+)/);
-const iconMatch = !iconRaw
-  ? null
-  : /^[0-9]+$/.test(iconRaw[1])
-    ? iconRaw
-    : indexSrc.match(new RegExp("const\\s+" + iconRaw[1] + "\\s*=\\s*([0-9]+)"));
+const iconMatch = indexSrc.match(/summaryCardImage\s*:\s*\{[^}]*height\s*:\s*(\d+)/);
 const gapMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
 if (!iconMatch) fail('summaryCardImage height found — the tile artwork is what sets this budget');
 else ok(`summaryCardImage height read from the screen: ${iconMatch[1]}pt`);

@@ -17,13 +17,10 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { BadgeMedallion } from '@/components/BadgeMedallion';
-import { GrowIcon } from '@/components/GrowIcon';
 import { Badge, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-/** The same trophy Home's Achievements tile draws, from the icon set rather
- *  than a raster, so the two cannot drift apart. */
-const ACHIEVEMENT_GLYPH = 'trophy' as const;
+const ACHIEVEMENT_LOGO = require('@/assets/images/home/achievements.png');
 
 const EXIT_MS = 210;
 /** How long the sheet stays up if the user never dismisses it. See the failsafe
@@ -214,7 +211,7 @@ export default function AchievementUnlockedSheet({
                   { backgroundColor: accent + '18', borderColor: accent + '44' },
                 ]}
               >
-                <GrowIcon name={ACHIEVEMENT_GLYPH} size={40} color={accent} />
+                <Image source={ACHIEVEMENT_LOGO} style={styles.iconImage} resizeMode="contain" />
               </View>
             )}
 
@@ -334,7 +331,7 @@ const styles = StyleSheet.create({
     ...shadowStyle('#000000', 0.22, 16, 6, 6),
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: 'Inter_700Bold',
     textAlign: 'center',
     lineHeight: 28,
@@ -357,14 +354,14 @@ const styles = StyleSheet.create({
     ...shadowStyle('#000', 0.28, 8, 3, 5),
   },
   primaryBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Inter_700Bold',
   },
   dismissRow: {
     paddingVertical: 10,
   },
   dismissText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter_500Medium',
   },
   milestoneHint: {

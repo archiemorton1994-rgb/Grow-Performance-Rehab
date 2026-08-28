@@ -501,16 +501,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       height: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 8,
+      borderRadius: 10,
     },
-    headerTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    headerTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text },
     cycleBadge: {
       backgroundColor: C.primaryMuted,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
-    cycleBadgeText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    cycleBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     content: { paddingHorizontal: 20, paddingTop: 16, gap: 10 },
 
@@ -524,7 +524,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     cycleInfo: {
       flexDirection: 'row',
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       padding: 16,
       alignItems: 'center',
       borderWidth: 1,
@@ -532,9 +532,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     cycleCard: { flex: 1, alignItems: 'center' },
     cycleValue: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText },
-    cycleNumber: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.primaryText },
+    cycleNumber: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.primaryText },
     cycleLabel: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginTop: 2,
@@ -544,7 +544,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     arcCard: {
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderWidth: 1,
@@ -639,7 +639,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     cardIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 10,
@@ -653,7 +653,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 1,
     },
     cardRecency: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       marginTop: 1,

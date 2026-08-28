@@ -530,13 +530,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     headerText: { flex: 1 },
     wordmark: {
-      fontSize: 20,
+      fontSize: 18,
       fontFamily: 'Inter_700Bold',
       color: C.primaryText,
       letterSpacing: 2,
     },
     tagline: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -571,7 +571,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.primaryText,
     },
     statLabel: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: 'Inter_500Medium',
       color: C.primaryText,
       marginTop: 1,
@@ -592,7 +592,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     benefitIcon: {
       width: 32,
       height: 32,
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: C.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
@@ -602,12 +602,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 2,
     },
     benefitTitle: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_700Bold',
       color: C.text,
     },
     benefitBody: {
-      fontSize: 13,
+      fontSize: 12.5,
       lineHeight: 17,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
@@ -629,12 +629,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 6,
     },
     planName: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginBottom: 2,
     },
-    planPrice: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    planPrice: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text },
     planPer: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     trialBadge: {
       backgroundColor: C.primaryMuted,
@@ -653,7 +653,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
-    retryBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    retryBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     // Error
     errorRow: {
@@ -662,7 +662,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 5,
       marginBottom: 8,
     },
-    errorText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
+    errorText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.error, flex: 1 },
 
     // CTA
     ctaBtn: {

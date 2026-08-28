@@ -263,19 +263,7 @@ check(
   todayIcon !== null && todayIcon <= 84,
   'it was the single tallest thing in the hero card and it set that row height on its own'
 );
-// The width may be a literal or a named constant shared with the component
-// that draws the tile. Resolve the name rather than demanding a magic number:
-// one constant for the style and the <GrowIconTile size> is the thing that
-// keeps this budget honest.
-const tileRaw = home.match(/summaryCardImage: \{\s*\n\s*width: ([A-Za-z0-9_]+),/);
-const tileImage = !tileRaw
-  ? null
-  : /^[0-9]+$/.test(tileRaw[1])
-    ? parseInt(tileRaw[1], 10)
-    : (() => {
-        const c = home.match(new RegExp("const\\s+" + tileRaw[1] + "\\s*=\\s*([0-9]+)"));
-        return c ? parseInt(c[1], 10) : null;
-      })();
+const tileImage = num(/summaryCardImage: \{\s*\n\s*width: (\d+),/, 'summaryCardImage');
 check(
   `the summary tile artwork is ${tileImage}pt, not 52`,
   tileImage !== null && tileImage <= 42,

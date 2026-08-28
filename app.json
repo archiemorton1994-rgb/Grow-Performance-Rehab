@@ -13,7 +13,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#fafbfa",
       "dark": {
-        "image": "./assets/images/splash-icon-dark.png",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#0f1412"
       }

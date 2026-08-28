@@ -22,7 +22,6 @@
  * corners than that will foul the rim.
  */
 import type { BadgeCategory, BadgeTier } from '@/lib/badges';
-import { STAGE_GLYPHS, stageFor } from '@/lib/badge-stages';
 
 /**
  * Which of the medallion's two colours a shape is painted in.
@@ -421,27 +420,16 @@ export const BADGE_ID_GLYPHS: Record<string, ArtShape[]> = {
 };
 
 /**
- * The drawing for a badge, most specific first.
+ * The drawing for a badge: its own if it has one, otherwise its family's.
  *
- *   1. its own, if somebody drew one for that exact badge
- *   2. its rung on the family's ladder — see lib/badge-stages.ts
- *   3. the family's single drawing, which is now only a backstop
- *
- * The ladder is the layer this app was missing. Without it 277 badges shared
- * 33 pictures, so a row of five on the achievements screen was five copies of
- * one drawing in four metals. Falling through to (3) is not a crash, but it is
- * a badge that has quietly stopped saying anything about itself, which is why
- * tests/badge-glyph-coverage.check.mjs now counts how many get that far.
+ * ex_ghd_10_sessions deliberately has no entry — it is the same movement as
+ * ex_ghd_first, ten sessions deeper, which is exactly the case the family
+ * drawing exists for.
  */
 export function glyphFor(category: BadgeCategory, badgeId?: string): ArtShape[] {
   if (badgeId) {
     const own = BADGE_ID_GLYPHS[badgeId];
     if (own) return own;
-    const stage = stageFor(badgeId);
-    if (stage) {
-      const art = STAGE_GLYPHS[stage];
-      if (art) return art;
-    }
   }
   return BADGE_GLYPHS[category] ?? [];
 }

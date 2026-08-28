@@ -257,7 +257,7 @@ function RegionBodyPicker({
           <View style={{ marginBottom: 10 }}>
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 12,
                 fontFamily: 'Inter_600SemiBold',
                 color: C.textSecondary,
                 marginBottom: 6,
@@ -330,7 +330,7 @@ function RegionBodyPicker({
               justifyContent: 'center' as const,
               gap: 8,
               backgroundColor: C.primary,
-              borderRadius: 12,
+              borderRadius: 14,
               paddingVertical: 15,
               ...glowShadow(C.primary),
             },
@@ -339,7 +339,7 @@ function RegionBodyPicker({
           testID={pending ? `${testPrefix}-start-region` : `${testPrefix}-fullbody`}
         >
           <Ionicons name={pending ? 'play' : 'flash-outline'} size={16} color={C.textInverse} />
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
             {pending ? `Start ${BODY_DIAGRAM_LABELS[pending]}` : 'Full body circuit'}
           </Text>
         </Pressable>
@@ -1182,7 +1182,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sheetHeaderText: { flex: 1 },
     sheetTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
     sheetDuration: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 3,
@@ -1197,7 +1197,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
 
     sheetDesc: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       lineHeight: 21,
@@ -1210,11 +1210,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 15,
       ...glowShadow(C.primary),
     },
-    startBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     pickerSheet: {
       backgroundColor: C.surface,
@@ -1249,7 +1249,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
     },
     equipmentChipText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
@@ -1277,7 +1277,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: 'rgba(0,0,0,0.45)',
     },
     sheetSubtitle: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
@@ -1286,21 +1286,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 12,
       paddingVertical: 5,
       backgroundColor: C.surfaceTertiary,
-      borderRadius: 8,
+      borderRadius: 10,
     },
     resetBtnText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
       color: C.textSecondary,
     },
     bestMatchRow: {
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
     bestMatchText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
@@ -1309,12 +1309,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 6,
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
     beginnerNoteText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.primaryText,
       flex: 1,
@@ -1338,7 +1338,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     tierIcon: {
       width: 34,
       height: 34,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1372,7 +1372,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 14,
       marginTop: 4,
     },

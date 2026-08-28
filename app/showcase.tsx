@@ -239,7 +239,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     dots: { flexDirection: 'row', gap: 6 },
     dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
     dotActive: { width: 20, backgroundColor: C.primary },
-    skip: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    skip: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     page: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
     // Layout only. GrowIconTile draws the disc, lit rather than flat-filled.
     iconRing: {
@@ -258,7 +258,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center',
     },
     title: {
-      fontSize: 26,
+      fontSize: 27,
       lineHeight: 33,
       fontFamily: 'Inter_700Bold',
       color: C.text,
@@ -266,7 +266,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 14,
     },
     body: {
-      fontSize: 15,
+      fontSize: 15.5,
       lineHeight: 24,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
@@ -284,7 +284,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     proof: {
       flex: 1,
-      fontSize: 13,
+      fontSize: 12.5,
       lineHeight: 18,
       fontFamily: 'Inter_500Medium',
       color: C.primaryText,
@@ -301,7 +301,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     ctaText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
     footNote: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       textAlign: 'center',

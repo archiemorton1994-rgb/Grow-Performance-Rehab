@@ -38,7 +38,6 @@ import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/wo
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
-import { GrowIconTile } from '@/components/GrowIcon';
 import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import { CoachButton, CoachBubble } from '@/components/CoachBubble';
@@ -175,21 +174,11 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
   },
 ] as const;
 
-/**
- * The four summary tiles, as icon-set glyphs rather than the PNGs they used to
- * be. flame and dumbbell and trophy already existed; cycle was drawn for this,
- * because the tile it sits on literally reads "CYCLE 7" and a ring of arrows is
- * the card's own word rather than a picture of a calendar.
- */
-/** The tile's drawn size, and the height budget the summary grid is measured
- *  against. One constant so the style and the component cannot drift. */
-const SUMMARY_TILE = 38;
-
-const SUMMARY_GLYPHS = {
-  weekStreak: 'flame',
-  yourProgram: 'cycle',
-  totalWorkouts: 'dumbbell',
-  achievements: 'trophy',
+const HOME_ICONS = {
+  weekStreak: require('@/assets/images/home/week-streak.png'),
+  yourProgram: require('@/assets/images/home/your-program.png'),
+  totalWorkouts: require('@/assets/images/home/total-workouts.png'),
+  achievements: require('@/assets/images/home/achievements.png'),
 } as const;
 
 export default function HomeScreen() {
@@ -1189,14 +1178,11 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.summaryGrid}>
             {/* Week Streak */}
             <View ref={streakTileRef} collapsable={false} style={styles.summaryCard}>
-              <View style={styles.summaryCardImage}>
-                <GrowIconTile
-                  name={SUMMARY_GLYPHS.weekStreak}
-                  size={SUMMARY_TILE}
-                  color={C.primaryText}
-                  face={C.primaryMuted}
-                />
-              </View>
+              <Image
+                source={HOME_ICONS.weekStreak}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
               <Text style={styles.summaryBigNum}>{streak}</Text>
               <Text style={styles.summaryCardTitle}>WEEK STREAK</Text>
               <Text style={styles.summaryCardSub}>
@@ -1225,14 +1211,11 @@ export default function HomeScreen() {
               }}
               testID="your-program-card"
             >
-              <View style={styles.summaryCardImage}>
-                <GrowIconTile
-                  name={SUMMARY_GLYPHS.yourProgram}
-                  size={SUMMARY_TILE}
-                  color={C.primaryText}
-                  face={C.primaryMuted}
-                />
-              </View>
+              <Image
+                source={HOME_ICONS.yourProgram}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
               <Text style={styles.summaryCycleLabel}>CYCLE</Text>
               <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
               <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
@@ -1250,14 +1233,11 @@ export default function HomeScreen() {
               }}
               testID="total-sessions-tap"
             >
-              <View style={styles.summaryCardImage}>
-                <GrowIconTile
-                  name={SUMMARY_GLYPHS.totalWorkouts}
-                  size={SUMMARY_TILE}
-                  color={C.primaryText}
-                  face={C.primaryMuted}
-                />
-              </View>
+              <Image
+                source={HOME_ICONS.totalWorkouts}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
               <Text style={styles.summaryBigNum}>{completedSessions.length}</Text>
               <Text style={styles.summaryCardTitle}>TOTAL WORKOUTS</Text>
             </Pressable>
@@ -1273,14 +1253,11 @@ export default function HomeScreen() {
               }}
               testID="summary-achievements"
             >
-              <View style={styles.summaryCardImage}>
-                <GrowIconTile
-                  name={SUMMARY_GLYPHS.achievements}
-                  size={SUMMARY_TILE}
-                  color={C.primaryText}
-                  face={C.primaryMuted}
-                />
-              </View>
+              <Image
+                source={HOME_ICONS.achievements}
+                style={styles.summaryCardImage}
+                resizeMode="contain"
+              />
               <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
               <Text style={styles.summaryCardTitle}>ACHIEVEMENTS</Text>
             </Pressable>
@@ -1632,12 +1609,12 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   sheetSubtitle: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   resetBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
   resetBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   bestMatchRow: {
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
@@ -1654,7 +1631,7 @@ const modalStyles = StyleSheet.create({
   },
   tierLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
   confirmBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
-  confirmBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  confirmBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
 });
 
 function makeStyles(C: ReturnType<typeof useColors>) {
@@ -1668,7 +1645,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingEyebrow: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
-    greetingText: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    greetingText: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
     headerAvatar: {
       width: 38,
       height: 38,
@@ -1710,7 +1687,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       letterSpacing: 0.8,
       marginBottom: 6,
     },
-    todaySessionName: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
+    todaySessionName: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     todaySessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     // 112 was the single tallest thing on the home screen and the session
     // artwork is perfectly legible smaller. This is 36px of the ~197 that had
@@ -1730,10 +1707,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primaryDark,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 15,
     },
-    startBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
+    startBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryDarkText },
 
     /**
      * Deliberately quieter than startBtn, and deliberately not silent.
@@ -1783,7 +1760,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.primaryMuted,
       borderColor: C.primary + '40',
     },
-    equipmentChipText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    equipmentChipText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     equipmentChipTextOverride: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     overrideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary },
 
@@ -1810,7 +1787,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       minHeight: 112,
       justifyContent: 'center' as const,
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: 18,
       padding: 10,
       alignItems: 'center' as const,
       borderWidth: 1,
@@ -1818,8 +1795,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 3,
     },
     summaryCardImage: {
-      width: SUMMARY_TILE,
-      height: SUMMARY_TILE,
+      width: 38,
+      height: 38,
       marginBottom: 1,
     },
     summaryCardTitle: {
@@ -1830,16 +1807,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       textAlign: 'center' as const,
     },
     summaryCardSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       textAlign: 'center' as const,
     },
     summaryBigNum: {
-      fontSize: 20,
+      fontSize: 22,
       fontFamily: 'Inter_700Bold',
       color: C.text,
-      lineHeight: 24,
+      lineHeight: 26,
       textAlign: 'center' as const,
     },
     summaryCycleLabel: {
@@ -1851,7 +1828,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
 
     lastInline: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
       marginTop: -6,
@@ -1863,7 +1840,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.warningLight,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderWidth: 1,
@@ -1887,15 +1864,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     milestoneToastIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
       backgroundColor: C.surface,
     },
-    milestoneToastTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    milestoneToastTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
     milestoneToastSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1903,15 +1880,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     milestoneIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
       backgroundColor: C.surface,
     },
-    milestoneTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    milestoneTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
     milestoneSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1922,7 +1899,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderWidth: 1,
@@ -1931,15 +1908,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     warningIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
       backgroundColor: C.warningLight,
     },
-    warningTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    warningTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
     warningSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1950,7 +1927,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderWidth: 1,
@@ -1959,7 +1936,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     resumeIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -1967,7 +1944,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     resumeTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
     resumeSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1977,7 +1954,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 5,
       backgroundColor: C.warning,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
@@ -2004,7 +1981,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     firstChoiceIcon: {
       width: 46,
       height: 46,
-      borderRadius: 12,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
@@ -2018,22 +1995,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.primaryText,
       marginBottom: 2,
     },
-    firstChoiceSub: {
-      fontSize: 13,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      // Explicit, because this is the one caption on Home that wraps: the
-      // default is about 1.4x and costs ~18pt per extra row on the tallest
-      // first-run state.
-      lineHeight: 17,
-    },
+    firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     kitCallout: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 7,
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 8,
       marginTop: 12,
@@ -2051,7 +2020,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderWidth: 1,
@@ -2060,15 +2029,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     calibrationCompleteIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
       backgroundColor: C.surfaceSecondary,
     },
-    calibrationCompleteTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText },
+    calibrationCompleteTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryText },
     calibrationCompleteSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -2087,10 +2056,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 12,
-      fontSize: 20,
+      fontSize: 22,
       fontFamily: 'Inter_600SemiBold',
       textAlign: 'center' as const,
     },
-    weightInputUnit: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+    weightInputUnit: { fontSize: 16, fontFamily: 'Inter_500Medium' },
   });
 }

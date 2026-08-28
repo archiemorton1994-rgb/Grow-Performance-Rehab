@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   linkText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#2e78b7',
   },
 });

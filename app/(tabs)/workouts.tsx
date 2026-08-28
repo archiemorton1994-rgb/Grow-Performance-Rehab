@@ -441,7 +441,7 @@ function MuscleProgressPanel({
       </Text>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: 'Inter_400Regular',
           color: C.textSecondary,
           marginBottom: 12,
@@ -467,7 +467,7 @@ function MuscleProgressPanel({
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontFamily: 'Inter_600SemiBold',
               color: 'rgba(255,255,255,0.35)',
               marginBottom: 4,
@@ -497,7 +497,7 @@ function MuscleProgressPanel({
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontFamily: 'Inter_600SemiBold',
               color: 'rgba(255,255,255,0.35)',
               marginBottom: 4,
@@ -612,13 +612,13 @@ function MuscleProgressPanel({
           />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-              <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
                 {BODY_DIAGRAM_LABELS[insightRegion]}
               </Text>
               <View
                 style={{
                   backgroundColor: insightData.status.text + '22',
-                  borderRadius: 8,
+                  borderRadius: 6,
                   paddingHorizontal: 6,
                   paddingVertical: 2,
                 }}
@@ -637,7 +637,7 @@ function MuscleProgressPanel({
             {insightData.days > 0 && (
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontFamily: 'Inter_400Regular',
                   color: C.textSecondary,
                   marginBottom: 2,
@@ -647,7 +647,7 @@ function MuscleProgressPanel({
                 {insightData.avgSets} set{insightData.avgSets !== 1 ? 's' : ''}/day
               </Text>
             )}
-            <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+            <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
               {insightData.status.message}
             </Text>
             {insightData.topExercises.length > 0 && (
@@ -661,7 +661,7 @@ function MuscleProgressPanel({
               >
                 <Text
                   style={{
-                    fontSize: 11,
+                    fontSize: 10,
                     fontFamily: 'Inter_600SemiBold',
                     color: C.textTertiary,
                     textTransform: 'uppercase',
@@ -683,7 +683,7 @@ function MuscleProgressPanel({
                   >
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontFamily: 'Inter_500Medium',
                         color: C.text,
                         flex: 1,
@@ -694,7 +694,7 @@ function MuscleProgressPanel({
                     </Text>
                     <Text
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontFamily: 'Inter_400Regular',
                         color: C.textSecondary,
                         marginLeft: 8,
@@ -778,7 +778,7 @@ function WeeklyBarChart({
       </Text>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: 'Inter_400Regular',
           color: C.textSecondary,
           marginBottom: 12,
@@ -830,10 +830,10 @@ function WeeklyBarChart({
         </Svg>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           0
         </Text>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           {/* Max over the real counts.
               It first read "peak: 0 sessions" for somebody with none, which is
               not a statistic. The fix was a Math.max(1, ...) floor borrowed
@@ -948,7 +948,7 @@ function WeeklyVolumeChart({
       </Text>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: 'Inter_400Regular',
           color: C.textSecondary,
           marginBottom: 12,
@@ -1000,10 +1000,10 @@ function WeeklyVolumeChart({
         </Svg>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           0 {weightUnit}
         </Text>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           peak: {maxVal.toLocaleString()} {weightUnit}
         </Text>
       </View>
@@ -1175,7 +1175,7 @@ function MonthCalendar({
           <View key={i} style={{ flex: 1, alignItems: 'center', paddingBottom: 6 }}>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontFamily: 'Inter_600SemiBold',
                 color: i >= 5 ? C.textTertiary : C.textSecondary,
               }}
@@ -1228,7 +1228,7 @@ function MonthCalendar({
             >
               <Text
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontFamily: isToday ? 'Inter_700Bold' : 'Inter_500Medium',
                   color: textColor,
                 }}
@@ -1290,7 +1290,7 @@ function MonthCalendar({
               </Text>
               {s.durationSeconds != null && s.durationSeconds > 0 && (
                 <Text
-                  style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
+                  style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
                 >
                   {formatSessionDuration(s.durationSeconds)}
                 </Text>
@@ -1328,17 +1328,17 @@ function MonthCalendar({
       {/* Volume intensity legend */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
         <Text
-          style={{ flex: 1, fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
+          style={{ flex: 1, fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
         >
           {sessions.length} session{sessions.length !== 1 ? 's' : ''} total
         </Text>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           Light
         </Text>
         {[C.primaryMuted, C.primaryLight, C.primary].map((col, i) => (
           <View key={i} style={{ width: 14, height: 14, borderRadius: 4, backgroundColor: col }} />
         ))}
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           Heavy
         </Text>
       </View>
@@ -1395,14 +1395,14 @@ function StrengthLineChart({
       <View
         style={{
           backgroundColor: C.surface,
-          borderRadius: 12,
+          borderRadius: 14,
           padding: 14,
           marginBottom: 10,
           borderWidth: 1,
           borderColor: C.borderLight,
         }}
       >
-        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
           {liftLabel}
         </Text>
         <View style={{ height: LINE_CHART_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
@@ -1419,7 +1419,7 @@ function StrengthLineChart({
       <View
         style={{
           backgroundColor: C.surface,
-          borderRadius: 12,
+          borderRadius: 14,
           padding: 14,
           marginBottom: 10,
           borderWidth: 1,
@@ -1434,10 +1434,10 @@ function StrengthLineChart({
             marginBottom: 4,
           }}
         >
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
             {liftLabel}
           </Text>
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
             {formatWeight(data[0].weight, weightUnit)}
           </Text>
         </View>
@@ -1495,7 +1495,7 @@ function StrengthLineChart({
     <View
       style={{
         backgroundColor: C.surface,
-        borderRadius: 12,
+        borderRadius: 14,
         padding: 14,
         marginBottom: 10,
         borderWidth: 1,
@@ -1510,11 +1510,11 @@ function StrengthLineChart({
           marginBottom: 4,
         }}
       >
-        <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
           {liftLabel}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
+          <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
             {formatWeight(best, weightUnit)}
           </Text>
           {isImproving && (
@@ -1596,7 +1596,7 @@ function StrengthLineChart({
               left: Math.max(0, Math.min(selectedPoint.x - 45, w - 90)),
               top: Math.max(0, selectedPoint.y - 40),
               backgroundColor: C.text,
-              borderRadius: 8,
+              borderRadius: 6,
               paddingHorizontal: 8,
               paddingVertical: 4,
             }}
@@ -1604,7 +1604,7 @@ function StrengthLineChart({
             <Text style={{ fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.background }}>
               {formatWeight(selectedPoint.weight, weightUnit)}
             </Text>
-            <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+            <Text style={{ fontSize: 9, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
               {formatDate(selectedPoint.date)}
             </Text>
           </View>
@@ -1619,11 +1619,11 @@ function StrengthLineChart({
           paddingHorizontal: 2,
         }}
       >
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 9, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           {shortMonthYear(data[0].date)}
         </Text>
         {data.length > 1 && (
-          <Text style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
             {shortMonthYear(data[data.length - 1].date)}
           </Text>
         )}
@@ -1726,7 +1726,7 @@ function SessionHistoryList({
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 8,
+                  borderRadius: 10,
                   overflow: 'hidden',
                 }}
               >
@@ -1737,12 +1737,12 @@ function SessionHistoryList({
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
                   {session.displayLabel ?? getSessionLabel(session.sessionType)}
                 </Text>
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Inter_400Regular',
                     color: C.textSecondary,
                     marginTop: 1,
@@ -1789,7 +1789,7 @@ function SessionHistoryList({
                           >
                             <Text
                               style={{
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontFamily: 'Inter_500Medium',
                                 color: isActive ? C.primaryText : C.textSecondary,
                               }}
@@ -1811,7 +1811,7 @@ function SessionHistoryList({
                         >
                           <Text
                             style={{
-                              fontSize: 11,
+                              fontSize: 10,
                               fontFamily: 'Inter_500Medium',
                               color: C.textTertiary,
                             }}
@@ -1832,7 +1832,7 @@ function SessionHistoryList({
                         >
                           <Text
                             style={{
-                              fontSize: 11,
+                              fontSize: 10,
                               fontFamily: 'Inter_500Medium',
                               color: C.textSecondary,
                             }}
@@ -1849,14 +1849,14 @@ function SessionHistoryList({
                 <View
                   style={{
                     backgroundColor: energyColors[session.energy] + '22',
-                    borderRadius: 8,
+                    borderRadius: 6,
                     paddingHorizontal: 7,
                     paddingVertical: 2,
                   }}
                 >
                   <Text
                     style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       fontFamily: 'Inter_600SemiBold',
                       color: energyColors[session.energy],
                     }}
@@ -1921,7 +1921,7 @@ function SessionHistoryList({
                               >
                                 <Text
                                   style={{
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     fontFamily: 'Inter_600SemiBold',
                                     color: C.success,
                                   }}
@@ -1941,7 +1941,7 @@ function SessionHistoryList({
                               >
                                 <Text
                                   style={{
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     fontFamily: 'Inter_600SemiBold',
                                     color: C.warning,
                                   }}
@@ -1973,7 +1973,7 @@ function SessionHistoryList({
                             <Ionicons name="create-outline" size={12} color={C.textTertiary} />
                             <Text
                               style={{
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontFamily: 'Inter_400Regular',
                                 color: C.textTertiary,
                                 flex: 1,
@@ -2013,7 +2013,7 @@ function SessionHistoryList({
                         >
                           <Text
                             style={{
-                              fontSize: 13,
+                              fontSize: 12,
                               fontFamily: 'Inter_400Regular',
                               color: C.textTertiary,
                               fontStyle: 'italic',
@@ -2032,7 +2032,7 @@ function SessionHistoryList({
                             >
                               <Text
                                 style={{
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontFamily: 'Inter_600SemiBold',
                                   color: C.success,
                                 }}
@@ -2052,7 +2052,7 @@ function SessionHistoryList({
                             >
                               <Text
                                 style={{
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontFamily: 'Inter_600SemiBold',
                                   color: C.warning,
                                 }}
@@ -2155,7 +2155,7 @@ function SessionHistoryList({
                           >
                             <Text
                               style={{
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontFamily: 'Inter_600SemiBold',
                                 color: C.success,
                               }}
@@ -2175,7 +2175,7 @@ function SessionHistoryList({
                           >
                             <Text
                               style={{
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontFamily: 'Inter_600SemiBold',
                                 color: C.warning,
                               }}
@@ -2195,7 +2195,7 @@ function SessionHistoryList({
               !session.exerciseLogs.some((el) => el.cardioData) && (
                 <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                   <Text
-                    style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
+                    style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}
                   >
                     No weight data recorded
                   </Text>
@@ -2218,7 +2218,7 @@ function SessionHistoryList({
                 <Ionicons name="body-outline" size={12} color={C.textTertiary} />
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Inter_400Regular',
                     color: C.textSecondary,
                     flex: 1,
@@ -2249,7 +2249,7 @@ function SessionHistoryList({
                 />
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Inter_400Regular',
                     color: C.textSecondary,
                     flex: 1,
@@ -2273,7 +2273,7 @@ function SessionHistoryList({
             borderTopColor: C.borderLight,
           }}
         >
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
             Show more ({sessions.length - showCount} remaining)
           </Text>
         </Pressable>
@@ -2432,7 +2432,7 @@ function SessionTypeBreakdown({
       </View>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: 'Inter_400Regular',
           color: C.textSecondary,
           marginBottom: 14,
@@ -2516,7 +2516,7 @@ function SessionTypeBreakdown({
                 <Text
                   style={{
                     flex: 1,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: isSelected ? 'Inter_600SemiBold' : 'Inter_400Regular',
                     color: isSelected ? meta.color : C.textSecondary,
                   }}
@@ -2532,7 +2532,7 @@ function SessionTypeBreakdown({
                     proportion, which is the entire reason it is a donut. */}
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'Inter_600SemiBold',
                     color: isSelected ? meta.color : C.text,
                     minWidth: 22,
@@ -2684,7 +2684,7 @@ function PBHistorySection({
                     </Text>
                     <Text
                       style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontFamily: 'Inter_700Bold',
                         color: isAllTimeBest ? C.primaryText : C.text,
                       }}
@@ -2717,7 +2717,7 @@ function PBHistorySection({
           })}
         >
           <Ionicons name="chevron-down" size={15} color={C.primaryText} />
-          <Text style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}>
             Show all ({hiddenCount} more)
           </Text>
         </Pressable>
@@ -2810,7 +2810,7 @@ function OneRMCalculator({
       </View>
       <Text
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: 'Inter_400Regular',
           color: C.textSecondary,
           marginBottom: 14,
@@ -2836,12 +2836,12 @@ function OneRMCalculator({
           <TextInput
             style={{
               height: 44,
-              borderRadius: 8,
+              borderRadius: 10,
               borderWidth: 1.5,
               borderColor: C.border,
               backgroundColor: C.surfaceTertiary,
               paddingHorizontal: 12,
-              fontSize: 15,
+              fontSize: 16,
               fontFamily: 'Inter_600SemiBold',
               color: C.text,
               textAlign: 'center',
@@ -2870,12 +2870,12 @@ function OneRMCalculator({
           <TextInput
             style={{
               height: 44,
-              borderRadius: 8,
+              borderRadius: 10,
               borderWidth: 1.5,
               borderColor: C.border,
               backgroundColor: C.surfaceTertiary,
               paddingHorizontal: 12,
-              fontSize: 15,
+              fontSize: 16,
               fontFamily: 'Inter_600SemiBold',
               color: C.text,
               textAlign: 'center',
@@ -2894,13 +2894,13 @@ function OneRMCalculator({
         onPress={calculate}
         style={({ pressed }) => ({
           backgroundColor: pressed ? C.primaryDark : C.primary,
-          borderRadius: 8,
+          borderRadius: 10,
           paddingVertical: 12,
           alignItems: 'center',
           marginBottom: 12,
         })}
       >
-        <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+        <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
           Calculate
         </Text>
       </Pressable>
@@ -2918,7 +2918,7 @@ function OneRMCalculator({
         >
           <Text
             style={{
-              fontSize: 13,
+              fontSize: 12,
               fontFamily: 'Inter_400Regular',
               color: C.primaryText,
               marginBottom: 4,
@@ -2969,7 +2969,7 @@ function OneRMCalculator({
                 >
                   <Text
                     style={{
-                      fontSize: 13,
+                      fontSize: 12,
                       fontFamily: 'Inter_700Bold',
                       color: selectedLift === lift ? C.textInverse : C.textSecondary,
                     }}
@@ -2988,14 +2988,14 @@ function OneRMCalculator({
                 justifyContent: 'center',
                 gap: 6,
                 paddingVertical: 11,
-                borderRadius: 8,
+                borderRadius: 10,
                 backgroundColor: pressed ? C.surfaceTertiary : C.surface,
                 borderWidth: 1.5,
                 borderColor: C.primary,
               })}
             >
               <Ionicons name="trophy-outline" size={16} color={C.primaryText} />
-              <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
                 Save as {LIFT_LABELS[selectedLift]} PB
               </Text>
             </Pressable>
@@ -3139,7 +3139,7 @@ function ExerciseProgressRow({
     >
       <View style={{ flex: 1 }}>
         <Text
-          style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}
+          style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
           numberOfLines={1}
         >
           {progress.exerciseName}
@@ -3148,7 +3148,7 @@ function ExerciseProgressRow({
           <View
             style={{
               backgroundColor: C.primaryMuted,
-              borderRadius: 8,
+              borderRadius: 6,
               paddingHorizontal: 6,
               paddingVertical: 2,
             }}
@@ -3157,7 +3157,7 @@ function ExerciseProgressRow({
               PB {formatWeight(pb, weightUnit)}
             </Text>
           </View>
-          <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
             ×{count} session{count !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -3323,7 +3323,7 @@ function ExerciseProgressList({
                   justifyContent: 'center',
                   gap: 6,
                   paddingVertical: 13,
-                  borderRadius: 12,
+                  borderRadius: 14,
                   backgroundColor: pressed ? C.primaryMuted : C.primarySurface,
                   borderWidth: 1,
                   borderColor: C.primaryMuted,
@@ -3332,7 +3332,7 @@ function ExerciseProgressList({
               >
                 <Ionicons name="chevron-down" size={15} color={C.primaryText} />
                 <Text
-                  style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}
+                  style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText }}
                 >
                   Show all ({hiddenCount} more)
                 </Text>
@@ -3433,7 +3433,7 @@ function RecentBestsSection({
           </View>
           <View style={{ flex: 1 }}>
             <Text
-              style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text }}
+              style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}
               numberOfLines={1}
             >
               {b.name}
@@ -3492,7 +3492,7 @@ function ExerciseGraph({
         <Ionicons name="trending-up-outline" size={28} color={C.textTertiary} />
         <Text
           style={{
-            fontSize: 15,
+            fontSize: 14,
             fontFamily: 'Inter_500Medium',
             color: C.textSecondary,
             textAlign: 'center',
@@ -3502,7 +3502,7 @@ function ExerciseGraph({
         </Text>
         <Text
           style={{
-            fontSize: 13,
+            fontSize: 12,
             fontFamily: 'Inter_400Regular',
             color: C.textTertiary,
             textAlign: 'center',
@@ -3658,19 +3658,19 @@ function ExerciseGraph({
             left: Math.max(EG_LEFT, Math.min(selectedPoint.x - 38, chartWidth - 84)),
             top: Math.max(0, selectedPoint.y - 48),
             backgroundColor: C.text,
-            borderRadius: 8,
+            borderRadius: 6,
             paddingHorizontal: 8,
             paddingVertical: 4,
           }}
           pointerEvents="none"
         >
-          <Text style={{ fontSize: 13, fontFamily: 'Inter_700Bold', color: C.background }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Inter_700Bold', color: C.background }}>
             {formatWeight(selectedPoint.bestSetWeight, weightUnit)}
             {selectedPoint.bestSetReps ? ` x ${selectedPoint.bestSetReps}` : ''}
           </Text>
           <Text
             style={{
-              fontSize: 11,
+              fontSize: 9,
               fontFamily: 'Inter_400Regular',
               color: C.background,
               opacity: 0.7,
@@ -3775,7 +3775,7 @@ function ExerciseDetailSheet({
             style={{
               flexDirection: 'row',
               backgroundColor: C.surface,
-              borderRadius: 12,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: C.borderLight,
               padding: 16,
@@ -3786,7 +3786,7 @@ function ExerciseDetailSheet({
             <View style={{ flex: 1, alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Ionicons name="trophy" size={13} color={C.primaryText} />
-                <Text style={{ fontSize: 20, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
+                <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.primaryText }}>
                   {formatWeight(pb, weightUnit)}
                 </Text>
               </View>
@@ -3803,7 +3803,7 @@ function ExerciseDetailSheet({
             </View>
             <View style={{ width: 1, height: 32, backgroundColor: C.border }} />
             <View style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text }}>
+              <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text }}>
                 {count}
               </Text>
               <Text
@@ -3855,7 +3855,7 @@ function ExerciseDetailSheet({
           <View
             style={{
               backgroundColor: C.surface,
-              borderRadius: 12,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: C.borderLight,
               padding: 16,
@@ -3863,7 +3863,7 @@ function ExerciseDetailSheet({
           >
             <Text
               style={{
-                fontSize: 13,
+                fontSize: 12,
                 fontFamily: 'Inter_700Bold',
                 color: C.textSecondary,
                 textTransform: 'uppercase',
@@ -4639,7 +4639,7 @@ export default function StatsScreen() {
                             it must be able to explain a filtered list below. */}
                         <Text
                           style={{
-                            fontSize: 13,
+                            fontSize: 12,
                             fontFamily: 'Inter_400Regular',
                             color: C.textSecondary,
                           }}
@@ -4670,7 +4670,7 @@ export default function StatsScreen() {
                         >
                           <Text
                             style={{
-                              fontSize: 13,
+                              fontSize: 12,
                               fontFamily: 'Inter_400Regular',
                               color: C.textSecondary,
                               flex: 1,
@@ -4703,7 +4703,7 @@ export default function StatsScreen() {
                                   style={({ pressed }) => ({
                                     paddingHorizontal: 8,
                                     paddingVertical: 4,
-                                    borderRadius: 8,
+                                    borderRadius: 6,
                                     backgroundColor: active ? C.surface : 'transparent',
                                     opacity: pressed && !active ? 0.7 : 1,
                                     ...(active ? xsShadow(C.shadow) : {}),
@@ -4760,7 +4760,7 @@ export default function StatsScreen() {
                               marginBottom: 12,
                               marginTop: -4,
                               backgroundColor: C.surfaceTertiary,
-                              borderRadius: 8,
+                              borderRadius: 10,
                               borderWidth: 1,
                               borderColor: C.borderLight,
                               paddingHorizontal: 12,
@@ -4805,7 +4805,7 @@ export default function StatsScreen() {
                                       />
                                       <Text
                                         style={{
-                                          fontSize: 11,
+                                          fontSize: 10,
                                           fontFamily: 'Inter_600SemiBold',
                                           color: bucketColor,
                                           textTransform: 'uppercase',
@@ -4874,7 +4874,7 @@ export default function StatsScreen() {
                                     paddingVertical: 4,
                                   }}
                                 >
-                                  <Text style={{ fontSize: 15, color: trendColor, lineHeight: 18 }}>
+                                  <Text style={{ fontSize: 14, color: trendColor, lineHeight: 18 }}>
                                     {trend}
                                   </Text>
                                   <Text
@@ -4953,7 +4953,7 @@ export default function StatsScreen() {
                                       >
                                         {BODY_DIAGRAM_LABELS[region]}
                                       </Text>
-                                      <Text style={{ fontSize: 13, color: trendColor }}>
+                                      <Text style={{ fontSize: 12, color: trendColor }}>
                                         {trend}
                                       </Text>
                                     </Pressable>
@@ -5226,7 +5226,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
     title: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text },
-    subtitle: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
+    subtitle: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary, marginTop: 2 },
 
     segmentWrap: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
     segment: {
@@ -5242,13 +5242,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 9,
-      borderRadius: 8,
+      borderRadius: 10,
     },
     segmentTabActive: {
       backgroundColor: C.primarySurface,
       ...xsShadow(C.shadow),
     },
-    segmentTabText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    segmentTabText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     segmentTabTextActive: { fontFamily: 'Inter_700Bold', color: C.primaryText },
 
     // ONE rhythm, owned by the scroll container.
@@ -5270,14 +5270,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 10,
       alignItems: 'flex-start',
       backgroundColor: C.surfaceTertiary,
-      borderRadius: 12,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.borderLight,
       padding: 14,
     },
     noKpiText: {
       flex: 1,
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       lineHeight: 18,
@@ -5286,7 +5286,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     sectionBlock: { gap: 12 },
     sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 2 },
     sectionSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
@@ -5306,7 +5306,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     heaviestName: {
       flex: 1,
-      fontSize: 13,
+      fontSize: 13.5,
       fontFamily: 'Inter_500Medium',
       color: C.text,
     },
@@ -5337,14 +5337,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     drillDownIcon: {
       width: 36,
       height: 36,
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: C.primaryMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },
     drillDownTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     drillDownSub: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -5353,7 +5353,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     historyDateBar: {
       flexDirection: 'row',
       backgroundColor: C.surfaceTertiary,
-      borderRadius: 8,
+      borderRadius: 10,
       padding: 3,
       marginHorizontal: 20,
       marginBottom: 8,
@@ -5380,7 +5380,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 10,
       backgroundColor: C.primarySurface,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 16,
       paddingVertical: 14,
       borderWidth: 1,
@@ -5399,7 +5399,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderBottomWidth: 1,
       borderBottomColor: C.borderLight,
     },
-    modalTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
+    modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.text },
     modalClose: {
       width: 34,
       height: 34,

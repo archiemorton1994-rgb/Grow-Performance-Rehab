@@ -26,7 +26,6 @@ import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META } from '@/lib/session-meta';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
-import { GrowIcon } from '@/components/GrowIcon';
 import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 
@@ -515,19 +514,11 @@ export default function TrainScreen() {
                   testID={`train-session-${type}`}
                 >
                   <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                    {type === 'custom' ? (
-                      <GrowIcon
-                        name="compose"
-                        size={compactCards ? 40 : 58}
-                        color={C.primaryText}
-                      />
-                    ) : (
-                      <Image
-                        source={getSessionImage(type, userProfile?.sex)}
-                        style={styles.sessionCardImage}
-                        resizeMode="contain"
-                      />
-                    )}
+                    <Image
+                      source={getSessionImage(type, userProfile?.sex)}
+                      style={styles.sessionCardImage}
+                      resizeMode="contain"
+                    />
                   </View>
                   <Text style={styles.sessionCardLabel} numberOfLines={1}>
                     {meta.label}
@@ -587,19 +578,11 @@ export default function TrainScreen() {
                   testID={`train-session-${type}`}
                 >
                   <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                    {type === 'custom' ? (
-                      <GrowIcon
-                        name="compose"
-                        size={compactCards ? 40 : 58}
-                        color={C.primaryText}
-                      />
-                    ) : (
-                      <Image
-                        source={getSessionImage(type, userProfile?.sex)}
-                        style={styles.sessionCardImage}
-                        resizeMode="contain"
-                      />
-                    )}
+                    <Image
+                      source={getSessionImage(type, userProfile?.sex)}
+                      style={styles.sessionCardImage}
+                      resizeMode="contain"
+                    />
                   </View>
                   <Text style={styles.sessionCardLabel} numberOfLines={1}>
                     {meta.label}
@@ -794,7 +777,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       backgroundColor: C.primarySurface,
     },
     equipmentChipText: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
     },
@@ -814,7 +797,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: C.warningLight,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 12,
       marginBottom: 16,
@@ -831,7 +814,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     },
     resumeBannerBtn: {
       backgroundColor: C.warning,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
@@ -850,7 +833,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     sessionCard: {
       width: '47%',
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: 14,
       padding: 8,
       borderWidth: 1,
       borderColor: C.borderLight,
@@ -858,7 +841,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     sessionCardIcon: {
       width: '100%',
       height: 110,
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: C.surfaceTertiary,
       overflow: 'hidden',
       alignItems: 'center',
@@ -866,7 +849,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       marginBottom: 6,
     },
     sessionCardImage: { width: '100%', height: '100%' },
-    sessionCardLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
+    sessionCardLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     // Two lines, with room reserved for both so the cards in a row stay level
     // whether their subtitle wraps or not. At one line these were cut mid-word
     // on a narrow card — "KPI · Quads · Glutes · Ha…" — which reads as broken
@@ -884,7 +867,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       alignItems: 'center',
       gap: 7,
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 8,
       marginBottom: 4,
@@ -926,7 +909,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     },
     sheetTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.text },
     sheetSubtitle: {
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
@@ -935,26 +918,26 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       paddingHorizontal: 12,
       paddingVertical: 5,
       backgroundColor: C.surfaceTertiary,
-      borderRadius: 8,
+      borderRadius: 10,
     },
-    resetBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    resetBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     bestMatchRow: {
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
-    bestMatchText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    bestMatchText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     beginnerNote: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
       backgroundColor: C.primarySurface,
-      borderRadius: 8,
+      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
-    beginnerNoteText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.primaryText, flex: 1 },
+    beginnerNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primaryText, flex: 1 },
     tierRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -971,7 +954,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     tierIcon: {
       width: 34,
       height: 34,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -993,7 +976,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 14,
       marginTop: 4,
     },

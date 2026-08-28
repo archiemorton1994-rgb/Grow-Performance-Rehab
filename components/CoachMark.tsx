@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   body: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter_400Regular',
     lineHeight: 21,
   },
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     paddingRight: 13,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 13,
     borderWidth: 1,
   },
   backText: {
@@ -457,10 +457,10 @@ const styles = StyleSheet.create({
   nextBtn: {
     paddingHorizontal: 22,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: 13,
   },
   nextText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Inter_700Bold',
   },
 });

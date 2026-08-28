@@ -283,7 +283,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 32,
     },
 
-    heading: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
+    heading: { fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 4 },
     sub: {
       fontSize: 15,
       fontFamily: 'Inter_400Regular',
@@ -303,10 +303,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     input: {
       height: 52,
-      borderRadius: 12,
+      borderRadius: 14,
       backgroundColor: C.surface,
       paddingHorizontal: 16,
-      fontSize: 15,
+      fontSize: 16,
       fontFamily: 'Inter_400Regular',
       color: C.text,
       borderWidth: 1.5,
@@ -316,7 +316,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     codeInput: {
       height: 64,
-      borderRadius: 12,
+      borderRadius: 14,
       backgroundColor: C.surface,
       paddingHorizontal: 20,
       fontSize: 32,
@@ -344,10 +344,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ctaText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 2 },
-    backText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.primaryText },
+    backText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primaryText },
 
     resendRow: { marginTop: 20, alignItems: 'center' },
-    resendText: { fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    resendText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     resendTextMuted: { color: C.textTertiary },
     resendLink: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
 
@@ -370,7 +370,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 4,
     },
     devBannerCode: {
-      fontSize: 32,
+      fontSize: 30,
       fontFamily: 'Inter_700Bold',
       color: C.warning,
       letterSpacing: 8,
