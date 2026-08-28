@@ -53,6 +53,9 @@ export type GrowIconName =
   | 'clock'
   | 'moon'
   | 'sun'
+  // ── Home tiles & the Train grid ──
+  | 'cycle'
+  | 'compose'
   // ── First-run chrome: the tour, the offer, the assistant ──
   | 'compass'
   | 'gift'
@@ -241,6 +244,31 @@ export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
     // and only here: this stroke sits on the disc directly above it, so what is
     // behind it is known. See faceInkFor in lib/icon-material.ts.
     { k: 'path', d: 'M15.5 24.5 L21.5 30.5 L32.5 18.5', stroke: 'face', sw: 4.4 },
+  ],
+
+  // ── Home tiles & the Train grid ────────────────────────────────────────────
+
+  // A cycle: a ring broken at the top with an arrowhead closing it, and three
+  // marks inside for the sessions the block repeats. The tile this replaces
+  // reads "CYCLE 7", so the ring is the card's own word rather than a calendar.
+  cycle: [
+    { k: 'path', d: 'M31 10.6 A15.5 15.5 0 1 1 20.6 8.9', stroke: 'glyph', sw: 4.4 },
+    { k: 'path', d: 'M27.5 4 L36.5 11 L26.5 16.5 Z', fill: 'glyph' },
+    { k: 'rect', x: 15.5, y: 27.5, w: 4.6, h: 9, rx: 2.3, fill: 'glyph', o: 0.32 },
+    { k: 'rect', x: 21.7, y: 24, w: 4.6, h: 12.5, rx: 2.3, fill: 'glyph', o: 0.32 },
+    { k: 'rect', x: 27.9, y: 29.5, w: 4.6, h: 7, rx: 2.3, fill: 'glyph', o: 0.32 },
+  ],
+
+  // Building your own: three rows stacked, the last one still open, and a plus
+  // sitting on the corner. The card says "pick your own exercises", which is a
+  // list you assemble rather than a clipboard somebody hands you.
+  compose: [
+    { k: 'rect', x: 6, y: 10, w: 30, h: 6.4, rx: 3.2, fill: 'glyph' },
+    { k: 'rect', x: 6, y: 20.8, w: 30, h: 6.4, rx: 3.2, fill: 'glyph', o: 0.62 },
+    { k: 'rect', x: 6, y: 31.6, w: 19, h: 6.4, rx: 3.2, fill: 'glyph', o: 0.34 },
+    { k: 'circle', cx: 36, cy: 34.8, r: 9.4, fill: 'glyph' },
+    { k: 'path', d: 'M36 29.6 L36 40', stroke: 'face', sw: 3.1 },
+    { k: 'path', d: 'M30.8 34.8 L41.2 34.8', stroke: 'face', sw: 3.1 },
   ],
 
   // ── Pillars & chrome ───────────────────────────────────────────────────────
