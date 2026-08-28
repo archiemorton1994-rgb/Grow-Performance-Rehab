@@ -57,10 +57,28 @@ check(
   'expected `ex.sets.map((s) => s.completed ? s : {...})` - an unconditional map zeroes work the user actually did'
 );
 
+/**
+ * There is more than one writer now.
+ *
+ * Answering "Challenging" can offer to end the exercise on one lighter set, and
+ * that path marks the sets in between as skipped - so it needs exactly the
+ * guarantee this file exists to protect. The old assertion counted the writers
+ * and demanded one, which is a count, not a property: it would have gone green
+ * again the moment somebody deleted the second writer and red for a second
+ * writer that was perfectly safe.
+ *
+ * What matters is that every writer spares the completed sets, so that is what
+ * is counted against: one guard per writer, no writer left bare.
+ */
+const skipWriters = (session.match(/skipped:\s*true/g) ?? []).length;
+const completedGuards = (
+  session.match(/s\.completed \? s :|if \(s\.completed\) return s;/g) ?? []
+).length;
+
 check(
-  'nothing else in the session screen marks sets skipped',
-  (session.match(/skipped:\s*true/g) ?? []).length === 1,
-  'a second writer of skipped:true would need the same guard; there should be exactly one'
+  'every place that marks sets skipped spares the sets already logged',
+  skipWriters > 0 && completedGuards >= skipWriters,
+  `${skipWriters} writer(s) of skipped:true against ${completedGuards} completed-set guard(s) - each writer needs its own`
 );
 
 check(

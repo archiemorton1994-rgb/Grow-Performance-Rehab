@@ -23,6 +23,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { isBarbellExercise } from '@/lib/plate-math';
+import {
+  cardioFocusForSession,
+  focusHeading,
+  machineById,
+  machineForExerciseId,
+  machinesForFocus,
+  relevantCountForFocus,
+  type CardioMachineId,
+} from '@/lib/cardio-warmup';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown,
@@ -81,6 +90,7 @@ import {
   convertLoadString,
   isHeavierThan,
   snapToLoadable,
+  roundToLoadable,
   formatWeight,
 } from '@/lib/utils';
 import {
@@ -115,7 +125,21 @@ interface ExerciseSetData {
   swapCount: 0 | 1 | 2;
   activeSetIndex: number;
   cardioData?: CardioLogData;
+  /** The warm-up machine the user moved to. See InProgressSetData in the store. */
+  cardioMachine?: CardioMachineId;
 }
+
+/**
+ * How far the weight drops when somebody takes the lighter option after calling
+ * a set challenging.
+ *
+ * Twenty per cent, not the ten the auto-regulation already applies to "Too
+ * Hard". Ten per cent is a correction to a prescription that was slightly
+ * ambitious; this is a back-off set for somebody who has decided the next one
+ * is not happening at this weight, and a drop they can feel is the whole point
+ * of choosing it over stopping.
+ */
+const EASE_OFF_FRACTION = 0.2;
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
   const lower = suggestedLoad.toLowerCase();
@@ -555,6 +579,15 @@ interface SessionActiveBarProps {
    * the buttons are tapped.
    */
   onFeedback: (exerciseId: string, setIndex: number, f: SetFeedback, loggedKg: number) => void;
+  /**
+   * The way out of a set that was harder than the plan expected.
+   *
+   * Raised by answering "Challenging" while sets remain, and only from the
+   * working set onward - see the guard where it is set. 'lighter' leaves one
+   * final set at a reduced weight; 'skip' ends the exercise and keeps every set
+   * already logged.
+   */
+  onEaseOff?: (exerciseIndex: number, mode: 'lighter' | 'skip', fromKg: number) => void;
   /** One short line explaining why the prefilled weight is what it is, if it
    *  was changed by the previous set's answer. */
   autoNote?: string | null;
@@ -631,6 +664,7 @@ export function SessionActiveBar({
   onSetCompleted,
   onNewPb,
   onFeedback,
+  onEaseOff,
   autoNote = null,
   onCompleteSession,
   onGoBack,
@@ -685,7 +719,28 @@ export function SessionActiveBar({
     exerciseId: string;
     setIndex: number;
     kg: number;
+    /**
+     * How many sets of THIS exercise were still to come when the prompt was
+     * raised, and which exercise it was.
+     *
+     * Both are captured rather than read live for the same reason the set index
+     * is: logging the last set of an exercise advances the session, so by the
+     * time an answer is tapped the bar is already pointing at the next
+     * exercise. Reading the remaining count live would offer to skip the rest
+     * of an exercise that had not started.
+     */
+    remaining: number;
+    exerciseIndex: number;
+    /** True when the weight had stopped climbing, i.e. this was a working set. */
+    isWorkingSet: boolean;
   } | null>(null);
+
+  /**
+   * The second step, offered after "Challenging" when there is still a set to
+   * change. Held separately from showFeedback so that answering still records
+   * the answer even if the user backs out of this.
+   */
+  const [easeOff, setEaseOff] = useState<{ exerciseIndex: number; kg: number } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
   /**
@@ -803,10 +858,27 @@ export function SessionActiveBar({
       // it stays put until one of the three buttons is tapped. The old 3s timer
       // meant a slower reader lost the chance to answer, and every set that
       // goes unrated is a load adjustment the engine never gets to make.
+      /**
+       * Is the ramp over?
+       *
+       * On a main lift the first sets are warm-up rungs, and "that felt
+       * challenging" on rung one of six means the bar is heavy, not that the
+       * session is beyond the lifter - lib/auto-regulation.ts opens with
+       * exactly this trap. Offering to skip the rest of the exercise there
+       * would be offering to skip the work before any of it had been done.
+       *
+       * weightGuidesKg is the planned weight per set, so the top of the ramp is
+       * simply its maximum. An accessory carries the same target on every set,
+       * which makes every set a working set, which is correct.
+       */
+      const topGuide = Math.max(0, ...weightGuidesKg.filter((n) => n > 0));
       setShowFeedback({
         exerciseId: exercise.id,
         setIndex: activeSetIndex,
         kg: effectiveWeightKg,
+        remaining: totalSets - (activeSetIndex + 1),
+        exerciseIndex,
+        isWorkingSet: topGuide === 0 || (weightGuidesKg[activeSetIndex] ?? 0) >= topGuide,
       });
     }
   };
@@ -814,6 +886,21 @@ export function SessionActiveBar({
   const handleFeedback = (f: SetFeedback) => {
     if (showFeedback) {
       onFeedback(showFeedback.exerciseId, showFeedback.setIndex, f, showFeedback.kg);
+      // The answer is recorded either way. What follows is an offer, not a
+      // consequence: four conditions have to hold before it is worth making.
+      // There has to be a later set for it to change, a weight for it to
+      // reduce, and the ramp has to be over, or the offer lands on a warm-up.
+      if (
+        f === 'challenging' &&
+        onEaseOff &&
+        showFeedback.remaining > 0 &&
+        showFeedback.kg > 0 &&
+        showFeedback.isWorkingSet
+      ) {
+        setEaseOff({ exerciseIndex: showFeedback.exerciseIndex, kg: showFeedback.kg });
+        setShowFeedback(null);
+        return;
+      }
     }
     setShowFeedback(null);
   };
@@ -855,6 +942,72 @@ export function SessionActiveBar({
   // the exercise now under the cursor — and on the session's last set there is
   // no next set for these guards to find.
   if (!showFeedback && (!exercise || !currentSet || activeSetIndex >= totalSets)) return null;
+
+  /**
+   * One question, three answers, each a full-width row with the consequence
+   * written underneath it. Not a modal: the prompt it follows is already a
+   * takeover of this bar, and a sheet on top of a takeover is how the app ends
+   * up with two things asking at once.
+   */
+  if (easeOff) {
+    const lighterKg = roundToLoadable(easeOff.kg * (1 - EASE_OFF_FRACTION), weightUnit);
+    const lighter = formatWeight(lighterKg, weightUnit);
+    // Twenty per cent off the lightest dumbbell in the building rounds back
+    // onto it, because a weight has to be one the gym can actually load. The
+    // row would then promise relief and hand back the same weight. Skipping
+    // and carrying on are both still there.
+    const canGoLighter = lighterKg < easeOff.kg;
+    return (
+      <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
+        <Text style={styles.barFeedbackPrompt}>Hard work. Want to ease off?</Text>
+        <View style={styles.easeOffList}>
+          {canGoLighter && (
+            <Pressable
+              onPress={() => {
+                onEaseOff?.(easeOff.exerciseIndex, 'lighter', easeOff.kg);
+                setEaseOff(null);
+              }}
+              style={styles.easeOffBtn}
+              testID="ease-off-lighter"
+              accessibilityRole="button"
+              accessibilityLabel={`One more set at ${lighter}`}
+            >
+              <Ionicons name="trending-down" size={20} color={C.primaryText} />
+              <View style={styles.easeOffTextCol}>
+                <Text style={styles.easeOffTitle}>One more set at {lighter}</Text>
+                <Text style={styles.easeOffSub}>Finish the exercise on a weight you control</Text>
+              </View>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => {
+              onEaseOff?.(easeOff.exerciseIndex, 'skip', easeOff.kg);
+              setEaseOff(null);
+            }}
+            style={styles.easeOffBtn}
+            testID="ease-off-skip"
+            accessibilityRole="button"
+            accessibilityLabel="Move on to the next exercise"
+          >
+            <Ionicons name="play-skip-forward" size={20} color={C.primaryText} />
+            <View style={styles.easeOffTextCol}>
+              <Text style={styles.easeOffTitle}>Move on to the next exercise</Text>
+              <Text style={styles.easeOffSub}>Every set you have logged is kept</Text>
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => setEaseOff(null)}
+            style={styles.easeOffCarryOn}
+            testID="ease-off-carry-on"
+            accessibilityRole="button"
+            accessibilityLabel="Carry on as planned"
+          >
+            <Text style={styles.easeOffCarryOnText}>Carry on as planned</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   if (showFeedback || demoForceFeedback) {
     const loggedSetNumber = (showFeedback?.setIndex ?? activeSetIndex) + 1;
@@ -1159,6 +1312,7 @@ export function ExerciseCard({
   onEditSet,
   onVideoPress,
   onSwapPress,
+  onSwapMachine,
   onSkipExercise,
   isDumbbellSession,
   exerciseState,
@@ -1192,6 +1346,8 @@ export function ExerciseCard({
   onEditSet?: (setIndex: number) => void;
   onVideoPress: () => void;
   onSwapPress: () => void;
+  /** Only passed for a warm-up card that is actually a machine. */
+  onSwapMachine?: () => void;
   onSkipExercise?: () => void;
   isDumbbellSession: boolean;
   exerciseState: ExerciseState;
@@ -1684,7 +1840,28 @@ export function ExerciseCard({
                   )}
 
                   {exercise.type !== 'cardio' && isTimedCardioWarmup(exercise) && (
-                    <CardioWarmupTimer repsStr={exercise.reps} />
+                    <>
+                      {/* Full width and above the timer, because the moment
+                          this is needed is the moment somebody is standing in
+                          front of an occupied machine, not halfway through a
+                          warm-up. The icon row's 18px swap button is for
+                          choosing between two authored alternatives at leisure;
+                          this is for a decision made on the gym floor. */}
+                      {!!onSwapMachine && (
+                        <Pressable
+                          onPress={onSwapMachine}
+                          style={styles.machineSwapBtn}
+                          testID={`swap-machine-${index}`}
+                          accessibilityRole="button"
+                          accessibilityLabel="Swap the warm-up machine"
+                        >
+                          <Ionicons name="swap-horizontal" size={20} color={C.primaryText} />
+                          <Text style={styles.machineSwapText}>Machine taken? Swap it</Text>
+                          <Ionicons name="chevron-forward" size={16} color={C.primaryText} />
+                        </Pressable>
+                      )}
+                      <CardioWarmupTimer repsStr={exercise.reps} />
+                    </>
                   )}
 
                   {exercise.type !== 'cardio' && !isTimedCardioWarmup(exercise) && (
@@ -3486,6 +3663,15 @@ export default function SessionScreen() {
     Linking.openURL('https://www.youtube.com/results?search_query=' + query);
   };
   const [swapModal, setSwapModal] = useState<{ index: number; exercise: Exercise } | null>(null);
+  /**
+   * The index of the warm-up card whose machine picker is open.
+   *
+   * Can never be open at the same time as swapModal: the picker is only reachable
+   * from a machine warm-up card, and a machine warm-up carries no authored
+   * alternatives, so that card draws no swap button at all. Two native modals
+   * open together is how this app has looked frozen every time it has.
+   */
+  const [machineModal, setMachineModal] = useState<number | null>(null);
   /** The exercise whose plate breakdown is open. Holds the index so the
    *  weight shown follows that card's own current set. */
   const [plateModalIndex, setPlateModalIndex] = useState<number | null>(null);
@@ -3607,7 +3793,75 @@ export default function SessionScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  const handleMachineChoice = useCallback((index: number, machine: CardioMachineId) => {
+    setExerciseData((prev) => {
+      if (!prev[index]) return prev;
+      const next = [...prev];
+      next[index] = { ...next[index], cardioMachine: machine };
+      return next;
+    });
+    setMachineModal(null);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  /**
+   * The two ways out of a set that turned out to be harder than the plan.
+   *
+   * 'skip' is the existing skip, unchanged, so the guarantee it already carries
+   * holds here too: the sets already logged survive, and only the ones still to
+   * come are marked skipped.
+   *
+   * 'lighter' collapses whatever is left into ONE final set at a reduced
+   * weight. Not "the same three sets, lighter": the person choosing this has
+   * just told the app the next set is the one that will fail, and three more of
+   * them is not what they are asking for. One good set to finish on is.
+   *
+   * The weight is written onto the set rather than held beside it, because the
+   * bar already prefills from a set's stored weight when it has one. Nothing
+   * new has to be taught about where a recommendation comes from.
+   */
+  const handleEaseOff = useCallback(
+    (index: number, mode: 'lighter' | 'skip', fromKg: number) => {
+      if (mode === 'skip') {
+        handleSkipExercise(index);
+        return;
+      }
+      setExerciseData((prev) => {
+        const ex = prev[index];
+        if (!ex || ex.sets.length === 0) return prev;
+        const last = ex.sets.length - 1;
+        const backOffKg = roundToLoadable(fromKg * (1 - EASE_OFF_FRACTION), weightUnit);
+        const next = [...prev];
+        next[index] = {
+          ...ex,
+          sets: ex.sets.map((s, i) => {
+            if (s.completed) return s;
+            if (i < last) return { ...s, weight: 0, reps: 0, completed: true, skipped: true };
+            return { ...s, weight: backOffKg };
+          }),
+          activeSetIndex: last,
+        };
+        return next;
+      });
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    },
+    [handleSkipExercise, weightUnit]
+  );
+
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
+    // A machine the user moved the warm-up to. `reps` is deliberately left
+    // alone: the session prescribed two minutes and changing which machine you
+    // are standing on is not a reason for that to quietly become something
+    // else. Same for the category, so the card still draws its warm-up timer.
+    const machine = data.cardioMachine ? machineById(data.cardioMachine) : undefined;
+    if (machine) {
+      return {
+        ...exercise,
+        name: machine.name,
+        cue: machine.cue,
+        suggestedLoad: machine.suggestedLoad,
+      };
+    }
     const swapCount = data.swapCount ?? 0;
     // A swap is a different movement with its own load, so the structured
     // weights computed for the original no longer describe it. Dropping
@@ -4049,6 +4303,11 @@ export default function SessionScreen() {
               onSwapPress={
                 isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
               }
+              onSwapMachine={
+                isDemo || !machineForExerciseId(exercise.id)
+                  ? undefined
+                  : () => setMachineModal(index)
+              }
               onSkipExercise={isDemo ? () => {} : () => handleSkipExercise(index)}
               onCardioLog={isDemo ? () => {} : (data) => handleCardioLog(index, data)}
               isDumbbellSession={isDumbbellSession}
@@ -4187,6 +4446,7 @@ export default function SessionScreen() {
               onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
               onNewPb={isDemo ? undefined : handleNewPb}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
+              onEaseOff={isDemo ? undefined : handleEaseOff}
               autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
@@ -4528,6 +4788,91 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* The warm-up machine picker. A different question from the swap sheet
+          above it: not "give me a different exercise" but "that one has
+          somebody on it". Ordered rather than filtered, because filtering to
+          the two machines that suit the session answers badly on the evening
+          both of those are taken too. */}
+      <Modal
+        visible={machineModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMachineModal(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setMachineModal(null)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.modalIcon, { backgroundColor: C.primaryMuted }]}>
+              <Ionicons name="bicycle-outline" size={32} color={C.primaryText} />
+            </View>
+            <Text style={styles.modalTitle}>Pick a Machine</Text>
+            {machineModal !== null &&
+              (() => {
+                const idx = machineModal;
+                const focus = cardioFocusForSession(sessionType);
+                const ordered = machinesForFocus(focus);
+                const relevantCount = relevantCountForFocus(focus);
+                const current =
+                  exerciseData[idx]?.cardioMachine ??
+                  machineForExerciseId(exercises[idx]?.id ?? '')?.id;
+                return (
+                  <>
+                    <Text style={styles.machineFocusNote}>{focusHeading(focus)}</Text>
+                    <ScrollView
+                      style={styles.swapOptionScroll}
+                      contentContainerStyle={styles.swapOptionList}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {ordered.map((m, i) => {
+                        const selected = current === m.id;
+                        return (
+                          <React.Fragment key={m.id}>
+                            {i === relevantCount && relevantCount < ordered.length && (
+                              <Text style={styles.machineGroupHeading}>
+                                Still a proper warm-up, just not the half this session loads
+                              </Text>
+                            )}
+                            <Pressable
+                              onPress={() => handleMachineChoice(idx, m.id)}
+                              style={[styles.swapOption, selected && styles.swapOptionSelected]}
+                              testID={`machine-option-${m.id}`}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Warm up on the ${m.label}`}
+                            >
+                              <View style={styles.swapOptionHead}>
+                                <Ionicons name="fitness-outline" size={13} color={C.primaryText} />
+                                <Text style={styles.swapOptionKind} numberOfLines={1}>
+                                  {m.primes === 'lower' ? 'Wakes up the legs' : 'Wakes up the shoulders and back'}
+                                </Text>
+                                {selected && (
+                                  <Ionicons
+                                    name="checkmark-circle"
+                                    size={16}
+                                    color={C.primaryText}
+                                  />
+                                )}
+                              </View>
+                              <Text style={styles.swapToName}>{m.label}</Text>
+                              <Text style={styles.swapToCue} numberOfLines={3}>
+                                {m.cue}
+                              </Text>
+                            </Pressable>
+                          </React.Fragment>
+                        );
+                      })}
+                    </ScrollView>
+                    <Text style={styles.machineDurationNote}>
+                      {`Whichever you pick, the warm-up stays ${exercises[idx]?.reps ?? '2 min steady'}.`}
+                    </Text>
+                  </>
+                );
+              })()}
+            <Pressable onPress={() => setMachineModal(null)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
       {tutStep !== null && effectiveTutorial[tutStep] != null && (
         <CoachMark
           visible
@@ -4553,6 +4898,81 @@ export default function SessionScreen() {
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
+    // ── The warm-up machine picker ──────────────────────────────────────────
+    machineSwapBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      marginBottom: 10,
+    },
+    machineSwapText: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryText,
+    },
+    machineFocusNote: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    machineGroupHeading: {
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      marginTop: 6,
+      marginBottom: 2,
+    },
+    machineDurationNote: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      marginTop: 12,
+    },
+    // ── The way out of a set that was harder than the plan ──────────────────
+    easeOffList: { gap: 8 },
+    easeOffBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    easeOffTextCol: { flex: 1, gap: 2 },
+    easeOffTitle: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryDark,
+    },
+    easeOffSub: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
+    easeOffCarryOn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+    },
+    easeOffCarryOnText: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+    },
     container: { flex: 1, backgroundColor: C.background },
     topBar: {
       flexDirection: 'row',

@@ -1,3 +1,4 @@
+import type { CardioMachineId } from '@/lib/cardio-warmup';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +29,7 @@ import {
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
+
 export type SessionType =
   | 'squat'
   | 'bench'
@@ -223,6 +225,16 @@ export interface InProgressSetData {
   sets: SetLog[];
   swapCount: 0 | 1 | 2;
   activeSetIndex: number;
+  /**
+   * The cardio machine the user moved the warm-up to, if they moved it.
+   *
+   * Deliberately separate from swapCount, which is a 0/1/2 slot machinery for
+   * the two hand-authored alternatives an exercise can carry and is persisted
+   * with that meaning. There are four machines and no reason a fifth could not
+   * be added, so the machine is stored as what it is. Optional, so a session
+   * paused by an older build still restores.
+   */
+  cardioMachine?: CardioMachineId;
 }
 
 export interface ActiveSession {

@@ -16,6 +16,7 @@ import type {
 // The one runtime dependency this module has outside the exercise database:
 // the grid a gym can actually load. `lib/utils.ts` imports nothing at runtime,
 // so the contract tests that import this file directly stay free of the store.
+import { cardioWarmupPoolForSession } from './cardio-warmup';
 import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 import {
   ExerciseCategory,
@@ -2590,9 +2591,14 @@ function generateWorkoutUnscreened(
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
 
   // ── 1. Cardio Warm-Up (ALL sessions including 30 min - safety requirement) ──
+  // The machine is chosen for the half of the body this session is about to
+  // load rather than shuffled out of a pool that had nothing to do with it, and
+  // every other machine is one tap away in the swap sheet - see
+  // lib/cardio-warmup.ts. Home users keep the bodyweight warm-ups: choosing
+  // between machines is not a choice they have.
   const warmupPool =
     toInternalTier(equipmentTier) === 'fullgym'
-      ? CARDIO_WARMUPS
+      ? cardioWarmupPoolForSession(sessionType)
       : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
   const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
@@ -2848,9 +2854,14 @@ function generateWeeklyWorkout(
   const exercises: Exercise[] = [];
 
   // ── 1. Cardio Warm-Up (always) ─────────────────────────────────────────────
+  // The machine is chosen for the half of the body this session is about to
+  // load rather than shuffled out of a pool that had nothing to do with it, and
+  // every other machine is one tap away in the swap sheet - see
+  // lib/cardio-warmup.ts. Home users keep the bodyweight warm-ups: choosing
+  // between machines is not a choice they have.
   const warmupPool =
     toInternalTier(equipmentTier) === 'fullgym'
-      ? CARDIO_WARMUPS
+      ? cardioWarmupPoolForSession(sessionType)
       : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
   const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
   exercises.push(templateToExercise(cardioWarmup));
