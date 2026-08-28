@@ -85,10 +85,34 @@ check(
   'without selected state, the user cannot tell which one is already chosen for them'
 );
 
+/**
+ * THE STYLE THE RADIOS WEAR, AND A NUMBER RATHER THAN A LITERAL.
+ *
+ * This was `/minHeight: 44,/.test(readiness)` - true if ANY style anywhere in
+ * the file said 44. Setting the severity picker itself to 36, which is exactly
+ * the regression this assertion's own message describes, left it green because
+ * a decorative style elsewhere still carried the number.
+ *
+ * Two consequences of matching a literal rather than a value: raising the
+ * target to 48 would have FAILED, and lowering it to 43 would have passed.
+ */
+const pillBlock = readiness.match(/\n    pill: \{[\s\S]*?\n    \},/);
 check(
-  'the options meet the minimum touch target',
-  /minHeight: 44,/.test(readiness),
-  'these were about 36pt tall'
+  'the pill style the severity options wear was found',
+  !!pillBlock,
+  'the assertion below is measuring nothing without it'
+);
+const pillMinHeight = pillBlock ? Number(pillBlock[0].match(/minHeight: (\d+)/)?.[1] ?? 0) : 0;
+check(
+  `the options meet the minimum touch target (${pillMinHeight}pt)`,
+  pillMinHeight >= 44,
+  'these were about 36pt tall, and 44 is the smallest reliably tappable target'
+);
+check(
+  'and the radios are actually styled with it',
+  /accessibilityRole="radio"[\s\S]{0,400}?styles\.pill/.test(readiness) ||
+    /styles\.pill[\s\S]{0,400}?accessibilityRole="radio"/.test(readiness),
+  'otherwise the picker can be restyled onto something smaller and this keeps passing'
 );
 
 console.log('\n[3] The logging boxes are labelled and can grow');

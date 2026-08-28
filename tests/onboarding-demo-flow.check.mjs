@@ -133,14 +133,42 @@ if (!advanceStatsTutMatch) {
     );
   }
 
-  const hasDemoNav = /\/session\?demo=true/.test(block);
-  if (hasDemoNav) {
-    ok('advanceStatsTut navigates to /session?demo=true at final step');
+  /**
+   * THE HANDOFF MOVED, AND THIS CHECK DID NOT NOTICE FOR A LONG TIME.
+   *
+   * It matched /\/session\?demo=true/ inside advanceStatsTut. That string still
+   * appears in workouts.tsx exactly once - inside a PROSE COMMENT explaining
+   * that the handoff was removed from Stats. The tour now ends on Profile, and
+   * the navigation lives at the end of advanceProfileTut.
+   *
+   * So this was green while asserting the opposite of what the file says, and
+   * deleting the real navigation did not trip it. Comments are stripped now,
+   * and the assertion points at the file that actually performs the handoff.
+   */
+  const stripComments = (t) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const staleNav = /\/session\?demo=true/.test(stripComments(block));
+  if (!staleNav) {
+    ok('Stats no longer ends the tour - its handoff is a tab change, not a navigation');
   } else {
     fail(
-      'advanceStatsTut navigates to /session?demo=true at final step',
-      '/session?demo=true not found in the advanceStatsTut block — ' +
-        "the tour's final step must navigate to the demo session"
+      'Stats no longer ends the tour - its handoff is a tab change, not a navigation',
+      'advanceStatsTut navigates to the demo session directly. It hands off to ' +
+        'Profile; Profile launches the practice session after its own last card.'
+    );
+  }
+
+  const profileSrc = stripComments(readFile('app/(tabs)/profile.tsx'));
+  const launchesDemo =
+    /next >= PROFILE_TUTORIAL\.length/.test(profileSrc) &&
+    /\/session\?demo=true/.test(profileSrc);
+  if (launchesDemo) {
+    ok("Profile's last tour card launches the practice session");
+  } else {
+    fail(
+      "Profile's last tour card launches the practice session",
+      'the tour ends on Profile, and nothing there navigates to /session?demo=true - ' +
+        'so the tab tour finishes and the practice session never opens'
     );
   }
 

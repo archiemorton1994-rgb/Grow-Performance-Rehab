@@ -3460,13 +3460,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
 
     filterRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
-    attrFilterRow: {
-      paddingHorizontal: 16,
-      paddingTop: 0,
-      paddingBottom: 10,
-      gap: 8,
-      alignItems: 'center',
-    },
     filterDivider: { width: 1, height: 22, backgroundColor: C.borderLight, marginHorizontal: 2 },
     filterChip: {
       paddingHorizontal: 14,

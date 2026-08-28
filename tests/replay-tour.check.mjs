@@ -181,11 +181,42 @@ if (profileSrc.includes('testID="replay-tour"')) {
 // ─── 5. Layout watcher — prevTourComplete + setTourActiveTab(0) ──────────────
 // _layout.tsx must have the ref + useEffect that fires setTourActiveTab(0)
 // when tourComplete flips from true to false, restarting the tour at Home.
+/**
+ * SLICED TO THE EFFECT, NOT SCATTERED ACROSS THE FILE.
+ *
+ * These were four independent layoutSrc.includes() calls. Four substrings
+ * coexisting in a 400-line file says nothing about them being wired together,
+ * and the gap was demonstrable: removing `tourComplete` from the watcher's
+ * dependency array stops the effect re-running when the flag flips, so Replay
+ * Guided Tour resets the store and the tour never starts. Every substring was
+ * still present and this section stayed green.
+ *
+ * The dependency array is the whole mechanism here, so it is what gets checked.
+ */
+const watcherStart = layoutSrc.indexOf('prevTourComplete.current === true');
+const watcher =
+  watcherStart === -1
+    ? ''
+    : layoutSrc.slice(
+        Math.max(0, layoutSrc.lastIndexOf('useEffect', watcherStart)),
+        layoutSrc.indexOf(');', layoutSrc.indexOf('}, [', watcherStart)) + 2
+      );
+
 const hasPrevTourCompleteRef = layoutSrc.includes('prevTourComplete');
-const hasSetTourActiveTab0 = layoutSrc.includes('setTourActiveTab(0)');
+const hasSetTourActiveTab0 = /setTourActiveTab\(0\)/.test(watcher);
 const hasFlipGuard =
-  layoutSrc.includes('prevTourComplete.current === true') &&
-  layoutSrc.includes('tourComplete === false');
+  /prevTourComplete\.current === true/.test(watcher) && /tourComplete === false/.test(watcher);
+const watchesTourComplete = /\}, \[[^\]]*\btourComplete\b[^\]]*\]\)/.test(watcher);
+
+if (!watchesTourComplete) {
+  fail(
+    '_layout.tsx replay watcher re-runs when tourComplete flips',
+    'the useEffect holding the prevTourComplete flip guard must name tourComplete in ' +
+      'its dependency array, or it never runs again and the replay button is silent'
+  );
+} else {
+  ok('_layout.tsx replay watcher re-runs when tourComplete flips');
+}
 
 if (hasPrevTourCompleteRef && hasSetTourActiveTab0 && hasFlipGuard) {
   ok('_layout.tsx has prevTourComplete watcher that calls setTourActiveTab(0) on true→false flip');

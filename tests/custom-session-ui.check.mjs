@@ -92,8 +92,14 @@ check(
 );
 check(
   'the horizontal filter row is gone from the flow',
-  !/contentContainerStyle=\{styles\.attrFilterRow\}/.test(src) ||
-    src.indexOf('filtersOpen') < src.indexOf('styles.attrFilterRow'),
+  // SOURCE POSITION IS NOT CONTAINMENT. The old second clause allowed the
+  // forbidden row anywhere after the first mention of 'filtersOpen', which in
+  // practice is the whole file. Re-adding the exact control this assertion
+  // exists to forbid, directly above the filters button, passed.
+  //
+  // The style is dead now, so the honest test is that nothing references it at
+  // all - and the stylesheet entry goes with it.
+  !/styles\.attrFilterRow/.test(src),
   'anything past the fourth chip was off the right edge and effectively invisible'
 );
 check(

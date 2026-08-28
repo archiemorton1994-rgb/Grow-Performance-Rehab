@@ -243,12 +243,63 @@ if (KNOWN_JOINTS.size > 0) {
   console.log(`  · Derived joint region(s): ${[...KNOWN_JOINTS].join(', ')}`);
 }
 
-// Forward: every PainRegion is classified as muscle (in MUSCLE_SET) or joint (derived)
-console.log('\n  Forward: every PainRegion → MUSCLE_SET (muscle) or derived KNOWN_JOINTS (joint)');
+/**
+ * AN INDEPENDENT LIST, BECAUSE THE DERIVED ONE CANNOT DISAGREE WITH ITSELF.
+ *
+ * This loop used to read `check(label, true)` - the literal true - once per
+ * region, and the partition check above it is an identity for the same reason:
+ * KNOWN_JOINTS is DERIVED as everything not in MUSCLE_SET, so the two sets add
+ * up by construction whatever MUSCLE_SET contains.
+ *
+ * That is not a hypothetical gap. Removing 'chest' from MUSCLE_SET in
+ * components/BodyDiagram.tsx makes the chest disappear from the diagram's
+ * Muscles filter and appear under Joints instead - the filter is literally
+ * `category === 'muscles' ? MUSCLE_SET.has(r) : !MUSCLE_SET.has(r)` - and every
+ * check in this file still passed.
+ *
+ * So the answer has to be written down somewhere the code cannot supply. A new
+ * PainRegion fails here until somebody says which half it belongs to, which is
+ * the point: that is a decision, not a derivation.
+ */
+const EXPECTED_KIND = {
+  chest: 'muscle',
+  bicep: 'muscle',
+  tricep: 'muscle',
+  core_ribs: 'muscle',
+  quads: 'muscle',
+  hamstrings: 'muscle',
+  glutes: 'muscle',
+  lat_mid_back: 'muscle',
+  upper_back: 'muscle',
+  lower_back: 'muscle',
+  calf_shin: 'muscle',
+  knee: 'joint',
+  ankle_achilles: 'joint',
+  hip_groin: 'joint',
+  neck: 'joint',
+  front_shoulder: 'joint',
+  rear_shoulder: 'joint',
+  elbow: 'joint',
+  wrist: 'joint',
+};
+
+console.log('\n  Forward: every PainRegion is on the side the diagram files it under');
 for (const region of painRegions) {
-  const isMuscle = muscleSetValueSet.has(region);
-  check(`PainRegion '${region}' is classified as ${isMuscle ? 'muscle' : 'joint'}`, true);
+  const actual = muscleSetValueSet.has(region) ? 'muscle' : 'joint';
+  const expected = EXPECTED_KIND[region];
+  check(
+    `PainRegion '${region}' is a ${expected ?? '???'}`,
+    expected !== undefined && actual === expected,
+    expected === undefined
+      ? 'new region: add it to EXPECTED_KIND above and say which filter it belongs under'
+      : `MUSCLE_SET files it as a ${actual}`
+  );
 }
+check(
+  'and EXPECTED_KIND has no stale entries',
+  Object.keys(EXPECTED_KIND).every((r) => painRegions.includes(r)),
+  Object.keys(EXPECTED_KIND).filter((r) => !painRegions.includes(r)).join(', ')
+);
 
 // Reverse: every MUSCLE_SET value is a valid PainRegion (catches stale entries after a rename)
 console.log('\n  Reverse: every MUSCLE_SET value is a declared PainRegion');
