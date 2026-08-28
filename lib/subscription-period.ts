@@ -96,9 +96,9 @@ export function subscriptionDateLabel(isOnTrial: boolean, willRenew: boolean): s
 export function getTrialText(
   pkg: PurchasesPackage | null,
   trialEligible: boolean
-): { badge: string; cta: string; sub: string } {
+): { badge: string; cta: string; sub: string; offerHeadline: string } {
   if (!trialEligible) {
-    return { badge: '', cta: 'Subscribe', sub: '' };
+    return { badge: '', cta: 'Subscribe', sub: '', offerHeadline: '' };
   }
   const intro = pkg?.product?.introPrice;
   if (intro && intro.price === 0 && intro.periodNumberOfUnits > 0) {
@@ -108,14 +108,29 @@ export function getTrialText(
     if (unit === 'WEEK') period = n === 1 ? '1-week' : `${n}-week`;
     else if (unit === 'MONTH') period = n === 1 ? '1-month' : `${n}-month`;
     else if (unit === 'YEAR') period = n === 1 ? '1-year' : `${n}-year`;
+    /**
+     * THE HEADLINE IS BUILT HERE BECAUSE THIS IS WHERE THE NUMBER IS.
+     *
+     * app/offer.tsx used to write it as
+     * `Your first ${badge.replace(' free trial', '')} are on us`, which turns
+     * "14-day free trial" into "Your first 14-day are on us". Ungrammatical for
+     * every possible length, and for a one-month offer "are" would be wrong
+     * too. One place knows both the number and the unit, so one place writes
+     * the sentence.
+     */
+    const plural = n === 1 ? '' : 's';
+    const noun =
+      unit === 'WEEK' ? 'week' : unit === 'MONTH' ? 'month' : unit === 'YEAR' ? 'year' : 'day';
+    const spanWords = n === 1 ? `${noun}` : `${n} ${noun}${plural}`;
     return {
       badge: `${period} free trial`,
       cta: `Start ${period.charAt(0).toUpperCase() + period.slice(1)} Free Trial`,
       sub: `Try free for ${period.replace('-', ' ')}, then`,
+      offerHeadline: `Your first ${spanWords} ${n === 1 ? 'is' : 'are'} on us`,
     };
   }
   // No introPrice on the package: the store is not offering a trial on this
   // product, whatever this app would like to say. Claiming "14 days free" here
   // was a hardcoded promise nothing backed.
-  return { badge: '', cta: 'Subscribe', sub: '' };
+  return { badge: '', cta: 'Subscribe', sub: '', offerHeadline: '' };
 }

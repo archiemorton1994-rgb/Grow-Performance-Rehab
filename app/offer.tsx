@@ -132,7 +132,7 @@ export default function OfferScreen() {
           <>
             <Animated.Text entering={FadeInDown.delay(80).duration(360)} style={styles.title}>
               {hasTrial
-                ? `Your first ${trial.badge.replace(' free trial', '')} are on us`
+                ? trial.offerHeadline
                 : 'That is Grow'}
             </Animated.Text>
             <Animated.Text entering={FadeInDown.delay(140).duration(360)} style={styles.body}>

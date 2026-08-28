@@ -1182,8 +1182,20 @@ export default function SessionSummaryScreen() {
   // else on the hero — a routine PB or a session-count milestone must not bump
   // it. oneRepMaxes is newest-first, so [0] is the result just recorded and [1]
   // is the previous test of the same lift.
+  /**
+   * TESTS ONLY, NOT EVERY NUMBER EVER RECORDED FOR THIS LIFT.
+   *
+   * oneRepMaxes is one flat list that both the test path and the Stats-tab
+   * calculator write to, so [1] used to mean "the entry before this one",
+   * whatever it was. Squat tested at 130, a calculator estimate of 117 typed in
+   * between, then tested at 140, and the certificate read "Up 23 kg on your
+   * last test". The real answer was 10.
+   *
+   * Entries with no source predate the field and are almost all tests, so they
+   * are kept.
+   */
   const liftOrms = session.isTestWeek
-    ? oneRepMaxes.filter((o) => o.lift === session.sessionType)
+    ? oneRepMaxes.filter((o) => o.lift === session.sessionType && o.source !== 'manual')
     : [];
   const testedOrm = liftOrms[0];
   const previousOrm = liftOrms[1];

@@ -3711,6 +3711,7 @@ export default function SessionScreen() {
             reps: amrapSet.reps,
             date: new Date().toISOString(),
             unit: 'kg',
+            source: 'test',
           });
           // What the test says, then what a single test is allowed to do about
           // it. One session is evidence about a block, not a verdict on it -

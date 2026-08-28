@@ -167,16 +167,29 @@ check(
   'leaving it in place means the next background sync uploads it into the wrong account anyway'
 );
 
+/**
+ * THE DECISION MOVED INTO lib/sync-merge.ts, AND IS NOW RUN RATHER THAN READ.
+ *
+ * These two assertions were both right and both pinned the old spelling. The
+ * second one earned its keep on the way past: it caught an attempt to hand the
+ * guard a single "does this device hold personal data" flag, which would have
+ * wiped somebody who had just finished onboarding and was signing in for the
+ * first time. Their name, bodyweight and one-rep maxes, ninety seconds old.
+ *
+ * tests/sync-safety.check.mjs executes shouldWipeForNewOwner across every case.
+ * What is left here is that verifyCode actually uses it, and passes the id of
+ * the account signing in.
+ */
 check(
   'the check compares against the id of the account signing in',
-  /dataOwnerId\s*!==\s*data\.user\.id/.test(verifyCode),
+  /signingInAs: data\.user\.id/.test(verifyCode),
   'comparing against anything else does not establish ownership'
 );
 
 check(
-  'the check only applies to real training history',
-  /completedSessions\.length\s*>\s*0/.test(verifyCode),
-  'a freshly onboarded device has no history to protect and must not be wiped on a normal sign-in'
+  'the decision is made by the shared, tested rule',
+  /shouldWipeForNewOwner\(/.test(verifyCode),
+  'this used to be an inline expression, and it was wrong in both directions at once'
 );
 
 // ─── 4. the ownership tag survives a restart ──────────────────────────────────

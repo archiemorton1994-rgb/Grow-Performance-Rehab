@@ -7,6 +7,7 @@ import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { apiRequest, type ApiError } from '@/lib/query-client';
 import { setAuthToken } from '@/lib/auth-token';
 import { uploadUserData, downloadUserData } from '@/lib/sync';
+import { shouldWipeForNewOwner } from '@/lib/sync-merge';
 import { useAppStore } from '@/lib/store';
 
 const TOKEN_KEY = 'grow_auth_token';
@@ -330,6 +331,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (appStateRef.current.match(/inactive|background/) && next === 'active') {
         if (user) {
           await refreshSubscription();
+          /**
+           * DOWNLOAD AND MERGE BEFORE UPLOADING, OR THE DEVICE THAT IS BEHIND
+           * WINS.
+           *
+           * This used to PUT the whole document straight up. The payload
+           * carries no version marker and the server writes it unconditionally
+           * (ON CONFLICT DO UPDATE SET data = EXCLUDED.data), so a second
+           * device that had not caught up truncated the server's history every
+           * time it came to the foreground. Reproduced against the real store:
+           * server holding 11 sessions, phone holding 10, phone foregrounded,
+           * server left with 10 and session 11 gone.
+           *
+           * It could not recover either. mergeServerData only adopts a server
+           * that is STRICTLY ahead, so the next launch compared 10 to 10 and
+           * did nothing.
+           *
+           * Downloading first makes the upload a superset by construction:
+           * mergeSessionsById unions the two lists, so whichever device
+           * foregrounds, the server ends up with everything.
+           */
+          const serverData = await downloadUserData();
+          if (serverData) useAppStore.getState().mergeServerData(serverData);
           void uploadUserData(useAppStore.getState().getDataForSync()).then((ok) => {
             if (ok) useAppStore.getState().clearResetPendingUpload();
           });
@@ -369,8 +392,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // belong here counts as somebody else's, because dropping a device copy
       // costs at most what the server has not seen yet, while writing it into
       // the wrong account cannot be undone.
+      /**
+       * TWO THINGS WERE WRONG WITH THIS CHECK, IN OPPOSITE DIRECTIONS.
+       *
+       * IT WIPED PEOPLE IT SHOULD NOT HAVE. dataOwnerId shipped without a store
+       * version bump, so on every device upgrading from a build older than
+       * 2026-08-11 it rehydrates as null - and `null !== yourId` is true, so
+       * this read every existing user as an intruder and deleted their
+       * training. Reproduced by rehydrating the real store from a pre-upgrade
+       * blob. The v29 migration marks such a device claimable once; see
+       * shouldWipeForNewOwner.
+       *
+       * AND IT LET THROUGH DATA IT SHOULD HAVE CAUGHT. It looked only at
+       * completedSessions, while the upload twenty lines below ships
+       * userProfile, oneRepMaxes, bodyweightLog, savedTemplates,
+       * equipmentTiers and earnedBadges. Somebody who onboarded and never
+       * trained - which is everybody who never subscribed - carried a full
+       * profile and up to three one-rep maxes into the next account that
+       * signed in on that phone, and onboardingComplete is persisted, so the
+       * new user was never asked to redo it and their working weights came
+       * from a stranger's numbers.
+       */
       const local = useAppStore.getState();
-      if (local.completedSessions.length > 0 && local.dataOwnerId !== data.user.id) {
+      const wipe = shouldWipeForNewOwner(
+        {
+          dataOwnerId: local.dataOwnerId,
+          dataOwnerClaimPending: local.dataOwnerClaimPending,
+          signingInAs: data.user.id,
+        },
+        local
+      );
+      if (wipe) {
         await useAppStore.persist.clearStorage();
         await reloadAppAsync();
         return;

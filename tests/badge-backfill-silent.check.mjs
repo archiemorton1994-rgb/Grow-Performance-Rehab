@@ -60,9 +60,29 @@ check(
   'a silent award must still record the badge as earned'
 );
 
+/**
+ * ANCHORED ON THE BRANCH, AND MEASURED AGAINST THE CODE RATHER THAN THE PROSE.
+ *
+ * Two things were wrong with the old version of this check.
+ *
+ * It started from `completedCount: data.completedSessions`, a field that
+ * changed when sessions began being unioned by id instead of replaced wholesale
+ * - a data-loss fix with nothing to do with badges. The assertion went red for
+ * an unrelated change, which is the same class of fault as one that stays green
+ * for an unrelated reason.
+ *
+ * And it counted characters over the RAW file. This repo comments heavily and
+ * deliberately, so every paragraph written inside mergeServerData ate into a
+ * window that was measuring explanation as though it were code. Stripped, the
+ * span this cares about is about 1,650 characters and stable; unstripped it had
+ * already grown past the limit twice.
+ */
+const codeOnly = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 check(
   'the server restore backfills silently',
-  /completedCount: data\.completedSessions[\s\S]{0,600}?awardNewBadges\(\{ silent: true \}\)/.test(src),
+  /if \(serverCount > localCount\) \{[\s\S]{0,1800}?awardNewBadges\(\{ silent: true \}\)/.test(
+    codeOnly
+  ),
   'mergeServerData must record restored badges without celebrating them'
 );
 

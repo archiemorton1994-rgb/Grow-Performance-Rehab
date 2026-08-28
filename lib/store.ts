@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
 import { isoWeek } from '@/lib/utils';
+import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import { performanceForLog } from '@/lib/set-performance';
 import {
@@ -296,6 +297,21 @@ export interface OneRepMax {
   reps?: number;
   date: string;
   unit: 'kg';
+  /**
+   * Where this number came from.
+   *
+   * 'test' is a max actually attempted in a test week. 'manual' is an estimate
+   * the user typed into the calculator on the Stats tab from a set they had
+   * already done. They were indistinguishable, and the test-week summary read
+   * oneRepMaxes[1] as "your last test" - so somebody who used the calculator
+   * between test weeks was told "Up 23 kg on your last test" when the real
+   * answer was 10.
+   *
+   * Optional because entries written before this field existed cannot be
+   * classified. Those are treated as tests, which is what almost all of them
+   * are: the calculator is the newer and rarer path.
+   */
+  source?: 'test' | 'manual';
 }
 
 export interface CompletedSession {
@@ -515,6 +531,19 @@ interface AppState {
    *  "the previous person's history", which must never be uploaded into the
    *  account now signing in. Persisted; deliberately not part of SyncPayload. */
   dataOwnerId: string | null;
+  /**
+   * This device predates owner tagging and may be claimed once.
+   *
+   * dataOwnerId shipped on 2026-08-11 without bumping the store version, so on
+   * every device upgrading from an older build it rehydrates as null - and the
+   * sign-in guard read `null !== yourId` as "somebody else's device" and
+   * deleted their training. The v29 migration sets this for a device that has
+   * completed sessions and no tag: such a device has necessarily been signed
+   * in, because the paywall sits between onboarding and the tabs.
+   *
+   * Cleared the moment the device is tagged.
+   */
+  dataOwnerClaimPending: boolean;
   hasHydrated: boolean;
   activeSession: ActiveSession | null;
   /** Maximum weight (kg) logged per exercise name in any past session.
@@ -861,6 +890,7 @@ export const useAppStore = create<AppState>()(
       weightUnit: 'kg',
       lastWeightPromptedAt: null,
       dataOwnerId: null,
+      dataOwnerClaimPending: false,
       hasHydrated: false,
       activeSession: null,
       lastLoggedWeights: {},
@@ -971,7 +1001,8 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
       setLastWeightPromptedAt: (ts) => set({ lastWeightPromptedAt: ts }),
-      setDataOwnerId: (id) => set({ dataOwnerId: id }),
+      // Tagging always ends the claim window, whichever way the tag arrived.
+      setDataOwnerId: (id) => set({ dataOwnerId: id, dataOwnerClaimPending: false }),
       clearResetPendingUpload: () => set({ resetPendingUpload: false }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       setLastReadiness: (energy, time, painRegion) =>
@@ -1760,17 +1791,23 @@ export const useAppStore = create<AppState>()(
         return streak;
       },
 
+      /**
+       * ONE RULE FOR "THIS WEEK", AND IT IS THE STREAK'S RULE.
+       *
+       * The comment here used to say it matched getStreakDays. It did not. The
+       * streak buckets every session by isoWeek(), which takes the LOCAL
+       * calendar day; this built a UTC-midnight Monday and compared absolute
+       * instants against it. West of UTC they agree; east of it they do not. In
+       * London in summer a session logged at 00:30 on Monday is 23:30 UTC on
+       * Sunday, so the streak counted it as this week and this counted it as
+       * last week - on the same screen, one line apart.
+       *
+       * Same helper, same answer, and it is shorter.
+       */
       getThisWeekCount: () => {
         const { completedSessions } = get();
-        // Use the same ISO Mon–Sun week boundary as getStreakDays() to avoid
-        // Sun/Mon boundary mismatches when comparing "this week" to the streak.
-        const now = new Date();
-        const startOfWeek = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-        const dow = startOfWeek.getUTCDay() || 7; // 1=Mon … 7=Sun
-        startOfWeek.setUTCDate(startOfWeek.getUTCDate() - (dow - 1)); // back to Monday
-        startOfWeek.setUTCHours(0, 0, 0, 0);
-
-        return completedSessions.filter((s) => new Date(s.date) >= startOfWeek).length;
+        const thisWeek = isoWeek(new Date());
+        return completedSessions.filter((s) => isoWeek(new Date(s.date)) === thisWeek).length;
       },
 
       getBestORM: (lift) => {
@@ -1958,6 +1995,23 @@ export const useAppStore = create<AppState>()(
         const keepLocalBodyweight =
           localWeighedAt > serverWeighedAt && (s.userProfile.bodyweightKg ?? 0) > 0;
 
+        /**
+         * SESSIONS ARE UNIONED BEFORE ANYTHING ELSE IS DECIDED.
+         *
+         * This used to sit inside the block below as
+         * `completedSessions: data.completedSessions ?? s.completedSessions`,
+         * which REPLACES. A session logged with no signal and not yet uploaded
+         * was destroyed the moment the server happened to be one ahead - and
+         * uploads fail silently with no retry queue, so that is not rare.
+         *
+         * Ids are unique per session, so the union needs no gate: it is right
+         * whichever side is ahead, and it is right when neither is.
+         */
+        const mergedSessions = mergeSessionsById(s.completedSessions, data.completedSessions);
+        if (mergedSessions.length !== s.completedSessions.length) {
+          set({ completedSessions: mergedSessions, completedCount: mergedSessions.length });
+        }
+
         if (serverCount > localCount) {
           const mergedProfile = {
             ...((data.userProfile as any) ?? s.userProfile),
@@ -1966,7 +2020,10 @@ export const useAppStore = create<AppState>()(
           set({
             userProfile: mergedProfile,
             equipmentTiers: (data.equipmentTiers as any) ?? s.equipmentTiers,
-            completedSessions: data.completedSessions ?? s.completedSessions,
+            // Already unioned above. Kept out of this set() on purpose: this
+            // branch is "the server is ahead so adopt its view of the current
+            // state", and the session list is the one field where neither side
+            // is authoritative.
             oneRepMaxes: data.oneRepMaxes ?? s.oneRepMaxes,
             exerciseFeedback: data.exerciseFeedback ?? s.exerciseFeedback,
             weightUnit: (data.weightUnit as any) ?? s.weightUnit,
@@ -1983,7 +2040,7 @@ export const useAppStore = create<AppState>()(
             savedTemplates: data.savedTemplates ?? s.savedTemplates,
             weeklyStreakGoal: data.weeklyStreakGoal ?? s.weeklyStreakGoal,
             earnedBadges: data.earnedBadges ?? s.earnedBadges,
-            completedCount: data.completedSessions?.length ?? s.completedCount,
+            completedCount: mergedSessions.length,
           });
           // The server just handed back sessions this device did not have, so
           // everything they earned is about to look brand new. Record it
@@ -2280,9 +2337,36 @@ export const useAppStore = create<AppState>()(
             },
           ];
         }
+        /**
+         * v29 - THE MIGRATION THE OWNER TAG SHIPPED WITHOUT.
+         *
+         * dataOwnerId was added on 2026-08-11 and the version was not bumped,
+         * so migrate() never ran for an upgrading device and the field stayed
+         * at its initial null. The sign-in guard in lib/auth-context.tsx treats
+         * "null owner, and this device has training on it" as an intruder and
+         * clears storage - so every user on an older build lost their history
+         * the next time they signed in, which they all do eventually: the token
+         * lasts 30 days and there is no refresh.
+         *
+         * We cannot name the account that owns an untagged device. But a device
+         * with completed sessions on it has necessarily been signed in, because
+         * the paywall sits between onboarding and the tabs, so the person
+         * signing in on it is that same person. Mark it claimable exactly once;
+         * setDataOwnerId clears the flag, and from then on the guard is a plain
+         * identity check again.
+         *
+         * A device with a profile and NO sessions is not marked: that is either
+         * a first-run user about to sign in for the first time, which the guard
+         * already allows, or the hand-me-down case the guard exists to catch.
+         */
+        if (!('dataOwnerClaimPending' in persistedState)) {
+          persistedState.dataOwnerClaimPending =
+            !persistedState.dataOwnerId &&
+            (persistedState.completedSessions?.length ?? 0) > 0;
+        }
         return persistedState;
       },
-      version: 28,
+      version: 29,
     }
   )
 );

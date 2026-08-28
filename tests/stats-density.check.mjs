@@ -165,10 +165,29 @@ check(
   !/height=\{barH \|\| 2\}/.test(src),
   'a 2px stub made a rest week look like a small amount of training, on both bar charts'
 );
+/**
+ * THIS ASSERTION USED TO PIN THE BUG'S REPLACEMENT BUG.
+ *
+ * The footer first read "peak: 0 sessions" for somebody with no sessions in the
+ * window, which is not a statistic. The fix was `Math.max(1, ...)`, borrowing
+ * the floor the bar scale uses - and this check pinned that exact expression.
+ * So it then read "peak: 1 session" to the same user: no longer nonsense, but
+ * now a number they did not earn, and pinned in place by a test whose stated
+ * intent it did not serve.
+ *
+ * A window with nothing in it has no peak. The footer says nothing.
+ */
 check(
-  'the peak footer cannot read zero',
-  /Math\.max\(1, \.\.\.weeks\.map\(\(w\) => w\.count\)\)/.test(src),
-  '"peak: 0 sessions" is not a statistic'
+  'the peak footer is not floored to a session nobody did',
+  !/Math\.max\(1, \.\.\.weeks\.map\(\(w\) => w\.count\)\)/.test(src),
+  'a floor of 1 reports a peak of one session to somebody who trained none'
+);
+check(
+  'and it says nothing at all when the window is empty',
+  /const peak = Math\.max\(0, \.\.\.weeks\.map\(\(w\) => w\.count\)\);[\s\S]{0,120}?if \(peak === 0\) return '';/.test(
+    src
+  ),
+  '"peak: 0 sessions" is not a statistic either'
 );
 check(
   'the Muscle Progress drill-down that landed in the wrong place is gone',

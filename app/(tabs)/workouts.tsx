@@ -29,6 +29,10 @@ import {
   PainRegion,
   SessionType,
   STRENGTH_SESSION_TYPES,
+  isPlausibleOneRepMaxKg,
+  MIN_ONE_REP_MAX_KG,
+  MAX_ONE_REP_MAX_KG,
+  OneRepMax,
   useAppStore,
 } from '@/lib/store';
 import {
@@ -562,7 +566,11 @@ function MuscleProgressPanel({
           style={{
             fontSize: 11,
             fontFamily: 'Inter_400Regular',
-            color: 'rgba(255,255,255,0.55)',
+            // Was a hardcoded rgba(255,255,255,0.55): white text on a white
+            // card in light mode. This line exists BECAUSE the colours are not
+            // enough on their own, so it being invisible for half the users is
+            // the whole failure rather than a cosmetic one.
+            color: C.textSecondary,
             textAlign: 'center',
             marginTop: 8,
             lineHeight: 16,
@@ -826,11 +834,16 @@ function WeeklyBarChart({
           0
         </Text>
         <Text style={{ fontSize: 10, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
-          {/* Max over the real counts. This used to omit the ",1" floor the
-              bar scale uses, so with no sessions at all it read "peak: 0
-              sessions" — a peak of nothing is not a statistic. */}
+          {/* Max over the real counts.
+              It first read "peak: 0 sessions" for somebody with none, which is
+              not a statistic. The fix was a Math.max(1, ...) floor borrowed
+              from the bar scale, which made it read "peak: 1 session" for the
+              same user - no longer nonsense, but now a number they did not
+              earn. A window with nothing in it has no peak to report, so it
+              says nothing at all. */}
           {(() => {
-            const peak = Math.max(1, ...weeks.map((w) => w.count));
+            const peak = Math.max(0, ...weeks.map((w) => w.count));
+            if (peak === 0) return '';
             return `peak: ${peak} session${peak === 1 ? '' : 's'}`;
           })()}
         </Text>
@@ -1363,6 +1376,12 @@ function StrengthLineChart({
       .slice(-8);
   }, [lift, orms]);
 
+  // Every entry for this lift, not just the eight the chart plots.
+  const allWeights = useMemo(
+    () => orms.filter((o) => o.lift === lift).map((o) => o.weight),
+    [lift, orms]
+  );
+
   const liftLabel = lift.charAt(0).toUpperCase() + lift.slice(1);
   const colors = LIFT_COLORS[lift] ?? { line: C.primaryText, fill: C.primaryMuted };
 
@@ -1463,7 +1482,11 @@ function StrengthLineChart({
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   const fillD = `${pathD} L ${points[points.length - 1].x} ${h - pad} L ${points[0].x} ${h - pad} Z`;
 
-  const best = Math.max(...weights);
+  // The all-time best, not the best of the eight points this chart draws.
+  // "Your tested maxes" directly above uses every entry, so a lifter who has
+  // been below their peak for eight tests saw two different all-time maxes on
+  // one screen.
+  const best = Math.max(...allWeights);
   const isImproving =
     data.length >= 2 && data[data.length - 1].weight >= data[data.length - 2].weight;
   const selectedPoint = selectedIdx !== null ? points[selectedIdx] : null;
@@ -2709,7 +2732,7 @@ function OneRMCalculator({
   C,
 }: {
   weightUnit: 'kg' | 'lbs';
-  addOneRepMax: (orm: { lift: SessionType; weight: number; date: string; unit: 'kg' }) => void;
+  addOneRepMax: (orm: OneRepMax) => void;
   C: ReturnType<typeof useColors>;
 }) {
   const [weightInput, setWeightInput] = useState('');
@@ -2731,11 +2754,34 @@ function OneRMCalculator({
 
   const savePB = useCallback(() => {
     if (result === null) return;
+    /**
+     * THE SAME CEILING ONBOARDING USES, FOR THE SAME REASON.
+     *
+     * This was the only unguarded write to oneRepMaxes in the app. Typing 1000
+     * instead of 100 at 5 reps saved a 1166.67 kg max, and there is no way to
+     * delete a one-rep max short of wiping all training data. The engine then
+     * prescribed 992.5 kg for the next squat session and the session screen
+     * refused to log it, because MAX_PLAUSIBLE_KG is 500 - the app blocking a
+     * weight it had just prescribed. It also awarded all five strength-progress
+     * badges for that lift, permanently, because earnedBadges is append-only.
+     *
+     * isPlausibleOneRepMaxKg's own comment says its ceiling exists so the two
+     * screens "can never disagree about what is loggable". Onboarding used it.
+     * This did not.
+     */
+    if (!isPlausibleOneRepMaxKg(result)) {
+      Alert.alert(
+        'That does not look right',
+        `A one-rep max between ${MIN_ONE_REP_MAX_KG} and ${MAX_ONE_REP_MAX_KG} kg is what this can record. Check the weight and reps you entered.`
+      );
+      return;
+    }
     addOneRepMax({
       lift: selectedLift,
       weight: result,
       date: new Date().toISOString(),
       unit: 'kg',
+      source: 'manual',
     });
     Alert.alert(
       'Saved!',

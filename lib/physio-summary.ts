@@ -185,7 +185,27 @@ export function buildPhysioSummary(input: PhysioSummaryInput): string {
     out.push('');
   }
 
-  const orms = [...(input.oneRepMaxes ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  /**
+   * THE BEST, NOT THE LATEST.
+   *
+   * This sorted newest-first and kept the first entry per lift, so it reported
+   * whatever was recorded most recently. Every other surface in the app reports
+   * the best: getBestORM takes the max, and so does the tested-maxes strip on
+   * Stats. A lifter who tested below their peak, or who typed an estimate into
+   * the calculator, handed their physiotherapist a lower number than the one on
+   * their own screen - on a document whose whole purpose is being read next to
+   * the app.
+   *
+   * Ties break to the newer date, so the summary names when they last hit it.
+   */
+  const bestByLift = new Map<string, (typeof input.oneRepMaxes)[number]>();
+  for (const o of input.oneRepMaxes ?? []) {
+    const cur = bestByLift.get(o.lift);
+    if (!cur || o.weight > cur.weight || (o.weight === cur.weight && o.date > cur.date)) {
+      bestByLift.set(o.lift, o);
+    }
+  }
+  const orms = [...bestByLift.values()].sort((a, b) => b.date.localeCompare(a.date));
   if (orms.length > 0) {
     out.push('RECORDED ONE REP MAXES');
     const seen = new Set<string>();

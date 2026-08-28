@@ -30,7 +30,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
-import { useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import { useAppStore, STRENGTH_SESSION_TYPES, SESSION_ORDER } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
@@ -507,8 +507,19 @@ export default function HomeScreen() {
   // so it stays correct even if testWeekFrequency is changed mid-program or a
   // test was deferred. The block they're currently working through is always
   // one past however many they've finished.
+  /**
+   * A TEST WEEK IS THREE SESSIONS, NOT ONE.
+   *
+   * This counted sessions flagged isTestWeek and called the answer the number
+   * of completed test weeks, so one finished test week - squat, bench and
+   * deadlift - read as three and the home screen said "Cycle 4" to somebody on
+   * their second block. Exactly 3x out, every time, for as long as they train.
+   */
   const testWeeksCompleted = useMemo(
-    () => completedSessions.filter((s) => s.isTestWeek).length,
+    () =>
+      Math.floor(
+        completedSessions.filter((s) => s.isTestWeek).length / SESSION_ORDER.length
+      ),
     [completedSessions]
   );
   const blockCycleNumber = testWeeksCompleted + 1;
