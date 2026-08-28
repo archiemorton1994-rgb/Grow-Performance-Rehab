@@ -79,8 +79,19 @@ interface CoachMarkProps {
    * which Profile launches with a one-way navigation.
    */
   onPrev?: () => void;
-  /** Called when user swipes left on the card (tab tour advancement). */
-  onSwipeLeft?: () => void;
+  /**
+   * A card is swipeable, left to go on and right to go back.
+   *
+   * There used to be an onSwipeLeft prop here with a complete PanResponder
+   * behind it, and no caller ever passed it - so the gesture was captured and
+   * thrown away for as long as the tour has existed. The responder claimed
+   * horizontal drags in both directions and acted on neither.
+   *
+   * The card already holds onNext and onPrev, so the gesture uses those
+   * directly rather than threading a duplicate callback through five callers to
+   * reach the function sitting beside it. Right-swipe does nothing on the first
+   * card, for the same reason the Back control is not drawn there.
+   */
   /** Pixels from screen bottom to card bottom edge when the card sits below the
    *  spotlighted target (the common case). When the target sits too low on
    *  screen for that to fit without covering it, the card automatically flips
@@ -103,7 +114,6 @@ export default function CoachMark({
   onNext,
   onSkip,
   onPrev,
-  onSwipeLeft,
   bottomOffset = 0,
   iconName,
   iconLabel,
@@ -134,17 +144,20 @@ export default function CoachMark({
   const dimStyle = useAnimatedStyle(() => ({ opacity: dimOpacity.value }));
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
 
-  // Keep a live ref so the PanResponder (created once via useRef) always calls
-  // the latest onSwipeLeft prop rather than the stale initial closure value.
-  const onSwipeLeftRef = useRef(onSwipeLeft);
-  onSwipeLeftRef.current = onSwipeLeft;
+  // Live refs, so the PanResponder (created once via useRef) always calls the
+  // current handlers rather than the closure it was born with.
+  const onNextRef = useRef(onNext);
+  onNextRef.current = onNext;
+  const onPrevRef = useRef(onPrev);
+  onPrevRef.current = onPrev;
 
   const panRef = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, { dx, dy }) =>
         Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10,
       onPanResponderRelease: (_, { dx }) => {
-        if (dx < -40) onSwipeLeftRef.current?.();
+        if (dx < -40) onNextRef.current?.();
+        else if (dx > 40) onPrevRef.current?.();
       },
     })
   );

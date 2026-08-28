@@ -171,6 +171,12 @@ check(
   'absent means there is nowhere to go back to, which is a missing control rather than a disabled one'
 );
 check(
+  'a card can be swiped, which it advertised and never did',
+  /if \(dx < -40\) onNextRef\.current\?\.\(\);/.test(coach) &&
+    /else if \(dx > 40\) onPrevRef\.current\?\.\(\);/.test(coach),
+  'a full PanResponder sat behind an onSwipeLeft prop that no caller ever passed, so the gesture was captured and dropped'
+);
+check(
   'Back sits with Next rather than at the far left',
   /styles\.navCluster/.test(coach) && /testID="coachmark-prev"/.test(coach),
   'styles.actions is space-between with two children; a third would put Back dead centre where it reads as the primary action'
