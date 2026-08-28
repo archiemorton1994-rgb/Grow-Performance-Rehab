@@ -188,7 +188,7 @@ const tourStyles = StyleSheet.create({
   calloutIconBadge: {
     width: 42,
     height: 42,
-    borderRadius: 13,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -199,13 +199,13 @@ const tourStyles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   calloutHeadline: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter_700Bold',
     marginTop: 2,
     lineHeight: 23,
   },
   calloutBody: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter_400Regular',
     lineHeight: 21,
   },
@@ -221,7 +221,7 @@ const tourStyles = StyleSheet.create({
     lineHeight: 18,
   },
   gotItBtn: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -746,12 +746,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     backBtn: {
       width: 36,
       height: 36,
-      borderRadius: 10,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: C.surfaceSecondary,
     },
-    headerTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.text },
+    headerTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
 
     // ── Showcase ────────────────────────────────────────────────────────────
     hero: {
@@ -773,21 +773,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     heroMedalGlow: shadowStyle('#000000', 0.18, 12, 5, 5),
     heroText: { flex: 1 },
     heroLabel: {
-      fontSize: 10.5,
+      fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
       color: C.textTertiary,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
     heroName: {
-      fontSize: 19,
+      fontSize: 20,
       lineHeight: 24,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       marginTop: 3,
     },
     heroMeta: {
-      fontSize: 12.5,
+      fontSize: 13,
       lineHeight: 17,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
@@ -811,10 +811,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     rarityItem: { flex: 1, alignItems: 'flex-start', gap: 2 },
     rarityDot: { width: 7, height: 7, borderRadius: 3.5 },
-    rarityCount: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: C.text },
-    rarityTotal: { fontSize: 10.5, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    rarityCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
+    rarityTotal: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     rarityLabel: {
-      fontSize: 9,
+      fontSize: 11,
       fontFamily: 'Inter_600SemiBold',
       color: C.textTertiary,
       textTransform: 'uppercase',
@@ -853,8 +853,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 20,
       paddingBottom: 8,
     },
-    shelfTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
-    shelfCount: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    shelfTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
+    shelfCount: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     shelfRow: { paddingHorizontal: 14 },
     shelfItem: {
       width: SHELF_ITEM_W,
@@ -862,7 +862,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 4,
     },
     shelfItemName: {
-      fontSize: 9.5,
+      fontSize: 11,
       lineHeight: 12,
       fontFamily: 'Inter_500Medium',
       color: C.text,
@@ -894,7 +894,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     detailMedalGlow: shadowStyle('#000000', 0.2, 16, 6, 6),
     detailName: {
-      fontSize: 22,
+      fontSize: 20,
       fontFamily: 'Inter_700Bold',
       textAlign: 'center',
       marginTop: 6,
@@ -909,7 +909,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 5,
       borderWidth: 1,
     },
-    detailStatusText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+    detailStatusText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
     detailDesc: {
       fontSize: 15,
       fontFamily: 'Inter_400Regular',
@@ -935,11 +935,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 2,
     },
     detailCloseBtn: {
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 20,
     },
-    detailCloseBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+    detailCloseBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   });
 }

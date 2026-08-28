@@ -135,12 +135,12 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   term: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_700Bold',
     marginBottom: 3,
   },
   definition: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_400Regular',
     lineHeight: 17,
   },

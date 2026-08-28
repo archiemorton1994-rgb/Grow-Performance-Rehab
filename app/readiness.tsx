@@ -942,7 +942,7 @@ export default function ReadinessScreen() {
           <View style={{ width: '100%', marginTop: 6 }}>
             <Text
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: 'Inter_600SemiBold',
                 color: C.textSecondary,
                 marginBottom: 6,
@@ -1167,7 +1167,7 @@ const prehabDiagramMaxHeight =
           <View style={{ width: '100%', marginBottom: 10 }}>
             <Text
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: 'Inter_600SemiBold',
                 color: C.textTertiary,
                 marginBottom: 6,
@@ -1486,7 +1486,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     introCard: {
       width: '100%',
       backgroundColor: C.surface,
-      borderRadius: 22,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: C.borderLight,
       paddingHorizontal: 22,
@@ -1506,13 +1506,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 12,
     },
     introTitle: {
-      fontSize: 21,
+      fontSize: 20,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       textAlign: 'center',
     },
     introBody: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       textAlign: 'center',
@@ -1527,7 +1527,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 11,
       backgroundColor: C.primaryMuted,
       color: C.primaryText,
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_700Bold',
       textAlign: 'center',
       lineHeight: 22,
@@ -1535,7 +1535,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     introStepText: {
       flex: 1,
-      fontSize: 13.5,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.text,
       lineHeight: 19,
@@ -1547,7 +1547,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      fontSize: 12.5,
+      fontSize: 13,
       fontFamily: 'Inter_500Medium',
       color: C.warning,
       lineHeight: 18,
@@ -1556,11 +1556,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignSelf: 'stretch',
       marginTop: 18,
       backgroundColor: C.primary,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 15,
       alignItems: 'center',
     },
-    introBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    introBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     topBar: {
       flexDirection: 'row',
@@ -1570,8 +1570,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     sessionInfo: { flex: 1, alignItems: 'center' },
-    sessionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
-    sessionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    sessionLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    sessionSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     progressContainer: { paddingHorizontal: 24, marginBottom: 8 },
     progressTrack: {
       height: 4,
@@ -1582,7 +1582,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     progressFill: { height: '100%', backgroundColor: C.warning, borderRadius: 2 },
     stepIndicator: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_600SemiBold',
       color: C.textSecondary,
       textAlign: 'center',
@@ -1591,7 +1591,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     mainContent: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 6 },
     section: { paddingVertical: 7 },
     sectionTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       marginBottom: 6,
@@ -1610,7 +1610,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
       alignSelf: 'flex-start' as const,
     },
-    effectiveTierText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    effectiveTierText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     beginnerNote: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1623,14 +1623,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.border,
     },
-    beginnerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.text },
+    beginnerNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.text },
 
     tierGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     tierTile: {
       width: '48%',
       flexDirection: 'column',
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: 12,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: C.borderLight,
@@ -1660,9 +1660,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 6,
     },
     tierText: { flex: 1 },
-    tierLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.text },
+    tierLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
     tierSub: {
-      fontSize: 10,
+      fontSize: 11,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1701,7 +1701,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     pillTextActive: { color: C.textInverse },
 
     achesHint: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.warning,
       marginTop: 8,
@@ -1714,11 +1714,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       gap: 8,
       backgroundColor: C.primary,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 15,
     },
     startButtonDisabled: { backgroundColor: C.surfaceTertiary },
-    startButtonText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    startButtonText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
     footer: {
       paddingHorizontal: 20,
       paddingTop: 10,
@@ -1756,7 +1756,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 2,
       marginBottom: 4,
     },
-    notSoreText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
+    notSoreText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     multiToggle: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1768,7 +1768,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
     },
     multiToggleOn: { borderColor: C.primary, backgroundColor: C.primarySurface },
-    multiToggleText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.textTertiary },
+    multiToggleText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textTertiary },
     diagramCard: {
       backgroundColor: C.surface,
       borderRadius: 20,
@@ -1780,7 +1780,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       ...cardShadow(C.shadow),
     },
     question: {
-      fontSize: 24,
+      fontSize: 20,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       textAlign: 'center',
@@ -1799,7 +1799,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 14,
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 14,
       borderWidth: 1,
@@ -1815,7 +1815,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     areaCatContent: { flex: 1 },
     areaLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     areaSublabel: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 1,
@@ -1857,24 +1857,24 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     testWeekBannerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
     testWeekBadge: {
       backgroundColor: C.pbFlash,
-      borderRadius: 6,
+      borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 2,
     },
     testWeekBadgeText: {
-      fontSize: 10,
+      fontSize: 11,
       fontFamily: 'Inter_700Bold',
       color: C.pbFlashText,
       letterSpacing: 0.6,
     },
     testWeekBannerHeadline: {
-      fontSize: 16,
+      fontSize: 15,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       marginBottom: 2,
     },
     testWeekBannerSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
@@ -1885,7 +1885,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       gap: 10,
       backgroundColor: C.warningLight,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: C.warning + '4d',
       padding: 14,
@@ -1914,7 +1914,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     testDeferConfirmText: {
       flex: 1,
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_500Medium',
       color: C.primaryText,
       lineHeight: 17,
@@ -1936,7 +1936,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 3,
     },
     layoffBody: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.text,
       lineHeight: 17,

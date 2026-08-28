@@ -80,13 +80,13 @@ export function PainInsightSheet({
               <View>
                 <Text
                   testID="pain-insight-region-label"
-                  style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.text }}
+                  style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text }}
                 >
                   {region ? BODY_DIAGRAM_LABELS[region] : ''}
                 </Text>
                 <Text
                   testID="pain-insight-session-count"
-                  style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary }}
+                  style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary }}
                 >
                   {sessionCount > 0
                     ? `Flagged in ${sessionCount} ${sessionCount === 1 ? 'session' : 'sessions'}`
@@ -116,7 +116,7 @@ export function PainInsightSheet({
           {/* Body copy */}
           <Text
             style={{
-              fontSize: 14,
+              fontSize: 15,
               fontFamily: 'Inter_400Regular',
               color: C.textSecondary,
               marginBottom: 20,
@@ -140,7 +140,7 @@ export function PainInsightSheet({
                 justifyContent: 'center' as const,
                 gap: 8,
                 backgroundColor: C.primary,
-                borderRadius: 14,
+                borderRadius: 12,
                 paddingVertical: 15,
                 marginBottom: 10,
                 ...shadowStyle(C.primary, 0.3, 8, 3, 4),
@@ -149,7 +149,7 @@ export function PainInsightSheet({
             ]}
           >
             <Ionicons name="play" size={16} color={C.textInverse} />
-            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse }}>
               Start Targeted Prehab
             </Text>
           </Pressable>
@@ -165,7 +165,7 @@ export function PainInsightSheet({
                 alignItems: 'center' as const,
                 justifyContent: 'center' as const,
                 paddingVertical: 12,
-                borderRadius: 14,
+                borderRadius: 12,
                 borderWidth: 1,
                 borderColor: C.borderLight,
               },

@@ -236,14 +236,14 @@ function BodyweightSparkline({
           Bodyweight Trend
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 6 }}>
-          <Text style={{ fontSize: 28, fontFamily: 'Inter_700Bold', color: C.text }}>
+          <Text style={{ fontSize: 26, fontFamily: 'Inter_700Bold', color: C.text }}>
             {fmtW(displayVal)}
           </Text>
-          <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
+          <Text style={{ fontSize: 15, fontFamily: 'Inter_400Regular', color: C.textSecondary }}>
             {unitLabel}
           </Text>
         </View>
-        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           Log your weight again to start seeing your trend
         </Text>
       </Pressable>
@@ -309,7 +309,7 @@ function BodyweightSparkline({
         >
           Bodyweight Trend
         </Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textTertiary }}>
           {filtered.length} entries{spanLabel ? ` · ${spanLabel}` : ''}
         </Text>
       </View>
@@ -337,7 +337,7 @@ function BodyweightSparkline({
               y={PAD_T + 4}
               fill={C.textTertiary}
               textAnchor="end"
-              fontSize={10}
+              fontSize={11}
               fontFamily="Inter_500Medium"
             >
               {fmtW(maxW)}
@@ -347,7 +347,7 @@ function BodyweightSparkline({
               y={CHART_H - PAD_B + 4}
               fill={C.textTertiary}
               textAnchor="end"
-              fontSize={10}
+              fontSize={11}
               fontFamily="Inter_500Medium"
             >
               {fmtW(minW)}
@@ -1343,7 +1343,7 @@ export default function ProfileScreen() {
             {!editNameValid && (
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontFamily: 'Inter_400Regular',
                   color: C.error,
                   marginTop: -6,
@@ -1367,7 +1367,7 @@ export default function ProfileScreen() {
             {editWeightError !== null && (
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   lineHeight: 17,
                   fontFamily: 'Inter_400Regular',
                   color: C.error,
@@ -2440,7 +2440,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
     },
     avatarPhoto: { width: 100, height: 100, borderRadius: 50 },
-    avatarInitial: { fontSize: 40, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+    avatarInitial: { fontSize: 32, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     avatarEditBadge: {
       position: 'absolute',
       bottom: 2,
@@ -2456,7 +2456,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.background,
     },
     heroName: {
-      fontSize: 28,
+      fontSize: 26,
       fontFamily: 'Inter_700Bold',
       color: C.text,
       textAlign: 'center',
@@ -2487,7 +2487,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       backgroundColor: C.surfaceTertiary,
     },
     bwPillText: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_500Medium',
       color: C.text,
     },
@@ -2511,7 +2511,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     navBtnText: { flex: 1 },
     navLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
-    navSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
+    navSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary, marginTop: 2 },
     sectionCard: {
       backgroundColor: C.surface,
       borderRadius: 16,
@@ -2552,9 +2552,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    accountEmail: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 },
+    accountEmail: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.text, flex: 1 },
     signOutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-    signOutText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
+    signOutText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.error },
     subActiveCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2568,13 +2568,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     subActiveInfo: { flex: 1 },
     subActivePlan: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
     subActiveRenewal: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
     },
     subActiveBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    subActiveBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+    subActiveBadgeText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
     subCtaCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2583,15 +2583,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 12,
       padding: 18,
     },
-    subCtaTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
+    subCtaTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
     subCtaSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.primarySubtext,
       marginTop: 3,
     },
     manageSubBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    manageSubText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    manageSubText: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
 
     sheetOverlay: { flex: 1, backgroundColor: C.overlayBg, justifyContent: 'flex-end' },
     sheet: {
@@ -2653,7 +2653,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
     },
     optionChipActive: { backgroundColor: C.primaryMuted, borderColor: C.primary },
-    optionChipText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    optionChipText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     optionChipTextActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     goalGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     goalChip: {
@@ -2692,7 +2692,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     upgradeNoteText: {
       flex: 1,
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
@@ -2703,7 +2703,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 8,
       marginBottom: 12,
     },
-    effectiveBadgeText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    effectiveBadgeText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     equipRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2751,7 +2751,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.text,
     },
     ratioCardSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 12,
@@ -2760,7 +2760,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     ratioItem: { flex: 1, alignItems: 'center' as const },
     ratioVal: { fontSize: 26, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     ratioLbl: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginTop: 4,
@@ -2790,7 +2790,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 2,
     },
     infoCardSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
@@ -2823,9 +2823,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
       backgroundColor: C.primaryMuted,
     },
-    subStripTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    subStripTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
     subStripSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginTop: 2,
@@ -2840,25 +2840,25 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     subStripCtaTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.textInverse },
     subStripCtaSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.primarySubtext,
       marginTop: 2,
     },
     settingItemLabel: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_600SemiBold',
       color: C.text,
       marginBottom: 2,
     },
     settingItemSub: {
-      fontSize: 12,
+      fontSize: 13,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 10,
     },
     settingItemNotice: {
-      fontSize: 12,
+      fontSize: 13,
       lineHeight: 17,
       fontFamily: 'Inter_500Medium',
       color: C.primaryText,
@@ -2889,7 +2889,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingVertical: 4,
       marginBottom: 8,
     },
-    reminderToggleLabel: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.text },
+    reminderToggleLabel: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.text },
     timeScroll: { marginBottom: 4 },
     timeScrollContent: { gap: 8, paddingRight: 4 },
     timeChip: {
@@ -2915,9 +2915,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 10,
       paddingVertical: 12,
     },
-    feedbackText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.primaryText },
+    feedbackText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.primaryText },
     resetBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-    resetText: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.error },
+    resetText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.error },
 
     // Body weight quick-edit modal
     bwOverlay: {
@@ -2973,14 +2973,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1.5,
       borderColor: C.primary,
       paddingHorizontal: 14,
-      fontSize: 18,
+      fontSize: 20,
       fontFamily: 'Inter_600SemiBold',
       color: C.text,
       textAlign: 'center',
     },
     bwInputError: { borderColor: C.error },
     bwErrorText: {
-      fontSize: 12,
+      fontSize: 13,
       lineHeight: 17,
       fontFamily: 'Inter_400Regular',
       color: C.error,
@@ -2988,7 +2988,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 10,
       marginTop: 2,
     },
-    bwUnit: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
+    bwUnit: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.textSecondary, minWidth: 28 },
     bwSaveBtn: {
       width: '100%',
       backgroundColor: C.primary,
@@ -3006,7 +3006,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     bwHistoryClose: { padding: 4 },
     bwHistoryEmpty: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       textAlign: 'center',
@@ -3020,7 +3020,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderBottomWidth: 1,
     },
     bwHistoryDate: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_400Regular',
       flex: 1,
     },

@@ -290,7 +290,7 @@ function StatDeltaTile({
       style={{
         flex: 1,
         backgroundColor: P.pillBg,
-        borderRadius: 14,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: P.hairline,
         paddingVertical: 12,
@@ -299,11 +299,11 @@ function StatDeltaTile({
       }}
     >
       <Text
-        style={{ fontSize: 10, fontFamily: 'Inter_700Bold', color: P.faint, letterSpacing: 0.6 }}
+        style={{ fontSize: 11, fontFamily: 'Inter_700Bold', color: P.faint, letterSpacing: 0.6 }}
       >
         {label.toUpperCase()}
       </Text>
-      <Text style={{ fontSize: 19, fontFamily: 'Inter_700Bold', color: P.text }}>{value}</Text>
+      <Text style={{ fontSize: 20, fontFamily: 'Inter_700Bold', color: P.text }}>{value}</Text>
       {tone && deltaLabel ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           <Ionicons name={icon as any} size={11} color={toneColor} />
@@ -369,7 +369,7 @@ function ProgressionRules({ P }: { P: CardPalette }) {
               style={{
                 width: 18,
                 height: 18,
-                borderRadius: 6,
+                borderRadius: 8,
                 backgroundColor: r.tone === 'up' ? P.pillBg : 'transparent',
                 borderWidth: 1,
                 borderColor: P.hairline,
@@ -391,7 +391,7 @@ function ProgressionRules({ P }: { P: CardPalette }) {
             <Text
               style={{
                 flex: 1,
-                fontSize: 12.5,
+                fontSize: 13,
                 fontFamily: 'Inter_400Regular',
                 color: P.text,
                 lineHeight: 18,
@@ -403,7 +403,7 @@ function ProgressionRules({ P }: { P: CardPalette }) {
         ))}
       </View>
       <Text
-        style={{ fontSize: 11.5, fontFamily: 'Inter_400Regular', color: P.faint, lineHeight: 17 }}
+        style={{ fontSize: 11, fontFamily: 'Inter_400Regular', color: P.faint, lineHeight: 17 }}
       >
         The session around those weights is built fresh each time from your equipment, the energy
         you logged and any pain you flagged.
@@ -444,7 +444,7 @@ function BlockProgressChart({
         <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.text }}>
           {liftName} through this block
         </Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Inter_500Medium', color: P.muted }}>
+        <Text style={{ fontSize: 13, fontFamily: 'Inter_500Medium', color: P.muted }}>
           {points.length} session{points.length === 1 ? '' : 's'}
         </Text>
       </View>
@@ -473,7 +473,7 @@ function BlockProgressChart({
         </Text>
         <Text
           style={{
-            fontSize: 12,
+            fontSize: 13,
             fontFamily: 'Inter_700Bold',
             color: gained > 0 ? P.accent : P.muted,
           }}
@@ -619,7 +619,7 @@ function ProgressTab({
 
         {!hasWeighted ? (
           <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-            <Text style={{ fontSize: 14, fontFamily: 'Inter_400Regular', color: P.muted }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Inter_400Regular', color: P.muted }}>
               {isRecoverySession
                 ? "Recovery sessions don't load exercises, so there's nothing to compare here. This one's about the reps and holds, not the numbers."
                 : 'No weighted sets logged this session, so there is nothing to compare yet.'}
@@ -668,14 +668,14 @@ function ProgressTab({
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text
-                        style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: P.text }}
+                        style={{ fontSize: 15, fontFamily: 'Inter_600SemiBold', color: P.text }}
                         numberOfLines={1}
                       >
                         {r.exerciseName}
                       </Text>
                       <Text
                         style={{
-                          fontSize: 12,
+                          fontSize: 13,
                           fontFamily: 'Inter_400Regular',
                           color: toneColor[meta.tone],
                           marginTop: 1,
@@ -691,7 +691,7 @@ function ProgressTab({
                   {nextHint && (
                     <Text
                       style={{
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontFamily: 'Inter_500Medium',
                         color: P.faint,
                         marginLeft: 46,
@@ -719,7 +719,7 @@ function ProgressTab({
                       <Text
                         style={{
                           flex: 1,
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontFamily: 'Inter_500Medium',
                           color: TONE_DOWN,
                           lineHeight: 15,
@@ -1766,7 +1766,7 @@ export default function SessionSummaryScreen() {
               borderColor: C.border,
               paddingHorizontal: 14,
               paddingVertical: 10,
-              fontSize: 14,
+              fontSize: 15,
               fontFamily: 'Inter_400Regular',
               color: C.text,
               minHeight: 72,
@@ -1942,7 +1942,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     paddingVertical: 8,
     paddingHorizontal: 22,
-    borderRadius: 9,
+    borderRadius: 8,
   },
   tabBtnText: {
     fontSize: 13,
@@ -1971,7 +1971,7 @@ const styles = StyleSheet.create({
     ...elevatedShadow(SAGE.text),
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -2009,7 +2009,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5,
   },
   dateText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_500Medium',
     color: SAGE.faint,
     fontVariant: ['tabular-nums'],
@@ -2038,7 +2038,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   heroBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Inter_700Bold',
     color: SAGE.accent,
     letterSpacing: 1,
@@ -2056,7 +2056,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   heroUnit: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.muted,
     paddingBottom: 8,
@@ -2070,7 +2070,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   heroExtra: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.accent,
     marginTop: 4,
@@ -2082,7 +2082,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   heroSessionName: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.text,
   },
@@ -2093,7 +2093,7 @@ const styles = StyleSheet.create({
     backgroundColor: SAGE.faint,
   },
   heroSessionNum: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_500Medium',
     color: SAGE.faint,
   },
@@ -2105,7 +2105,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   testPillText: {
-    fontSize: 8,
+    fontSize: 11,
     fontFamily: 'Inter_700Bold',
     color: SAGE.accent,
     letterSpacing: 0.8,
@@ -2114,7 +2114,7 @@ const styles = StyleSheet.create({
   // Cycle results — all three tested lifts, shown on the last test of a block
   cyclePanel: {
     backgroundColor: SAGE.pillBg,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: SAGE.hairline,
     paddingVertical: 12,
@@ -2123,7 +2123,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cycleTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Inter_700Bold',
     color: SAGE.faint,
     letterSpacing: 0.8,
@@ -2148,7 +2148,7 @@ const styles = StyleSheet.create({
   cycleDelta: {
     minWidth: 54,
     textAlign: 'right',
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.faint,
   },
@@ -2161,7 +2161,7 @@ const styles = StyleSheet.create({
   statTile: {
     flex: 1,
     backgroundColor: SAGE.pillBg,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: SAGE.hairline,
     paddingVertical: 11,
@@ -2170,13 +2170,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Inter_700Bold',
     color: SAGE.faint,
     letterSpacing: 0.6,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Inter_700Bold',
     color: SAGE.text,
     fontVariant: ['tabular-nums'],
@@ -2211,16 +2211,16 @@ const styles = StyleSheet.create({
   workedChip: {
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 7,
+    borderRadius: 8,
     backgroundColor: SAGE.pillBg,
   },
   workedChipText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.muted,
   },
   diagramLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.faint,
     letterSpacing: 1.5,
@@ -2240,7 +2240,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   footerStreakText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
     color: SAGE.muted,
   },
@@ -2263,7 +2263,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     backgroundColor: SAGE.pillBg,
     borderColor: SAGE.hairline,
@@ -2280,7 +2280,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: SAGE.accent,
   },
   actionBtnPrimaryText: {
@@ -2300,12 +2300,12 @@ const styles = StyleSheet.create({
   doneButton: {
     marginTop: 10,
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   doneButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Inter_700Bold',
   },
 
@@ -2338,7 +2338,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter_700Bold',
   },
   modalSubtitle: {
@@ -2381,11 +2381,11 @@ const styles = StyleSheet.create({
   },
   modalPrimaryBtn: {
     paddingVertical: 15,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   modalPrimaryBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Inter_700Bold',
   },
   modalSkipBtn: {
@@ -2393,7 +2393,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSkipText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter_500Medium',
   },
 });

@@ -89,5 +89,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 12,
   },
-  ctaText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  ctaText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
 });

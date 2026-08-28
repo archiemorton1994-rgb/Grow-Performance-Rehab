@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 24,
     right: 24,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   introCard: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1.5,
     paddingHorizontal: 24,
     paddingTop: 28,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   introBody: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     lineHeight: 20,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   introBtn: {
     alignSelf: 'stretch',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
     marginBottom: 14,

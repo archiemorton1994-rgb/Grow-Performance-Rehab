@@ -1080,12 +1080,12 @@ export function BodyDiagram({
         toggleBtn: {
           paddingVertical: 7,
           paddingHorizontal: 22,
-          borderRadius: 10,
+          borderRadius: 8,
           alignItems: 'center' as const,
         },
         toggleBtnActive: { backgroundColor: darkPanel ? 'rgba(255,255,255,0.14)' : C.surface },
         toggleText: {
-          fontSize: 14,
+          fontSize: 15,
           fontFamily: 'Inter_600SemiBold',
           color: darkPanel ? 'rgba(255,255,255,0.5)' : C.textSecondary,
         },
@@ -1093,7 +1093,7 @@ export function BodyDiagram({
         catRow: {
           flexDirection: 'row' as const,
           backgroundColor: darkPanel ? 'rgba(255,255,255,0.06)' : C.surfaceTertiary,
-          borderRadius: 10,
+          borderRadius: 8,
           padding: 3,
           alignSelf: 'center' as const,
         },
@@ -1105,7 +1105,7 @@ export function BodyDiagram({
         },
         catBtnActive: { backgroundColor: darkPanel ? 'rgba(255,255,255,0.12)' : C.surface },
         catText: {
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: 'Inter_600SemiBold',
           color: darkPanel ? 'rgba(255,255,255,0.45)' : C.textSecondary,
         },
@@ -1170,9 +1170,9 @@ export function BodyDiagram({
           borderRadius: 20,
           borderWidth: 1.5,
         },
-        labelText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+        labelText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
         hintText: {
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: 'Inter_400Regular',
           color: darkPanel ? 'rgba(255,255,255,0.35)' : C.textTertiary,
         },
@@ -1187,7 +1187,7 @@ export function BodyDiagram({
         legendItem: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4 },
         legendDot: { width: 8, height: 8, borderRadius: 4 },
         legendText: {
-          fontSize: 10,
+          fontSize: 11,
           fontFamily: 'Inter_400Regular',
           color: darkPanel ? 'rgba(255,255,255,0.4)' : C.textTertiary,
         },

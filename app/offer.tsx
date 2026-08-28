@@ -178,7 +178,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 30,
     },
     title: {
-      fontSize: 29,
+      fontSize: 26,
       lineHeight: 35,
       fontFamily: 'Inter_700Bold',
       color: C.text,
@@ -186,7 +186,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 14,
     },
     body: {
-      fontSize: 15.5,
+      fontSize: 15,
       lineHeight: 24,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,

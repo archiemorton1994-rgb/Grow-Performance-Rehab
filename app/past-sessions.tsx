@@ -172,7 +172,7 @@ function makeStyles(C: AppColors) {
     iconBadgeImage: { width: '100%' as any, height: '100%' as any },
     rowMid: { flex: 1, gap: 3 },
     rowTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
-    rowMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    rowMeta: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.textSecondary },
     emptyWrap: {
       flex: 1,
       alignItems: 'center',
@@ -182,7 +182,7 @@ function makeStyles(C: AppColors) {
     },
     emptyTitle: { fontSize: 17, fontFamily: 'Inter_600SemiBold', color: C.text, marginTop: 6 },
     emptyText: {
-      fontSize: 14,
+      fontSize: 15,
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       textAlign: 'center',
