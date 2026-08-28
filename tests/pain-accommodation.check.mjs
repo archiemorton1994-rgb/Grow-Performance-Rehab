@@ -83,7 +83,14 @@ function sweep() {
                   painSeverity: severity,
                   timeAvailable,
                 },
-                { ...profile, strengthSessionCount: seed }
+                profile,
+                undefined,
+                undefined,
+                // The seed is the SEVENTH POSITIONAL argument. Passing it as
+                // `{ ...profile, strengthSessionCount: seed }` sets a property the
+                // generator never reads, so every turn of this loop produced an
+                // identical session and the sweep below counted duplicates.
+                seed
               );
             } catch {
               continue;
@@ -107,6 +114,40 @@ check(
   `${cards.length} cards built for users reporting pain`,
   cards.length > 5000,
   'everything below is measuring nothing if this is small'
+);
+
+/**
+ * And the seed loop has to actually vary the sessions.
+ *
+ * It did not, for a long time. `strengthSessionCount` is the generator's
+ * SEVENTH POSITIONAL argument and the sweep was passing it as a property on the
+ * profile object, where nothing reads it - so every turn of the loop built an
+ * identical session and the count above was a count of duplicates. A live seed
+ * took the sweep from 11,600 cards to 50,104 and immediately turned up a Nordic
+ * Hamstring Curl being served to a torn hamstring, which is line two of that
+ * region's own avoid list.
+ *
+ * A count is not coverage. This checks the thing the count is standing in for.
+ */
+const seedGroups = new Map();
+for (const c of cards) {
+  const key = `${c.sessionType}|${c.tier}|${c.region}|${c.severity}|${c.timeAvailable}`;
+  if (!seedGroups.has(key)) seedGroups.set(key, new Map());
+  const bySeed = seedGroups.get(key);
+  bySeed.set(c.seed, (bySeed.get(c.seed) ?? '') + c.name + ',');
+}
+let variedGroups = 0;
+let flatGroups = 0;
+for (const bySeed of seedGroups.values()) {
+  if (bySeed.size < 2) continue;
+  if (new Set(bySeed.values()).size > 1) variedGroups++;
+  else flatGroups++;
+}
+
+check(
+  `the seed actually varies the session (${variedGroups} of ${variedGroups + flatGroups} groups differ)`,
+  variedGroups > flatGroups,
+  'if every seed builds the same session the sweep is one session counted many times - see the header of this block'
 );
 
 // ─── 2. Nothing on a region's own avoid list is served to that region ────────

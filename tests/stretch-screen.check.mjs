@@ -343,7 +343,14 @@ for (const sessionType of ['lower_body', 'upper_body', 'full_body', 'deadlift', 
                 painSeverity: severity,
                 timeAvailable: '60',
               },
-              { ...profile, strengthSessionCount: seed }
+              profile,
+              undefined,
+              undefined,
+              // The seed is the SEVENTH POSITIONAL argument. Passing it as
+              // `{ ...profile, strengthSessionCount: seed }` sets a property the
+              // generator never reads, so every turn of this loop produced an
+              // identical session and the sweep below counted duplicates.
+              seed
             );
           } catch {
             continue;

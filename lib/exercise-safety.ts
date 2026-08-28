@@ -50,6 +50,16 @@ export type StressTag =
   | 'open_chain_knee'
   /** High tension through the adductors - Copenhagen holds, groin stretches. */
   | 'adductor_load'
+  /**
+   * A maximal eccentric: the lowering IS the exercise, not the tempo.
+   *
+   * Nordic curls, glute-ham raises, razor curls. Deliberately narrow. Almost
+   * every cue in a strength catalogue says "lower under control", and a rule
+   * written from those words would tag half the database - measured, fourteen
+   * entries in the rehab block alone, including a Banded Clamshell. What this
+   * names is the small set of movements whose whole point is a hard lowering.
+   */
+  | 'hard_eccentric'
   /** A loaded hip hinge: deadlifts, RDLs, good mornings, swings. */
   | 'loaded_hinge'
   /** A load sitting on the spine — bar on the back, standing overhead work. */
@@ -312,6 +322,20 @@ const LENGTHEN_DISCLAIMED =
  * cross-body stretch the protocol withholds from a strained rear shoulder, and
  * banning it would take the general warm-up off anyone with a sore arm.
  */
+/**
+ * Rules that must see the exercise's real name.
+ *
+ * TAG_RULES reads a cleaned name; these read the original. Keep this table
+ * small and keep every pattern specific, because nothing here has the
+ * protection of NOT_WHAT_IT_LOOKS_LIKE.
+ */
+const RAW_NAME_RULES: { tag: StressTag; test: RegExp }[] = [
+  // "Nordic curl negatives and other hard lowering work" - hamstrings.avoid.
+  // Covers "Nordic Hamstring Curl", "Partial Nordic Curl" and "Nordic Curl
+  // Negative (slow)", all three of which are in the catalogue.
+  { tag: 'hard_eccentric', test: /\bnordic\b|glute[- ]?ham raise|\bghr\b|\brazor curl\b|\bharop\b/i },
+];
+
 const LENGTHENING_RULES: { tag: StressTag; test: RegExp }[] = [
   {
     tag: 'hamstring_lengthen',
@@ -379,7 +403,17 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   // ── Muscles / soft tissue ─────────────────────────────────────────────────
   calf_shin: ['high_impact', 'ankle_load', 'calf_lengthen'],
   quads: ['deep_knee_flexion', 'open_chain_knee', 'high_impact', 'quad_hipflexor_lengthen'],
-  hamstrings: ['loaded_hinge', 'high_impact', 'hamstring_lengthen', 'hip_end_range'],
+  // hard_eccentric is line two of the region's own avoid list, and it was the
+  // one line with no rule behind it: a Nordic Hamstring Curl is not a hinge,
+  // not impact, not a stretch and not end-range hip, so all four existing tags
+  // let it through. Measured before this: 4 cards over 50,104.
+  hamstrings: [
+    'loaded_hinge',
+    'high_impact',
+    'hamstring_lengthen',
+    'hip_end_range',
+    'hard_eccentric',
+  ],
   // "Deep squats and lunges, which take the hip into the loaded, folded
   // position the tissue least tolerates right now" - glutes.avoid, third
   // line. Measured before adding it: 144 deep squat or lunge cards served to
@@ -402,6 +436,7 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   open_chain_knee: 'loaded knee extension',
   adductor_load: 'high adductor tension',
   hamstring_lengthen: 'stretching the hamstring',
+  hard_eccentric: 'hard lowering work',
   calf_lengthen: 'stretching the calf',
   quad_hipflexor_lengthen: 'stretching the quad and hip flexor',
   hip_end_range: 'end range hip positions',
@@ -469,6 +504,14 @@ export function stressTagsFor(
   const readable = name.replace(NOT_WHAT_IT_LOOKS_LIKE, ' ');
   for (const rule of TAG_RULES) {
     if (rule.test.test(readable)) tags.add(rule.tag);
+  }
+  // Against the RAW name, because NOT_WHAT_IT_LOOKS_LIKE deletes "nordic curl"
+  // before TAG_RULES runs - it has to, or "Nordic HamstRING Curl" matches a
+  // rule about gymnastic rings. So a rule about nordic curls placed in that
+  // table could never fire. Everything here has to be specific enough to be
+  // safe against a whole name rather than a cleaned one.
+  for (const rule of RAW_NAME_RULES) {
+    if (rule.test.test(name)) tags.add(rule.tag);
   }
   const prescription = prescriptionFor(name);
   // Name and cue together, because a stretch instruction is a sentence rather
