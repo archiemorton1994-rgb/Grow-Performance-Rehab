@@ -2175,14 +2175,23 @@ export function fillSwapAlternatives(
      * back one tap later.
      */
     const authored: { name: string; cue?: string; load?: string }[] = [];
-    if (ex.swapName && ex.swapName !== ex.name && restrictedTagsOn(ex.swapName, banned).length === 0) {
+    if (
+      ex.swapName &&
+      ex.swapName !== ex.name &&
+      // The authored CUE is passed too. An alternative written by hand carries
+      // its own wording, which is frequently not the catalogue entry's, and a
+      // stretch instruction lives in the sentence rather than the title -
+      // "Bodyweight Good Morning" reads as a hinge until you get to "feel the
+      // hamstring stretch", which is what the protocol withholds from a strain.
+      restrictedTagsOn(ex.swapName, banned, undefined, ex.swapCue).length === 0
+    ) {
       authored.push({ name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
     }
     if (
       ex.swap2Name &&
       ex.swap2Name !== ex.name &&
       ex.swap2Name !== authored[0]?.name &&
-      restrictedTagsOn(ex.swap2Name, banned).length === 0
+      restrictedTagsOn(ex.swap2Name, banned, undefined, ex.swap2Cue).length === 0
     ) {
       authored.push({ name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
     }
@@ -2369,9 +2378,13 @@ export function applyInjurySafety(
       : ex.sets;
 
   exercises.forEach((ex, i) => {
+    // ex.cue, not just ex.name. stressTagsFor resolves a cue from the
+    // catalogue by name and names are not unique - two Dumbbell Bench Press
+    // entries carry different cues, and the lookup keeps one of them. The
+    // card in hand knows which one it is.
     const hits = SCREEN_EXEMPT_CATEGORIES.includes(ex.category)
       ? []
-      : restrictedTagsOn(ex.name, banned);
+      : restrictedTagsOn(ex.name, banned, undefined, ex.cue);
     if (dropIntensity && HIGH_INTENSITY_CATEGORIES.includes(ex.category)) return;
     if (hits.length === 0) {
       screened.push(ex.sets === setsFor(ex) ? ex : { ...ex, sets: setsFor(ex) });

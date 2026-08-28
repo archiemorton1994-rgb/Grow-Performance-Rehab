@@ -71,7 +71,28 @@ export type StressTag =
   /** Load hanging from, or pulling on, the neck and upper traps. */
   | 'neck_load'
   /** Sustained hard gripping. */
-  | 'grip_load';
+  | 'grip_load'
+  /**
+   * Tissue taken to its end range on purpose.
+   *
+   * Everything above describes what a movement LOADS. These describe what it
+   * LENGTHENS, which is a different question and the one lib/acute-rehab.ts
+   * answers region by region: a healing muscle is pulled apart by the stretch
+   * that feels like it should help. Read from the cue as well as the name,
+   * because the catalogue's worst offenders are innocently named.
+   */
+  | 'hamstring_lengthen'
+  | 'calf_lengthen'
+  | 'quad_hipflexor_lengthen'
+  | 'hip_end_range'
+  | 'pec_lengthen'
+  | 'posterior_shoulder_lengthen'
+  | 'bicep_lengthen'
+  | 'tricep_lengthen'
+  | 'forearm_lengthen'
+  | 'lat_lengthen'
+  | 'neck_trap_lengthen'
+  | 'spinal_end_range';
 
 /**
  * Name patterns → what the movement asks of the body.
@@ -261,31 +282,112 @@ const SEATED_CONDITIONING =
  * quad is a reason to avoid deep loaded knee bending for a session, a painful
  * knee is a reason to avoid it and everything that lands hard on top.
  */
+/**
+ * A cue that promises the stretch is NOT there.
+ *
+ * Checked before the lengthening rules, and the reason they can afford to be
+ * broad. The catalogue is full of comfort variants whose entire purpose is
+ * removing a stretch, and they say so in the words the rules look for:
+ *
+ *   "Arms only to parallel, smaller range - reduces shoulder end-range stretch"
+ *   "no stretch at the bottom, this is the deloaded pattern"
+ *   "the hamstring works with nothing lengthening"
+ *
+ * Screening those out for saying "stretch" would delete the accommodation and
+ * leave the movement it was accommodating. Mirrors IMPACT_DISCLAIMED above.
+ */
+const LENGTHEN_DISCLAIMED =
+  /\bno stretch\b|nothing lengthening|without lengthening|stop short of any (pull|stretch)|reduces? [a-z -]{0,24}stretch|less [a-z -]{0,16}stretch|smaller range|shorter range|zero [a-z -]{0,20}stretch|limited arc|no bouncing/i;
+
+/**
+ * What a movement takes to its end range, read from the name AND the cue.
+ *
+ * Each rule is one tissue paired with a lengthening word, in either order and
+ * within a short distance, plus the named stretches acute-rehab.ts calls out
+ * by name. The proximity half is the point: "Bodyweight Hip Hinge" carries no
+ * warning in its name and its cue reads "Feel the stretch in your hamstrings".
+ *
+ * Deliberately NOT matched: dynamic swings and drills that pass through a
+ * range without holding it. "30s cross-body arm swings" is a warm-up, not the
+ * cross-body stretch the protocol withholds from a strained rear shoulder, and
+ * banning it would take the general warm-up off anyone with a sore arm.
+ */
+const LENGTHENING_RULES: { tag: StressTag; test: RegExp }[] = [
+  {
+    tag: 'hamstring_lengthen',
+    test: /\bhamstrings?\b[a-z ,'-]{0,14}(stretch|lengthen)|(stretch|lengthen)[a-z ,'-]{0,14}\bhamstrings?\b|back of (the |your )?(thigh|leg)[a-z ,'-]{0,12}lengthen|posterior chain lengthen|standing hamstring reach|seated forward fold|\bhold\b[a-z, ]{0,45}\bhamstrings?\b[a-z, ]{0,45}for \d+ ?s\b/i,
+  },
+  {
+    tag: 'calf_lengthen',
+    test: /\b(calf|calves|soleus|gastroc\w*)\b[a-z ,'-]{0,14}stretch|stretch[a-z ,'-]{0,14}\b(calf|calves|soleus)\b|calf stretch|soleus stretch|\bhold\b[a-z, ]{0,45}\bcalves\b[a-z, ]{0,45}for \d+ ?s\b/i,
+  },
+  {
+    tag: 'quad_hipflexor_lengthen',
+    test: /couch stretch|\b(quad|quadricep\w*|hip flexor|front thigh)\b[a-z ,'-]{0,14}stretch|stretch[a-z ,'-]{0,14}\b(quad|quadricep\w*|hip flexor)\b|kneeling (lunge|hip flexor)[a-z ]{0,10}stretch|front of the hip open|\bhold\b[a-z, ]{0,45}\bquads?\b[a-z, ]{0,45}for \d+ ?s\b/i,
+  },
+  {
+    tag: 'hip_end_range',
+    test: /pigeon pose|figure-?4|butterfly stretch|frog stretch|happy baby|straddle|world's greatest stretch|open the groin|\binner thigh\b[a-z ,'-]{0,14}stretch|stretch[a-z ,'-]{0,14}\binner thigh\b/i,
+  },
+  {
+    tag: 'pec_lengthen',
+    test: /doorway (chest|pec|shoulder)[a-z ]{0,8}(stretch|opener)|pec minor stretch|\b(pecs?|chest)\b[a-z ,'-]{0,14}stretch|stretch[a-z ,'-]{0,14}\b(pecs?|chest)\b|floor angel|\bhold\b[a-z, ]{0,45}\bchest\b[a-z, ]{0,45}for \d+ ?s\b/i,
+  },
+  {
+    tag: 'posterior_shoulder_lengthen',
+    test: /cross-?body shoulder stretch|sleeper stretch|posterior capsule|\b(rear delt|posterior shoulder)\b[a-z ,'-]{0,14}stretch/i,
+  },
+  {
+    tag: 'bicep_lengthen',
+    test: /bicep stretch \(arm back\)|\bbiceps?\b[a-z ,'-]{0,14}(stretch|lengthen)|stretch[a-z ,'-]{0,14}\bbiceps?\b/i,
+  },
+  {
+    tag: 'tricep_lengthen',
+    test: /(overhead|cross-?body) tricep stretch|\btriceps?\b[a-z ,'-]{0,14}(stretch|lengthen)|stretch[a-z ,'-]{0,14}\btriceps?\b|wall angel|overhead arm slide/i,
+  },
+  {
+    tag: 'forearm_lengthen',
+    test: /wrist (flexor|extensor) stretch|forearm flexor|forearm extensor|\b(wrist|forearm)\b[a-z ,'-]{0,14}stretch|stretch[a-z ,'-]{0,14}\b(wrist|forearm)\b|pull fingers (back|down)/i,
+  },
+  {
+    tag: 'lat_lengthen',
+    test: /doorway lat stretch|child's pose|\b(lats?|latissimus)\b[a-z ,'-]{0,14}(stretch|lengthen)|lengthen\w*[a-z ,'-]{0,10}\blats?\b|side-?bend overhead reach/i,
+  },
+  {
+    tag: 'neck_trap_lengthen',
+    test: /neck side stretch|upper trap stretch|levator scapulae|\b(neck|upper trap|scm)\b[a-z ,'-]{0,14}(stretch|lengthen)|ear (to|toward) (the )?shoulder/i,
+  },
+  {
+    tag: 'spinal_end_range',
+    test: /cat-?cow|child's pose|full spinal flexion and extension/i,
+  },
+];
+
 export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   // ── Joints ────────────────────────────────────────────────────────────────
-  knee: ['high_impact', 'deep_knee_flexion', 'open_chain_knee'],
-  ankle_achilles: ['high_impact', 'ankle_load'],
-  hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge', 'adductor_load'],
-  lower_back: ['high_impact', 'spinal_compression', 'lumbar_flexion', 'loaded_hinge'],
-  upper_back: ['spinal_compression', 'overhead', 'neck_load'],
-  neck: ['neck_load', 'overhead', 'spinal_compression'],
-  front_shoulder: ['overhead', 'shoulder_end_range'],
-  rear_shoulder: ['overhead', 'shoulder_end_range'],
-  elbow: ['elbow_load', 'overhead', 'wrist_load'],
-  wrist: ['wrist_load', 'grip_load'],
+  knee: ['high_impact', 'deep_knee_flexion', 'open_chain_knee', 'quad_hipflexor_lengthen', 'hip_end_range'],
+  ankle_achilles: ['high_impact', 'ankle_load', 'calf_lengthen'],
+  hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge', 'adductor_load', 'hip_end_range', 'quad_hipflexor_lengthen'],
+  lower_back: ['high_impact', 'spinal_compression', 'lumbar_flexion', 'loaded_hinge', 'quad_hipflexor_lengthen'],
+  upper_back: ['spinal_compression', 'overhead', 'neck_load', 'spinal_end_range', 'neck_trap_lengthen'],
+  neck: ['neck_load', 'overhead', 'spinal_compression', 'neck_trap_lengthen'],
+  front_shoulder: ['overhead', 'shoulder_end_range', 'pec_lengthen', 'posterior_shoulder_lengthen'],
+  rear_shoulder: ['overhead', 'shoulder_end_range', 'posterior_shoulder_lengthen'],
+  elbow: ['elbow_load', 'overhead', 'wrist_load', 'forearm_lengthen'],
+  wrist: ['wrist_load', 'grip_load', 'forearm_lengthen'],
 
   // ── Muscles / soft tissue ─────────────────────────────────────────────────
-  calf_shin: ['high_impact', 'ankle_load'],
-  quads: ['deep_knee_flexion', 'open_chain_knee', 'high_impact'],
-  hamstrings: ['loaded_hinge', 'high_impact'],
-  glutes: ['loaded_hinge', 'high_impact'],
+  calf_shin: ['high_impact', 'ankle_load', 'calf_lengthen'],
+  quads: ['deep_knee_flexion', 'open_chain_knee', 'high_impact', 'quad_hipflexor_lengthen'],
+  hamstrings: ['loaded_hinge', 'high_impact', 'hamstring_lengthen', 'hip_end_range'],
+  glutes: ['loaded_hinge', 'high_impact', 'hip_end_range'],
   // horizontal_press is what actually loads a strained pec. Without it this
   // region could remove flyes and dips and nothing else, so bench press stood.
-  chest: ['shoulder_end_range', 'horizontal_press'],
-  bicep: ['elbow_load', 'grip_load'],
-  tricep: ['elbow_load', 'overhead'],
-  lat_mid_back: ['loaded_hinge', 'spinal_compression'],
-  core_ribs: ['lumbar_flexion', 'loaded_hinge'],
+  chest: ['shoulder_end_range', 'horizontal_press', 'pec_lengthen'],
+  bicep: ['elbow_load', 'grip_load', 'bicep_lengthen', 'posterior_shoulder_lengthen', 'forearm_lengthen'],
+  tricep: ['elbow_load', 'overhead', 'tricep_lengthen', 'forearm_lengthen'],
+  lat_mid_back: ['loaded_hinge', 'spinal_compression', 'lat_lengthen'],
+  core_ribs: ['lumbar_flexion', 'loaded_hinge', 'spinal_end_range'],
 };
 
 /** Plain-English name for a tag, for the line shown on a substituted card. */
@@ -294,6 +396,18 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   deep_knee_flexion: 'deep knee bending',
   open_chain_knee: 'loaded knee extension',
   adductor_load: 'high adductor tension',
+  hamstring_lengthen: 'stretching the hamstring',
+  calf_lengthen: 'stretching the calf',
+  quad_hipflexor_lengthen: 'stretching the quad and hip flexor',
+  hip_end_range: 'end range hip positions',
+  pec_lengthen: 'stretching the chest',
+  posterior_shoulder_lengthen: 'stretching the back of the shoulder',
+  bicep_lengthen: 'stretching the bicep',
+  tricep_lengthen: 'stretching the tricep',
+  forearm_lengthen: 'stretching the wrist and forearm',
+  lat_lengthen: 'stretching the lat',
+  neck_trap_lengthen: 'stretching the neck and upper traps',
+  spinal_end_range: 'end range spinal rounding',
   loaded_hinge: 'loaded hip hinging',
   spinal_compression: 'loading through the spine',
   lumbar_flexion: 'rounding the lower back',
@@ -341,13 +455,26 @@ function prescriptionFor(name: string): string {
  * `movementPattern` is used only as a backstop for names the patterns miss —
  * a hinge or a squat that is named after its equipment rather than its shape.
  */
-export function stressTagsFor(name: string, movementPattern?: string): StressTag[] {
+export function stressTagsFor(
+  name: string,
+  movementPattern?: string,
+  cue?: string
+): StressTag[] {
   const tags = new Set<StressTag>();
   const readable = name.replace(NOT_WHAT_IT_LOOKS_LIKE, ' ');
   for (const rule of TAG_RULES) {
     if (rule.test.test(readable)) tags.add(rule.tag);
   }
   const prescription = prescriptionFor(name);
+  // Name and cue together, because a stretch instruction is a sentence rather
+  // than a title. `cue` is passed by callers holding an alternative the
+  // catalogue does not own - a hand-authored swap can carry its own wording.
+  const spoken = `${name} ${cue ?? ''} ${prescription}`;
+  if (!LENGTHEN_DISCLAIMED.test(spoken)) {
+    for (const rule of LENGTHENING_RULES) {
+      if (rule.test.test(spoken)) tags.add(rule.tag);
+    }
+  }
   if (
     IMPACT_IN_PRESCRIPTION.test(prescription) &&
     !IMPACT_DISCLAIMED.test(prescription) &&
@@ -429,10 +556,11 @@ export function substitutionRestrictedTags(banned: Set<StressTag>): Set<StressTa
 export function restrictedTagsOn(
   name: string,
   banned: Set<StressTag>,
-  movementPattern?: string
+  movementPattern?: string,
+  cue?: string
 ): StressTag[] {
   if (banned.size === 0) return [];
-  return stressTagsFor(name, movementPattern).filter((t) => banned.has(t));
+  return stressTagsFor(name, movementPattern, cue).filter((t) => banned.has(t));
 }
 
 /**
