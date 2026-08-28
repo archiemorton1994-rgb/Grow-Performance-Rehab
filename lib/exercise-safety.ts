@@ -48,6 +48,8 @@ export type StressTag =
   | 'deep_knee_flexion'
   /** Resisted knee extension with the foot free — hard on the kneecap. */
   | 'open_chain_knee'
+  /** High tension through the adductors - Copenhagen holds, groin stretches. */
+  | 'adductor_load'
   /** A loaded hip hinge: deadlifts, RDLs, good mornings, swings. */
   | 'loaded_hinge'
   /** A load sitting on the spine — bar on the back, standing overhead work. */
@@ -92,8 +94,31 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // The light front-loaded squats (goblet, box, bodyweight) are deliberately
   // NOT here: they are the regression the screen reaches for, and banning the
   // substitute along with the movement leaves nothing to put in its place.
-  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|\bback squat\b|barbell squat|belt squat|zercher|\bleg press\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive/i },
+  // \bwall sit\b added after the app was measured choosing one AS the
+  // protection. ACUTE_PROTOCOL_NOTES.knee.avoid names "VMO Wall Sit and any
+  // long hold at 90 degrees" and quads.avoid names "Isometric Wall Sit"; the
+  // screen matched neither, so a 45-second full-depth quad isometric ranked
+  // top of the accessory pool for a sore quad and the card read "Swapped from
+  // Bulgarian Split Squat to protect your quads". Reproduced at
+  // lower_body/bodyweight for quads and knee, at mild and at severe.
+  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|\bback squat\b|barbell squat|belt squat|zercher|\bleg press\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive|\bwall sit\b/i },
   { tag: 'open_chain_knee', test: /leg extension|knee extension|quad extension/i },
+  /**
+   * The Copenhagen plank and its relatives.
+   *
+   * ACUTE_PROTOCOL_NOTES.hip_groin.avoid opens with "Copenhagen Adductor Hold,
+   * one of the highest adductor loads there is, and completely wrong for a
+   * groin that is still healing", and then names butterfly and seated groin
+   * stretches. Nothing in this table matched any of them, so the highest
+   * adductor load in the catalogue was being chosen as the PROTECTIVE swap for
+   * a sore groin. Measured at lower_body/bodyweight/hip_groin.
+   *
+   * Deliberately not matching "adduction": Side-Lying Hip Adduction is the
+   * gentle regression the screen reaches for, and banning the substitute along
+   * with the movement leaves nothing to put in its place - the same reasoning
+   * as the light squats above.
+   */
+  { tag: 'adductor_load', test: /copenhagen|\badductor\b|butterfly stretch|groin stretch|frog stretch/i },
 
   // Hip and low back.
   // \bswings?\b spelled exactly as grip_load spells it. The plural was missing
@@ -240,7 +265,7 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   // ── Joints ────────────────────────────────────────────────────────────────
   knee: ['high_impact', 'deep_knee_flexion', 'open_chain_knee'],
   ankle_achilles: ['high_impact', 'ankle_load'],
-  hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge'],
+  hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge', 'adductor_load'],
   lower_back: ['high_impact', 'spinal_compression', 'lumbar_flexion', 'loaded_hinge'],
   upper_back: ['spinal_compression', 'overhead', 'neck_load'],
   neck: ['neck_load', 'overhead', 'spinal_compression'],
@@ -268,6 +293,7 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   high_impact: 'jumping and landing',
   deep_knee_flexion: 'deep knee bending',
   open_chain_knee: 'loaded knee extension',
+  adductor_load: 'high adductor tension',
   loaded_hinge: 'loaded hip hinging',
   spinal_compression: 'loading through the spine',
   lumbar_flexion: 'rounding the lower back',

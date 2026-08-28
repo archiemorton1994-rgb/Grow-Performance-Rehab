@@ -2301,7 +2301,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         name: 'Banded Good Morning',
         sets: 3,
         reps: '15',
-        cue: 'Band around neck, hinge at hips - feel hamstrings load at bottom',
+        cue: 'Band across the upper back, not the neck, hinge at hips - feel hamstrings load at bottom',
         suggestedLoad: 'Medium band',
         category: 'mechanical',
         targetRegions: ['hamstrings', 'glutes', 'lower_back', 'hip_groin'],
@@ -2344,7 +2344,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         injuryFriendlyAlternatives: ['Hip Hinge Drill (Wall)'],
         swapAlternative: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge at hips - same posterior chain primer without the cable',
+          cue: 'Band across the upper back, not the neck, hinge at hips - same posterior chain primer without the cable',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
@@ -4031,7 +4031,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         injuryFriendlyAlternatives: [],
         swapAlternative: {
           name: 'Banded Good Morning (fast)',
-          cue: 'Band around neck, hinge and drive back fast - lighter load, same speed practice',
+          cue: 'Band across the upper back, not the neck, hinge and drive back fast - lighter load, same speed practice',
           suggestedLoad: 'Medium band',
         },
         comfortVariant: {
@@ -4539,7 +4539,13 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
       },
       comfortVariant: {
         name: 'Supported Hip Hinge',
-        cue: 'Hands on wall, feel hamstring stretch - remove balance demand',
+        // This variant fires ONLY because the user reported hamstring, glute,
+        // knee, hip or low-back pain. "Feel hamstring stretch" is named in
+        // ACUTE_PROTOCOL_NOTES.hamstrings.avoid as the thing to withhold, and
+        // lib/acute-rehab.ts's own header lists this exact cue as one of the
+        // two defects that file was written to fix. The routing fix landed in
+        // the rehab slot and never reached the main lift.
+        cue: 'Hands on the wall, push the hips back only as far as the back stays flat, then drive the hips forward to stand - stop short of any pull down the back of the thigh',
         suggestedLoad: 'Bodyweight',
         triggerRegions: ['lower_back', 'hip_groin', 'knee', 'hamstrings', 'glutes'],
       },
@@ -5216,7 +5222,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge slowly - hamstring loading with minimal spinal compression',
+          cue: 'Band across the upper back, not the neck, hinge slowly - hamstring loading with minimal spinal compression',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
         },
@@ -5303,7 +5309,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge - minimal spinal compression',
+          cue: 'Band across the upper back, not the neck, hinge - minimal spinal compression',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
         },
@@ -5797,8 +5803,14 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '30-50 kg',
         },
         comfortVariant: {
-          name: 'Partial Nordic Curl',
-          cue: 'Start from raised surface, shorter range - reduces peak hamstring tension at the knee',
+          // Was a Partial Nordic Curl, served to somebody who had just reported
+          // hamstring pain. Shortening the range lowers peak tension; it does
+          // not turn a maximal eccentric into acute-phase work, and the old
+          // cue conceded as much by naming tension as the thing being reduced.
+          // ACUTE_PROTOCOL_NOTES.hamstrings.avoid names Nordic negatives
+          // outright.
+          name: 'Glute Bridge (isometric hold)',
+          cue: 'Feet flat and tucked in close, lift the hips and hold - the hamstring works with nothing lengthening',
           suggestedLoad: 'Bodyweight',
           triggerRegions: ['knee', 'hamstrings'],
         },
@@ -6034,7 +6046,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge slowly - minimal spinal compression, same posterior chain activation',
+          cue: 'Band across the upper back, not the neck, hinge slowly - minimal spinal compression, same posterior chain activation',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
         },
@@ -7759,7 +7771,11 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         name: 'Banded Good Morning',
         sets: 3,
         reps: '20',
-        cue: 'Band around neck, hinge - feel hamstrings stretch and load',
+        // Was "Band across the upper back, not the neck". A band loaded across the cervical spine is
+        // not where that force belongs, and the app restricts neck_load
+        // elsewhere for exactly this reason. Across the shoulders is the same
+        // movement with the load on the thorax.
+        cue: 'Band across the upper back and shoulders, not the neck - hinge at the hips with a flat back, then drive the hips forward to stand',
         suggestedLoad: 'Medium band',
         category: 'accessory',
         targetRegions: ['hamstrings', 'glutes', 'lower_back', 'hip_groin'],
@@ -7778,7 +7794,12 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Standing Hip Hinge Against Wall',
-          cue: 'Hands on wall, hinge back until hamstrings stretch - zero spinal compressive load',
+          // "Hinge back UNTIL hamstrings stretch" makes the stretch the target
+          // of the movement rather than a sensation to notice, and this only
+          // ever appears to somebody who has just reported hamstring, low-back
+          // or groin pain. The trailing clause is about the SPINE, and read as
+          // reassurance about the hamstring, which it is not.
+          cue: 'Hands on the wall, push the hips back and stop while the back is still flat, then drive the hips forward to stand - no stretch at the bottom, this is the deloaded pattern',
           suggestedLoad: 'Bodyweight',
           triggerRegions: ['lower_back', 'hip_groin', 'hamstrings'],
         },
@@ -8099,7 +8120,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge slowly - hip hinge pattern with minimal spinal load',
+          cue: 'Band across the upper back, not the neck, hinge slowly - hip hinge pattern with minimal spinal load',
           suggestedLoad: 'Light band',
           triggerRegions: ['hip_groin', 'lower_back', 'hamstrings', 'glutes'],
         },
@@ -8331,7 +8352,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge - hamstring loading with minimal spinal compression',
+          cue: 'Band across the upper back, not the neck, hinge - hamstring loading with minimal spinal compression',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'knee'],
         },
@@ -8565,7 +8586,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
-          cue: 'Band around neck, hinge slowly - hip hinge with minimal spinal load',
+          cue: 'Band across the upper back, not the neck, hinge slowly - hip hinge with minimal spinal load',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'glutes', 'hamstrings', 'hip_groin'],
         },
@@ -9610,8 +9631,16 @@ const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> 
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
-          name: 'Nordic Hamstring Curl (slow eccentric)',
-          cue: 'Ankles secured, lower your body slowly - strong eccentric hamstring prehab',
+          // Was a Nordic Hamstring Curl. Swapping inherits the ORIGINAL card's
+          // sets and reps (app/session.tsx getDisplayExercise overrides only
+          // name, cue and load), so the card read "Nordic Hamstring Curl -
+          // 2 x 30s each": the heaviest eccentric a hamstring can be given,
+          // prescribed as a stretch, at the end of a deadlift session, to a
+          // beginner with no pain reported. The bodyweight and dumbbell
+          // versions of this same slot both offer a supine stretch; the
+          // fullgym one was the odd entry out.
+          name: 'Supine Hamstring Stretch (strap)',
+          cue: 'On your back, loop a towel or strap round the foot and draw the straight leg up until the hamstring lengthens - hold, breathe, no bouncing',
           suggestedLoad: 'Bodyweight',
         },
       },

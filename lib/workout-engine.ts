@@ -2590,7 +2590,28 @@ function generateWorkoutUnscreened(
   //   60 min → all 3 stretches
   const prep = seededShuffleDiverse(getPrep(mainType, equipmentTier), sessionSeed);
   const prepCount = timeAvailable === '45' ? 2 : 3;
-  for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
+  /**
+   * WARM-UPS APPLY THEIR COMFORT VARIANTS TOO, AND USED NOT TO.
+   *
+   * This called templateToExercise directly, as the mechanical block below
+   * did, while neuro, main and accessory all went through applyComfortOrBadge.
+   * So 18 prep templates and all 30 mechanical templates carried a
+   * hand-authored comfortVariant with triggerRegions that could never fire.
+   *
+   * Measured before the change by running this generator: 11,600 cards for
+   * users who had reported a pain region, and not one prep or mechanical card
+   * carried a comfort id. Over the same run neuro applied 100, main 280 and
+   * accessory 280.
+   *
+   * What that cost is the exact contradiction this app exists to avoid. A user
+   * with an acute front-shoulder strain was given "Shoulder CARs, full shoulder
+   * range" in their warm-up, while lib/acute-rehab.ts says in as many words
+   * that taking the joint to its limit in every direction is the opposite of
+   * what an acute strain needs - and this entry's own unreachable comfort
+   * variant was the pendulum swing that the acute protocol prescribes first.
+   */
+  for (const p of prep.slice(0, prepCount))
+    exercises.push(applyComfortOrBadge(p, hasAches, painRegion, equipmentTier));
 
   // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
   // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
@@ -2603,9 +2624,9 @@ function generateWorkoutUnscreened(
   const mechanical = seededShuffleDiverse(mechanicalPool, sessionSeed);
   if (timeAvailable === '60') {
     for (const m of mechanical.slice(0, 2))
-      exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
+      exercises.push(applyComfortOrBadge(m, hasAches, painRegion, equipmentTier));
   } else {
-    exercises.push(templateToExercise(mechanical[0], undefined, isDumbbellTier(equipmentTier)));
+    exercises.push(applyComfortOrBadge(mechanical[0], hasAches, painRegion, equipmentTier));
   }
 
   // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
@@ -2754,10 +2775,27 @@ function generateWorkoutUnscreened(
   const kettlebelled =
     equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
-  // Deduplicate: remove any exercise whose name (case-insensitive) has already appeared
+  /**
+   * Deduplicate by name, with one exception that has to come first.
+   *
+   * A COLLISION WITH THE REHAB SLOT IS RESOLVED IN THE REHAB SLOT'S FAVOUR.
+   * Plain first-wins dedup drops whichever card was assembled later, and the
+   * rehab slot is assembled after the warm-up. When comfort variants were
+   * switched on for prep, a bench session for a sore shoulder started opening
+   * with a Pendulum Shoulder Swing - which is precisely what the acute protocol
+   * prescribes for that region - so the two collided and the acute card was the
+   * one deleted. The movement survived; the card explaining what it was for,
+   * and carrying the acute prescription, did not.
+   *
+   * The rehab slot is the point of the whole pain-adaptation path, so it wins.
+   */
+  const rehabNames = new Set(
+    kettlebelled.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
+  );
   const seenNames = new Set<string>();
   const deduped = kettlebelled.filter((ex) => {
     const key = ex.name.toLowerCase().trim();
+    if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
     if (seenNames.has(key)) return false;
     seenNames.add(key);
     return true;
