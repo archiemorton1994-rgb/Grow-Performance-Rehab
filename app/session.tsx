@@ -582,12 +582,15 @@ interface SessionActiveBarProps {
   /**
    * The way out of a set that was harder than the plan expected.
    *
-   * Raised by answering "Challenging" while sets remain, and only from the
-   * working set onward - see the guard where it is set. 'lighter' leaves one
-   * final set at a reduced weight; 'skip' ends the exercise and keeps every set
+   * Raised by answering "Challenging" while sets remain. 'lighter' leaves one
+   * final set at `targetKg`; 'skip' ends the exercise and keeps every set
    * already logged.
+   *
+   * The weight is decided here rather than by the handler, so the number on the
+   * button is by construction the number written to the set. Working it out in
+   * both places from the same inputs is two chances for those to diverge.
    */
-  onEaseOff?: (exerciseIndex: number, mode: 'lighter' | 'skip', fromKg: number) => void;
+  onEaseOff?: (exerciseIndex: number, mode: 'lighter' | 'skip', targetKg: number) => void;
   /** One short line explaining why the prefilled weight is what it is, if it
    *  was changed by the previous set's answer. */
   autoNote?: string | null;
@@ -740,7 +743,12 @@ export function SessionActiveBar({
    * change. Held separately from showFeedback so that answering still records
    * the answer even if the user backs out of this.
    */
-  const [easeOff, setEaseOff] = useState<{ exerciseIndex: number; kg: number } | null>(null);
+  const [easeOff, setEaseOff] = useState<{
+    exerciseIndex: number;
+    kg: number;
+    /** False while the weight is still climbing towards the top of a ramp. */
+    isWorkingSet: boolean;
+  } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
   /**
@@ -887,17 +895,20 @@ export function SessionActiveBar({
     if (showFeedback) {
       onFeedback(showFeedback.exerciseId, showFeedback.setIndex, f, showFeedback.kg);
       // The answer is recorded either way. What follows is an offer, not a
-      // consequence: four conditions have to hold before it is worth making.
-      // There has to be a later set for it to change, a weight for it to
-      // reduce, and the ramp has to be over, or the offer lands on a warm-up.
+      // consequence: there has to be a later set for it to change and a weight
+      // for it to move. Whether the ramp is over decides WHAT is offered, not
+      // whether anything is - see the easeOff branch below.
       if (
         f === 'challenging' &&
         onEaseOff &&
         showFeedback.remaining > 0 &&
-        showFeedback.kg > 0 &&
-        showFeedback.isWorkingSet
+        showFeedback.kg > 0
       ) {
-        setEaseOff({ exerciseIndex: showFeedback.exerciseIndex, kg: showFeedback.kg });
+        setEaseOff({
+          exerciseIndex: showFeedback.exerciseIndex,
+          kg: showFeedback.kg,
+          isWorkingSet: showFeedback.isWorkingSet,
+        });
         setShowFeedback(null);
         return;
       }
@@ -950,13 +961,29 @@ export function SessionActiveBar({
    * up with two things asking at once.
    */
   if (easeOff) {
-    const lighterKg = roundToLoadable(easeOff.kg * (1 - EASE_OFF_FRACTION), weightUnit);
+    /**
+     * What "one more, lighter" means depends on where in the exercise they are.
+     *
+     * ON A RAMP RUNG the weight is still climbing, and the set the plan is
+     * about to ask for is HEAVIER than the one they just called hard. Twenty
+     * per cent down from here would be a weight they warmed up on. So the offer
+     * is to stop climbing and take this weight as the top set: lighter than
+     * what was coming, which is the relief being asked for.
+     *
+     * AT THE TOP OF A RAMP, or on a flat accessory where every set carries the
+     * same target, there is nothing left to climb and the honest relief is a
+     * real reduction.
+     */
+    const lighterKg = easeOff.isWorkingSet
+      ? roundToLoadable(easeOff.kg * (1 - EASE_OFF_FRACTION), weightUnit)
+      : easeOff.kg;
     const lighter = formatWeight(lighterKg, weightUnit);
     // Twenty per cent off the lightest dumbbell in the building rounds back
     // onto it, because a weight has to be one the gym can actually load. The
-    // row would then promise relief and hand back the same weight. Skipping
-    // and carrying on are both still there.
-    const canGoLighter = lighterKg < easeOff.kg;
+    // row would then promise relief and hand back the same weight. Stopping a
+    // ramp early is always a real change, so only the reduction has to prove
+    // it moved. Skipping and carrying on are both still there either way.
+    const canGoLighter = !easeOff.isWorkingSet || lighterKg < easeOff.kg;
     return (
       <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
         <Text style={styles.barFeedbackPrompt}>Hard work. Want to ease off?</Text>
@@ -964,7 +991,7 @@ export function SessionActiveBar({
           {canGoLighter && (
             <Pressable
               onPress={() => {
-                onEaseOff?.(easeOff.exerciseIndex, 'lighter', easeOff.kg);
+                onEaseOff?.(easeOff.exerciseIndex, 'lighter', lighterKg);
                 setEaseOff(null);
               }}
               style={styles.easeOffBtn}
@@ -975,13 +1002,17 @@ export function SessionActiveBar({
               <Ionicons name="trending-down" size={20} color={C.primaryText} />
               <View style={styles.easeOffTextCol}>
                 <Text style={styles.easeOffTitle}>One more set at {lighter}</Text>
-                <Text style={styles.easeOffSub}>Finish the exercise on a weight you control</Text>
+                <Text style={styles.easeOffSub}>
+                  {easeOff.isWorkingSet
+                    ? 'Finish the exercise on a weight you control'
+                    : 'Stop climbing and finish on this weight'}
+                </Text>
               </View>
             </Pressable>
           )}
           <Pressable
             onPress={() => {
-              onEaseOff?.(easeOff.exerciseIndex, 'skip', easeOff.kg);
+              onEaseOff?.(easeOff.exerciseIndex, 'skip', 0);
               setEaseOff(null);
             }}
             style={styles.easeOffBtn}
@@ -3819,18 +3850,22 @@ export default function SessionScreen() {
    * The weight is written onto the set rather than held beside it, because the
    * bar already prefills from a set's stored weight when it has one. Nothing
    * new has to be taught about where a recommendation comes from.
+   *
+   * targetKg arrives already decided. The bar has to work it out anyway to put
+   * it on the button, and doing the same sum again here is how the number
+   * somebody agreed to and the number they get stop being the same number.
    */
   const handleEaseOff = useCallback(
-    (index: number, mode: 'lighter' | 'skip', fromKg: number) => {
+    (index: number, mode: 'lighter' | 'skip', targetKg: number) => {
       if (mode === 'skip') {
         handleSkipExercise(index);
         return;
       }
       setExerciseData((prev) => {
         const ex = prev[index];
-        if (!ex || ex.sets.length === 0) return prev;
+        if (!ex || ex.sets.length === 0 || targetKg <= 0) return prev;
         const last = ex.sets.length - 1;
-        const backOffKg = roundToLoadable(fromKg * (1 - EASE_OFF_FRACTION), weightUnit);
+        const backOffKg = targetKg;
         const next = [...prev];
         next[index] = {
           ...ex,
@@ -3845,7 +3880,7 @@ export default function SessionScreen() {
       });
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     },
-    [handleSkipExercise, weightUnit]
+    [handleSkipExercise]
   );
 
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
@@ -4818,49 +4853,53 @@ export default function SessionScreen() {
                 return (
                   <>
                     <Text style={styles.machineFocusNote}>{focusHeading(focus)}</Text>
-                    <ScrollView
-                      style={styles.swapOptionScroll}
-                      contentContainerStyle={styles.swapOptionList}
-                      showsVerticalScrollIndicator={false}
-                    >
+                    {/* No ScrollView. Four machines fit, and a list that has
+                        to be scrolled to be seen is a list with two of its
+                        answers hidden - which is exactly how this sheet looked
+                        the first time it was photographed. */}
+                    <View style={styles.machineList}>
                       {ordered.map((m, i) => {
                         const selected = current === m.id;
                         return (
                           <React.Fragment key={m.id}>
                             {i === relevantCount && relevantCount < ordered.length && (
                               <Text style={styles.machineGroupHeading}>
-                                Still a proper warm-up, just not the half this session loads
+                                Also a proper warm-up, just not for this session
                               </Text>
                             )}
                             <Pressable
                               onPress={() => handleMachineChoice(idx, m.id)}
-                              style={[styles.swapOption, selected && styles.swapOptionSelected]}
+                              style={[styles.machineRow, selected && styles.machineRowSelected]}
                               testID={`machine-option-${m.id}`}
                               accessibilityRole="button"
                               accessibilityLabel={`Warm up on the ${m.label}`}
                             >
-                              <View style={styles.swapOptionHead}>
-                                <Ionicons name="fitness-outline" size={13} color={C.primaryText} />
-                                <Text style={styles.swapOptionKind} numberOfLines={1}>
-                                  {m.primes === 'lower' ? 'Wakes up the legs' : 'Wakes up the shoulders and back'}
-                                </Text>
-                                {selected && (
-                                  <Ionicons
-                                    name="checkmark-circle"
-                                    size={16}
-                                    color={C.primaryText}
-                                  />
-                                )}
-                              </View>
-                              <Text style={styles.swapToName}>{m.label}</Text>
-                              <Text style={styles.swapToCue} numberOfLines={3}>
-                                {m.cue}
+                              <Text
+                                style={[
+                                  styles.machineRowName,
+                                  selected && styles.machineRowNameSelected,
+                                ]}
+                              >
+                                {m.label}
                               </Text>
+                              {selected ? (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={22}
+                                  color={C.primaryText}
+                                />
+                              ) : (
+                                <Ionicons
+                                  name="chevron-forward"
+                                  size={20}
+                                  color={C.textTertiary}
+                                />
+                              )}
                             </Pressable>
                           </React.Fragment>
                         );
                       })}
-                    </ScrollView>
+                    </View>
                     <Text style={styles.machineDurationNote}>
                       {`Whichever you pick, the warm-up stays ${exercises[idx]?.reps ?? '2 min steady'}.`}
                     </Text>
@@ -4926,12 +4965,35 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 12,
     },
     machineGroupHeading: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: 'Inter_500Medium',
       color: C.textTertiary,
-      marginTop: 6,
+      marginTop: 10,
       marginBottom: 2,
     },
+    machineList: { width: '100%', gap: 8 },
+    machineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    machineRowSelected: {
+      backgroundColor: C.primarySurface,
+      borderColor: C.primary,
+    },
+    machineRowName: {
+      fontSize: 17,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.text,
+    },
+    machineRowNameSelected: { color: C.primaryDark },
     machineDurationNote: {
       fontSize: 12,
       fontFamily: 'Inter_400Regular',

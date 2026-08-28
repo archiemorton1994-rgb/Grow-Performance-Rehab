@@ -15,11 +15,19 @@
  *
  * WHAT THIS ASSERTS, AND WHY EACH ONE IS HERE
  * ───────────────────────────────────────────
- * IT MUST NOT LAND ON A WARM-UP RUNG. lib/auto-regulation.ts opens with this
+ * A RAMP RUNG IS NOT A WORKING SET. lib/auto-regulation.ts opens with this
  * trap: on a ramped main lift, "that felt challenging" on rung one of six means
- * the bar is heavy, not that the session is beyond the lifter. Offering to skip
- * the rest of the exercise there is offering to skip the work before any of it
- * has been done. The offer is gated on the ramp being over.
+ * the bar is heavy, not that the session is beyond the lifter, and twenty per
+ * cent below that rung is a weight they warmed up on.
+ *
+ * The first version answered this by withholding the offer on a rung. Walking a
+ * real generated squat session showed what that cost: the barbell squat is five
+ * sets, every one of them a new higher weight, so no rung is ever at the top of
+ * the plan and the top has no sets left after it. The offer could not appear on
+ * the hardest work in the session. So the ramp now changes WHAT is offered.
+ * On a rung it is "stop climbing and take this weight as your top set", which
+ * is lighter than the set the plan was about to ask for. At the top of a ramp,
+ * and on a flat accessory, it is a real twenty per cent reduction.
  *
  * THE LIGHTER WEIGHT MUST BE LIGHTER. Twenty per cent off the lightest dumbbell
  * in the building rounds straight back onto it, because every weight the app
@@ -72,9 +80,15 @@ check(
 );
 
 check(
-  'and the ramp has to be over',
-  /showFeedback\.isWorkingSet/.test(session),
-  'see lib/auto-regulation.ts: challenging on warm-up rung one of six means the bar is heavy, not that the session is beyond them'
+  'and that is all it takes, so the main lift can reach it too',
+  /showFeedback\.kg > 0\s*\r?\n\s*\) \{/.test(session),
+  'gating on the ramp being over made the offer unreachable on every main lift: each rung is below the top, and the top has no sets left after it'
+);
+
+check(
+  'whether the ramp is over is carried into the offer',
+  /isWorkingSet: showFeedback\.isWorkingSet,/.test(session),
+  'it decides which kind of relief the row describes'
 );
 
 console.log('\n[2] The context is captured, not read live');
@@ -138,10 +152,25 @@ check(
 );
 
 check(
-  'and where it cannot go lower, the row is not offered',
-  /const canGoLighter = lighterKg < easeOff\.kg;/.test(session) &&
+  'a rung offers the weight just lifted; a working set offers less',
+  /const lighterKg = easeOff\.isWorkingSet\s*\r?\n?\s*\? roundToLoadable\(easeOff\.kg \* \(1 - EASE_OFF_FRACTION\), weightUnit\)\s*\r?\n?\s*: easeOff\.kg;/.test(
+    session
+  ),
+  'twenty per cent below a ramp rung is a weight they warmed up on; stopping the climb is the relief there'
+);
+
+check(
+  'and where a reduction cannot go lower, the row is not offered',
+  /const canGoLighter = !easeOff\.isWorkingSet \|\| lighterKg < easeOff\.kg;/.test(session) &&
     /\{canGoLighter && \(/.test(session),
   'a button promising a lighter set and handing back the same weight is worse than no button'
+);
+
+check(
+  'the weight on the button is the weight handed to the handler',
+  /onEaseOff\?\.\(easeOff\.exerciseIndex, 'lighter', lighterKg\);/.test(session) &&
+    /const backOffKg = targetKg;/.test(session),
+  'working the same sum out in the bar and again in the handler is two chances for the number agreed to and the number written to diverge'
 );
 
 console.log('\n[4] The lighter option leaves a set to actually do');
