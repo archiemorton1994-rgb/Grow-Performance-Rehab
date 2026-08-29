@@ -3490,6 +3490,15 @@ export default function SessionScreen() {
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
+  /**
+   * What was just finished, for a second and a half.
+   *
+   * Cleared on a timer rather than by a tap: there are thirteen of these in a
+   * session and any of them that had to be dismissed would be an interruption
+   * rather than a reward.
+   */
+  const [justFinished, setJustFinished] = useState<{ name: string; line: string } | null>(null);
+
   /** The assistant sheet, opened from the top bar. */
   const [assistantOpen, setAssistantOpen] = useState(false);
 
@@ -3695,6 +3704,25 @@ export default function SessionScreen() {
     }
     const currentDone = exerciseData[activeIndex]?.sets.every((s) => s.completed);
     if (currentDone) {
+      // Say what was earned, in the numbers they earned it in. A count of sets
+      // is a fact; a volume is a thing to have done. Skipped sets are left out
+      // of both, because claiming them would make the number a lie on the one
+      // screen that is meant to feel like a reward.
+      const finishedEx = exercises[activeIndex];
+      const finishedSets = (exerciseData[activeIndex]?.sets ?? []).filter(
+        (s) => s.completed && !s.skipped
+      );
+      if (finishedEx && finishedSets.length > 0) {
+        const volumeKg = finishedSets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+        const setWord = finishedSets.length === 1 ? 'set' : 'sets';
+        setJustFinished({
+          name: finishedEx.name,
+          line:
+            volumeKg > 0
+              ? `${finishedSets.length} ${setWord} · ${formatWeight(roundToLoadable(volumeKg, weightUnit), weightUnit)} lifted`
+              : `${finishedSets.length} ${setWord} done`,
+        });
+      }
       const nextIndex = activeIndex + 1;
       navDirRef.current = 1;
       setActiveIndex(nextIndex);
@@ -3707,7 +3735,15 @@ export default function SessionScreen() {
         }
       }, 350);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseData, activeIndex, reviewing]);
+
+  // One and a half seconds, then gone.
+  useEffect(() => {
+    if (!justFinished) return;
+    const id = setTimeout(() => setJustFinished(null), 1600);
+    return () => clearTimeout(id);
+  }, [justFinished]);
 
   // Manual back-navigation — lets the user return to the previous exercise to
   // fix a mis-logged set. The exercise stays marked complete/locked in the
@@ -4503,6 +4539,27 @@ export default function SessionScreen() {
           }
         />
       </View>
+
+      {!!justFinished && !reviewing && (
+        <Animated.View
+          entering={FadeInDown.duration(220)}
+          exiting={FadeOut.duration(260)}
+          style={styles.earnedToast}
+          testID="exercise-finished-toast"
+        >
+          <View style={styles.earnedTick}>
+            <Ionicons name="checkmark" size={15} color={C.textInverse} />
+          </View>
+          <View style={styles.earnedText}>
+            <Text style={styles.earnedName} numberOfLines={1}>
+              {justFinished.name}
+            </Text>
+            <Text style={styles.earnedLine} numberOfLines={1}>
+              {justFinished.line}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
 
       {reviewing && (
         <Animated.View entering={FadeIn.duration(200)} style={styles.reviewBanner}>
@@ -5418,6 +5475,32 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.primaryText,
     },
     topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    // Under the strip, not over the card: it never covers the exercise that is
+    // arriving and never has to be dismissed.
+    earnedToast: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginHorizontal: 20,
+      marginBottom: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primary,
+    },
+    earnedTick: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.primary,
+    },
+    earnedText: { flex: 1 },
+    earnedName: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
+    earnedLine: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.primaryText },
     // ── What you are about to do ────────────────────────────────────────────
     planHeader: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10, gap: 4 },
     planHeading: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },

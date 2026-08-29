@@ -288,6 +288,37 @@ check(
   'a switch that does not switch anything is worse than no switch'
 );
 
+console.log('\n[5b] Finishing an exercise is a moment');
+
+check(
+  'there is one, and it says what was earned',
+  /testID="exercise-finished-toast"/.test(session) && /lifted/.test(session),
+  'thirteen pieces of work a session, and the only acknowledgement was forty minutes away'
+);
+
+check(
+  'it clears itself rather than waiting to be tapped',
+  /setTimeout\(\(\) => setJustFinished\(null\), 1600\)/.test(session),
+  'thirteen dismissals a session is thirteen interruptions, not thirteen rewards'
+);
+
+check(
+  'it does not count sets that were skipped',
+  // Anchored on finishedSets, not on the filter shape. `(s) => s.completed &&
+  // !s.skipped` appears three times in app/session.tsx, so matching any of them
+  // let a mutation through: the finish moment counted skipped sets and this
+  // stayed green.
+  /const finishedSets = [\s\S]{0,140}s\.completed && !s\.skipped/.test(session) &&
+    /const volumeKg = finishedSets\.reduce/.test(session),
+  'claiming skipped work would make the number a lie on the one screen meant to feel like a reward'
+);
+
+check(
+  'and the strip springs as its mark fills',
+  /const doneCount = done\.filter\(Boolean\)\.length;/.test(strip) && /rowPulse/.test(strip),
+  'progress and the moment of finishing something are the same event'
+);
+
 console.log('\n[6] The tour describes this screen');
 
 check(

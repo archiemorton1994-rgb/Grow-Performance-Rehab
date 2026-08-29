@@ -68,9 +68,31 @@ export function SessionProgressStrip({
     transform: [{ translateY: flagLift.value }],
   }));
 
+  /**
+   * The row springs as a mark fills.
+   *
+   * Driven off the COUNT of finished exercises, so it fires once per exercise
+   * and not once per render. Progress and the moment of finishing something are
+   * the same event; animating them separately would make the strip look like it
+   * was reacting to the toast rather than to the work.
+   */
+  const doneCount = done.filter(Boolean).length;
+  const rowPulse = useSharedValue(1);
+  const prevDoneRef = React.useRef(doneCount);
+  React.useEffect(() => {
+    if (doneCount > prevDoneRef.current) {
+      rowPulse.value = withSequence(
+        withTiming(1.04, { duration: 120 }),
+        withSpring(1, { damping: 10, stiffness: 240 })
+      );
+    }
+    prevDoneRef.current = doneCount;
+  }, [doneCount, rowPulse]);
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ scale: rowPulse.value }] }));
+
   const strip = (
     <View style={styles.wrap}>
-      <View style={styles.row}>
+      <Animated.View style={[styles.row, rowStyle]}>
         {done.map((isDone, i) => {
           const isActive = i === activeIndex;
           return (
@@ -92,7 +114,7 @@ export function SessionProgressStrip({
             color={finished ? C.textInverse : C.textTertiary}
           />
         </Animated.View>
-      </View>
+      </Animated.View>
       {!!caption && (
         <Animated.Text entering={FadeIn.duration(200)} style={styles.caption} numberOfLines={1}>
           {caption}
