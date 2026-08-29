@@ -62,10 +62,57 @@ const PanResponder = {
 };
 
 const Alert = { alert: jest.fn() };
+const AnimatedValue = function (v) {
+  this._value = v;
+  this.setValue = (n) => {
+    this._value = n;
+  };
+};
+
+/**
+ * FAITHFUL ON THE ONE AXIS THAT MATTERS: what it returns.
+ *
+ * React Native's Animated.event returns two different things
+ * (Libraries/Animated/AnimatedImplementation.js):
+ *
+ *     if (animatedEvent.__isNative) return animatedEvent;        // OBJECT
+ *     else return animatedEvent.__getHandler();                  // FUNCTION
+ *
+ * Only Animated.createAnimatedComponent unwraps the object. Hand it to a plain
+ * ScrollView and React Native calls props.onScroll(e) on an object, which is
+ * how five screens crashed with "onScroll is not a function (it is Object)".
+ *
+ * A mock that always returned a function would make the broken configuration
+ * look fine, which is precisely the thing worth catching. So the split is
+ * reproduced, and the non-native branch really writes the mapped values so a
+ * caller passing a real scroll event gets real behaviour.
+ */
+const animatedEvent = (argMapping, config) => {
+  if (config && config.useNativeDriver) {
+    return { __isNative: true, __getHandler: () => () => {} };
+  }
+  const write = (mapping, value) => {
+    if (mapping instanceof AnimatedValue) {
+      if (typeof value === 'number') mapping.setValue(value);
+      return;
+    }
+    if (mapping && typeof mapping === 'object' && value && typeof value === 'object') {
+      for (const key of Object.keys(mapping)) write(mapping[key], value[key]);
+    }
+  };
+  return (...args) => {
+    (argMapping || []).forEach((mapping, i) => write(mapping, args[i]));
+  };
+};
+
 const Animated = {
   View: ({ children, testID, style, ...rest }) =>
     React.createElement('View', { testID, ...rest }, children),
-  Value: function (v) { this._value = v; this.setValue = (n) => { this._value = n; }; },
+  ScrollView: ({ children, testID, style, ...rest }) =>
+    React.createElement('ScrollView', { testID, ...rest }, children),
+  Value: AnimatedValue,
+  event: animatedEvent,
+  createAnimatedComponent: (Component) => Component,
   timing: () => ({ start: jest.fn() }),
   spring: () => ({ start: jest.fn() }),
   sequence: () => ({ start: jest.fn() }),

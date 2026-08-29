@@ -312,9 +312,16 @@ check(
   'a bar on a screen with nothing below the fold is noise, and it would appear for one user and not another depending on their phone'
 );
 check(
-  'it drives the thumb natively rather than through React state',
-  /useNativeDriver: true/.test(indicator) && /scrollY\.interpolate/.test(indicator),
+  'the scroll offset never goes through React state',
+  /Animated\.event/.test(indicator) &&
+    /scrollY\.interpolate/.test(indicator) &&
+    !/setScrollY|useState\(0\)[\s\S]{0,40}scrollY/.test(indicator),
   'onScroll fires at 60fps; putting the offset in state re-renders the whole screen on every frame of every scroll'
+);
+check(
+  'and it does NOT use the native driver, which returns an object here',
+  /useNativeDriver: false/.test(indicator) && !/useNativeDriver: true/.test(indicator),
+  'Animated.event returns an AnimatedEvent OBJECT with the native driver on and a FUNCTION with it off. Every consumer spreads these handlers onto a plain ScrollView and profile calls handlers.onScroll(e) itself, so the native version crashed five screens with "onScroll is not a function (it is Object)". This check used to assert the opposite and held the crash in place.'
 );
 check(
   'the thumb has a floor, so a long list is not a dot',

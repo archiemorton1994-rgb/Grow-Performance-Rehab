@@ -29,10 +29,13 @@ import { useColors } from '@/constants/colors';
  * onScroll fires at up to 60fps. Putting the offset in React state re-renders
  * the whole screen on every frame of every scroll, which on Home means
  * re-running four derived memos and re-rendering a 2x2 grid of images. The
- * offset goes into an Animated.Value driven natively instead, so the thumb
- * moves on the UI thread and the screen never re-renders while scrolling. Only
- * the two heights are state, and they change when the layout does, not when the
- * finger does.
+ * offset goes into an Animated.Value instead, so the thumb moves without the
+ * screen re-rendering at all. Only the two heights are state, and they change
+ * when the layout does, not when the finger does.
+ *
+ * It is NOT natively driven, and it cannot be. See the note on useNativeDriver
+ * below: the native version of Animated.event returns an object rather than a
+ * function, and every screen here hands it to a plain ScrollView.
  */
 
 /** Never smaller than this, or a long list gives you a dot to aim at. */
@@ -71,10 +74,27 @@ export function useScrollIndicator(): UseScrollIndicator {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
 
+  /**
+   * useNativeDriver: FALSE, and it has to be.
+   *
+   * Animated.event returns an OBJECT when the native driver is on and a
+   * FUNCTION when it is off - see AnimatedImplementation.js, which returns
+   * `animatedEvent` in the native case and `animatedEvent.__getHandler()`
+   * otherwise. Only Animated.createAnimatedComponent knows how to unwrap the
+   * object. Every consumer of this hook spreads these handlers onto a plain
+   * ScrollView, and profile calls `handlers.onScroll(e)` by hand, so the
+   * native version crashed all five screens with "onScroll is not a function
+   * (it is Object)" - dozens of red error screens while walking the tour.
+   *
+   * The offset is now written from JavaScript. The Animated.Value is unchanged,
+   * so the thumb still moves without re-rendering the screen; what is lost is
+   * that the write is no longer off-thread. That is a real cost and it is a
+   * great deal smaller than a crash.
+   */
   const onScroll = useMemo(
     () =>
       Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     [scrollY]
   );

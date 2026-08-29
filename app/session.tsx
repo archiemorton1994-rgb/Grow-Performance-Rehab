@@ -5414,21 +5414,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingVertical: 11,
-      paddingHorizontal: 13,
-      borderRadius: 12,
+      gap: 10,
+      paddingVertical: 17,
+      paddingHorizontal: 16,
+      borderRadius: 14,
       backgroundColor: C.primarySurface,
       borderWidth: 1,
       borderColor: C.primaryMuted,
     },
-    howBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    howBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     // The video keeps its own target rather than living inside the panel. Two
     // taps to reach a play button is one tap of nothing.
     howVideoBtn: {
-      width: 46,
-      height: 44,
-      borderRadius: 12,
+      width: 58,
+      height: 58,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: C.youtubeSurface,
@@ -5456,21 +5456,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     detailActionText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     // ── One pip per set ─────────────────────────────────────────────────────
-    setPipRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+    setPipRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
     setPip: {
-      width: 22,
-      height: 8,
-      borderRadius: 4,
+      width: 32,
+      height: 10,
+      borderRadius: 5,
       backgroundColor: C.borderLight,
     },
     setPipDone: { backgroundColor: C.primary },
     // A skipped set is accounted for but not banked, and saying so is the
     // difference between "you did four" and "you did three and let one go".
     setPipSkipped: { backgroundColor: C.border },
-    setPipActive: { backgroundColor: C.primaryDark, height: 12, borderRadius: 6 },
+    setPipActive: { backgroundColor: C.primaryDark, height: 14, borderRadius: 7 },
     setPipLabel: {
-      marginLeft: 6,
-      fontSize: 13,
+      marginLeft: 8,
+      fontSize: 17,
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryText,
     },
@@ -5733,8 +5733,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
     exerciseCard: {
       backgroundColor: C.surface,
-      borderRadius: 14,
-      padding: 14,
+      borderRadius: 16,
+      padding: 18,
       borderWidth: 1,
       borderColor: C.borderLight,
     },
@@ -5749,7 +5749,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
       opacity: 0.65,
     },
-    exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    exerciseHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     checkCircle: {
       width: 22,
       height: 22,
@@ -5770,7 +5770,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 6,
       marginBottom: 4,
     },
-    exerciseName: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text, flex: 1 },
+    // 26, not 15. It is the only exercise on the screen and it is read at
+    // arm's length with something in your hands.
+    exerciseName: {
+      fontSize: 26,
+      lineHeight: 31,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      flex: 1,
+      letterSpacing: -0.3,
+    },
     exerciseNameDone: { color: C.primaryDark },
     badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
     badgeText: {
@@ -5804,8 +5813,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 4,
     },
     categoryDot: { width: 5, height: 5, borderRadius: 3 },
-    categoryText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-    metaText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    categoryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+    metaText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     kpiHint: {
       fontSize: 11,
