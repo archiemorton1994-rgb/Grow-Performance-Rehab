@@ -637,6 +637,13 @@ interface AppState {
   nudgeEnabled: boolean;
   /** Whether the streak-protection alert (8pm on untrained days) is enabled. */
   streakProtectionEnabled: boolean;
+  /**
+   * Whether the assistant can be opened during a session. Default true.
+   *
+   * On by default because somebody who never opens Settings should still be
+   * offered help, and off is one tap from inside the sheet itself.
+   */
+  inSessionAssistantEnabled: boolean;
   /** Minimum sessions per Mon–Sun week required to keep a streak alive (2–5). Default 2. */
   weeklyStreakGoal: number;
   /** Whether the bodyweight reminder push notification is enabled. Default true. */
@@ -756,6 +763,7 @@ interface AppState {
   setReminderTime: (time: string) => void;
   setNudgeEnabled: (enabled: boolean) => void;
   setStreakProtectionEnabled: (enabled: boolean) => void;
+  setInSessionAssistantEnabled: (enabled: boolean) => void;
   setBodyweightReminderEnabled: (enabled: boolean) => void;
   setStreakProtectionTime: (time: string) => void;
   setWeeklyStreakGoal: (goal: number) => void;
@@ -919,6 +927,7 @@ export const useAppStore = create<AppState>()(
       reminderTime: '07:00',
       nudgeEnabled: true,
       streakProtectionEnabled: false,
+      inSessionAssistantEnabled: true,
       bodyweightReminderEnabled: true,
       streakProtectionTime: '20:00',
       weeklyStreakGoal: 2,
@@ -1085,6 +1094,7 @@ export const useAppStore = create<AppState>()(
       setReminderTime: (time) => set({ reminderTime: time }),
       setNudgeEnabled: (enabled) => set({ nudgeEnabled: enabled }),
       setStreakProtectionEnabled: (enabled) => set({ streakProtectionEnabled: enabled }),
+      setInSessionAssistantEnabled: (enabled) => set({ inSessionAssistantEnabled: enabled }),
       setBodyweightReminderEnabled: (enabled) => set({ bodyweightReminderEnabled: enabled }),
       removeBodyweightEntry: (date) =>
         set((state) => ({ bodyweightLog: state.bodyweightLog.filter((e) => e.date !== date) })),

@@ -626,12 +626,15 @@ check(
     SWAP_KIND_HEADINGS.movement === 'Different exercise, same muscles',
   'two options with no labels is the problem this replaced'
 );
+// Both IDEAS, not one exact sentence. The tour was reworded when the session
+// screen became one exercise at a time, and pinning the spelling failed a
+// rewrite that still described both options - which is the defect this repo
+// keeps producing, in the check rather than in the app.
 check(
   'and the tutorial promises what the sheet now does',
-  /two alternatives: the same exercise with different equipment, and a different exercise for the same muscles/.test(
-    sessionSrc
-  ),
-  'the tour said "an alternative for the same muscle group", which was half of it'
+  /same exercise with different equipment/i.test(sessionSrc) &&
+    /different exercise for the same muscles/i.test(sessionSrc),
+  'the tour said "an alternative for the same muscle group", which was half of it: it has to name both kinds'
 );
 
 console.log('');

@@ -401,6 +401,8 @@ export default function ProfileScreen() {
     nudgeEnabled,
     setNudgeEnabled,
     streakProtectionEnabled,
+    inSessionAssistantEnabled,
+    setInSessionAssistantEnabled,
     setStreakProtectionEnabled,
     streakProtectionTime,
     setStreakProtectionTime,
@@ -1872,6 +1874,26 @@ export default function ProfileScreen() {
               >
                 Preferences
               </Text>
+              <Text style={styles.settingItemLabel}>In-Session Assistant</Text>
+              <Text style={styles.settingItemSub}>
+                A help button during a session, answering questions about the exercise you are on
+              </Text>
+              <View style={styles.reminderToggleRow}>
+                <Text style={styles.reminderToggleLabel}>
+                  {inSessionAssistantEnabled ? 'On' : 'Off'}
+                </Text>
+                <Switch
+                  value={inSessionAssistantEnabled}
+                  onValueChange={(value) => {
+                    setInSessionAssistantEnabled(value);
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  trackColor={{ false: C.border, true: C.primary }}
+                  thumbColor={C.textInverse}
+                  testID="in-session-assistant-toggle"
+                />
+              </View>
+
               <Text style={styles.settingItemLabel}>Workout Reminders</Text>
               <Text style={styles.settingItemSub}>
                 Get a daily nudge to keep your training on track

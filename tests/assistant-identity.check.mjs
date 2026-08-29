@@ -99,7 +99,11 @@ const sourceFiles = [
  * list is the whole point of the section - it is what keeps sapphire meaning
  * "assistant" rather than meaning "somebody liked blue".
  */
-const ASSISTANT_FILES = ['CoachBubble.tsx', 'assistant.tsx'];
+// Three surfaces now. The home bubble, the full screen behind it, and the
+// sheet you can open mid-session - which is scoped to the exercise you are on
+// rather than to the week, and wears the same colour because it is the same
+// assistant answering a narrower question.
+const ASSISTANT_FILES = ['CoachBubble.tsx', 'assistant.tsx', 'SessionAssistantSheet.tsx'];
 const borrowers = sourceFiles.filter((f) => {
   if (ASSISTANT_FILES.some((name) => f.endsWith(name))) return false;
   return /C\.assistant[A-Z]/.test(readFileSync(f, 'utf8'));

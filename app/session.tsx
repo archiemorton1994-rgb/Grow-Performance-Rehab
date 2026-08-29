@@ -24,6 +24,11 @@ import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { SessionProgressStrip } from '@/components/SessionProgressStrip';
 import {
+  SessionAssistantButton,
+  SessionAssistantSheet,
+} from '@/components/SessionAssistantSheet';
+import type { SessionCoachContext } from '@/lib/session-coach';
+import {
   SessionPlanList,
   categoryDisplay,
   type PlanRowResult,
@@ -1151,7 +1156,7 @@ export function SessionActiveBar({
             <View style={styles.barInputBlock}>
               {recommendedKg > 0 && (
                 <Text style={styles.barInputHint}>
-                  {kgToDisplayUnit(recommendedKg, weightUnit)} {weightUnit} guide
+                  suggested {kgToDisplayUnit(recommendedKg, weightUnit)} {weightUnit}
                 </Text>
               )}
               <TextInput
@@ -1220,6 +1225,17 @@ export function SessionActiveBar({
       {!isTimeExercise && !isBandExercise && autoNote && (
         <Text style={styles.barAutoNote} testID="auto-regulation-note">
           {autoNote}
+        </Text>
+      )}
+
+      {/* The weight is theirs. Two states rather than one, so the line reads
+          as confirmation once they have changed it instead of repeating an
+          instruction they have already followed. */}
+      {!isTimeExercise && !isBandExercise && recommendedKg > 0 && !isCompleteBlocked && (
+        <Text style={styles.barYoursNote} testID="weight-is-yours">
+          {Math.abs(effectiveWeightKg - recommendedKg) < 0.01
+            ? 'A suggestion, not an instruction. Change it to whatever you actually lift.'
+            : 'Logged as yours. What you lift is what the next suggestion is built from.'}
         </Text>
       )}
 
@@ -1375,7 +1391,7 @@ export function ExerciseCard({
   onCardioLog,
   showPbFlash = false,
   headerRef,
-  swapBtnRef,
+  detailsBtnRef,
   previousNote,
   onOpenPlates,
   goals,
@@ -1410,11 +1426,14 @@ export function ExerciseCard({
   onToggleNote?: () => void;
   onCardioLog?: (data: CardioLogData) => void;
   showPbFlash?: boolean;
-  /** Only passed for the first card. headerRef wraps the name-through-icon-row
-   *  header so the in-session tutorial can spotlight just that region; swapBtnRef
-   *  gives the "swap" step a tight spotlight on just that one icon. */
+  /** Only passed for the first card. headerRef wraps the name-through-meta
+   *  header so the in-session tutorial can spotlight just that region;
+   *  detailsBtnRef is the "How do I do this?" button under it, for the step
+   *  that is only about the reference sheet. It used to point at the Swap
+   *  icon, which now lives INSIDE that panel and is not rendered while it is
+   *  closed, so a tight spotlight on it cut a hole around nothing. */
   headerRef?: React.RefObject<View | null>;
-  swapBtnRef?: React.RefObject<View | null>;
+  detailsBtnRef?: React.RefObject<View | null>;
   /** The last note the user wrote about this exercise, from any past
    *  session. Shown once, above the card, until they write a new one. */
   previousNote?: string | null;
@@ -1740,6 +1759,7 @@ export function ExerciseCard({
                   video beside it because "show me how" is the same question. */}
               <View style={styles.howRow}>
                 <Pressable
+                  ref={detailsBtnRef}
                   onPress={() => setExpanded(!expanded)}
                   style={styles.howBtn}
                   testID={`how-to-${index}`}
@@ -1813,7 +1833,6 @@ export function ExerciseCard({
                   <View style={styles.actionRow}>
                     {exercise.hasSwap && (
                       <Pressable
-                        ref={swapBtnRef}
                         onPress={onSwapPress}
                         style={[
                           styles.detailActionBtn,
@@ -2663,7 +2682,7 @@ interface TutorialStep {
   /** Which specific measured sub-element within the spotlight this step is
    *  really about (e.g. a specific icon button). Only meaningful together with
    *  tightSpotlight. */
-  spotlightTarget?: 'swap';
+  spotlightTarget?: 'detailsToggle';
   /** When true (requires spotlightTarget), the spotlight cutout tightly hugs
    *  the spotlightTarget element itself instead of the whole spotlightRef
    *  region — use when the step is only about one icon, not the card in general. */
@@ -2684,11 +2703,12 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     iconName: 'barbell-outline',
     iconLabel: 'Exercise',
     title: 'Your first exercise',
-    // There has never been a control labelled "Watch form". The video is a red
-    // YouTube glyph in the icon row under the exercise name, and when the app
-    // has no filmed demo for that movement it opens a search instead - which is
-    // most of them, so it is worth saying rather than looking like a fault.
-    body: 'Tap the red video icon for a form demo. If that one has not been filmed yet it opens a search instead. Work through the exercises in order, the app builds them to flow.',
+    // One exercise on screen at a time now, so the old "work through them in
+    // order" is not advice, it is a description of what the screen does. The
+    // video is still a red YouTube glyph and still opens a search when that
+    // movement has not been filmed, which is most of them, so it is worth
+    // saying rather than looking like a fault.
+    body: 'One exercise at a time, so nothing else is in the way. The red button opens a form demo, and if that movement has not been filmed yet it opens a search instead.',
   },
   {
     spotlightRef: 'sessionBar',
@@ -2700,7 +2720,7 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     // boxes arrive filled in with the prescription, so a set that went to plan
     // is one tap. And the reps are not decoration - logging under the range
     // holds the weight where it is. That rule was invisible everywhere.
-    body: 'Both boxes arrive filled in with the target, so a set that went to plan is one tap on Did It. Change either if you did something different. Log fewer reps than asked and the app holds your weight there rather than adding to it.',
+    body: 'Both boxes arrive filled in, so a set that went to plan is one tap on Did It. The weight is a suggestion and not an instruction: change it to whatever you actually lift, and the next one starts closer. Log fewer reps than asked and the app holds your weight there rather than adding to it.',
   },
   {
     spotlightRef: 'sessionBar',
@@ -2712,24 +2732,24 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
     // in-session effect, so the single biggest thing these taps do — set the
     // weight you are given next week — went unexplained, and an answer whose
     // consequence you cannot see is one people stop giving.
-    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time. Bigger jumps when you say Easy, no jump at all after Too Hard.',
+    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time. Say Challenging with sets still to come and it offers a way out as well: one more set lighter, or move on keeping everything you have logged.',
     demoForceFeedback: true,
   },
   {
     spotlightRef: 'firstCardHeader',
-    spotlightTarget: 'swap',
+    spotlightTarget: 'detailsToggle',
     tightSpotlight: true,
-    iconName: 'shuffle-outline',
-    iconLabel: 'Swap',
-    title: 'Swap any exercise',
-    body: 'Tap the swap icon on any card for two alternatives: the same exercise with different equipment, and a different exercise for the same muscles. Useful when a machine is taken or something is bothering you.',
+    iconName: 'help-circle-outline',
+    iconLabel: 'Details',
+    title: 'Everything else is in here',
+    body: 'The coaching cue, the target weight, how hard to push, and the buttons to Swap or add a note. Swap offers two alternatives: the same exercise with different equipment, and a different exercise for the same muscles.',
   },
   {
     spotlightRef: 'progressBar',
     iconName: 'stats-chart-outline',
     iconLabel: 'Progress',
     title: "You're on your way",
-    body: 'The bar at the top tracks your sets. Every session you complete builds your streak and moves you closer to the next milestone badge.',
+    body: 'The row of marks at the top is the whole session, one for each exercise, with a finish line at the end. Tap it any time to see the full list, or to go back to something you think you logged wrong.',
   },
 ];
 
@@ -2873,6 +2893,8 @@ export default function SessionScreen() {
     setTourJustCompleted,
     markTourGenuinelyCompleted,
     getLastExerciseNote,
+    inSessionAssistantEnabled,
+    setInSessionAssistantEnabled,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -3185,7 +3207,7 @@ export default function SessionScreen() {
   // boxed in too.
   const firstCardHeaderRef = useRef<View>(null);
   // Only needed to give the "swap" step a tight spotlight on just that icon.
-  const swapBtnRef = useRef<View>(null);
+  const detailsBtnRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
 
   // Measure the spotlighted element whenever the tutorial step changes.
@@ -3201,7 +3223,7 @@ export default function SessionScreen() {
     };
     const step = effectiveTutorial[tutStep];
     const tightTarget =
-      step?.tightSpotlight && step.spotlightTarget === 'swap' ? swapBtnRef : null;
+      step?.tightSpotlight && step.spotlightTarget === 'detailsToggle' ? detailsBtnRef : null;
     const target = tightTarget ?? (step ? refLookup[step.spotlightRef] : null);
     const pad = tightTarget ? 8 : 4;
     const timer = setTimeout(() => {
@@ -3330,11 +3352,21 @@ export default function SessionScreen() {
     [exercises]
   );
 
+  /**
+   * False until the user has seen the plan and chosen to begin.
+   *
+   * The demo drives its own script and a restored session is already under way,
+   * so neither shows the plan.
+   */
+  const [started, setStarted] = useState(isDemo);
+
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecondsRef = useRef(0);
   useEffect(() => {
     if (isDemo) return; // demo sessions do not run a live timer
+    // Reading the plan is not training, and this number goes on the summary.
+    if (!started) return;
     const timerId = setInterval(() => {
       setElapsedSeconds((s) => {
         elapsedSecondsRef.current = s + 1;
@@ -3342,7 +3374,7 @@ export default function SessionScreen() {
       });
     }, 1000);
     return () => clearInterval(timerId);
-  }, [isDemo]);
+  }, [isDemo, started]);
 
   // setInterval does not run while the app is backgrounded, so the common case
   // of checking a message between sets used to come back with the timer frozen
@@ -3458,6 +3490,9 @@ export default function SessionScreen() {
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
+  /** The assistant sheet, opened from the top bar. */
+  const [assistantOpen, setAssistantOpen] = useState(false);
+
   /** The session list, opened from the progress strip. */
   const [planOpen, setPlanOpen] = useState(false);
   /**
@@ -3547,6 +3582,8 @@ export default function SessionScreen() {
       idsMatch;
     if (!canRestore) return false;
     hasRestoredRef.current = true;
+    // Resuming is not starting. The plan is for a session that has not begun.
+    setStarted(true);
     // Only a genuine interruption counts as time spent training.
     //
     // This used to CAP the gap at 90 minutes rather than reject it, so a session
@@ -4056,6 +4093,34 @@ export default function SessionScreen() {
   );
   const exerciseDone = useMemo(() => planResults.map((r) => r.done), [planResults]);
 
+  /**
+   * What the assistant is being asked about.
+   *
+   * Built from the exercise on screen rather than from the session as a whole,
+   * because the whole point of this surface is that it answers the question in
+   * front of somebody instead of reporting on their month. Null while the plan
+   * is still up: there is no set to talk about yet.
+   */
+  const assistantContext: SessionCoachContext | null = useMemo(() => {
+    const ex = exercises[activeIndex];
+    const data = exerciseData[activeIndex];
+    if (!ex || !data) return null;
+    const setIdx = Math.min(data.activeSetIndex, Math.max(0, data.sets.length - 1));
+    return {
+      exerciseName: ex.name,
+      category: ex.category,
+      setNumber: setIdx + 1,
+      totalSets: data.sets.length,
+      suggestedKg: 0,
+      typedKg: data.sets[setIdx]?.weight ?? 0,
+      weightUnit,
+      isBandOrBodyweight: isLoadBandOrBodyweight(ex.suggestedLoad),
+      painRegionLabel: hasAches && painRegion ? getPainRegionLabel(painRegion) : undefined,
+      loggedAnySet: exerciseData.some((d) => d.sets.some((s) => s.completed && !s.skipped)),
+      exercisesLeft: Math.max(0, exercises.length - activeIndex - 1),
+    };
+  }, [exercises, exerciseData, activeIndex, weightUnit, hasAches, painRegion]);
+
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
     // A machine the user moved the warm-up to. `reps` is deliberately left
     // alone: the session prescribed two minutes and changing which machine you
@@ -4409,11 +4474,16 @@ export default function SessionScreen() {
             <Text style={styles.sessionSub}>No max test on a rehab goal</Text>
           ) : null}
         </View>
-        <View style={styles.elapsedTimer}>
-          <Ionicons name="time-outline" size={12} color={C.textTertiary} />
-          <Text style={styles.elapsedTimerText}>
-            {elapsedMM}:{elapsedSS}
-          </Text>
+        <View style={styles.topBarRight}>
+          {inSessionAssistantEnabled && !isDemo && (
+            <SessionAssistantButton onPress={() => setAssistantOpen(true)} />
+          )}
+          <View style={styles.elapsedTimer}>
+            <Ionicons name="time-outline" size={12} color={C.textTertiary} />
+            <Text style={styles.elapsedTimerText}>
+              {elapsedMM}:{elapsedSS}
+            </Text>
+          </View>
         </View>
       </Animated.View>
 
@@ -4592,7 +4662,7 @@ export default function SessionScreen() {
               onToggleNote={isDemo ? () => {} : () => toggleNoteVisible(index)}
               showPbFlash={pbFlashIndex === index}
               headerRef={index === 0 ? firstCardHeaderRef : undefined}
-              swapBtnRef={index === 0 ? swapBtnRef : undefined}
+              detailsBtnRef={index === 0 ? detailsBtnRef : undefined}
               previousNote={isDemo ? null : getLastExerciseNote(exercise.id, exercise.name)}
               onOpenPlates={isDemo ? undefined : () => setPlateModalIndex(index)}
               goals={userProfile.goals}
@@ -5115,6 +5185,105 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* What you are about to do, before you do any of it. Same exercises
+          array the screen below uses, so it cannot describe a different
+          session. Not dismissible by tapping away: the only way past it is to
+          start, or to leave with the close button behind it. */}
+      <Modal visible={!started} transparent={false} animationType="fade" onRequestClose={() => {}}>
+        <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
+          <View style={styles.topBar}>
+            <Pressable
+              onPress={handleExit}
+              style={styles.closeButton}
+              testID="plan-exit"
+              accessibilityLabel="Leave without starting"
+              accessibilityRole="button"
+            >
+              <Ionicons name="close" size={24} color={C.text} />
+            </Pressable>
+            <View style={styles.sessionInfo}>
+              <Text style={styles.sessionLabel}>
+                {runsMaxTest ? 'Strength Test' : (displayLabel ?? getSessionLabel(sessionType))}
+              </Text>
+            </View>
+            <View style={styles.closeButton} />
+          </View>
+
+          <View style={styles.planHeader}>
+            <Text style={styles.planHeading}>Here is your session</Text>
+            <Text style={styles.planCount}>
+              {`${exercises.length} exercises · around ${timeAvailable} minutes`}
+            </Text>
+          </View>
+
+          {(hasAches || energy !== 'normal' || isTestWeek) && (
+            <View style={styles.adaptationBar}>
+              {isTestWeek && (
+                <View style={[styles.adaptTag, { backgroundColor: C.categoryPrehab }]}>
+                  <Ionicons
+                    name={runsMaxTest ? 'trophy-outline' : 'shield-checkmark-outline'}
+                    size={12}
+                    color={C.categoryPrehabText}
+                  />
+                  <Text style={[styles.adaptTagText, { color: C.categoryPrehabText }]}>
+                    {runsMaxTest ? 'Test Week' : 'Test Week · normal session'}
+                  </Text>
+                </View>
+              )}
+              {hasAches && painRegion && (
+                <View style={[styles.adaptTag, { backgroundColor: C.badgeComfort }]}>
+                  <Ionicons name="medical-outline" size={12} color={C.badgeComfortText} />
+                  <Text style={[styles.adaptTagText, { color: C.badgeComfortText }]}>
+                    {getPainRegionLabel(painRegion)}
+                  </Text>
+                </View>
+              )}
+              {energy !== 'normal' && !runsMaxTest && (
+                <View style={[styles.adaptTag, { backgroundColor: C.badgeVolume }]}>
+                  <Ionicons name="flash-outline" size={12} color={C.badgeVolumeText} />
+                  <Text style={[styles.adaptTagText, { color: C.badgeVolumeText }]}>
+                    {energy === 'low' ? 'Reduced volume' : 'Extra volume'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <SessionPlanList exercises={exercises} style={styles.planScreenList} />
+
+          <View style={[styles.planFooter, { paddingBottom: insets.bottom + 14 }]}>
+            <Pressable
+              onPress={() => {
+                setStarted(true);
+                if (Platform.OS !== 'web') {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }
+              }}
+              style={({ pressed }) => [
+                styles.planStartBtn,
+                pressed && { opacity: 0.92, transform: [{ scale: 0.99 as number }] },
+              ]}
+              testID="plan-start"
+              accessibilityRole="button"
+              accessibilityLabel="Start the session"
+            >
+              <Ionicons name="play" size={20} color={C.textInverse} />
+              <Text style={styles.planStartText}>Start the session</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <SessionAssistantSheet
+        visible={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        context={assistantContext}
+        onTurnOff={() => {
+          setInSessionAssistantEnabled(false);
+          setAssistantOpen(false);
+        }}
+      />
+
       {/* The whole session, opened from the progress strip. This is how you
           get back to an exercise you think you mis-logged: every finished row
           says what was actually recorded, so you can check before deciding to
@@ -5175,6 +5344,13 @@ export default function SessionScreen() {
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
+    barYoursNote: {
+      fontSize: 12,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      textAlign: 'center',
+      paddingHorizontal: 8,
+    },
     // ── One control for the reference sheet ─────────────────────────────────
     howRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
     howBtn: {
@@ -5241,6 +5417,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_600SemiBold',
       color: C.primaryText,
     },
+    topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    // ── What you are about to do ────────────────────────────────────────────
+    planHeader: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10, gap: 4 },
+    planHeading: { fontSize: 24, fontFamily: 'Inter_700Bold', color: C.text },
+    planCount: { fontSize: 14, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    planScreenList: { flex: 1, paddingHorizontal: 20 },
+    planFooter: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+      backgroundColor: C.surface,
+    },
+    planStartBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingVertical: 16,
+      borderRadius: 14,
+      backgroundColor: C.primary,
+    },
+    planStartText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.textInverse },
     // ── Looking back at a finished exercise ─────────────────────────────────
     reviewBanner: {
       flexDirection: 'row',
