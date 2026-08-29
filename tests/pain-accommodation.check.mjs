@@ -41,6 +41,7 @@ import { readFileSync } from 'fs';
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { ACUTE_PROTOCOL_NOTES } = await import('../lib/acute-rehab.ts');
 const S = await import('../lib/exercise-safety.ts');
+const { getAllPickableExercises } = await import('../lib/exercise-db.ts');
 
 let failures = 0;
 let total = 0;
@@ -150,6 +151,43 @@ check(
   'if every seed builds the same session the sweep is one session counted many times - see the header of this block'
 );
 
+// ─── 1b. The catalogue itself, exhaustively, with no seed involved ───────────
+//
+// See the header above: the sweep samples a ten-wide seed window that slides
+// with the calendar, so which exercises it happens to serve depends on the day
+// it runs. That is fine for testing how sessions are BUILT and useless for
+// asking whether anything forbidden is reachable at all.
+//
+// This asks that question directly. Every pickable exercise, every hand-written
+// swap alternative and every comfort variant, against every region that has an
+// avoid list. No generator, no seed, same answer in January and in June.
+console.log('\n[1b] Nothing in the catalogue is reachable by the region that forbids it');
+
+const everyEntry = [];
+{
+  const seenEntry = new Set();
+  const add = (name, cue) => {
+    if (!name) return;
+    const key = name + '||' + (cue ?? '');
+    if (seenEntry.has(key)) return;
+    seenEntry.add(key);
+    everyEntry.push({ name, cue: cue ?? '' });
+  };
+  for (const { template: e } of getAllPickableExercises()) {
+    add(e.name, e.cue);
+    // A swap the user can choose is served just as surely as the card it
+    // replaces, and the swap sheet was where two of these hid last time.
+    add(e.swapAlternative?.name, e.swapAlternative?.cue);
+    add(e.comfortVariant?.name, e.comfortVariant?.cue);
+  }
+}
+
+check(
+  `${everyEntry.length} catalogue entries screened, swaps and comfort variants included`,
+  everyEntry.length > 500,
+  'if this is small the screen below is looking at almost nothing'
+);
+
 // ─── 2. Nothing on a region's own avoid list is served to that region ────────
 console.log('\n[2] Nothing named on the avoid list reaches the region it names');
 
@@ -198,6 +236,29 @@ check(
     /deep squats and lunges/i.test(ACUTE_PROTOCOL_NOTES.glutes.avoid),
   'if the protocol stops naming these, this test is guarding words nobody uses any more'
 );
+
+// The exhaustive half of [1b]: now that FORBIDDEN exists, run every catalogue
+// entry past it. An entry whose NAME or CUE matches a region's avoid pattern
+// must be tagged by the safety screen for that region, or it is servable.
+console.log('\n[2b] Every catalogue entry, against every region that forbids it');
+
+for (const [region, patterns] of Object.entries(FORBIDDEN)) {
+  // restrictedTagsOn takes a Set, which is what the screen holds internally.
+  const banned = new Set(S.RESTRICTED_BY_REGION[region] ?? []);
+  const leaks = [];
+  for (const entry of everyEntry) {
+    const spoken = `${entry.name} ${entry.cue}`;
+    if (!patterns.some((p) => p.test(spoken))) continue;
+    if (S.restrictedTagsOn(entry.name, banned, undefined, entry.cue).length === 0) {
+      leaks.push(`${entry.name} :: ${entry.cue.slice(0, 70)}`);
+    }
+  }
+  check(
+    `a sore ${region} cannot be served anything in the catalogue on its own avoid list`,
+    leaks.length === 0,
+    `${leaks.length} entr(y/ies): ${leaks.slice(0, 3).join(' | ')}`
+  );
+}
 
 // ─── 3. The screen knows about them ──────────────────────────────────────────
 console.log('\n[3] The safety screen carries the rules that make that true');

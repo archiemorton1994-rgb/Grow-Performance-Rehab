@@ -395,9 +395,13 @@ check(
 // The badges printed on the exercise cards themselves, so the words on the tour
 // card are the words the user is about to see on screen.
 const sessionSrc = read('app/session.tsx');
+// The pills moved to components/SessionPlanList.tsx when the session list
+// started drawing the same ones. One table, read by the card, the list and by
+// this check, so the tour cannot promise a block name the screen does not use.
+const pillSrc = read('components/SessionPlanList.tsx');
 const BLOCK_LABELS = Object.fromEntries(
   [
-    ...sessionSrc.matchAll(
+    ...pillSrc.matchAll(
       /^\s+(prep|mechanical|neuro|main|accessory|prehab|finisher|cooldown): \{[^}]*label: '([^']+)'/gm
     ),
   ].map((m) => [m[1], m[2]])

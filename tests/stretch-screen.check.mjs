@@ -311,7 +311,10 @@ const HAZARD = {
   neck: /neck side stretch|upper trap stretch|levator scapulae/i,
   lower_back: /hip flexor[a-z ,'-]{0,14}stretch/i,
   upper_back: /cat-?cow|child's pose|upper trap stretch|levator scapulae|neck side stretch/i,
-  lat_mid_back: /lat[a-z ,'-]{0,14}stretch|child's pose|side-?bend overhead reach/i,
+  // \blats?\b, not lat. Without the boundary this matched "more isoLATion and
+  // stretch" on a Bulgarian Split Squat and reported it as a lat stretch being
+  // offered to a sore mid-back. The app's own rules learned this the same way.
+  lat_mid_back: /\blats?\b[a-z ,'-]{0,14}stretch|child's pose|side-?bend overhead reach/i,
   core_ribs: /cat-?cow/i,
 };
 

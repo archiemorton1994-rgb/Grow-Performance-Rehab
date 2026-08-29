@@ -321,15 +321,19 @@ failures += sourceFailures;
 
 const PILL_MIN = 3.0; // small bold type on its own fill — the app's badge bar
 
-const cardSrc = readFileSync(join(ROOT, 'app', 'session.tsx'), 'utf8');
+// One table, in components/SessionPlanList.tsx, read by the exercise card AND
+// by the session list. It used to be an inline map in app/session.tsx; it moved
+// when the list started drawing the same pills, because two copies of "which
+// green is a warm-up" drift apart and only one of them gets checked.
+const cardSrc = readFileSync(join(ROOT, 'components', 'SessionPlanList.tsx'), 'utf8');
 const mapMatch = cardSrc.match(
-  /const categoryColors: Record<string, \{ bg: string; text: string; label: string \}> = \{([\s\S]*?)\n {2}\};/
+  /export function categoryDisplay\([\s\S]*?\) \{\s*\r?\n\s*return \{([\s\S]*?)\n {2}\} as Record/
 );
 
 console.log('\n── Session category pills — text on its own fill, both themes ──');
 
 if (!mapMatch) {
-  console.error('  ✗ could not find `categoryColors` in app/session.tsx');
+  console.error('  ✗ could not find `categoryDisplay` in components/SessionPlanList.tsx');
   failures++;
   total++;
 } else {

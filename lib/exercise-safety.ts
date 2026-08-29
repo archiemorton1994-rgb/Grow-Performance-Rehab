@@ -336,6 +336,26 @@ const RAW_NAME_RULES: { tag: StressTag; test: RegExp }[] = [
   { tag: 'hard_eccentric', test: /\bnordic\b|glute[- ]?ham raise|\bghr\b|\brazor curl\b|\bharop\b/i },
 ];
 
+/**
+ * Cue-aware rules that are NOT about lengthening.
+ *
+ * LENGTHENING_RULES below sits behind LENGTHEN_DISCLAIMED, which is correct for
+ * a stretch that says it is not a stretch and wrong for everything else. These
+ * are read against the same name-plus-cue-plus-prescription text with no such
+ * gate.
+ */
+const SPOKEN_RULES: { tag: StressTag; test: RegExp }[] = [
+  // "Push hips back fast, feel hamstring load, snap hips forward hard" is a
+  // loaded hinge whatever the name says, and the hamstring protocol's third
+  // line is "any hinge cued to feel a stretch at the bottom". `feel` is what
+  // keeps this off the many strengthening cues that merely mention hamstring
+  // load as a fact rather than as a sensation to chase.
+  {
+    tag: 'loaded_hinge',
+    test: /\bfeel\b[a-z ,'-]{0,14}\bhamstrings?\b[a-z ,'-]{0,14}(load|tension)/i,
+  },
+];
+
 const LENGTHENING_RULES: { tag: StressTag; test: RegExp }[] = [
   {
     tag: 'hamstring_lengthen',
@@ -522,6 +542,10 @@ export function stressTagsFor(
     for (const rule of LENGTHENING_RULES) {
       if (rule.test.test(spoken)) tags.add(rule.tag);
     }
+  }
+  // Not gated by the stretch disclaimer: these are not claims about stretching.
+  for (const rule of SPOKEN_RULES) {
+    if (rule.test.test(spoken)) tags.add(rule.tag);
   }
   if (
     IMPACT_IN_PRESCRIPTION.test(prescription) &&

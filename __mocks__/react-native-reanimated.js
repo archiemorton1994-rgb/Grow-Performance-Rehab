@@ -69,7 +69,7 @@ const Animated = {
   createAnimatedComponent: (Component) => Component,
 };
 
-module.exports = {
+const explicit = {
   __esModule: true,
   default: Animated,
   useSharedValue,
@@ -86,3 +86,28 @@ module.exports = {
   FadeIn,
   Easing,
 };
+
+/**
+ * Any OTHER capitalised export is an entry animation.
+ *
+ * The fixed list above went stale the moment the session screen started
+ * turning pages: SlideInRight and three siblings were not on it, and twenty-one
+ * component tests failed on `.duration` of undefined - not because anything was
+ * broken but because a mock had a list. FadeOut had been missing for longer and
+ * escaped notice only because its one use sits behind a flag that is false in
+ * every test.
+ *
+ * The trade is that a MISSPELLED import would now resolve here instead of
+ * throwing. tsc runs before jest in `npm run check` and catches exactly that,
+ * so the trade is worth making.
+ */
+module.exports = new Proxy(explicit, {
+  get(target, prop) {
+    if (prop in target) return target[prop];
+    if (typeof prop === 'string' && /^[A-Z]/.test(prop)) return makeEntryAnimation();
+    return undefined;
+  },
+  has(target, prop) {
+    return prop in target || (typeof prop === 'string' && /^[A-Z]/.test(prop));
+  },
+});

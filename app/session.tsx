@@ -22,6 +22,12 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
+import { SessionProgressStrip } from '@/components/SessionProgressStrip';
+import {
+  SessionPlanList,
+  categoryDisplay,
+  type PlanRowResult,
+} from '@/components/SessionPlanList';
 import { isBarbellExercise } from '@/lib/plate-math';
 import {
   cardioFocusForSession,
@@ -38,6 +44,11 @@ import Animated, {
   FadeInUp,
   FadeIn,
   FadeOut,
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
+  withSequence,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -1368,6 +1379,7 @@ export function ExerciseCard({
   previousNote,
   onOpenPlates,
   goals,
+  enterFrom = 'right',
 }: {
   exercise: Exercise;
   index: number;
@@ -1407,12 +1419,17 @@ export function ExerciseCard({
    *  session. Shown once, above the card, until they write a new one. */
   previousNote?: string | null;
   onOpenPlates?: () => void;
+  /** Which edge this card slides in from. Set by the direction of travel. */
+  enterFrom?: 'left' | 'right';
   /** The training goals from onboarding, which decide the effort target and the rest. */
   goals?: readonly FitnessGoal[];
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const [expanded, setExpanded] = useState(true);
+  // Closed. The card's job on arrival is to say what the exercise is and let
+  // you load the bar; the reference sheet is a tap away and stays open once
+  // opened, so anyone who wants it every time pays for it once per exercise.
+  const [expanded, setExpanded] = useState(false);
   const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
   const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
@@ -1432,19 +1449,34 @@ export function ExerciseCard({
     transform: [{ scale: unlockScale.value }],
   }));
 
-  const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
-    // Every other row here pairs a dark tinted fill with a bright ink token.
-    // This one used `primary`, which is the fill green — dim ink on a dim fill,
-    // 1.90:1 in dark mode, on the first four cards of every session.
-    prep: { bg: C.primaryMuted, text: C.primaryText, label: 'Warm-Up' },
-    mechanical: { bg: C.categoryMechanical, text: C.categoryMechanicalText, label: 'Activation' },
-    neuro: { bg: C.categoryNeuro, text: C.categoryNeuroText, label: 'Power Primer' },
-    main: { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
-    accessory: { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Accessory' },
-    prehab: { bg: C.categoryPrehab, text: C.categoryPrehabText, label: 'Prehab' },
-    finisher: { bg: C.categoryFinisher, text: C.categoryFinisherText, label: 'Finisher' },
-    cooldown: { bg: C.categoryCooldown, text: C.categoryCooldownText, label: 'Cool Down' },
-  };
+  /**
+   * The pip row springs when a set lands.
+   *
+   * Keyed off the NUMBER of completed sets rather than off the log call, so it
+   * fires for a set corrected on the way back as well, and never fires twice
+   * for one set. Two-hundred milliseconds, once: this is a full stop, not a
+   * celebration, and there are up to six of them per exercise.
+   */
+  const completedCount = setData.sets.filter((s) => s.completed).length;
+  const pipPulse = useSharedValue(1);
+  const prevCompletedRef = useRef(completedCount);
+  useEffect(() => {
+    if (completedCount > prevCompletedRef.current) {
+      pipPulse.value = withSequence(
+        withTiming(1.12, { duration: 110 }),
+        withSpring(1, { damping: 9, stiffness: 260 })
+      );
+    }
+    prevCompletedRef.current = completedCount;
+  }, [completedCount, pipPulse]);
+  const pipPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pipPulse.value }],
+  }));
+
+  // The same table the session list draws from. Two copies of "which green is
+  // a warm-up" is a drift waiting to happen, and the list is now on screen
+  // beside the card often enough for anyone to notice.
+  const categoryColors = useMemo(() => categoryDisplay(C), [C]);
 
   const cat = categoryColors[exercise.category] ?? categoryColors.accessory;
   // Show the per-hand clarification only when the exercise name doesn't already
@@ -1540,7 +1572,18 @@ export function ExerciseCard({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(60 + index * 35).duration(350)}
+      // The page turn. Only the exercise on screen is mounted, so changing
+      // which one that is unmounts this and mounts the next: the finished card
+      // leaves the way you are travelling and the new one arrives from the
+      // other side. The old delay grew with the index, which on a
+      // one-card-at-a-time screen meant exercise twenty took most of a second
+      // to appear.
+      entering={
+        enterFrom === 'right'
+          ? SlideInRight.duration(260)
+          : SlideInLeft.duration(260)
+      }
+      exiting={enterFrom === 'right' ? SlideOutLeft.duration(200) : SlideOutRight.duration(200)}
       onLayout={onCardLayout ? (e) => onCardLayout(e.nativeEvent.layout.y) : undefined}
     >
       <View
@@ -1686,13 +1729,60 @@ export function ExerciseCard({
                       {setsLabel} × {repDisplay}
                     </Text>
                   </View>
+                  {/* The weight, the effort target and the rest of the
+                      reference sheet moved into "How do I do this?" below.
+                      What the exercise IS belongs here; what it asks of you is
+                      a paragraph, and a paragraph is not a heading. */}
+                </View>
+              </Pressable>
+
+              {/* One control for everything you read rather than do, with the
+                  video beside it because "show me how" is the same question. */}
+              <View style={styles.howRow}>
+                <Pressable
+                  onPress={() => setExpanded(!expanded)}
+                  style={styles.howBtn}
+                  testID={`how-to-${index}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? 'Hide the details' : 'How do I do this?'}
+                >
+                  <Ionicons
+                    name={expanded ? 'chevron-up' : 'help-circle-outline'}
+                    size={18}
+                    color={C.primaryText}
+                  />
+                  <Text style={styles.howBtnText}>
+                    {expanded ? 'Hide the details' : 'How do I do this?'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={onVideoPress}
+                  style={styles.howVideoBtn}
+                  testID={`video-${index}`}
+                  accessibilityLabel="Watch exercise video"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="logo-youtube" size={22} color="#CC0000" />
+                </Pressable>
+              </View>
+
+              {expanded && (
+                <Animated.View entering={FadeIn.duration(180)} style={styles.detailsPanel}>
+                  <View style={styles.cueContainer}>
+                    <Ionicons name="bulb-outline" size={14} color={C.primaryText} />
+                    <Text style={styles.cueText}>{exercise.cue}</Text>
+                  </View>
                   {exercise.category === 'main' && (
                     <Text style={styles.kpiHint}>Your main strength move for today</Text>
                   )}
-                  {!isBandExercise && <Text style={styles.targetWeightLabel}>Target weight: </Text>}
-                  <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
-                    {convertLoadString(exercise.suggestedLoad, weightUnit)}
-                  </Text>
+                  <View style={styles.detailWeightRow}>
+                    {!isBandExercise && (
+                      <Text style={styles.targetWeightLabel}>Target weight: </Text>
+                    )}
+                    <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
+                      {convertLoadString(exercise.suggestedLoad, weightUnit)}
+                    </Text>
+                  </View>
                   {showDumbbellNote && (
                     <Text style={styles.dumbbellNote}>
                       Weight shown is per hand (each dumbbell)
@@ -1720,58 +1810,44 @@ export function ExerciseCard({
                       </View>
                     </View>
                   )}
-                </View>
-                <Ionicons
-                  name={expanded ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={C.textTertiary}
-                  style={styles.chevron}
-                />
-              </Pressable>
-
-              <View style={styles.actionRow}>
-                <Pressable
-                  onPress={onVideoPress}
-                  style={styles.iconActionBtn}
-                  testID={`video-${index}`}
-                  accessibilityLabel="Watch exercise video"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="logo-youtube" size={20} color="#CC0000" />
-                </Pressable>
-                {exercise.hasSwap && (
-                  <Pressable
-                    ref={swapBtnRef}
-                    onPress={onSwapPress}
-                    style={[
-                      styles.iconActionBtn,
-                      setData.swapCount > 0 && styles.iconActionBtnActive,
-                    ]}
-                    testID={`swap-${index}`}
-                    accessibilityLabel="Swap exercise"
-                    accessibilityRole="button"
-                  >
-                    <Ionicons
-                      name="swap-horizontal-outline"
-                      size={18}
-                      color={setData.swapCount > 0 ? C.primaryText : C.textSecondary}
-                    />
-                  </Pressable>
-                )}
-                <Pressable
-                  onPress={onToggleNote}
-                  style={[styles.iconActionBtn, noteVisible && styles.iconActionBtnActive]}
-                  testID={`note-toggle-${index}`}
-                  accessibilityLabel={noteVisible ? 'Hide note' : 'Add note'}
-                  accessibilityRole="button"
-                >
-                  <Ionicons
-                    name={noteVisible ? 'pencil' : 'pencil-outline'}
-                    size={17}
-                    color={noteVisible ? C.primaryText : C.textSecondary}
-                  />
-                </Pressable>
-              </View>
+                  <View style={styles.actionRow}>
+                    {exercise.hasSwap && (
+                      <Pressable
+                        ref={swapBtnRef}
+                        onPress={onSwapPress}
+                        style={[
+                          styles.detailActionBtn,
+                          setData.swapCount > 0 && styles.iconActionBtnActive,
+                        ]}
+                        testID={`swap-${index}`}
+                        accessibilityLabel="Swap exercise"
+                        accessibilityRole="button"
+                      >
+                        <Ionicons
+                          name="swap-horizontal-outline"
+                          size={17}
+                          color={setData.swapCount > 0 ? C.primaryText : C.textSecondary}
+                        />
+                        <Text style={styles.detailActionText}>Swap</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={onToggleNote}
+                      style={[styles.detailActionBtn, noteVisible && styles.iconActionBtnActive]}
+                      testID={`note-toggle-${index}`}
+                      accessibilityLabel={noteVisible ? 'Hide note' : 'Add note'}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons
+                        name={noteVisible ? 'pencil' : 'pencil-outline'}
+                        size={16}
+                        color={noteVisible ? C.primaryText : C.textSecondary}
+                      />
+                      <Text style={styles.detailActionText}>Note</Text>
+                    </Pressable>
+                  </View>
+                </Animated.View>
+              )}
               </View>
 
               {/* The injury screen's own line wins where it exists: it names
@@ -1848,13 +1924,9 @@ export function ExerciseCard({
                 )
               )}
 
-              {expanded && (
-                <View style={styles.setsContainer}>
-                  <View style={styles.cueContainer}>
-                    <Ionicons name="bulb-outline" size={14} color={C.primaryText} />
-                    <Text style={styles.cueText}>{exercise.cue}</Text>
-                  </View>
-
+              {/* Always on. Timers, plates and what you have already banked
+                  are not reference material, they are the exercise. */}
+              <View style={styles.setsContainer}>
                   {exercise.type === 'cardio' && (
                     <CardioInputBlock
                       cardioData={setData.cardioData}
@@ -1989,16 +2061,33 @@ export function ExerciseCard({
                             </ScrollView>
                           )}
 
-                          {/* Active set indicator – inputs live in SessionActiveBar */}
+                          {/* One pip per set. The bar underneath already says
+                              which set it is taking, so the sentence that used
+                              to be here was the third place on one screen to
+                              say the same number. */}
                           {!allDone &&
                             activeSetIndex >= 0 &&
                             activeSetIndex < setData.sets.length && (
-                              <View style={styles.activeSetInCard}>
-                                <Ionicons name="barbell-outline" size={14} color={C.primaryText} />
-                                <Text style={styles.activeSetInCardText}>
-                                  Set {activeSetIndex + 1} of {setData.sets.length} · log below ↓
+                              <Animated.View style={[styles.setPipRow, pipPulseStyle]}>
+                                {setData.sets.map((s, i) => (
+                                  <View
+                                    key={i}
+                                    style={[
+                                      styles.setPip,
+                                      s.completed && !s.skipped && styles.setPipDone,
+                                      s.completed && s.skipped && styles.setPipSkipped,
+                                      i === activeSetIndex && styles.setPipActive,
+                                    ]}
+                                  />
+                                ))}
+                                <Text style={styles.setPipLabel}>
+                                  {setData.sets.length === 1
+                                    ? 'One set'
+                                    : setData.sets.length - activeSetIndex === 1
+                                      ? 'Last set'
+                                      : `${setData.sets.length - activeSetIndex} sets to go`}
                                 </Text>
-                              </View>
+                              </Animated.View>
                             )}
 
                           {/* All sets done indicator */}
@@ -2040,7 +2129,6 @@ export function ExerciseCard({
                     </View>
                   )}
                 </View>
-              )}
             </Animated.View>
           </Animated.View>
         )}
@@ -3370,6 +3458,16 @@ export default function SessionScreen() {
 
   // Sequential exercise active index (active | past | future model)
   const [activeIndex, setActiveIndex] = useState(0);
+  /** The session list, opened from the progress strip. */
+  const [planOpen, setPlanOpen] = useState(false);
+  /**
+   * True while the user is looking at an exercise they already finished.
+   *
+   * Held as state rather than as the one-shot ref that used to do this,
+   * because arriving somewhere and staying there are different problems. See
+   * the auto-advance effect.
+   */
+  const [reviewing, setReviewing] = useState(false);
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
@@ -3550,6 +3648,10 @@ export default function SessionScreen() {
   useEffect(() => {
     if (exerciseData.length === 0) return;
     if (activeIndex >= exerciseData.length) return;
+    // Looking back at a finished exercise. Every set on it is complete, so
+    // without this the advance would throw the user forward again on the next
+    // render - which is exactly what the old one-shot ref did.
+    if (reviewing) return;
     if (suppressAutoAdvanceRef.current) {
       suppressAutoAdvanceRef.current = false;
       return;
@@ -3557,6 +3659,7 @@ export default function SessionScreen() {
     const currentDone = exerciseData[activeIndex]?.sets.every((s) => s.completed);
     if (currentDone) {
       const nextIndex = activeIndex + 1;
+      navDirRef.current = 1;
       setActiveIndex(nextIndex);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       // Center-scroll to the newly active exercise after its animation starts
@@ -3567,7 +3670,7 @@ export default function SessionScreen() {
         }
       }, 350);
     }
-  }, [exerciseData, activeIndex]);
+  }, [exerciseData, activeIndex, reviewing]);
 
   // Manual back-navigation — lets the user return to the previous exercise to
   // fix a mis-logged set. The exercise stays marked complete/locked in the
@@ -3578,6 +3681,7 @@ export default function SessionScreen() {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     suppressAutoAdvanceRef.current = true;
     const prevIndex = activeIndex - 1;
+    navDirRef.current = -1;
     setActiveIndex(prevIndex);
     setTimeout(() => {
       const y = cardYPositions.current[prevIndex];
@@ -3586,6 +3690,46 @@ export default function SessionScreen() {
       }
     }, 350);
   }, [activeIndex]);
+
+  /**
+   * Go to an exercise chosen from the session list.
+   *
+   * Only ever called for a finished exercise or the one already on screen, so
+   * this cannot be used to skip ahead past work. Landing on a finished one puts
+   * the screen in `reviewing`; landing back on the live one takes it out.
+   */
+  const jumpToExercise = useCallback(
+    (index: number, isDone: boolean) => {
+      setPlanOpen(false);
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      suppressAutoAdvanceRef.current = true;
+      navDirRef.current = index >= activeIndexRef.current ? 1 : -1;
+      setReviewing(isDone);
+      setActiveIndex(index);
+    },
+    []
+  );
+
+  /**
+   * Which way the next card should come in from.
+   *
+   * A ref, not state: it is read during the render that mounts the new card,
+   * and a state update would land a frame late and send the first flip the
+   * wrong way.
+   */
+  const navDirRef = useRef<1 | -1>(1);
+
+  /** Back to the exercise the session is actually up to. */
+  const returnFromReview = useCallback(() => {
+    const next = exerciseDataRef.current.findIndex(
+      (d) => d.sets.length === 0 || !d.sets.every((s) => s.completed)
+    );
+    setReviewing(false);
+    const target = next === -1 ? Math.max(0, exerciseDataRef.current.length - 1) : next;
+    navDirRef.current = target >= activeIndexRef.current ? 1 : -1;
+    setActiveIndex(target);
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   /**
    * Auto-save the in-progress session — THROTTLED, and off the typing path.
@@ -3882,6 +4026,35 @@ export default function SessionScreen() {
     },
     [handleSkipExercise]
   );
+
+  /**
+   * One row per exercise for the strip and the list.
+   *
+   * "Done" means every set is accounted for, logged or skipped - the same test
+   * the auto-advance uses, so the strip can never disagree with the screen
+   * about which exercise you are on.
+   */
+  const planResults: PlanRowResult[] = useMemo(
+    () =>
+      exerciseData.map((d) => {
+        const logged = d.sets.filter((s) => s.completed && !s.skipped);
+        const done = d.sets.length > 0 && d.sets.every((s) => s.completed);
+        const summary = logged.length
+          ? logged
+              .map((s) =>
+                s.weight > 0
+                  ? `${kgToDisplayUnit(s.weight, weightUnit)} ${weightUnit} x ${s.reps}`
+                  : `${s.reps} reps`
+              )
+              .join(', ')
+          : done
+            ? 'Skipped'
+            : '';
+        return { done, loggedSets: logged.length, totalSets: d.sets.length, summary };
+      }),
+    [exerciseData, weightUnit]
+  );
+  const exerciseDone = useMemo(() => planResults.map((r) => r.done), [planResults]);
 
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
     // A machine the user moved the warm-up to. `reps` is deliberately left
@@ -4244,16 +4417,40 @@ export default function SessionScreen() {
         </View>
       </Animated.View>
 
-      <View ref={progressBarRef} style={styles.progressBar}>
-        <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
-        </View>
-        <Text style={styles.progressText}>
-          {isPrehabOrFlex
-            ? 'Complete when ready'
-            : `${currentPhaseLabel} · ${completedSetsCount}/${totalSets}`}
-        </Text>
+      {/* A row of marks and a finish line, in place of a filled bar and
+          "KPI Lift · 9/25". A bar is a percentage; this is a course, and the
+          end of it is on screen from the first second. The set count that used
+          to live here is on the card, where the sets are. */}
+      <View ref={progressBarRef} collapsable={false}>
+        <SessionProgressStrip
+          done={exerciseDone}
+          activeIndex={activeIndex}
+          onPress={isDemo ? undefined : () => setPlanOpen(true)}
+          caption={
+            isPrehabOrFlex
+              ? 'Complete when ready'
+              : `${currentPhaseLabel} · exercise ${Math.min(activeIndex + 1, exercises.length)} of ${exercises.length}`
+          }
+        />
       </View>
+
+      {reviewing && (
+        <Animated.View entering={FadeIn.duration(200)} style={styles.reviewBanner}>
+          <Ionicons name="eye-outline" size={15} color={C.primaryText} />
+          <Text style={styles.reviewBannerText} numberOfLines={1}>
+            Looking back at a finished exercise
+          </Text>
+          <Pressable
+            onPress={returnFromReview}
+            style={styles.reviewBannerBtn}
+            testID="return-from-review"
+            accessibilityRole="button"
+            accessibilityLabel="Back to where you were"
+          >
+            <Text style={styles.reviewBannerBtnText}>Back to it</Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       {(hasAches || energy !== 'normal' || isTestWeek) && (
         <View style={styles.adaptationBar}>
@@ -4313,6 +4510,7 @@ export default function SessionScreen() {
         style={styles.exerciseList}
         contentContainerStyle={[
           styles.exerciseListContent,
+          styles.exerciseListContentFocused,
           { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) + 16 },
         ]}
         showsVerticalScrollIndicator={false}
@@ -4321,14 +4519,19 @@ export default function SessionScreen() {
         bottomOffset={24}
       >
         {exercises.map((exercise, index) => {
+          // One exercise on screen. The other twenty-four are in the session
+          // list, one tap away on the strip above.
+          if (index !== activeIndex) return null;
           const data = exerciseData[index];
           if (!data) return null;
+          const forwards = navDirRef.current === 1;
           const displayExercise = getDisplayExercise(exercise, data);
           const exState: ExerciseState =
             index < activeIndex ? 'past' : index === activeIndex ? 'active' : 'future';
           const card = (
             <ExerciseCard
               key={exercise.id + index}
+              enterFrom={forwards ? 'right' : 'left'}
               exercise={displayExercise}
               index={index}
               setData={data}
@@ -4912,6 +5115,41 @@ export default function SessionScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      {/* The whole session, opened from the progress strip. This is how you
+          get back to an exercise you think you mis-logged: every finished row
+          says what was actually recorded, so you can check before deciding to
+          go back at all. Nothing lets you jump FORWARD past work not done. */}
+      <Modal
+        visible={planOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPlanOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setPlanOpen(false)}>
+          <Pressable style={styles.planSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.planGrabber} />
+            <Text style={styles.planTitle}>Today&apos;s session</Text>
+            <Text style={styles.planSub}>
+              {`${planResults.filter((r) => r.done).length} of ${exercises.length} done`}
+            </Text>
+            <SessionPlanList
+              exercises={exercises}
+              results={planResults}
+              activeIndex={activeIndex}
+              onSelect={(i) => jumpToExercise(i, planResults[i]?.done ?? false)}
+              style={styles.planList}
+            />
+            <Pressable
+              onPress={() => setPlanOpen(false)}
+              style={styles.modalClose}
+              testID="plan-close"
+            >
+              <Text style={styles.modalCloseText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {tutStep !== null && effectiveTutorial[tutStep] != null && (
         <CoachMark
           visible
@@ -4937,6 +5175,132 @@ export default function SessionScreen() {
 
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
+    // ── One control for the reference sheet ─────────────────────────────────
+    howRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+    howBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 11,
+      paddingHorizontal: 13,
+      borderRadius: 12,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    howBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    // The video keeps its own target rather than living inside the panel. Two
+    // taps to reach a play button is one tap of nothing.
+    howVideoBtn: {
+      width: 46,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.youtubeSurface,
+      borderWidth: 1,
+      borderColor: C.youtubeBorder,
+    },
+    detailsPanel: {
+      marginTop: 10,
+      padding: 13,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      gap: 8,
+    },
+    detailWeightRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
+    detailActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    detailActionText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
+    // ── One pip per set ─────────────────────────────────────────────────────
+    setPipRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+    setPip: {
+      width: 22,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: C.borderLight,
+    },
+    setPipDone: { backgroundColor: C.primary },
+    // A skipped set is accounted for but not banked, and saying so is the
+    // difference between "you did four" and "you did three and let one go".
+    setPipSkipped: { backgroundColor: C.border },
+    setPipActive: { backgroundColor: C.primaryDark, height: 12, borderRadius: 6 },
+    setPipLabel: {
+      marginLeft: 6,
+      fontSize: 13,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryText,
+    },
+    // ── Looking back at a finished exercise ─────────────────────────────────
+    reviewBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 20,
+      marginBottom: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: C.primarySurface,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+    },
+    reviewBannerText: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.primaryText,
+    },
+    reviewBannerBtn: {
+      paddingVertical: 5,
+      paddingHorizontal: 11,
+      borderRadius: 8,
+      backgroundColor: C.primary,
+    },
+    reviewBannerBtnText: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textInverse,
+    },
+    // ── The session list ────────────────────────────────────────────────────
+    planSheet: {
+      width: '100%',
+      maxHeight: '86%',
+      marginTop: 'auto',
+      paddingHorizontal: 18,
+      paddingTop: 10,
+      paddingBottom: 18,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      backgroundColor: C.background,
+      alignItems: 'center',
+      gap: 4,
+    },
+    planGrabber: {
+      width: 38,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      marginBottom: 8,
+    },
+    planTitle: { fontSize: 19, fontFamily: 'Inter_700Bold', color: C.text },
+    planSub: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      marginBottom: 6,
+    },
+    planList: { flexShrink: 1, width: '100%' },
     // ── The warm-up machine picker ──────────────────────────────────────────
     machineSwapBtn: {
       flexDirection: 'row',
@@ -5079,6 +5443,11 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     adaptTagText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
     exerciseList: { flex: 1 },
+    // One card, centred. With the reference sheet closed the card is short,
+    // and pinned to the top it left a third of the phone empty under it.
+    // flexGrow with centred content puts it in the middle when it is short and
+    // scrolls normally when the details are open.
+    exerciseListContentFocused: { flexGrow: 1, justifyContent: 'center' },
     exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
     exerciseCard: {
       backgroundColor: C.surface,
