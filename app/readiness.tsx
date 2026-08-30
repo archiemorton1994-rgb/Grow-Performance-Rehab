@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { useSessionColors } from '@/lib/session-theme-context';
 import { cardShadow } from '@/constants/shadows';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import {
@@ -141,12 +140,7 @@ export default function ReadinessScreen() {
     displayLabel?: string;
   }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
-  /**
-   * Read after the params, not before, because it needs to know which session
-   * is being asked about. This is the screen where somebody first sees the
-   * colour of the thing they are about to do.
-   */
-  const C = useSessionColors(sessionType);
+  const C = useColors();
   const isTestWeek = params.isTestWeek === 'true';
 
   const {

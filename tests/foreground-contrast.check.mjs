@@ -77,12 +77,6 @@ const AA = 4.5;
 
 // ─── Parse both theme blocks from constants/colors.ts ────────────────────────
 
-// The session palette, needed by both the Restore section and the stats one.
-// At the top because the Restore section runs first and a dynamic import
-// further down is not hoisted the way a static one would be.
-const { sessionColorOverrides, inkOn } = await import('../lib/session-theme.ts');
-const { SESSION_IDENTITY } = await import('../lib/session-identity.ts');
-
 const src = readFileSync(join(ROOT, 'constants', 'colors.ts'), 'utf8');
 
 function themeTokens(blockName) {
@@ -419,13 +413,7 @@ function composite(fgHex, alphaHex, bgHex) {
 
 console.log('\n── Restore rows — accent as type on a card tinted with that accent ──');
 
-// The rows take the colour of the session they start rather than a token of
-// their own, so this resolves the same way the screen does: `deep` on light,
-// `bright` on dark.
-const accentTypes = [...recoverSrc.matchAll(/cardAccent:\s*accentFor\('(\w+)'\)/g)].map(
-  (m) => m[1]
-);
-const accentTokens = accentTypes;
+const accentTokens = [...recoverSrc.matchAll(/cardAccent:\s*C\.(\w+)/g)].map((m) => m[1]);
 const tintMatch = recoverSrc.match(
   /backgroundColor:\s*row\.cardAccent\s*\+\s*'([0-9a-fA-F]{2})'/
 );
@@ -477,8 +465,7 @@ if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
   for (const [themeName, T] of Object.entries(THEMES)) {
     const base = T[baseKey];
     for (const token of accentTokens) {
-      const id = SESSION_IDENTITY[token];
-      const accent = id ? (themeName === 'DarkColors' ? id.bright : id.deep) : undefined;
+      const accent = T[token];
       total++;
       if (!accent || !base) {
         console.error(`  ✗ ${themeName}.${token} — token missing (or ${baseKey} missing)`);
@@ -690,37 +677,80 @@ function hueGap(a, b) {
   return d > 180 ? 360 - d : d;
 }
 
-console.log('\n── Restore rows — the colour of the session each one starts ──');
+console.log('\n── Restore accents — one derived family, not three separate colours ──');
 
-// This used to check that the three rows were "one derived family": one
-// saturation, one weight, hues stepping away from the brand green. That rule
-// existed because they had a palette of their own and needed something to
-// hold them together. They take the session palette now, which has its own
-// separation and contrast rules, so what is left worth pinning is that they
-// really do read from it - and that two rows starting the same session agree.
 total++;
-if (accentTypes.length < 3) {
-  console.error('  ✗ the Restore rows do not read their colour from the session identities');
-  console.error('    Fix: cardAccent should be accentFor(<session type>), not a token of its own.');
+if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
+  console.error('  ✗ no Restore accents parsed — see the section above');
   failures++;
 } else {
-  const unknown = accentTypes.filter((t) => !SESSION_IDENTITY[t]);
-  if (unknown.length) {
-    console.error(`  ✗ Restore rows name sessions with no identity: ${unknown.join(", ")}`);
-    failures++;
-  } else {
-    console.log(`  ✓ 3 rows, coloured by the sessions they start: ${accentTypes.join(", ")}`);
-  }
+  for (const [themeName, T] of Object.entries(THEMES)) {
+    const base = T[baseMatch[1]];
+    const members = accentTokens.map((k) => ({ key: k, hex: T[k] }));
 
-  total++;
-  const byType = new Map();
-  for (const t of accentTypes) byType.set(t, (byType.get(t) ?? 0) + 1);
-  const doubled = [...byType].filter(([, n]) => n > 1).map(([t]) => t);
-  console.log(
-    doubled.length
-      ? `  ✓ ${doubled.join(", ")} appears on more than one row and is the same colour on each`
-      : '  ✓ every row starts a different session'
-  );
+    total++;
+    if (members.some((m) => !m.hex) || !base) {
+      console.error(`  ✗ ${themeName} — an accent or the base surface is missing`);
+      failures++;
+      continue;
+    }
+
+    const sats = members.map((m) => hueSat(m.hex).s);
+    const satSpread = Math.max(...sats) - Math.min(...sats);
+    if (satSpread <= SAT_SPREAD_MAX) {
+      console.log(
+        `  ✓ ${themeName} shared saturation — ${sats.map((s) => s.toFixed(0) + '%').join(' / ')}`
+      );
+    } else {
+      console.error(
+        `  ✗ ${themeName} saturation spread ${satSpread.toFixed(0)} pts ` +
+          `(${sats.map((s) => s.toFixed(0) + '%').join(' / ')}), max ${SAT_SPREAD_MAX}`
+      );
+      console.error('    Fix: derive the set from one saturation; only the hue should differ.');
+      failures++;
+    }
+
+    total++;
+    const weights = members.map((m) => contrastRatio(m.hex, composite(m.hex, tintMatch[1], base)));
+    const weightShare = Math.min(...weights) / Math.max(...weights);
+    if (weightShare >= WEIGHT_MIN_SHARE) {
+      console.log(
+        `  ✓ ${themeName} shared weight — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1`
+      );
+    } else {
+      console.error(
+        `  ✗ ${themeName} weight varies — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1, ` +
+          `weakest is ${(weightShare * 100).toFixed(0)}% of strongest (floor ${WEIGHT_MIN_SHARE * 100}%)`
+      );
+      console.error(
+        '    Fix: tune each accent\'s lightness so all three land on the same contrast against ' +
+          'their own tint. One row shouting over the others is what makes a set look accidental.'
+      );
+      failures++;
+    }
+
+    const brandHue = hueSat(T.primaryText).h;
+    for (const m of members) {
+      total++;
+      const gap = hueGap(hueSat(m.hex).h, brandHue);
+      if (gap >= HUE_MIN_FROM_BRAND && gap <= HUE_MAX_FROM_BRAND) {
+        console.log(`  ✓ ${themeName} ${m.key} — ${gap.toFixed(0)}° from the brand green`);
+      } else if (gap < HUE_MIN_FROM_BRAND) {
+        console.error(
+          `  ✗ ${themeName} ${m.key} (${m.hex}) is only ${gap.toFixed(0)}° from the brand green`
+        );
+        console.error('    Fix: too close — this row would read as the brand accent itself.');
+        failures++;
+      } else {
+        console.error(
+          `  ✗ ${themeName} ${m.key} (${m.hex}) is ${gap.toFixed(0)}° from the brand green, ` +
+            `max ${HUE_MAX_FROM_BRAND}°`
+        );
+        console.error('    Fix: unrelated to the brand. Step away from the green, do not leave it.');
+        failures++;
+      }
+    }
+  }
 }
 
 // ─── H. Chart marks must survive on the card they are drawn on ───────────────
@@ -759,34 +789,9 @@ console.log('\n── Stats chart marks — every slice visible on its card ─�
 
 const statsSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'workouts.tsx'), 'utf8');
 
-/**
- * The map is DERIVED from the session identities now, so there is nothing to
- * parse: it is built here the same way the screen builds it, and the values
- * measured are the ones actually drawn.
- *
- * That is why this matters at all. The screen used to carry a palette of its
- * own, unrelated to the one a session wears - squat was green here and blue
- * inside the session - and three PAIRS of session types shared a colour with
- * each other. The distinctness check below could not see it, because the two
- * types really were the same entry.
- */
-
-const derivesFromIdentities =
-  /sessionColorOverrides\(C, type, isDark\)/.test(statsSrc) &&
-  /inkOn\(bg, SESSION_IDENTITY\[type\]\.deep\)/.test(statsSrc);
-
-function statsEntries(T, isDark) {
-  return Object.keys(SESSION_IDENTITY).map((type) => {
-    const tinted = sessionColorOverrides(T, type, isDark);
-    const bg = tinted.primaryMuted;
-    return {
-      type,
-      bg,
-      color: inkOn(bg, SESSION_IDENTITY[type].deep),
-      chart: tinted.primaryText,
-    };
-  });
-}
+const typeBlock = statsSrc.match(
+  /function getSessionTypeColors\([\s\S]*?\n {2}return \{([\s\S]*?)\n {2}\};/
+);
 // Which field the donut paints with, and which the legend dot uses in each state.
 const donutField = statsSrc.match(/fill=\{sessionTypeColors\[seg\.type\]\.(\w+)\}/)?.[1];
 const dotFields = statsSrc.match(
@@ -798,26 +803,39 @@ const cardKey = statsSrc.match(
 )?.[1];
 
 total++;
-if (!derivesFromIdentities || !donutField || !dotFields || !cardKey) {
+if (!typeBlock || !donutField || !dotFields || !cardKey) {
   console.error(
     `  ✗ could not read the breakdown from app/(tabs)/workouts.tsx ` +
-      `(derived: ${derivesFromIdentities ? 'ok' : 'no'}, donut field: ${donutField ?? 'missing'}, ` +
+      `(map: ${typeBlock ? 'ok' : 'missing'}, donut field: ${donutField ?? 'missing'}, ` +
       `dot fields: ${dotFields ? 'ok' : 'missing'}, card: ${cardKey ?? 'missing'})`
   );
   console.error('    Fix: this check reads the screen; update it alongside the layout.');
   failures++;
 } else {
+  const entries = [
+    ...typeBlock[1].matchAll(
+      /(\w+):\s*\{[^}]*?bg:\s*C\.(\w+)[^}]*?color:\s*C\.(\w+),[^}]*?chart:\s*C\.(\w+),?[^}]*?\}/g
+    ),
+  ].map(([, type, bg, color, chart]) => ({ type, bg, color, chart }));
+
   const [, selectedDotField, restingDotField] = dotFields;
 
   total++;
-  console.log(
-    `  ✓ ${Object.keys(SESSION_IDENTITY).length} session types, derived from the identities; ` +
-      `donut paints \`${donutField}\`, dot paints \`${restingDotField}\` at rest and ` +
-      `\`${selectedDotField}\` when selected, card is ${cardKey}`
-  );
+  if (entries.length < 10) {
+    console.error(
+      `  ✗ parsed only ${entries.length} session types — the map's shape has changed`
+    );
+    console.error('    Fix: this check reads the screen; update it alongside the layout.');
+    failures++;
+  } else {
+    console.log(
+      `  ✓ ${entries.length} session types; donut paints \`${donutField}\`, ` +
+        `dot paints \`${restingDotField}\` at rest and \`${selectedDotField}\` when selected, ` +
+        `card is ${cardKey}`
+    );
+  }
 
   for (const [themeName, T] of Object.entries(THEMES)) {
-    const entries = statsEntries(T, themeName === 'DarkColors');
     const card = T[cardKey];
     const marks = [];
 
@@ -828,7 +846,7 @@ if (!derivesFromIdentities || !donutField || !dotFields || !cardKey) {
         ['legend dot', restingDotField],
       ]) {
         total++;
-        const mark = e[field];
+        const mark = T[e[field]];
         if (!mark || !card) {
           console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${cardKey} missing`);
           failures++;
@@ -859,8 +877,8 @@ if (!derivesFromIdentities || !donutField || !dotFields || !cardKey) {
         ['selected dot', selectedDotField],
       ]) {
         total++;
-        const ink = e[field];
-        const bg = e.bg;
+        const ink = T[e[field]];
+        const bg = T[e.bg];
         if (!ink || !bg) {
           console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${e.bg} missing`);
           failures++;

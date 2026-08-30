@@ -16,17 +16,14 @@
  *
  * IT IS ON THE APP'S OWN SURFACES, not on paper. It was parchment for one
  * round and came back: "revert the pre workout session exercise list back to
- * match the theme aka dark or light, but it can have instead subtle colouring
- * to match the theme of the workout." Which is what these tokens now are -
- * useSessionColors returns the theme with the session's hue in it, so the
- * ticks, the pills and the row you are on are all quietly this session's
- * colour without a single hard-coded value here.
+ * match the theme aka dark or light." It was then tinted with a per-session
+ * hue for a round after that, and that came back too. One accent, the app's
+ * own, and no hard-coded colour anywhere in this file.
  */
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
-import { useSessionColors } from '@/lib/session-theme-context';
 import type { Exercise } from '@/lib/workout-engine';
 
 /**
@@ -85,7 +82,7 @@ export function SessionPlanList({
   grouped = true,
   style,
 }: SessionPlanListProps) {
-  const C = useSessionColors();
+  const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const display = useMemo(() => categoryDisplay(C), [C]);
 
@@ -163,9 +160,9 @@ export function SessionPlanList({
                 {ex.name}
               </Text>
               <View style={styles.metaRow}>
-                {/* The SESSION's colour rather than the block's, the same as the
-                    pill on the exercise card. The label already says which
-                    block this is. */}
+                {/* One accent for every block, the same as the pill on the
+                    exercise card. The label already says which block this is,
+                    so a second colour system alongside it is noise. */}
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>{cat.label}</Text>
                 </View>

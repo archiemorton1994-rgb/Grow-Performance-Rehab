@@ -23,12 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { SessionProgressStrip } from '@/components/SessionProgressStrip';
-import { PAGE, sessionIdentity } from '@/lib/session-identity';
-import {
-  SessionThemeProvider,
-  useGoColors,
-  useSessionColors,
-} from '@/lib/session-theme-context';
+import { PAGE } from '@/lib/session-identity';
+
 import {
   SessionAssistantButton,
   SessionAssistantSheet,
@@ -66,7 +62,7 @@ import Animated, {
   withTiming,
   interpolateColor,
 } from 'react-native-reanimated';
-import { useColors, useIsDarkTheme } from '@/constants/colors';
+import { useColors, useGoColors, useIsDarkTheme } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -256,7 +252,7 @@ function RestTimer({
   trigger?: number;
   onTimerEnd?: () => void;
 }) {
-  const C = useSessionColors();
+  const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const duration = seconds ?? REST_PERIOD_SECONDS[category] ?? 0;
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
@@ -501,7 +497,7 @@ function RestTimer({
 }
 
 function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
-  const C = useSessionColors();
+  const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const DURATION = parseRepsToSeconds(repsStr);
   const [secondsLeft, setSecondsLeft] = useState(DURATION);
@@ -698,7 +694,7 @@ export function SessionActiveBar({
   suppressFeedback = false,
   demoForceFeedback = false,
 }: SessionActiveBarProps) {
-  const C = useSessionColors();
+  const C = useColors();
   const go = useGoColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -1289,7 +1285,7 @@ function CardioInputBlock({
   cardioData?: CardioLogData;
   onLog: (data: CardioLogData) => void;
 }) {
-  const C = useSessionColors();
+  const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [duration, setDuration] = useState('');
   const [speed, setSpeed] = useState('');
@@ -1466,7 +1462,7 @@ export function ExerciseCard({
   /** Puts a mark on the assistant when the top of what it would say is new. */
   assistantHasNews?: boolean;
 }) {
-  const C = useSessionColors();
+  const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   // Closed. The card's job on arrival is to say what the exercise is and let
   // you load the bar; the reference sheet is a tap away and stays open once
@@ -2240,7 +2236,7 @@ export function PainAdaptBanner({
   dismissed: boolean;
   onDismiss: () => void;
 }) {
-  const C = useSessionColors();
+  const C = useColors();
   if (!hasAches || !painRegion || dismissed) return null;
   /**
    * Every area the user reported, not just the first one they tapped.
@@ -2339,7 +2335,7 @@ export function PainAdaptBanner({
  * to be one. See `skipsMaxTest`.
  */
 export function NoMaxTestBanner({ visible }: { visible: boolean }) {
-  const C = useSessionColors();
+  const C = useColors();
   if (!visible) return null;
   return (
     <Animated.View
@@ -2446,7 +2442,7 @@ export function PainFreeRangeBanner({
   onDismiss?: () => void;
   onRestore?: () => void;
 }) {
-  const C = useSessionColors();
+  const C = useColors();
   const [avoidOpen, setAvoidOpen] = useState(false);
   if (!text) return null;
 
@@ -2597,7 +2593,7 @@ export function PainFreeRangeBanner({
  * session, not part of the protocol for doing it safely.
  */
 function RestoreFailedBanner({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
-  const C = useSessionColors();
+  const C = useColors();
   if (!visible) return null;
   return (
     <Animated.View
@@ -2829,27 +2825,7 @@ const VALID_SESSION_TYPES: SessionType[] = [
   'custom',
 ];
 
-/**
- * The session, wrapped in the colour of the session.
- *
- * A thin outer component so the provider sits ABOVE every piece of the screen -
- * the card, both timers, the action bar, and the modals, which render through a
- * portal and would otherwise be the only things left painting the app's
- * ordinary green.
- */
 export default function SessionScreen() {
-  const params = useLocalSearchParams<{ sessionType?: string }>();
-  const type = VALID_SESSION_TYPES.includes(params.sessionType as SessionType)
-    ? (params.sessionType as SessionType)
-    : 'squat';
-  return (
-    <SessionThemeProvider type={type}>
-      <SessionScreenBody />
-    </SessionThemeProvider>
-  );
-}
-
-function SessionScreenBody() {
   /**
    * The phone stays awake for as long as this screen is open.
    *
@@ -2947,20 +2923,12 @@ function SessionScreenBody() {
       ? params.displayLabel
       : undefined;
 
-  const C = useSessionColors();
+  const C = useColors();
   const go = useGoColors();
   const isDark = useIsDarkTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
-  /**
-   * The session's colour on the app's own background.
-   *
-   * The exercise card uses `deep` because it is printed on parchment; the
-   * strip and anything else out here needs the shade that reads on near-black.
-   */
-  const sessionAccent = useMemo(() => {
-    const id = sessionIdentity(sessionType);
-    return isDark ? id.bright : id.deep;
-  }, [sessionType, isDark]);
+  // The strip's marks. One accent, the app's own, on every session.
+  const sessionAccent = C.primaryDark;
   const {
     getEffectiveTier,
     completeSession,
@@ -4787,7 +4755,7 @@ function SessionScreenBody() {
                   <Ionicons
                     name={skipped ? 'remove-circle-outline' : 'checkmark-circle'}
                     size={17}
-                    color={skipped ? PAGE.inkFaint : sessionIdentity(sessionType).deep}
+                    color={skipped ? PAGE.inkFaint : PAGE.ink}
                   />
                   <View style={styles.recapRowText}>
                     <Text style={styles.recapName} numberOfLines={1}>

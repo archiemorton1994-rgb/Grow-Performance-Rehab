@@ -1,5 +1,6 @@
 import { useColorScheme } from 'react-native';
 import { useAppStore } from '@/lib/store';
+import { GO } from '@/lib/go-colors';
 
 const LightColors = {
   primary: '#2f6b46',
@@ -329,6 +330,16 @@ export function useIsDarkTheme(): boolean {
   return systemScheme !== 'light';
 }
 
+/**
+ * The go button's two colours for the theme currently on screen.
+ *
+ * Start the session, Did It, Mark Set Done, Complete Session. The values live
+ * in lib/go-colors.ts, which has no react-native import so a contract test can
+ * read them; this is only the three-way theme decision applied to them.
+ */
+export function useGoColors(): { fill: string; on: string } {
+  return useIsDarkTheme() ? GO.dark : GO.light;
+}
 /** Direct access to dark-mode tokens for non-hook contexts (e.g. pre-render crash views). */
 export { DarkColors };
 

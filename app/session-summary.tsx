@@ -23,8 +23,8 @@ import * as Haptics from 'expo-haptics';
 // Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { DarkColors } from '@/constants/colors';
-import { useGoColors, useSessionColors } from '@/lib/session-theme-context';
+import { useColors, useGoColors, DarkColors } from '@/constants/colors';
+
 import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
@@ -817,15 +817,7 @@ export default function SessionSummaryScreen() {
     return completedSessions[0] ?? null;
   }, [completedSessions, sessionId]);
 
-  /**
-   * Read AFTER the session is found, because the session is what decides.
-   *
-   * The certificate was already parchment; this puts the same hue on it that
-   * was on the exercise card for the hour before. Nothing between the top of
-   * this component and here touches a colour, which is why the hook can move
-   * down without disturbing anything.
-   */
-  const C = useSessionColors(session?.sessionType);
+  const C = useColors();
   const go = useGoColors();
 
   // lastSessionPerformance/exerciseNormalStreak are live store state driving
