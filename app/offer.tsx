@@ -138,7 +138,7 @@ export default function OfferScreen() {
             <Animated.Text entering={FadeInDown.delay(140).duration(360)} style={styles.body}>
               {hasTrial
                 ? 'Everything you have just seen, free to use. Cancel any time before it ends and you will not be charged.'
-                : 'Everything you have just seen, for what is on the next screen. Cancel any time.'}
+                : 'Everything you have just seen, and a session written around you every time you train. Cancel any time.'}
             </Animated.Text>
             {price ? (
               <Animated.Text entering={FadeInDown.delay(200).duration(360)} style={styles.price}>

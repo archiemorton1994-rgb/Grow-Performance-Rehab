@@ -38,40 +38,47 @@ const buildStats = () => [
 ];
 
 /**
- * Four benefits, not six features. The previous list was six feature names in a
- * two-column grid behind six identical checkmarks — nothing to distinguish one
- * line from the next, and phrased as capabilities ("Session resume") rather
- * than what the user gets. Each row now says what it does for you, with its own
- * icon so the list can be scanned rather than read.
+ * Four rows, in the order somebody decides in.
+ *
+ * The first one is the only reason to pick this app over the ones already on
+ * their phone. Every strength app moves the weight; every rehab app works
+ * around pain. This is the one that does both, and for a long time the paywall
+ * led with "Every session, planned", which is what Fitbod sells and sells
+ * better. So the pain row goes first and the planning row goes second.
+ *
+ * The third row is the cheapest advantage the app has and the one it spent the
+ * least words on. A real physiotherapist chose the exercises, the rep ranges
+ * and the swaps. Nothing generated does that, and nobody reading a store page
+ * can tell the difference unless it is said.
+ *
+ * "Never lose a session" came off. Resuming a workout is a thing an app should
+ * do, not a thing anybody pays for, and it was taking the place of the row
+ * about handing a pain history to a clinician, which nothing else offers.
  */
 const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
   {
-    icon: 'sparkles-outline',
-    title: 'Every session, planned',
+    icon: 'medkit-outline',
+    title: 'Tell it where it hurts',
+    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session changes. What would aggravate it comes out, gentler work for that area goes in.`,
+  },
+  {
+    icon: 'trending-up-outline',
+    title: 'The weight moves itself',
     // Not "exercises, sets and weights". The exercises come from the rotation
     // and the pools, and the set counts come from the template plus your
     // readiness answers. What genuinely comes from last time is the load and
     // the rep target, and those are the parts worth claiming.
-    body: 'Weights and rep targets set from what you actually lifted last time, not a fixed plan.',
+    body: 'Loads and rep targets come from what you actually lifted last time. Clear your reps and it climbs. Fall short and it holds.',
   },
   {
-    icon: 'medkit-outline',
-    title: 'Trains around pain',
-    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session adapts, or swaps to recovery.`,
+    icon: 'school-outline',
+    title: 'Written by a physiotherapist',
+    body: 'Every exercise, rep range and alternative was chosen by a sports physio, not pulled out of a generic library.',
   },
   {
-    icon: 'trending-up-outline',
-    title: 'Progress you can see',
-    body: '1RM trends, personal bests and your full training history.',
-  },
-  {
-    icon: 'play-skip-forward-outline',
-    title: 'Never lose a session',
-    // "Pick up exactly where you left off" with no condition was a promise the
-    // app keeps for a day. A saved session is discarded on the first launch
-    // after 24 hours (app/_layout.tsx), which is a sensible rule and an
-    // unpleasant surprise if nobody mentions it.
-    body: 'Stop mid-workout and pick up where you left off any time that day.',
+    icon: 'stats-chart-outline',
+    title: 'Proof it is working',
+    body: '1RM trends, personal bests and your full history. Hand the whole pain record to your own physio in one tap.',
   },
 ];
 
@@ -331,7 +338,11 @@ export default function SubscriptionScreen() {
       </View>
 
       {/* Headline */}
-      <Text style={styles.headline}>A training plan that{'\n'}keeps up with you</Text>
+      <Text style={styles.headline}>Get stronger without{'\n'}training through pain</Text>
+      <Text style={styles.subhead}>
+        Every session is built around what you lifted last time and what is sore today. By a
+        sports physiotherapist, not a template.
+      </Text>
 
       {/* Stat chips */}
       <View style={styles.statsRow}>
@@ -547,6 +558,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
       color: C.text,
       lineHeight: 33,
+      marginBottom: 8,
+    },
+    subhead: {
+      fontSize: 13.5,
+      lineHeight: 19,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
       marginBottom: 16,
     },
 
