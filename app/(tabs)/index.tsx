@@ -12,6 +12,7 @@ import {
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -603,7 +604,17 @@ export default function HomeScreen() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const styles = useMemo(() => makeStyles(C), [C]);
+  /**
+   * HOME DOES NOT SCROLL, on any phone anybody is holding.
+   *
+   * One fixed tile size cannot do that: what fills a 6.7 inch screen overflows
+   * a 5.5 inch one. Two can. 800 is the line - a 390x844 or 375x812 phone gets
+   * the comfortable size, a 360x780 gets the compact one, both measured in the
+   * exported build rather than guessed at.
+   */
+  const { height: windowHeight } = useWindowDimensions();
+  const compactTiles = windowHeight < 800;
+  const styles = useMemo(() => makeStyles(C, compactTiles), [C, compactTiles]);
 
   const confirmReplaceActive = (onContinue: () => void) => {
     Alert.alert(
@@ -763,7 +774,7 @@ export default function HomeScreen() {
   // branches or this step spotlights nothing for a brand-new user.
   const trainElseRef = useRef<View>(null);
   const achievementsTileRef = useRef<View>(null);
-  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
+  const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
   const scrollHint = useScrollIndicator();
 
   useEffect(() => {
@@ -1352,9 +1363,9 @@ export default function HomeScreen() {
             </Animated.View>
           ) : null}
 
-        </ScrollView>
-        {/* Home fits one screen on an iPhone 12 and up. On a 667pt SE it does
-            not, and nothing used to say so. */}
+        </ScrollView>
+        {/* Home fits one screen on an iPhone 12 and up. On a 667pt SE it does
+            not, and nothing used to say so. */}
         <ScrollIndicator {...scrollHint.state} top={8} bottom={96} />
 
         {/* The assistant's bubble. Rendered OUTSIDE the ScrollView so it floats
@@ -1634,7 +1645,7 @@ const modalStyles = StyleSheet.create({
   confirmBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
 });
 
-function makeStyles(C: ReturnType<typeof useColors>) {
+function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     // Home is meant to fit on one screen. Every number here was measured
@@ -1646,6 +1657,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // slack was sitting as a dead band above the tab bar; the grid below
     // absorbs it instead.
     inner: {
+      // Anything the capped grid leaves over goes between the blocks rather
+      // than into a band under the last one, which is the gap that was
+      // reported before the tiles were allowed to stretch at all.
+      justifyContent: 'space-between' as const,
       paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 24,
@@ -1785,25 +1800,34 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
     blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
+    /**
+     * FIXED. Not flexible, not stretched, not sharing the leftover.
+     *
+     * Two rounds were spent trying to make these fill whatever space the phone
+     * had left, and both went wrong in the same way. Letting the grid grow put
+     * the page on a scrollbar. Bounding the grid but letting the picture take
+     * the slack grew the tiles to 185 points with an 84 point logo marooned in
+     * the middle - "the boxes are still too big and the logos not big enough".
+     * Removing the picture's ceiling was worse still: an Image with flex and no
+     * height falls back on its own aspect ratio, so a 219 px square asset made
+     * a 301 point tile.
+     *
+     * So the tile is a known size and the picture is a known size, and the
+     * space the screen has left over is spread between the blocks by `inner`
+     * instead. 136 is a smaller box than it was and 54 is a larger logo, which
+     * is the direction the complaint pointed in.
+     */
     summaryGrid: {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
       gap: 10,
-      // HOME DOES NOT SCROLL. The grid takes exactly the space left over -
-      // it grows into slack so the tiles reach the tab bar, and it shrinks
-      // when there is none so the page never gets taller than the phone.
-      //
-      // flex, not flexGrow. flexGrow alone can only grow: when the artwork got
-      // bigger the grid asked for more room than existed and the whole page
-      // started scrolling, which is not what this screen is.
-      flex: 1,
-      alignContent: 'stretch' as const,
     },
     summaryCard: {
       width: '47%' as any,
-      // No minHeight. The row stretches every tile in it to the same height
-      // anyway, which is what the old floor was really for, and a floor here
-      // would be one more thing able to push the page past the phone.
+      // A floor, so the two tiles in a row match even though Your Program
+      // carries an extra line. Not a ceiling: at a large system text size the
+      // words are allowed to make the tile taller rather than be clipped.
+      minHeight: compactTiles ? 114 : 136,
       justifyContent: 'center' as const,
       backgroundColor: C.surface,
       borderRadius: 18,
@@ -1811,23 +1835,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center' as const,
       borderWidth: 1,
       borderColor: C.borderLight,
-      gap: 3,
+      gap: 2,
     },
     summaryCardImage: {
-      // Whatever the words leave behind, rather than a fixed 38. The tile's
-      // own height comes from the row, and the row's from the space the rest of
-      // the screen has not used, so the picture is the last thing to be served
-      // and the first to give way. That is what keeps this page off the
-      // scrollbar while still drawing the artwork as large as it can be.
-      //
-      // The floor is low on purpose: it is the point at which the picture stops
-      // shrinking and the page would rather scroll than shrink it further.
-      flex: 1,
       width: '100%' as any,
-      minHeight: 26,
-      maxHeight: 84,
+      height: compactTiles ? 40 : 54,
       marginBottom: 2,
     },
+    // 11pt, and the tile's gap is 2 rather than 3. Every point the words give
+    // up here is a point the picture gets, four times over.
     summaryCardTitle: {
       fontSize: 11,
       fontFamily: 'Inter_700Bold',

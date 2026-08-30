@@ -264,33 +264,30 @@ check(
   'it was the single tallest thing in the hero card and it set that row height on its own'
 );
 /**
- * The tile artwork is no longer a fixed size, and this is no longer a budget.
+ * The tile artwork has two sizes and the phone picks one.
  *
- * What keeps Home on one screen is that the GRID is bounded - `flex`, so it
- * takes the space left over and can never ask for more - and that the picture
- * inside each tile is free to shrink into whatever that leaves. The ceiling
- * only ever binds when there is room to spare, so a larger one cannot put the
- * page on a scrollbar; it is a taste cap, not a fit cap.
+ * Every attempt to make this flexible failed. A grid that could grow put Home
+ * on a scrollbar; a bounded grid with a flexible picture gave 185pt tiles with
+ * the logo stranded at its ceiling half way up them; a picture with no ceiling
+ * fell back on its own aspect ratio and produced a 301pt tile. Two fixed sizes,
+ * chosen from the window height, is what actually holds - measured in the
+ * exported build at 390x844, 375x812 and 360x780, all three exactly the
+ * viewport with nothing to scroll.
  *
- * It was a fit cap for one round, when the grid could still grow, and that
- * version of it was true: at 92 the bottom row's labels went behind the tab
- * bar. Fixing the grid is what made the number stop mattering.
+ * The full sizing budget lives in your-program-card.check.mjs. What matters
+ * here, in the screen's own fit section, is that neither size is a poster.
  */
+const tileImage = num(/summaryCardImage: \{[^}]*height: compactTiles \? \d+ : (\d+)/, 'summaryCardImage');
 check(
-  'the summary grid is bounded, so Home cannot grow past the phone',
-  /summaryGrid: \{[\s\S]*?\n\s*flex: 1,/.test(home),
-  'flexGrow can only grow; the day the artwork got bigger, Home started scrolling'
-);
-const tileCeiling = num(/summaryCardImage: \{[^}]*maxHeight: (\d+)/, 'summaryCardImage maxHeight');
-check(
-  `the summary tile artwork stops at ${tileCeiling}pt`,
-  tileCeiling !== null && tileCeiling <= 96,
-  'past this the artwork is a poster rather than an icon, however much room there is'
+  `the summary tile artwork is ${tileImage}pt on a full-size phone`,
+  tileImage !== null && tileImage <= 72,
+  'four of them, two rows: every point above this comes out of the grid twice'
 );
 check(
-  'and it is flexible rather than a fixed height',
-  /summaryCardImage: \{[^}]*flex: 1/.test(home) && /summaryCardImage: \{[^}]*minHeight: \d+/.test(home),
-  'a fixed height cannot fill a tile whose height depends on the phone, or get out of the way on a short one'
+  'and the phone chooses which of its two sizes it gets',
+  /const compactTiles = windowHeight < \d+;/.test(home) &&
+    /minHeight: compactTiles \? \d+ : \d+/.test(home),
+  'one fixed size cannot both fill a 6.7 inch screen and fit a 5.5 inch one'
 );
 const innerGap = num(/inner: \{[^}]*gap: (\d+)/, 'inner gap');
 check(

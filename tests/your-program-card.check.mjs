@@ -123,33 +123,72 @@ if (!bigNumBlockMatch) {
 // stacked a 52pt image with 4pt gaps, and it would have gone on passing at any
 // image size at all.
 //
-// Both numbers are read out of the real styles now. The tile is the thing being
-// guarded, so the tile is the thing that has to be measured.
-// AND THE PICTURE IS NO LONGER A FIXED HEIGHT. It takes whatever the words
-// leave behind, between a floor and a ceiling, so that it fills its tile on any
-// phone: a fixed 38 was chosen when the tile was a fixed 112 and left the
-// artwork stranded once the tiles grew to fill the screen. The FLOOR is what
-// the picture contributes to the tile's minimum, so the floor is the number
-// this budget is measured against. The ceiling is checked on its own, because
-// an unbounded flexible image is the other way this goes wrong - and it goes
-// wrong only on the tall phones that nobody happens to be holding.
+/**
+ * THE TILE AND ITS PICTURE ARE BOTH FIXED, AND BOTH SIZED TO THE PHONE.
+ *
+ * Two rounds were spent trying to make them flexible and both failed the same
+ * way. Letting the grid grow put Home on a scrollbar. Bounding the grid but
+ * letting the picture take up the slack made 185pt tiles with an 84pt logo
+ * marooned in them - "the boxes are still too big and the logos not big
+ * enough". Taking the picture's ceiling off was worse again: an Image with
+ * `flex` and no height falls back on its own aspect ratio, so a 219px square
+ * asset produced a 301pt tile.
+ *
+ * So there are two sizes, chosen from the window height, and this reads both.
+ * `compactTiles ? A : B` is the shape it looks for; A is the short-phone size.
+ */
 const imgBlock = indexSrc.match(/summaryCardImage\s*:\s*\{([^}]+)\}/);
 const imgBody = imgBlock ? imgBlock[1] : '';
-const iconMatch = imgBody.match(/minHeight\s*:\s*(\d+)/);
-const ceilMatch = imgBody.match(/maxHeight\s*:\s*(\d+)/);
+const imgPair = imgBody.match(/height:\s*compactTiles \? (\d+) : (\d+)/);
+const tilePair = indexSrc.match(/minHeight:\s*compactTiles \? (\d+) : (\d+)/);
 const gapMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
-if (/flex\s*:\s*1/.test(imgBody)) ok('summaryCardImage grows with its tile');
-else fail('summaryCardImage grows with its tile', 'a fixed height leaves it lost in a tall tile');
-if (!iconMatch) fail('summaryCardImage minHeight found — the floor sets this budget');
-else ok(`summaryCardImage floor read from the screen: ${iconMatch[1]}pt`);
-if (!ceilMatch || parseInt(ceilMatch[1], 10) > 120) {
-  fail('summaryCardImage has a ceiling', 'without one the artwork keeps growing on a tall phone');
+
+if (/const compactTiles = windowHeight < \d+;/.test(indexSrc)) {
+  ok('the tiles are sized from the window height, not guessed');
 } else {
-  ok(`summaryCardImage ceiling read from the screen: ${ceilMatch[1]}pt`);
+  fail(
+    'the tiles are sized from the window height',
+    'one fixed size cannot both fill a 6.7 inch screen and fit a 5.5 inch one'
+  );
 }
+
+if (/flex\s*:\s*1/.test(imgBody)) {
+  fail(
+    'summaryCardImage has a real height rather than flex',
+    'an Image with flex and no height falls back on its own aspect ratio and drives the tile'
+  );
+} else {
+  ok('summaryCardImage has a real height rather than flex');
+}
+
+if (!imgPair) fail('summaryCardImage height found — both sizes of it');
+else ok(`summaryCardImage is ${imgPair[1]}pt compact, ${imgPair[2]}pt comfortable`);
+if (!tilePair) fail('summaryCard minHeight found — both sizes of it');
+else ok(`summaryCard is ${tilePair[1]}pt compact, ${tilePair[2]}pt comfortable`);
+
+// THE COMPLAINT, AS A NUMBER. "The logos not big enough" was the picture at
+// 45% of a tile that was itself too tall. Whatever the sizes become, the
+// artwork has to be a real share of the box it sits in.
+if (imgPair && tilePair) {
+  const share = Math.min(
+    Number(imgPair[1]) / Number(tilePair[1]),
+    Number(imgPair[2]) / Number(tilePair[2])
+  );
+  if (share >= 0.33) {
+    ok(`the artwork is at least ${(share * 100).toFixed(0)}% of its tile, at both sizes`);
+  } else {
+    fail(
+      `the artwork is only ${(share * 100).toFixed(0)}% of its tile`,
+      'a small picture in a large box is what "the logos not big enough" meant'
+    );
+  }
+}
+
 if (!gapMatch) fail('summaryCard gap found');
 else ok(`summaryCard gap read from the screen: ${gapMatch[1]}pt`);
-const ICON_SIZE = iconMatch ? parseInt(iconMatch[1], 10) : 999;
+// The comfortable size is the one the budget below is measured against, since
+// it is the one a modern phone gets.
+const ICON_SIZE = imgPair ? parseInt(imgPair[2], 10) : 999;
 const GAP = gapMatch ? parseInt(gapMatch[1], 10) : 999;
 
 const bigNumLineHeightMatch = indexSrc.match(/summaryBigNum\s*:\s*\{[^}]*lineHeight\s*:\s*(\d+)/);
@@ -183,62 +222,56 @@ if (!bigNumLineHeightMatch || !cycleLabelLineHeightMatch) {
   }
 
   /**
-   * HOME DOES NOT SCROLL, and that is now a property of the layout rather than
-   * of the copy happening to be short.
+   * HOME DOES NOT SCROLL, and it is the SIZE of the grid that decides that.
    *
-   * The grid is BOUNDED - `flex`, not `flexGrow` - so it takes the space left
-   * over and can never ask for more. Inside it, the rows stretch to share that
-   * space, the tile has no floor of its own to fight them with, and the picture
-   * is the one thing free to give way. So the only number that can push this
-   * page onto a scrollbar is what the tile needs when the picture is at its
-   * smallest, twice over.
+   * Nothing here is flexible any more. The grid is content-sized, the tiles
+   * have a known height, and whatever the screen has left over is spread
+   * between the blocks above by `inner`. So the whole question is one number:
+   * how tall are two rows of tiles.
    *
-   * That is what is checked here. It replaced an assertion about the tile's
-   * minHeight, which was the mechanism that let the grid overflow in the first
-   * place: the tiles insisted on 112 each, the grid was handed less, and the
-   * bottom row's labels went behind the tab bar.
+   * The budget was measured in the exported build, not chosen. At the
+   * comfortable size the page comes out exactly the viewport on 390x844 and
+   * 375x812; the compact size takes 360x780 under the line too. A 375x667
+   * screen does not fit and is not expected to - it is 150 points shorter than
+   * a modern phone and the hero card alone will not shrink that far.
    */
   const padMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?padding\s*:\s*(\d+)/);
   const pad = padMatch ? parseInt(padMatch[1], 10) : 0;
 
-  if (/summaryGrid\s*:\s*\{[\s\S]*?\n\s*flex: 1,/.test(indexSrc)) {
-    ok('The grid is bounded: it takes the space left over and cannot ask for more');
+  const gridOpen = indexSrc.indexOf('    summaryGrid: {');
+  const gridBlock =
+    gridOpen < 0 ? '' : indexSrc.slice(gridOpen, indexSrc.indexOf('\n    },', gridOpen));
+  if (!gridBlock || /^\s*(flex|flexGrow|maxHeight|alignContent)\s*:/m.test(gridBlock)) {
+    fail(
+      'The grid is content-sized, with no flex of its own',
+      'every attempt to let this grid share the leftover space ended with either a scrollbar or 185pt tiles'
+    );
+  } else {
+    ok('The grid is content-sized: its height is the tiles, and nothing else');
+  }
+
+  if (/inner: \{[\s\S]{0,400}?justifyContent: 'space-between'/.test(indexSrc)) {
+    ok('and the leftover is spread between the blocks, not left in a band at the foot');
   } else {
     fail(
-      'The grid is bounded',
-      'flexGrow can only grow. When the artwork got bigger the grid asked for more room than the phone had and Home started scrolling.'
+      'the leftover is spread between the blocks',
+      'without this the space the grid does not take piles up under the last tile, which is the gap that was reported'
     );
   }
 
-  // The block itself, from its opening line to its own closing brace, so the
-  // next style's properties cannot be read as this one's.
-  const cardOpen = indexSrc.indexOf('    summaryCard: {');
-  const cardBlock =
-    cardOpen < 0 ? '' : indexSrc.slice(cardOpen, indexSrc.indexOf('\n    },', cardOpen));
-  // Anchored to the start of a line, so the comment that says "No minHeight"
-  // is not read as one. It was, on the first attempt.
-  if (!cardBlock || /^\s*minHeight\s*:/m.test(cardBlock)) {
-    fail(
-      'The tile has no floor of its own',
-      'a floor on the tile is a floor on the row, which is one more thing able to push the page past the phone'
-    );
-  } else {
-    ok('The tile has no floor of its own: the row decides its height');
-  }
-
-  // What one tile cannot go below: the picture at its smallest, plus the words,
-  // plus the padding. Two of these and a gap is the whole grid's floor.
-  const gridGapMatch = indexSrc.match(/summaryGrid\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
+  // Two rows of tiles, at the size a modern phone gets. This is the number the
+  // whole screen's fit turns on.
+  const gridGapMatch = gridBlock.match(/\bgap\s*:\s*(\d+)/);
   const gridGap = gridGapMatch ? parseInt(gridGapMatch[1], 10) : 999;
-  const tileFloor = ICON_SIZE + GAP + bigNumLH + GAP + 13 + pad * 2;
-  const gridFloor = tileFloor * 2 + gridGap;
-  const GRID_FLOOR_MAX = 260;
-  if (gridFloor <= GRID_FLOOR_MAX) {
-    ok(`Grid floor: two rows cannot demand more than ${gridFloor}pt (budget ${GRID_FLOOR_MAX})`);
+  const tileHeight = ICON_SIZE + GAP + bigNumLH + GAP + 13 + pad * 2;
+  const gridHeight = tileHeight * 2 + gridGap;
+  const GRID_MAX = 310;
+  if (gridHeight <= GRID_MAX) {
+    ok(`Grid: two rows come to ${gridHeight}pt (budget ${GRID_MAX})`);
   } else {
     fail(
-      `Grid floor: two rows demand ${gridFloor}pt at their smallest, over the ${GRID_FLOOR_MAX}pt budget`,
-      'past this the grid cannot shrink far enough to fit under the hero card on a short phone, and Home scrolls'
+      `Grid: two rows come to ${gridHeight}pt, over the ${GRID_MAX}pt budget`,
+      'past this the grid does not fit under the hero card on a 390x844 phone, and Home scrolls'
     );
   }
 }
