@@ -4174,7 +4174,11 @@ export default function SessionScreen() {
               .map((s) =>
                 s.weight > 0
                   ? `${kgToDisplayUnit(s.weight, weightUnit)} ${weightUnit} x ${s.reps}`
-                  : `${s.reps} reps`
+                  : s.reps > 0
+                    ? `${s.reps} reps`
+                    : // A held stretch or a timed warm-up carries neither. "0 reps"
+                      // is a worse answer than saying it was done.
+                      'Done'
               )
               .join(', ')
           : done
@@ -4598,7 +4602,9 @@ export default function SessionScreen() {
         />
       </View>
 
-      {!!justFinished && !reviewing && (
+      {/* Not once the session is over: the recap below says all of this, and
+          the two together read as the screen repeating itself. */}
+      {!!justFinished && !reviewing && !allDone && (
         <Animated.View
           entering={FadeInDown.duration(220)}
           exiting={FadeOut.duration(260)}
