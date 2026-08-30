@@ -264,28 +264,33 @@ check(
   'it was the single tallest thing in the hero card and it set that row height on its own'
 );
 /**
- * The tile artwork is no longer a fixed size. It takes the height the words
- * leave behind, between a floor and a ceiling, so that it fills its tile on any
- * phone - a fixed 38 was chosen when the tile was a fixed 112 and left the
- * picture stranded once the tiles grew to fill the screen.
+ * The tile artwork is no longer a fixed size, and this is no longer a budget.
  *
- * The CEILING is what this budget is now about, because the ceiling is what the
- * tiles reach on the home screen somebody actually sees every day. 72 was not
- * chosen: at 92 the bottom row's labels went behind the tab bar on a 390x844
- * phone, and at 72 the page renders at exactly the viewport with nothing
- * clipped and nothing scrolled. Measured on the returning-user home, in the
- * exported build.
+ * What keeps Home on one screen is that the GRID is bounded - `flex`, so it
+ * takes the space left over and can never ask for more - and that the picture
+ * inside each tile is free to shrink into whatever that leaves. The ceiling
+ * only ever binds when there is room to spare, so a larger one cannot put the
+ * page on a scrollbar; it is a taste cap, not a fit cap.
+ *
+ * It was a fit cap for one round, when the grid could still grow, and that
+ * version of it was true: at 92 the bottom row's labels went behind the tab
+ * bar. Fixing the grid is what made the number stop mattering.
  */
+check(
+  'the summary grid is bounded, so Home cannot grow past the phone',
+  /summaryGrid: \{[\s\S]*?\n\s*flex: 1,/.test(home),
+  'flexGrow can only grow; the day the artwork got bigger, Home started scrolling'
+);
 const tileCeiling = num(/summaryCardImage: \{[^}]*maxHeight: (\d+)/, 'summaryCardImage maxHeight');
 check(
   `the summary tile artwork stops at ${tileCeiling}pt`,
-  tileCeiling !== null && tileCeiling <= 72,
-  'four of them, two rows: every point above this comes out of the grid twice'
+  tileCeiling !== null && tileCeiling <= 96,
+  'past this the artwork is a poster rather than an icon, however much room there is'
 );
 check(
   'and it is flexible rather than a fixed height',
   /summaryCardImage: \{[^}]*flex: 1/.test(home) && /summaryCardImage: \{[^}]*minHeight: \d+/.test(home),
-  'a fixed height cannot fill a tile whose height depends on the phone'
+  'a fixed height cannot fill a tile whose height depends on the phone, or get out of the way on a short one'
 );
 const innerGap = num(/inner: \{[^}]*gap: (\d+)/, 'inner gap');
 check(

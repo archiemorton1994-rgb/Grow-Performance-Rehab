@@ -182,21 +182,63 @@ if (!bigNumLineHeightMatch || !cycleLabelLineHeightMatch) {
     );
   }
 
-  // And the tile's own content must still fit the four-child tiles' floor plus
-  // that step, or minHeight is doing nothing and the rows drift apart further.
-  const minHeightMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?minHeight\s*:\s*(\d+)/);
-  const minH = minHeightMatch ? parseInt(minHeightMatch[1], 10) : 0;
+  /**
+   * HOME DOES NOT SCROLL, and that is now a property of the layout rather than
+   * of the copy happening to be short.
+   *
+   * The grid is BOUNDED - `flex`, not `flexGrow` - so it takes the space left
+   * over and can never ask for more. Inside it, the rows stretch to share that
+   * space, the tile has no floor of its own to fight them with, and the picture
+   * is the one thing free to give way. So the only number that can push this
+   * page onto a scrollbar is what the tile needs when the picture is at its
+   * smallest, twice over.
+   *
+   * That is what is checked here. It replaced an assertion about the tile's
+   * minHeight, which was the mechanism that let the grid overflow in the first
+   * place: the tiles insisted on 112 each, the grid was handed less, and the
+   * bottom row's labels went behind the tab bar.
+   */
   const padMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?padding\s*:\s*(\d+)/);
   const pad = padMatch ? parseInt(padMatch[1], 10) : 0;
-  // image + gap + number + gap + title, i.e. the four-child tile, ignoring the
-  // 11pt title's own line box which is the same in every tile.
-  const fourChild = ICON_SIZE + GAP + bigNumLH + GAP + 13;
-  if (minH > 0 && fourChild <= minH - pad * 2 + STEP_MAX) {
-    ok(`Tile floor: four-child content ${fourChild}pt fits minHeight ${minH} with padding ${pad}`);
+
+  if (/summaryGrid\s*:\s*\{[\s\S]*?\n\s*flex: 1,/.test(indexSrc)) {
+    ok('The grid is bounded: it takes the space left over and cannot ask for more');
   } else {
     fail(
-      `Tile floor: four-child content is ${fourChild}pt against minHeight ${minH} - padding ${pad * 2}`,
-      'the floor no longer floors anything, so every tile is content-sized and the grid height is whatever the copy happens to be'
+      'The grid is bounded',
+      'flexGrow can only grow. When the artwork got bigger the grid asked for more room than the phone had and Home started scrolling.'
+    );
+  }
+
+  // The block itself, from its opening line to its own closing brace, so the
+  // next style's properties cannot be read as this one's.
+  const cardOpen = indexSrc.indexOf('    summaryCard: {');
+  const cardBlock =
+    cardOpen < 0 ? '' : indexSrc.slice(cardOpen, indexSrc.indexOf('\n    },', cardOpen));
+  // Anchored to the start of a line, so the comment that says "No minHeight"
+  // is not read as one. It was, on the first attempt.
+  if (!cardBlock || /^\s*minHeight\s*:/m.test(cardBlock)) {
+    fail(
+      'The tile has no floor of its own',
+      'a floor on the tile is a floor on the row, which is one more thing able to push the page past the phone'
+    );
+  } else {
+    ok('The tile has no floor of its own: the row decides its height');
+  }
+
+  // What one tile cannot go below: the picture at its smallest, plus the words,
+  // plus the padding. Two of these and a gap is the whole grid's floor.
+  const gridGapMatch = indexSrc.match(/summaryGrid\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
+  const gridGap = gridGapMatch ? parseInt(gridGapMatch[1], 10) : 999;
+  const tileFloor = ICON_SIZE + GAP + bigNumLH + GAP + 13 + pad * 2;
+  const gridFloor = tileFloor * 2 + gridGap;
+  const GRID_FLOOR_MAX = 260;
+  if (gridFloor <= GRID_FLOOR_MAX) {
+    ok(`Grid floor: two rows cannot demand more than ${gridFloor}pt (budget ${GRID_FLOOR_MAX})`);
+  } else {
+    fail(
+      `Grid floor: two rows demand ${gridFloor}pt at their smallest, over the ${GRID_FLOOR_MAX}pt budget`,
+      'past this the grid cannot shrink far enough to fit under the hero card on a short phone, and Home scrolls'
     );
   }
 }

@@ -1789,23 +1789,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
       gap: 10,
-      // Takes whatever height is left over and shares it between the two rows,
-      // so the tiles reach the tab bar instead of stopping short of it.
+      // HOME DOES NOT SCROLL. The grid takes exactly the space left over -
+      // it grows into slack so the tiles reach the tab bar, and it shrinks
+      // when there is none so the page never gets taller than the phone.
       //
-      // flexGrow, not flex. flex also allows SHRINKING below the content, and
-      // when the tiles grew the grid was handed a share too small for them:
-      // the bottom row's labels were cut off by the tab bar and the page did
-      // not scroll, because the overflow was inside the grid rather than below
-      // it. Now it grows into slack and pushes the page taller when there is
-      // none, which is the honest behaviour on a short phone.
-      flexGrow: 1,
+      // flex, not flexGrow. flexGrow alone can only grow: when the artwork got
+      // bigger the grid asked for more room than existed and the whole page
+      // started scrolling, which is not what this screen is.
+      flex: 1,
       alignContent: 'stretch' as const,
     },
     summaryCard: {
       width: '47%' as any,
-      // The Your Program tile carries an extra line, so without a floor the two
-      // tiles in a row are different heights and the 2x2 grid steps.
-      minHeight: 112,
+      // No minHeight. The row stretches every tile in it to the same height
+      // anyway, which is what the old floor was really for, and a floor here
+      // would be one more thing able to push the page past the phone.
       justifyContent: 'center' as const,
       backgroundColor: C.surface,
       borderRadius: 18,
@@ -1816,17 +1814,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 3,
     },
     summaryCardImage: {
-      // Takes the height the words leave behind rather than a fixed 38, so the
-      // picture is as big as its tile allows on any screen. The floor keeps it
-      // recognisable on a short phone; the ceiling stops it looking like a
-      // poster on a tall one.
+      // Whatever the words leave behind, rather than a fixed 38. The tile's
+      // own height comes from the row, and the row's from the space the rest of
+      // the screen has not used, so the picture is the last thing to be served
+      // and the first to give way. That is what keeps this page off the
+      // scrollbar while still drawing the artwork as large as it can be.
+      //
+      // The floor is low on purpose: it is the point at which the picture stops
+      // shrinking and the page would rather scroll than shrink it further.
       flex: 1,
       width: '100%' as any,
-      minHeight: 44,
-      // 92 was too tall: two rows of it overran the tab bar on a 390x844 phone.
-      // Measured against the returning-user home, which is the one people see
-      // every day.
-      maxHeight: 72,
+      minHeight: 26,
+      maxHeight: 84,
       marginBottom: 2,
     },
     summaryCardTitle: {
