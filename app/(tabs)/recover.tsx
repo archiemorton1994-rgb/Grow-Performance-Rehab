@@ -17,7 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
-import { useColors } from '@/constants/colors';
+import { useColors, useIsDarkTheme } from '@/constants/colors';
+import { sessionIdentity } from '@/lib/session-identity';
 import { glowShadow } from '@/constants/shadows';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
 import { getRecoverImage } from '@/lib/session-images';
@@ -430,6 +431,21 @@ export default function RecoverScreen() {
     [completedSessions]
   );
 
+  /**
+   * The colour the session itself wears, once it has started.
+   *
+   * `deep` on a light theme and `bright` on a dark one, the same rule the rest
+   * of the app follows. Recovery and Targeted Prehab come out the same plum
+   * because they are the same session underneath - a prehab circuit, one
+   * whole-body and one aimed at an area - and saying so in colour is more
+   * honest than giving one of them a hue that means something else.
+   */
+  const isDark = useIsDarkTheme();
+  const accentFor = (type: string) => {
+    const id = sessionIdentity(type);
+    return isDark ? id.bright : id.deep;
+  };
+
   const SESSION_INFO = useMemo(() => getSessionInfo(C), [C]);
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -547,7 +563,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: recoveryRecency,
-      cardAccent: C.cardAccentRecovery,
+      cardAccent: accentFor('prehab'),
     },
     {
       key: 'mobility',
@@ -558,7 +574,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryCooldown,
       iconColor: C.categoryCooldownText,
       recency: flexRecency,
-      cardAccent: C.cardAccentMobility,
+      cardAccent: accentFor('flexibility'),
     },
     {
       key: 'prehab',
@@ -569,7 +585,7 @@ export default function RecoverScreen() {
       iconBg: C.categoryPrehab,
       iconColor: C.categoryPrehabText,
       recency: prehabRecency,
-      cardAccent: C.cardAccentPrehab,
+      cardAccent: accentFor('prehab'),
     },
   ];
 

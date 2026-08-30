@@ -1085,8 +1085,15 @@ export function SessionActiveBar({
             style={styles.barFeedbackBtn}
             testID="feedback-easy"
           >
-            <GrowIcon name="effort1" size={17} color={C.primaryDark} />
-            <Text style={styles.barFeedbackBtnText}>{SET_FEEDBACK_LABELS.easy}</Text>
+            {/* The effort scale is a judgement, not an identity, so it does not
+                wear the session colour. On a bench session it did, and bench is
+                red - which put "Easy" in the same red as "Too Hard" two chips
+                along. Green, neutral, red: the same green as the button that
+                logs a set, because that is what a comfortable set looks like. */}
+            <GrowIcon name="effort1" size={17} color={go.fill} />
+            <Text style={[styles.barFeedbackBtnText, { color: go.fill }]}>
+              {SET_FEEDBACK_LABELS.easy}
+            </Text>
           </Pressable>
           <Pressable
             onPress={() => handleFeedback('challenging')}

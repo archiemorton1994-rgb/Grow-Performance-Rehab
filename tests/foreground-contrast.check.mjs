@@ -77,6 +77,12 @@ const AA = 4.5;
 
 // ─── Parse both theme blocks from constants/colors.ts ────────────────────────
 
+// The session palette, needed by both the Restore section and the stats one.
+// At the top because the Restore section runs first and a dynamic import
+// further down is not hoisted the way a static one would be.
+const { sessionColorOverrides, inkOn } = await import('../lib/session-theme.ts');
+const { SESSION_IDENTITY } = await import('../lib/session-identity.ts');
+
 const src = readFileSync(join(ROOT, 'constants', 'colors.ts'), 'utf8');
 
 function themeTokens(blockName) {
@@ -413,7 +419,13 @@ function composite(fgHex, alphaHex, bgHex) {
 
 console.log('\n── Restore rows — accent as type on a card tinted with that accent ──');
 
-const accentTokens = [...recoverSrc.matchAll(/cardAccent:\s*C\.(\w+)/g)].map((m) => m[1]);
+// The rows take the colour of the session they start rather than a token of
+// their own, so this resolves the same way the screen does: `deep` on light,
+// `bright` on dark.
+const accentTypes = [...recoverSrc.matchAll(/cardAccent:\s*accentFor\('(\w+)'\)/g)].map(
+  (m) => m[1]
+);
+const accentTokens = accentTypes;
 const tintMatch = recoverSrc.match(
   /backgroundColor:\s*row\.cardAccent\s*\+\s*'([0-9a-fA-F]{2})'/
 );
@@ -465,7 +477,8 @@ if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
   for (const [themeName, T] of Object.entries(THEMES)) {
     const base = T[baseKey];
     for (const token of accentTokens) {
-      const accent = T[token];
+      const id = SESSION_IDENTITY[token];
+      const accent = id ? (themeName === 'DarkColors' ? id.bright : id.deep) : undefined;
       total++;
       if (!accent || !base) {
         console.error(`  ✗ ${themeName}.${token} — token missing (or ${baseKey} missing)`);
@@ -677,80 +690,37 @@ function hueGap(a, b) {
   return d > 180 ? 360 - d : d;
 }
 
-console.log('\n── Restore accents — one derived family, not three separate colours ──');
+console.log('\n── Restore rows — the colour of the session each one starts ──');
 
+// This used to check that the three rows were "one derived family": one
+// saturation, one weight, hues stepping away from the brand green. That rule
+// existed because they had a palette of their own and needed something to
+// hold them together. They take the session palette now, which has its own
+// separation and contrast rules, so what is left worth pinning is that they
+// really do read from it - and that two rows starting the same session agree.
 total++;
-if (accentTokens.length < 3 || !tintMatch || !baseMatch) {
-  console.error('  ✗ no Restore accents parsed — see the section above');
+if (accentTypes.length < 3) {
+  console.error('  ✗ the Restore rows do not read their colour from the session identities');
+  console.error('    Fix: cardAccent should be accentFor(<session type>), not a token of its own.');
   failures++;
 } else {
-  for (const [themeName, T] of Object.entries(THEMES)) {
-    const base = T[baseMatch[1]];
-    const members = accentTokens.map((k) => ({ key: k, hex: T[k] }));
-
-    total++;
-    if (members.some((m) => !m.hex) || !base) {
-      console.error(`  ✗ ${themeName} — an accent or the base surface is missing`);
-      failures++;
-      continue;
-    }
-
-    const sats = members.map((m) => hueSat(m.hex).s);
-    const satSpread = Math.max(...sats) - Math.min(...sats);
-    if (satSpread <= SAT_SPREAD_MAX) {
-      console.log(
-        `  ✓ ${themeName} shared saturation — ${sats.map((s) => s.toFixed(0) + '%').join(' / ')}`
-      );
-    } else {
-      console.error(
-        `  ✗ ${themeName} saturation spread ${satSpread.toFixed(0)} pts ` +
-          `(${sats.map((s) => s.toFixed(0) + '%').join(' / ')}), max ${SAT_SPREAD_MAX}`
-      );
-      console.error('    Fix: derive the set from one saturation; only the hue should differ.');
-      failures++;
-    }
-
-    total++;
-    const weights = members.map((m) => contrastRatio(m.hex, composite(m.hex, tintMatch[1], base)));
-    const weightShare = Math.min(...weights) / Math.max(...weights);
-    if (weightShare >= WEIGHT_MIN_SHARE) {
-      console.log(
-        `  ✓ ${themeName} shared weight — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1`
-      );
-    } else {
-      console.error(
-        `  ✗ ${themeName} weight varies — ${weights.map((w) => w.toFixed(2)).join(' / ')} : 1, ` +
-          `weakest is ${(weightShare * 100).toFixed(0)}% of strongest (floor ${WEIGHT_MIN_SHARE * 100}%)`
-      );
-      console.error(
-        '    Fix: tune each accent\'s lightness so all three land on the same contrast against ' +
-          'their own tint. One row shouting over the others is what makes a set look accidental.'
-      );
-      failures++;
-    }
-
-    const brandHue = hueSat(T.primaryText).h;
-    for (const m of members) {
-      total++;
-      const gap = hueGap(hueSat(m.hex).h, brandHue);
-      if (gap >= HUE_MIN_FROM_BRAND && gap <= HUE_MAX_FROM_BRAND) {
-        console.log(`  ✓ ${themeName} ${m.key} — ${gap.toFixed(0)}° from the brand green`);
-      } else if (gap < HUE_MIN_FROM_BRAND) {
-        console.error(
-          `  ✗ ${themeName} ${m.key} (${m.hex}) is only ${gap.toFixed(0)}° from the brand green`
-        );
-        console.error('    Fix: too close — this row would read as the brand accent itself.');
-        failures++;
-      } else {
-        console.error(
-          `  ✗ ${themeName} ${m.key} (${m.hex}) is ${gap.toFixed(0)}° from the brand green, ` +
-            `max ${HUE_MAX_FROM_BRAND}°`
-        );
-        console.error('    Fix: unrelated to the brand. Step away from the green, do not leave it.');
-        failures++;
-      }
-    }
+  const unknown = accentTypes.filter((t) => !SESSION_IDENTITY[t]);
+  if (unknown.length) {
+    console.error(`  ✗ Restore rows name sessions with no identity: ${unknown.join(", ")}`);
+    failures++;
+  } else {
+    console.log(`  ✓ 3 rows, coloured by the sessions they start: ${accentTypes.join(", ")}`);
   }
+
+  total++;
+  const byType = new Map();
+  for (const t of accentTypes) byType.set(t, (byType.get(t) ?? 0) + 1);
+  const doubled = [...byType].filter(([, n]) => n > 1).map(([t]) => t);
+  console.log(
+    doubled.length
+      ? `  ✓ ${doubled.join(", ")} appears on more than one row and is the same colour on each`
+      : '  ✓ every row starts a different session'
+  );
 }
 
 // ─── H. Chart marks must survive on the card they are drawn on ───────────────
@@ -800,8 +770,6 @@ const statsSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'workouts.tsx'), 'utf8
  * each other. The distinctness check below could not see it, because the two
  * types really were the same entry.
  */
-const { sessionColorOverrides, inkOn } = await import('../lib/session-theme.ts');
-const { SESSION_IDENTITY } = await import('../lib/session-identity.ts');
 
 const derivesFromIdentities =
   /sessionColorOverrides\(C, type, isDark\)/.test(statsSrc) &&

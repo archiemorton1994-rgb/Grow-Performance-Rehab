@@ -73,43 +73,54 @@ export const PAGE = {
 
 /**
  * Ten hues, spread round the wheel so no two sessions are mistakable at a
- * glance. Every `deep` clears 4.5:1 on PAGE.bg and every `bright` clears 4.5:1
- * on the dark theme's background - asserted in tests/session-identity.check.mjs
- * rather than trusted, because a palette picked by eye drifts the first time
- * somebody adds an eleventh.
+ * glance, and SATURATED. The first version was tuned only for legibility and
+ * came out a set of pastels: "the rest are too pastel, they need to be harsher
+ * and more distinct".
+ *
+ * Every value below is the MOST SATURATED colour at its hue that still meets
+ * every rule the suite enforces - white readable on `deep`, `deep` readable on
+ * the recap page, `bright` readable on black AND readable as a fill with near
+ * black text on it. Eight of the ten come out at full saturation. They were
+ * solved for rather than picked, because a set of ten that has to satisfy four
+ * contrast rules, an 18 degree hue separation, a no-go zone around the
+ * assistant's sapphire and a deltaE floor between every pair is not something
+ * anybody gets right by eye.
+ *
+ * THE ASSIGNMENTS ARE ARCHIE'S: bench red, deadlift yellow, custom orange,
+ * flexibility purple, prehab untouched. The four he did not name moved out of
+ * their way - lower body from bronze, which collided with the new yellow, and
+ * conditioning from crimson, which collided with the new red.
  */
 export const SESSION_IDENTITY: Record<SessionType, SessionIdentity> = {
-  // The three KPI lifts get the three strongest, most distinct hues, because
-  // they are the sessions somebody does most often and most needs to recognise.
-  // Cyan-blue rather than the royal blue it started as. That one sat 15
-  // degrees from the assistant's sapphire, and the assistant is the single
-  // thing in this app whose colour is supposed to mean only itself - on the
-  // session people run most often, its button stopped announcing what it was.
-  squat: { deep: '#14607f', bright: '#52b7e0', wash: 'rgba(20,96,127,0.10)' },
-  bench: { deep: '#9d4413', bright: '#ef9152', wash: 'rgba(157,68,19,0.10)' },
-  deadlift: { deep: '#5a3690', bright: '#b18ee6', wash: 'rgba(90,54,144,0.10)' },
+  // The three KPI lifts. Squat kept its cyan-blue, which was the one he said
+  // was fine; it is only more saturated. It cannot go bluer than this: the
+  // assistant's sapphire sits at 224 degrees and is the one colour in this app
+  // that has to mean only itself.
+  squat: { deep: '#0073a8', bright: '#0092d6', wash: 'rgba(0,115,168,0.10)' },
+  bench: { deep: '#d61200', bright: '#ff311f', wash: 'rgba(214,18,0,0.10)' },
+  deadlift: { deep: '#7a6a00', bright: '#d6ba00', wash: 'rgba(122,106,0,0.10)' },
 
-  upper_body: { deep: '#0b6059', bright: '#45bdb0', wash: 'rgba(11,96,89,0.10)' },
-  lower_body: { deep: '#7a5a0f', bright: '#e0b04a', wash: 'rgba(122,90,15,0.10)' },
-  // Full body keeps the brand green: it is the session that is everything.
+  upper_body: { deep: '#007571', bright: '#00d6cf', wash: 'rgba(0,117,113,0.10)' },
+  // Lime, not the bronze it was. Bronze sat 10 degrees from the new yellow,
+  // which is deadlift.
+  lower_body: { deep: '#527500', bright: '#96d600', wash: 'rgba(82,117,0,0.10)' },
+  // Full body keeps the brand green: it is the session that is everything, and
+  // a neon green here would fight the one green button in a session.
   full_body: { deep: '#2f6b46', bright: '#5ddc93', wash: 'rgba(47,107,70,0.10)' },
 
-  conditioning: { deep: '#95213c', bright: '#f0768c', wash: 'rgba(149,33,60,0.10)' },
+  // Magenta, not the crimson it was. Crimson sat 19 degrees from the new red,
+  // which is bench.
+  conditioning: { deep: '#d6004f', bright: '#ff1f71', wash: 'rgba(214,0,79,0.10)' },
 
-  // The Restore family sits in the cooler, calmer half deliberately. These are
-  // the sessions somebody does when something hurts.
-  // Plum, not the steel blue it started as: that sat 15 degrees from squat's
-  // blue, which is close enough that the two sessions read the same at a
-  // glance. The check measures hue separation for exactly this reason.
+  // "Prehab leave as is." Untouched, and the only entry here that is still a
+  // muted colour - which is arguably right for the session somebody does when
+  // something hurts.
   prehab: { deep: '#8a2f79', bright: '#d97ec6', wash: 'rgba(138,47,121,0.10)' },
-  flexibility: { deep: '#4a662d', bright: '#a5cd6f', wash: 'rgba(74,102,45,0.10)' },
+  // Purple, not the olive it was: "flexibility can be more purple". The olive
+  // also sat 11 degrees from the new lime.
+  flexibility: { deep: '#8800ff', bright: '#b35cff', wash: 'rgba(136,0,255,0.10)' },
 
-  // A quiet lavender rather than another saturated violet. The saturated one
-  // sat only 9.7 deltaE from deadlift as a chart mark - hue-separated on paper
-  // and the same swatch to a reader, which the stats donut showed up. Custom is
-  // the session somebody built themselves, so reading as the quiet one among
-  // nine prescribed colours suits it.
-  custom: { deep: '#403c88', bright: '#bdbae8', wash: 'rgba(64,60,136,0.10)' },
+  custom: { deep: '#ad5100', bright: '#db6600', wash: 'rgba(173,81,0,0.10)' },
 };
 
 /** Never throws: an unknown type reads as a custom session. */
