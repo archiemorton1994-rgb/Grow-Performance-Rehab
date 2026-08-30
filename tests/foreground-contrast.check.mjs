@@ -789,9 +789,36 @@ console.log('\n── Stats chart marks — every slice visible on its card ─�
 
 const statsSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'workouts.tsx'), 'utf8');
 
-const typeBlock = statsSrc.match(
-  /function getSessionTypeColors\([\s\S]*?\n {2}return \{([\s\S]*?)\n {2}\};/
-);
+/**
+ * The map is DERIVED from the session identities now, so there is nothing to
+ * parse: it is built here the same way the screen builds it, and the values
+ * measured are the ones actually drawn.
+ *
+ * That is why this matters at all. The screen used to carry a palette of its
+ * own, unrelated to the one a session wears - squat was green here and blue
+ * inside the session - and three PAIRS of session types shared a colour with
+ * each other. The distinctness check below could not see it, because the two
+ * types really were the same entry.
+ */
+const { sessionColorOverrides, inkOn } = await import('../lib/session-theme.ts');
+const { SESSION_IDENTITY } = await import('../lib/session-identity.ts');
+
+const derivesFromIdentities =
+  /sessionColorOverrides\(C, type, isDark\)/.test(statsSrc) &&
+  /inkOn\(bg, SESSION_IDENTITY\[type\]\.deep\)/.test(statsSrc);
+
+function statsEntries(T, isDark) {
+  return Object.keys(SESSION_IDENTITY).map((type) => {
+    const tinted = sessionColorOverrides(T, type, isDark);
+    const bg = tinted.primaryMuted;
+    return {
+      type,
+      bg,
+      color: inkOn(bg, SESSION_IDENTITY[type].deep),
+      chart: tinted.primaryText,
+    };
+  });
+}
 // Which field the donut paints with, and which the legend dot uses in each state.
 const donutField = statsSrc.match(/fill=\{sessionTypeColors\[seg\.type\]\.(\w+)\}/)?.[1];
 const dotFields = statsSrc.match(
@@ -803,39 +830,26 @@ const cardKey = statsSrc.match(
 )?.[1];
 
 total++;
-if (!typeBlock || !donutField || !dotFields || !cardKey) {
+if (!derivesFromIdentities || !donutField || !dotFields || !cardKey) {
   console.error(
     `  ✗ could not read the breakdown from app/(tabs)/workouts.tsx ` +
-      `(map: ${typeBlock ? 'ok' : 'missing'}, donut field: ${donutField ?? 'missing'}, ` +
+      `(derived: ${derivesFromIdentities ? 'ok' : 'no'}, donut field: ${donutField ?? 'missing'}, ` +
       `dot fields: ${dotFields ? 'ok' : 'missing'}, card: ${cardKey ?? 'missing'})`
   );
   console.error('    Fix: this check reads the screen; update it alongside the layout.');
   failures++;
 } else {
-  const entries = [
-    ...typeBlock[1].matchAll(
-      /(\w+):\s*\{[^}]*?bg:\s*C\.(\w+)[^}]*?color:\s*C\.(\w+),[^}]*?chart:\s*C\.(\w+),?[^}]*?\}/g
-    ),
-  ].map(([, type, bg, color, chart]) => ({ type, bg, color, chart }));
-
   const [, selectedDotField, restingDotField] = dotFields;
 
   total++;
-  if (entries.length < 10) {
-    console.error(
-      `  ✗ parsed only ${entries.length} session types — the map's shape has changed`
-    );
-    console.error('    Fix: this check reads the screen; update it alongside the layout.');
-    failures++;
-  } else {
-    console.log(
-      `  ✓ ${entries.length} session types; donut paints \`${donutField}\`, ` +
-        `dot paints \`${restingDotField}\` at rest and \`${selectedDotField}\` when selected, ` +
-        `card is ${cardKey}`
-    );
-  }
+  console.log(
+    `  ✓ ${Object.keys(SESSION_IDENTITY).length} session types, derived from the identities; ` +
+      `donut paints \`${donutField}\`, dot paints \`${restingDotField}\` at rest and ` +
+      `\`${selectedDotField}\` when selected, card is ${cardKey}`
+  );
 
   for (const [themeName, T] of Object.entries(THEMES)) {
+    const entries = statsEntries(T, themeName === 'DarkColors');
     const card = T[cardKey];
     const marks = [];
 
@@ -846,7 +860,7 @@ if (!typeBlock || !donutField || !dotFields || !cardKey) {
         ['legend dot', restingDotField],
       ]) {
         total++;
-        const mark = T[e[field]];
+        const mark = e[field];
         if (!mark || !card) {
           console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${cardKey} missing`);
           failures++;
@@ -877,8 +891,8 @@ if (!typeBlock || !donutField || !dotFields || !cardKey) {
         ['selected dot', selectedDotField],
       ]) {
         total++;
-        const ink = T[e[field]];
-        const bg = T[e.bg];
+        const ink = e[field];
+        const bg = e.bg;
         if (!ink || !bg) {
           console.error(`  ✗ ${themeName} ${e.type} — ${field} or ${e.bg} missing`);
           failures++;

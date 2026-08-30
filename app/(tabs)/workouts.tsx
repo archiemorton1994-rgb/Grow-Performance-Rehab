@@ -18,7 +18,9 @@ import Svg, { Rect, Line, Circle, Path, Polyline, Text as SvgText, G } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useColors } from '@/constants/colors';
+import { useColors, useIsDarkTheme } from '@/constants/colors';
+import { inkOn, sessionColorOverrides } from '@/lib/session-theme';
+import { SESSION_IDENTITY } from '@/lib/session-identity';
 import { xsShadow } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { StatStrip } from '@/components/StatStrip';
@@ -143,72 +145,29 @@ function formatSessionDuration(seconds: number): string {
  * dark rendering is unchanged. Where the existing ink already qualified, chart
  * is that same ink.
  */
-function getSessionTypeColors(C: ReturnType<typeof useColors>): Record<
-  SessionType,
-  { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string; chart: string }
-> {
-  return {
-    squat: {
-      bg: C.primaryMuted,
-      icon: SHARED_SESSION_META.squat.icon,
-      color: C.primaryText,
-      chart: C.primaryText,
-    },
-    bench: {
-      bg: C.badgeVolume,
-      icon: SHARED_SESSION_META.bench.icon,
-      color: C.badgeVolumeText,
-      chart: C.badgeVolumeText,
-    },
-    deadlift: {
-      bg: C.categoryNeuro,
-      icon: SHARED_SESSION_META.deadlift.icon,
-      color: C.categoryNeuroText,
-      chart: C.categoryNeuroText,
-    },
-    conditioning: {
-      bg: C.categoryPrehab,
-      icon: SHARED_SESSION_META.conditioning.icon,
-      color: C.categoryPrehabText,
-      chart: C.streakText,
-    },
-    prehab: {
-      bg: C.categoryMechanical,
-      icon: SHARED_SESSION_META.prehab.icon,
-      color: C.categoryMechanicalText,
-      chart: C.categoryMechanicalText,
-    },
-    flexibility: {
-      bg: C.categoryCooldown,
-      icon: SHARED_SESSION_META.flexibility.icon,
-      color: C.categoryCooldownText,
-      chart: C.categoryCooldownText,
-    },
-    custom: {
-      bg: C.categoryFinisher,
-      icon: SHARED_SESSION_META.custom.icon,
-      color: C.categoryFinisherText,
-      chart: C.destructive,
-    },
-    lower_body: {
-      bg: C.primaryMuted,
-      icon: SHARED_SESSION_META.lower_body.icon,
-      color: C.primaryText,
-      chart: C.primaryText,
-    },
-    upper_body: {
-      bg: C.badgeVolume,
-      icon: SHARED_SESSION_META.upper_body.icon,
-      color: C.badgeVolumeText,
-      chart: C.badgeVolumeText,
-    },
-    full_body: {
-      bg: C.categoryNeuro,
-      icon: SHARED_SESSION_META.full_body.icon,
-      color: C.categoryNeuroText,
-      chart: C.categoryNeuroText,
-    },
-  };
+function getSessionTypeColors(
+  C: ReturnType<typeof useColors>,
+  isDark: boolean
+): Record<SessionType, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string; chart: string }> {
+  const out = {} as Record<
+    SessionType,
+    { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string; chart: string }
+  >;
+  for (const type of Object.keys(SESSION_IDENTITY) as SessionType[]) {
+    const tinted = sessionColorOverrides(C, type, isDark);
+    const bg = tinted.primaryMuted ?? C.primaryMuted;
+    out[type] = {
+      bg,
+      icon: SHARED_SESSION_META[type].icon,
+      // Solved against the chip it sits on rather than picked, because ten
+      // hues on two grounds is twenty pairs.
+      color: inkOn(bg, SESSION_IDENTITY[type].deep),
+      // The mark on a chart sits on the CARD, not on the chip, so it takes the
+      // same shade the session screen uses for ink on the app's background.
+      chart: tinted.primaryText ?? C.primaryText,
+    };
+  }
+  return out;
 }
 
 function getEnergyColors(C: ReturnType<typeof useColors>): Record<EnergyLevel, string> {
@@ -1357,17 +1316,24 @@ function StrengthLineChart({
   weightUnit: 'kg' | 'lbs';
   C: ReturnType<typeof useColors>;
 }) {
+  const isDark = useIsDarkTheme();
   const [chartWidth, setChartWidth] = useState(280);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-  // Keep these aligned with the session-type colors in `getSessionTypeColors`
-  // and the home-screen `SESSION_TYPE_META` so each lift reads the same colour
-  // wherever it appears.
-  const LIFT_COLORS: Record<string, { line: string; fill: string }> = {
-    squat: { line: C.primaryText, fill: C.primaryMuted },
-    bench: { line: C.badgeVolumeText, fill: C.badgeVolume },
-    deadlift: { line: C.categoryNeuroText, fill: C.categoryNeuro },
-  };
+  // The lift's own colour, the same one it wears inside a session and on the
+  // history rows. This used to be three hand-picked pairs that drifted from
+  // both.
+  const LIFT_COLORS: Record<string, { line: string; fill: string }> = useMemo(() => {
+    const built: Record<string, { line: string; fill: string }> = {};
+    for (const t of ['squat', 'bench', 'deadlift'] as SessionType[]) {
+      const tinted = sessionColorOverrides(C, t, isDark);
+      built[t] = {
+        line: tinted.primaryText ?? C.primaryText,
+        fill: tinted.primaryMuted ?? C.primaryMuted,
+      };
+    }
+    return built;
+  }, [C, isDark]);
 
   const data = useMemo(() => {
     return orms
@@ -1654,7 +1620,8 @@ function SessionHistoryList({
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCount, setShowCount] = useState(HISTORY_PAGE_SIZE);
-  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
+  const isDark = useIsDarkTheme();
+  const sessionTypeColors = useMemo(() => getSessionTypeColors(C, isDark), [C, isDark]);
   const energyColors = useMemo(() => getEnergyColors(C), [C]);
 
   if (sessions.length === 0) {
@@ -1722,12 +1689,16 @@ function SessionHistoryList({
                 },
               ]}
             >
+              {/* The session's own colour, the same one it wears inside the
+                  session and on the charts. The row computed it and then never
+                  used it, so every entry in a year of history looked the same. */}
               <View
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 10,
                   overflow: 'hidden',
+                  backgroundColor: meta.bg,
                 }}
               >
                 <Image
@@ -1737,7 +1708,9 @@ function SessionHistoryList({
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text }}>
+                <Text
+                  style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: meta.chart }}
+                >
                   {session.displayLabel ?? getSessionLabel(session.sessionType)}
                 </Text>
                 <Text
@@ -2335,7 +2308,8 @@ function SessionTypeBreakdown({
   onFilterChange: (type: SessionType | null) => void;
   C: ReturnType<typeof useColors>;
 }) {
-  const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
+  const isDark = useIsDarkTheme();
+  const sessionTypeColors = useMemo(() => getSessionTypeColors(C, isDark), [C, isDark]);
 
   const counts = useMemo(() => {
     const map: Record<SessionType, number> = {

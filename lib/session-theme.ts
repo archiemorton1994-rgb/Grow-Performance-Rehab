@@ -80,6 +80,10 @@ export interface SessionThemeTokens {
 type RGB = [number, number, number];
 
 function parseHex(hex: string): RGB | null {
+  // Defensive on purpose: a caller can hand this a token that does not exist
+  // (or an rgba one), and a missing colour must fall through to the base
+  // rather than take the screen down.
+  if (typeof hex !== 'string') return null;
   const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
   if (!m) return null;
   const n = parseInt(m[1], 16);
@@ -98,11 +102,6 @@ function toHex(rgb: RGB): string {
 const toLinear = (v: number): number => {
   const c = v / 255;
   return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-};
-
-const fromLinear = (v: number): number => {
-  const c = v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055;
-  return c * 255;
 };
 
 /** WCAG relative luminance, the only quantity contrast depends on. */
@@ -258,3 +257,38 @@ export const LUMINANCE_MATCHED_TOKENS: (keyof SessionThemeTokens)[] = [
   'border',
   'borderLight',
 ];
+
+/**
+ * The session's hue, taken to whatever brightness it needs to clear `minRatio`
+ * against the surface it is being drawn on.
+ *
+ * FOR THE PLACES THAT ARE NOT A SESSION. A history row, a legend chip, the
+ * line on a one-rep-max chart: all of them show a session, none of them can
+ * re-tone the theme, and every one of them had its own unrelated palette.
+ * Squat was green on the stats screen and blue inside the session; lower body
+ * and squat were the same green as each other, upper body and bench the same
+ * blue, full body and deadlift the same purple. "Ensure all theme colours match
+ * elsewhere in the app."
+ *
+ * Solved rather than picked: the contrast formula is inverted to get the
+ * luminance the ink has to reach, and atLuminance takes the hue there. Ten
+ * hues on two grounds is twenty pairs, which is too many to check by eye and
+ * exactly the kind of thing that rots quietly.
+ */
+export function inkOn(surface: string, hue: string, minRatio = 4.6): string {
+  const s = parseHex(surface);
+  const h = parseHex(hue);
+  if (!s || !h) return hue;
+  const sl = lum(s);
+  // Which side of the surface the ink has to sit on: darker text on a light
+  // ground, brighter text on a dark one.
+  const needDarker = sl > 0.18;
+  const target = needDarker
+    ? (sl + 0.05) / minRatio - 0.05
+    : minRatio * (sl + 0.05) - 0.05;
+  const clamped = Math.max(0, Math.min(1, target));
+  const here = lum(h);
+  // Already clear enough on the correct side? Leave the chosen hue alone.
+  if (needDarker ? here <= clamped : here >= clamped) return toHex(h);
+  return toHex(atLuminance(h, clamped));
+}

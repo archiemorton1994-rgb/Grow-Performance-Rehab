@@ -104,7 +104,12 @@ export const SESSION_IDENTITY: Record<SessionType, SessionIdentity> = {
   prehab: { deep: '#8a2f79', bright: '#d97ec6', wash: 'rgba(138,47,121,0.10)' },
   flexibility: { deep: '#4a662d', bright: '#a5cd6f', wash: 'rgba(74,102,45,0.10)' },
 
-  custom: { deep: '#403c88', bright: '#948fe6', wash: 'rgba(64,60,136,0.10)' },
+  // A quiet lavender rather than another saturated violet. The saturated one
+  // sat only 9.7 deltaE from deadlift as a chart mark - hue-separated on paper
+  // and the same swatch to a reader, which the stats donut showed up. Custom is
+  // the session somebody built themselves, so reading as the quiet one among
+  // nine prescribed colours suits it.
+  custom: { deep: '#403c88', bright: '#bdbae8', wash: 'rgba(64,60,136,0.10)' },
 };
 
 /** Never throws: an unknown type reads as a custom session. */
