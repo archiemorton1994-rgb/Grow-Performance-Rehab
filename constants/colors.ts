@@ -312,6 +312,23 @@ export function useColors(): AppColors {
   return systemScheme === 'light' ? LightColors : DarkColors;
 }
 
+/**
+ * True when the app is painting its dark palette, whatever chose it.
+ *
+ * The same three-way decision useColors makes, exposed on its own for the one
+ * thing tokens cannot answer: which of a session's two shades to use. A session
+ * colour has a deep version for the exercise card's parchment and a bright one
+ * for the app's own near-black background, and only the caller knows which
+ * ground it is drawing on.
+ */
+export function useIsDarkTheme(): boolean {
+  const themePreference = useAppStore((s) => s.themePreference);
+  const systemScheme = useColorScheme();
+  if (themePreference === 'light') return false;
+  if (themePreference === 'dark') return true;
+  return systemScheme !== 'light';
+}
+
 /** Direct access to dark-mode tokens for non-hook contexts (e.g. pre-render crash views). */
 export { DarkColors };
 

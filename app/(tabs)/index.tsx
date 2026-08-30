@@ -1641,7 +1641,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // against a 390x844 device, not chosen: see the budget in the commit that
     // introduced them. Four 16px gaps were 64px of air on a screen that was
     // 197px over.
-    inner: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, gap: 12 },
+    // flexGrow so the content fills the phone when it is shorter than one.
+    // On a returning user the card and the four tiles come up short and the
+    // slack was sitting as a dead band above the tab bar; the grid below
+    // absorbs it instead.
+    inner: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 24,
+      gap: 12,
+      flexGrow: 1,
+    },
 
     header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     greetingEyebrow: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.textSecondary },
@@ -1779,6 +1789,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
       gap: 10,
+      // Takes whatever height is left over, and shares it between the two
+      // rows, so the tiles reach the tab bar instead of stopping short of it.
+      flex: 1,
+      alignContent: 'stretch' as const,
     },
     summaryCard: {
       width: '47%' as any,

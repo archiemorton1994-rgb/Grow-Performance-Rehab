@@ -31,6 +31,14 @@ export interface SessionProgressStripProps {
   onPress?: () => void;
   /** Short line under the strip, e.g. "Main lift · exercise 9 of 25". */
   caption?: string;
+  /**
+   * The session's colour, already resolved for the current theme.
+   *
+   * Resolved by the screen rather than here: this sits on the app's own
+   * background, and which of a session's two shades reads on it is a question
+   * about the theme, not about the strip.
+   */
+  accent: string;
 }
 
 export function SessionProgressStrip({
@@ -38,6 +46,7 @@ export function SessionProgressStrip({
   activeIndex,
   onPress,
   caption,
+  accent,
 }: SessionProgressStripProps) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -100,18 +109,19 @@ export function SessionProgressStrip({
               key={i}
               style={[
                 styles.mark,
-                isDone && styles.markDone,
-                isActive && styles.markActive,
-                isActive && isDone && styles.markActiveDone,
+                isDone && [styles.markDone, { backgroundColor: accent }],
+                isActive && [styles.markActive, { backgroundColor: accent }],
               ]}
             />
           );
         })}
-        <Animated.View style={[styles.flag, finished && styles.flagLit, flagStyle]}>
+        <Animated.View
+          style={[styles.flag, finished && { backgroundColor: accent }, flagStyle]}
+        >
           <Ionicons
             name={finished ? 'flag' : 'flag-outline'}
             size={13}
-            color={finished ? C.textInverse : C.textTertiary}
+            color={finished ? C.background : C.textTertiary}
           />
         </Animated.View>
       </Animated.View>
