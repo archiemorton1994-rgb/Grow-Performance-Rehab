@@ -1192,7 +1192,7 @@ function OnboardingFlow() {
                       >
                         <Image
                           source={EQUIPMENT_IMAGES[opt.value]}
-                          style={{ width: 44, height: 44 }}
+                          style={{ width: 66, height: 66 }}
                           resizeMode="contain"
                         />
                         {isLocked && (
@@ -1681,7 +1681,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     hintCompact: { fontSize: 13, marginBottom: 10 },
     optionListCompact: { gap: 6 },
     optionCardCompact: { paddingVertical: 10, paddingHorizontal: 14, gap: 12 },
-    optionIconCompact: { width: 52, height: 52, borderRadius: 14 },
+    optionIconCompact: { width: 66, height: 66, borderRadius: 16 },
     optionLabelCompact: { fontSize: 15, lineHeight: 19 },
     optionDescCompact: { fontSize: 11, lineHeight: 14, marginTop: 0 },
     optionCard: {

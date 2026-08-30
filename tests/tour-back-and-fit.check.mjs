@@ -263,11 +263,29 @@ check(
   todayIcon !== null && todayIcon <= 84,
   'it was the single tallest thing in the hero card and it set that row height on its own'
 );
-const tileImage = num(/summaryCardImage: \{\s*\n\s*width: (\d+),/, 'summaryCardImage');
+/**
+ * The tile artwork is no longer a fixed size. It takes the height the words
+ * leave behind, between a floor and a ceiling, so that it fills its tile on any
+ * phone - a fixed 38 was chosen when the tile was a fixed 112 and left the
+ * picture stranded once the tiles grew to fill the screen.
+ *
+ * The CEILING is what this budget is now about, because the ceiling is what the
+ * tiles reach on the home screen somebody actually sees every day. 72 was not
+ * chosen: at 92 the bottom row's labels went behind the tab bar on a 390x844
+ * phone, and at 72 the page renders at exactly the viewport with nothing
+ * clipped and nothing scrolled. Measured on the returning-user home, in the
+ * exported build.
+ */
+const tileCeiling = num(/summaryCardImage: \{[^}]*maxHeight: (\d+)/, 'summaryCardImage maxHeight');
 check(
-  `the summary tile artwork is ${tileImage}pt, not 52`,
-  tileImage !== null && tileImage <= 42,
-  'four of them, two rows, 108pt of the grid'
+  `the summary tile artwork stops at ${tileCeiling}pt`,
+  tileCeiling !== null && tileCeiling <= 72,
+  'four of them, two rows: every point above this comes out of the grid twice'
+);
+check(
+  'and it is flexible rather than a fixed height',
+  /summaryCardImage: \{[^}]*flex: 1/.test(home) && /summaryCardImage: \{[^}]*minHeight: \d+/.test(home),
+  'a fixed height cannot fill a tile whose height depends on the phone'
 );
 const innerGap = num(/inner: \{[^}]*gap: (\d+)/, 'inner gap');
 check(

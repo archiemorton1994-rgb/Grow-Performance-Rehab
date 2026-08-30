@@ -1531,9 +1531,9 @@ export default function ProfileScreen() {
                 >
                   <View
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 8,
+                      width: 60,
+                      height: 60,
+                      borderRadius: 12,
                       overflow: 'hidden',
                       backgroundColor: C.surfaceTertiary,
                       opacity: isLocked ? 0.4 : 1,
@@ -1541,7 +1541,7 @@ export default function ProfileScreen() {
                   >
                     <Image
                       source={EQUIPMENT_IMAGES[tier]}
-                      style={{ width: 44, height: 44 }}
+                      style={{ width: 60, height: 60 }}
                       resizeMode="contain"
                     />
                   </View>

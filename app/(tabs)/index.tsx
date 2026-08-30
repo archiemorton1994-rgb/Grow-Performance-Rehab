@@ -1789,9 +1789,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       flexDirection: 'row' as const,
       flexWrap: 'wrap' as const,
       gap: 10,
-      // Takes whatever height is left over, and shares it between the two
-      // rows, so the tiles reach the tab bar instead of stopping short of it.
-      flex: 1,
+      // Takes whatever height is left over and shares it between the two rows,
+      // so the tiles reach the tab bar instead of stopping short of it.
+      //
+      // flexGrow, not flex. flex also allows SHRINKING below the content, and
+      // when the tiles grew the grid was handed a share too small for them:
+      // the bottom row's labels were cut off by the tab bar and the page did
+      // not scroll, because the overflow was inside the grid rather than below
+      // it. Now it grows into slack and pushes the page taller when there is
+      // none, which is the honest behaviour on a short phone.
+      flexGrow: 1,
       alignContent: 'stretch' as const,
     },
     summaryCard: {
@@ -1809,9 +1816,18 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 3,
     },
     summaryCardImage: {
-      width: 38,
-      height: 38,
-      marginBottom: 1,
+      // Takes the height the words leave behind rather than a fixed 38, so the
+      // picture is as big as its tile allows on any screen. The floor keeps it
+      // recognisable on a short phone; the ceiling stops it looking like a
+      // poster on a tall one.
+      flex: 1,
+      width: '100%' as any,
+      minHeight: 44,
+      // 92 was too tall: two rows of it overran the tab bar on a 390x844 phone.
+      // Measured against the returning-user home, which is the one people see
+      // every day.
+      maxHeight: 72,
+      marginBottom: 2,
     },
     summaryCardTitle: {
       fontSize: 11,

@@ -125,10 +125,28 @@ if (!bigNumBlockMatch) {
 //
 // Both numbers are read out of the real styles now. The tile is the thing being
 // guarded, so the tile is the thing that has to be measured.
-const iconMatch = indexSrc.match(/summaryCardImage\s*:\s*\{[^}]*height\s*:\s*(\d+)/);
+// AND THE PICTURE IS NO LONGER A FIXED HEIGHT. It takes whatever the words
+// leave behind, between a floor and a ceiling, so that it fills its tile on any
+// phone: a fixed 38 was chosen when the tile was a fixed 112 and left the
+// artwork stranded once the tiles grew to fill the screen. The FLOOR is what
+// the picture contributes to the tile's minimum, so the floor is the number
+// this budget is measured against. The ceiling is checked on its own, because
+// an unbounded flexible image is the other way this goes wrong - and it goes
+// wrong only on the tall phones that nobody happens to be holding.
+const imgBlock = indexSrc.match(/summaryCardImage\s*:\s*\{([^}]+)\}/);
+const imgBody = imgBlock ? imgBlock[1] : '';
+const iconMatch = imgBody.match(/minHeight\s*:\s*(\d+)/);
+const ceilMatch = imgBody.match(/maxHeight\s*:\s*(\d+)/);
 const gapMatch = indexSrc.match(/summaryCard\s*:\s*\{[\s\S]*?\bgap\s*:\s*(\d+)/);
-if (!iconMatch) fail('summaryCardImage height found — the tile artwork is what sets this budget');
-else ok(`summaryCardImage height read from the screen: ${iconMatch[1]}pt`);
+if (/flex\s*:\s*1/.test(imgBody)) ok('summaryCardImage grows with its tile');
+else fail('summaryCardImage grows with its tile', 'a fixed height leaves it lost in a tall tile');
+if (!iconMatch) fail('summaryCardImage minHeight found — the floor sets this budget');
+else ok(`summaryCardImage floor read from the screen: ${iconMatch[1]}pt`);
+if (!ceilMatch || parseInt(ceilMatch[1], 10) > 120) {
+  fail('summaryCardImage has a ceiling', 'without one the artwork keeps growing on a tall phone');
+} else {
+  ok(`summaryCardImage ceiling read from the screen: ${ceilMatch[1]}pt`);
+}
 if (!gapMatch) fail('summaryCard gap found');
 else ok(`summaryCard gap read from the screen: ${gapMatch[1]}pt`);
 const ICON_SIZE = iconMatch ? parseInt(iconMatch[1], 10) : 999;
