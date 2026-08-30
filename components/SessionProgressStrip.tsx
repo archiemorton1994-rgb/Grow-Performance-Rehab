@@ -21,6 +21,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
+import { useSessionColors } from '@/lib/session-theme-context';
 
 export interface SessionProgressStripProps {
   /** One entry per exercise: true once every set on it is logged or skipped. */
@@ -48,7 +49,7 @@ export function SessionProgressStrip({
   caption,
   accent,
 }: SessionProgressStripProps) {
-  const C = useColors();
+  const C = useSessionColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const total = done.length;

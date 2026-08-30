@@ -23,7 +23,8 @@ import * as Haptics from 'expo-haptics';
 // Expo Router to report a missing default export and route the screen to +not-found.
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useColors, DarkColors } from '@/constants/colors';
+import { DarkColors } from '@/constants/colors';
+import { useGoColors, useSessionColors } from '@/lib/session-theme-context';
 import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
@@ -759,7 +760,6 @@ function ProgressTab({
 }
 
 export default function SessionSummaryScreen() {
-  const C = useColors();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -816,6 +816,17 @@ export default function SessionSummaryScreen() {
     }
     return completedSessions[0] ?? null;
   }, [completedSessions, sessionId]);
+
+  /**
+   * Read AFTER the session is found, because the session is what decides.
+   *
+   * The certificate was already parchment; this puts the same hue on it that
+   * was on the exercise card for the hour before. Nothing between the top of
+   * this component and here touches a colour, which is why the hook can move
+   * down without disturbing anything.
+   */
+  const C = useSessionColors(session?.sessionType);
+  const go = useGoColors();
 
   // lastSessionPerformance/exerciseNormalStreak are live store state driving
   // the NEXT session's suggestion, not a per-session snapshot - only valid to
@@ -1116,9 +1127,9 @@ export default function SessionSummaryScreen() {
           <Text style={[styles.emptyText, { color: C.textSecondary }]}>No session found.</Text>
           <Pressable
             onPress={goHome}
-            style={[styles.doneButton, { backgroundColor: C.primary, marginTop: 20 }]}
+            style={[styles.doneButton, { backgroundColor: go.fill, marginTop: 20 }]}
           >
-            <Text style={[styles.doneButtonText, { color: C.textInverse }]}>Back to Home</Text>
+            <Text style={[styles.doneButtonText, { color: go.on }]}>Back to Home</Text>
           </Pressable>
         </View>
       </View>
@@ -1793,10 +1804,10 @@ export default function SessionSummaryScreen() {
       <View style={[styles.doneFooter, { paddingBottom: bottomPad + 12 }]}>
         <Pressable
           onPress={goHome}
-          style={[styles.doneButton, { backgroundColor: C.primary }]}
+          style={[styles.doneButton, { backgroundColor: go.fill }]}
           testID="summary-done"
         >
-          <Text style={[styles.doneButtonText, { color: C.textInverse }]}>Done</Text>
+          <Text style={[styles.doneButtonText, { color: go.on }]}>Done</Text>
         </Pressable>
       </View>
 

@@ -170,7 +170,7 @@ check(
 
 check(
   'it reads the same exercises array the session does',
-  /<SessionPlanList\s+exercises=\{exercises\}\s+style=\{styles\.planScreenList\}/.test(session),
+  /<SessionPlanList\s+exercises=\{exercises\}\s+accent=\{sessionIdentity\(sessionType\)\}/.test(session),
   'a second generateWorkout call is a plan for a session you are not about to do'
 );
 

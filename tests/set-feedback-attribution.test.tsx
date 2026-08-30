@@ -113,7 +113,7 @@ describe('a rating lands on the exercise the set belonged to', () => {
     });
 
     // Finish the LAST set of the answered exercise. This is what raises the prompt.
-    pressById(root, 'set-2-check');
+    pressById(root, 'did-it-2');
     expect(hasTestId(root, 'feedback-easy')).toBe(true);
 
     // The parent advances to the next exercise while the prompt is still open —
@@ -145,7 +145,7 @@ describe('a rating lands on the exercise the set belonged to', () => {
     act(() => {
       root = renderer.create(<SessionActiveBar {...props} />);
     });
-    pressById(root, 'set-2-check');
+    pressById(root, 'did-it-2');
     rerender(
       root,
       <SessionActiveBar
@@ -173,7 +173,7 @@ describe('the final set of the whole session still gets asked', () => {
       root = renderer.create(<SessionActiveBar {...props} />);
     });
 
-    pressById(root, 'set-2-check');
+    pressById(root, 'did-it-2');
 
     // Everything is now done — the parent flips sessionAllDone on.
     rerender(root, <SessionActiveBar {...props} sessionAllDone isLastExercise />);

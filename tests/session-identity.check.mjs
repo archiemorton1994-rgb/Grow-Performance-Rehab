@@ -163,6 +163,42 @@ for (let i = 0; i < entries.length; i++) {
 }
 check('and no two sit within 18 degrees of hue', clashes.length === 0, clashes.join('; '));
 
+// The assistant is the one thing in this app whose colour is supposed to mean
+// only itself: "a colour used nowhere else means the button is recognisable at
+// a glance". Ten session hues spread round the wheel is ten chances to land on
+// it. Squat did, at 15 degrees, on the session people run most often - and the
+// assistant button on a squat screen stopped announcing what it was. Read from
+// the theme rather than typed here, so moving the sapphire moves this too.
+const colorsSrc = readFileSync(new URL('../constants/colors.ts', import.meta.url), 'utf8');
+const sapphire = [
+  ...new Set(
+    [...colorsSrc.matchAll(/assistant(?:Fill|Ink):\s*'(#[0-9a-f]{6})'/g)].map((m) => m[1])
+  ),
+];
+
+check(
+  `the assistant's sapphires were read from the theme (${sapphire.length})`,
+  sapphire.length >= 2,
+  'nothing below is checking anything if this failed'
+);
+
+const nearAssistant = [];
+for (const [type, id] of Object.entries(SESSION_IDENTITY)) {
+  for (const shade of [id.deep, id.bright]) {
+    for (const s of sapphire) {
+      const d = Math.abs(hue(shade) - hue(s));
+      const apart = Math.min(d, 360 - d);
+      if (apart < 18) nearAssistant.push(`${type} ${shade} is ${apart.toFixed(0)} from ${s}`);
+    }
+  }
+}
+
+check(
+  'and none of them is close enough to the assistant to be mistaken for it',
+  nearAssistant.length === 0,
+  nearAssistant.join('; ')
+);
+
 // ── 4. The card is printed on the page ──────────────────────────────────────
 console.log('\n[4] The exercise card is printed on the page');
 

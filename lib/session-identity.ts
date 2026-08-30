@@ -81,7 +81,11 @@ export const PAGE = {
 export const SESSION_IDENTITY: Record<SessionType, SessionIdentity> = {
   // The three KPI lifts get the three strongest, most distinct hues, because
   // they are the sessions somebody does most often and most needs to recognise.
-  squat: { deep: '#1b4f80', bright: '#63aee8', wash: 'rgba(27,79,128,0.10)' },
+  // Cyan-blue rather than the royal blue it started as. That one sat 15
+  // degrees from the assistant's sapphire, and the assistant is the single
+  // thing in this app whose colour is supposed to mean only itself - on the
+  // session people run most often, its button stopped announcing what it was.
+  squat: { deep: '#14607f', bright: '#52b7e0', wash: 'rgba(20,96,127,0.10)' },
   bench: { deep: '#9d4413', bright: '#ef9152', wash: 'rgba(157,68,19,0.10)' },
   deadlift: { deep: '#5a3690', bright: '#b18ee6', wash: 'rgba(90,54,144,0.10)' },
 

@@ -25,6 +25,11 @@ import { PlateCalculator } from '@/components/PlateCalculator';
 import { SessionProgressStrip } from '@/components/SessionProgressStrip';
 import { PAGE, sessionIdentity, type SessionIdentity } from '@/lib/session-identity';
 import {
+  SessionThemeProvider,
+  useGoColors,
+  useSessionColors,
+} from '@/lib/session-theme-context';
+import {
   SessionAssistantButton,
   SessionAssistantSheet,
 } from '@/components/SessionAssistantSheet';
@@ -254,7 +259,7 @@ function RestTimer({
   trigger?: number;
   onTimerEnd?: () => void;
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
   const duration = seconds ?? REST_PERIOD_SECONDS[category] ?? 0;
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
@@ -506,7 +511,7 @@ function CardioWarmupTimer({
   /** The session's colour. This renders on the exercise card's page. */
   accent: SessionIdentity;
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
   const DURATION = parseRepsToSeconds(repsStr);
   const [secondsLeft, setSecondsLeft] = useState(DURATION);
@@ -703,7 +708,8 @@ export function SessionActiveBar({
   suppressFeedback = false,
   demoForceFeedback = false,
 }: SessionActiveBarProps) {
-  const C = useColors();
+  const C = useSessionColors();
+  const go = useGoColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const recommendedKg = weightGuidesKg[activeSetIndex] ?? 0;
@@ -965,12 +971,13 @@ export function SessionActiveBar({
           onPress={onCompleteSession}
           style={({ pressed }) => [
             styles.barCompleteSessionBtn,
+            { backgroundColor: go.fill },
             pressed && { opacity: 0.9, transform: [{ scale: 0.98 as number }] },
           ]}
           testID="complete-session"
         >
-          <Ionicons name="checkmark-circle" size={22} color={C.textInverse} />
-          <Text style={styles.barCompleteSessionText}>Complete Session</Text>
+          <Ionicons name="checkmark-circle" size={22} color={go.on} />
+          <Text style={[styles.barCompleteSessionText, { color: go.on }]}>Complete Session</Text>
         </Pressable>
       </View>
     );
@@ -1155,11 +1162,11 @@ export function SessionActiveBar({
       {isTimeExercise ? (
         <Pressable
           onPress={handleComplete}
-          style={styles.barMarkDoneBtn}
+          style={[styles.barMarkDoneBtn, { backgroundColor: go.fill }]}
           testID={`set-${activeSetIndex + 1}-check`}
         >
-          <Ionicons name="checkmark-circle" size={20} color={C.textInverse} />
-          <Text style={styles.barMarkDoneText}>Mark Set Done</Text>
+          <Ionicons name="checkmark-circle" size={20} color={go.on} />
+          <Text style={[styles.barMarkDoneText, { color: go.on }]}>Mark Set Done</Text>
         </Pressable>
       ) : (
         <View style={styles.barInputArea}>
@@ -1214,20 +1221,6 @@ export function SessionActiveBar({
             />
           </View>
 
-          <Pressable
-            onPress={handleComplete}
-            disabled={isCompleteBlocked}
-            style={[styles.barCompleteBtn, isCompleteBlocked && styles.barCompleteBtnDisabled]}
-            testID={`set-${activeSetIndex + 1}-check`}
-            accessibilityLabel="Complete set"
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name="checkmark-circle"
-              size={26}
-              color={isCompleteBlocked ? C.textTertiary : C.primaryDarkText}
-            />
-          </Pressable>
         </View>
       )}
 
@@ -1264,15 +1257,25 @@ export function SessionActiveBar({
         <Pressable
           onPress={handleComplete}
           disabled={isCompleteBlocked}
-          style={[styles.didItBtn, isCompleteBlocked && styles.didItBtnDisabled]}
+          style={[
+            styles.didItBtn,
+            { backgroundColor: go.fill },
+            isCompleteBlocked && styles.didItBtnDisabled,
+          ]}
           testID={`did-it-${activeSetIndex + 1}`}
         >
           <Ionicons
             name="checkmark-circle"
             size={20}
-            color={isCompleteBlocked ? C.textTertiary : C.primaryDarkText}
+            color={isCompleteBlocked ? C.textTertiary : go.on}
           />
-          <Text style={[styles.didItBtnText, isCompleteBlocked && styles.didItBtnTextDisabled]}>
+          <Text
+            style={[
+              styles.didItBtnText,
+              { color: go.on },
+              isCompleteBlocked && styles.didItBtnTextDisabled,
+            ]}
+          >
             Did It
           </Text>
         </Pressable>
@@ -1292,7 +1295,7 @@ function CardioInputBlock({
   /** The session's colour. This renders on the exercise card's page. */
   accent: SessionIdentity;
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
   const [duration, setDuration] = useState('');
   const [speed, setSpeed] = useState('');
@@ -1457,7 +1460,7 @@ export function ExerciseCard({
   /** The training goals from onboarding, which decide the effort target and the rest. */
   goals?: readonly FitnessGoal[];
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   const accent = useMemo(() => sessionIdentity(sessionType), [sessionType]);
   const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
   // Closed. The card's job on arrival is to say what the exercise is and let
@@ -1644,11 +1647,13 @@ export function ExerciseCard({
       }
       exiting={enterFrom === 'right' ? SlideOutLeft.duration(200) : SlideOutRight.duration(200)}
       onLayout={onCardLayout ? (e) => onCardLayout(e.nativeEvent.layout.y) : undefined}
+      style={styles.cardHost}
     >
       <Animated.View
         style={[
           pageTurnStyle,
           styles.exerciseCard,
+          !isPast && !isFuture && styles.exerciseCardFull,
           isActive && allDone && styles.exerciseCardDone,
           isPast && styles.exerciseCardPast,
           isFuture && styles.exerciseCardLocked,
@@ -1712,8 +1717,8 @@ export function ExerciseCard({
 
         {/* ── Active state: full interactive card with fade + scale-up ──────── */}
         {isActive && (
-          <Animated.View entering={FadeIn.duration(320)}>
-            <Animated.View style={scaleStyle}>
+          <Animated.View entering={FadeIn.duration(320)} style={styles.activeFill}>
+            <Animated.View style={[scaleStyle, styles.activeSpread]}>
               <View ref={headerRef} collapsable={false}>
               <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
                 <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
@@ -2224,7 +2229,7 @@ export function PainAdaptBanner({
   dismissed: boolean;
   onDismiss: () => void;
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   if (!hasAches || !painRegion || dismissed) return null;
   /**
    * Every area the user reported, not just the first one they tapped.
@@ -2323,7 +2328,7 @@ export function PainAdaptBanner({
  * to be one. See `skipsMaxTest`.
  */
 export function NoMaxTestBanner({ visible }: { visible: boolean }) {
-  const C = useColors();
+  const C = useSessionColors();
   if (!visible) return null;
   return (
     <Animated.View
@@ -2430,7 +2435,7 @@ export function PainFreeRangeBanner({
   onDismiss?: () => void;
   onRestore?: () => void;
 }) {
-  const C = useColors();
+  const C = useSessionColors();
   const [avoidOpen, setAvoidOpen] = useState(false);
   if (!text) return null;
 
@@ -2581,7 +2586,7 @@ export function PainFreeRangeBanner({
  * session, not part of the protocol for doing it safely.
  */
 function RestoreFailedBanner({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
-  const C = useColors();
+  const C = useSessionColors();
   if (!visible) return null;
   return (
     <Animated.View
@@ -2799,7 +2804,41 @@ const SESSION_TUTORIAL: readonly TutorialStep[] = [
   },
 ];
 
+/** Hoisted so SessionScreen can read the type before the body runs. */
+const VALID_SESSION_TYPES: SessionType[] = [
+  'squat',
+  'bench',
+  'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
+  'conditioning',
+  'prehab',
+  'flexibility',
+  'custom',
+];
+
+/**
+ * The session, wrapped in the colour of the session.
+ *
+ * A thin outer component so the provider sits ABOVE every piece of the screen -
+ * the card, both timers, the action bar, and the modals, which render through a
+ * portal and would otherwise be the only things left painting the app's
+ * ordinary green.
+ */
 export default function SessionScreen() {
+  const params = useLocalSearchParams<{ sessionType?: string }>();
+  const type = VALID_SESSION_TYPES.includes(params.sessionType as SessionType)
+    ? (params.sessionType as SessionType)
+    : 'squat';
+  return (
+    <SessionThemeProvider type={type}>
+      <SessionScreenBody />
+    </SessionThemeProvider>
+  );
+}
+
+function SessionScreenBody() {
   /**
    * The phone stays awake for as long as this screen is open.
    *
@@ -2842,18 +2881,6 @@ export default function SessionScreen() {
    */
   const isShowcase = params.showcase === 'true';
 
-  const VALID_SESSION_TYPES: SessionType[] = [
-    'squat',
-    'bench',
-    'deadlift',
-    'upper_body',
-    'lower_body',
-    'full_body',
-    'conditioning',
-    'prehab',
-    'flexibility',
-    'custom',
-  ];
   const VALID_ENERGY: EnergyLevel[] = ['low', 'normal', 'high'];
   const VALID_TIME: TimeAvailable[] = ['30', '45', '60'];
 
@@ -2909,7 +2936,8 @@ export default function SessionScreen() {
       ? params.displayLabel
       : undefined;
 
-  const C = useColors();
+  const C = useSessionColors();
+  const go = useGoColors();
   const isDark = useIsDarkTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   /**
@@ -5419,7 +5447,11 @@ export default function SessionScreen() {
             </View>
           )}
 
-          <SessionPlanList exercises={exercises} style={styles.planScreenList} />
+          <SessionPlanList
+            exercises={exercises}
+            accent={sessionIdentity(sessionType)}
+            style={styles.planScreenList}
+          />
 
           <View style={[styles.planFooter, { paddingBottom: insets.bottom + 14 }]}>
             <Pressable
@@ -5431,14 +5463,15 @@ export default function SessionScreen() {
               }}
               style={({ pressed }) => [
                 styles.planStartBtn,
+                { backgroundColor: go.fill },
                 pressed && { opacity: 0.92, transform: [{ scale: 0.99 as number }] },
               ]}
               testID="plan-start"
               accessibilityRole="button"
               accessibilityLabel="Start the session"
             >
-              <Ionicons name="play" size={20} color={C.textInverse} />
-              <Text style={styles.planStartText}>Start the session</Text>
+              <Ionicons name="play" size={20} color={go.on} />
+              <Text style={[styles.planStartText, { color: go.on }]}>Start the session</Text>
             </Pressable>
           </View>
         </View>
@@ -5475,6 +5508,7 @@ export default function SessionScreen() {
               exercises={exercises}
               results={planResults}
               activeIndex={activeIndex}
+              accent={sessionIdentity(sessionType)}
               onSelect={(i) => jumpToExercise(i, planResults[i]?.done ?? false)}
               style={styles.planList}
             />
@@ -5968,8 +6002,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // and pinned to the top it left a third of the phone empty under it.
     // flexGrow with centred content puts it in the middle when it is short and
     // scrolls normally when the details are open.
-    exerciseListContentFocused: { flexGrow: 1, justifyContent: 'center' },
+    // flexGrow rather than flex, and on the card rather than centring here.
+    // Centred, a short exercise left a band of empty background above it and
+    // another below - reported twice as dead space. flexGrow lets the card take
+    // the slack; flex would let it SHRINK below its own content, which on a long
+    // exercise clips the bottom of the card behind the logging bar.
+    exerciseListContentFocused: { flexGrow: 1 },
     exerciseListContent: { paddingHorizontal: 16, paddingTop: 8, gap: 10 },
+    cardHost: { flexGrow: 1 },
+    // The card is the page, so it fills the phone rather than floating in the
+    // middle of it. space-between spreads the blocks down the page when there
+    // is room and does nothing at all when there is not, so a long exercise
+    // still lays out exactly as it did.
+    exerciseCardFull: { flexGrow: 1 },
+    // The card is the page and fills the phone; these two carry that height
+    // down through the fade and scale wrappers so the parchment really is the
+    // full height rather than a box floating in the middle of the screen.
+    //
+    // Deliberately NOT space-between. With three blocks and a hundred points of
+    // slack it put the whole gap in one place, between How do I do this and the
+    // timer - a hole in the middle of the page, which is worse than a margin at
+    // the foot of it.
+    activeFill: { flexGrow: 1 },
+    activeSpread: { flexGrow: 1 },
     exerciseCard: {
       backgroundColor: C.surface,
       borderRadius: 16,
@@ -6849,7 +6904,9 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 8,
     },
     // Skip exercise link
-    skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
+    // Pushed to the bottom of the card now that the card is the full height.
+    // Left where it was, it floated a third of the way down a page of nothing.
+    skipExerciseLink: { alignItems: 'center', paddingVertical: 10, marginTop: 'auto' },
     skipExerciseLinkText: {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',
@@ -7142,17 +7199,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
       marginBottom: 14,
-    },
-    barCompleteBtn: {
-      width: 56,
-      height: 56,
-      borderRadius: 12,
-      backgroundColor: C.primaryDark,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    barCompleteBtnDisabled: {
-      backgroundColor: C.surfaceTertiary,
     },
     didItBtn: {
       flexDirection: 'row',

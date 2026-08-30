@@ -121,15 +121,31 @@ describe('[1] Weight + reps inputs — strength exercise (non-band, non-time)', 
 // ─── [2] Complete button ──────────────────────────────────────────────────────
 
 describe('[2] Complete button — correct testID', () => {
-  test('set-1-check Pressable is in the tree for the active set', () => {
+  // "Did It", the full-width button under the boxes. There used to be a second
+  // green square beside the reps box calling the same handler; it went when
+  // the session screen was cut back to one green.
+  test('did-it-1 Pressable is in the tree for the active set', () => {
     const root = render(baseProps());
-    expect(hasTestId(root, 'set-1-check')).toBe(true);
+    expect(hasTestId(root, 'did-it-1')).toBe(true);
   });
 
-  test('set-2-check renders when activeSetIndex=1 (second set active)', () => {
+  test('did-it-2 renders when activeSetIndex=1 (second set active)', () => {
     const root = render(baseProps({ activeSetIndex: 1 }));
-    expect(hasTestId(root, 'set-2-check')).toBe(true);
+    expect(hasTestId(root, 'did-it-2')).toBe(true);
+    expect(hasTestId(root, 'did-it-1')).toBe(false);
+  });
+
+  // The square is gone for weight-and-reps work, but a timed or held exercise
+  // still shows Mark Set Done under that testID. Asserted so a future reader
+  // does not conclude the id was retired everywhere.
+  test('a weight exercise no longer carries the old square', () => {
+    const root = render(baseProps());
     expect(hasTestId(root, 'set-1-check')).toBe(false);
+  });
+
+  test('but a timed exercise still does', () => {
+    const root = render(baseProps({ isTimeExercise: true }));
+    expect(hasTestId(root, 'set-1-check')).toBe(true);
   });
 });
 
