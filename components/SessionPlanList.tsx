@@ -14,30 +14,28 @@
  * disagree is worse than either. The only difference is whether rows carry
  * results and whether they can be tapped.
  *
- * IT IS PRINTED ON THE PAGE, like the exercise card and the summary
- * certificate: "the full list of exercises before the session should be on the
- * ecru theme colour not black boxes." One sheet with ruled rows rather than a
- * stack of little cards - it is a programme for one session, not a menu of
- * separate things, and the sheet says so. Which session it is comes through in
- * the accent: the tick, the rail beside the exercise you are on, every block
- * pill.
+ * IT IS ON THE APP'S OWN SURFACES, not on paper. It was parchment for one
+ * round and came back: "revert the pre workout session exercise list back to
+ * match the theme aka dark or light, but it can have instead subtle colouring
+ * to match the theme of the workout." Which is what these tokens now are -
+ * useSessionColors returns the theme with the session's hue in it, so the
+ * ticks, the pills and the row you are on are all quietly this session's
+ * colour without a single hard-coded value here.
  */
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/constants/colors';
-import { PAGE, type SessionIdentity } from '@/lib/session-identity';
+import { useSessionColors } from '@/lib/session-theme-context';
 import type { Exercise } from '@/lib/workout-engine';
 
 /**
- * Category to the words and colours a user sees.
+ * Category to the words a user sees, and the colours for a pill drawn OUTSIDE
+ * a session, where there is no session hue to take.
  *
- * Exported because app/session.tsx draws the same pills on the exercise card,
- * and two copies of "which green is a warm-up" is a drift waiting to happen.
- *
- * The colours here are for a pill on the app's own surfaces. On the page this
- * list uses the session's accent for every pill instead, exactly as the card
- * does, so only the label is read from this.
+ * Exported because app/session.tsx reads the same labels for the pills on the
+ * exercise card, and two copies of "which block is a warm-up" is a drift
+ * waiting to happen.
  */
 export function categoryDisplay(C: ReturnType<typeof useColors>) {
   return {
@@ -68,8 +66,6 @@ export interface PlanRowResult {
 
 export interface SessionPlanListProps {
   exercises: Exercise[];
-  /** The session's colour. Required: this list only ever renders in a session. */
-  accent: SessionIdentity;
   /** Per-exercise results. Omit entirely before the session starts. */
   results?: PlanRowResult[];
   /** The exercise on screen, highlighted. Omit before the session starts. */
@@ -83,15 +79,14 @@ export interface SessionPlanListProps {
 
 export function SessionPlanList({
   exercises,
-  accent,
   results,
   activeIndex,
   onSelect,
   grouped = true,
   style,
 }: SessionPlanListProps) {
-  const C = useColors();
-  const styles = useMemo(() => makeStyles(accent), [accent]);
+  const C = useSessionColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const display = useMemo(() => categoryDisplay(C), [C]);
 
   /**
@@ -116,144 +111,131 @@ export function SessionPlanList({
   }, [exercises, display, grouped]);
 
   return (
-    <View style={[styles.sheet, style]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {rows.map((item, i) => {
-          if (item.kind === 'heading') {
-            return (
-              <Text key={`h-${item.label}-${i}`} style={styles.heading}>
-                {item.label}
-              </Text>
-            );
-          }
-          const index = item.index;
-          const ex = exercises[index];
-          const cat = display[ex.category] ?? display.accessory;
-          const result = results?.[index];
-          const isActive = activeIndex === index;
-          // Reachable means finished, or the one you are on. Nothing lets you
-          // jump forward past work you have not done.
-          const reachable = !!onSelect && (isActive || !!result?.done);
-
-          const body = (
-            <View
-              style={[
-                styles.row,
-                isActive && styles.rowActive,
-                result?.done && !isActive && styles.rowDone,
-              ]}
-            >
-              <View style={styles.statusCol}>
-                {result?.done ? (
-                  <View style={styles.tick}>
-                    <Ionicons name="checkmark" size={13} color={PAGE.bg} />
-                  </View>
-                ) : isActive ? (
-                  <View style={styles.here}>
-                    <Ionicons name="play" size={11} color={PAGE.bg} />
-                  </View>
-                ) : (
-                  <View style={styles.pending} />
-                )}
-              </View>
-
-              <View style={styles.textCol}>
-                <Text
-                  style={[styles.name, result?.done && !isActive && styles.nameDone]}
-                  numberOfLines={2}
-                >
-                  {ex.name}
-                </Text>
-                <View style={styles.metaRow}>
-                  <View style={styles.pill}>
-                    <Text style={styles.pillText}>{cat.label}</Text>
-                  </View>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {ex.sets} {ex.sets === 1 ? 'set' : 'sets'} &times; {ex.reps}
-                  </Text>
-                </View>
-                {!!result?.summary && (
-                  <Text style={styles.summary} numberOfLines={2}>
-                    {result.summary}
-                  </Text>
-                )}
-              </View>
-
-              {reachable && <Ionicons name="chevron-forward" size={17} color={PAGE.inkFaint} />}
-            </View>
-          );
-
-          if (!reachable) return <View key={ex.id + index}>{body}</View>;
+    <ScrollView
+      style={[styles.scroll, style]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {rows.map((item, i) => {
+        if (item.kind === 'heading') {
           return (
-            <Pressable
-              key={ex.id + index}
-              onPress={() => onSelect?.(index)}
-              testID={`plan-row-${index}`}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isActive ? `Back to ${ex.name}` : `Review ${ex.name}, already finished`
-              }
-              style={({ pressed }) => [pressed && { opacity: 0.75 }]}
-            >
-              {body}
-            </Pressable>
+            <Text key={`h-${item.label}-${i}`} style={styles.heading}>
+              {item.label}
+            </Text>
           );
-        })}
-      </ScrollView>
-    </View>
+        }
+        const index = item.index;
+        const ex = exercises[index];
+        const cat = display[ex.category] ?? display.accessory;
+        const result = results?.[index];
+        const isActive = activeIndex === index;
+        // Reachable means finished, or the one you are on. Nothing lets you
+        // jump forward past work you have not done.
+        const reachable = !!onSelect && (isActive || !!result?.done);
+
+        const body = (
+          <View
+            style={[
+              styles.row,
+              isActive && styles.rowActive,
+              result?.done && !isActive && styles.rowDone,
+            ]}
+          >
+            <View style={styles.statusCol}>
+              {result?.done ? (
+                <View style={styles.tick}>
+                  <Ionicons name="checkmark" size={13} color={C.textInverse} />
+                </View>
+              ) : isActive ? (
+                <View style={styles.here}>
+                  <Ionicons name="play" size={11} color={C.primaryDarkText} />
+                </View>
+              ) : (
+                <View style={styles.pending} />
+              )}
+            </View>
+
+            <View style={styles.textCol}>
+              <Text
+                style={[styles.name, result?.done && !isActive && styles.nameDone]}
+                numberOfLines={2}
+              >
+                {ex.name}
+              </Text>
+              <View style={styles.metaRow}>
+                {/* The SESSION's colour rather than the block's, the same as the
+                    pill on the exercise card. The label already says which
+                    block this is. */}
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>{cat.label}</Text>
+                </View>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {ex.sets} {ex.sets === 1 ? 'set' : 'sets'} &times; {ex.reps}
+                </Text>
+              </View>
+              {!!result?.summary && (
+                <Text style={styles.summary} numberOfLines={2}>
+                  {result.summary}
+                </Text>
+              )}
+            </View>
+
+            {reachable && <Ionicons name="chevron-forward" size={17} color={C.textTertiary} />}
+          </View>
+        );
+
+        if (!reachable) return <View key={ex.id + index}>{body}</View>;
+        return (
+          <Pressable
+            key={ex.id + index}
+            onPress={() => onSelect?.(index)}
+            testID={`plan-row-${index}`}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isActive ? `Back to ${ex.name}` : `Review ${ex.name}, already finished`
+            }
+            style={({ pressed }) => [pressed && { opacity: 0.75 }]}
+          >
+            {body}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 
-function makeStyles(accent: SessionIdentity) {
+function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
-    sheet: {
-      width: '100%',
-      backgroundColor: PAGE.bg,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: PAGE.hairline,
-      overflow: 'hidden',
-    },
     scroll: { width: '100%' },
-    content: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 12 },
+    content: { paddingBottom: 8, gap: 8 },
     heading: {
       fontSize: 11,
       fontFamily: 'Inter_700Bold',
       letterSpacing: 0.8,
       textTransform: 'uppercase',
-      color: PAGE.inkFaint,
-      marginTop: 14,
-      marginBottom: 4,
+      color: C.textTertiary,
+      marginTop: 10,
+      marginBottom: 2,
     },
-    // A ruled sheet rather than a stack of cards: no fill and no border on an
-    // ordinary row, so the eye reads one page of work rather than nine objects.
-    // The rail on the left is transparent and coloured in only for the exercise
-    // you are on, which keeps every row exactly the same width.
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingVertical: 11,
-      paddingHorizontal: 8,
-      borderRadius: 10,
-      borderLeftWidth: 3,
-      borderLeftColor: 'transparent',
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
     },
-    rowActive: {
-      backgroundColor: accent.wash,
-      borderLeftColor: accent.deep,
-    },
-    rowDone: { opacity: 0.72 },
+    rowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
+    rowDone: { backgroundColor: C.surfaceSecondary },
     statusCol: { width: 24, alignItems: 'center' },
     tick: {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: accent.deep,
+      backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -261,7 +243,7 @@ function makeStyles(accent: SessionIdentity) {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: accent.deep,
+      backgroundColor: C.primaryDark,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -270,20 +252,20 @@ function makeStyles(accent: SessionIdentity) {
       height: 14,
       borderRadius: 7,
       borderWidth: 1.5,
-      borderColor: PAGE.hairline,
+      borderColor: C.border,
     },
     textCol: { flex: 1, gap: 4 },
-    name: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: PAGE.ink },
-    nameDone: { color: PAGE.inkMuted },
+    name: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
+    nameDone: { color: C.textSecondary },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     pill: {
       paddingHorizontal: 7,
       paddingVertical: 2,
       borderRadius: 6,
-      backgroundColor: accent.wash,
+      backgroundColor: C.primaryMuted,
     },
-    pillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: accent.deep },
-    meta: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: PAGE.inkMuted },
-    summary: { fontSize: 12, fontFamily: 'Inter_500Medium', color: accent.deep },
+    pillText: { fontSize: 10, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    meta: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    summary: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.primaryText },
   });
 }

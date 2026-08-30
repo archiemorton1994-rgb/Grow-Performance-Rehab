@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { SessionProgressStrip } from '@/components/SessionProgressStrip';
-import { PAGE, sessionIdentity, type SessionIdentity } from '@/lib/session-identity';
+import { PAGE, sessionIdentity } from '@/lib/session-identity';
 import {
   SessionThemeProvider,
   useGoColors,
@@ -33,7 +33,7 @@ import {
   SessionAssistantButton,
   SessionAssistantSheet,
 } from '@/components/SessionAssistantSheet';
-import type { SessionCoachContext } from '@/lib/session-coach';
+import { sessionCoachHeadline, type SessionCoachContext } from '@/lib/session-coach';
 import {
   SessionPlanList,
   categoryDisplay,
@@ -245,11 +245,8 @@ function RestTimer({
   seconds,
   trigger = 0,
   onTimerEnd,
-  accent,
 }: {
   category: Exercise['category'];
-  /** The session's colour. This renders on the exercise card's page. */
-  accent: SessionIdentity;
   /**
    * Goal-aware rest, when the goal has an opinion. A back squat wants three
    * minutes for someone chasing strength and ninety seconds for someone chasing
@@ -260,7 +257,7 @@ function RestTimer({
   onTimerEnd?: () => void;
 }) {
   const C = useSessionColors();
-  const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const duration = seconds ?? REST_PERIOD_SECONDS[category] ?? 0;
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
   // should hit zero. `secondsLeft` is derived from (endAt - Date.now()) on
@@ -455,7 +452,7 @@ function RestTimer({
                 accessibilityLabel={isRunning ? 'Pause rest timer' : 'Resume rest timer'}
                 accessibilityRole="button"
               >
-                <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={accent.deep} />
+                <Ionicons name={isRunning ? 'pause' : 'play'} size={15} color={C.primaryText} />
               </Pressable>
               <Pressable
                 onPress={addFifteen}
@@ -503,16 +500,9 @@ function RestTimer({
   );
 }
 
-function CardioWarmupTimer({
-  repsStr = '5 min',
-  accent,
-}: {
-  repsStr?: string;
-  /** The session's colour. This renders on the exercise card's page. */
-  accent: SessionIdentity;
-}) {
+function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
   const C = useSessionColors();
-  const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const DURATION = parseRepsToSeconds(repsStr);
   const [secondsLeft, setSecondsLeft] = useState(DURATION);
   const [isRunning, setIsRunning] = useState(true);
@@ -563,7 +553,7 @@ function CardioWarmupTimer({
         <Ionicons
           name={isRunning ? 'pause-circle' : 'flame'}
           size={18}
-          color={isRunning ? PAGE.bg : accent.deep}
+          color={isRunning ? C.textInverse : C.primaryText}
         />
         <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
           {isRunning ? `Warm-up - ${mm}:${ss}` : `Cardio timer - ${mm}:${ss}`}
@@ -1288,15 +1278,12 @@ export function SessionActiveBar({
 function CardioInputBlock({
   cardioData,
   onLog,
-  accent,
 }: {
   cardioData?: CardioLogData;
   onLog: (data: CardioLogData) => void;
-  /** The session's colour. This renders on the exercise card's page. */
-  accent: SessionIdentity;
 }) {
   const C = useSessionColors();
-  const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [duration, setDuration] = useState('');
   const [speed, setSpeed] = useState('');
   const [distance, setDistance] = useState('');
@@ -1413,6 +1400,8 @@ export function ExerciseCard({
   onOpenPlates,
   goals,
   enterFrom = 'right',
+  onAssistantPress,
+  assistantHasNews = false,
 }: {
   exercise: Exercise;
   index: number;
@@ -1459,10 +1448,19 @@ export function ExerciseCard({
   enterFrom?: 'left' | 'right';
   /** The training goals from onboarding, which decide the effort target and the rest. */
   goals?: readonly FitnessGoal[];
+  /**
+   * The assistant, at the foot of the card rather than in the top bar.
+   *
+   * It sits next to "How do I do this?" because they are the same kind of
+   * question, and because the foot of the card was empty. Undefined when the
+   * user has switched it off.
+   */
+  onAssistantPress?: () => void;
+  /** Puts a mark on the assistant when the top of what it would say is new. */
+  assistantHasNews?: boolean;
 }) {
   const C = useSessionColors();
-  const accent = useMemo(() => sessionIdentity(sessionType), [sessionType]);
-  const styles = useMemo(() => makeCardStyles(C, accent), [C, accent]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   // Closed. The card's job on arrival is to say what the exercise is and let
   // you load the bar; the reference sheet is a tap away and stays open once
   // opened, so anyone who wants it every time pays for it once per exercise.
@@ -1662,7 +1660,7 @@ export function ExerciseCard({
           // every card green on a screen that had too much of it.
           !isFuture &&
             !isPast &&
-            !(isActive && allDone) && { borderLeftWidth: 5, borderLeftColor: accent.deep },
+            !(isActive && allDone) && { borderLeftWidth: 5, borderLeftColor: C.primaryDark },
           (isPast || (isActive && allDone)) && {
             borderLeftWidth: 3,
             borderLeftColor: C.primaryDark,
@@ -1722,7 +1720,7 @@ export function ExerciseCard({
               <View ref={headerRef} collapsable={false}>
               <Pressable onPress={() => setExpanded(!expanded)} style={styles.exerciseHeader}>
                 <View style={[styles.checkCircle, allDone && styles.checkCircleDone]}>
-                  {allDone && <Ionicons name="checkmark" size={14} color={PAGE.bg} />}
+                  {allDone && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
                 </View>
                 <View style={styles.exerciseInfo}>
                   <View style={styles.exerciseNameRow}>
@@ -1803,119 +1801,6 @@ export function ExerciseCard({
                       a paragraph, and a paragraph is not a heading. */}
                 </View>
               </Pressable>
-
-              {/* One control for everything you read rather than do, with the
-                  video beside it because "show me how" is the same question. */}
-              <View style={styles.howRow}>
-                <Pressable
-                  ref={detailsBtnRef}
-                  onPress={() => setExpanded(!expanded)}
-                  style={styles.howBtn}
-                  testID={`how-to-${index}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={expanded ? 'Hide the details' : 'How do I do this?'}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-up' : 'help-circle-outline'}
-                    size={18}
-                    color={accent.deep}
-                  />
-                  <Text style={styles.howBtnText}>
-                    {expanded ? 'Hide the details' : 'How do I do this?'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={onVideoPress}
-                  style={styles.howVideoBtn}
-                  testID={`video-${index}`}
-                  accessibilityLabel="Watch exercise video"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="logo-youtube" size={22} color="#CC0000" />
-                </Pressable>
-              </View>
-
-              {expanded && (
-                <Animated.View entering={FadeIn.duration(180)} style={styles.detailsPanel}>
-                  <View style={styles.cueContainer}>
-                    <Ionicons name="bulb-outline" size={14} color={accent.deep} />
-                    <Text style={styles.cueText}>{exercise.cue}</Text>
-                  </View>
-                  {exercise.category === 'main' && (
-                    <Text style={styles.kpiHint}>Your main strength move for today</Text>
-                  )}
-                  <View style={styles.detailWeightRow}>
-                    {!isBandExercise && (
-                      <Text style={styles.targetWeightLabel}>Target weight: </Text>
-                    )}
-                    <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
-                      {convertLoadString(exercise.suggestedLoad, weightUnit)}
-                    </Text>
-                  </View>
-                  {showDumbbellNote && (
-                    <Text style={styles.dumbbellNote}>
-                      Weight shown is per hand (each dumbbell)
-                    </Text>
-                  )}
-                  {exercise.progressionNote && (
-                    <View style={styles.progressionNoteRow}>
-                      <Ionicons
-                        name={progressionIconFor(exercise)}
-                        size={11}
-                        color={C.primaryText}
-                      />
-                      <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
-                    </View>
-                  )}
-                  {effortTargets && (
-                    <View style={styles.effortRow} testID={`effort-target-${index}`}>
-                      <Ionicons name="speedometer-outline" size={11} color={C.textTertiary} />
-                      <View style={styles.effortLines}>
-                        {effortTargets.map((line) => (
-                          <Text key={line} style={styles.effortText}>
-                            {line}
-                          </Text>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                  <View style={styles.actionRow}>
-                    {exercise.hasSwap && (
-                      <Pressable
-                        onPress={onSwapPress}
-                        style={[
-                          styles.detailActionBtn,
-                          setData.swapCount > 0 && styles.iconActionBtnActive,
-                        ]}
-                        testID={`swap-${index}`}
-                        accessibilityLabel="Swap exercise"
-                        accessibilityRole="button"
-                      >
-                        <Ionicons
-                          name="swap-horizontal-outline"
-                          size={17}
-                          color={setData.swapCount > 0 ? C.primaryText : C.textSecondary}
-                        />
-                        <Text style={styles.detailActionText}>Swap</Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      onPress={onToggleNote}
-                      style={[styles.detailActionBtn, noteVisible && styles.iconActionBtnActive]}
-                      testID={`note-toggle-${index}`}
-                      accessibilityLabel={noteVisible ? 'Hide note' : 'Add note'}
-                      accessibilityRole="button"
-                    >
-                      <Ionicons
-                        name={noteVisible ? 'pencil' : 'pencil-outline'}
-                        size={16}
-                        color={noteVisible ? C.primaryText : C.textSecondary}
-                      />
-                      <Text style={styles.detailActionText}>Note</Text>
-                    </Pressable>
-                  </View>
-                </Animated.View>
-              )}
               </View>
 
               {/* The injury screen's own line wins where it exists: it names
@@ -1968,7 +1853,7 @@ export function ExerciseCard({
                   testID={`plate-calc-${index}`}
                   accessibilityLabel="Plate breakdown"
                 >
-                  <Ionicons name="barbell-outline" size={13} color={accent.deep} />
+                  <Ionicons name="barbell-outline" size={13} color={C.primaryText} />
                   <Text style={styles.plateBtnText}>What plates?</Text>
                 </Pressable>
               )}
@@ -1997,7 +1882,6 @@ export function ExerciseCard({
               <View style={styles.setsContainer}>
                   {exercise.type === 'cardio' && (
                     <CardioInputBlock
-                      accent={accent}
                       cardioData={setData.cardioData}
                       onLog={(data) => {
                         onSetChange(0, {
@@ -2027,12 +1911,12 @@ export function ExerciseCard({
                           accessibilityRole="button"
                           accessibilityLabel="Swap the warm-up machine"
                         >
-                          <Ionicons name="swap-horizontal" size={20} color={accent.deep} />
+                          <Ionicons name="swap-horizontal" size={20} color={C.primaryText} />
                           <Text style={styles.machineSwapText}>Machine taken? Swap it</Text>
-                          <Ionicons name="chevron-forward" size={16} color={accent.deep} />
+                          <Ionicons name="chevron-forward" size={16} color={C.primaryText} />
                         </Pressable>
                       )}
-                      <CardioWarmupTimer repsStr={exercise.reps} accent={accent} />
+                      <CardioWarmupTimer repsStr={exercise.reps} />
                     </>
                   )}
 
@@ -2041,7 +1925,6 @@ export function ExerciseCard({
                       category={exercise.category}
                       seconds={goalRestSeconds}
                       trigger={effectiveTimerTrigger}
-                      accent={accent}
                     />
                   )}
 
@@ -2123,7 +2006,7 @@ export function ExerciseCard({
                                     <Ionicons
                                       name={onEditSet ? 'pencil' : 'checkmark'}
                                       size={10}
-                                      color={accent.deep}
+                                      color={C.primaryText}
                                     />
                                   </Pressable>
                                 );
@@ -2199,6 +2082,127 @@ export function ExerciseCard({
                     </View>
                   )}
                 </View>
+
+              {/* One control for everything you read rather than do, with the
+                  video beside it because "show me how" is the same question. */}
+              <View style={styles.howRow}>
+                <Pressable
+                  ref={detailsBtnRef}
+                  onPress={() => setExpanded(!expanded)}
+                  style={styles.howBtn}
+                  testID={`how-to-${index}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? 'Hide the details' : 'How do I do this?'}
+                >
+                  <Ionicons
+                    name={expanded ? 'chevron-up' : 'help-circle-outline'}
+                    size={15}
+                    color={C.primaryText}
+                  />
+                  <Text style={styles.howBtnText}>
+                    {expanded ? 'Hide the details' : 'How do I do this?'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={onVideoPress}
+                  style={styles.howVideoBtn}
+                  testID={`video-${index}`}
+                  accessibilityLabel="Watch exercise video"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="logo-youtube" size={22} color="#CC0000" />
+                </Pressable>
+                {!!onAssistantPress && (
+                  <View style={styles.howAssistant}>
+                    <SessionAssistantButton
+                      onPress={onAssistantPress}
+                      hasNews={assistantHasNews}
+                    />
+                  </View>
+                )}
+              </View>
+
+              {expanded && (
+                <Animated.View entering={FadeIn.duration(180)} style={styles.detailsPanel}>
+                  <View style={styles.cueContainer}>
+                    <Ionicons name="bulb-outline" size={14} color={C.primaryText} />
+                    <Text style={styles.cueText}>{exercise.cue}</Text>
+                  </View>
+                  {exercise.category === 'main' && (
+                    <Text style={styles.kpiHint}>Your main strength move for today</Text>
+                  )}
+                  <View style={styles.detailWeightRow}>
+                    {!isBandExercise && (
+                      <Text style={styles.targetWeightLabel}>Target weight: </Text>
+                    )}
+                    <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
+                      {convertLoadString(exercise.suggestedLoad, weightUnit)}
+                    </Text>
+                  </View>
+                  {showDumbbellNote && (
+                    <Text style={styles.dumbbellNote}>
+                      Weight shown is per hand (each dumbbell)
+                    </Text>
+                  )}
+                  {exercise.progressionNote && (
+                    <View style={styles.progressionNoteRow}>
+                      <Ionicons
+                        name={progressionIconFor(exercise)}
+                        size={11}
+                        color={C.primaryText}
+                      />
+                      <Text style={styles.progressionNoteText}>{exercise.progressionNote}</Text>
+                    </View>
+                  )}
+                  {effortTargets && (
+                    <View style={styles.effortRow} testID={`effort-target-${index}`}>
+                      <Ionicons name="speedometer-outline" size={11} color={C.textTertiary} />
+                      <View style={styles.effortLines}>
+                        {effortTargets.map((line) => (
+                          <Text key={line} style={styles.effortText}>
+                            {line}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  <View style={styles.actionRow}>
+                    {exercise.hasSwap && (
+                      <Pressable
+                        onPress={onSwapPress}
+                        style={[
+                          styles.detailActionBtn,
+                          setData.swapCount > 0 && styles.iconActionBtnActive,
+                        ]}
+                        testID={`swap-${index}`}
+                        accessibilityLabel="Swap exercise"
+                        accessibilityRole="button"
+                      >
+                        <Ionicons
+                          name="swap-horizontal-outline"
+                          size={17}
+                          color={setData.swapCount > 0 ? C.primaryText : C.textSecondary}
+                        />
+                        <Text style={styles.detailActionText}>Swap</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={onToggleNote}
+                      style={[styles.detailActionBtn, noteVisible && styles.iconActionBtnActive]}
+                      testID={`note-toggle-${index}`}
+                      accessibilityLabel={noteVisible ? 'Hide note' : 'Add note'}
+                      accessibilityRole="button"
+                    >
+                      <Ionicons
+                        name={noteVisible ? 'pencil' : 'pencil-outline'}
+                        size={16}
+                        color={noteVisible ? C.primaryText : C.textSecondary}
+                      />
+                      <Text style={styles.detailActionText}>Note</Text>
+                    </Pressable>
+                  </View>
+                </Animated.View>
+              )}
             </Animated.View>
           </Animated.View>
         )}
@@ -4246,6 +4250,28 @@ function SessionScreenBody() {
     };
   }, [exercises, exerciseData, activeIndex, weightUnit, hasAches, painRegion]);
 
+  /**
+   * Headlines the assistant has already shown this session.
+   *
+   * Session-scoped on purpose: the point of the mark is "there is something
+   * here you have not seen yet in this session", and carrying that across
+   * sessions would mean it never appeared again.
+   */
+  const [seenAssistantTips, setSeenAssistantTips] = useState<string[]>([]);
+  const assistantHeadline = useMemo(
+    () => (assistantContext ? sessionCoachHeadline(assistantContext) : null),
+    [assistantContext]
+  );
+  const assistantHasNews = !!assistantHeadline && !seenAssistantTips.includes(assistantHeadline);
+  const openAssistant = useCallback(() => {
+    setAssistantOpen(true);
+    if (assistantHeadline) {
+      setSeenAssistantTips((prev) =>
+        prev.includes(assistantHeadline) ? prev : [...prev, assistantHeadline]
+      );
+    }
+  }, [assistantHeadline]);
+
   const getDisplayExercise = (exercise: Exercise, data: ExerciseSetData): Exercise => {
     // A machine the user moved the warm-up to. `reps` is deliberately left
     // alone: the session prescribed two minutes and changing which machine you
@@ -4600,9 +4626,6 @@ function SessionScreenBody() {
           ) : null}
         </View>
         <View style={styles.topBarRight}>
-          {inSessionAssistantEnabled && !isDemo && (
-            <SessionAssistantButton onPress={() => setAssistantOpen(true)} />
-          )}
           <View style={styles.elapsedTimer}>
             <Ionicons name="time-outline" size={12} color={C.textTertiary} />
             <Text style={styles.elapsedTimerText}>
@@ -4816,6 +4839,10 @@ function SessionScreenBody() {
               }
               onSkipExercise={isDemo ? () => {} : () => handleSkipExercise(index)}
               onCardioLog={isDemo ? () => {} : (data) => handleCardioLog(index, data)}
+              onAssistantPress={
+                inSessionAssistantEnabled && !isDemo ? openAssistant : undefined
+              }
+              assistantHasNews={assistantHasNews}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
               sessionType={sessionType}
@@ -5447,11 +5474,7 @@ function SessionScreenBody() {
             </View>
           )}
 
-          <SessionPlanList
-            exercises={exercises}
-            accent={sessionIdentity(sessionType)}
-            style={styles.planScreenList}
-          />
+          <SessionPlanList exercises={exercises} style={styles.planScreenList} />
 
           <View style={[styles.planFooter, { paddingBottom: insets.bottom + 14 }]}>
             <Pressable
@@ -5481,10 +5504,7 @@ function SessionScreenBody() {
         visible={assistantOpen}
         onClose={() => setAssistantOpen(false)}
         context={assistantContext}
-        onTurnOff={() => {
-          setInSessionAssistantEnabled(false);
-          setAssistantOpen(false);
-        }}
+        onTurnOff={() => setInSessionAssistantEnabled(false)}
       />
 
       {/* The whole session, opened from the progress strip. This is how you
@@ -5508,7 +5528,6 @@ function SessionScreenBody() {
               exercises={exercises}
               results={planResults}
               activeIndex={activeIndex}
-              accent={sessionIdentity(sessionType)}
               onSelect={(i) => jumpToExercise(i, planResults[i]?.done ?? false)}
               style={styles.planList}
             />
@@ -5546,114 +5565,6 @@ function SessionScreenBody() {
   );
 }
 
-/**
- * The exercise card's styles: the app's sheet, re-toned for paper.
- *
- * Merged key by key rather than replaced, so each entry below only has to name
- * the properties that change. Every other style the card uses passes through
- * untouched, which is what makes it impossible to leave one behind.
- *
- * Used by ExerciseCard and by the two timers that render inside it. They all
- * sit on the page, so they all need the page's ink.
- */
-function makeCardStyles(C: ReturnType<typeof useColors>, accent: SessionIdentity) {
-  const base = makeStyles(C) as unknown as Record<string, object>;
-  const onPage: Record<string, object> = {
-    // The card itself, and the rail that says which session this is.
-    exerciseCard: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline },
-    exerciseCardDone: {
-      backgroundColor: PAGE.inset,
-      borderColor: PAGE.hairline,
-      borderLeftColor: accent.deep,
-    },
-
-    // Ink.
-    exerciseName: { color: PAGE.ink },
-    exerciseNameDone: { color: accent.deep },
-    metaText: { color: PAGE.inkMuted },
-    loadText: { color: PAGE.inkMuted },
-    loadTextMain: { color: PAGE.ink },
-    targetWeightLabel: { color: PAGE.inkMuted },
-    kpiHint: { color: PAGE.inkFaint },
-    dumbbellNote: { color: PAGE.inkFaint },
-    effortText: { color: PAGE.inkMuted },
-    progressionNoteText: { color: accent.deep },
-    lastTimeText: { color: PAGE.inkMuted },
-    recalledNoteText: { color: PAGE.inkMuted },
-    spotterAdvisoryText: { color: PAGE.inkMuted },
-    comfortNoteText: { color: PAGE.warn },
-    cueText: { color: PAGE.ink },
-
-    // The block pill takes the session's colour rather than the block's. The
-    // word inside it already says which block this is, and a second colour
-    // system on a card that now has one is the noise this change removes.
-    categoryPill: { backgroundColor: accent.wash },
-    categoryDot: { backgroundColor: accent.deep },
-    categoryText: { color: accent.deep },
-
-    checkCircle: { borderColor: PAGE.hairline },
-    checkCircleDone: { backgroundColor: accent.deep, borderColor: accent.deep },
-
-    howBtn: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    howBtnText: { color: accent.deep },
-    // The video button keeps YouTube's red, because it is a brand mark and not
-    // a theme colour. Its surround is lightened so it reads on parchment.
-    howVideoBtn: { backgroundColor: PAGE.videoBg, borderColor: PAGE.videoBorder },
-    detailsPanel: { backgroundColor: PAGE.inset },
-    detailActionBtn: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline },
-    detailActionText: { color: PAGE.inkMuted },
-
-    setPip: { backgroundColor: 'rgba(27,42,33,0.14)' },
-    setPipDone: { backgroundColor: accent.deep },
-    setPipSkipped: { backgroundColor: 'rgba(27,42,33,0.30)' },
-    setPipActive: { backgroundColor: accent.deep },
-    setPipLabel: { color: accent.deep },
-
-    skipExerciseLink: {},
-    skipExerciseLinkText: { color: PAGE.inkFaint },
-    doneChip: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    doneChipText: { color: PAGE.ink },
-    plateBtn: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    plateBtnText: { color: accent.deep },
-    machineSwapBtn: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    machineSwapText: { color: accent.deep },
-    allSetsDone: { backgroundColor: accent.wash },
-    allSetsDoneText: { color: accent.deep },
-    noteInput: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline, color: PAGE.ink },
-
-    // The timers render inside the card, so they are on the page too.
-    restTimerBtn: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    restTimerBtnActive: { backgroundColor: accent.deep, borderColor: accent.deep },
-    restTimerText: { color: accent.deep },
-    restTimerTextActive: { color: PAGE.bg },
-    restTimerSkipBtn: { backgroundColor: PAGE.bg, borderColor: accent.deep },
-    restTimerSkipText: { color: accent.deep },
-    restTimerAddBtn: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline },
-    restTimerAddText: { color: PAGE.inkMuted },
-    restTimerResetBtn: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline },
-    restTimerIconBtn: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline },
-    restTimerDone: { backgroundColor: accent.wash, borderColor: PAGE.hairline },
-    restTimerDoneText: { color: accent.deep },
-    restTimerPill: { backgroundColor: PAGE.inset, borderColor: PAGE.hairline },
-    restTimerPillDigits: { color: PAGE.ink },
-    restTimerPillState: { color: PAGE.inkMuted },
-    restTimerPillSkip: { backgroundColor: PAGE.bg, borderColor: accent.deep },
-    restTimerPillSkipText: { color: accent.deep },
-
-    cardioInputBlock: { backgroundColor: PAGE.inset },
-    cardioInputLabel: { color: PAGE.inkMuted },
-    cardioInputBox: { backgroundColor: PAGE.bg, borderColor: PAGE.hairline, color: PAGE.ink },
-    cardioLoggedRow: { backgroundColor: accent.wash },
-    cardioLoggedText: { color: accent.deep },
-  };
-
-  const merged: Record<string, object> = { ...base };
-  for (const [key, value] of Object.entries(onPage)) {
-    merged[key] = { ...(base[key] ?? {}), ...value };
-  }
-  return merged as unknown as ReturnType<typeof makeStyles>;
-}
-
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     barYoursNote: {
@@ -5664,31 +5575,40 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 8,
     },
     // ── One control for the reference sheet ─────────────────────────────────
-    howRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-    howBtn: {
-      flex: 1,
+    // marginTop: auto puts it on the floor of the card. The card is the full
+    // height of the phone now, so without this the row floated wherever the
+    // exercise happened to end and left the foot of the page empty - which is
+    // the dead space this move is filling.
+    howRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingVertical: 17,
-      paddingHorizontal: 16,
-      borderRadius: 14,
+      gap: 4,
+      marginTop: 'auto',
+      paddingTop: 10,
+    },
+    howAssistant: { marginLeft: 'auto' },
+    howBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      paddingVertical: 9,
+      paddingHorizontal: 12,
+      borderRadius: 10,
       backgroundColor: C.primarySurface,
       borderWidth: 1,
       borderColor: C.primaryMuted,
     },
-    howBtnText: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+    howBtnText: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     // The video keeps its own target rather than living inside the panel. Two
     // taps to reach a play button is one tap of nothing.
+    // No surround: "the youtube symbol RIGHT next to it rather than separate
+    // box". Still 44 across, because a bare glyph is still something you have
+    // to hit - the box was the only thing that used to guarantee that.
     howVideoBtn: {
-      width: 58,
-      height: 58,
-      borderRadius: 14,
+      width: 44,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: C.youtubeSurface,
-      borderWidth: 1,
-      borderColor: C.youtubeBorder,
     },
     detailsPanel: {
       marginTop: 10,
@@ -6105,9 +6025,13 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       paddingHorizontal: 7,
       paddingVertical: 3,
       borderRadius: 4,
+      // The SESSION's colour, not the block's. The word inside the pill
+      // already says which block this is, and a second colour system on a
+      // card that has one is exactly the noise being removed here.
+      backgroundColor: C.primaryMuted,
     },
-    categoryDot: { width: 5, height: 5, borderRadius: 3 },
-    categoryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+    categoryDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.primaryText },
+    categoryText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     metaText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     loadText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textTertiary },
     kpiHint: {
@@ -6906,7 +6830,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // Skip exercise link
     // Pushed to the bottom of the card now that the card is the full height.
     // Left where it was, it floated a third of the way down a page of nothing.
-    skipExerciseLink: { alignItems: 'center', paddingVertical: 10, marginTop: 'auto' },
+    skipExerciseLink: { alignItems: 'center', paddingVertical: 10 },
     skipExerciseLinkText: {
       fontSize: 12,
       fontFamily: 'Inter_500Medium',

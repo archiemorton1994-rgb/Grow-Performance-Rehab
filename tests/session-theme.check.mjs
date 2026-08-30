@@ -361,15 +361,20 @@ for (const [file, path] of [
 const planList = read('../components/SessionPlanList.tsx');
 
 check(
-  'the plan list is printed on the page rather than on themed cards',
-  /backgroundColor: PAGE\.bg/.test(planList) && /accent: SessionIdentity/.test(planList),
-  '"the full list of exercises before the session should be on the ecru theme colour not black boxes"'
+  // It was parchment for one round: "revert the pre workout session exercise
+  // list back to match the theme aka dark or light, but it can have instead
+  // subtle colouring to match the theme of the workout". Which is what taking
+  // its colours from the session context gives it - no hard-coded value in the
+  // file at all, and the tint arrives with the theme.
+  'the plan list is on the theme, coloured by the session',
+  /useSessionColors\(\)/.test(planList) && !/PAGE\./.test(planList),
+  'a cream list on a dark screen was the thing that came back'
 );
 
 check(
-  'and both places that show it pass the session in',
-  (session.match(/accent=\{sessionIdentity\(sessionType\)\}/g) ?? []).length >= 2,
-  'the pre-session screen and the sheet the progress strip opens'
+  'and it carries no palette of its own',
+  !/#[0-9a-fA-F]{6}/.test(planList),
+  'one hard-coded colour here and the list stops following the session'
 );
 
 console.log(`\nsession-theme: ${passed} passed, ${failed} failed`);

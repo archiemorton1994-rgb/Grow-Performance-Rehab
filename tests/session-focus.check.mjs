@@ -113,9 +113,18 @@ check(
 );
 
 check(
+  // Containment, not source order. The old version compared the two positions
+  // in the file, which said nothing about nesting and broke the day the help
+  // row moved to the foot of the card for entirely unrelated reasons.
   'the timers and the plate calculator are NOT in the panel',
-  /setsContainer/.test(session) &&
-    session.indexOf('styles.setsContainer') > session.indexOf('styles.detailsPanel'),
+  (() => {
+    const open = session.indexOf('{expanded && (');
+    if (open < 0) return false;
+    const close = session.indexOf('\n              )}', open);
+    if (close < 0) return false;
+    const panel = session.slice(open, close);
+    return /styles\.setsContainer/.test(session) && !/styles\.setsContainer/.test(panel);
+  })(),
   'a rest timer you have to open a panel to see is a rest timer you miss'
 );
 
@@ -170,7 +179,7 @@ check(
 
 check(
   'it reads the same exercises array the session does',
-  /<SessionPlanList\s+exercises=\{exercises\}\s+accent=\{sessionIdentity\(sessionType\)\}/.test(session),
+  /<SessionPlanList exercises=\{exercises\} style=\{styles\.planScreenList\} \/>/.test(session),
   'a second generateWorkout call is a plan for a session you are not about to do'
 );
 

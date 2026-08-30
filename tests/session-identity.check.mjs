@@ -1,6 +1,5 @@
 /**
- * Contract test: every session owns a colour, and the exercise card is printed
- * on paper.
+ * Contract test: every session owns a colour, and paper is spent once.
  *
  * WHAT WAS WRONG
  * ──────────────
@@ -9,6 +8,10 @@
  * down the side of the exercise card carried the BLOCK's colour, which the pill
  * two lines below already gives in words: "the green on the left side of the
  * exercise box, what even is its purpose?"
+ *
+ * THE CARD WAS PARCHMENT FOR ONE ROUND and is not any more - see section [4].
+ * PAGE survives because the recap at the end of a session still uses it, as the
+ * hand-off to the summary certificate, so its legibility still has to hold.
  *
  * WHAT THIS ASSERTS, AND WHY EACH ONE IS HERE
  * ───────────────────────────────────────────
@@ -204,28 +207,35 @@ console.log('\n[4] The exercise card is printed on the page');
 
 const session = readFileSync(new URL('../app/session.tsx', import.meta.url), 'utf8');
 
+/*
+ * THE CARD CAME OFF THE PAPER. It was parchment for one round and Archie
+ * lived with it: "not sure I'm a fan of the in workout ecru box any more,
+ * maybe again we should make it a more subtle but match the theme". So the
+ * card is on the app's own surfaces, which are themselves tinted with the
+ * session's hue - subtle, and the same colour, without a sheet of cream in the
+ * middle of a dark screen.
+ *
+ * PAPER IS KEPT FOR ONE THING: the recap at the end of a session, which is the
+ * hand-off to the summary certificate. A change of material there is the point
+ * of it, which is why PAGE still has to exist and still has to be legible.
+ */
 check(
-  'the card builds its styles from the page, not from the app theme',
-  /function makeCardStyles\(/.test(session) &&
-    /const styles = useMemo\(\(\) => makeCardStyles\(C, accent\), \[C, accent\]\);/.test(session),
-  'this is what makes it impossible to leave a themed colour on the parchment'
+  'the card is on the theme, with nothing left painting itself on parchment',
+  !/function makeCardStyles\(/.test(session) &&
+    /const styles = useMemo\(\(\) => makeStyles\(C\), \[C\]\);/.test(session),
+  'a half-removed page layer is a cream chip on a dark card, which is worse than either'
 );
 
 check(
-  'the page tones are merged over the base sheet rather than replacing it',
-  /merged\[key\] = \{ \.\.\.\(base\[key\] \?\? \{\}\), \.\.\.value \};/.test(session),
-  'replacing whole entries means every override restates padding and radius, and one omission is a broken card'
-);
-
-check(
-  'the timers inside the card are on the page too',
-  (session.match(/makeCardStyles\(C, accent\)/g) ?? []).length >= 4,
-  'a rest timer using primarySurface is a dark green pill on cream'
+  'and paper is spent only on the recap',
+  (session.match(/PAGE\./g) ?? []).length > 0 &&
+    !/exerciseCard: \{ backgroundColor: PAGE\.bg/.test(session),
+  'PAGE with no readers is a palette nobody maintains; PAGE on the card is the thing that was reverted'
 );
 
 check(
   'the rail is the session, not the block',
-  /borderLeftColor: accent\.deep/.test(session) && !/borderLeftColor: cat\.text/.test(session),
+  /borderLeftColor: C\.primaryDark/.test(session) && !/borderLeftColor: cat\.text/.test(session),
   'the block is already named in words on the pill two lines below it'
 );
 

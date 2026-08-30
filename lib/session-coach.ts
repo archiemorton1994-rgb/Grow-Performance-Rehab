@@ -159,6 +159,19 @@ export function sessionCoachTips(ctx: SessionCoachContext): SessionTip[] {
   return tips.slice(0, MAX_SESSION_TIPS);
 }
 
+/**
+ * The one thing the assistant would lead with, right now.
+ *
+ * Used for the badge on its button. A badge that is always on is wallpaper, so
+ * the session tracks which headlines have already been seen and only marks the
+ * button when the top of the list has changed - somebody arriving at their KPI
+ * lift, or reporting pain, or logging their first set. Open it once and the
+ * mark clears until there is genuinely something else to say.
+ */
+export function sessionCoachHeadline(ctx: SessionCoachContext): string | null {
+  return sessionCoachTips(ctx)[0]?.title ?? null;
+}
+
 /** The line under the assistant's title, naming what it is talking about. */
 export function sessionCoachSubtitle(ctx: SessionCoachContext): string {
   const setPart =
