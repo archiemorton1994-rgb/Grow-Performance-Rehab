@@ -461,19 +461,35 @@ export function isPlausibleOneRepMaxKg(kg: number): boolean {
  * sheet, and the gate in app/_layout.tsx has to keep treating it as unfinished.
  */
 export interface OnboardingDraft {
-  /** Index of the screen the user was last on, so they resume where they left off. */
-  step: number;
-  name: string;
-  sex: Sex | null;
-  experienceLevel: ExperienceLevel | null;
-  /** Stored exactly as typed rather than parsed — a half-typed "8" must come back as "8", not 8 kg. */
-  bodyweight: string;
-  goals: FitnessGoal[];
-  equipmentTiers: EquipmentTier[];
-  ormSquat: string;
-  ormBench: string;
-  ormDeadlift: string;
-  testWeekFrequency: TestWeekFrequency;
+  /**
+   * EVERY ANSWER, keyed by question id, exactly as lib/profile-tree.ts stores
+   * them. This is the whole draft now.
+   *
+   * The tree recomputes which questions apply from the answers themselves, so
+   * there is no step to save. That is the point: the old draft stored a step
+   * INDEX, which means something different the moment a question moves, and it
+   * could disagree with the answers beside it. A number that can contradict the
+   * data it indexes into is a bug waiting for a release.
+   */
+  treeAnswers?: Answers;
+
+  /**
+   * The pager's fields, kept OPTIONAL so a draft written by the old builder
+   * still parses rather than throwing on somebody who was half way through when
+   * they updated. Nothing reads them any more; they are here so that an
+   * abandoned draft is ignored instead of being a crash.
+   */
+  step?: number;
+  name?: string;
+  sex?: Sex | null;
+  experienceLevel?: ExperienceLevel | null;
+  bodyweight?: string;
+  goals?: FitnessGoal[];
+  equipmentTiers?: EquipmentTier[];
+  ormSquat?: string;
+  ormBench?: string;
+  ormDeadlift?: string;
+  testWeekFrequency?: TestWeekFrequency;
 }
 
 export const TIER_ORDER: EquipmentTier[] = [

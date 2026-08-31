@@ -149,9 +149,17 @@ return bodyweightIssue;`
 )();
 /** The onboarding case: kilograms, the default and what these inputs mean. */
 const bodyweightIssue = (text) => bodyweightIssueRaw(text, 'kg');
-const oneRepMaxIssue = new Function(
-  `${toJs(boundsSrc)}\n${onboardingNumber}\n${toJs(extractBlock(storeSrc, 'function isPlausibleOneRepMaxKg(', 'isPlausibleOneRepMaxKg'))}\n${toJs(extractBlock(onboardingSrc, 'function oneRepMaxIssue(', 'onboarding oneRepMaxIssue'))}\nreturn oneRepMaxIssue;`
-)();
+/**
+ * IMPORTED, not extracted.
+ *
+ * It used to be pulled out of app/onboarding.tsx by name and evaluated, because
+ * that file imports react-native and cannot be imported under tsx. So this was
+ * testing a COPY of the function, and it broke the moment the function moved.
+ *
+ * It now lives in lib/one-rep-max-input.ts with no React Native import in it,
+ * which means this runs the real thing.
+ */
+const { oneRepMaxIssue } = await import('../lib/one-rep-max-input.ts');
 
 // The exact values from the bug report, plus the ones a real person types.
 const REJECTED_BW = ['9999', '0.0001', '1e5', '100000', '0', '-5', 'abc', ''];
@@ -195,26 +203,45 @@ check(
   `said: "${ormTooHigh}"`
 );
 
-// A validator nothing consults is decoration. These are the two gates that stop
-// the value reaching the store.
+// A validator nothing consults is decoration. In the tree there is one gate,
+// issueFor, and one place the message is drawn, so what has to be proved is
+// that every typed question is routed through it and that nothing can advance
+// while it has something to say.
+const builder = read('components/ProfileTree.tsx');
+
 check(
-  'the bodyweight step will not advance while there is something wrong',
-  /case BODYWEIGHT_INDEX:[sS]{0,340}?return bodyweight.trim() === '' || bodyweightIssue(bodyweight, weightUnit) === null;/.test(
-    onboardingSrc
+  'the bodyweight answer is put through its validator',
+  /bodyweightIssue\(t, weightUnit\)/.test(builder),
+  'and blank has to pass, because the question is optional'
+);
+check(
+  'a blank bodyweight is still allowed through',
+  /t\.trim\(\) === '' \? null : bodyweightIssue/.test(builder),
+  'nobody should have to type their weight to use the app'
+);
+check(
+  'every best-lift box is put through its validator, not just the first',
+  /for \(const f of node\.subFields\) \{[\s\S]{0,180}?oneRepMaxIssue\(String\(answers\[f\.key\]/.test(
+    builder
   ),
-  'canContinue must consult the validator - and let blank through, because the step is optional'
+  'it used to return true unconditionally, so 10000 kg reached the store'
 );
 check(
-  'the best-lifts step will not advance while there is something wrong',
-  /case LIFTS_INDEX:[\s\S]{0,200}?liftIssues\.every/.test(onboardingSrc),
-  'it used to return true unconditionally'
+  'and the age answer too, which is a question the pager never asked',
+  /if \(node\.id === 'age'\) return ageIssue/.test(builder),
+  'a new question with no validator is the old bug with a new name'
 );
 check(
-  'the message is rendered, not just computed',
-  /\{bodyweightError\}/.test(onboardingSrc) && /error=\{liftIssues\[/.test(onboardingSrc),
+  'nothing advances while any of them has something to say',
+  /issueFor\(focusNode\) === null &&/.test(builder),
+  'canAdvance has to consult the validator, or the gate is decoration'
+);
+check(
+  'and the message is rendered, not just computed',
+  /issue={state === 'focus' \? issueFor\(node\) : null}/.test(builder) &&
+    /<Text style={styles\.issueText}>{issue}<\/Text>/.test(builder),
   'a validator whose message never reaches the screen is the same silent refusal as before'
 );
-
 // ─── 3. The profile screen, in whichever unit the user uses ──────────────────
 console.log('\n[3] Editing bodyweight later is held to the same rule');
 
@@ -309,62 +336,44 @@ check(
 );
 
 // ─── 5. A half-finished form comes back, and is still half-finished ──────────
-console.log('\n[5] An interrupted onboarding resumes where it was left');
+console.log('\n[5] A reload does not throw the answers away');
 
-const draftFields = (() => {
-  const block = extractBlock(storeSrc, 'export interface OnboardingDraft {', 'OnboardingDraft');
-  return [...block.matchAll(/^\s{2}(\w+)[?]?:/gm)].map((m) => m[1]);
-})();
-check(`the draft has fields at all (${draftFields.length})`, draftFields.length >= 8, '');
+/**
+ * WHAT THIS SECTION USED TO CHECK, AND WHY IT NO LONGER CAN.
+ *
+ * The pager held one useState per answer and saved the draft in an effect, so
+ * every answer had to appear in that effect's dependency array or a reload lost
+ * it silently. It also cleared the equipment whenever the experience level
+ * changed, and that effect ran on mount too, so restoring a draft wiped the
+ * equipment it had just restored unless the effect could tell a change from a
+ * mount. Three checks guarded those three traps.
+ *
+ * The tree holds ONE answers object, keyed by question id, and hands the whole
+ * thing to the caller on every change. There is no per-answer state to forget,
+ * no dependency array to get wrong, and nothing that clears on mount. The traps
+ * are gone rather than guarded, which is the better outcome and the reason the
+ * old checks are not simply reworded here.
+ *
+ * What still has to be true is what those checks were protecting.
+ */
+const builderScreen = read('app/onboarding.tsx');
+const builderTree = read('components/ProfileTree.tsx');
 
-const saveCall = extractBlock(onboardingSrc, 'saveOnboardingDraft({', 'the draft save call');
-const unsaved = draftFields.filter((f) => !new RegExp(`(^|[\\s{])${f}[,:]`, 'm').test(saveCall));
 check(
-  'every field of the draft is actually written',
-  unsaved.length === 0,
-  `never saved: ${unsaved.join(', ')} — a field nobody writes is an answer that still gets lost`
+  'the builder starts from the saved draft',
+  /initialAnswers=\{draft\?\.treeAnswers/.test(builderScreen),
+  'an eight-question form that restarts from nothing is a form most people do not fill in twice'
 );
-
-// The whole failure was answers held only in component state. Every piece of
-// state this screen holds must therefore start from the draft — this is the
-// check that keeps a NINTH question from being added the old, lossy way.
-const flow = onboardingSrc.slice(
-  onboardingSrc.indexOf('function OnboardingFlow('),
-  onboardingSrc.indexOf('function LiftInput(')
-);
-const stateLines = [...flow.matchAll(/const \[(\w+), set\w+\] = useState[\s\S]{0,90}?;/g)].map((m) => ({
-  name: m[1],
-  text: m[0],
-}));
-check(`the flow holds state at all (${stateLines.length} pieces)`, stateLines.length >= 10, '');
-const notRestored = stateLines.filter((s) => !/draft/.test(s.text)).map((s) => s.name);
 check(
-  'every answer the flow holds is restored from the draft',
-  notRestored.length === 0,
-  `not restored: ${notRestored.join(', ')} — added as plain component state, so a reload still loses it`
+  'and the whole answer set is saved on every change, not answer by answer',
+  /onAnswersChange\?\.\(next\)/.test(builderTree) &&
+    /treeAnswers: answers/.test(builderScreen),
+  'saving them one at a time is what let the pager drop the ones nobody remembered to list'
 );
-
-// Saved once, at the end, is the bug. It has to be saved as it is answered.
-const saveEffect = flow.slice(flow.indexOf('saveOnboardingDraft({'));
-const deps = (saveEffect.match(/\}, \[([\s\S]*?)\]\);/) ?? [])[1] ?? '';
-check('the save call sits in an effect with dependencies', deps.trim().length > 0, 'found no dependency array after the save call — the check below would pass on nothing');
-const answers = ['currentIndex', 'name', 'sex', 'experience', 'bodyweight', 'goals', 'equipment', 'testFrequency'];
-const missingDeps = answers.filter((a) => !new RegExp(`(^|[\\s,])${a}[\\s,]`).test(deps));
 check(
-  'the draft is rewritten whenever any answer changes',
-  missingDeps.length === 0,
-  `not in the effect's dependencies: ${missingDeps.join(', ')}`
-);
-
-// Restoring is not answering. Choosing an experience level clears the equipment
-// picked under the old answer, and that effect re-runs on mount — so on a restore
-// it would clear equipment the user had already chosen, and the reload would eat
-// one answer after all. The effect has to be able to tell a change from a mount.
-const resetEffect = extractBlock(flow, 'useEffect(() => {\r\n    if (answeredExperience', 'the experience-reset effect');
-check(
-  'restoring a draft does not re-run the resets that answering triggers',
-  /\.current === experience\)\s*return;/.test(resetEffect) && /setEquipment\(/.test(resetEffect),
-  'this effect fires on mount too; without comparing against the answer it already had, a restore wipes the equipment it just restored'
+  'nothing is cleared when the builder mounts',
+  !/useEffect\([\s\S]{0,200}?setAnswers\(\{\}\)/.test(builderTree),
+  'the pager cleared equipment on an effect that also ran on mount, so a restore wiped what it had just restored'
 );
 
 // The draft is device state, so it has to survive the app being killed.
@@ -411,24 +420,41 @@ check(
   'if the draft could influence routing, a half-filled form could let someone into the app'
 );
 
-// ─── What the two optional steps say ─────────────────────────────────────────
-console.log('\n[Copy on the units and bodyweight steps]');
+// ─── What the two optional questions say ─────────────────────────────────────
+console.log('\n[Copy on the units and bodyweight questions]');
+
+/**
+ * READ OFF THE QUESTION OBJECTS, not off a screen.
+ *
+ * These four intents were guarded by regexing app/onboarding.tsx, which meant
+ * they were really checking where the copy lived. The questions are data now
+ * (lib/profile-tree.ts), so the checks run against the thing itself.
+ */
+const { PROFILE_TREE } = await import('../lib/profile-tree.ts');
+const node = (id) => PROFILE_TREE.find((n) => n.id === id);
+const units = node('units');
+const bw = node('bodyweight');
 
 check(
-  'the unit step gives the choice and leaves it there',
-  !/default in the (UK|US)/.test(onboardingSrc) &&
-    /Kilograms \(kg\)/.test(onboardingSrc) &&
-    /Pounds \(lbs\)/.test(onboardingSrc),
+  'both questions were found, so the checks below mean something',
+  !!units && !!bw,
+  'the questions have moved and this section has gone blind'
+);
+check(
+  'the unit question gives the choice and leaves it there',
+  !/default in the (UK|US)|usually used/i.test(JSON.stringify(units)) &&
+    units.options.some((o) => /Kilograms \(kg\)/.test(o.label)) &&
+    units.options.some((o) => /Pounds \(lbs\)/.test(o.label)),
   'it explained where each unit is "usually used", which is a geography lesson nobody asked for on a two-option question'
 );
 check(
   'and still says it can be changed later',
-  /change it anytime in settings/.test(onboardingSrc),
+  /change it anytime in settings/i.test(units.hint ?? ''),
   'the one piece of context worth keeping'
 );
 
 /**
- * THE BODYWEIGHT STEP NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
+ * THE BODYWEIGHT QUESTION NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
  *
  * Skipping still falls back to ASSUMED_BODYWEIGHT_KG internally, because the
  * first session has to start somewhere. Printing that number is a different
@@ -437,37 +463,30 @@ check(
  * people the guess will be furthest out for. It was in the placeholder too,
  * sitting in the box before they had typed anything.
  */
-// Comments stripped first: the comment explaining WHY the number is no longer
-// printed necessarily names the constant, and matching your own explanation is
-// a way of failing a check that has nothing wrong with it.
-const bwStep = onboardingSrc
-  .slice(onboardingSrc.indexOf('Your current bodyweight'), onboardingSrc.indexOf('bodyweight-error'))
-  .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
-  .replace(/\/\*[\s\S]*?\*\//g, '')
-  .replace(/^\s*\/\/.*$/gm, '');
 check(
-  'the bodyweight step found itself, so the checks below mean something',
-  bwStep.length > 200,
-  'the step has moved and this section has gone blind'
+  'answering it is optional, and the way past says what skipping means',
+  bw.optional === true && (bw.skipLabel ?? '').length > 3,
+  'nobody should have to type their weight to use the app'
 );
 check(
   'it never prints the assumed figure at the user',
-  !/ASSUMED_BODYWEIGHT_KG/.test(bwStep),
+  !/\b165|\b75 ?kg|ASSUMED/.test(JSON.stringify(bw)),
   'it said "the app assumes 165.3 lbs", and put the same number in the input as a placeholder'
 );
+const builderSrc = read('components/ProfileTree.tsx');
 check(
   'the placeholder is not a number either',
-  /placeholder="Optional"/.test(bwStep),
+  /if \(node\.id === 'bodyweight'\) return 'Optional';/.test(builderSrc),
   'a guessed weight sitting in the box is the same problem in a quieter voice'
 );
 check(
   'and it says what actually happens instead, which is also true',
-  /tune your weights from how your first few sessions go/.test(bwStep),
+  /tune your weights from how your first few sessions go/.test(bw.hint ?? ''),
   'starting loads are an opening bid; the answers and the reps are what set the weight'
 );
 check(
   'the fallback itself is untouched, because a first session needs a number',
-  /ASSUMED_BODYWEIGHT_KG/.test(onboardingSrc),
+  /ASSUMED_BODYWEIGHT_KG/.test(read('lib/bodyweight.ts')),
   'this is about what is said out loud, not about how the app works'
 );
 

@@ -117,6 +117,17 @@ export interface TreeNode {
   question: string;
   /** One supporting line. Optional, and most nodes are better without one. */
   hint?: string;
+  /**
+   * A hint that depends on what they have already said, used instead of `hint`
+   * when it is present.
+   *
+   * One node needs it. Somebody who has just declined strength tests and
+   * somebody who has just opted into them need different reasons to type their
+   * best lifts, and giving either of them the other's line is wrong: promising
+   * a re-test to a person who said no is a promise nothing will keep, and
+   * "this is optional" is no reason at all for the person who said yes.
+   */
+  hintFor?: (a: Answers) => string;
   kind: NodeKind;
   tier: NodeTier;
   options?: TreeOption[];
@@ -133,6 +144,8 @@ export interface TreeNode {
    * offers a way past. Only the two questions where "none" is a real answer.
    */
   optional?: boolean;
+  /** What the way past is called. "Skip" says nothing about what skipping means. */
+  skipLabel?: string;
   /**
    * Undefined means the trunk: everybody is asked this.
    *
@@ -160,9 +173,13 @@ const saidYes = (a: Answers, id: string) => a[id] === 'yes';
 /**
  * Every question, in the order the spine runs.
  *
- * Order matters twice over: it is the order they are asked, and it is the order
- * they are DRAWN, so a branch node must come after the node it forks from or the
- * diagram would draw a line going back up the page.
+ * Order matters three times over. It is the order they are asked; it is the
+ * order they are DRAWN, so a branch node must come after the node it forks from
+ * or the diagram would draw a line running back up the page; and the two tiers
+ * have to be CONTIGUOUS. The block-length question is "what you want" and was
+ * written at the end of the list, which made the spine read shape, tune, shape
+ * and drew the "what you want" heading twice, the second time below "about you".
+ * Found by photographing it, not by reading it.
  *
  * The rule applied to every entry: a question earns its place only if a
  * different answer produces a visibly different programme. Sleep, diet, stress,
@@ -184,13 +201,21 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
   },
   {
+    /**
+     * The choice, and nothing else.
+     *
+     * It used to explain where each unit is "usually used", which is a geography
+     * lesson nobody asked for on a two-option question. The one piece of context
+     * worth keeping is that it is not a decision they are stuck with.
+     */
     id: 'units',
     question: 'Kilos or pounds?',
+    hint: 'You can change it anytime in settings.',
     kind: 'single',
     tier: 'shape',
     options: [
-      { value: 'kg', label: 'Kilograms' },
-      { value: 'lbs', label: 'Pounds' },
+      { value: 'kg', label: 'Kilograms (kg)' },
+      { value: 'lbs', label: 'Pounds (lbs)' },
     ],
   },
   {
@@ -259,6 +284,19 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
   },
 
+  {
+    id: 'length',
+    question: 'How long should your first block be?',
+    hint: 'It finishes with a review of everything that changed.',
+    kind: 'single',
+    tier: 'shape',
+    options: [
+      { value: '8', label: '8 weeks', hint: 'Short, if you have a date in mind' },
+      { value: '12', label: '12 weeks', hint: 'The usual choice' },
+      { value: '16', label: '16 weeks', hint: 'Slower, good after an injury' },
+    ],
+  },
+
   // ── TUNE: what the engine needs to set loads and pick exercises ──────────
   {
     id: 'experience',
@@ -295,10 +333,23 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
   },
   {
+    /**
+     * OPTIONAL, and it has to stay optional.
+     *
+     * Skipping falls back to ASSUMED_BODYWEIGHT_KG internally, because a first
+     * session has to start somewhere. That number is never read back at the
+     * user: the people most likely to leave this blank are the ones least likely
+     * to want a guess about their weight quoted at them, and they are exactly
+     * the people the guess is furthest out for. It is not in the placeholder
+     * either, for the same reason in a quieter voice.
+     */
     id: 'bodyweight',
     question: 'Your current bodyweight',
+    hint: 'It sets your opening weights. Leave it blank if you would rather not, and we will tune your weights from how your first few sessions go.',
     kind: 'number',
     tier: 'tune',
+    optional: true,
+    skipLabel: 'Rather not say',
   },
   {
     id: 'equipment',
@@ -364,32 +415,6 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
   },
   {
-    /**
-     * Only asked of people whose programme is actually built on the barbell.
-     *
-     * Typing a squat one rep max is a miserable question for somebody who came
-     * to the app because their knee hurts, and today every single person is
-     * asked it. A beginner is skipped too: they do not have the numbers, and
-     * the engine estimates better from bodyweight than they guess.
-     */
-    id: 'lifts',
-    question: 'Your best lifts',
-    hint: 'Rough is fine. The app corrects itself within two sessions.',
-    kind: 'number',
-    tier: 'tune',
-    optional: true,
-    subFields: [
-      { key: 'liftsSquat', label: 'Squat' },
-      { key: 'liftsBench', label: 'Bench press' },
-      { key: 'liftsDeadlift', label: 'Deadlift' },
-    ],
-    branch: {
-      from: 'focus',
-      when: (a) => focusIs(a, 'barbell', 'strength') && a.experience !== 'beginner',
-      label: 'Because you train the barbell lifts',
-    },
-  },
-  {
     id: 'testWeeks',
     question: 'Test your strength every few weeks?',
     hint: 'A session that finds your new max, so the weights stay honest.',
@@ -407,16 +432,42 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
   },
   {
-    id: 'length',
-    question: 'How long should your first block be?',
-    hint: 'It finishes with a review of everything that changed.',
-    kind: 'single',
-    tier: 'shape',
-    options: [
-      { value: '8', label: '8 weeks', hint: 'Short, if you have a date in mind' },
-      { value: '12', label: '12 weeks', hint: 'The usual choice' },
-      { value: '16', label: '16 weeks', hint: 'Slower, good after an injury' },
+    /**
+     * Only asked of people whose programme is actually built on the barbell.
+     *
+     * Typing a squat one rep max is a miserable question for somebody who came
+     * to the app because their knee hurts, and today every single person is
+     * asked it. A beginner is skipped too: they do not have the numbers, and
+     * the engine estimates better from bodyweight than they guess.
+     *
+     * ASKED AFTER THE TEST-WEEK QUESTION, and that order is load-bearing. The
+     * larger decision comes first because it changes what the smaller one is
+     * for, and hintFor above reads the answer to it. A step that says only
+     * "optional" gives somebody who has just declined strength tests no reason
+     * to answer, and promising a re-test to that same person is the same wrong
+     * answer pointing the other way.
+     */
+    id: 'lifts',
+    question: 'Your best lifts',
+    hint: 'Rough is fine. The app corrects itself within two sessions.',
+    hintFor: (a) =>
+      a.testWeeks === 'never'
+        ? 'These set your starting weights. Rough is fine, and the app corrects itself within two sessions.'
+        : 'These set your starting weights. Rough is fine, and your first strength test will re-measure them.',
+    kind: 'number',
+    tier: 'tune',
+    optional: true,
+    skipLabel: 'I do not know these',
+    subFields: [
+      { key: 'liftsSquat', label: 'Squat' },
+      { key: 'liftsBench', label: 'Bench press' },
+      { key: 'liftsDeadlift', label: 'Deadlift' },
     ],
+    branch: {
+      from: 'focus',
+      when: (a) => focusIs(a, 'barbell', 'strength') && a.experience !== 'beginner',
+      label: 'Because you train the barbell lifts',
+    },
   },
 ];
 

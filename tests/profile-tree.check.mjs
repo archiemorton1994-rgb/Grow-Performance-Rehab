@@ -223,6 +223,37 @@ check(
 );
 
 check(
+  /**
+   * FOUND BY PHOTOGRAPHING THE SCREEN, WHICH IS WHY THIS EXISTS NOW.
+   *
+   * The block-length question is tier "shape" and was written at the very end of
+   * the array, after ten "tune" questions. The screen draws a heading each time
+   * the tier changes, so the spine read shape, tune, shape: "what you want"
+   * appeared twice, the second time BELOW "about you", on a diagram whose one
+   * structural claim is that those two are separate halves.
+   *
+   * Every check in this file passed while that was on screen. The tiers were
+   * both present and both populated, which was all anything asked.
+   */
+  'each tier is one contiguous run, so its heading is drawn once',
+  (() => {
+    const runs = [];
+    for (const n of PROFILE_TREE) {
+      if (runs[runs.length - 1] !== n.tier) runs.push(n.tier);
+    }
+    return runs.length === new Set(runs).size;
+  })(),
+  'a tier that starts, stops and starts again draws its heading twice and out of order'
+);
+
+check(
+  'and every question that chooses the programme is asked before the ones that tune it',
+  PROFILE_TREE.map((n) => n.tier).lastIndexOf('shape') <
+    PROFILE_TREE.findIndex((n) => n.tier === 'tune'),
+  'the shape half has to come first, or the diagram is telling the wrong story about itself'
+);
+
+check(
   'both tiers exist and are populated',
   PROFILE_TREE.some((n) => n.tier === 'shape') && PROFILE_TREE.some((n) => n.tier === 'tune'),
   'the shape/tune split is what the diagram draws its one structural boundary from'
