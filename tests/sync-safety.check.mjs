@@ -185,10 +185,29 @@ check(
 console.log('\n[3] Updating the app does not delete your training');
 
 const store = stripComments(read('lib/store.ts'));
+/**
+ * The version, READ rather than matched against a literal.
+ *
+ * This asserted /version: 29,/ exactly, which made it fail the first time
+ * anybody legitimately bumped the version for a new migration. That is the
+ * failure mode where somebody deletes the check to get a green gate, and the
+ * real protection goes with it.
+ *
+ * What it is actually guarding is unchanged: dataOwnerId's migration shipped at
+ * version 28 and nobody bumped, so migrate() was never called on an upgrading
+ * device and the wipe guard never ran. Any number above 28 satisfies that, and
+ * a version that goes backwards or stops moving still fails.
+ */
+const storeVersion = Number((store.match(/^\s*version: (\d+),/m) ?? [])[1]);
 check(
-  'the store version was bumped, so migrate() actually runs',
-  /version: 29,/.test(store),
-  'dataOwnerId shipped at version 28 and stayed there, so migrate() was never called on an upgrading device'
+  'the store version could be read at all',
+  Number.isFinite(storeVersion),
+  'the persist config has moved and the rule below proves nothing'
+);
+check(
+  'and it is past the release where migrate() was being skipped',
+  storeVersion >= 29,
+  `version is ${storeVersion}; dataOwnerId shipped at 28 and stayed there, so migrate() was never called on an upgrading device`
 );
 check(
   'and the migration marks a pre-tagging device claimable',

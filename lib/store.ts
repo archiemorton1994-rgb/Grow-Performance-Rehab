@@ -27,6 +27,11 @@ import {
   type ReturnWindow,
 } from '@/lib/workout-engine';
 
+import type { Answers, InjuryAge } from './profile-tree';
+import { outcomeFrom } from './profile-tree';
+import type { EnrolledProgramme, ProgrammePosition } from './programme';
+import { goalsForFocus, programmePosition, selectProgramme } from './programme';
+
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 
@@ -401,6 +406,20 @@ export interface UserProfile {
   experienceLevel: ExperienceLevel;
   goals: FitnessGoal[];
   bodyweightKg: number;
+  /**
+   * All three are OPTIONAL and are undefined for everybody who signed up before
+   * the profile tree existed. Nothing may assume they are present: the app has
+   * to behave exactly as it does today for a profile that has none of them.
+   */
+  ageYears?: number;
+  /**
+   * Areas reported as sore in the BUILDER, which is a standing fact about a
+   * person rather than the per-session pain flag on the readiness screen. Until
+   * now a shoulder that had hurt for six months was re-learned before every
+   * session and forgotten after it, and nothing about it reached the programme.
+   */
+  standingSoreRegions?: PainRegion[];
+  standingSoreSince?: InjuryAge | null;
 }
 
 /**
@@ -823,6 +842,27 @@ interface AppState {
   /** True when the barbell rotation is what this person is actually doing.
    *  Shared by the home card and the Your Program screen so they cannot
    *  disagree about which programme someone is on. */
+  /**
+   * The block they are enrolled in, or null for everybody who has never been
+   * through the profile tree.
+   *
+   * Null is not a degraded state. getCurrentSessionType falls through to the
+   * behaviour the app has always had, so an existing user who never opens the
+   * builder again notices nothing at all.
+   */
+  programme: EnrolledProgramme | null;
+  /** Enrol from a finished profile tree, writing every answer to its home. */
+  applyProfileTree: (answers: Answers, nowIso: string) => void;
+  /** Change days, block length or session time from the programme hub. */
+  updateProgramme: (
+    patch: Partial<Pick<EnrolledProgramme, 'days' | 'blockWeeks' | 'minutes'>>
+  ) => void;
+  /** Swap to a different programme, starting a fresh block from today. */
+  switchProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
+  setProgrammePaused: (paused: boolean) => void;
+  leaveProgramme: () => void;
+  /** Where they are in the block, replayed from history. Null when not enrolled. */
+  getProgrammePosition: () => ProgrammePosition | null;
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
@@ -932,6 +972,7 @@ export const useAppStore = create<AppState>()(
       streakProtectionTime: '20:00',
       weeklyStreakGoal: 2,
       cycleStartOffset: 0,
+      programme: null,
       themePreference: 'dark',
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -1574,6 +1615,115 @@ export const useAppStore = create<AppState>()(
        * stops being shown a strength cycle, and their first session back
        * restores it exactly where it left off.
        */
+      /**
+       * ONE ACTION FOR THE WHOLE BUILDER, rather than the seven separate setters
+       * the swipe pager called on its final screen.
+       *
+       * Those seven could half-succeed. A crash between setUserProfile and
+       * setEquipmentTiers left somebody with a profile and no equipment, which
+       * generates a bodyweight-only session for a person standing in a gym. One
+       * set() cannot land halfway.
+       */
+      applyProfileTree: (answers, nowIso) => {
+        const outcome = outcomeFrom(answers);
+        const s = get();
+
+        /**
+         * Written exactly the way the old onboarding screen wrote them:
+         * keyed by lift, one rep, no source field.
+         *
+         * `source` is deliberately left off. Absent means "treated as a test",
+         * which is what the swipe pager did with these same three numbers, and
+         * the test-week summary reads the difference between the last two entries
+         * to say "up N kg on your last test". Marking a builder-typed number as
+         * 'manual' here would change that sentence for everybody, which is a
+         * separate decision from wiring the tree in.
+         */
+        const maxes: OneRepMax[] = [];
+        const push = (lift: SessionType, kg: number | null) => {
+          if (kg && kg > 0) {
+            maxes.push({ lift, weight: kg, reps: 1, date: nowIso, unit: 'kg' });
+          }
+        };
+        push('squat', outcome.oneRepMaxes.squat);
+        push('bench', outcome.oneRepMaxes.bench);
+        push('deadlift', outcome.oneRepMaxes.deadlift);
+
+        set({
+          userProfile: {
+            ...s.userProfile,
+            name: outcome.name || s.userProfile.name,
+            sex: outcome.sex,
+            experienceLevel: outcome.experience,
+            // The focus reaches the rep schemes and the set counts through here.
+            // See goalsForFocus in lib/programme.ts for why that matters.
+            goals: goalsForFocus(outcome.focus),
+            bodyweightKg:
+              outcome.bodyweightKg > 0 ? outcome.bodyweightKg : s.userProfile.bodyweightKg,
+            ageYears: outcome.ageYears > 0 ? outcome.ageYears : undefined,
+            standingSoreRegions: outcome.soreRegions,
+            standingSoreSince: outcome.soreFor,
+          },
+          equipmentTiers: outcome.equipmentTiers.length ? outcome.equipmentTiers : s.equipmentTiers,
+          testWeekFrequency: outcome.testWeekFrequency,
+          weightUnit: answers.units === 'lbs' ? 'lbs' : 'kg',
+          // How long they said they usually have becomes the default on the
+          // readiness screen. After that the screen goes on remembering what
+          // they actually pick, which is the more honest number.
+          lastReadinessTime: String(outcome.minutes) as TimeAvailable,
+          oneRepMaxes: maxes.length ? [...maxes, ...s.oneRepMaxes] : s.oneRepMaxes,
+          programme: selectProgramme(outcome, nowIso, s.completedSessions.length),
+        });
+      },
+
+      updateProgramme: (patch) =>
+        set((s) => (s.programme ? { programme: { ...s.programme, ...patch } } : {})),
+
+      /**
+       * A fresh block from today, keeping every other answer they gave.
+       *
+       * startedAtSessionCount resets to the CURRENT history length so the new
+       * block starts at week one. Without that, somebody switching programmes in
+       * week nine would land in week nine of the new one.
+       */
+      switchProgramme: (templateId, nowIso) =>
+        set((s) =>
+          s.programme
+            ? {
+                programme: {
+                  ...s.programme,
+                  templateId,
+                  startedAt: nowIso,
+                  startedAtSessionCount: s.completedSessions.length,
+                  paused: false,
+                },
+              }
+            : {}
+        ),
+
+      setProgrammePaused: (paused) =>
+        set((s) => (s.programme ? { programme: { ...s.programme, paused } } : {})),
+
+      leaveProgramme: () => set({ programme: null }),
+
+      getProgrammePosition: () => {
+        const { programme, completedSessions } = get();
+        if (!programme) return null;
+        /**
+         * completedSessions is NEWEST FIRST, so the sessions logged since
+         * enrolment are the first N entries and they have to be reversed before
+         * the replay sees them. Getting this backwards silently lands somebody on
+         * the wrong session, which is why programmePosition's own contract test
+         * asserts the direction rather than trusting the caller.
+         */
+        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
+        const types = completedSessions
+          .slice(0, sinceCount)
+          .map((x) => x.sessionType)
+          .reverse();
+        return programmePosition(programme, types);
+      },
+
       isOnStrengthProgramme: () => {
         const { completedSessions, testWeekFrequency } = get();
         /**
@@ -1609,6 +1759,26 @@ export const useAppStore = create<AppState>()(
         // tests you are, not by the normal rotation.
         const progress = get().getTestWeekProgress();
         if (progress.active) return progress.nextLift;
+        /**
+         * THE PROGRAMME, IF THERE IS ONE.
+         *
+         * Placed AFTER the test-week override, because a due strength test
+         * dictates the lift whatever the block would otherwise ask for, and
+         * BEFORE everything below, because everything below is the behaviour the
+         * app had when nothing chose your sessions for you. Somebody who has
+         * never been through the profile tree has programme === null and reaches
+         * exactly the code they reach today.
+         *
+         * Paused is a real state rather than a deletion: the hub can pause a
+         * block, the suggestion falls back to the old behaviour, and the position
+         * is still there when they come back to it.
+         */
+        const enrolled = get().programme;
+        if (enrolled && !enrolled.paused) {
+          const pos = get().getProgrammePosition();
+          if (pos) return pos.next;
+        }
+
         // Cycle rotation only advances on squat/bench/deadlift sessions.
         // Conditioning, prehab, flexibility, and custom sessions do not shift the rotation.
         const strengthCount = completedSessions.filter((s) =>
@@ -1869,6 +2039,7 @@ export const useAppStore = create<AppState>()(
           testWeekFrequency: s.testWeekFrequency,
           testWeekDeferred: s.testWeekDeferred,
           cycleStartOffset: s.cycleStartOffset,
+          programme: s.programme,
           lastLoggedWeights: s.lastLoggedWeights,
           lastSessionPerformance: s.lastSessionPerformance,
           exerciseNormalStreak: s.exerciseNormalStreak,
@@ -2052,6 +2223,10 @@ export const useAppStore = create<AppState>()(
             testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
             testWeekDeferred: data.testWeekDeferred ?? s.testWeekDeferred,
             cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
+            // ?? rather than ||, so a server copy written by an older build
+            // (which has no programme key at all) leaves the local enrolment
+            // alone instead of un-enrolling somebody on their next sign-in.
+            programme: (data.programme as EnrolledProgramme | null) ?? s.programme,
             lastLoggedWeights: data.lastLoggedWeights ?? s.lastLoggedWeights,
             lastSessionPerformance:
               (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
@@ -2239,6 +2414,17 @@ export const useAppStore = create<AppState>()(
         if (!('cycleStartOffset' in persistedState)) {
           persistedState.cycleStartOffset = 0;
         }
+        /**
+         * Null, and never a guessed enrolment.
+         *
+         * Everybody upgrading has answered none of the six new questions, so a
+         * programme invented for them here would be built on nothing. Null means
+         * getCurrentSessionType falls through to the behaviour they already have,
+         * and they get offered the builder rather than moved without being asked.
+         */
+        if (!('programme' in persistedState)) {
+          persistedState.programme = null;
+        }
         if (!persistedState.exerciseNormalStreak) {
           persistedState.exerciseNormalStreak = {};
         }
@@ -2388,7 +2574,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 29,
+      version: 30,
     }
   )
 );

@@ -70,8 +70,16 @@ export type ProgrammeFocus =
 /** Days a week. The first thing any coach asks, and never once asked here. */
 export type TrainingDays = 2 | 3 | 4 | 5;
 
-/** Usual session length in minutes. Asked per session already; this is the default. */
-export type SessionLength = 30 | 45 | 60 | 75;
+/**
+ * Usual session length in minutes.
+ *
+ * Exactly the three the generator understands. TimeAvailable in ./store is
+ * '30' | '45' | '60' and lib/workout-engine.ts branches on those three strings
+ * throughout, so a fourth option here would be a question the app collects an
+ * answer to and then cannot honour. Asking it would break the one rule this
+ * tree is built on.
+ */
+export type SessionLength = 30 | 45 | 60;
 
 /** How long the first block runs. */
 export type BlockLength = 8 | 12 | 16;
@@ -247,8 +255,7 @@ export const PROFILE_TREE: TreeNode[] = [
     options: [
       { value: '30', label: '30 minutes' },
       { value: '45', label: '45 minutes' },
-      { value: '60', label: '1 hour' },
-      { value: '75', label: 'Longer than an hour' },
+      { value: '60', label: 'An hour or more' },
     ],
   },
 

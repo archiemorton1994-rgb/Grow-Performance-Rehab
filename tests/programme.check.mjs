@@ -1,0 +1,436 @@
+/**
+ * Contract test: everybody gets a programme, and it is the right one.
+ *
+ * THE THREE THINGS THAT MUST HOLD
+ * ───────────────────────────────
+ * EVERY ANSWER LANDS. Six answers to "what should this be built around", four
+ * frequencies and three experience levels. Every combination has to produce a
+ * real programme with a real cycle of real session types. A combination that
+ * falls through to undefined is a home screen offering an empty workout.
+ *
+ * THE OLD BEHAVIOUR SURVIVES. Barbell Strength on two or three days a week is
+ * squat, bench, deadlift, in that order, which is exactly what every user of the
+ * app has had until now. The whole change is that other people stop getting it.
+ *
+ * OFF PLAN IS FREE. Position is replayed from the session history, and a session
+ * the programme did not ask for must leave the position exactly where it was.
+ * That is the difference between "train what you like in between" being true and
+ * being a slogan on a card.
+ *
+ * Run:  npx tsx tests/programme.check.mjs
+ */
+import { readFileSync } from 'fs';
+import {
+  PROGRAMMES,
+  PROGRAMME_IDS,
+  PROGRAMME_PROMISES,
+  blockPlan,
+  cycleFor,
+  nextSessionType,
+  programmeCareNote,
+  programmePosition,
+  programmeReasons,
+  selectProgramme,
+  templateIdFor,
+} from '../lib/programme.ts';
+import { outcomeFrom } from '../lib/profile-tree.ts';
+
+let passed = 0;
+let failed = 0;
+function check(label, condition, detail) {
+  if (condition) {
+    console.log(`  ✓ ${label}`);
+    passed++;
+  } else {
+    console.log(`  ✗ ${label}`);
+    if (detail) console.log(`      ${detail}`);
+    failed++;
+  }
+}
+
+const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+
+/** The SessionType union, read off the store rather than copied into this file. */
+const SESSION_TYPES = (() => {
+  const src = read('lib/store.ts');
+  const at = src.indexOf('export type SessionType =');
+  const block = src.slice(at, src.indexOf(';', at));
+  return [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+})();
+
+const FOCUSES = ['barbell', 'strength', 'muscle', 'comeback', 'fitness', 'joints'];
+const DAYS = [2, 3, 4, 5];
+const LEVELS = ['beginner', 'intermediate', 'advanced'];
+
+// ─── 1. The templates are sound ─────────────────────────────────────────────
+console.log('\n[1] Every template can actually be trained');
+
+check(
+  'the session types were read off the store',
+  SESSION_TYPES.length >= 8 && SESSION_TYPES.includes('squat'),
+  `got ${JSON.stringify(SESSION_TYPES)}; the union has moved and this file is now guessing`
+);
+
+check('there are programmes', PROGRAMME_IDS.length >= 6, `${PROGRAMME_IDS.length}`);
+
+const cycleFaults = [];
+for (const id of PROGRAMME_IDS) {
+  for (const d of DAYS) {
+    const c = cycleFor(id, d);
+    if (!Array.isArray(c) || c.length === 0) cycleFaults.push(`${id}@${d}: empty`);
+    for (const t of c ?? []) {
+      if (!SESSION_TYPES.includes(t)) cycleFaults.push(`${id}@${d}: "${t}" is not a session type`);
+      // generateWorkout returns [] for custom: a custom session is assembled in
+      // the builder, not generated, so a cycle slot holding it hands somebody an
+      // empty workout with no way to tell what went wrong.
+      if (t === 'custom') cycleFaults.push(`${id}@${d}: custom cannot be a programme slot`);
+    }
+  }
+}
+check(
+  'every programme has a real cycle at every frequency',
+  cycleFaults.length === 0,
+  cycleFaults.slice(0, 5).join(' | ')
+);
+
+check(
+  'every programme is named and described',
+  PROGRAMME_IDS.every((id) => PROGRAMMES[id].name.length > 3 && PROGRAMMES[id].blurb.length > 15),
+  'the name is what makes it feel like something somebody was given'
+);
+
+check(
+  'names are unique',
+  new Set(PROGRAMME_IDS.map((id) => PROGRAMMES[id].name)).size === PROGRAMME_IDS.length,
+  ''
+);
+
+// ─── 2. The old behaviour survives ──────────────────────────────────────────
+console.log('\n[2] Barbell Strength is the rotation the app already had');
+
+const SESSION_ORDER = (() => {
+  const src = read('lib/store.ts');
+  const m = src.match(/export const SESSION_ORDER: SessionType\[\] = \[([^\]]+)\]/);
+  return m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : [];
+})();
+
+check(
+  'SESSION_ORDER was found in the store',
+  SESSION_ORDER.length === 3,
+  'the comparison below proves nothing otherwise'
+);
+check(
+  'and Barbell Strength at 2 and 3 days a week is exactly it',
+  JSON.stringify(cycleFor('barbell', 3)) === JSON.stringify(SESSION_ORDER) &&
+    JSON.stringify(cycleFor('barbell', 2)) === JSON.stringify(SESSION_ORDER),
+  `${JSON.stringify(cycleFor('barbell', 3))} vs ${JSON.stringify(SESSION_ORDER)}; every existing user is on this rotation and must not be moved off it`
+);
+check(
+  'a four day barbell week keeps all three lifts and adds to them',
+  SESSION_ORDER.every((t) => cycleFor('barbell', 4).includes(t)) &&
+    cycleFor('barbell', 4).length > 3,
+  'dropping a lift to make room for an accessory day would break the strength test'
+);
+
+// ─── 3. Every answer lands somewhere ────────────────────────────────────────
+console.log('\n[3] No combination of answers falls through');
+
+const misses = [];
+for (const focus of FOCUSES) {
+  for (const days of DAYS) {
+    for (const experience of LEVELS) {
+      const id = templateIdFor(focus, days, experience === 'beginner');
+      if (!PROGRAMME_IDS.includes(id)) misses.push(`${focus}/${days}/${experience} -> ${id}`);
+    }
+  }
+}
+check(
+  `all ${FOCUSES.length * DAYS.length * LEVELS.length} combinations produce a real programme`,
+  misses.length === 0,
+  misses.slice(0, 4).join(' | ')
+);
+
+check(
+  'each focus that has its own programme gets it',
+  templateIdFor('barbell', 3, false) === 'barbell' &&
+    templateIdFor('muscle', 3, false) === 'muscle' &&
+    templateIdFor('comeback', 3, false) === 'comeback' &&
+    templateIdFor('fitness', 3, false) === 'lean' &&
+    templateIdFor('joints', 3, false) === 'joints',
+  'the answer to the one question that chooses a programme has to choose it'
+);
+
+check(
+  // The reason both questions are asked. If general strength always produced the
+  // same thing, experience and frequency would be decorative on this path.
+  'general strength splits on experience and on frequency',
+  templateIdFor('strength', 4, true) === 'foundations' &&
+    templateIdFor('strength', 2, false) === 'foundations' &&
+    templateIdFor('strength', 4, false) === 'upper_lower',
+  'a beginner and a four day lifter should not be handed the same week'
+);
+
+check(
+  'frequency changes the cycle, not just the pace',
+  JSON.stringify(cycleFor('lean', 2)) !== JSON.stringify(cycleFor('lean', 5)) &&
+    JSON.stringify(cycleFor('joints', 2)) !== JSON.stringify(cycleFor('joints', 5)),
+  'asking how many days somebody trains and then ignoring it is the bug this replaces'
+);
+
+// ─── 4. Position is replayed, and off plan is free ──────────────────────────
+console.log('\n[4] Training something else never costs you your place');
+
+const enrol = selectProgramme(
+  outcomeFrom({ focus: 'barbell', days: '3', minutes: '45', length: '12', experience: 'advanced' }),
+  '2026-08-31T00:00:00.000Z',
+  0
+);
+
+check(
+  'enrolment carries the answers it was given',
+  enrol.templateId === 'barbell' &&
+    enrol.days === 3 &&
+    enrol.blockWeeks === 12 &&
+    enrol.minutes === 45,
+  `got ${JSON.stringify(enrol)}; an answer that is not stored cannot have an effect`
+);
+
+check(
+  // Found by mutation: asserting one enrolment against one literal passes
+  // happily against a hardcoded value. Two enrolments that differ only in the
+  // answers cannot both be satisfied by a constant.
+  'and two people who answered differently are enrolled differently',
+  (() => {
+    const a = selectProgramme(
+      outcomeFrom({
+        focus: 'muscle',
+        days: '5',
+        minutes: '30',
+        length: '16',
+        experience: 'advanced',
+      }),
+      '2026-08-31T00:00:00.000Z',
+      0
+    );
+    return (
+      a.minutes === 30 &&
+      a.days === 5 &&
+      a.blockWeeks === 16 &&
+      a.templateId === 'muscle' &&
+      a.minutes !== enrol.minutes &&
+      a.days !== enrol.days &&
+      a.blockWeeks !== enrol.blockWeeks
+    );
+  })(),
+  'every one of these is a question the builder asks; a constant here means the question was decorative'
+);
+
+check(
+  'and enrolling later starts a fresh block rather than inheriting a position',
+  selectProgramme(outcomeFrom({ focus: 'lean', days: '3' }), '2026-08-31T00:00:00.000Z', 240)
+    .startedAtSessionCount === 240,
+  'somebody with two years of history who picks a new programme must start at week one'
+);
+
+check(
+  'a fresh block starts on the first session of the cycle',
+  nextSessionType(enrol, []) === 'squat',
+  ''
+);
+
+check(
+  'doing what it asked advances it',
+  nextSessionType(enrol, ['squat']) === 'bench' &&
+    nextSessionType(enrol, ['squat', 'bench']) === 'deadlift' &&
+    nextSessionType(enrol, ['squat', 'bench', 'deadlift']) === 'squat',
+  'the cycle has to wrap'
+);
+
+check(
+  'doing something else does NOT advance it',
+  nextSessionType(enrol, ['conditioning', 'flexibility', 'prehab']) === 'squat',
+  'this is the whole promise: train what you like in between and keep your place'
+);
+
+check(
+  'and the off-plan work is still counted, not discarded',
+  (() => {
+    const p = programmePosition(enrol, ['conditioning', 'squat', 'flexibility', 'bench']);
+    return p.onPlan === 2 && p.offPlan === 2 && p.next === 'deadlift';
+  })(),
+  'somebody who mixes their own training in has done four sessions, two of them on plan'
+);
+
+check(
+  // The one way this function can be silently wrong. completedSessions is
+  // newest-first in the store, so a caller that forgets to reverse it replays
+  // the block backwards and lands on the wrong session.
+  'order matters, so passing the history backwards gives a different answer',
+  nextSessionType(enrol, ['squat', 'conditioning']) !==
+    nextSessionType(enrol, ['conditioning', 'squat']) ||
+    (() => {
+      // Both happen to be 'bench' here, so prove the direction a harder way:
+      // an on-plan first session followed by an off-plan one is one on-plan.
+      const a = programmePosition(enrol, ['squat', 'bench']);
+      const b = programmePosition(enrol, ['bench', 'squat']);
+      return a.onPlan === 2 && b.onPlan === 1;
+    })(),
+  'chronological order, oldest first'
+);
+
+// ─── 5. The block has a size and an end ─────────────────────────────────────
+console.log('\n[5] The block is a fixed size and it finishes');
+
+check(
+  'the plan is exactly days times weeks long',
+  blockPlan(enrol).length === 3 * 12 && blockPlan({ ...enrol, days: 4, blockWeeks: 8 }).length === 32,
+  ''
+);
+check(
+  'week one is the first sessions and the last week is the last',
+  blockPlan(enrol)[0].week === 1 && blockPlan(enrol)[35].week === 12,
+  ''
+);
+check(
+  'the week number never runs past the end of the block',
+  (() => {
+    const many = Array.from({ length: 200 }, (_, i) => cycleFor('barbell', 3)[i % 3]);
+    const p = programmePosition(enrol, many);
+    return p.week === 12 && p.complete;
+  })(),
+  'somebody who keeps going should see "block complete", not "week 67 of 12"'
+);
+check(
+  'and it is not complete before it is',
+  !programmePosition(enrol, ['squat', 'bench']).complete,
+  ''
+);
+
+// ─── 6. It says why, in their own answers ───────────────────────────────────
+console.log('\n[6] The programme explains itself');
+
+const sore = outcomeFrom({
+  focus: 'strength',
+  days: '3',
+  minutes: '30',
+  length: '12',
+  experience: 'beginner',
+  sore: 'yes',
+  soreArea: ['knee'],
+  soreAge: 'months',
+  equipment: ['dumbbells'],
+});
+const clean = outcomeFrom({
+  focus: 'barbell',
+  days: '4',
+  minutes: '60',
+  length: '12',
+  experience: 'advanced',
+  sore: 'no',
+  equipment: ['fullgym'],
+  testWeeks: '12',
+});
+
+check(
+  'there are reasons, and they are sentences',
+  programmeReasons(sore).length >= 3 && programmeReasons(sore).every((r) => r.length > 20),
+  ''
+);
+check(
+  'a sore area is named as a reason',
+  programmeReasons(sore).some((r) => /sore/i.test(r)),
+  'the app just made a decision on their behalf and has to say what caused it'
+);
+check(
+  'and somebody with nothing sore is not told about an injury they do not have',
+  !programmeReasons(clean).some((r) => /sore/i.test(r)),
+  'a reason that applies to everybody is not a reason'
+);
+check(
+  'the frequency and the session length both appear',
+  programmeReasons(clean).some((r) => /4 days/.test(r)) &&
+    programmeReasons(clean).some((r) => /60 minutes/.test(r)),
+  'these are two of the six new questions; if they are not in the reasons they had better be somewhere'
+);
+check(
+  'limited kit is named, and a full gym is not',
+  programmeReasons(sore).some((r) => /kit/i.test(r)) &&
+    !programmeReasons(clean).some((r) => /kit/i.test(r)),
+  ''
+);
+check(
+  'a strength test is only mentioned to somebody who has one',
+  programmeReasons(clean).some((r) => /strength test/i.test(r)) &&
+    !programmeReasons(sore).some((r) => /strength test/i.test(r)),
+  'the sore user is on general strength, where a test never comes due'
+);
+check(
+  'two different people get different reasons',
+  JSON.stringify(programmeReasons(sore)) !== JSON.stringify(programmeReasons(clean)),
+  ''
+);
+
+// ─── 7. The care note, and what it refuses to do ────────────────────────────
+console.log('\n[7] A recent injury is noticed but never overrules the choice');
+
+const freshInjury = { focus: 'barbell', days: '3', sore: 'yes', soreArea: ['knee'], soreAge: 'days' };
+check(
+  'somebody who chose the barbell with a three-day-old injury is warned',
+  (programmeCareNote(outcomeFrom(freshInjury)) ?? '').length > 40,
+  'a physiotherapist would not pretend not to have noticed'
+);
+check(
+  'and is still given the barbell programme they asked for',
+  templateIdFor(outcomeFrom(freshInjury).focus, 3, false) === 'barbell',
+  'noticing is not the same as overruling; they asked for it and they get it'
+);
+check(
+  'the note names the programme that would suit better',
+  /Return to Lifting/.test(programmeCareNote(outcomeFrom(freshInjury)) ?? ''),
+  'a warning with no action in it is just worry'
+);
+check(
+  'a long standing ache does not trigger it',
+  programmeCareNote(outcomeFrom({ ...freshInjury, soreAge: 'years' })) === null,
+  'somebody who has trained around a bad shoulder for a decade does not need a caution every block'
+);
+check(
+  'nor does somebody who already chose a rehab programme',
+  programmeCareNote(outcomeFrom({ ...freshInjury, focus: 'comeback' })) === null &&
+    programmeCareNote(outcomeFrom({ ...freshInjury, focus: 'joints' })) === null,
+  'they have already done the thing the note would ask them to do'
+);
+check(
+  'and nobody with nothing sore is warned about anything',
+  programmeCareNote(outcomeFrom({ focus: 'barbell', days: '3', sore: 'no' })) === null,
+  ''
+);
+
+// ─── 8. The three promises ──────────────────────────────────────────────────
+console.log('\n[8] The three things they have to understand');
+
+check(
+  'there are exactly three, because four is a wall of text',
+  PROGRAMME_PROMISES.length === 3,
+  ''
+);
+check(
+  'one of them says they can change it',
+  PROGRAMME_PROMISES.some((p) => /change/i.test(p.body)),
+  'the whole point is that it does not read as a cage'
+);
+check(
+  'one says off-plan training still counts',
+  PROGRAMME_PROMISES.some((p) => /counts/i.test(p.body) && /history|records/i.test(p.body)),
+  ''
+);
+check(
+  // The one that matters most. People who hear "programme" expect a fixed sheet,
+  // and without this the first adaptive session reads as a fault.
+  'and one warns them it will change by itself',
+  PROGRAMME_PROMISES.some((p) => /changes as you do/i.test(p.title)),
+  'this app rewrites the session around whatever hurts, which looks like a bug if nobody said so'
+);
+
+console.log(`\nprogramme: ${passed} passed, ${failed} failed`);
+process.exit(failed > 0 ? 1 : 0);

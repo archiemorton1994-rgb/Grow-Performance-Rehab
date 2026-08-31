@@ -7,6 +7,17 @@ export interface SyncPayload {
     experienceLevel: string;
     goals: string[];
     bodyweightKg: number;
+    /**
+     * Collected by the profile tree, and optional for the same reason every
+     * other optional field here is: a payload written by an older build will not
+     * carry them, and an absent field must leave what is on the device alone.
+     *
+     * A standing injury in particular has to survive a new phone. It is the one
+     * fact in the profile that changes what somebody is safe to be given.
+     */
+    ageYears?: number;
+    standingSoreRegions?: string[];
+    standingSoreSince?: string | null;
   };
   equipmentTiers: string[];
   completedSessions: any[];
@@ -19,6 +30,16 @@ export interface SyncPayload {
   testWeekFrequency: number | string;
   testWeekDeferred: boolean;
   cycleStartOffset: number;
+  /**
+   * The block they are enrolled in. Optional, and absent from every payload
+   * written before programmes existed.
+   *
+   * It must be in here. Sign-out deliberately wipes the device, so anything
+   * missing from this payload is not merely un-synced, it is destroyed: a new
+   * phone would silently drop somebody back to the old three-lift rotation with
+   * no explanation and no way to get their block back.
+   */
+  programme?: unknown;
   lastLoggedWeights: Record<string, number>;
   lastSessionPerformance: Record<string, string>;
   exerciseNormalStreak: Record<string, number>;
