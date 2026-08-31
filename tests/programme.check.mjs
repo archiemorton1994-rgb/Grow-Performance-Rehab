@@ -32,6 +32,9 @@ import {
   programmeReasons,
   selectProgramme,
   templateIdFor,
+  extrasFor,
+  otherProgrammes,
+  includedInGrow,
 } from '../lib/programme.ts';
 import { outcomeFrom } from '../lib/profile-tree.ts';
 
@@ -365,6 +368,35 @@ check(
   'the sore user is on general strength, where a test never comes due'
 );
 check(
+  // The list used to open with the cycle length, which is true and is not an
+  // answer to the question written directly above it.
+  'the first reason names the choice they actually made',
+  (() => {
+    const FOCI = [
+      ['barbell', /barbell lifts/i],
+      ['muscle', /building muscle/i],
+      ['comeback', /coming back from an injury/i],
+      ['fitness', /fitness and conditioning/i],
+      ['joints', /joint health/i],
+      ['strength', /whole body|general strength/i],
+    ];
+    return FOCI.every(([focus, rx]) => {
+      const first = programmeReasons(outcomeFrom({ focus, days: '3', minutes: '45', experience: 'beginner' }))[0];
+      return rx.test(first ?? '');
+    });
+  })(),
+  'somebody who told the app what to build around should see that read back before anything else'
+);
+
+check(
+  'and an experienced general-strength user gets their own line, not the beginner one',
+  (() => {
+    const first = programmeReasons(outcomeFrom({ focus: 'strength', days: '4', minutes: '45', experience: 'advanced' }))[0] ?? '';
+    return /general strength/i.test(first) && !/new to structured/i.test(first);
+  })(),
+  'the two general-strength programmes are different shapes and should not share a reason'
+);
+check(
   'two different people get different reasons',
   JSON.stringify(programmeReasons(sore)) !== JSON.stringify(programmeReasons(clean)),
   ''
@@ -430,6 +462,83 @@ check(
   'and one warns them it will change by itself',
   PROGRAMME_PROMISES.some((p) => /changes as you do/i.test(p.title)),
   'this app rewrites the session around whatever hurts, which looks like a bug if nobody said so'
+);
+
+// ─── 9. Recovery is never more than one tap away ────────────────────────────
+console.log('\n[9] Every programme can reach rehab and recovery work');
+
+/**
+ * Mechanically this already worked: an off-plan session leaves the block where
+ * it was, so anybody could always have trained prehab on a Thursday. What was
+ * missing was anything that said so, and a person on Barbell Strength with a
+ * grumbling knee had no way to know it was allowed.
+ */
+const RECOVERY = ['prehab', 'flexibility'];
+const unreachable = [];
+for (const id of PROGRAMME_IDS) {
+  for (const d of DAYS) {
+    const offered = new Set([...cycleFor(id, d), ...extrasFor(id, d)]);
+    if (!RECOVERY.some((r) => offered.has(r))) unreachable.push(id + '@' + d);
+  }
+}
+check(
+  'every programme offers rehab or mobility work, in its cycle or beside it',
+  unreachable.length === 0,
+  unreachable.join(', ')
+);
+
+const dupes = [];
+for (const id of PROGRAMME_IDS) {
+  for (const d of DAYS) {
+    if (extrasFor(id, d).some((e) => cycleFor(id, d).includes(e))) dupes.push(id + '@' + d);
+  }
+}
+check(
+  'and nothing is offered as an extra that the programme already prescribes',
+  dupes.length === 0,
+  `${dupes.join(', ')}: Joint Health does not offer prehab as an extra, because prehab is the programme`
+);
+
+check(
+  'every extra is a session the app can actually build',
+  PROGRAMME_IDS.every((id) =>
+    PROGRAMMES[id].extras.every((e) => SESSION_TYPES.includes(e) && e !== 'custom')
+  ),
+  'a custom session is assembled in the builder, not generated'
+);
+
+check(
+  'choosing one programme leaves the other six reachable',
+  otherProgrammes('barbell').length === PROGRAMME_IDS.length - 1 &&
+    !otherProgrammes('barbell').some((p) => p.id === 'barbell'),
+  'somebody handed a programme has to understand they have not been locked out of the rest'
+);
+
+// ─── 10. What the subscription buys, said once and truthfully ───────────────
+console.log('\n[10] The list of what comes with it');
+
+const included = includedInGrow({ exercises: 707, painAreas: 19, sessionTypes: 10 });
+check(
+  'there is a list, and every line says something',
+  included.length >= 6 && included.every((i) => i.title.length > 5 && i.body.length > 40),
+  'this is the first place in the app that states what the subscription is for'
+);
+check(
+  'the counts it quotes are the ones it was given',
+  included.some((i) => /707/.test(i.title)) && included.some((i) => /19/.test(i.title)),
+  'hardcoding them here is how the paywall came to advertise 12 of the 19 pain zones'
+);
+check(
+  // The store listing makes the same refusal for the same reason: only 103 of
+  // the exercises have a recorded video and the rest fall back to a search.
+  'it does not claim a video for every exercise',
+  !included.some((i) => /video for every|every exercise has a video/i.test(i.body)),
+  'a demonstration a tap away is true; a video for each is not'
+);
+check(
+  'and it names no price',
+  !included.some((i) => /[£$€]\s?\d/.test(i.title + i.body)),
+  'the price comes from the store, and a hardcoded one is wrong in every country but one'
 );
 
 console.log(`\nprogramme: ${passed} passed, ${failed} failed`);

@@ -97,16 +97,33 @@ check(
 console.log('\n[3] Nothing is saved until every question has been asked');
 
 check(
-  'the screen writes the profile through the one action',
-  /applyProfileTree\(answers, new Date\(\)\.toISOString\(\)\)/.test(screenCode),
-  'seven separate setters could half-succeed; one set() cannot'
+  'the profile is written through the one action, exactly once',
+  (screenCode.match(/applyProfileTree\(/g) ?? []).length === 1 &&
+    /applyProfileTree\(finished, new Date\(\)\.toISOString\(\)\)/.test(screenCode),
+  'seven separate setters could half-succeed; one set() cannot, and two calls to it are two chances to disagree'
 );
 check(
-  'and it does so from onComplete, which is the end of the tree',
-  /const onComplete = useCallback\(\s*\(answers: Answers\) => \{[\s\S]{0,240}?applyProfileTree/.test(
-    screenCode
-  ),
-  'a save anywhere else writes the default for whatever is asked after it'
+  'and onboarding is completed in the same breath, also exactly once',
+  (screenCode.match(/setOnboardingComplete\(true\)/g) ?? []).length === 1,
+  'a profile written without completing leaves somebody looping through the builder for ever'
+);
+check(
+  // The certificate is where somebody first sees what their answers produced.
+  // Enrolling them before they have seen it means backing out of that screen
+  // would leave them enrolled in something they never agreed to.
+  'nothing is written when the TREE finishes, only when the certificate is accepted',
+  (() => {
+    const at = screenCode.indexOf('const onTreeComplete');
+    if (at < 0) return false;
+    const body = screenCode.slice(at, screenCode.indexOf('  );', at));
+    return !/applyProfileTree|setOnboardingComplete/.test(body);
+  })(),
+  'the tree handing over and the user accepting are two different events'
+);
+check(
+  'the certificate is what stands between them',
+  /<ProgrammeCertificate/.test(screenCode) && /onContinue=\{onAccept\}/.test(screenCode),
+  'the button on the certificate has to be the thing that enrols them'
 );
 check(
   'the tree only calls onComplete once it has finished',

@@ -41,8 +41,10 @@ import { useColors, useGoColors } from '@/constants/colors';
 import { GrowIcon } from '@/components/GrowIcon';
 import type { GrowIconName } from '@/lib/icon-art';
 import { ProfileTree } from '@/components/ProfileTree';
+import { ProgrammeCertificate } from '@/components/ProgrammeCertificate';
 import { PAIN_CATEGORIES, useAppStore, type WeightUnit } from '@/lib/store';
-import type { Answers, TreeOption } from '@/lib/profile-tree';
+import { outcomeFrom, type Answers, type TreeOption } from '@/lib/profile-tree';
+import { selectProgramme, type EnrolledProgramme } from '@/lib/programme';
 
 /**
  * Three pillars rather than seven bullets under three headings. The list carried
@@ -92,6 +94,16 @@ export default function OnboardingScreen() {
   // after this every answer flows one way, from the tree out to the store.
   const [draft] = useState(() => useAppStore.getState().onboardingDraft);
   const [started, setStarted] = useState(() => !!draft?.treeAnswers);
+  /**
+   * The finished answers, held here between the tree and the certificate.
+   *
+   * Nothing is written to the store while this is set. The programme on the
+   * certificate is COMPUTED from these answers rather than read back out of the
+   * store, so the screen showing somebody their programme cannot disagree with
+   * the one they are about to be enrolled in, and backing out of it leaves them
+   * exactly as they were.
+   */
+  const [finished, setFinished] = useState<Answers | null>(null);
 
   const haptic = useCallback((heavy = false) => {
     if (Platform.OS === 'web') return;
@@ -121,22 +133,55 @@ export default function OnboardingScreen() {
     [setThemePreference, setWeightUnit, saveOnboardingDraft, onboardingDraft]
   );
 
-  const onComplete = useCallback(
+  /** The tree is done. Show them what it produced before writing anything. */
+  const onTreeComplete = useCallback(
     (answers: Answers) => {
       haptic(true);
-      applyProfileTree(answers, new Date().toISOString());
-      // Never navigate from here. Every gate screen updates its own piece of
-      // state and lets the root gate in app/_layout.tsx decide what comes next;
-      // routing directly would skip the auth and subscription gates entirely.
-      setOnboardingComplete(true);
+      setFinished(answers);
     },
-    [applyProfileTree, setOnboardingComplete, haptic]
+    [haptic]
   );
 
-  // Android back, on the welcome screen only. Inside the tree, going back is
-  // tapping a question you have already answered, which the tree owns.
+  const onAccept = useCallback(() => {
+    if (!finished) return;
+    haptic(true);
+    applyProfileTree(finished, new Date().toISOString());
+    // Never navigate from here. Every gate screen updates its own piece of state
+    // and lets the root gate in app/_layout.tsx decide what comes next; routing
+    // directly would skip the auth and subscription gates entirely.
+    setOnboardingComplete(true);
+  }, [finished, applyProfileTree, setOnboardingComplete, haptic]);
+
+  /**
+   * The programme their answers point at, worked out without enrolling them.
+   *
+   * startedAtSessionCount is the history length now, which is zero for anybody
+   * coming through onboarding and correct for anybody who is not.
+   */
+  const preview: { programme: EnrolledProgramme; outcome: ReturnType<typeof outcomeFrom> } | null =
+    useMemo(() => {
+      if (!finished) return null;
+      const outcome = outcomeFrom(finished);
+      return {
+        outcome,
+        programme: selectProgramme(
+          outcome,
+          new Date().toISOString(),
+          useAppStore.getState().completedSessions.length
+        ),
+      };
+    }, [finished]);
+
+  // Android back. From the certificate it returns to the tree, which is the
+  // only way to change an answer once the questions are done. Inside the tree,
+  // going back is tapping a question you have already answered, which the tree
+  // owns, so this only unwinds as far as the welcome screen.
   React.useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (finished) {
+        setFinished(null);
+        return true;
+      }
       if (started) {
         setStarted(false);
         return true;
@@ -144,7 +189,17 @@ export default function OnboardingScreen() {
       return false;
     });
     return () => sub.remove();
-  }, [started]);
+  }, [started, finished]);
+
+  if (preview) {
+    return (
+      <ProgrammeCertificate
+        programme={preview.programme}
+        outcome={preview.outcome}
+        onContinue={onAccept}
+      />
+    );
+  }
 
   if (!started) {
     return (
@@ -206,7 +261,7 @@ export default function OnboardingScreen() {
       <ProfileTree
         initialAnswers={draft?.treeAnswers ?? undefined}
         onAnswersChange={onAnswersChange}
-        onComplete={onComplete}
+        onComplete={onTreeComplete}
         regionOptions={REGION_OPTIONS}
         weightUnit={weightUnit}
       />

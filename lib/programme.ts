@@ -73,6 +73,21 @@ export interface ProgrammeTemplate {
    * empty workout.
    */
   cycle: Record<TrainingDays, SessionType[]>;
+  /**
+   * Sessions offered ALONGSIDE the block. Never prescribed, never required, and
+   * they never move your place in it.
+   *
+   * Every programme has to be able to reach recovery work. Somebody on Barbell
+   * Strength whose knee is grumbling on a Thursday should not have to leave
+   * their programme to do twenty minutes of prehab, and until now the app gave
+   * them no way to understand that they could. Mechanically this already worked,
+   * because an off-plan session leaves the block where it was. What was missing
+   * was anybody saying so.
+   *
+   * A template lists here only what is NOT already in its cycle. Joint Health
+   * does not offer prehab as an extra, because prehab is the programme.
+   */
+  extras: SessionType[];
 }
 
 /**
@@ -95,6 +110,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['squat', 'bench', 'deadlift', 'upper_body'],
       5: ['squat', 'bench', 'deadlift', 'upper_body', 'conditioning'],
     },
+    extras: ['prehab', 'flexibility', 'conditioning'],
   },
   foundations: {
     id: 'foundations',
@@ -106,6 +122,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['full_body', 'full_body', 'full_body', 'conditioning'],
       5: ['full_body', 'full_body', 'full_body', 'conditioning', 'flexibility'],
     },
+    extras: ['prehab', 'flexibility', 'conditioning'],
   },
   upper_lower: {
     id: 'upper_lower',
@@ -117,6 +134,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['upper_body', 'lower_body', 'upper_body', 'lower_body'],
       5: ['upper_body', 'lower_body', 'upper_body', 'lower_body', 'conditioning'],
     },
+    extras: ['prehab', 'flexibility', 'conditioning'],
   },
   muscle: {
     id: 'muscle',
@@ -128,6 +146,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['upper_body', 'lower_body', 'upper_body', 'lower_body'],
       5: ['upper_body', 'lower_body', 'upper_body', 'lower_body', 'upper_body'],
     },
+    extras: ['prehab', 'flexibility', 'conditioning'],
   },
   comeback: {
     id: 'comeback',
@@ -139,6 +158,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['prehab', 'full_body', 'prehab', 'lower_body'],
       5: ['prehab', 'full_body', 'flexibility', 'prehab', 'upper_body'],
     },
+    extras: ['conditioning', 'flexibility'],
   },
   lean: {
     id: 'lean',
@@ -150,6 +170,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['conditioning', 'upper_body', 'conditioning', 'lower_body'],
       5: ['conditioning', 'upper_body', 'conditioning', 'lower_body', 'conditioning'],
     },
+    extras: ['prehab', 'flexibility'],
   },
   joints: {
     id: 'joints',
@@ -161,6 +182,7 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
       4: ['prehab', 'flexibility', 'prehab', 'full_body'],
       5: ['prehab', 'flexibility', 'prehab', 'full_body', 'flexibility'],
     },
+    extras: ['conditioning', 'full_body'],
   },
 };
 
@@ -197,6 +219,19 @@ export interface EnrolledProgramme {
 
 export function programmeFor(id: ProgrammeId): ProgrammeTemplate {
   return PROGRAMMES[id] ?? PROGRAMMES.foundations;
+}
+
+/**
+ * What is offered ALONGSIDE this enrolment, once its own cycle is taken out.
+ *
+ * The template lists everything it would offer; how many days a week somebody
+ * trains decides how much of that they are already getting. A two day Full Body
+ * week has no conditioning in it and a five day one does, so the same template
+ * honestly offers different extras to the two of them.
+ */
+export function extrasFor(id: ProgrammeId, days: TrainingDays): SessionType[] {
+  const inCycle = new Set(cycleFor(id, days));
+  return programmeFor(id).extras.filter((e) => !inCycle.has(e));
 }
 
 /** The repeating order of session types for this enrolment. */
@@ -350,10 +385,49 @@ export function programmeReasons(outcome: TreeOutcome): string[] {
   const out: string[] = [];
   const t = programmeFor(templateIdFor(outcome.focus, outcome.days, outcome.experience === 'beginner'));
 
-  if (outcome.focus === 'strength' && outcome.experience === 'beginner') {
-    out.push('You are new to structured training, so every session covers the whole body.');
-  } else if (outcome.focus === 'strength') {
-    out.push(`You train ${outcome.days} days a week, which is enough to split upper and lower.`);
+  /**
+   * THE CHOICE ITSELF, FIRST.
+   *
+   * The list used to open with "3 days a week, so your cycle is 3 sessions
+   * long", which is true and is not an answer to the question written above it.
+   * Somebody who has just told the app in as many words what they want it to
+   * build around should see that sentence read back to them before anything
+   * else, or the reasoning on display is the reasoning about the small stuff.
+   */
+  switch (outcome.focus) {
+    case 'barbell':
+      out.push(
+        'You chose the three barbell lifts, so squat, bench and deadlift rotate and each one gets tested.'
+      );
+      break;
+    case 'muscle':
+      out.push(
+        'You chose building muscle, so there is more volume, more accessory work, and the rep ranges that build size.'
+      );
+      break;
+    case 'comeback':
+      out.push(
+        'You are coming back from an injury, so this starts with rehab and only adds load back as the area lets you.'
+      );
+      break;
+    case 'fitness':
+      out.push(
+        'You chose fitness and conditioning, so this is cardio led with enough lifting to keep the muscle you have.'
+      );
+      break;
+    case 'joints':
+      out.push(
+        'You chose joint health, so prehab and mobility are the main work rather than the warm-up.'
+      );
+      break;
+    case 'strength':
+    default:
+      out.push(
+        outcome.experience === 'beginner'
+          ? 'You are new to structured training, so every session covers the whole body.'
+          : `You want general strength on ${outcome.days} days a week, which is enough to split upper and lower.`
+      );
+      break;
   }
 
   out.push(`${outcome.days} days a week, so your cycle is ${cycleFor(t.id, outcome.days).length} sessions long.`);
@@ -450,6 +524,69 @@ export function goalsForFocus(focus: ProgrammeFocus): FitnessGoal[] {
     default:
       return ['fitness'];
   }
+}
+
+/**
+ * The other programmes, which choosing one does not take away.
+ *
+ * Worth saying out loud at the moment somebody is handed theirs. Every one of
+ * these is available from the programme hub, switching starts a fresh block, and
+ * nothing that has been logged is lost by moving.
+ */
+export function otherProgrammes(current: ProgrammeId): ProgrammeTemplate[] {
+  return PROGRAMME_IDS.filter((id) => id !== current).map((id) => PROGRAMMES[id]);
+}
+
+/** Counts the app can state about itself, read from the code that owns them. */
+export interface AppCounts {
+  exercises: number;
+  painAreas: number;
+  sessionTypes: number;
+}
+
+/**
+ * WHAT THE SUBSCRIPTION ACTUALLY BUYS, in one place, for the first time.
+ *
+ * Every one of these already exists and has existed for months. None of them
+ * has ever been listed anywhere a user would see it except the paywall, which
+ * they read once, before they had any idea what the words meant.
+ *
+ * The rule for this list is the rule for the store listing: nothing that is not
+ * true today. No video for every exercise, because only some have one recorded
+ * and the rest fall back to a search. No claim about a price either: the price
+ * comes from the store and is stated where the store can be asked.
+ */
+export function includedInGrow(c: AppCounts): { title: string; body: string }[] {
+  return [
+    {
+      title: 'The weight moves itself',
+      body: 'Every load is worked out from what you actually lifted last time. Clear your reps and it climbs, fall short and it holds.',
+    },
+    {
+      title: `${c.painAreas} areas you can flag as sore`,
+      body: 'Say something hurts and the session is rebuilt around it, with gentler work for that area put in and a limit to stay inside.',
+    },
+    {
+      title: 'Rehab and recovery whenever you want it',
+      body: 'Prehab, mobility and conditioning sessions sit alongside your programme. Doing one never costs you your place in it.',
+    },
+    {
+      title: 'An assistant that has been watching',
+      body: 'A lift that has stalled three sessions running, a personal best you did not clock, an ache you have flagged five times in ten weeks.',
+    },
+    {
+      title: 'Every number, kept',
+      body: '1RM trends, personal bests, muscle coverage and your full history, with the plate maths done for you in kilos or pounds.',
+    },
+    {
+      title: 'A summary for your own physio',
+      body: 'Every pain report and every session, in one thing you can hand to a clinician. Nothing else on the store produces it.',
+    },
+    {
+      title: `${c.exercises} exercises, ${c.sessionTypes} kinds of session`,
+      body: 'Each with written cues and a demonstration a tap away, filtered to the equipment you told us you have.',
+    },
+  ];
 }
 
 /** Everything a standing injury needs to reach the rest of the app. */
