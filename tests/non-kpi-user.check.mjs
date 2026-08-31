@@ -302,7 +302,10 @@ check(
 );
 check(
   'the cycle badge is hidden off the barbell programme',
-  /\{onStrengthProgramme && \(\s*\n?\s*<View style=\{styles\.cycleBadge\}>/.test(program),
+  // The guard may carry other conditions and now does: somebody on a programme
+  // is not running the barbell cycle either. What has to hold is that
+  // onStrengthProgramme is one of them, not that it is the only one.
+  /\{[^}]*onStrengthProgramme && \(\s*\r?\n?\s*<View style=\{styles\.cycleBadge\}>/.test(program),
   'a cycle number means nothing to someone not running cycles'
 );
 check(

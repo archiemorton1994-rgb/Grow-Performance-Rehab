@@ -31,6 +31,7 @@ import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { programContextMessage, sessionsUntilTest } from '@/lib/test-week-copy';
 import { nonStrengthContextMessage } from '@/lib/program-copy';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
+import { ProgrammeHub } from '@/components/ProgrammeHub';
 import { daysSince } from '@/lib/utils';
 import { resumeParams } from '@/lib/resume-params';
 
@@ -95,6 +96,7 @@ export default function ProgramScreen() {
     sessionEquipmentOverride,
     activeSession,
     clearActiveSession,
+    programme,
   } = useAppStore();
 
   const onStrengthProgramme = isOnStrengthProgramme();
@@ -300,13 +302,24 @@ export default function ProgramScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Your Program</Text>
         </View>
-        {onStrengthProgramme && (
+        {!programme && onStrengthProgramme && (
           <View style={styles.cycleBadge}>
             <Text style={styles.cycleBadgeText}>Cycle {progCycleNumber}</Text>
           </View>
         )}
       </View>
 
+      {/**
+       * ENROLLED, SO THE HUB. Everything below this line is the screen as it was
+       * before programmes existed: the three-lift rotation, its cycle dots and
+       * its countdown to a strength test. It is still exactly right for anybody
+       * with programme === null, which is every user who has not been through
+       * the profile tree, and it is left completely alone for them.
+       */}
+      {programme ? (
+        <ProgrammeHub />
+      ) : (
+      <>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
@@ -479,6 +492,8 @@ export default function ProgramScreen() {
         })}
       </ScrollView>
       <ScrollIndicator {...scrollHint.state} top={8} bottom={24} />
+      </>
+      )}
     </View>
   );
 }
