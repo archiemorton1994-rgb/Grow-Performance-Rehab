@@ -32,8 +32,18 @@
  * background. Printing the feature list on the parchment too would turn a
  * certificate into a brochure.
  */
-import React, { useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,9 +85,6 @@ export interface ProgrammeCertificateProps {
   onContinue: () => void;
 }
 
-/** Stagger, so the page assembles rather than appearing all at once. */
-const step = (i: number) => 90 + i * 70;
-
 export function ProgrammeCertificate({
   programme,
   outcome,
@@ -111,32 +118,35 @@ export function ProgrammeCertificate({
     []
   );
 
-  const enter = (i: number) =>
-    reduceMotion ? undefined : FadeInDown.delay(step(i)).duration(420);
+  const { width } = useWindowDimensions();
+  const [page, setPage] = useState(0);
+  /**
+   * The pager's own height, measured rather than inherited.
+   *
+   * alignSelf stretch and flexGrow on the content container both looked right
+   * and neither worked: photographed on the exported build, the sheet still
+   * sized to its own text and the short pages were small cards floating in
+   * black. Measuring once on layout and setting the height is the version that
+   * actually holds, on every page and both platforms.
+   */
+  const [pagerHeight, setPagerHeight] = useState(0);
+  const pager = useRef<ScrollView>(null);
 
-  return (
-    <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 18, paddingBottom: 28 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.Text
-          entering={reduceMotion ? undefined : FadeIn.duration(320)}
-          style={styles.issued}
-        >
-          BUILT FROM YOUR ANSWERS
-        </Animated.Text>
-
-        {/* ── THE PAGE ─────────────────────────────────────────────────── */}
-        <Animated.View
-          entering={reduceMotion ? undefined : FadeInDown.delay(60).duration(520)}
-          style={styles.page}
-          testID="programme-certificate"
-        >
+  /**
+   * THE PAGES, AS DATA.
+   *
+   * Six of them, and the order is the order somebody asks the questions in:
+   * what have I got, why this one, what will I actually do, what else can I do,
+   * what comes with it, and what is still mine if I change my mind. Page one is
+   * the topline and is the only one that has to land on its own - the rest are
+   * read by anybody who wants them.
+   */
+  const pages: { key: string; label: string; body: React.ReactNode }[] = [
+    {
+      key: 'topline',
+      label: 'Your programme',
+      body: (
+        <>
           <View style={styles.pageHead}>
             <Image
               source={require('@/assets/images/logo.png')}
@@ -161,9 +171,7 @@ export function ProgrammeCertificate({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
-              <Text style={styles.difficultyBand}>
-                {bandLabel(difficulty.band)}, out of five.
-              </Text>
+              <Text style={styles.difficultyBand}>{bandLabel(difficulty.band)}, out of five.</Text>
             </View>
           </View>
 
@@ -177,17 +185,40 @@ export function ProgrammeCertificate({
             <Stat value={`~${weeks}`} label={weeks === 1 ? 'week' : 'weeks'} />
           </View>
 
+          {!!careNote && (
+            <View style={styles.care} testID="programme-care-note">
+              <Ionicons name="alert-circle-outline" size={15} color={PAGE.warn} />
+              <Text style={styles.careText}>{careNote}</Text>
+            </View>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'why',
+      label: 'Why this one',
+      body: (
+        <>
+          <Text style={styles.pageEyebrow}>WHY THIS ONE</Text>
+          <Text style={styles.pageTitle}>Built from what you said</Text>
           <View style={styles.rule} />
-
-          <Text style={styles.sectionLabel}>WHY THIS ONE</Text>
           {reasons.map((r) => (
             <View key={r} style={styles.reasonRow}>
               <Ionicons name="checkmark" size={13} color={PAGE.ink} style={styles.reasonTick} />
               <Text style={styles.reason}>{r}</Text>
             </View>
           ))}
-
-          <Text style={[styles.sectionLabel, styles.sectionGap]}>YOUR SESSIONS, IN ORDER</Text>
+        </>
+      ),
+    },
+    {
+      key: 'sessions',
+      label: 'Your sessions',
+      body: (
+        <>
+          <Text style={styles.pageEyebrow}>YOUR SESSIONS, IN ORDER</Text>
+          <Text style={styles.pageTitle}>What you will actually do</Text>
+          <View style={styles.rule} />
           <View style={styles.chips}>
             {cycle.map((t, i) => (
               <View key={`${t}-${i}`} style={styles.chip}>
@@ -203,7 +234,7 @@ export function ProgrammeCertificate({
 
           {extras.length > 0 && (
             <>
-              <Text style={[styles.sectionLabel, styles.sectionGap]}>
+              <Text style={[styles.pageEyebrow, styles.sectionGap]}>
                 AND WHENEVER YOU WANT THEM
               </Text>
               <View style={styles.chips}>
@@ -214,25 +245,22 @@ export function ProgrammeCertificate({
                 ))}
               </View>
               <Text style={styles.chipNote}>
-                Doing one never costs you your place in the programme.
+                Rehab, mobility and conditioning sit alongside the block. Doing one never costs
+                you your place in it.
               </Text>
             </>
           )}
-
-          {!!careNote && (
-            <View style={styles.care} testID="programme-care-note">
-              <Ionicons name="alert-circle-outline" size={15} color={PAGE.warn} />
-              <Text style={styles.careText}>{careNote}</Text>
-            </View>
-          )}
-        </Animated.View>
-
-        {/* ── What comes with it ───────────────────────────────────────── */}
-        <Animated.View entering={enter(0)} style={styles.block}>
-          <Text style={styles.blockTitle}>What comes with it</Text>
-          <Text style={styles.blockSub}>
-            All of this is yours from the first session, on every programme.
-          </Text>
+        </>
+      ),
+    },
+    {
+      key: 'included',
+      label: 'What comes with it',
+      body: (
+        <>
+          <Text style={styles.pageEyebrow}>WHAT COMES WITH IT</Text>
+          <Text style={styles.pageTitle}>All of it, from the first session</Text>
+          <View style={styles.rule} />
           <View style={styles.includeList}>
             {included.map((f) => (
               <View key={f.title} style={styles.includeRow}>
@@ -244,14 +272,20 @@ export function ProgrammeCertificate({
               </View>
             ))}
           </View>
-        </Animated.View>
-
-        {/* ── The other programmes ─────────────────────────────────────── */}
-        <Animated.View entering={enter(1)} style={styles.block} testID="other-programmes">
-          <Text style={styles.blockTitle}>And {others.length} more, included</Text>
-          <Text style={styles.blockSub}>
-            Picking one does not lock the rest away. Switch whenever you like, and nothing you
-            have logged is lost.
+        </>
+      ),
+    },
+    {
+      key: 'others',
+      label: 'The other programmes',
+      body: (
+        <View testID="other-programmes">
+          <Text style={styles.pageEyebrow}>AND {String(others.length).toUpperCase()} MORE</Text>
+          <Text style={styles.pageTitle}>Picking one locks nothing away</Text>
+          <View style={styles.rule} />
+          <Text style={styles.pageBody}>
+            Switch whenever you like. Nothing you have logged is lost, and every session in Train
+            stays open whether you are on a programme or not.
           </Text>
           <View style={styles.otherGrid}>
             {others.map((p) => (
@@ -263,11 +297,17 @@ export function ProgrammeCertificate({
               </View>
             ))}
           </View>
-        </Animated.View>
-
-        {/* ── The three things ─────────────────────────────────────────── */}
-        <Animated.View entering={enter(2)} style={styles.block} testID="programme-promises">
-          <Text style={styles.blockTitle}>Three things to know</Text>
+        </View>
+      ),
+    },
+    {
+      key: 'promises',
+      label: 'Three things to know',
+      body: (
+        <View testID="programme-promises">
+          <Text style={styles.pageEyebrow}>BEFORE YOU START</Text>
+          <Text style={styles.pageTitle}>Three things to know</Text>
+          <View style={styles.rule} />
           <View style={styles.promises}>
             {PROGRAMME_PROMISES.map((p, i) => (
               <View key={p.title} style={styles.promise}>
@@ -279,8 +319,106 @@ export function ProgrammeCertificate({
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
+      ),
+    },
+  ];
+
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const w = e.nativeEvent.layoutMeasurement.width || 1;
+      const i = Math.round(e.nativeEvent.contentOffset.x / w);
+      setPage((prev) => (prev === i ? prev : i));
+    },
+    []
+  );
+
+  const goTo = useCallback(
+    (i: number) => {
+      const next = Math.max(0, Math.min(pages.length - 1, i));
+      pager.current?.scrollTo({ x: next * width, animated: !reduceMotion });
+      setPage(next);
+    },
+    [pages.length, reduceMotion, width]
+  );
+
+  const last = page >= pages.length - 1;
+
+  return (
+    <View style={styles.root}>
+      <View style={[styles.bookHead, { paddingTop: insets.top + 14 }]}>
+        <Animated.Text
+          entering={reduceMotion ? undefined : FadeIn.duration(320)}
+          style={styles.issued}
+        >
+          BUILT FROM YOUR ANSWERS
+        </Animated.Text>
+      </View>
+
+      {/**
+       * A BOOKLET, NOT A SCROLL.
+       *
+       * Everything here used to be one column two and a half screens tall, and
+       * the reading of it was "a lot of scrolling" - which is fair, because the
+       * five sections have nothing to do with each other except that they are
+       * all about the same programme. As pages they are five short reads with a
+       * beginning and an end, and the first one carries the whole answer on its
+       * own for anybody who wants only that.
+       */}
+      <ScrollView
+        ref={pager}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        style={styles.pager}
+        onLayout={(e) => setPagerHeight(e.nativeEvent.layout.height)}
+        testID="programme-booklet"
+      >
+        {pages.map((p, i) => (
+          <View
+            key={p.key}
+            style={{ width, paddingHorizontal: 18, height: pagerHeight || undefined }}
+          >
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeInDown.delay(60).duration(420)}
+              style={styles.page}
+              testID={i === 0 ? 'programme-certificate' : `booklet-page-${p.key}`}
+            >
+              {/* Each page scrolls inside itself. The longest of them is seven
+                  features and it does not fit a small phone, and a booklet whose
+                  pages silently clip is worse than one you scroll a little. */}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.pageInner}
+              >
+                {p.body}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        ))}
       </ScrollView>
+
+      <View style={styles.bookFoot}>
+        <View style={styles.dots}>
+          {pages.map((p, i) => (
+            <Pressable
+              key={p.key}
+              onPress={() => goTo(i)}
+              hitSlop={10}
+              testID={`booklet-dot-${i}`}
+              accessibilityRole="button"
+              accessibilityLabel={p.label}
+            >
+              <View style={[styles.dot, i === page && styles.dotOn]} />
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.pageLabel} numberOfLines={1}>
+          {last ? pages[page].label : `${pages[page].label} · swipe for more`}
+        </Text>
+      </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <Pressable
@@ -338,11 +476,15 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     // ── the parchment ──────────────────────────────────────────────────
     page: {
+      // flex: 1 rather than growing to its content. Every page is the same
+      // sheet of paper, which is most of what makes six cards read as one
+      // booklet rather than six cards.
+      flex: 1,
       backgroundColor: PAGE.bg,
       borderRadius: 20,
       paddingHorizontal: 22,
       paddingTop: 22,
-      paddingBottom: 24,
+      paddingBottom: 18,
       borderWidth: 1,
       borderColor: PAGE.bgEdge,
     },
@@ -468,32 +610,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: PAGE.warn,
     },
 
-    // ── everything below the page, on the app's own ground ─────────────
-    block: { marginTop: 28 },
-    blockTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text, letterSpacing: -0.3 },
-    blockSub: {
-      fontSize: 13.5,
-      lineHeight: 19,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      marginTop: 5,
-    },
-
+    /**
+     * ON THE PARCHMENT NOW, so these read PAGE ink rather than app ink.
+     *
+     * These three blocks used to live below the page on the app's own dark
+     * ground, and moving them into the booklet without restyling them put white
+     * body text on cream paper. Photographed, unreadable, and the sort of thing
+     * that is obvious in a screenshot and invisible in a diff.
+     */
     includeList: { marginTop: 14, gap: 13 },
     includeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
     includeDot: {
       width: 7,
       height: 7,
       borderRadius: 4,
-      backgroundColor: C.primary,
+      backgroundColor: PAGE.ink,
       marginTop: 6,
     },
-    includeTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: C.text },
+    includeTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: PAGE.ink },
     includeBody: {
       fontSize: 12.5,
       lineHeight: 17.5,
       fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
+      color: PAGE.inkMuted,
       marginTop: 2,
     },
 
@@ -502,16 +641,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: '48.4%',
       padding: 12,
       borderRadius: 12,
-      backgroundColor: C.surface,
+      backgroundColor: PAGE.inset,
       borderWidth: 1,
-      borderColor: C.border,
+      borderColor: PAGE.hairline,
     },
-    otherName: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: C.text },
+    otherName: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: PAGE.ink },
     otherBlurb: {
       fontSize: 11.5,
       lineHeight: 15.5,
       fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
+      color: PAGE.inkMuted,
       marginTop: 3,
     },
 
@@ -521,21 +660,55 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       width: 24,
       height: 24,
       borderRadius: 12,
-      backgroundColor: C.primaryMuted,
-      color: C.primaryText,
+      backgroundColor: PAGE.inset,
+      color: PAGE.ink,
       fontSize: 12,
       fontFamily: 'Inter_700Bold',
       textAlign: 'center',
       lineHeight: 24,
       overflow: 'hidden',
     },
-    promiseTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: C.text },
+    promiseTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: PAGE.ink },
     promiseBody: {
       fontSize: 12.5,
       lineHeight: 17.5,
       fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
+      color: PAGE.inkMuted,
       marginTop: 2,
+    },
+
+    bookHead: { paddingHorizontal: 18, paddingBottom: 12 },
+    pager: { flex: 1 },
+    pageInner: { paddingBottom: 6 },
+    pageTitle: {
+      fontSize: 24,
+      lineHeight: 29,
+      fontFamily: 'Inter_700Bold',
+      color: PAGE.ink,
+      letterSpacing: -0.6,
+      marginTop: 4,
+    },
+    pageBody: {
+      fontSize: 13.5,
+      lineHeight: 19,
+      fontFamily: 'Inter_400Regular',
+      color: PAGE.inkMuted,
+    },
+
+    bookFoot: { alignItems: 'center', gap: 7, paddingTop: 14, paddingBottom: 4 },
+    dots: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: C.border,
+    },
+    dotOn: { backgroundColor: C.primaryText, width: 20 },
+    pageLabel: {
+      fontSize: 11.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      letterSpacing: 0.2,
     },
 
     footer: {
