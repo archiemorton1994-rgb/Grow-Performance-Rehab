@@ -42,6 +42,10 @@ import {
   isDeloadIndex,
   cycleHasLoadedWork,
   DELOAD_EVERY_WEEKS,
+  programmeDrift,
+  closestProgramme,
+  DRIFT_WINDOW,
+  DRIFT_MAX_ON_PLAN,
   extrasOf,
   nameOf,
   demandOfCycle,
@@ -979,6 +983,198 @@ check(
     const weeks = new Set(deloadWeeksFor(p));
     return blockPlan(p).every((row) => row.deload === weeks.has(row.week));
   })(),
+  ''
+);
+
+// ─── The block being trained around ─────────────────────────────────────────
+//
+// "Train whatever you want in between" is kept perfectly and was never READ.
+// Somebody doing five sessions a fortnight with one on plan got no
+// acknowledgement of it and was offered a squat every time they opened Home.
+//
+// The bar has to be high. An app that asks whether you are on the right
+// programme after one busy fortnight is an app that nags, and the promise it
+// would be nagging about is the promise that nothing you choose costs you
+// anything.
+console.log('\n[E] The programme notices being trained around');
+
+const drifting = (over) => ({
+  templateId: 'barbell',
+  days: 3,
+  sessions: 20,
+  minutes: 45,
+  startedAt: '2026-01-01T00:00:00.000Z',
+  startedAtSessionCount: 0,
+  ...over,
+});
+
+check(
+  'a fortnight of doing something else is not drift',
+  (() => {
+    const p = drifting();
+    // Seven sessions, none on plan. Under the window, so nothing is said.
+    return programmeDrift(p, Array(7).fill('conditioning')) === null;
+  })(),
+  ''
+);
+check(
+  'but eight sessions with almost none on plan is',
+  (() => {
+    const p = drifting();
+    const d = programmeDrift(p, [...Array(7).fill('conditioning'), 'squat']);
+    return !!d && d.onPlan === 1 && d.window === DRIFT_WINDOW && d.favoured === 'conditioning';
+  })(),
+  JSON.stringify(programmeDrift(drifting(), [...Array(7).fill('conditioning'), 'squat']))
+);
+check(
+  'somebody following their programme is never told they are not',
+  (() => {
+    const p = drifting();
+    const cycle = cycleOf(p);
+    const done = Array.from({ length: 12 }, (_, i) => cycle[i % cycle.length]);
+    return programmeDrift(p, done) === null;
+  })(),
+  ''
+);
+check(
+  // Three out of eight is a person having a mixed month, and the app has
+  // promised them in as many words that this costs them nothing.
+  'and neither is somebody doing a bit of both',
+  (() => {
+    const p = drifting();
+    const cycle = cycleOf(p);
+    const done = ['conditioning', cycle[0], 'flexibility', cycle[1], 'conditioning', cycle[2], 'flexibility', 'conditioning'];
+    const d = programmeDrift(p, done);
+    return d === null && DRIFT_MAX_ON_PLAN < 3;
+  })(),
+  JSON.stringify(programmeDrift(drifting(), ['conditioning', 'squat', 'flexibility', 'bench', 'conditioning', 'deadlift', 'flexibility', 'conditioning']))
+);
+check(
+  /**
+   * The whole history is tagged and only the tail is read. Slicing first and
+   * replaying from the window's own start would begin the cycle again at its
+   * first item, call on-plan sessions off-plan, and accuse somebody of drifting
+   * on the strength of an arithmetic error.
+   *
+   * THE SHAPE MATTERS AND THE FIRST VERSION OF THIS CHECK HAD THE WRONG ONE.
+   * It used the three item barbell cycle, and a replay started mid-cycle
+   * resynchronises within two sessions - so the miscount could never reach the
+   * threshold and the check stayed green with the bug deliberately put back in.
+   *
+   * An eight item cycle offset by exactly one is the worst case: the replay
+   * expects the first item and does not see it again until the very last
+   * session of the window, so it reports one on plan out of eight. That is a
+   * person following their programme perfectly, being told they have abandoned
+   * it.
+   */
+  'the window is read against the whole history, not replayed from its own start',
+  (() => {
+    const cycle = ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body', 'conditioning', 'prehab'];
+    const p = drifting({ templateId: 'custom', custom: { name: 'Mine', cycle }, sessions: 20 });
+    // Nine sessions, every one of them on plan. The window is the last eight,
+    // which begins at the cycle's SECOND item.
+    const done = Array.from({ length: 9 }, (_, i) => cycle[i % cycle.length]);
+    return programmeDrift(p, done) === null;
+  })(),
+  JSON.stringify(
+    programmeDrift(
+      drifting({
+        templateId: 'custom',
+        custom: {
+          name: 'Mine',
+          cycle: ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body', 'conditioning', 'prehab'],
+        },
+        sessions: 20,
+      }),
+      Array.from(
+        { length: 9 },
+        (_, i) =>
+          ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body', 'conditioning', 'prehab'][i % 8]
+      )
+    )
+  )
+);
+check(
+  'a paused programme is not being ignored, it is paused',
+  programmeDrift(drifting({ paused: true }), Array(10).fill('conditioning')) === null,
+  ''
+);
+check(
+  'it names what they have actually been doing instead',
+  (() => {
+    const d = programmeDrift(drifting(), [
+      'prehab',
+      'prehab',
+      'flexibility',
+      'prehab',
+      'prehab',
+      'flexibility',
+      'prehab',
+      'flexibility',
+    ]);
+    return d?.favoured === 'prehab';
+  })(),
+  ''
+);
+check(
+  // The point of the message. Naming a programme that fits what somebody has
+  // actually been doing is the difference between an observation and an offer.
+  'and points at the programme that fits it, when one does',
+  (() => {
+    const d = programmeDrift(drifting(), [
+      'prehab',
+      'flexibility',
+      'prehab',
+      'flexibility',
+      'prehab',
+      'flexibility',
+      'prehab',
+      'flexibility',
+    ]);
+    return d?.suggestion === 'joints';
+  })(),
+  JSON.stringify(
+    programmeDrift(drifting(), ['prehab', 'flexibility', 'prehab', 'flexibility', 'prehab', 'flexibility', 'prehab', 'flexibility'])
+  )
+);
+check(
+  /**
+   * Moving somebody to a programme that covers one more session in eight is
+   * churn dressed up as insight.
+   *
+   * The first version of this compared a perfect fit against programmes that fit
+   * not at all, so the margin was never what decided it and removing the margin
+   * left the check green. This is two programmes that are genuinely close:
+   * seven full body sessions and one conditioning, against Full Body
+   * Foundations. Lean and Fit does cover the odd conditioning session, and that
+   * is not a reason to move anybody.
+   */
+  'but only by a clear margin, never by a hair',
+  (() => {
+    const recent = [...Array(7).fill('full_body'), 'conditioning'];
+    return closestProgramme(recent, 'foundations') === null;
+  })(),
+  `${closestProgramme([...Array(7).fill('full_body'), 'conditioning'], 'foundations')}`
+);
+check(
+  // And the other side of the same rule, so it cannot be satisfied by never
+  // suggesting anything at all.
+  'while a genuinely different pattern does get named',
+  closestProgramme([...Array(4).fill('full_body'), ...Array(4).fill('conditioning')], 'foundations') ===
+    'lean',
+  `${closestProgramme([...Array(4).fill('full_body'), ...Array(4).fill('conditioning')], 'foundations')}`
+);
+check(
+  'and never at the programme they are already on',
+  (() => {
+    const d = programmeDrift(drifting({ templateId: 'joints' }), Array(8).fill('prehab'));
+    return d === null || d.suggestion !== 'joints';
+  })(),
+  ''
+);
+check(
+  'a cycle somebody built themselves is never suggested to anybody',
+  closestProgramme(Array(8).fill('full_body'), 'barbell') !== 'custom',
   ''
 );
 

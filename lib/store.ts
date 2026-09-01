@@ -33,12 +33,14 @@ import type {
   CustomProgramme,
   EnrolledProgramme,
   ProgrammePosition,
+  ProgrammeDrift,
   SessionPlanTag,
 } from './programme';
 import {
   cycleOf,
   goalsForFocus,
   programmePosition,
+  programmeDrift,
   selectProgramme,
   tagSessions,
 } from './programme';
@@ -988,6 +990,14 @@ interface AppState {
    * their own session and the app has no business quietly watering it down.
    */
   isDeloadSession: (type: SessionType) => boolean;
+  /**
+   * Is the block being trained AROUND rather than trained?
+   *
+   * Null unless there is a clear pattern. See programmeDrift for the bar, which
+   * is deliberately high: an app that asks whether you are on the right
+   * programme after one busy fortnight is an app that nags.
+   */
+  getProgrammeDrift: () => ProgrammeDrift | null;
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
@@ -1981,6 +1991,19 @@ export const useAppStore = create<AppState>()(
         const pos = get().getProgrammePosition();
         if (!pos || !pos.deload) return false;
         return pos.next === type;
+      },
+
+      getProgrammeDrift: () => {
+        const { programme, completedSessions } = get();
+        if (!programme) return null;
+        // Same reversal as getProgrammePosition, and the same one thing that can
+        // be wrong about it: the store keeps sessions newest first.
+        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
+        const types = completedSessions
+          .slice(0, sinceCount)
+          .map((x) => x.sessionType)
+          .reverse();
+        return programmeDrift(programme, types);
       },
 
       isOnStrengthProgramme: () => {

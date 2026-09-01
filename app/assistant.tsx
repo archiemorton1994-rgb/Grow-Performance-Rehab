@@ -16,6 +16,7 @@ import {
   type CoachAction,
   type CoachMessage,
 } from '@/lib/coach';
+import { nameOf } from '@/lib/programme';
 
 /**
  * The assistant in full: everything it has noticed, not just the top three.
@@ -153,6 +154,8 @@ export default function AssistantScreen() {
     oneRepMaxes,
     testWeekFrequency,
     weightUnit,
+    programme,
+    getProgrammeDrift,
     coachDismissedAt,
     dismissCoachMessage,
     coachSeen,
@@ -208,6 +211,8 @@ export default function AssistantScreen() {
       stuckStreak: exerciseStuckStreak,
       hasOneRepMax: oneRepMaxes.length > 0,
       testWeekFrequency,
+      drift: getProgrammeDrift(),
+      programmeName: programme ? nameOf(programme) : null,
       weightUnit,
       dismissedAt: coachDismissedAt,
       now: Date.now(),
@@ -228,7 +233,9 @@ export default function AssistantScreen() {
   const snapshot = useMemo(() => getCoachSnapshot(input), [input]);
 
   const onAction = (a: CoachAction) => {
-    if (a.kind === 'start-session') {
+    if (a.kind === 'open-programme') {
+      router.push('/program');
+    } else if (a.kind === 'start-session') {
       router.push(a.sessionType ? `/readiness?sessionType=${a.sessionType}` : '/readiness');
     } else if (a.kind === 'log-weight' || a.kind === 'open-progress') {
       router.push('/(tabs)/workouts?tab=progress');

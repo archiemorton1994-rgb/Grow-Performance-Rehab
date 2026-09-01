@@ -207,6 +207,7 @@ export default function HomeScreen() {
     completedSessions,
     programme,
     getProgrammePosition,
+    getProgrammeDrift,
     getCurrentSessionType,
     getStreakDays,
     getThisWeekCount,
@@ -448,6 +449,8 @@ export default function HomeScreen() {
       stuckStreak: exerciseStuckStreak,
       hasOneRepMax: oneRepMaxes.length > 0,
       testWeekFrequency,
+      drift: getProgrammeDrift(),
+      programmeName,
       weightUnit,
       dismissedAt: coachDismissedAt,
       now: Date.now(),
@@ -514,6 +517,10 @@ export default function HomeScreen() {
       }
       if (action.kind === 'open-stats') {
         router.push('/(tabs)/workouts');
+        return;
+      }
+      if (action.kind === 'open-programme') {
+        router.push('/program');
         return;
       }
       // A coach message can name a specific session (the balance nudge does);

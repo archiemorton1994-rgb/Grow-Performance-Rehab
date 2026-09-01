@@ -1,6 +1,7 @@
 import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, TestWeekFrequency, WeightUnit } from './store';
 import { noMaxAssistantCopy } from './test-week-copy';
 import { getTrainingBalanceNudge, type BalanceInput } from './training-balance';
+import { PROGRAMMES, type ProgrammeDrift } from './programme';
 import {
   COMEBACK_SESSIONS,
   describeTimeAway,
@@ -77,7 +78,13 @@ export type CoachTone = 'info' | 'caution' | 'good';
 export interface CoachAction {
   label: string;
   /** What the screen should do. Kept abstract so this module never imports a router. */
-  kind: 'start-session' | 'log-weight' | 'open-stats' | 'open-progress' | 'open-recover';
+  kind:
+    | 'start-session'
+    | 'log-weight'
+    | 'open-stats'
+    | 'open-progress'
+    | 'open-recover'
+    | 'open-programme';
   sessionType?: SessionType;
 }
 
@@ -146,6 +153,14 @@ export interface CoachInput {
    * file is about what has been logged.
    */
   testWeekFrequency: TestWeekFrequency;
+  /**
+   * The block being trained around, when there is a clear pattern. Null when
+   * nobody is enrolled, when the block is paused, and for the great majority of
+   * people who are simply getting on with it. See programmeDrift.
+   */
+  drift: ProgrammeDrift | null;
+  /** What the block is called, for the message that names it. */
+  programmeName: string | null;
   /** The unit every weight in these messages is written in. */
   weightUnit: WeightUnit;
   /** When each message id was last waved away. */
@@ -438,11 +453,47 @@ function buildCoachBuckets(input: CoachInput): Bucket {
       id: 'deload',
       icon: 'moon-outline',
       title: `${input.consecutiveActiveWeeks} weeks without a break`,
-      body: `A lighter week is worth considering: keep everything the same and drop to 50-60% of your usual loads. The app already backs individual lifts off when they stall, but it cannot give you a whole easy week unless you take one.`,
+      body: input.programmeName
+        ? `A lighter week is worth considering. Your block already has easier weeks built into it every fourth week, so this is about the stretch between them: keep everything the same and drop to 50 to 60% of your usual loads for a week.`
+        : `A lighter week is worth considering: keep everything the same and drop to 50-60% of your usual loads. The app already backs individual lifts off when they stall, and a programme would plan the easy weeks in for you, but on your own you have to take one.`,
       tone: 'info',
       dismissible: true,
     } as CoachMessage)
       : null;
+
+  /**
+   * ── The block being trained AROUND rather than trained ───────────────────
+   *
+   * The one rule in here about the programme rather than about the training,
+   * and the one the app has most obviously been missing: somebody who does five
+   * sessions a fortnight and one of them on plan was getting no acknowledgement
+   * of that at all, and was being offered a squat every time they opened Home.
+   *
+   * WRITTEN AS AN OFFER, NEVER AS A TELLING-OFF. Nothing they have done is
+   * wrong - the app's own promise is that they can train whatever they like -
+   * so the honest reading is that they may be on the wrong programme rather
+   * than failing at this one. The body says so in as many words before it names
+   * anything, and it only names another programme when one genuinely fits their
+   * recent training better. Dismissible, because somebody who is deliberately
+   * doing this must be able to make it go away for good.
+   */
+  if (input.drift && input.programmeName && !hidden('drift', 30)) {
+    const d = input.drift;
+    const better = d.suggestion ? PROGRAMMES[d.suggestion] : null;
+    b.info.push({
+      id: 'drift',
+      icon: 'compass-outline',
+      title: 'Your programme and your training have parted ways',
+      body:
+        `${d.onPlan} of your last ${d.window} sessions were ${input.programmeName}. There is nothing wrong with that, and none of it is lost: everything you did counts towards your history and your records. ` +
+        (better
+          ? `It is worth knowing that ${better.name} is closer to what you have actually been doing, and switching starts a fresh block without touching anything you have logged.`
+          : `It is worth a look at your programme, though: you can change the days, the length or the whole thing, and none of it costs you anything.`),
+      tone: 'info',
+      action: { label: 'Open your programme', kind: 'open-programme' },
+      dismissible: true,
+    });
+  }
 
   // ── What you have and have not been training ───────────────────────────────
   const balance = getTrainingBalanceNudge(input.balance);

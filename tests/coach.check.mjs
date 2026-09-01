@@ -73,6 +73,10 @@ const base = {
   progress: [],
   stuckStreak: {},
   hasOneRepMax: true,
+  // Nobody is drifting by default, and nobody is enrolled, so every assertion
+  // written before this existed keeps testing exactly what it was written for.
+  drift: null,
+  programmeName: null,
   weightUnit: 'kg',
   dismissedAt: {},
   now: NOW,
@@ -521,6 +525,119 @@ check(
     'weekdayForTrainingWeek(new Date())'
   ),
   'a duplicated day-of-week rule is a duplicated bug'
+);
+
+// ─── The block being trained around ─────────────────────────────────────────
+//
+// The one rule in the panel about the PROGRAMME rather than about the training,
+// and the reason it earns its place is that the app kept the promise perfectly
+// and never read it: somebody doing five sessions a fortnight with one on plan
+// got no acknowledgement of it at all.
+console.log('\n[Drift] The programme notices being trained around');
+
+const DRIFT = { window: 8, onPlan: 1, favoured: 'conditioning', suggestion: 'lean' };
+
+check(
+  'a block being trained around is raised',
+  ids(ask({ drift: DRIFT, programmeName: 'Barbell Strength' })).includes('drift'),
+  ''
+);
+check(
+  'and nothing is said to somebody who is not on a programme at all',
+  !ids(ask({ drift: DRIFT, programmeName: null })).includes('drift'),
+  'the message names the block, and there is not one'
+);
+check(
+  'nor to somebody the rule found nothing to say about',
+  !ids(ask({ drift: null, programmeName: 'Barbell Strength' })).includes('drift'),
+  ''
+);
+check(
+  // Nothing they have done is wrong - the app's own promise is that they can
+  // train whatever they like - so the honest reading is that they may be on the
+  // wrong programme rather than failing at this one.
+  'it is written as an offer rather than a telling-off',
+  (() => {
+    const m = ask({ drift: DRIFT, programmeName: 'Barbell Strength' }).find((x) => x.id === 'drift');
+    return (
+      !!m &&
+      m.tone === 'info' &&
+      /nothing wrong with that/i.test(m.body) &&
+      /none of it is lost|counts towards/i.test(m.body)
+    );
+  })(),
+  ask({ drift: DRIFT, programmeName: 'Barbell Strength' }).find((x) => x.id === 'drift')?.body
+);
+check(
+  'it names the programme that fits what they have actually been doing',
+  (() => {
+    const m = ask({ drift: DRIFT, programmeName: 'Barbell Strength' }).find((x) => x.id === 'drift');
+    return !!m && /Lean and Fit/.test(m.body);
+  })(),
+  ''
+);
+check(
+  'and says something useful when nothing on the list fits better',
+  (() => {
+    const m = ask({
+      drift: { ...DRIFT, suggestion: null },
+      programmeName: 'Barbell Strength',
+    }).find((x) => x.id === 'drift');
+    return !!m && !/undefined|null/.test(m.body) && m.body.length > 120;
+  })(),
+  ask({ drift: { ...DRIFT, suggestion: null }, programmeName: 'X' }).find((x) => x.id === 'drift')
+    ?.body
+);
+check(
+  // Somebody deliberately training around their block must be able to make this
+  // go away for good, or it sits there with the dot lit for the rest of their
+  // life. Same rule as every other observation in the panel.
+  'it can be waved away',
+  (() => {
+    const m = ask({ drift: DRIFT, programmeName: 'Barbell Strength' }).find((x) => x.id === 'drift');
+    return m?.dismissible === true;
+  })(),
+  ''
+);
+check(
+  'and stays away once it has been',
+  !ids(
+    ask({ drift: DRIFT, programmeName: 'Barbell Strength', dismissedAt: { drift: NOW - DAY } })
+  ).includes('drift'),
+  ''
+);
+check(
+  'it points at the programme rather than at another session',
+  (() => {
+    const m = ask({ drift: DRIFT, programmeName: 'Barbell Strength' }).find((x) => x.id === 'drift');
+    return m?.action?.kind === 'open-programme';
+  })(),
+  ''
+);
+check(
+  // The deload note used to end "it cannot give you a whole easy week unless you
+  // take one", which stopped being true the day blocks started planning them in.
+  'the lighter-week note no longer claims the app cannot plan one',
+  (() => {
+    const onBlock = ask({
+      consecutiveActiveWeeks: 6,
+      sessionCount: 20,
+      programmeName: 'Barbell Strength',
+    }).find((x) => x.id === 'deload');
+    const alone = ask({ consecutiveActiveWeeks: 6, sessionCount: 20 }).find(
+      (x) => x.id === 'deload'
+    );
+    return (
+      !!onBlock &&
+      !!alone &&
+      onBlock.body !== alone.body &&
+      /every fourth week|built into it/i.test(onBlock.body) &&
+      !/cannot give you a whole easy week/i.test(onBlock.body)
+    );
+  })(),
+  ask({ consecutiveActiveWeeks: 6, sessionCount: 20, programmeName: 'X' }).find(
+    (x) => x.id === 'deload'
+  )?.body
 );
 
 console.log('');

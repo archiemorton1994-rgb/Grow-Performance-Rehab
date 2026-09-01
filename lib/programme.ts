@@ -608,6 +608,141 @@ export function tagSessions(
   return out;
 }
 
+// ─── When the programme is being trained around ─────────────────────────────
+
+/**
+ * THE BLOCK DOES NOT NOTICE BEING IGNORED, and that is the gap this closes.
+ *
+ * "Train whatever you want in between" is the promise, and the app keeps it
+ * perfectly: an off-plan session is logged, counted, and leaves the block
+ * exactly where it was. What it never did was READ that. Somebody who trains
+ * five times a fortnight and does one programme session gets no acknowledgement
+ * of it at all, and keeps being offered a squat every time they open the app.
+ *
+ * The assistant already watches for a stalled lift, an unclocked personal best
+ * and a knee flagged five times in ten weeks. This is the same machinery pointed
+ * at the block, and it is the difference between "adaptive" being a word on the
+ * store listing and being something the app does.
+ *
+ * IT IS NOT A TELLING-OFF. Nothing here is wrong. The message this produces has
+ * to say so, and has to end with an offer rather than an instruction, because
+ * the honest reading of somebody consistently doing something else is that they
+ * are on the wrong programme rather than that they are failing at this one.
+ */
+export interface ProgrammeDrift {
+  /** Sessions looked at. Always DRIFT_WINDOW once the rule fires. */
+  window: number;
+  /** How many of those were the programme's. */
+  onPlan: number;
+  /** What they have actually been doing instead, most often. */
+  favoured: SessionType;
+  /**
+   * The programme whose cycle is closest to what they have actually been doing,
+   * or null when nothing on the list fits better than what they are on.
+   */
+  suggestion: ProgrammeId | null;
+}
+
+/**
+ * How many recent sessions the rule looks at, and how few of them may be the
+ * programme's before it says anything.
+ *
+ * Eight and two. Deliberately a high bar: one busy fortnight is not drift, and
+ * an app that asks whether you are on the right programme after a single week
+ * of conditioning is an app that nags. Eight sessions with only two on plan is a
+ * pattern nobody could call an accident.
+ */
+export const DRIFT_WINDOW = 8;
+export const DRIFT_MAX_ON_PLAN = 2;
+
+export function programmeDrift(
+  p: EnrolledProgramme,
+  sessionTypesSinceEnrolment: SessionType[]
+): ProgrammeDrift | null {
+  if (p.paused) return null;
+  if (sessionTypesSinceEnrolment.length < DRIFT_WINDOW) return null;
+
+  // Tag the WHOLE history, then look at the tail. Tagging only the tail would
+  // replay the cycle from its first item and call on-plan sessions off-plan.
+  const tags = tagSessions(p, sessionTypesSinceEnrolment);
+  const from = sessionTypesSinceEnrolment.length - DRIFT_WINDOW;
+  const window = sessionTypesSinceEnrolment.slice(from);
+  const windowTags = tags.slice(from);
+  const onPlan = windowTags.filter((t) => t.onPlan).length;
+  if (onPlan > DRIFT_MAX_ON_PLAN) return null;
+
+  const counts = new Map<SessionType, number>();
+  window.forEach((type, i) => {
+    if (windowTags[i].onPlan) return;
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  });
+  let favoured: SessionType | null = null;
+  let best = 0;
+  for (const [type, n] of counts) {
+    if (n > best) {
+      best = n;
+      favoured = type;
+    }
+  }
+  // Every session in the window was on plan is impossible here, but a window of
+  // nothing but sessions the cycle happened to contain is not, so guard it.
+  if (!favoured) return null;
+
+  return { window: DRIFT_WINDOW, onPlan, favoured, suggestion: closestProgramme(window, p.templateId) };
+}
+
+/**
+ * Which of the seven fits what somebody has ACTUALLY been doing.
+ *
+ * TWO HALVES, MULTIPLIED, and the second half is the one that earns its place.
+ *
+ *   COVERAGE  how much of what they have been doing the cycle contains. On its
+ *             own this is what the first version used, and it ties constantly:
+ *             somebody doing nothing but prehab and mobility is covered
+ *             perfectly by Joint Health AND by Return to Lifting, and the answer
+ *             came down to which appeared first in the list.
+ *   FOCUS     how much of the cycle is work they actually do. This is what
+ *             separates the two: Joint Health is entirely that work, Return to
+ *             Lifting carries a full body day they have not touched. The one
+ *             that is ABOUT what they are doing beats the one that merely
+ *             includes it.
+ *
+ * A blunt measure either way, and the right kind of blunt: the question is not
+ * "which programme is best for this person", which no arithmetic can answer. It
+ * is "is there one on the list that looks more like what they are actually doing
+ * than the one they are on". Near-misses return null, because suggesting a
+ * switch that would change almost nothing is worse than saying nothing.
+ */
+export function closestProgramme(
+  recentTypes: SessionType[],
+  current: ProgrammeId,
+  days: TrainingDays = 3
+): ProgrammeId | null {
+  if (recentTypes.length === 0) return null;
+  const doing = new Set(recentTypes);
+  const fit = (id: ProgrammeId) => {
+    const cycle = cycleFor(id, days);
+    const inCycle = new Set(cycle);
+    const coverage = recentTypes.filter((t) => inCycle.has(t)).length / recentTypes.length;
+    const focus = [...inCycle].filter((t) => doing.has(t)).length / inCycle.size;
+    return coverage * focus;
+  };
+  const mine = fit(current);
+  let best: ProgrammeId | null = null;
+  let bestShare = 0;
+  for (const id of PROGRAMME_IDS) {
+    if (id === current) continue;
+    const s = fit(id);
+    if (s > bestShare) {
+      bestShare = s;
+      best = id;
+    }
+  }
+  // A clear margin, not a hair. Moving somebody to a programme that covers one
+  // more session in eight is churn dressed up as insight.
+  return best !== null && bestShare >= mine + 0.25 ? best : null;
+}
+
 /** The session the programme is asking for now. */
 export function nextSessionType(
   p: EnrolledProgramme,
