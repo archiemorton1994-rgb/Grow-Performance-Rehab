@@ -112,31 +112,61 @@ function build(painRegion = undefined, prof = profile, seed = 0) {
   return out;
 }
 
-// Cooldowns and rehab work are deliberately left alone — see fillSwapAlternatives.
-const SWAPPABLE = (e) => e.category !== 'cooldown' && e.category !== 'prehab';
+/**
+ * The LIFTING blocks, which is what sections 6 and 7 are about.
+ *
+ * Not the same set as "things that can be swapped" any more. A cooldown and a
+ * rehab drill are now swappable too, within their own job, but they do not take
+ * part in the kit-versus-muscle labelling those sections check: a stretch has no
+ * equipment variant and offering one would be nonsense.
+ */
+const LIFTING = (e) => e.category !== 'cooldown' && e.category !== 'prehab';
 
 // ─── 1. Coverage ─────────────────────────────────────────────────────────────
-console.log('\n[1] Every swappable exercise has something to swap to');
+console.log('\n[1] Every exercise has something to swap to');
 
 const sessions = build();
+
+/**
+ * EVERYTHING, not just the lifting.
+ *
+ * Archie's words: "not giving swap options for everything which is frustrating.
+ * EVERYthing should be swappable at least once. sometimes twice." Measured
+ * before the change, across 3,152 generated exercises, 810 of them had nothing
+ * behind the button - every cooldown and 522 of 558 rehab drills - because the
+ * fill returned those two categories untouched.
+ *
+ * The only exercise still allowed to have nothing is one the injury screen has
+ * already substituted. Its swap slot holds the exercise it REPLACED, which is
+ * the revert, so it is swappable once by a different route.
+ */
 const naked = [];
 const single = [];
 for (const { type, tier, ex } of sessions) {
-  for (const e of ex.filter(SWAPPABLE)) {
-    if (!e.swapName) naked.push(`${type}/${tier}: ${e.name}`);
-    else if (!e.swap2Name) single.push(`${type}/${tier}: ${e.name}`);
+  for (const e of ex) {
+    if (e.safetyNote) continue;
+    if (!e.swapName) naked.push(`${type}/${tier}: ${e.name} [${e.category}]`);
+    else if (!e.swap2Name) single.push(`${type}/${tier}: ${e.name} [${e.category}]`);
   }
 }
-const swappable = sessions.flatMap(({ ex }) => ex.filter(SWAPPABLE)).length;
+const swappable = sessions.flatMap(({ ex }) => ex.filter((e) => !e.safetyNote)).length;
 check(
-  `no swappable exercise is left with nothing (${swappable} checked)`,
+  `nothing is left with nothing, whatever kind of work it is (${swappable} checked)`,
   naked.length === 0,
   naked.slice(0, 6).join(' | ')
 );
 check(
-  `and almost none is left with only one (${single.length})`,
-  single.length <= Math.ceil(swappable * 0.05),
+  `and most get the second option too (${single.length} with one)`,
+  single.length <= Math.ceil(swappable * 0.15),
   single.slice(0, 6).join(' | ')
+);
+check(
+  // The guarantee, stated as the two categories that used to be exempt, so
+  // reinstating the exemption fails here rather than only in the count above.
+  'a cooldown and a rehab drill are no longer exempt',
+  sessions.some(({ ex }) => ex.some((e) => e.category === 'cooldown' && !!e.swapName)) &&
+    sessions.some(({ ex }) => ex.some((e) => e.category === 'prehab' && !!e.swapName)),
+  'these two were 810 of the 3,152 exercises with no swap button at all'
 );
 check(
   'hasSwap agrees with actually having a swap',
@@ -237,7 +267,7 @@ check(
 );
 
 // ─── 5. What is deliberately left alone ──────────────────────────────────────
-console.log('\n[5] Rehab and cooldowns keep their hands off');
+console.log('\n[5] A rehab drill trades within its own job, never out of it');
 
 const rehab = generateWorkout(
   'prehab',
@@ -297,7 +327,7 @@ let equipmentOffers = 0;
 let movementOffers = 0;
 
 for (const { type, tier, ex } of sessions) {
-  for (const e of ex.filter(SWAPPABLE)) {
+  for (const e of ex.filter(LIFTING)) {
     const source = templates.get(e.name.toLowerCase());
     const self = {
       name: e.name,
@@ -385,7 +415,7 @@ check(
  */
 const sameKitOffers = [];
 for (const { type, tier, ex } of sessions) {
-  for (const e of ex.filter(SWAPPABLE)) {
+  for (const e of ex.filter(LIFTING)) {
     const source = templates.get(e.name.toLowerCase());
     if (!source) continue;
     for (const [name, kind] of [

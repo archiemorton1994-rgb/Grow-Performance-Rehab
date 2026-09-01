@@ -624,6 +624,26 @@ export function substitutionRestrictedTags(banned: Set<StressTag>): Set<StressTa
   return new Set<StressTag>([...banned, 'high_impact']);
 }
 
+/**
+ * True when a movement's own wording says it is the ACCOMMODATION rather than
+ * the movement being accommodated.
+ *
+ * "Incline Push-Up (slow) - hands elevated, 3s down, reduce chest stretch depth
+ * to manage soreness" is a kinder way to keep pressing. LENGTHEN_DISCLAIMED
+ * exists so that sentence does not get the exercise deleted for saying the word
+ * stretch, and that is right: it may STAY.
+ *
+ * It is not a licence to be offered in place of anything gentler. A scapular
+ * isometric traded for an incline push-up is a zero-load hold traded for a
+ * loaded press, in a session where the user has just said their chest hurts.
+ * Same principle as substitutionRestrictedTags above, one field across: what
+ * may stay and what the app may put there are two different questions, and
+ * "never make the session harder than you found it" answers the second one.
+ */
+export function disclaimsLengthening(text: string): boolean {
+  return LENGTHEN_DISCLAIMED.test(text);
+}
+
 /** The restricted tags a given movement carries. Empty means it is fine. */
 export function restrictedTagsOn(
   name: string,

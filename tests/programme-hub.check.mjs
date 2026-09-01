@@ -79,14 +79,25 @@ check(
 // ─── 2. Where you are ───────────────────────────────────────────────────────
 console.log('\n[2] It answers where you are, honestly');
 
+/**
+ * Asserted as INTENT, not as a spelling.
+ *
+ * These two used to match the JSX character for character, which meant
+ * rewording a sentence broke a test that has no opinion about the wording. What
+ * has to be true is that the hub draws its position from the replayed position
+ * rather than a stored counter, and shows the block in the unit it is measured
+ * in.
+ */
 check(
-  'it shows the week out of the block length',
-  /Week \{position\.week\}/.test(hubCode) && /of \{programme\.blockWeeks\}/.test(hubCode),
-  ''
+  'it leads with where they are in the SESSIONS, which is what the block is counted in',
+  /position\.totalSessions/.test(hubCode) &&
+    /Session /.test(hubCode) &&
+    !/programme\.blockWeeks/.test(hubCode),
+  'a week counter as the headline tells somebody who trained twice this week that they are behind'
 );
 check(
-  'and the sessions done out of the total',
-  /\{position\.onPlan\} of \{position\.totalSessions\} sessions/.test(hubCode),
+  'and the week it works out at, derived rather than taken from the calendar',
+  /position\.week\b/.test(hubCode) && /position\.weeks\b/.test(hubCode),
   ''
 );
 check(

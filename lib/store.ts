@@ -29,8 +29,8 @@ import {
 
 import type { Answers, InjuryAge } from './profile-tree';
 import { outcomeFrom } from './profile-tree';
-import type { EnrolledProgramme, ProgrammePosition } from './programme';
-import { goalsForFocus, programmePosition, selectProgramme } from './programme';
+import type { EnrolledProgramme, ProgrammePosition, SessionPlanTag } from './programme';
+import { goalsForFocus, programmePosition, selectProgramme, tagSessions } from './programme';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -871,7 +871,7 @@ interface AppState {
   applyProfileTree: (answers: Answers, nowIso: string) => void;
   /** Change days, block length or session time from the programme hub. */
   updateProgramme: (
-    patch: Partial<Pick<EnrolledProgramme, 'days' | 'blockWeeks' | 'minutes'>>
+    patch: Partial<Pick<EnrolledProgramme, 'days' | 'sessions' | 'minutes'>>
   ) => void;
   /** Swap to a different programme, starting a fresh block from today. */
   switchProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
@@ -879,6 +879,13 @@ interface AppState {
   leaveProgramme: () => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
+  /**
+   * Which completed sessions were the programme's, keyed by session id.
+   *
+   * Empty when nobody is enrolled, and it never contains a session logged
+   * before enrolment: those were not off plan, there was no plan.
+   */
+  getSessionPlanTags: () => Record<string, SessionPlanTag>;
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
@@ -1740,6 +1747,34 @@ export const useAppStore = create<AppState>()(
         return programmePosition(programme, types);
       },
 
+      /**
+       * The same replay, kept per session rather than summed.
+       *
+       * Built here rather than in the history screen because the screen has the
+       * sessions newest-first and the replay has to run oldest-first, and that
+       * reversal is the one thing about this that is easy to get wrong. Doing it
+       * once, next to the position selector that does the same reversal, means
+       * there is one place to be right.
+       */
+      getSessionPlanTags: () => {
+        const { programme, completedSessions } = get();
+        if (!programme) return {};
+        const sinceCount = Math.max(
+          0,
+          completedSessions.length - programme.startedAtSessionCount
+        );
+        const since = completedSessions.slice(0, sinceCount).reverse();
+        const tags = tagSessions(
+          programme,
+          since.map((x) => x.sessionType)
+        );
+        const out: Record<string, SessionPlanTag> = {};
+        since.forEach((s, i) => {
+          if (tags[i]) out[s.id] = tags[i];
+        });
+        return out;
+      },
+
       isOnStrengthProgramme: () => {
         const { completedSessions, testWeekFrequency } = get();
         /**
@@ -2298,7 +2333,7 @@ export const useAppStore = create<AppState>()(
         const {
           sessionEquipmentOverride: _transient,
           tourJustCompleted: _tourJustCompleted,
-          tourActiveTab: _tourActiveTab,
+          tourActiveTab: _tourActiveTab,
           tourEnterAtLastStep: _tourEnterAtLastStep,
           tourSkipNonce: _tourSkipNonce,
           // newlyUnlockedBadges is a queue of pop-ups still to show, not a
@@ -2440,6 +2475,23 @@ export const useAppStore = create<AppState>()(
          */
         if (!('programme' in persistedState)) {
           persistedState.programme = null;
+        }
+        /**
+         * A block measured in weeks becomes the same block measured in sessions.
+         *
+         * days x blockWeeks is exactly what the old totalSessions was, so
+         * anybody mid-block keeps the same finish line and the same position in
+         * it. Clamped to the twenty the question now offers, because a five day
+         * sixteen week block was eighty sessions and no such choice exists any
+         * more.
+         */
+        if (persistedState.programme && 'blockWeeks' in persistedState.programme) {
+          const p = persistedState.programme as Record<string, unknown>;
+          const days = Number(p.days) || 3;
+          const weeks = Number(p.blockWeeks) || 12;
+          const converted = Math.round((days * weeks) / 2) * 2;
+          p.sessions = Math.max(4, Math.min(20, converted));
+          delete p.blockWeeks;
         }
         if (!persistedState.exerciseNormalStreak) {
           persistedState.exerciseNormalStreak = {};
@@ -2590,7 +2642,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 30,
+      version: 31,
     }
   )
 );

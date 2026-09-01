@@ -44,13 +44,13 @@ import {
   blockPlan,
   cycleFor,
   extrasFor,
+  programmeDifficulty,
   programmeFor,
   type ProgrammeId,
 } from '@/lib/programme';
-import type { BlockLength, TrainingDays } from '@/lib/profile-tree';
+import { SESSION_COUNTS, type TrainingDays } from '@/lib/profile-tree';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
-const LENGTH_OPTIONS: BlockLength[] = [8, 12, 16];
 
 export function ProgrammeHub() {
   const C = useColors();
@@ -64,6 +64,7 @@ export function ProgrammeHub() {
   const switchProgramme = useAppStore((s) => s.switchProgramme);
   const setProgrammePaused = useAppStore((s) => s.setProgrammePaused);
   const equipmentTiers = useAppStore((s) => s.equipmentTiers);
+  const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
 
   const [changing, setChanging] = useState(false);
 
@@ -97,6 +98,11 @@ export function ProgrammeHub() {
   const cycle = cycleFor(programme.templateId, programme.days);
   const extras = extrasFor(programme.templateId, programme.days);
   const plan = blockPlan(programme);
+  const difficulty = programmeDifficulty(
+    programme.templateId,
+    experienceLevel ?? 'beginner',
+    programme.days
+  );
   const pct = Math.min(100, Math.round((position.onPlan / position.totalSessions) * 100));
 
   /** Which sessions of the block are done, for the plan list. */
@@ -133,6 +139,13 @@ export function ProgrammeHub() {
         <Text style={styles.name}>{template.name}</Text>
         <Text style={styles.blurb}>{template.blurb}</Text>
 
+        <View style={styles.difficultyRow} testID="hub-difficulty">
+          <View style={styles.difficultyPill}>
+            <Text style={styles.difficultyPillText}>{difficulty.label.toUpperCase()}</Text>
+          </View>
+          <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
+        </View>
+
         <View style={styles.rule} />
 
         {programme.paused ? (
@@ -144,13 +157,15 @@ export function ProgrammeHub() {
           </View>
         ) : (
           <>
+            {/* SESSIONS lead, weeks follow. The block is measured in sessions,
+                so the number that moves when they train is the big one. */}
             <View style={styles.weekRow}>
               <Text style={styles.week}>
-                Week {position.week}
-                <Text style={styles.weekOf}> of {programme.blockWeeks}</Text>
+                Session {Math.min(position.onPlan + 1, position.totalSessions)}
+                <Text style={styles.weekOf}> of {position.totalSessions}</Text>
               </Text>
               <Text style={styles.weekCount}>
-                {position.onPlan} of {position.totalSessions} sessions
+                Week {position.week} of {position.weeks}
               </Text>
             </View>
             <View style={styles.track}>
@@ -228,7 +243,7 @@ export function ProgrammeHub() {
           around how you feel and whatever is sore.
         </Text>
         <View style={styles.planWrap}>
-          {Array.from({ length: programme.blockWeeks }, (_, w) => {
+          {Array.from({ length: position.weeks }, (_, w) => {
             const week = w + 1;
             const items = plan.filter((p) => p.week === week);
             const firstIndex = w * programme.days;
@@ -291,29 +306,34 @@ export function ProgrammeHub() {
           done.
         </Text>
 
+        {/* Nine choices, so they WRAP rather than share one row. Nine items in
+            a single segmented control on a 390pt screen gives each one about
+            thirty points, which is under the touch target and unreadable. */}
         <Text style={styles.ctrlLabel}>BLOCK LENGTH</Text>
-        <View style={styles.segment}>
-          {LENGTH_OPTIONS.map((n) => (
+        <View style={styles.segmentWrap}>
+          {SESSION_COUNTS.map((n) => (
             <Pressable
               key={n}
               onPress={() => {
                 haptic();
-                updateProgramme({ blockWeeks: n });
+                updateProgramme({ sessions: n });
               }}
               testID={`hub-length-${n}`}
               style={[
-                styles.segItem,
-                programme.blockWeeks === n && { backgroundColor: C.primaryMuted },
+                styles.segChip,
+                programme.sessions === n && { backgroundColor: C.primaryMuted },
               ]}
             >
-              <Text
-                style={[styles.segText, programme.blockWeeks === n && { color: C.primaryText }]}
-              >
-                {n} wk
+              <Text style={[styles.segText, programme.sessions === n && { color: C.primaryText }]}>
+                {n}
               </Text>
             </Pressable>
           ))}
         </View>
+        <Text style={styles.ctrlNote}>
+          Sessions, not weeks, so the block only moves when you train. Yours works out at about{' '}
+          {position.weeks} {position.weeks === 1 ? 'week' : 'weeks'} at {programme.days} a week.
+        </Text>
 
         <Pressable
           onPress={() => {
@@ -423,6 +443,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 5,
     },
     rule: { height: 1, backgroundColor: PAGE.hairline, marginVertical: 15 },
+
+    difficultyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11 },
+    difficultyPill: {
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: PAGE.hairline,
+      backgroundColor: PAGE.inset,
+    },
+    difficultyPillText: {
+      fontSize: 10,
+      letterSpacing: 0.9,
+      fontFamily: 'Inter_700Bold',
+      color: PAGE.ink,
+    },
+    difficultyWhy: {
+      flex: 1,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: 'Inter_400Regular',
+      color: PAGE.inkMuted,
+    },
 
     weekRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
     week: { fontSize: 19, fontFamily: 'Inter_700Bold', color: PAGE.ink },
@@ -561,6 +604,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 9,
     },
     segText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    segmentWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      padding: 4,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+    },
+    segChip: {
+      // Three rows of three rather than seven and a ragged two. flexBasis at
+      // 30% forces the wrap after the third, and flexGrow then fills each row
+      // evenly, so nine numbers read as a grid instead of a run that ran out.
+      flexBasis: '30%',
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 40,
+      paddingHorizontal: 10,
+      borderRadius: 9,
+    },
     ctrlNote: {
       fontSize: 11.5,
       lineHeight: 16,

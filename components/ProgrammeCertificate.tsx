@@ -50,8 +50,10 @@ import {
   includedInGrow,
   otherProgrammes,
   programmeCareNote,
+  programmeDifficulty,
   programmeFor,
   programmeReasons,
+  weeksFor,
   type EnrolledProgramme,
 } from '@/lib/programme';
 import type { TreeOutcome } from '@/lib/profile-tree';
@@ -85,6 +87,8 @@ export function ProgrammeCertificate({
   const reasons = programmeReasons(outcome);
   const careNote = programmeCareNote(outcome);
   const others = otherProgrammes(programme.templateId);
+  const difficulty = programmeDifficulty(programme.templateId, outcome.experience, programme.days);
+  const weeks = weeksFor(programme.sessions, programme.days);
 
   // Once per mount. distinctExerciseCount walks the whole catalogue, and this is
   // the only screen outside the paywall that wants it.
@@ -138,14 +142,23 @@ export function ProgrammeCertificate({
           </Text>
           <Text style={styles.blurb}>{template.blurb}</Text>
 
+          {/* The difficulty, named and justified in the same breath. A label on
+              its own invites the question; the line under it answers it. */}
+          <View style={styles.difficultyRow} testID="programme-difficulty">
+            <View style={styles.difficultyPill}>
+              <Text style={styles.difficultyPillText}>{difficulty.label.toUpperCase()}</Text>
+            </View>
+            <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
+          </View>
+
           <View style={styles.rule} />
 
           <View style={styles.stats}>
-            <Stat value={String(programme.blockWeeks)} label="weeks" />
+            <Stat value={String(programme.sessions)} label="sessions" />
             <View style={styles.statDivide} />
             <Stat value={String(programme.days)} label="days a week" />
             <View style={styles.statDivide} />
-            <Stat value={String(programme.days * programme.blockWeeks)} label="sessions" />
+            <Stat value={`~${weeks}`} label={weeks === 1 ? 'week' : 'weeks'} />
           </View>
 
           <View style={styles.rule} />
@@ -168,7 +181,8 @@ export function ProgrammeCertificate({
             ))}
           </View>
           <Text style={styles.chipNote}>
-            It repeats. {programme.days} of these a week, for {programme.blockWeeks} weeks.
+            It repeats until you have done all {programme.sessions}, {programme.days} of them a
+            week. The block is counted in sessions, so it waits for you.
           </Text>
 
           {extras.length > 0 && (
@@ -337,6 +351,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: PAGE.inkMuted,
       marginTop: 7,
+    },
+
+    difficultyRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 13 },
+    difficultyPill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4.5,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: PAGE.hairline,
+      backgroundColor: PAGE.inset,
+    },
+    difficultyPillText: {
+      fontSize: 10.5,
+      letterSpacing: 1,
+      fontFamily: 'Inter_700Bold',
+      color: PAGE.ink,
+    },
+    difficultyWhy: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 16,
+      fontFamily: 'Inter_400Regular',
+      color: PAGE.inkMuted,
     },
 
     rule: { height: 1, backgroundColor: PAGE.hairline, marginVertical: 18 },

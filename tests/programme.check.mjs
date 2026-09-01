@@ -35,8 +35,12 @@ import {
   extrasFor,
   otherProgrammes,
   includedInGrow,
+  tagSessions,
+  DIFFICULTY_LABELS,
+  programmeDifficulty,
+  weeksFor,
 } from '../lib/programme.ts';
-import { outcomeFrom } from '../lib/profile-tree.ts';
+import { outcomeFrom, SESSION_COUNTS } from '../lib/profile-tree.ts';
 
 let passed = 0;
 let failed = 0;
@@ -193,7 +197,7 @@ check(
   'enrolment carries the answers it was given',
   enrol.templateId === 'barbell' &&
     enrol.days === 3 &&
-    enrol.blockWeeks === 12 &&
+    enrol.sessions === 12 &&
     enrol.minutes === 45,
   `got ${JSON.stringify(enrol)}; an answer that is not stored cannot have an effect`
 );
@@ -218,11 +222,11 @@ check(
     return (
       a.minutes === 30 &&
       a.days === 5 &&
-      a.blockWeeks === 16 &&
+      a.sessions === 16 &&
       a.templateId === 'muscle' &&
       a.minutes !== enrol.minutes &&
       a.days !== enrol.days &&
-      a.blockWeeks !== enrol.blockWeeks
+      a.sessions !== enrol.sessions
     );
   })(),
   'every one of these is a question the builder asks; a constant here means the question was decorative'
@@ -285,13 +289,18 @@ check(
 console.log('\n[5] The block is a fixed size and it finishes');
 
 check(
-  'the plan is exactly days times weeks long',
-  blockPlan(enrol).length === 3 * 12 && blockPlan({ ...enrol, days: 4, blockWeeks: 8 }).length === 32,
+  // The whole point of counting in sessions: the block is the number they
+  // chose, and how often they train changes how long it TAKES, not how big it
+  // is. Under the old weeks model these two came out at 36 and 32.
+  'the plan is exactly as many sessions as they asked for, whatever the frequency',
+  blockPlan(enrol).length === 12 && blockPlan({ ...enrol, days: 4, sessions: 8 }).length === 8,
   ''
 );
 check(
-  'week one is the first sessions and the last week is the last',
-  blockPlan(enrol)[0].week === 1 && blockPlan(enrol)[35].week === 12,
+  'weeks are a grouping over those sessions, and the last one can be short',
+  blockPlan(enrol)[0].week === 1 &&
+    blockPlan(enrol)[11].week === 4 &&
+    blockPlan({ ...enrol, days: 3, sessions: 10 }).filter((p) => p.week === 4).length === 1,
   ''
 );
 check(
@@ -299,9 +308,9 @@ check(
   (() => {
     const many = Array.from({ length: 200 }, (_, i) => cycleFor('barbell', 3)[i % 3]);
     const p = programmePosition(enrol, many);
-    return p.week === 12 && p.complete;
+    return p.week === 4 && p.weeks === 4 && p.complete;
   })(),
-  'somebody who keeps going should see "block complete", not "week 67 of 12"'
+  'somebody who keeps going should see "block complete", not "week 67 of 4"'
 );
 check(
   'and it is not complete before it is',
@@ -539,6 +548,179 @@ check(
   'and it names no price',
   !included.some((i) => /[£$€]\s?\d/.test(i.title + i.body)),
   'the price comes from the store, and a hardcoded one is wrong in every country but one'
+);
+
+// ─── 11. Length in sessions, difficulty in work ─────────────────────────────
+console.log('\n[11] Length and difficulty are two different axes');
+
+check(
+  'every offered length is even, from a fortnight of trying it to a long build',
+  SESSION_COUNTS.length === 9 &&
+    SESSION_COUNTS[0] === 4 &&
+    SESSION_COUNTS[8] === 20 &&
+    SESSION_COUNTS.every((n) => n % 2 === 0) &&
+    SESSION_COUNTS.every((n, i) => i === 0 || n > SESSION_COUNTS[i - 1]),
+  JSON.stringify(SESSION_COUNTS)
+);
+check(
+  'a length nobody was offered is snapped back to the default rather than honoured',
+  outcomeFrom({ length: '13' }).sessions === 12 &&
+    outcomeFrom({ length: '999' }).sessions === 12 &&
+    outcomeFrom({ length: 'garbage' }).sessions === 12 &&
+    outcomeFrom({ length: '4' }).sessions === 4,
+  'a block of 13 is a plan nobody designed'
+);
+check(
+  'weeks are derived from the pair and always round UP',
+  weeksFor(12, 3) === 4 && weeksFor(10, 3) === 4 && weeksFor(4, 5) === 1 && weeksFor(20, 2) === 10,
+  'ten sessions at three a week is four weeks of training, not three and a third'
+);
+
+/**
+ * THE ONE THAT MATTERS. Archie's brief in his own words: "The session amount
+ * isnt what defines the difficulty necessarily, its the type of workouts and
+ * volumes." A label that moved with the length would be measuring commitment
+ * and calling it difficulty.
+ */
+check(
+  'the difficulty does not move when only the length does',
+  SESSION_COUNTS.every(
+    (n) =>
+      programmeDifficulty('barbell', 'advanced', 3).label ===
+      programmeDifficulty('barbell', 'advanced', 3).label
+  ) &&
+    (() => {
+      const short = selectProgramme(
+        outcomeFrom({ focus: 'barbell', days: '3', experience: 'advanced', length: '4' }),
+        '2026-08-31T00:00:00.000Z',
+        0
+      );
+      const long = selectProgramme(
+        outcomeFrom({ focus: 'barbell', days: '3', experience: 'advanced', length: '20' }),
+        '2026-08-31T00:00:00.000Z',
+        0
+      );
+      return (
+        short.sessions !== long.sessions &&
+        programmeDifficulty(short.templateId, 'advanced', short.days).label ===
+          programmeDifficulty(long.templateId, 'advanced', long.days).label
+      );
+    })(),
+  'twenty sessions of mobility work is longer than four of heavy barbell work, not harder'
+);
+check(
+  'but it does move when the work does',
+  programmeDifficulty('barbell', 'advanced', 3).score >
+    programmeDifficulty('joints', 'advanced', 3).score,
+  'the label describes the programme, so a gentle programme has to read as one'
+);
+check(
+  'and when the weekly volume does',
+  programmeDifficulty('barbell', 'advanced', 5).score >
+    programmeDifficulty('barbell', 'advanced', 2).score,
+  'five days a week is more than two, of anything'
+);
+check(
+  // The same rule as earn-the-barbell in PROGRESSION-LADDERS.md, applied to the
+  // whole block: the app will not prescribe work somebody has not earned.
+  'a beginner is never handed anything past Novice, however they answer',
+  ['barbell', 'muscle', 'upper_lower', 'lean', 'foundations', 'comeback', 'joints'].every((id) =>
+    [2, 3, 4, 5].every((d) => programmeDifficulty(id, 'beginner', d).score <= 1)
+  ),
+  'a beginner on a five day barbell block being called Advanced is the app flattering them'
+);
+check(
+  'and an intermediate never past Advanced',
+  ['barbell', 'muscle', 'upper_lower'].every((id) =>
+    [2, 3, 4, 5].every((d) => programmeDifficulty(id, 'intermediate', d).score <= 3)
+  ),
+  ''
+);
+check(
+  'Elite is reachable, so it is a label rather than decoration',
+  programmeDifficulty('barbell', 'advanced', 5).label === 'Elite' &&
+    DIFFICULTY_LABELS[DIFFICULTY_LABELS.length - 1] === 'Elite',
+  'a band nothing can ever land in is a word on a page'
+);
+check(
+  'every label in the ladder is reachable by some real answer',
+  (() => {
+    const seen = new Set();
+    for (const id of PROGRAMME_IDS)
+      for (const e of ['beginner', 'intermediate', 'advanced'])
+        for (const d of [2, 3, 4, 5]) seen.add(programmeDifficulty(id, e, d).label);
+    return DIFFICULTY_LABELS.every((l) => seen.has(l));
+  })(),
+  'six words with only four outcomes behind them'
+);
+check(
+  'and every one of them says why, naming something real',
+  PROGRAMME_IDS.every((id) =>
+    [2, 3, 4, 5].every((d) => {
+      const why = programmeDifficulty(id, 'advanced', d).because;
+      return why.length > 12 && !/undefined|NaN/.test(why);
+    })
+  ),
+  'a label on its own invites the question it should be answering'
+);
+
+// ─── 12. Which sessions were the programme's ────────────────────────────────
+console.log('\n[12] Every session done says which it was');
+
+const barbellCycle = cycleFor('barbell', 3);
+const mixed = [
+  barbellCycle[0], // on
+  'conditioning', // off
+  barbellCycle[1], // on
+  'flexibility', // off
+  'flexibility', // off
+  barbellCycle[2], // on
+];
+const tagged = tagSessions(enrol, mixed);
+
+check(
+  'one tag per session, in the order they were done',
+  tagged.length === mixed.length,
+  ''
+);
+check(
+  'the programme sessions are marked, and numbered by their place in the block',
+  JSON.stringify(tagged.map((t) => (t.onPlan ? t.blockIndex : 'x'))) ===
+    JSON.stringify([1, 'x', 2, 'x', 'x', 3]),
+  JSON.stringify(tagged)
+);
+check(
+  'off-plan work carries no block number, because it has no place in the block',
+  tagged.filter((t) => !t.onPlan).every((t) => t.blockIndex === null),
+  'a number on an off-plan session is the app claiming credit for it'
+);
+check(
+  // The two are one replay. If they ever came apart, the hub would say eleven
+  // and the history would show twelve rows marked as the programme's.
+  'the tags and the position agree, because they are the same walk',
+  (() => {
+    const p = programmePosition(enrol, mixed);
+    return (
+      p.onPlan === tagged.filter((t) => t.onPlan).length &&
+      p.offPlan === tagged.filter((t) => !t.onPlan).length
+    );
+  })(),
+  ''
+);
+check(
+  'doing the right session at the wrong time is still off plan',
+  (() => {
+    // The third lift done first: it is in the cycle, but it is not what the
+    // programme was asking for, so it must not advance the block.
+    const t = tagSessions(enrol, [barbellCycle[2], barbellCycle[0]]);
+    return t[0].onPlan === false && t[1].onPlan === true && t[1].blockIndex === 1;
+  })(),
+  'otherwise somebody could skip to the end of the block by picking their favourite session'
+);
+check(
+  'and nothing is ever discarded: every session comes back tagged one way or the other',
+  tagSessions(enrol, ['custom', 'conditioning', 'prehab']).length === 3,
+  'a session that falls out of the replay is one the user did and the app forgot'
 );
 
 console.log(`\nprogramme: ${passed} passed, ${failed} failed`);

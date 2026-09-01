@@ -50,6 +50,7 @@ import {
   type PickableExercise,
   canPerformWith,
   possibleFor,
+  getRegionsByExerciseNameMap,
 } from './exercise-db';
 import {
   isEquipmentVariant,
@@ -76,6 +77,7 @@ import {
   SCREEN_EXEMPT_SESSION_TYPES,
   restrictedTagsFor,
   restrictedTagsOn,
+  disclaimsLengthening,
   substitutionNote,
   substitutionRestrictedTags,
   STRESS_TAG_LABELS,
@@ -2130,6 +2132,152 @@ function rotate<T>(list: T[], seed: number): T[] {
   return [...list.slice(offset), ...list.slice(0, offset)];
 }
 
+/**
+ * A stand-in for a stretch or a rehab drill, drawn from its OWN kind of work.
+ *
+ * WHY THESE TWO NEEDED THEIR OWN PATH. Cooldowns and prehab used to be returned
+ * from the fill untouched, so the swap button never appeared on them at all.
+ * Measured across 3,152 generated exercises: 810 of them, a quarter of
+ * everything anybody is ever shown, had nothing behind the button. Every single
+ * cooldown, and 522 of 558 rehab drills.
+ *
+ * The reason they were excluded is real and is not "nobody got round to it". A
+ * rehab drill was chosen FOR the sore joint, so trading it for a bench press
+ * undoes the session, and the general fill crosses categories and muscle groups
+ * freely by design. So the answer is not to remove the exclusion, it is to swap
+ * within the same job:
+ *
+ *   SAME CATEGORY   a stretch trades for a stretch, a drill for a drill.
+ *                   rankedAlternatives already narrows to the category.
+ *   SAME BODY AREA  and this one has to be added here. REGION_BOUND_CATEGORIES
+ *                   is main and accessory only, which is correct for the
+ *                   general fill and wrong here: it would let a knee protocol's
+ *                   Quad Set trade for a shoulder Wall Slide, which is a
+ *                   different session wearing the same label.
+ *
+ * Everything else the fill guarantees still applies, because this goes through
+ * the same pool: nothing banned by the injury screen, and nothing needing kit
+ * the user has not got.
+ */
+function sameJobAlternatives(
+  ex: Exercise,
+  banned: Set<StressTag>,
+  tier: EquipmentTier,
+  used: Set<string>,
+  seed: number
+): SwapOption[] {
+  const source = pickableByName().get(ex.name.toLowerCase())?.template;
+  const area = bodyRegionOf(ex.primaryMuscle ?? source?.primaryMuscle);
+
+  /**
+   * A REHAB DRILL is held to the pain regions it is tagged with, not to the
+   * coarse upper/lower/core split.
+   *
+   * bodyRegionOf was the first thing tried and it is not nearly strict enough:
+   * a knee drill and an ankle stretch are both "lower", so a knee protocol
+   * offered Ankle Circles. Worse, the protocol exercises are frequently not in
+   * the pickable catalogue at all, which left the muscle unknown, the region
+   * 'other', and the filter passing everything - a Terminal Knee Extension
+   * offering a Band Chest Press. Caught by tests/swap-options.check.mjs section
+   * [5], which has always asserted this and until now had no swaps to assert it
+   * against.
+   *
+   * targetRegions is the tagging the app already uses to decide which drill
+   * belongs to which complaint, so the rule is: the stand-in may train a subset
+   * of what the original trains, and nothing outside it. An untagged drill
+   * offers nothing, because an untagged drill cannot be shown to be safe.
+   */
+  const regionsByName = ex.category === 'prehab' ? getRegionsByExerciseNameMap() : null;
+  const ownRegions = regionsByName ? (regionsByName[ex.name] ?? []) : [];
+  const staysOnTarget = (name: string) => {
+    if (!regionsByName) return true;
+    if (ownRegions.length === 0) return false;
+    const alt = regionsByName[name] ?? [];
+    return alt.length > 0 && alt.every((r) => ownRegions.includes(r));
+  };
+
+  /**
+   * The CUE is read as well as the name, which rankedAlternatives does not do.
+   *
+   * Its own cleanliness test passes the name and the movement pattern and stops
+   * there, and that is not enough here: "Incline Push-Up (slow)" is a chest
+   * accommodation whose cue says "reduce chest stretch depth", so the tissue it
+   * loads is named in the sentence rather than in the title. The screen keeps it
+   * out of a session for somebody with a chest complaint, and without this it
+   * came back one tap behind a rehab drill in that same session. Caught by
+   * tests/stretch-screen.check.mjs, which sweeps 1,824 sessions for exactly
+   * this.
+   *
+   * The general fill already reads authored cues for the same reason. This is
+   * that rule applied to the derived options too.
+   */
+  const cueIsClean = (t: ExerciseTemplate) =>
+    restrictedTagsOn(t.name, banned, t.movementPattern, t.cue).length === 0;
+
+  /**
+   * ...and an ACCOMMODATION is not a stand-in for a rehab drill.
+   *
+   * The cue check above passes "Incline Push-Up (slow)" for a chest complaint,
+   * correctly: its wording disclaims the stretch, which is what stops the
+   * screen deleting the gentler push-up and leaving the harder one. But the
+   * drill it was being offered against is Scapular Setting, a zero-load
+   * isometric hold, and trading that for a loaded press in a session where the
+   * user has just reported chest pain is the app making the session harder than
+   * it found it. See disclaimsLengthening in lib/exercise-safety.ts.
+   */
+  const isAccommodation = (t: ExerciseTemplate) =>
+    disclaimsLengthening(`${t.name} ${t.cue ?? ''}`);
+
+  const candidates = rankedAlternatives(ex, banned, tier, used).filter(
+    (t) =>
+      t.name !== ex.name &&
+      t.category === ex.category &&
+      canSubstituteFor(area, t.primaryMuscle) &&
+      cueIsClean(t) &&
+      !(ex.category === 'prehab' && isAccommodation(t)) &&
+      staysOnTarget(t.name)
+  );
+  const reason =
+    ex.category === 'cooldown'
+      ? 'Another stretch for the same area.'
+      : 'Another drill for the same area.';
+  const out: SwapOption[] = [];
+  const take = (list: ExerciseTemplate[], why: string) => {
+    for (const t of rotate(list, seed)) {
+      if (out.length >= SWAP_OPTIONS) break;
+      if (out.some((o) => o.name === t.name)) continue;
+      used.add(t.name.toLowerCase());
+      out.push({ ...describe('movement', t), reason: why });
+    }
+  };
+  take(candidates, reason);
+
+  /**
+   * A COOLDOWN falls back to any other cooldown; a REHAB DRILL never does.
+   *
+   * The catalogue holds eight cooldowns, so when the one same-area stretch is
+   * already in today's session there is nothing left that matches, and eighteen
+   * sessions in the measurement ended with a stretch that had nothing behind
+   * its button. Offering a different area's stretch to finish on is honest and
+   * costs nobody anything.
+   *
+   * The same relaxation on a rehab drill would not be honest. That drill is in
+   * the session because of the joint it is for, and "we had run out of knee
+   * work so here is a shoulder one" is the exact substitution the region check
+   * above exists to prevent. A drill with nothing left to offer keeps its
+   * button hidden, which is the truthful outcome.
+   */
+  if (out.length === 0 && ex.category === 'cooldown') {
+    take(
+      rankedAlternatives(ex, banned, tier, used).filter(
+        (t) => t.name !== ex.name && t.category === 'cooldown' && cueIsClean(t)
+      ),
+      'Another way to finish.'
+    );
+  }
+  return out;
+}
+
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
   return {
     name: t.name,
@@ -2166,12 +2314,31 @@ export function fillSwapAlternatives(
   const inSession = new Set(exercises.map((e) => e.name.toLowerCase()));
 
   return exercises.map((ex, i) => {
-    // A cooldown has nothing meaningful to trade for, and a rehab exercise was
-    // chosen FOR the sore joint — offering to swap it away undoes the session.
-    if (ex.category === 'cooldown' || ex.category === 'prehab') return ex;
     // A safety substitution carries the exercise it REPLACED as its swap, on
     // purpose: that is the revert, and it is labelled as one. Leave it alone.
     if (ex.safetyNote) return ex;
+
+    // A cooldown and a rehab drill swap within their own job rather than not at
+    // all. See sameJobAlternatives for why they cannot go through the general
+    // fill, and why leaving them with nothing was the worse of the two answers.
+    if (ex.category === 'cooldown' || ex.category === 'prehab') {
+      const options = sameJobAlternatives(ex, banned, tier, new Set(inSession), seed + i);
+      if (options.length === 0) return ex;
+      return {
+        ...ex,
+        swapName: options[0]?.name,
+        swapCue: options[0]?.cue,
+        swapLoad: options[0]?.load,
+        swapKind: options[0]?.kind,
+        swapReason: options[0]?.reason,
+        swap2Name: options[1]?.name,
+        swap2Cue: options[1]?.cue,
+        swap2Load: options[1]?.load,
+        swap2Kind: options[1]?.kind,
+        swap2Reason: options[1]?.reason,
+        hasSwap: true,
+      };
+    }
 
     // `inSession` still contains this exercise's own name, so it can never be
     // offered as its own alternative.

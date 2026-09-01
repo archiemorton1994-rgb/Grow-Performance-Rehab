@@ -38,11 +38,11 @@
  * NO REACT AND NO REACT NATIVE IMPORT, so tests/programme.check.mjs can run this
  * rather than read it.
  */
-import type { FitnessGoal, PainRegion, SessionType } from './store';
+import type { ExperienceLevel, FitnessGoal, PainRegion, SessionType } from './store';
 import type {
-  BlockLength,
   InjuryAge,
   ProgrammeFocus,
+  SessionCount,
   SessionLength,
   TrainingDays,
   TreeOutcome,
@@ -199,8 +199,13 @@ export interface EnrolledProgramme {
   templateId: ProgrammeId;
   /** How fast they move through the cycle. Changeable from the hub. */
   days: TrainingDays;
-  /** How long the block runs. Changeable from the hub. */
-  blockWeeks: BlockLength;
+  /**
+   * How many sessions the block runs for. Changeable from the hub.
+   *
+   * Sessions rather than weeks, so the block only advances when somebody trains.
+   * See SessionCount in ./profile-tree for why that is the honest unit.
+   */
+  sessions: SessionCount;
   /** Their usual session length, used as the readiness default. */
   minutes: SessionLength;
   /** ISO timestamp the block began. */
@@ -283,7 +288,7 @@ export function selectProgramme(
   return {
     templateId: templateIdFor(outcome.focus, outcome.days, outcome.experience === 'beginner'),
     days: outcome.days,
-    blockWeeks: outcome.blockWeeks,
+    sessions: outcome.sessions,
     minutes: outcome.minutes,
     startedAt: nowIso,
     startedAtSessionCount: Math.max(0, Math.trunc(sessionCount)),
@@ -299,12 +304,32 @@ export interface ProgrammePosition {
   offPlan: number;
   /** Which session type comes next. */
   next: SessionType;
-  /** 1-based, capped at blockWeeks. */
+  /**
+   * Which week of the block they are in, 1-based and capped at `weeks`.
+   *
+   * Derived from sessions done rather than from the calendar, so it is the
+   * week's worth of work they have reached rather than the week it happens to
+   * be. Somebody who trained twice in a fortnight on a three day plan is still
+   * shown week one, which is true.
+   */
   week: number;
-  /** days x blockWeeks. */
+  /** How many weeks the block works out at, at their stated frequency. */
+  weeks: number;
+  /** The block's length. Same number as the enrolment's `sessions`. */
   totalSessions: number;
   /** True once the block has been finished. */
   complete: boolean;
+}
+
+/**
+ * Sessions expressed as weeks, for anywhere that wants to say "about a month".
+ *
+ * Always a derived, rounded-up figure and never the thing the block is measured
+ * in. Ten sessions at three a week is four weeks of training, which is worth
+ * saying, and is not a promise about any particular four weeks.
+ */
+export function weeksFor(sessions: number, days: TrainingDays): number {
+  return Math.max(1, Math.ceil(sessions / days));
 }
 
 /**
@@ -324,22 +349,62 @@ export function programmePosition(
   sessionTypesSinceEnrolment: SessionType[]
 ): ProgrammePosition {
   const cycle = cycleFor(p.templateId, p.days);
-  const totalSessions = p.days * p.blockWeeks;
-  let onPlan = 0;
-  let offPlan = 0;
-  for (const type of sessionTypesSinceEnrolment) {
-    if (type === cycle[onPlan % cycle.length]) onPlan++;
-    else offPlan++;
-  }
+  const totalSessions = p.sessions;
+  const weeks = weeksFor(totalSessions, p.days);
+  const tags = tagSessions(p, sessionTypesSinceEnrolment);
+  const onPlan = tags.filter((t) => t.onPlan).length;
+  const offPlan = tags.length - onPlan;
   const complete = onPlan >= totalSessions;
   return {
     onPlan,
     offPlan,
     next: cycle[onPlan % cycle.length],
-    week: Math.min(Math.floor(onPlan / p.days) + 1, p.blockWeeks),
+    week: Math.min(Math.floor(onPlan / p.days) + 1, weeks),
+    weeks,
     totalSessions,
     complete,
   };
+}
+
+/**
+ * WHICH OF THE SESSIONS THEY HAVE DONE WERE THE PROGRAMME'S, one tag each.
+ *
+ * The same replay programmePosition runs, pulled out so the two can never
+ * disagree: the counter on the hub and the label on a row in the history are the
+ * same walk of the same list.
+ *
+ * WHY IT NEEDS SAYING AT ALL. "Train whatever you want in between" is the
+ * promise, and the app kept it mechanically from the day the programme landed.
+ * What it did not do was leave a mark. Somebody scrolling back through six weeks
+ * saw twenty-two identical rows and no way to tell the eleven that were their
+ * block from the eleven they chose themselves, so the promise and the evidence
+ * for it were in different places.
+ *
+ * Input is CHRONOLOGICAL, oldest first, and the output is in the same order.
+ */
+export interface SessionPlanTag {
+  /** True when this was the session the programme was asking for at the time. */
+  onPlan: boolean;
+  /** Its 1-based place in the block, for the ones that were. */
+  blockIndex: number | null;
+}
+
+export function tagSessions(
+  p: EnrolledProgramme,
+  sessionTypesSinceEnrolment: SessionType[]
+): SessionPlanTag[] {
+  const cycle = cycleFor(p.templateId, p.days);
+  const out: SessionPlanTag[] = [];
+  let onPlan = 0;
+  for (const type of sessionTypesSinceEnrolment) {
+    if (type === cycle[onPlan % cycle.length]) {
+      onPlan++;
+      out.push({ onPlan: true, blockIndex: onPlan });
+    } else {
+      out.push({ onPlan: false, blockIndex: null });
+    }
+  }
+  return out;
 }
 
 /** The session the programme is asking for now. */
@@ -350,14 +415,131 @@ export function nextSessionType(
   return programmePosition(p, sessionTypesSinceEnrolment).next;
 }
 
-/** What the whole block looks like, for the hub's list. One entry per session. */
+/**
+ * What the whole block looks like, for the hub's list. One entry per session.
+ *
+ * The week number is a grouping for the list, not a date. The last week can hold
+ * fewer sessions than the others, which is what choosing an odd number like ten
+ * on a three day plan actually means, and the list says so rather than padding
+ * it out to something they did not ask for.
+ */
 export function blockPlan(p: EnrolledProgramme): { week: number; type: SessionType }[] {
   const cycle = cycleFor(p.templateId, p.days);
   const out: { week: number; type: SessionType }[] = [];
-  for (let i = 0; i < p.days * p.blockWeeks; i++) {
+  for (let i = 0; i < p.sessions; i++) {
     out.push({ week: Math.floor(i / p.days) + 1, type: cycle[i % cycle.length] });
   }
   return out;
+}
+
+// ─── How hard it is ─────────────────────────────────────────────────────────
+
+/**
+ * The six difficulty labels, easiest first.
+ *
+ * The index into this array IS the score, so the order is load-bearing and the
+ * array is the only place the six words exist.
+ */
+export const DIFFICULTY_LABELS = [
+  'Beginner',
+  'Novice',
+  'Intermediate',
+  'Advanced',
+  'Expert',
+  'Elite',
+] as const;
+
+export type Difficulty = (typeof DIFFICULTY_LABELS)[number];
+
+/**
+ * WHAT THE LABEL DESCRIBES: the programme, not the person.
+ *
+ * Worth being clear about, because the two come apart and the honest answer is
+ * the less flattering one. An experienced lifter who picks Joint Health twice a
+ * week is on a Novice programme. That is not a judgement about them; it is a
+ * true statement about the work, and an app that called it Advanced because the
+ * person is advanced would be flattering them instead of informing them.
+ *
+ * THREE THINGS MAKE IT, and session count is deliberately not one of them.
+ * Twenty sessions of mobility work is not harder than four sessions of heavy
+ * barbell work, it is just longer, and Archie's brief said exactly that.
+ *
+ *   THE WORK      what the template actually prescribes. Barbell and hypertrophy
+ *                 work is demanding; prehab and a return from injury are not
+ *                 meant to be.
+ *   THE VOLUME    five days a week is more than two, of anything.
+ *   THE CAPABILITY  the same template is prescribed differently by experience:
+ *                 the rep schemes, the set counts and the exercises chosen all
+ *                 move with it. See goalsForFocus and lib/rep-scheme.ts.
+ *
+ * AND A CEILING, which is what stops the label being nonsense. A beginner is
+ * never handed an Advanced programme however they answer, because the app will
+ * not prescribe one: it holds them at Novice at most until they have logged the
+ * work. That ceiling is the same idea as the earn-the-barbell rule in
+ * PROGRESSION-LADDERS.md, applied to the whole block rather than one movement.
+ *
+ * WHEN EXERCISE LEVELS LAND, they refine the first term rather than replacing
+ * this function: a template's demand becomes the level band it draws from, which
+ * is a measured number rather than the judgement below.
+ */
+const TEMPLATE_DEMAND: Record<ProgrammeId, number> = {
+  barbell: 1,
+  muscle: 1,
+  upper_lower: 1,
+  lean: 0,
+  foundations: 0,
+  comeback: -1,
+  joints: -1,
+};
+
+const CAPABILITY: Record<ExperienceLevel, number> = {
+  beginner: 0,
+  intermediate: 2,
+  advanced: 3,
+};
+
+/** The hardest label each experience level can be prescribed. See the docblock. */
+const CAPABILITY_CEILING: Record<ExperienceLevel, number> = {
+  beginner: 1,
+  intermediate: 3,
+  advanced: 5,
+};
+
+export interface ProgrammeDifficulty {
+  label: Difficulty;
+  /** 0 to 5, the index into DIFFICULTY_LABELS. */
+  score: number;
+  /** One line, naming what made it that. Shown under the label. */
+  because: string;
+}
+
+export function programmeDifficulty(
+  id: ProgrammeId,
+  experience: ExperienceLevel,
+  days: TrainingDays
+): ProgrammeDifficulty {
+  const work = TEMPLATE_DEMAND[id] ?? 0;
+  const volume = days >= 5 ? 1 : days <= 2 ? -1 : 0;
+  const raw = CAPABILITY[experience] + work + volume;
+  const score = Math.max(0, Math.min(CAPABILITY_CEILING[experience], raw));
+
+  const parts: string[] = [];
+  if (work > 0) parts.push('the work is heavy');
+  else if (work < 0) parts.push('the work is deliberately gentle');
+  if (volume > 0) parts.push('you train five days a week');
+  else if (volume < 0) parts.push('you train twice a week');
+  if (score === CAPABILITY_CEILING[experience] && raw > score) {
+    parts.push('and it goes no further until you have logged the work');
+  }
+
+  return {
+    label: DIFFICULTY_LABELS[score],
+    score,
+    because:
+      parts.length > 0
+        ? `Because ${parts.join(', ')}.`
+        : 'Based on the work it prescribes and how often you train.',
+  };
 }
 
 // ─── Saying why ─────────────────────────────────────────────────────────────
@@ -431,7 +613,20 @@ export function programmeReasons(outcome: TreeOutcome): string[] {
   }
 
   out.push(`${outcome.days} days a week, so your cycle is ${cycleFor(t.id, outcome.days).length} sessions long.`);
-  out.push(`Around ${outcome.minutes} minutes a session, so nothing is prescribed that will not fit.`);
+  out.push(
+    `${outcome.sessions} sessions in the block, about ${weeksFor(outcome.sessions, outcome.days)} weeks at that rate. It is counted in sessions, so it only moves when you train.`
+  );
+  /**
+   * The adaptive half of the time answer, said out loud.
+   *
+   * The generator has always built a shorter session for a shorter day. Nobody
+   * was ever told, so the first time somebody with 30 minutes saw fewer
+   * exercises than the plan showed, the reasonable reading was that the app had
+   * lost something.
+   */
+  out.push(
+    `Around ${outcome.minutes} minutes a session, and a day you only have 30 gives you the same session with less of it rather than a different one.`
+  );
 
   if (outcome.soreRegions.length > 0) {
     const age = outcome.soreFor ? ` ${AGE_WORDS[outcome.soreFor]}` : '';
@@ -440,9 +635,22 @@ export function programmeReasons(outcome: TreeOutcome): string[] {
     );
   }
 
+  /**
+   * Two sentences, because the kit answer has two halves and only one of them
+   * was ever said.
+   *
+   * The first is the promise the equipment fix made true: no equipment means no
+   * equipment, everywhere, including behind the swap button. The second is the
+   * one people needed and never got - what happens on the day the gym is shut.
+   * Everybody gets that half, full gym included, because a full gym is the
+   * answer most likely to be wrong on a Sunday.
+   */
   if (outcome.equipmentTiers.length > 0 && !outcome.equipmentTiers.includes('fullgym')) {
     out.push('Only exercises you have the kit for, so nothing is prescribed you cannot do.');
   }
+  out.push(
+    'You are asked what you have got before every session, so turning up without some of it rebuilds the session rather than costing you it.'
+  );
 
   if (outcome.focus === 'barbell' && outcome.testWeekFrequency !== 'never') {
     out.push(`A strength test every ${outcome.testWeekFrequency} sessions, so the weights stay honest.`);
@@ -486,7 +694,7 @@ export const PROGRAMME_PROMISES: { title: string; body: string }[] = [
   },
   {
     title: 'It changes as you do',
-    body: 'The weights come from what you actually lift, and the session works around whatever is sore that day. If it looks different tomorrow, that is it working.',
+    body: 'The weights come from what you actually lift. The session is built around whatever is sore, whatever kit you have that day and how long you have got. If it looks different tomorrow, that is it working.',
   },
 ];
 

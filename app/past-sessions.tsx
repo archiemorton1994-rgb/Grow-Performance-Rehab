@@ -38,6 +38,23 @@ export default function PastSessionsScreen() {
   const completedSessions = useAppStore((s) => s.completedSessions);
   const weightUnit = useAppStore((s) => s.weightUnit);
   const sex = useAppStore((s) => s.userProfile?.sex);
+  /**
+   * Which of these were the programme's, and which they chose themselves.
+   *
+   * "Train whatever you want in between" has been true since the programme
+   * landed and left no mark on anything, so six weeks of history was twenty-two
+   * identical rows with no way to tell the block from the rest. Sessions logged
+   * before enrolment carry no tag at all, because there was no plan to be on or
+   * off.
+   */
+  const getSessionPlanTags = useAppStore((s) => s.getSessionPlanTags);
+  const programme = useAppStore((s) => s.programme);
+  const planTags = useMemo(
+    () => getSessionPlanTags(),
+    // completedSessions and programme are what the replay reads, so it is
+    // recomputed exactly when one of them moves.
+    [getSessionPlanTags, completedSessions, programme]
+  );
   const topPad = Platform.OS === 'web' ? WEB_TOP_INSET : insets.top;
   const bottomPad = Platform.OS === 'web' ? WEB_BOTTOM_INSET : insets.bottom;
   const total = completedSessions.length;
@@ -48,6 +65,7 @@ export default function PastSessionsScreen() {
       item.durationSeconds && item.durationSeconds > 0
         ? formatDuration(item.durationSeconds)
         : null;
+    const tag = planTags[item.id];
 
     return (
       <Pressable
@@ -75,6 +93,24 @@ export default function PastSessionsScreen() {
             {duration ? ` · ${duration}` : ''}
             {tw > 0 ? ` · ${formatWeight(tw, weightUnit)}` : ''}
           </Text>
+          {/* The distinction, as a chip rather than more grey text. The two
+              read as different KINDS of row at a glance, which is the whole
+              point: neither is worth less, they are just not the same thing. */}
+          {!!tag && (
+            <View
+              style={[styles.planTag, !tag.onPlan && styles.planTagOwn]}
+              testID={tag.onPlan ? `plan-tag-${item.id}` : `own-tag-${item.id}`}
+            >
+              <Ionicons
+                name={tag.onPlan ? 'flag-outline' : 'person-outline'}
+                size={10}
+                color={tag.onPlan ? C.primaryText : C.textTertiary}
+              />
+              <Text style={[styles.planTagText, !tag.onPlan && styles.planTagOwnText]}>
+                {tag.onPlan ? `Programme · session ${tag.blockIndex}` : 'Your own choice'}
+              </Text>
+            </View>
+          )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
       </Pressable>
@@ -173,6 +209,25 @@ function makeStyles(C: AppColors) {
     rowMid: { flex: 1, gap: 3 },
     rowTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', color: C.text },
     rowMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
+    planTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      marginTop: 5,
+      paddingHorizontal: 7,
+      paddingVertical: 2.5,
+      borderRadius: 5,
+      backgroundColor: C.primaryMuted,
+    },
+    planTagOwn: { backgroundColor: C.surfaceSecondary },
+    planTagText: {
+      fontSize: 10.5,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.primaryText,
+      letterSpacing: 0.2,
+    },
+    planTagOwnText: { color: C.textTertiary },
     emptyWrap: {
       flex: 1,
       alignItems: 'center',

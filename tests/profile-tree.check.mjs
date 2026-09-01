@@ -342,8 +342,8 @@ check(
   'an unknown answer has to land on the current default, whatever the ternary happens to be shaped like'
 );
 check(
-  'a block is 12 weeks unless somebody says otherwise',
-  empty.blockWeeks === 12 && outcomeFrom({ length: '8' }).blockWeeks === 8,
+  'a block is 12 sessions unless somebody says otherwise',
+  empty.sessions === 12 && outcomeFrom({ length: '8' }).sessions === 8,
   ''
 );
 check(
@@ -374,6 +374,41 @@ check(
   empty.focus === 'strength',
   'defaulting to barbell is exactly the bug this whole change exists to fix'
 );
+
+// ─── The block-length question ──────────────────────────────────────────────
+console.log('\n[block length]');
+
+{
+  const length = PROFILE_TREE.find((n) => n.id === 'length');
+  check('the question asks for sessions rather than weeks', /sessions/i.test(length.question), length.question);
+  check(
+    'and says so in the hint, because everybody who has used a programme expects weeks',
+    /not weeks/i.test(length.hint ?? ''),
+    length.hint
+  );
+  check(
+    'nine of them, offered as a grid',
+    length.options.length === 9 && length.layout === 'grid',
+    `${length.options.length} options, layout ${length.layout}`
+  );
+  check(
+    // Found by photographing it: nine full-width rows made the card taller than
+    // the phone, on a question you answer by comparing the numbers.
+    'the labels are bare numbers, which is what makes a grid readable',
+    length.options.every((o) => /^\d+$/.test(o.label)),
+    length.options.map((o) => o.label).join(', ')
+  );
+  check(
+    'exactly three carry a caption, so the captions mean something',
+    length.options.filter((o) => o.hint).length === 3,
+    length.options.filter((o) => o.hint).map((o) => `${o.label}: ${o.hint}`).join(' | ')
+  );
+  check(
+    'and the grid layout is asked for on the node rather than guessed from the count',
+    PROFILE_TREE.filter((n) => n.layout === 'grid').length === 1,
+    'the six things a programme can be built around are sentences, not numbers'
+  );
+}
 
 console.log(`\nprofile-tree: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

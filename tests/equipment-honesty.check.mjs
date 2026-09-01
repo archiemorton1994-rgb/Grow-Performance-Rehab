@@ -575,6 +575,49 @@ check(
   'Stats is a tab route and stays mounted, so a param left behind would drag the user to Strength every time they opened it'
 );
 
+// ─── The other half of the promise ───────────────────────────────────────────
+//
+// Everything above is "we never prescribe kit you have not got". That is one
+// half of it and the app was silent about the other: the equipment answer is
+// asked again before EVERY session and the whole workout is rebuilt from that
+// answer, so a day without the gym costs you nothing.
+//
+// It has worked that way for as long as the readiness screen has existed.
+// Nobody was ever told, which made the picker read as a summary of what you own
+// rather than a question about today, and left somebody who answered "full gym"
+// in the builder with no reason to think a hotel room was catered for. Archie
+// asked for it in as many words: "when users specify the equipment available to
+// them in profile builder, they should also know that if on the day they dont
+// have all equipment available, the app should seamlessley adjust accordingly."
+console.log('\n[The app adapts on the day, and says so]');
+
+const readiness = stripComments(src('app/readiness.tsx'));
+const tree = stripComments(src('lib/profile-tree.ts'));
+const programmeSrc = stripComments(src('lib/programme.ts'));
+
+check(
+  'the readiness picker says it is only about today',
+  /Just for today\./.test(readiness) && /rebuilt around/.test(readiness),
+  'the picker reads as a summary of what you own until something says otherwise'
+);
+check(
+  'and the builder tells them the question comes back before every session',
+  /asked again before every session/.test(tree),
+  'somebody answering for their worst day rather than their usual one gets a worse programme'
+);
+check(
+  'the certificate says it too, where the answers are being explained back',
+  /turning up without some of it rebuilds the session/.test(programmeSrc),
+  ''
+);
+check(
+  // Belt and braces on the sentence above: a promise about rebuilding is only
+  // honest while the picker it describes is actually per session.
+  'and the readiness screen really does pass the day-of answer to the generator',
+  /equipmentOverride/.test(readiness) && /getEffectiveTier\(selectedEquipments\)/.test(readiness),
+  'a sentence promising the session adapts, above a control that does not reach the generator'
+);
+
 // ─── Result ──────────────────────────────────────────────────────────────────
 console.log(
   failures === 0

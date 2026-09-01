@@ -626,6 +626,19 @@ export default function ReadinessScreen() {
         {/* Equipment */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Equipment today</Text>
+          {/*
+            The sentence that makes the whole screen make sense.
+
+            The picker has always been per session and has always rebuilt the
+            workout from what is ticked. Nothing said so, so somebody who told
+            the profile builder they had a full gym and then found themselves in
+            a hotel room had no reason to think this screen was for them. It
+            reads as a summary of what you own until it tells you otherwise.
+          */}
+          <Text style={styles.sectionNote}>
+            Just for today. Untick anything you have not got and the session is rebuilt around
+            what is left.
+          </Text>
           {isBeginnerExperience && (
             <View style={styles.beginnerNote}>
               <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
@@ -1597,6 +1610,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginBottom: 6,
       textTransform: 'uppercase' as const,
       letterSpacing: 0.5,
+    },
+    sectionNote: {
+      fontSize: 12,
+      lineHeight: 16.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+      marginTop: -2,
+      marginBottom: 8,
     },
     divider: { height: 1, backgroundColor: C.borderLight },
 

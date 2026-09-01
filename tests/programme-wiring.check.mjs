@@ -192,7 +192,7 @@ check(
   'and they are enrolled in a real programme',
   after.programme?.templateId === 'muscle' &&
     after.programme?.days === 4 &&
-    after.programme?.blockWeeks === 16 &&
+    after.programme?.sessions === 16 &&
     after.programme?.minutes === 30,
   JSON.stringify(after.programme)
 );
@@ -242,10 +242,61 @@ check(
 );
 
 check(
-  'the week number is derived from the on-plan work',
+  'the week number is derived from the on-plan work, and the block is the count they chose',
   S().getProgrammePosition().week === 1 &&
-    S().getProgrammePosition().totalSessions === 36,
+    S().getProgrammePosition().totalSessions === 12 &&
+    S().getProgrammePosition().weeks === 4,
   JSON.stringify(S().getProgrammePosition())
+);
+
+/**
+ * And the history can tell the two apart, session by session.
+ *
+ * The counter above says "one on plan, two off", which is the summary. Looking
+ * back through six weeks, what somebody needs is the mark on the row, and the
+ * reversal from the store's newest-first list to the replay's oldest-first is
+ * the one thing here that is easy to get silently backwards.
+ */
+{
+  const tags = S().getSessionPlanTags();
+  const all = S().completedSessions;
+  const oldest = all[all.length - 1];
+  const newest = all[0];
+  check(
+    'every session since enrolment carries a tag',
+    Object.keys(tags).length === all.length,
+    JSON.stringify(tags)
+  );
+  check(
+    'the joint health session they were asked for is marked as the block, numbered one',
+    tags[oldest.id]?.onPlan === true && tags[oldest.id]?.blockIndex === 1,
+    `oldest is ${oldest.sessionType}: ${JSON.stringify(tags[oldest.id])}`
+  );
+  check(
+    'and the two they chose themselves are marked as their own',
+    tags[newest.id]?.onPlan === false && tags[newest.id]?.blockIndex === null,
+    `newest is ${newest.sessionType}: ${JSON.stringify(tags[newest.id])}`
+  );
+}
+check(
+  'somebody not enrolled has no tags at all, rather than everything marked off plan',
+  (() => {
+    const keep = S().programme;
+    useAppStore.setState({ programme: null });
+    const none = Object.keys(S().getSessionPlanTags()).length;
+    useAppStore.setState({ programme: keep });
+    return none === 0;
+  })(),
+  'work done before there was a plan was not off the plan; there was no plan'
+);
+
+const historyScreen = read('app/past-sessions.tsx');
+check(
+  'and the history screen actually draws the distinction',
+  /getSessionPlanTags/.test(historyScreen) &&
+    /Your own choice/.test(historyScreen) &&
+    /Programme/.test(historyScreen),
+  'the tags existing and nothing showing them is the same as not having them'
 );
 
 // ─── 4. Pausing, switching and leaving ──────────────────────────────────────
@@ -276,17 +327,20 @@ check(
 );
 check(
   'and it keeps the answers that were not about which programme',
-  S().programme.days === 3 && S().programme.blockWeeks === 12,
+  S().programme.days === 3 && S().programme.sessions === 12,
   'switching programme is not re-doing the builder'
 );
 
-S().updateProgramme({ days: 5, blockWeeks: 8 });
+S().updateProgramme({ days: 5, sessions: 8 });
 check(
   'the hub can change days and length',
   S().programme.days === 5 &&
-    S().programme.blockWeeks === 8 &&
-    S().getProgrammePosition().totalSessions === 40,
-  ''
+    S().programme.sessions === 8 &&
+    // The block is the session count itself now, not days multiplied by weeks,
+    // so changing the days a week must NOT change how long the block is.
+    S().getProgrammePosition().totalSessions === 8 &&
+    S().getProgrammePosition().weeks === 2,
+  JSON.stringify(S().getProgrammePosition())
 );
 
 S().leaveProgramme();
@@ -349,10 +403,26 @@ check(
   ),
   'a programme invented for somebody who answered none of the questions is built on nothing'
 );
+/**
+ * The NUMBER, read and compared, not the string.
+ *
+ * This asserted /version: 30,/ exactly, which is the defect this repo keeps
+ * finding in its own tests: it guards the migration by pinning a spelling, so
+ * the next person to bump the version for an unrelated reason gets a red test
+ * that tells them nothing and is fixed by editing the number. What it is
+ * actually for is "the version is past the point the programme migration was
+ * added", and that survives every later bump.
+ */
+const persistVersion = Number(store.match(/^ {6}version: (\d+),$/m)?.[1] ?? -1);
 check(
-  'the store version was bumped so the migration actually runs',
-  /version: 30,/.test(store),
-  'a migration behind a version that never increments is dead code'
+  'the store version is past the one the programme migrations were added behind',
+  persistVersion >= 31,
+  `a migration behind a version that never increments is dead code (read ${persistVersion})`
+);
+check(
+  'a block measured in weeks is converted rather than left to be read as sessions',
+  /'blockWeeks' in persistedState\.programme/.test(store) && /p\.sessions = /.test(store),
+  'blockWeeks 12 read as sessions 12 would silently shorten a three day block to a third of its length'
 );
 
 console.log(`\nprogramme-wiring: ${passed} passed, ${failed} failed`);

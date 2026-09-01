@@ -634,9 +634,43 @@ function TreeRow({
               })()}
 
               {node.kind === 'single' && (
-                <View style={styles.options}>
+                /**
+                 * A GRID, where the node asks for it.
+                 *
+                 * Nine block lengths as nine full-width rows was a card taller
+                 * than the phone, on a question whose whole point is that the
+                 * numbers are comparable: you choose between them by looking at
+                 * them together. Found by photographing it. The layout is
+                 * declared on the node rather than guessed from how many
+                 * options there are, because "9 is a lot" is true of numbers and
+                 * false of the six things a programme can be built around.
+                 */
+                <View style={node.layout === 'grid' ? styles.numberGrid : styles.options}>
                   {options.map((o) => {
                     const on = answers[node.id] === o.value;
+                    if (node.layout === 'grid') {
+                      return (
+                        <Pressable
+                          key={o.value}
+                          onPress={() => onPick(o.value)}
+                          testID={`opt-${node.id}-${o.value}`}
+                          style={({ pressed }) => [
+                            styles.numberCell,
+                            on && { borderColor: go.fill, backgroundColor: C.primarySurface },
+                            pressed && { opacity: 0.85 },
+                          ]}
+                        >
+                          <Text style={[styles.numberCellLabel, on && { color: C.primaryText }]}>
+                            {o.label}
+                          </Text>
+                          {!!o.hint && (
+                            <Text style={styles.numberCellHint} numberOfLines={1}>
+                              {o.hint}
+                            </Text>
+                          )}
+                        </Pressable>
+                      );
+                    }
                     return (
                       <Pressable
                         key={o.value}
@@ -785,6 +819,10 @@ function answerSummary(
   }
   if (node.id === 'bodyweight') return `${v} ${unit}`;
   if (node.id === 'age') return `${v}`;
+  // The grid's labels are bare numbers, which is right inside a nine-cell grid
+  // and wrong on a line of its own halfway up the spine. "12" is not an answer;
+  // "12 sessions" is.
+  if (node.id === 'length') return `${v} sessions`;
   return options.find((o) => o.value === String(v))?.label ?? String(v);
 }
 
@@ -964,6 +1002,29 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       minHeight: 40,
     },
     chipLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.text },
+
+    // Three across, so nine numbers are one glance rather than one scroll.
+    numberGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+    numberCell: {
+      flexBasis: '30%',
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+      minHeight: 62,
+    },
+    numberCellLabel: { fontSize: 19, fontFamily: 'Inter_700Bold', color: C.text },
+    numberCellHint: {
+      fontSize: 10.5,
+      fontFamily: 'Inter_500Medium',
+      color: C.textTertiary,
+      marginTop: 2,
+    },
 
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
     tile: {

@@ -245,5 +245,19 @@ check(
   'the travelling IS the animation here, so it is the one that matters most'
 );
 
+check(
+  // The node asks for a grid; something has to draw one. Declaring the layout
+  // and rendering nine full-width rows anyway is the shape of bug that gets
+  // shipped, because both halves look right on their own.
+  'a node that asks for a grid gets one',
+  /node\.layout === 'grid'/.test(treeCode) && /numberGrid/.test(treeCode),
+  'nine block lengths as nine full-width rows is a card taller than the phone'
+);
+check(
+  'and the collapsed answer says what the number was',
+  /'length'\) return `\$\{v\} sessions`/.test(treeCode),
+  'a bare "12" halfway up the spine is not an answer to anything'
+);
+
 console.log(`\nprofile-builder: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

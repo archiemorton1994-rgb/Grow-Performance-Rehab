@@ -81,8 +81,28 @@ export type TrainingDays = 2 | 3 | 4 | 5;
  */
 export type SessionLength = 30 | 45 | 60;
 
-/** How long the first block runs. */
-export type BlockLength = 8 | 12 | 16;
+/**
+ * How long the first block runs, counted in SESSIONS.
+ *
+ * WHY NOT WEEKS. A block measured in weeks is a promise about the calendar, and
+ * this app has no control over anybody's calendar. Somebody who said three days
+ * a week and then trained twice for a fortnight has not fallen behind a
+ * twelve-week block, but a week counter says they have, and the app that keeps
+ * telling you that you are behind is the app you delete.
+ *
+ * Counted in sessions, the block only moves when they train, so it is a promise
+ * the app can keep. It also lets somebody choose something genuinely short: four
+ * sessions is a fortnight of trying it out, and no number of weeks expresses
+ * that without assuming a frequency.
+ *
+ * Nine choices rather than three, because "how much am I committing to" is the
+ * question people actually hesitate over, and three answers made two of them
+ * wrong for most people.
+ */
+export type SessionCount = 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+
+/** Every count offered, in the order the question lists them. */
+export const SESSION_COUNTS: SessionCount[] = [4, 6, 8, 10, 12, 14, 16, 18, 20];
 
 /** How long something has been sore. Changes whether it is treated as acute. */
 export type InjuryAge = 'days' | 'weeks' | 'months' | 'years';
@@ -130,6 +150,16 @@ export interface TreeNode {
   hintFor?: (a: Answers) => string;
   kind: NodeKind;
   tier: NodeTier;
+  /**
+   * How the options are laid out, where the default is wrong for this node.
+   *
+   * Only 'grid', and only the block-length question wants it. Nine numbers are
+   * chosen by comparing them, so they have to be on screen together; as
+   * full-width rows the card was taller than the phone. Declared on the node
+   * rather than inferred from the option count, because "a lot of options"
+   * means a grid for numbers and does not mean one for sentences.
+   */
+  layout?: 'grid';
   options?: TreeOption[];
   /**
    * A node that collects SEVERAL numbers on one screen, e.g. the three best
@@ -285,16 +315,26 @@ export const PROFILE_TREE: TreeNode[] = [
   },
 
   {
+    /**
+     * Sessions, not weeks. See SessionCount for why.
+     *
+     * Nine options, which is one past the eight that make the screen switch from
+     * full-width rows to chips. That is deliberate: nine numbers read as a scale
+     * when they sit side by side and as a wall when they are stacked.
+     */
     id: 'length',
-    question: 'How long should your first block be?',
-    hint: 'It finishes with a review of everything that changed.',
+    question: 'How many sessions should your first block be?',
+    hint: 'Counted in sessions, not weeks, so it only moves when you train. It finishes with a review of everything that changed.',
     kind: 'single',
     tier: 'shape',
-    options: [
-      { value: '8', label: '8 weeks', hint: 'Short, if you have a date in mind' },
-      { value: '12', label: '12 weeks', hint: 'The usual choice' },
-      { value: '16', label: '16 weeks', hint: 'Slower, good after an injury' },
-    ],
+    layout: 'grid',
+    options: SESSION_COUNTS.map((n) => ({
+      value: String(n),
+      label: String(n),
+      // Three captions, on the three that need one. A caption on all nine would
+      // be nine sentences saying the same thing in ascending order.
+      hint: n === 4 ? 'Try it out' : n === 12 ? 'Usual' : n === 20 ? 'Long build' : undefined,
+    })),
   },
 
   // ── TUNE: what the engine needs to set loads and pick exercises ──────────
@@ -352,9 +392,19 @@ export const PROFILE_TREE: TreeNode[] = [
     skipLabel: 'Rather not say',
   },
   {
+    /**
+     * The hint answers the question people actually stall on here.
+     *
+     * "Pick everything you can get to" invited somebody to think about the worst
+     * day rather than the usual one, because nothing on the screen said what
+     * happens when the usual one does not turn up. It does not lock anything in:
+     * the readiness screen asks again before every session and the whole session
+     * is built from that answer. Saying so is the difference between an honest
+     * answer here and a hedged one.
+     */
     id: 'equipment',
     question: 'What have you got to train with?',
-    hint: 'Pick everything you can get to.',
+    hint: 'Pick what you usually have. You are asked again before every session, so a day without the gym just builds a different one.',
     kind: 'multi',
     tier: 'tune',
     options: [
@@ -621,7 +671,8 @@ export interface TreeOutcome {
   focus: ProgrammeFocus;
   days: TrainingDays;
   minutes: SessionLength;
-  blockWeeks: BlockLength;
+  /** How many sessions the first block runs for. */
+  sessions: SessionCount;
   experience: ExperienceLevel;
   ageYears: number;
   sex: Sex;
@@ -660,7 +711,17 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
     focus: (answers.focus as ProgrammeFocus) ?? 'strength',
     days: (num(answers.days, 3) as TrainingDays) ?? 3,
     minutes: (num(answers.minutes, 45) as SessionLength) ?? 45,
-    blockWeeks: (num(answers.length, 12) as BlockLength) ?? 12,
+    /**
+     * Snapped to an offered count rather than trusted.
+     *
+     * An answer that is not one of the nine can only come from a corrupted
+     * draft or an older build, and a block length of 13 would quietly produce a
+     * plan nobody designed. Twelve is the default for the same reason it is
+     * labelled the usual choice.
+     */
+    sessions: SESSION_COUNTS.includes(num(answers.length, 12) as SessionCount)
+      ? (num(answers.length, 12) as SessionCount)
+      : 12,
     experience: (answers.experience as ExperienceLevel) ?? 'beginner',
     ageYears: num(answers.age, 0),
     sex: (answers.sex as Sex) ?? 'other',
