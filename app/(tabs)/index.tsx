@@ -33,6 +33,7 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { useAppStore, STRENGTH_SESSION_TYPES, SESSION_ORDER } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
+import { programmeFor } from '@/lib/programme';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/workout-engine';
@@ -188,6 +189,8 @@ export default function HomeScreen() {
   const tabBarHeight = insets.bottom + 50;
   const {
     completedSessions,
+    programme,
+    getProgrammePosition,
     getCurrentSessionType,
     getStreakDays,
     getThisWeekCount,
@@ -199,7 +202,6 @@ export default function HomeScreen() {
     setUserProfile,
     activeSession,
     clearActiveSession,
-    setCycleStartOffset,
     profilePhotoUri,
     testWeekFrequency,
     weightUnit,
@@ -280,6 +282,23 @@ export default function HomeScreen() {
   };
 
   const suggestedSession = getCurrentSessionType();
+  /**
+   * Which block this session belongs to, and where in it.
+   *
+   * Both null when nobody is enrolled, which is the branch that shows the
+   * chooser instead, so the Today card only ever reads these with a programme
+   * behind them.
+   */
+  const programmeName = programme ? programmeFor(programme.templateId).name : null;
+  const programmeTilePlace = (() => {
+    if (!programme) return null;
+    const pos = getProgrammePosition();
+    if (!pos) return null;
+    return { done: pos.onPlan, total: pos.totalSessions, next: pos.onPlan + 1 };
+  })();
+  const programmePlace = programmeTilePlace
+    ? `Session ${Math.min(programmeTilePlace.next, programmeTilePlace.total)} of ${programmeTilePlace.total}`
+    : null;
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const testWeekProgress = getTestWeekProgress();
@@ -489,7 +508,19 @@ export default function HomeScreen() {
   const sessionsInBlock =
     !testWeek && strengthCount > 0 ? strengthCount % cycleLength || cycleLength : 0;
   const sessionsUntilTest = cycleLength - sessionsInBlock;
-  const showBlockProgress = testsOn && strengthCount >= 1 && !testWeek;
+  /**
+   * The slim bar under the hero, which is about the TEST-WEEK cycle.
+   *
+   * With a programme running it was saying "Cycle 1 · Block 6 / 12" directly
+   * above a tile reading "SESSION 6 of 12 in the block" - two counters, two
+   * different things, the same numbers. So with a programme it now only appears
+   * when it has something the tile does not: a test coming up, or one on hold.
+   */
+  const showBlockProgress =
+    testsOn &&
+    strengthCount >= 1 &&
+    !testWeek &&
+    (!programme || testHeld || sessionsUntilTest <= 2);
   /**
    * Sessions still owed before a withheld test is offered.
    *
@@ -681,22 +712,6 @@ export default function HomeScreen() {
     go();
   };
 
-  const handleFirstSessionChoice = (type: 'squat' | 'bench' | 'deadlift') => {
-    const go = () => {
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const offsets: Record<string, number> = { squat: 0, bench: 1, deadlift: 2 };
-      setCycleStartOffset(offsets[type]);
-      router.push({
-        pathname: '/readiness',
-        params: { sessionType: type, isTestWeek: 'false' },
-      });
-    };
-    if (activeSession) {
-      confirmReplaceActive(go);
-      return;
-    }
-    go();
-  };
 
   const handleResume = () => {
     if (!activeSession) return;
@@ -942,60 +957,44 @@ export default function HomeScreen() {
           {/* Glow wrapper: pulses green after the tab tour completes */}
           <View ref={sessionCardRef} collapsable={false}>
           <Animated.View style={cardGlowStyle}>
-            {completedSessions.length === 0 ? (
-              <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
-                <Text style={styles.todayLabel}>Choose Your First Session</Text>
+            {/**
+              * ONE THING IN THIS BOX: the session your programme is asking for.
+              *
+              * It used to hold three barbell lifts for a brand-new user and the
+              * rotation's next lift for everybody else, neither of which is
+              * anybody's programme. Reported after use: a Squat Session with a
+              * Test Week badge, to somebody who had asked for neither, with no
+              * obvious way to change it.
+              *
+              * So the branch is on the PROGRAMME. Enrolled, and this is the next
+              * session in the block. Not enrolled, and it says so and points at
+              * the page that fixes it, rather than inventing a suggestion.
+              */}
+            {!programme ? (
+              <Animated.View
+                entering={FadeInDown.delay(60).duration(380)}
+                style={styles.todayCard}
+                testID="home-no-programme"
+              >
+                <Text style={styles.todayLabel}>No programme yet</Text>
                 <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
-                  Pick where to start - your program rotates automatically from here.
+                  Pick one and every session is chosen for you. You can still train whatever you
+                  like alongside it.
                 </Text>
-                {/* One accent for all three, on purpose. Squat, bench and
-                    deadlift are the same kind of thing — a KPI barbell session
-                    — and they are already told apart by their name, their
-                    subtitle and their illustration. Giving them a green, a blue
-                    and a purple said "three different kinds of thing", which is
-                    not true, and it was the first screen a new user saw. */}
-                {(
-                  [
-                    {
-                      type: 'squat' as const,
-                      label: SESSION_META.squat.label,
-                      sub: 'Quads · Glutes · Hamstrings',
-                    },
-                    {
-                      type: 'bench' as const,
-                      label: SESSION_META.bench.label,
-                      sub: 'Chest · Shoulders · Triceps',
-                    },
-                    {
-                      type: 'deadlift' as const,
-                      label: SESSION_META.deadlift.label,
-                      sub: 'Back · Hips · Legs',
-                    },
-                  ] as const
-                ).map(({ type, label, sub }) => (
-                  <Pressable
-                    key={type}
-                    onPress={() => handleFirstSessionChoice(type)}
-                    style={({ pressed }) => [
-                      styles.firstChoiceRow,
-                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-                    ]}
-                    testID={`first-session-${type}`}
-                  >
-                    <View style={styles.firstChoiceIcon}>
-                      <Image
-                        source={getSessionImage(type, userProfile?.sex)}
-                        style={styles.firstChoiceImage}
-                        resizeMode="contain"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.firstChoiceLabel}>{label}</Text>
-                      <Text style={styles.firstChoiceSub}>{sub}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-                  </Pressable>
-                ))}
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/program');
+                  }}
+                  style={({ pressed }) => [
+                    styles.startBtn,
+                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                  ]}
+                  testID="home-choose-programme"
+                >
+                  <Ionicons name="git-branch-outline" size={18} color={C.primaryDarkText} />
+                  <Text style={styles.startBtnText}>Choose your programme</Text>
+                </Pressable>
                 <View ref={trainElseRef} collapsable={false} style={styles.trainElseWrap}>
                   <Pressable
                     onPress={handleTrainSomethingElse}
@@ -1012,13 +1011,12 @@ export default function HomeScreen() {
                 {/* THE SAME PROMISE THE TRAIN TAB MAKES, ON THE SCREEN THAT
                     SHOWS IT FIRST.
 
-                    These three are named after the barbell lifts and drawn
+                    The programmes are named after the barbell lifts and drawn
                     with a barbell, and for someone who chose No Equipment that
-                    is the very first thing the app shows them - three pictures
-                    of kit they just said they do not have. The sessions do
-                    adapt, and Train says so in as many words; this is the
-                    screen a brand-new user actually lands on, and it said
-                    nothing at all. */}
+                    is a picture of kit they just said they do not have. The
+                    sessions do adapt, and Train says so in as many words; this
+                    is the screen people actually land on, and it said nothing
+                    at all. */}
                 {!hasFullGym && (
                   <Pressable
                     onPress={() => router.push('/(tabs)/profile')}
@@ -1053,7 +1051,14 @@ export default function HomeScreen() {
                 />
                 <View style={styles.todayCardTop}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.todayLabel}>Today</Text>
+                    {/* The eyebrow names the block this session belongs to, so
+                        the box is unmistakably the programme's rather than a
+                        suggestion from nowhere. It is the sentence that was
+                        missing when somebody opened Home and found a Squat
+                        Session they had never asked for. */}
+                    <Text style={styles.todayLabel} numberOfLines={1}>
+                      {programmeName ? `TODAY · ${programmeName.toUpperCase()}` : 'Today'}
+                    </Text>
                     {/*
                       numberOfLines is load-bearing, not tidiness.
 
@@ -1068,7 +1073,7 @@ export default function HomeScreen() {
                       {suggestedMeta.label}
                     </Text>
                     <Text style={styles.todaySessionSub} numberOfLines={1}>
-                      {suggestedMeta.subtitle}
+                      {programmePlace ?? suggestedMeta.subtitle}
                     </Text>
                   </View>
                   <View style={styles.todayIcon}>
@@ -1227,11 +1232,27 @@ export default function HomeScreen() {
                 style={styles.summaryCardImage}
                 resizeMode="contain"
               />
-              <Text style={styles.summaryCycleLabel}>CYCLE</Text>
-              <Text style={styles.summaryBigNum}>{progCycleNumber}</Text>
-              <Text style={styles.summaryCardTitle}>YOUR PROGRAM</Text>
-              <Text style={styles.summaryCardSub}>
-                {strengthCount === 0 ? 'Get started' : `Session ${(strengthCount % 3) + 1} of 3`}
+              {/* The real block when there is one, and an invitation when there
+                  is not. This tile used to read "CYCLE 10 · Session 3 of 3" to
+                  everybody, which is the three-lift rotation's own counter and
+                  describes nothing for a person on Joint Health. */}
+              <Text style={styles.summaryCycleLabel}>
+                {programme ? 'SESSION' : 'CYCLE'}
+              </Text>
+              <Text style={styles.summaryBigNum}>
+                {programme && programmeTilePlace
+                  ? programmeTilePlace.done
+                  : progCycleNumber}
+              </Text>
+              <Text style={styles.summaryCardTitle} numberOfLines={1}>
+                {programme ? programmeName?.toUpperCase() : 'YOUR PROGRAM'}
+              </Text>
+              <Text style={styles.summaryCardSub} numberOfLines={1}>
+                {programme && programmeTilePlace
+                  ? `of ${programmeTilePlace.total} in the block`
+                  : strengthCount === 0
+                    ? 'Choose one'
+                    : 'Choose a programme'}
               </Text>
             </Pressable>
 
@@ -1726,6 +1747,7 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
       marginLeft: 14,
       flexShrink: 0,
     },
+    todayIconImage: { width: '100%' as any, height: '100%' as any },
     startBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -2015,32 +2037,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
     // The brand-new user's card is the tallest thing on Home: three of these
     // rows are 237pt on their own. Measured, not guessed - see the budget in
     // tests/home-fits.check.mjs.
-    firstChoiceRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 9,
-      borderTopWidth: 1,
-      borderTopColor: C.borderLight,
-    },
-    firstChoiceIcon: {
-      width: 46,
-      height: 46,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-      overflow: 'hidden',
-    },
-    firstChoiceImage: { width: '100%' as any, height: '100%' as any },
-    todayIconImage: { width: '100%' as any, height: '100%' as any },
-    firstChoiceLabel: {
-      fontSize: 15,
-      fontFamily: 'Inter_700Bold',
-      color: C.primaryText,
-      marginBottom: 2,
-    },
-    firstChoiceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
 
     kitCallout: {
       flexDirection: 'row' as const,

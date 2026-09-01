@@ -197,12 +197,42 @@ check(
   JSON.stringify(after.programme)
 );
 
-// The test-week answer is only asked of the barbell path, so it must default
-// rather than come back undefined for everybody else.
+// The test-week answer is only asked of the barbell path. It must never come
+// back undefined, which would break isTestWeekDue for everybody else - and it
+// must not come back as 12 either, which is how somebody building muscle was
+// shown "Test Week 1 of 3" over a squat session they never asked for.
 check(
-  'somebody never asked about strength tests still gets the default',
-  after.testWeekFrequency === 12,
-  'undefined here would break isTestWeekDue for every non-barbell user'
+  'somebody never asked about strength tests is not signed up for them',
+  after.testWeekFrequency === 'never',
+  `got ${JSON.stringify(after.testWeekFrequency)}`
+);
+check(
+  'and a strength test cannot interrupt a programme that has no barbell lift in it',
+  S().getTestWeekProgress().active === false && S().isTestWeekDue() === false,
+  JSON.stringify(S().getTestWeekProgress())
+);
+check(
+  // The other half, or the fix above would read as "test weeks are broken".
+  'while a barbell programme still gets tested exactly as it always has',
+  (() => {
+    reset();
+    S().applyProfileTree(
+      { focus: 'barbell', days: '3', experience: 'advanced', sore: 'no', testWeeks: '12' },
+      '2026-08-31T09:00:00.000Z'
+    );
+    // Dated relative to now rather than to a fixed day. The test-week check
+    // withholds a max attempt from somebody just back off a layoff, so a
+    // fixture pinned to a date in the past reads as exactly that the moment
+    // enough real time passes, and the assertion would rot rather than fail.
+    const twelve = Array.from({ length: 12 }, (_, i) =>
+      session(SESSION_ORDER[i % 3], {
+        date: new Date(Date.now() - i * 2 * 86400000).toISOString(),
+      })
+    );
+    useAppStore.setState({ completedSessions: twelve });
+    return S().testWeekFrequency === 12 && S().getTestWeekProgress().active === true;
+  })(),
+  JSON.stringify(S().getTestWeekProgress())
 );
 
 // ─── 3. The programme decides the session ───────────────────────────────────
@@ -424,6 +454,79 @@ check(
   /'blockWeeks' in persistedState\.programme/.test(store) && /p\.sessions = /.test(store),
   'blockWeeks 12 read as sessions 12 would silently shorten a three day block to a third of its length'
 );
+
+// ─── 5. The programme is the spine of the home screen ───────────────────────
+console.log('\n[5] One thing in the suggested box, and somewhere to go without one');
+
+{
+  const home = read('app/(tabs)/index.tsx');
+  check(
+    // Reported after use: a Squat Session with a Test Week badge, to somebody
+    // who had asked for neither, with no obvious way to change it. The box held
+    // the three-lift rotation's next lift because that is what it fell back to.
+    'the hero branches on whether there IS a programme, not on how much they have trained',
+    /\{!programme \? \(/.test(home) && !/completedSessions\.length === 0 \? \(/.test(home),
+    'a suggestion invented for somebody enrolled in nothing is a suggestion from nowhere'
+  );
+  check(
+    'and the three-lift first-session chooser is gone with it',
+    !/first-session-\$\{type\}/.test(home) && !/Choose Your First Session/.test(home),
+    'three barbell lifts offered to a brand-new user is not their programme either'
+  );
+  check(
+    'with no programme it points at the page that fixes that',
+    /testID="home-choose-programme"/.test(home) && /router\.push\('\/program'\)/.test(home),
+    ''
+  );
+  check(
+    'and the card names the block the session belongs to',
+    /programmeName/.test(home) && /programmeTilePlace/.test(home),
+    'a session with no programme named over it is the same suggestion from nowhere'
+  );
+
+  const chooser = read('components/ChooseProgramme.tsx');
+  check(
+    'the chooser offers every programme by name, and the builder as well',
+    /PROGRAMME_IDS\.map/.test(chooser) && /choose-build-mine/.test(chooser),
+    ''
+  );
+  check(
+    // The sentence that stops the app reading as "pick one or you cannot use
+    // Grow", which is the opposite of true.
+    'and says out loud that nobody has to be on one',
+    /choose-programme-optional/.test(chooser) && /You do not need one/.test(chooser),
+    ''
+  );
+  check(
+    'the rotation screen is still reachable rather than deleted out from under anybody',
+    /choose-programme-keep-rotation/.test(chooser) && /showRotation/.test(read('app/program.tsx')),
+    'somebody nine cycles into the rotation should not lose the screen that shows it'
+  );
+}
+
+check(
+  'enrolling from the chooser produces a block that can be trained immediately',
+  (() => {
+    reset({ completedSessions: [session('conditioning')], lastReadinessTime: '30' });
+    S().enrolInProgramme('joints', '2026-09-01T00:00:00.000Z');
+    const p = S().programme;
+    const pos = S().getProgrammePosition();
+    return (
+      p?.templateId === 'joints' &&
+      p?.days === 3 &&
+      p?.sessions === 12 &&
+      // The one thing the app already knew, taken rather than guessed.
+      p?.minutes === 30 &&
+      // And it starts at nothing done, rather than inheriting the session that
+      // was already in the history.
+      p?.startedAtSessionCount === 1 &&
+      pos?.onPlan === 0 &&
+      S().getCurrentSessionType() === cycleFor('joints', 3)[0]
+    );
+  })(),
+  JSON.stringify(S().programme)
+);
+
 
 console.log(`\nprogramme-wiring: ${passed} passed, ${failed} failed`);
 process.exitCode = failed > 0 ? 1 : 0;

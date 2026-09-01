@@ -62,7 +62,15 @@ import { bandLabel } from '@/lib/exercise-levels';
 export interface ProgrammeCertificateProps {
   programme: EnrolledProgramme;
   outcome: TreeOutcome;
-  /** What the button says. The builder finishes; the hub just closes. */
+  /**
+   * What the button says.
+   *
+   * "Take a tour" by default, because that is what happens next: the tabs open
+   * on the tour intro for anybody who has not done it. It used to say "Start
+   * training", which sent somebody who had just spent two minutes answering
+   * questions straight past the explanation of everything they had just been
+   * given. The hub passes its own label, because from there it just closes.
+   */
   ctaLabel?: string;
   onContinue: () => void;
 }
@@ -73,7 +81,7 @@ const step = (i: number) => 90 + i * 70;
 export function ProgrammeCertificate({
   programme,
   outcome,
-  ctaLabel = 'Start training',
+  ctaLabel = 'Take a tour',
   onContinue,
 }: ProgrammeCertificateProps) {
   const C = useColors();

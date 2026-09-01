@@ -66,8 +66,11 @@ check(
   'this is the view every existing user opens, and it must not have been gutted'
 );
 check(
-  'the cycle badge is hidden for somebody on a programme',
-  /\{!programme && onStrengthProgramme && \(/.test(screenCode),
+  // The badge belongs to the rotation view, so it is now gated on that view
+  // being the one on screen: a programme hides it, and so does the chooser that
+  // an unenrolled user lands on first.
+  'the cycle badge only appears over the rotation view it belongs to',
+  /\{!programme && showRotation && onStrengthProgramme && \(/.test(screenCode),
   '"Cycle 3" counts barbell sessions towards a strength test, which means nothing on Joint Health'
 );
 check(

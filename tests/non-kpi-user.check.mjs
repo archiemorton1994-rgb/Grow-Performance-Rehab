@@ -411,8 +411,12 @@ check(
 console.log('\n[4] Home does not count down to an event that will not happen');
 
 check(
+  // Asserted on the CONDITION rather than on how it is spelled. This pinned
+  // `const showBlockProgress = testsOn &&` on one line, so wrapping the
+  // expression over several - which is what happened when a programme was added
+  // to it - failed a test with no opinion about formatting.
   'the block progress bar is gated on tests being on',
-  /const showBlockProgress = testsOn &&/.test(home),
+  /const showBlockProgress =[\s\S]{0,80}?\btestsOn\b/.test(home),
   'a "Test week in 3 sessions" bar is nonsense once tests are off'
 );
 

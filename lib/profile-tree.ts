@@ -702,7 +702,20 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
   const soreRegions = Array.isArray(answers.soreArea)
     ? (answers.soreArea as PainRegion[])
     : [];
-  const rawTest = String(answers.testWeeks ?? '12');
+  /**
+   * NOT ASKED MEANS NOT WANTED, rather than "every 12 sessions by default".
+   *
+   * The question is only put to people whose programme is built on the barbell
+   * lifts. Everybody else used to be defaulted to 12, so that isTestWeekDue
+   * could never read undefined - which is safe and is also how somebody who
+   * came to the app for their knee ended up being told it was Test Week and
+   * offered a one-rep max squat. Reported from use.
+   *
+   * The answer stands where it was given. Where it was not, "never" is the
+   * honest reading of a question nobody was asked.
+   */
+  const askedAboutTests = answers.focus === 'barbell';
+  const rawTest = String(answers.testWeeks ?? (askedAboutTests ? '12' : 'never'));
   const testWeekFrequency: TestWeekFrequency =
     rawTest === 'never' ? 'never' : rawTest === '18' ? 18 : 12;
 

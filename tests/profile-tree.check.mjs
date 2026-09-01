@@ -321,9 +321,21 @@ console.log('\n[6] A half-finished answer set still produces a working app');
 
 const empty = outcomeFrom({});
 check(
-  'test weeks default to every 12 sessions',
-  empty.testWeekFrequency === 12,
-  'that is what the builder does today for anyone who does not touch it'
+  // The question is only asked of people whose programme is built on the three
+  // lifts. Defaulting everybody else to 12 is how somebody who came to the app
+  // for their knee was shown "Test Week 1 of 3" over a squat session, reported
+  // from use. Not asked is now read as not wanted.
+  'test weeks default to every 12 sessions for the barbell path, and to never for everybody else',
+  outcomeFrom({ focus: 'barbell' }).testWeekFrequency === 12 &&
+    outcomeFrom({ focus: 'joints' }).testWeekFrequency === 'never' &&
+    empty.testWeekFrequency === 'never',
+  `barbell ${outcomeFrom({ focus: 'barbell' }).testWeekFrequency}, joints ${outcomeFrom({ focus: 'joints' }).testWeekFrequency}`
+);
+check(
+  'and an answer that WAS given still stands, whatever the focus',
+  outcomeFrom({ focus: 'muscle', testWeeks: '18' }).testWeekFrequency === 18 &&
+    outcomeFrom({ focus: 'barbell', testWeeks: 'never' }).testWeekFrequency === 'never',
+  ''
 );
 check(
   'and "no thanks" survives as never rather than becoming a number',

@@ -554,91 +554,18 @@ for (const key of PARITY_TOKENS) {
   }
 }
 
-// ─── F. Colour carries category, never instance — the first-session chooser ──
+// ─── F. RETIRED: the first-session chooser ───────────────────────────────────
 //
-// The three rows of "Choose Your First Session" are the first coloured thing a
-// new user ever sees. They used to be a green row, a blue row and a purple row,
-// which tells the user these are three different kinds of session. They are
-// not: squat, bench and deadlift are one category, a KPI barbell session, and
-// they are already told apart by their name, their subtitle and their picture.
+// This section read the three rows of "Choose Your First Session" off the home
+// screen and asserted they wore ONE ink, because squat, bench and deadlift are
+// one category and colouring them green, blue and purple told a new user they
+// were three different kinds of thing.
 //
-// So this reads the titles' ink off the screen rather than trusting a list:
-// every colour those three rows can paint their own title with, resolved in
-// both themes. There must be exactly one, and it must be the brand accent.
-
-console.log('\n── First-session chooser — one accent for the three strength sessions ──');
-
-const homeSrc = readFileSync(join(ROOT, 'app', '(tabs)', 'index.tsx'), 'utf8');
-
-// The card, from its heading down to the end of the row list.
-const chooserMatch = homeSrc.match(
-  /Choose Your First Session([\s\S]*?)\n {14}<\/Animated\.View>/
-);
-
-total++;
-if (!chooserMatch) {
-  console.error('  ✗ could not find the first-session chooser in app/(tabs)/index.tsx');
-  console.error('    Fix: this check reads the screen; update it alongside the layout.');
-  failures++;
-} else {
-  const block = chooserMatch[1];
-  const rowTypes = [...block.matchAll(/type:\s*'(\w+)' as const/g)].map((m) => m[1]);
-
-  // Two places a row title's colour can come from: an ink named inside the row
-  // definitions, or the shared `firstChoiceLabel` style. Both are collected —
-  // a per-row `color` reappearing in the array is exactly the regression here.
-  const inlineInks = [...block.matchAll(/\bcolor:\s*C\.(\w+)/g)].map((m) => m[1]);
-  const labelStyle = homeSrc.match(/firstChoiceLabel:\s*\{([\s\S]*?)\}/);
-  const styleInk = labelStyle?.[1].match(/\bcolor:\s*C\.(\w+)/)?.[1];
-  const inks = [...new Set([...inlineInks, ...(styleInk ? [styleInk] : [])])];
-
-  total++;
-  if (rowTypes.length !== 3) {
-    console.error(
-      `  ✗ parsed ${rowTypes.length} chooser row(s), expected squat/bench/deadlift — ` +
-        'the card\'s shape has changed'
-    );
-    console.error('    Fix: this check reads the screen; update it alongside the layout.');
-    failures++;
-  } else {
-    console.log(`  ✓ 3 rows found: ${rowTypes.join(', ')}`);
-  }
-
-  total++;
-  if (inks.length === 0) {
-    console.error('  ✗ found no ink for the chooser row titles — the parse has gone stale');
-    failures++;
-  } else if (inks.length > 1) {
-    console.error(
-      `  ✗ the three rows can be painted ${inks.length} different colours (${inks.join(', ')})`
-    );
-    console.error(
-      '    Fix: squat, bench and deadlift are one category. Colour must carry the category, ' +
-        'not the instance — the name and the icon already tell them apart.'
-    );
-    failures++;
-  } else {
-    console.log(`  ✓ one ink for all three rows: ${inks[0]}`);
-
-    for (const [themeName, T] of Object.entries(THEMES)) {
-      total++;
-      const ink = T[inks[0]];
-      const brand = T.primaryText;
-      if (!ink || !brand) {
-        console.error(`  ✗ ${themeName} — ${inks[0]} or primaryText missing`);
-        failures++;
-      } else if (ink.toLowerCase() === brand.toLowerCase()) {
-        console.log(`  ✓ ${themeName} — that ink is the brand accent (${ink})`);
-      } else {
-        console.error(
-          `  ✗ ${themeName} — rows are ${ink}, brand accent is ${brand}: not the brand colour`
-        );
-        console.error('    Fix: this is a green-branded product; its KPI sessions wear the brand.');
-        failures++;
-      }
-    }
-  }
-}
+// That card no longer exists. The home hero now shows the session the user's
+// PROGRAMME is asking for, or, when there is no programme, a single button to
+// go and choose one - so there are no longer three sibling rows to be coloured
+// consistently or otherwise. The rule it protected is not gone: it is the same
+// rule sections A to E enforce everywhere else on the screen.
 
 // ─── G. The Restore accents are one derived family ───────────────────────────
 //

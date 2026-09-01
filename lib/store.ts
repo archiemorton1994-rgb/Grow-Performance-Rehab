@@ -30,7 +30,13 @@ import {
 import type { Answers, InjuryAge } from './profile-tree';
 import { outcomeFrom } from './profile-tree';
 import type { EnrolledProgramme, ProgrammePosition, SessionPlanTag } from './programme';
-import { goalsForFocus, programmePosition, selectProgramme, tagSessions } from './programme';
+import {
+  cycleFor,
+  goalsForFocus,
+  programmePosition,
+  selectProgramme,
+  tagSessions,
+} from './programme';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -873,6 +879,16 @@ interface AppState {
   updateProgramme: (
     patch: Partial<Pick<EnrolledProgramme, 'days' | 'sessions' | 'minutes'>>
   ) => void;
+  /**
+   * Start a programme without going back through the profile builder.
+   *
+   * For the two people the builder does not cover: somebody who was using Grow
+   * before programmes existed, and somebody who left theirs and wants another.
+   * Neither has a fresh set of tree answers and neither should be made to
+   * re-answer twelve questions to pick a different block, so this fills the
+   * shape from what the app already knows and lets the hub change the rest.
+   */
+  enrolInProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
   /** Swap to a different programme, starting a fresh block from today. */
   switchProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
   setProgrammePaused: (paused: boolean) => void;
@@ -1709,6 +1725,31 @@ export const useAppStore = create<AppState>()(
        * block starts at week one. Without that, somebody switching programmes in
        * week nine would land in week nine of the new one.
        */
+      enrolInProgramme: (templateId, nowIso) =>
+        set((s) => ({
+          programme: {
+            templateId,
+            /**
+             * Three days and twelve sessions, and both are changeable on the
+             * very next screen.
+             *
+             * They are the two questions the builder asks that this route
+             * skips, and a wrong guess here costs nothing because the hub they
+             * land on puts both controls in front of them. Guessing from their
+             * history was the alternative and it is worse: somebody's last
+             * fortnight is a description of the fortnight they had, not of the
+             * week they are trying to have.
+             */
+            days: s.programme?.days ?? 3,
+            sessions: s.programme?.sessions ?? 12,
+            // The one thing the app DOES know, because the readiness screen has
+            // been remembering it after every session.
+            minutes: (Number(s.lastReadinessTime) || 45) as EnrolledProgramme['minutes'],
+            startedAt: nowIso,
+            startedAtSessionCount: s.completedSessions.length,
+          },
+        })),
+
       switchProgramme: (templateId, nowIso) =>
         set((s) =>
           s.programme
@@ -1920,6 +1961,34 @@ export const useAppStore = create<AppState>()(
         // is asking not to be tested, and "you still owe us two more" is not an
         // answer to that.
         if (testWeekFrequency === 'never') return idleOff;
+
+        /**
+         * A STRENGTH TEST BELONGS TO A PROGRAMME BUILT ON THE BARBELL LIFTS.
+         *
+         * Reported from use: a home screen reading "Test Week 1 of 3" above a
+         * Squat Session, to somebody whose programme was nothing of the sort.
+         * Two things caused it and both are fixed here.
+         *
+         * The test-week question is only ASKED on the barbell path, and
+         * everybody else was defaulted to every 12 sessions so that
+         * isTestWeekDue could not read undefined. Safe, and wrong: it quietly
+         * signed up the person who came to the app because their knee hurts for
+         * a one-rep max attempt.
+         *
+         * So: if a programme is running and its cycle contains none of the
+         * three lifts, a strength test is not part of their plan and never
+         * interrupts it. Somebody enrolled in nothing at all is untouched -
+         * that is every existing user, and their rotation still tests them.
+         */
+        const enrolled = get().programme;
+        if (
+          enrolled &&
+          !cycleFor(enrolled.templateId, enrolled.days).some((t) =>
+            SESSION_ORDER.includes(t)
+          )
+        ) {
+          return idleOff;
+        }
 
         const strength = completedSessions.filter((s) =>
           SESSION_ORDER.includes(s.sessionType)

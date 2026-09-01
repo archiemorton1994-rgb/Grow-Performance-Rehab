@@ -32,6 +32,7 @@ import { programContextMessage, sessionsUntilTest } from '@/lib/test-week-copy';
 import { nonStrengthContextMessage } from '@/lib/program-copy';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import { ProgrammeHub } from '@/components/ProgrammeHub';
+import { ChooseProgramme } from '@/components/ChooseProgramme';
 import { daysSince } from '@/lib/utils';
 import { resumeParams } from '@/lib/resume-params';
 
@@ -82,6 +83,8 @@ export default function ProgramScreen() {
   const scrollHint = useScrollIndicator();
   const C = useColors();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  /** Set from the chooser, for somebody who wants the rotation view back. */
+  const [showRotation, setShowRotation] = React.useState(false);
 
   const {
     completedSessions,
@@ -302,7 +305,8 @@ export default function ProgramScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Your Program</Text>
         </View>
-        {!programme && onStrengthProgramme && (
+        {/* The rotation's own badge, so it belongs to the rotation view. */}
+        {!programme && showRotation && onStrengthProgramme && (
           <View style={styles.cycleBadge}>
             <Text style={styles.cycleBadgeText}>Cycle {progCycleNumber}</Text>
           </View>
@@ -310,14 +314,27 @@ export default function ProgramScreen() {
       </View>
 
       {/**
-       * ENROLLED, SO THE HUB. Everything below this line is the screen as it was
-       * before programmes existed: the three-lift rotation, its cycle dots and
-       * its countdown to a strength test. It is still exactly right for anybody
-       * with programme === null, which is every user who has not been through
-       * the profile tree, and it is left completely alone for them.
+       * ENROLLED, SO THE HUB. Otherwise the chooser.
+       *
+       * This used to fall through to the three-lift rotation screen, which is a
+       * description of what the app had been doing rather than a choice anybody
+       * made - and it was the only thing "Your Program" could lead to for a user
+       * who had never been through the builder. Reported after use: a Squat
+       * Session and a Test Week badge, with nowhere obvious to go and change it.
+       *
+       * The rotation view is still below and still exactly right for somebody
+       * who wants it; it is reached from the chooser rather than being the only
+       * answer to the question "what am I training".
        */}
       {programme ? (
         <ProgrammeHub />
+      ) : !showRotation ? (
+        <ChooseProgramme
+          onKeepRotation={
+            // Only offered to somebody who actually has a rotation behind them.
+            completedSessions.length > 0 ? () => setShowRotation(true) : undefined
+          }
+        />
       ) : (
       <>
       <ScrollView
