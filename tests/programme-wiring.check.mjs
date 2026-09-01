@@ -320,6 +320,40 @@ check(
   'work done before there was a plan was not off the plan; there was no plan'
 );
 
+{
+  const stats = read('components/ProgrammeStats.tsx');
+  const statsTab = read('app/(tabs)/workouts.tsx');
+  check(
+    // "The stats will also need a revamp to focus more on the program side of
+    // things rather than individual exercises." Everything on Overview counted
+    // sessions in the abstract and nothing said how the block was going.
+    // Read forward from the block rather than comparing to the FIRST StatStrip:
+    // there are two, and the first is in the empty-state branch for somebody
+    // who has never trained, which this card is deliberately not part of.
+    'Stats leads with the block rather than with individual exercises',
+    /<ProgrammeStats \/>/.test(statsTab) &&
+      statsTab.indexOf('<StatStrip', statsTab.indexOf('<ProgrammeStats />')) > -1,
+    'the programme has to sit above the counters, or it is another card in a stack'
+  );
+  check(
+    'and it shows the split the app has been promising all along',
+    /position\.offPlan/.test(stats) && /your own choice/.test(stats),
+    'training something else costing nothing is a claim until a number shows it'
+  );
+  check(
+    'it renders nothing at all for somebody not on a programme',
+    /if \(!programme \|\| !position\) return null;/.test(stats),
+    'a card about a block, to somebody with no block'
+  );
+  check(
+    // Every figure on it is replayed from the sessions list, so nothing on this
+    // card can disagree with the history it is drawn from.
+    'every figure comes from the replay rather than from a stored counter',
+    /getProgrammePosition/.test(stats) && !/programme\.onPlan/.test(stats),
+    ''
+  );
+}
+
 const historyScreen = read('app/past-sessions.tsx');
 check(
   'and the history screen actually draws the distinction',

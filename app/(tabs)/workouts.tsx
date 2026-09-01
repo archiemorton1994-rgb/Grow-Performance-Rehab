@@ -44,6 +44,7 @@ import {
   PANEL_BG,
 } from '@/components/BodyDiagram';
 import { PainInsightSheet } from '@/components/PainInsightSheet';
+import { ProgrammeStats } from '@/components/ProgrammeStats';
 // The same anchor the assistant uses, for the same reason: the first three
 // sessions of an exercise are estimates from a questionnaire, not lifts.
 import {
@@ -4383,6 +4384,13 @@ export default function StatsScreen() {
             showsVerticalScrollIndicator={false}
             {...ovHint.handlers}
           >
+            {/* THE BLOCK LEADS, because it is what they are actually doing.
+                Everything below counts sessions in the abstract - this week,
+                this streak, all time - and none of it says how the programme is
+                going. Renders nothing at all for somebody not on one, so this
+                screen is unchanged for them. */}
+            <ProgrammeStats />
+
             {/* 3 key stat pills */}
             <StatStrip
               innerRef={statPillsRef}
