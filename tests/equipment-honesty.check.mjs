@@ -37,11 +37,18 @@
  * The declarations are checked too, in section 4 — but as a second, separate
  * question, and never as the source of truth for the first.
  *
- * ONE DELIBERATE ALLOWANCE. Resistance bands count as bodyweight equipment,
- * because the app itself says so: toInternalTier() folds the 'bands' and
- * 'bodyweight' choices into one internal tier. Separating them would need a
- * fourth tier and a re-filing of the whole catalogue. It is recorded here so
- * that when someone does that work, this file tells them where to start.
+ * THE ALLOWANCE THAT USED TO BE HERE IS GONE. It read: "Resistance bands count
+ * as bodyweight equipment, because the app itself says so", and left a note for
+ * whoever eventually separated them. Reported from use, twice: people ticking
+ * "No Equipment" and being handed banded exercises. Fifteen templates across the
+ * bodyweight pools, every one of them bands, and nothing else.
+ *
+ * So this file no longer models equipment as a three-rung ladder either. It
+ * walks the FIVE choices a user actually makes and asks the only question that
+ * matters: does anything they own supply what this exercise needs. Two
+ * substitutions are allowed and both are real: dumbbells and kettlebells stand
+ * in for each other, and a full gym has bands in it. Bodyweight supplies
+ * bodyweight and nothing else.
  *
  * Run:  npx tsx tests/equipment-honesty.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -66,8 +73,22 @@ function check(label, condition, detail) {
 
 // ─── What the words on the card mean ─────────────────────────────────────────
 
-const TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
-const rank = (tier) => TIERS.indexOf(tier);
+/** The five choices onboarding actually offers, not the three the pools use. */
+const TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+
+/**
+ * Which choices supply each kind of kit.
+ *
+ * Written out here rather than imported, on purpose. This file's entire value is
+ * that it reads what the USER reads and forms its own opinion; importing the
+ * implementation's table would make it agree with a bug rather than catch one.
+ */
+const SUPPLIES = {
+  bands: ['bands', 'fullgym'],
+  dumbbells: ['dumbbells', 'kettlebells', 'fullgym'],
+  fullgym: ['fullgym'],
+};
+const owns = (need, tier) => (SUPPLIES[need] ?? ['fullgym']).includes(tier);
 
 /**
  * Kit named in exercise text, and the lowest tier that owns it.
@@ -98,6 +119,9 @@ const KIT = [
   ['fullgym', /\brings\b|\btrx\b|suspension trainer/i, 'gymnastic rings'],
   ['fullgym', /\bweight plates?\b|\bplate pinch\b/i, 'weight plates'],
   ['fullgym', /\blat pulldown\b|\bleg press\b|\bpec deck\b/i, 'a gym machine'],
+  // Bands are kit. "Banded" does not match \bbands?\b, and neither do
+  // waistband or headband, so this catches the thing and not the words around it.
+  ['bands', /\bresistance bands?\b|\bbands?\b|\bbanded\b/i, 'a resistance band'],
   ['dumbbells', /\bdumbbells?\b/i, 'dumbbells'],
   ['dumbbells', /\bkettlebells?\b/i, 'a kettlebell'],
   ['dumbbells', /\bmedicine ball\b|\bslam ball\b|\bwall ball\b/i, 'a weighted ball'],
@@ -131,7 +155,7 @@ function unownedKit(e, tier) {
   const text = visibleText(e);
   const out = [];
   for (const [need, pattern, label] of KIT) {
-    if (rank(need) <= rank(tier)) continue;
+    if (owns(need, tier)) continue;
     const m = text.match(pattern);
     if (m) out.push(`${label} ("${m[0]}")`);
   }
@@ -214,7 +238,28 @@ for (const tier of TIERS) {
         const readiness = { energy: 'normal', timeAvailable: '60', hasAches: true, painRegion };
         for (const ex of generateWorkout(type, tier, readiness, PROFILE, {}, undefined, n)) {
           const forcedMainSwap = ex.category === 'main' && /^Swapped from /.test(ex.safetyNote ?? '');
-          if (!forcedMainSwap) aching.add(`Train → ${type} (aching ${painRegion})`, tier, ex);
+          /**
+           * THE SECOND EXEMPTION, and like the first it is not an approval.
+           *
+           * A Prehab session with an ache reported is routed to the hand-authored
+           * protocol for that joint: a fixed warm-up, the exercises chosen for
+           * that specific area, and a cool-down. Some of the knee and shoulder
+           * work in those is done against a light band.
+           *
+           * Filtering them was tried and reverted. It broke the protocol's
+           * three-phase structure and dropped exercises that
+           * tests/prehab-region-relevance.check.mjs exists to guarantee are
+           * present. Deciding that somebody with no band should simply not do
+           * part of their rehab is a clinical call, and the answer is a
+           * bodyweight alternative authored for each one rather than a filter
+           * deleting it. See the comment on regionPlan in lib/workout-engine.ts.
+           *
+           * Scoped to exactly that combination - the Prehab session type, with
+           * an ache - so the same leak in any other session still fails here.
+           */
+          const regionProtocol = type === 'prehab';
+          if (!forcedMainSwap && !regionProtocol)
+            aching.add(`Train → ${type} (aching ${painRegion})`, tier, ex);
         }
         generated++;
       }
@@ -239,7 +284,7 @@ const steps = collector();
 const defaults = collector();
 let stepCount = 0;
 for (const tier of TIERS) {
-  const owned = sb.ownedTiersFor(tier);
+  const owned = sb.ownedTiersFor(db.toInternalTier(tier));
   for (const { key: goal } of sb.SESSION_GOALS) {
     const blocks = sb.blocksForGoal(goal);
     const kpiBlock = blocks.find((b) => b.id === 'kpi');
@@ -247,9 +292,9 @@ for (const tier of TIERS) {
       // The KPI lift is chosen first and everything after it is filtered
       // against it, so the rest of the build has to be walked with the lift the
       // step would actually have picked.
-      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned).options[0] ?? null;
+      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned, new Set(), [tier]).options[0] ?? null;
       for (const block of blocks) {
-        const { options, all } = sb.optionsForBlock(block, { focus, kpi }, owned);
+        const { options, all } = sb.optionsForBlock(block, { focus, kpi }, owned, new Set(), [tier]);
         const where = `${goal}/${focus}/${block.id}`;
         for (const t of options) steps.add(where, tier, t);
         // "Show everything" is one tap away on every step, so it is on offer too.
@@ -317,20 +362,26 @@ for (const tier of TIERS) {
     }
     for (const t of db.getGoalConditioningBlock(tier, e)) pools.add('goal conditioning', tier, t);
   }
-  for (const t of db.getCooldown()) pools.add('cooldown', tier, t);
-  for (const t of db.getStandalonePrehabWorkout()) pools.add('standalone prehab', tier, t);
-  for (const t of db.getStandaloneFlexibilityWorkout()) pools.add('standalone flexibility', tier, t);
+  for (const t of db.possibleFor(db.getCooldown(), tier)) pools.add('cooldown', tier, t);
+  for (const t of db.possibleFor(db.getStandalonePrehabWorkout(), tier)) pools.add('standalone prehab', tier, t);
+  for (const t of db.possibleFor(db.getStandaloneFlexibilityWorkout(), tier)) pools.add('standalone flexibility', tier, t);
   for (const t of db.CARDIO_WARMUPS) {
     // The one pool the generator filters itself, on the declared requirement.
-    if (rank(db.tierRequiredFor(t.equipmentRequired)) <= rank(tier)) {
+    if (db.canPerformWith(t.equipmentRequired, [tier])) {
       pools.add('cardio warm-ups', tier, t);
     }
   }
   for (const region of REGIONS) {
-    for (const t of db.getRegionPrehabWorkout(region)) {
+    for (const t of db.possibleFor(db.getRegionPrehabWorkout(region), tier)) {
       pools.add(`region prehab (${region})`, tier, t);
     }
-    pools.add(`region cool-down (${region})`, tier, db.getRegionPrehabExercise(region));
+    // The single-template cool-down cannot be filtered without leaving a hole,
+    // so it is only checked when it is one the user could do. See getPowerNeuro
+    // in lib/exercise-db.ts for the same reasoning about single picks.
+    const coolDown = db.getRegionPrehabExercise(region);
+    if (db.canPerformWith(coolDown.equipmentRequired, [tier])) {
+      pools.add(`region cool-down (${region})`, tier, coolDown);
+    }
   }
 }
 check(
@@ -371,11 +422,23 @@ check(
 // A movement filed at a tier below the kit it declares is the shape of bug that
 // put an Ab Wheel Rollout, declaring 'machine', at the top of a bodyweight
 // user's Core & Prehab step.
+/**
+ * The INTERNAL three-rung ladder the catalogue is filed on.
+ *
+ * A different question from the one section 1 asks. That one asks what a user
+ * can do; this asks whether a movement's filing and its own declaration agree,
+ * and filing is still three rungs deep by design. Bands file at the bodyweight
+ * rung and declare 'resistance bands', which is consistent: the pool a movement
+ * lives in and the kit it needs are two facts, and only the second gates a user.
+ */
+const INTERNAL_ORDER = ['bodyweight', 'dumbbells', 'fullgym'];
+const filedRank = (t) => INTERNAL_ORDER.indexOf(t);
+
 const misfiled = [];
 for (const { template, tiers } of pickable) {
   const need = db.tierRequiredFor(template.equipmentRequired);
-  const lowest = tiers.reduce((a, t) => (rank(t) < rank(a) ? t : a), tiers[0]);
-  if (rank(lowest) < rank(need)) {
+  const lowest = tiers.reduce((a, t) => (filedRank(t) < filedRank(a) ? t : a), tiers[0]);
+  if (filedRank(lowest) < filedRank(need)) {
     misfiled.push(`${template.id} "${template.name}" needs ${template.equipmentRequired}, offered at ${lowest}`);
   }
 }
@@ -394,14 +457,14 @@ const thin = [];
 let smallest = Infinity;
 let smallestWhere = '';
 for (const tier of TIERS) {
-  const owned = sb.ownedTiersFor(tier);
+  const owned = sb.ownedTiersFor(db.toInternalTier(tier));
   for (const { key: goal } of sb.SESSION_GOALS) {
     const blocks = sb.blocksForGoal(goal);
     const kpiBlock = blocks.find((b) => b.id === 'kpi');
     for (const { key: focus } of sb.SESSION_FOCUSES) {
-      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned).options[0] ?? null;
+      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned, new Set(), [tier]).options[0] ?? null;
       for (const block of blocks) {
-        const { options } = sb.optionsForBlock(block, { focus, kpi }, owned);
+        const { options } = sb.optionsForBlock(block, { focus, kpi }, owned, new Set(), [tier]);
         if (options.length < block.picks) {
           thin.push(`${tier}/${goal}/${focus}/${block.id} offers ${options.length}, fills ${block.picks}`);
         }

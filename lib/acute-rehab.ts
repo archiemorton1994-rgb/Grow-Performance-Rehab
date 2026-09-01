@@ -995,7 +995,7 @@ const A_BAND_CHEST_PRESS_LIGHT_SHORT_RANGE: ExerciseTemplate =
     targetRegions: ['chest'],
     videoId: '',
     movementPattern: 'rehabilitation',
-    equipmentRequired: 'bodyweight',
+    equipmentRequired: 'resistance bands',
     difficulty: 'beginner',
   };
 
@@ -1643,7 +1643,7 @@ const A_ISOMETRIC_BAND_ROW_HOLD_LIGHT: ExerciseTemplate =
     targetRegions: ['upper_back'],
     videoId: '',
     movementPattern: 'rehabilitation',
-    equipmentRequired: 'bodyweight',
+    equipmentRequired: 'resistance bands',
     difficulty: 'beginner',
   };
 
@@ -1717,7 +1717,7 @@ const A_BAND_STRAIGHT_ARM_PRESS_DOWN_SHORT_RANGE: ExerciseTemplate =
     targetRegions: ['lat_mid_back'],
     videoId: '',
     movementPattern: 'rehabilitation',
-    equipmentRequired: 'bodyweight',
+    equipmentRequired: 'resistance bands',
     difficulty: 'beginner',
   };
 

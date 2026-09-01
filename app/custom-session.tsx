@@ -259,8 +259,17 @@ export default function CustomSessionScreen() {
     deleteTemplate,
     updateTemplate,
     completedSessions,
+    equipmentTiers,
   } = useAppStore();
   const tier = getEffectiveTier();
+  /**
+   * The user's OWN five choices, not the single effective tier.
+   *
+   * getEffectiveTier collapses them to the best one, which cannot tell somebody
+   * who ticked "No Equipment" from somebody who ticked resistance bands, and the
+   * builder was offering banded work to the first of them.
+   */
+  const userKit = equipmentTiers && equipmentTiers.length ? equipmentTiers : [tier];
 
   const pickable = useMemo(() => getAllPickableExercises(), []);
   const allExercises = useMemo(() => pickable.map((p) => p.template), [pickable]);
@@ -676,7 +685,7 @@ export default function CustomSessionScreen() {
 
   const stepOptions = useMemo(() => {
     if (!activeBlock) return { options: [], widened: false, all: [] };
-    return optionsForBlock(activeBlock, relevanceCtx, ownedTiers, pickedNames);
+    return optionsForBlock(activeBlock, relevanceCtx, ownedTiers, pickedNames, userKit);
   }, [activeBlock, relevanceCtx, ownedTiers, pickedNames]);
 
   /**
@@ -724,7 +733,7 @@ export default function CustomSessionScreen() {
           if (id === block.id) continue;
           for (const p of list ?? []) others.add(p.template.name);
         }
-        const { options } = optionsForBlock(block, { focus, kpi: prev.kpi?.[0]?.template ?? null }, ownedTiers, others);
+        const { options } = optionsForBlock(block, { focus, kpi: prev.kpi?.[0]?.template ?? null }, ownedTiers, others, userKit);
         // The app is choosing here, not the user. Recorded so that changing the
         // KPI lift later can re-choose it rather than preserve it as if it had
         // been picked on purpose.

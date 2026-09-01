@@ -1,8 +1,9 @@
-import type { CustomExercise, ExerciseCategory, PainRegion } from './store';
+import type { CustomExercise, EquipmentTier, ExerciseCategory, PainRegion } from './store';
 import {
   getAllPickableExercises,
   getMainLift,
   tierRequiredFor,
+  canPerformWith,
   type ExerciseTemplate,
   type InternalTier,
 } from './exercise-db';
@@ -1178,7 +1179,21 @@ function availableIn(e: IndexedExercise, owned: InternalTier[]): boolean {
  * The requirement is now checked directly rather than inferred from where the
  * catalogue happens to file a movement, so the two cannot disagree again.
  */
-function equipmentAllows(t: ExerciseTemplate, owned: InternalTier[]): boolean {
+function equipmentAllows(
+  t: ExerciseTemplate,
+  owned: InternalTier[],
+  userKit?: readonly EquipmentTier[]
+): boolean {
+  /**
+   * The user's OWN five choices where the caller has them.
+   *
+   * tierRequiredFor answers on a three-rung internal ladder where bands and
+   * bodyweight share a rung, so this returned true for a banded lateral walk
+   * offered to somebody who had ticked "No Equipment" and nothing else. Given
+   * the real selection, canPerformWith asks whether anything they own supplies
+   * what the movement needs, which is the question that was always meant.
+   */
+  if (userKit) return canPerformWith(t.equipmentRequired, userKit);
   return owned.includes(tierRequiredFor(t.equipmentRequired));
 }
 
@@ -1310,14 +1325,16 @@ export function optionsForBlock(
   block: BuilderBlock,
   ctx: RelevanceContext,
   owned: InternalTier[],
-  exclude: Set<string> = new Set()
+  exclude: Set<string> = new Set(),
+  /** The five choices the user actually made. See equipmentAllows. */
+  userKit?: readonly EquipmentTier[]
 ): StepOptions {
   const taken = new Set([...exclude].map((n) => n.toLowerCase()));
   const pool = index().filter(
     (e) =>
       e.roles.includes(block.category) &&
       availableIn(e, owned) &&
-      equipmentAllows(e.template, owned) &&
+      equipmentAllows(e.template, owned, userKit) &&
       !taken.has(e.template.name.toLowerCase())
   );
 
@@ -1340,18 +1357,46 @@ export function optionsForBlock(
       )
       .map((e) => e.template);
 
+  /**
+   * A template's ALTERNATIVES have to be possible too.
+   *
+   * An exercise the user can do carries a hand-authored swap and a comfort
+   * variant, and a great many of those reach for a band. Offering somebody with
+   * no equipment a Fire Hydrant is right; handing it over with "Banded
+   * Clamshell" attached, ready to appear behind the swap button the moment they
+   * start the session, is the same leak one field further in.
+   *
+   * Stripped rather than replaced. A missing alternative costs one option on a
+   * sheet; an impossible one costs the session.
+   */
+  const usable = (t: ExerciseTemplate): ExerciseTemplate => {
+    if (!userKit) return t;
+    const swapOk =
+      !t.swapAlternative ||
+      canPerformWith(t.swapAlternative.equipmentRequired ?? t.equipmentRequired, userKit);
+    const comfortOk =
+      !t.comfortVariant ||
+      canPerformWith(t.comfortVariant.equipmentRequired ?? t.equipmentRequired, userKit);
+    if (swapOk && comfortOk) return t;
+    const out: ExerciseTemplate = { ...t };
+    if (!swapOk) delete out.swapAlternative;
+    if (!comfortOk) delete out.comfortVariant;
+    return out;
+  };
+  const clean = (list: ExerciseTemplate[]) => list.map(usable);
+
   const min = minOptionsFor(block);
   const direct = pool.filter((e) => relevanceOf(block.category, e.template, ctx) === 'direct');
   if (direct.length >= min) {
-    return { options: sort(direct), widened: false, all: sort(pool) };
+    return { options: clean(sort(direct)), widened: false, all: clean(sort(pool)) };
   }
 
   const related = pool.filter((e) => relevanceOf(block.category, e.template, ctx) !== 'none');
   if (related.length >= min) {
-    return { options: sort(related), widened: true, all: sort(pool) };
+    return { options: clean(sort(related)), widened: true, all: clean(sort(pool)) };
   }
 
-  return { options: sort(pool), widened: true, all: sort(pool) };
+  return { options: clean(sort(pool)), widened: true, all: clean(sort(pool)) };
 }
 
 // ─── Keeping the later blocks honest when the KPI lift changes ───────────────

@@ -17,6 +17,24 @@ type MainSessionType = Exclude<
 export type InternalTier = 'bodyweight' | 'dumbbells' | 'fullgym';
 const INTERNAL_TIERS: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
 
+/**
+ * The best-equipped of a selection, which is what chooses the POOL.
+ *
+ * Deliberately separate from canPerformWith, which chooses what survives from
+ * it. Somebody with a full gym and nothing else and somebody with a full gym and
+ * bands draw from the same pool; only the second of them is offered the bands.
+ */
+function effectiveOf(tier: EquipmentTier | readonly EquipmentTier[]): EquipmentTier {
+  if (!Array.isArray(tier)) return tier as EquipmentTier;
+  const ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+  let best = 0;
+  for (const t of tier as readonly EquipmentTier[]) {
+    const i = ORDER.indexOf(t);
+    if (i > best) best = i;
+  }
+  return ORDER[best];
+}
+
 export function toInternalTier(tier: EquipmentTier): InternalTier {
   if (tier === 'bands' || tier === 'bodyweight') return 'bodyweight';
   if (tier === 'kettlebells' || tier === 'dumbbells') return 'dumbbells';
@@ -59,6 +77,127 @@ const EQUIPMENT_TIER: Record<string, InternalTier> = {
 
 /** Every value `equipmentRequired` is allowed to take. */
 export const EQUIPMENT_NAMES: string[] = Object.keys(EQUIPMENT_TIER);
+
+/**
+ * WHICH OF THE FIVE CHOICES CAN SUPPLY EACH PIECE OF KIT.
+ *
+ * This is the table EQUIPMENT_TIER above should have been all along. That one
+ * answers "how well equipped must you be", on a three-rung ladder, which cannot
+ * express the one thing users kept reporting: somebody who ticked "No Equipment"
+ * and nothing else has no resistance bands, and 'bands' and 'bodyweight' sit on
+ * the same rung of that ladder.
+ *
+ * Capability is not a ladder. It is a set. A person owns some of these five
+ * things and not others, and an exercise is possible when at least one of the
+ * things they own supplies what it needs.
+ *
+ * TWO DELIBERATE SUBSTITUTIONS, both of which a physiotherapist would make:
+ *   - dumbbells and kettlebells satisfy each other. A goblet squat, a row and a
+ *     Romanian deadlift are the same exercise with either, and the catalogue
+ *     files them together for that reason.
+ *   - a full gym supplies everything, bands included. Every gym has bands.
+ *
+ * And one deliberate refusal: bodyweight supplies NOTHING except bodyweight. A
+ * pull-up bar is not bodyweight because the movement is unloaded, and neither is
+ * a band because it is light. That conflation is the whole bug.
+ */
+const EQUIPMENT_SUPPLIED_BY: Record<string, EquipmentTier[]> = {
+  bodyweight: ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'],
+  'resistance bands': ['bands', 'fullgym'],
+  dumbbells: ['dumbbells', 'kettlebells', 'fullgym'],
+  kettlebell: ['dumbbells', 'kettlebells', 'fullgym'],
+  'ab wheel': ['fullgym'],
+  barbell: ['fullgym'],
+  'cable machine': ['fullgym'],
+  'foam roller': ['fullgym'],
+  'full gym': ['fullgym'],
+  fullgym: ['fullgym'],
+  machine: ['fullgym'],
+  'pull-up bar': ['fullgym'],
+  'stability ball': ['fullgym'],
+};
+
+/**
+ * A pool, minus anything this person has not got the kit for.
+ *
+ * The exported form of the same filter the accessors apply internally, for
+ * the pools that take no equipment tier at all: the prehab circuits, the
+ * stretch pool, the cooldowns. Their comments call them equipment-agnostic
+ * and several of them contain light band work.
+ */
+export function possibleFor(
+  pool: ExerciseTemplate[] | undefined,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate[] {
+  return onlyPossible(pool, ownedFrom(tier));
+}
+
+/**
+ * Can this person do this exercise, with what they said they have.
+ *
+ * Anything undeclared or unrecognised needs a full gym, which is the same way
+ * tierRequiredFor fails. Hiding a mis-tagged movement from somebody who cannot
+ * perform it costs a beginner nothing; showing it costs them the session.
+ */
+export function canPerformWith(
+  equipmentRequired: string | undefined,
+  owned: readonly EquipmentTier[]
+): boolean {
+  const suppliers = EQUIPMENT_SUPPLIED_BY[(equipmentRequired ?? '').toLowerCase()] ?? ['fullgym'];
+  return suppliers.some((tier) => owned.includes(tier));
+}
+
+/**
+ * The list a pool accessor filters against.
+ *
+ * Callers hold either the user's whole selection or the single effective tier
+ * derived from it. A single tier is treated as owning only itself, which is the
+ * strict reading and the correct one: somebody whose effective tier is
+ * 'bodyweight' owns bodyweight and nothing else.
+ */
+function ownedFrom(tier: EquipmentTier | readonly EquipmentTier[]): readonly EquipmentTier[] {
+  return Array.isArray(tier) ? tier : [tier as EquipmentTier];
+}
+
+/**
+ * The pool, minus anything this person has not got the kit for.
+ *
+ * AND minus the ALTERNATIVES they have not got the kit for. An exercise carries
+ * a hand-authored swap and a gentler comfort variant, and a great many of those
+ * reach for a band the parent movement never needed: a Fire Hydrant offers a
+ * Banded Clamshell, a Glute Bridge offers the same. Filtering the pool but
+ * leaving those attached moves the leak one tap behind the swap button rather
+ * than closing it.
+ *
+ * Stripped rather than replaced. A missing alternative costs one option on a
+ * sheet; an impossible one costs the session.
+ */
+function onlyPossible(
+  pool: ExerciseTemplate[] | undefined,
+  owned: readonly EquipmentTier[]
+): ExerciseTemplate[] {
+  return (pool ?? [])
+    .filter((t) => canPerformWith(t.equipmentRequired, owned))
+    .map((t) => withPossibleVariants(t, owned));
+}
+
+/** A template with any alternative the user cannot perform removed. */
+export function withPossibleVariants(
+  t: ExerciseTemplate,
+  owned: readonly EquipmentTier[]
+): ExerciseTemplate {
+  const swapOk =
+    !t.swapAlternative ||
+    canPerformWith(t.swapAlternative.equipmentRequired ?? t.equipmentRequired, owned);
+  const comfortOk =
+    !t.comfortVariant ||
+    canPerformWith(t.comfortVariant.equipmentRequired ?? t.equipmentRequired, owned);
+  if (swapOk && comfortOk) return t;
+  const out: ExerciseTemplate = { ...t };
+  if (!swapOk) delete out.swapAlternative;
+  if (!comfortOk) delete out.comfortVariant;
+  return out;
+}
 
 /**
  * The lowest tier that owns the kit a template asks for.
@@ -116,12 +255,23 @@ export interface ExerciseTemplate {
     name: string;
     cue: string;
     suggestedLoad: string;
+    /**
+     * The kit THIS variant needs, when it differs from its parent's.
+     *
+     * Absent means "the same as the exercise it hangs off", which is right for
+     * a genuine variation and wrong for the forty-one variants that quietly
+     * reached for a band, a cable or a machine the parent never needed. Filled
+     * in from each variant's own name, which is where every one of them says so.
+     */
+    equipmentRequired?: string;
   };
   comfortVariant?: {
     name: string;
     cue: string;
     suggestedLoad: string;
     triggerRegions: PainRegion[];
+    /** See swapAlternative.equipmentRequired. */
+    equipmentRequired?: string;
   };
 }
 
@@ -168,6 +318,7 @@ export const CARDIO_WARMUPS: ExerciseTemplate[] = [
     isUnilateral: false,
     injuryFriendlyAlternatives: [],
     swapAlternative: {
+      equipmentRequired: 'machine',
       name: 'Cardio Machine Warm-Up',
       cue: 'Treadmill or bike at easy pace - get blood moving before stretching',
       suggestedLoad: 'Low intensity',
@@ -239,6 +390,7 @@ export const CARDIO_WARMUPS: ExerciseTemplate[] = [
     isUnilateral: false,
     injuryFriendlyAlternatives: [],
     swapAlternative: {
+      equipmentRequired: 'machine',
       name: 'Cardio Machine Warm-Up',
       cue: 'Treadmill or brisk walk if no bike available',
       suggestedLoad: 'Low intensity',
@@ -534,6 +686,7 @@ const PREP: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = 
           suggestedLoad: '8-12 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Standing Hip Circle (no band)',
           cue: 'Hands on hips, draw large slow circles - gentle hip capsule opener, no knee load',
           suggestedLoad: 'Bodyweight',
@@ -798,6 +951,7 @@ const PREP: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> = 
         isUnilateral: false,
         injuryFriendlyAlternatives: ['Cross-Body Arm Swing'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Face Pull (light cable)',
           cue: 'Pull to forehead, external rotate at top - rotator cuff activation',
           suggestedLoad: 'Light cable',
@@ -1110,6 +1264,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, stay low, step side to side - glute activation without hip rotation',
           suggestedLoad: 'Light band',
@@ -1163,6 +1318,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Supine Glute Squeeze'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell',
           cue: 'Heels together, rotate knee up - glute med activation with band resistance',
           suggestedLoad: 'Light band',
@@ -1189,7 +1345,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Quadriceps'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Seated Hip Abduction'],
         swapAlternative: {
           name: 'Monster Walk',
@@ -1249,7 +1405,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Hip external rotators'],
         difficulty: 'beginner',
         isUnilateral: true,
-        equipmentRequired: 'dumbbells',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Lateral Band Walk'],
         swapAlternative: {
           name: 'Fire Hydrant',
@@ -1257,6 +1413,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, stay low, step side to side - glute activation without hip rotation',
           suggestedLoad: 'Light band',
@@ -1307,9 +1464,10 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Quadriceps'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'dumbbells',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Seated Hip Abduction'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell',
           cue: 'Heels together, rotate knee up - glute med activation lying down',
           suggestedLoad: 'Light band',
@@ -1396,7 +1554,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Hip external rotators'],
         difficulty: 'beginner',
         isUnilateral: true,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Lateral Band Walk'],
         swapAlternative: {
           name: 'Fire Hydrant',
@@ -1404,6 +1562,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, stay low, step side to side - glute activation without hip rotation',
           suggestedLoad: 'Light band',
@@ -1433,6 +1592,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
           suggestedLoad: '20-40 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Leg Press (light)',
           cue: 'Light load, full range, slow - prime quads and glutes with zero spinal load',
           suggestedLoad: '40-60 kg',
@@ -1486,11 +1646,13 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Banded Clamshell'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, stay in half-squat, step sideways - glute med activation without machine',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell',
           cue: 'Lie on side, heels together, rotate top knee up - glute med activation with zero joint load',
           suggestedLoad: 'Light band',
@@ -1512,9 +1674,10 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Quadriceps'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Seated Hip Abduction'],
         swapAlternative: {
+      equipmentRequired: 'machine',
           name: 'Hip Abductor Machine Prime',
           cue: 'Seated abduction machine - same glute med target with machine resistance',
           suggestedLoad: '20-40 kg',
@@ -1692,7 +1855,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Rear deltoid', 'Trapezius'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'dumbbells',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Doorway Chest Stretch'],
         swapAlternative: {
           name: 'Prone Y-T-W Raise',
@@ -1782,6 +1945,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Prone Y Raise'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Arms straight, pull band to chest - rear delt and scapular activation with band',
           suggestedLoad: 'Light band',
@@ -1839,9 +2003,10 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Rear deltoid', 'Trapezius'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Doorway Chest Stretch'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Face Pull',
           cue: 'Pull to forehead, external rotate at top - rotator cuff primer',
           suggestedLoad: 'Light cable',
@@ -1871,6 +2036,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Prone Y Raise'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Arms straight, pull to chest - rear delt and scapular activation',
           suggestedLoad: 'Light band',
@@ -2138,6 +2304,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Supine Glute Squeeze'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hip Thrust (activation)',
           cue: 'Light DB on hips, squeeze at top for 2s - prime the glutes before the main lift',
           suggestedLoad: '8-12 kg',
@@ -2225,6 +2392,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Cat-Cow'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift (light)',
           cue: 'Add light DBs, maintain same hinge pattern - move from drill to loaded practice',
           suggestedLoad: '8-12 kg per hand',
@@ -2254,6 +2422,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Hip Hinge Drill (Wall)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift (light)',
           cue: 'Two-legged RDL - same hinge pattern with more stability',
           suggestedLoad: '8-12 kg per hand',
@@ -2311,7 +2480,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         secondaryMuscles: ['Erector spinae', 'Glutes'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'barbell',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Cat-Cow Flow'],
         swapAlternative: {
           name: 'Glute Ham Raise (partial)',
@@ -2343,6 +2512,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Hip Hinge Drill (Wall)'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Good Morning',
           cue: 'Band across the upper back, not the neck, hinge at hips - same posterior chain primer without the cable',
           suggestedLoad: 'Light band',
@@ -2401,6 +2571,7 @@ const MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Pull-Through',
           cue: 'Hinge pattern with cable - hamstring activation through hip extension',
           suggestedLoad: '20-30 kg cable',
@@ -2802,6 +2973,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out',
           cue: 'Band in front, explosive punch extensions - 10 fast reps',
           suggestedLoad: 'Light band',
@@ -2860,6 +3032,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out',
           cue: 'Band in front, explosive punch extensions - upper body power without impact',
           suggestedLoad: 'Light band',
@@ -2889,6 +3062,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out',
           cue: 'Band in front, 10 fast punch extensions - upper body prime with no impact',
           suggestedLoad: 'Light band',
@@ -2920,6 +3094,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out',
           cue: 'Band in front, explosive punch extensions - 10 fast reps',
           suggestedLoad: 'Light band',
@@ -3096,6 +3271,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: '4-6 kg ball',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out',
           cue: 'Band in front, explosive punch extensions - no impact version',
           suggestedLoad: 'Light band',
@@ -3271,6 +3447,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Broad Jump'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Power Clean',
           cue: 'Hinge down, explosive pull to front rack - hip snap drives the weight up',
           suggestedLoad: '10-16 kg per hand',
@@ -3300,6 +3477,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Broad Jump'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest height - same posterior chain power without the catch',
           suggestedLoad: '16-20 kg',
@@ -3329,6 +3507,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Standing Long Step'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest height - same hinge power with external load',
           suggestedLoad: '16-20 kg',
@@ -3358,6 +3537,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Broad Jump'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest - same power chain without the jump',
           suggestedLoad: '16-20 kg',
@@ -3418,11 +3598,13 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['KB Swing (Explosive)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest height - same power chain, no catch required',
           suggestedLoad: '20-28 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest height - posterior chain power without barbell catch demand',
           suggestedLoad: '20-28 kg',
@@ -3452,6 +3634,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
           suggestedLoad: '40-60 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Hip snap to chest height - same power chain without the barbell',
           suggestedLoad: '20-28 kg',
@@ -3476,6 +3659,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Standing Long Step'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing (Explosive)',
           cue: 'Loaded hip snap to chest - same hinge power with external resistance',
           suggestedLoad: '20-28 kg',
@@ -3517,11 +3701,13 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell (fast)',
           cue: 'Standard clamshell but faster tempo - fire the glute quickly, not just activate it',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, stay low, step side to side - glute activation without rotation demand',
           suggestedLoad: 'Light band',
@@ -3577,11 +3763,13 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell (fast)',
           cue: 'Standard clamshell, fast tempo - fire the glute quickly, not just activate',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, step side to side - glute activation without rotation',
           suggestedLoad: 'Light band',
@@ -3637,11 +3825,13 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Hip Circle (fast)',
           cue: 'Mini band around knees, fast hip circles - resistance makes the speed demand harder',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Lateral Band Walk',
           cue: 'Band around ankles, step side to side - gentler activation without rotation',
           suggestedLoad: 'Light band',
@@ -3671,6 +3861,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
           suggestedLoad: 'Light weight',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Leg Press (light, fast)',
           cue: 'Light load, drive the sled fast - explosive intent without spinal load',
           suggestedLoad: '20-40 kg',
@@ -3788,6 +3979,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Punch-Out (fast)',
           cue: 'Band in front, explosive punch extensions - upper body speed training',
           suggestedLoad: 'Light band',
@@ -3819,6 +4011,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Face Pull (light, fast)',
           cue: 'Light weight, pull to forehead fast - speed with scapular control',
           suggestedLoad: 'Light cable',
@@ -3941,6 +4134,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hip Thrust (activation, fast)',
           cue: 'Light DB on hips, snap hips to full extension quickly - prime the posterior chain at speed',
           suggestedLoad: '8-12 kg',
@@ -4030,6 +4224,7 @@ const POWER_MECHANICAL: Record<MainSessionType, Record<InternalTier, ExerciseTem
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Good Morning (fast)',
           cue: 'Band across the upper back, not the neck, hinge and drive back fast - lighter load, same speed practice',
           suggestedLoad: 'Medium band',
@@ -4165,6 +4360,7 @@ const POWER_NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         suggestedLoad: 'Bodyweight',
       },
       comfortVariant: {
+      equipmentRequired: 'resistance bands',
         name: 'Band Punch-Out',
         cue: 'Band in front, explosive punch extensions - 10 fast reps',
         suggestedLoad: 'Light band',
@@ -4194,6 +4390,7 @@ const POWER_NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         suggestedLoad: 'Bodyweight',
       },
       comfortVariant: {
+      equipmentRequired: 'resistance bands',
         name: 'Band Punch-Out',
         cue: 'Band in front, explosive punch extensions - 10 fast reps',
         suggestedLoad: 'Light band',
@@ -4278,6 +4475,7 @@ const POWER_NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
       isUnilateral: false,
       injuryFriendlyAlternatives: [],
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'KB Swing (Explosive)',
         cue: 'Hip snap - bell goes where hips send it, not arm pull',
         suggestedLoad: '16-20 kg',
@@ -4312,6 +4510,7 @@ const POWER_NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         suggestedLoad: '35-60 kg',
       },
       comfortVariant: {
+      equipmentRequired: 'dumbbells',
         name: 'KB Swing (Explosive)',
         cue: 'Hip snap - bell goes where hips send it, not arm pull',
         suggestedLoad: '20-28 kg',
@@ -4372,6 +4571,7 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
       equipmentRequired: 'dumbbells',
       injuryFriendlyAlternatives: ['Tempo Goblet Squat'],
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Sumo Squat',
         cue: 'Wide stance, toes out, DB between legs - targets inner thigh and glute differently',
         suggestedLoad: '16-24 kg',
@@ -4466,11 +4666,13 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
       equipmentRequired: 'dumbbells',
       injuryFriendlyAlternatives: ['Floor Dumbbell Press'],
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Incline Press',
         cue: 'Bench at 30-45°, same pressing motion - upper chest emphasis',
         suggestedLoad: '14-22 kg per hand',
       },
       comfortVariant: {
+      equipmentRequired: 'dumbbells',
         name: 'Floor Dumbbell Press',
         cue: 'Floor limits depth - protects shoulder end-range',
         suggestedLoad: '12-20 kg per hand',
@@ -4502,6 +4704,7 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
       equipmentRequired: 'barbell',
       injuryFriendlyAlternatives: ['Close-Grip Bench Press'],
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'Dumbbell Bench Press',
         cue: 'DBs allow full ROM and independent arm movement - same pattern, no bar',
         suggestedLoad: '20-32 kg per hand',
@@ -4568,11 +4771,13 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
       equipmentRequired: 'dumbbells',
       injuryFriendlyAlternatives: ['Single-Leg DB RDL'],
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Sumo Deadlift',
         cue: 'Wide stance, toes out, DBs between legs - more inner thigh and glute drive',
         suggestedLoad: '16-26 kg per hand',
       },
       comfortVariant: {
+      equipmentRequired: 'dumbbells',
         name: 'Single-Leg DB RDL',
         cue: 'One leg, lighter load - better hip dissociation',
         suggestedLoad: '10-16 kg per hand',
@@ -4602,6 +4807,7 @@ const MAIN_LIFTS: Record<MainSessionType, Record<InternalTier, ExerciseTemplate>
         suggestedLoad: '75-120 kg',
       },
       comfortVariant: {
+      equipmentRequired: 'barbell',
         name: 'Trap Bar Deadlift',
         cue: 'Neutral grip, more upright torso - reduce spinal stress',
         suggestedLoad: '60-100 kg',
@@ -4669,6 +4875,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Clamshell',
+          equipmentRequired: 'resistance bands',
           cue: 'Side-lying, controlled hip abduction',
           suggestedLoad: 'Light band',
           triggerRegions: ['hip_groin', 'lower_back', 'glutes', 'hamstrings'],
@@ -4689,7 +4896,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Hip external rotators', 'Quadriceps'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Standing Hip Abduction (hand on wall)'],
         swapAlternative: {
           name: 'Lateral Step-Up',
@@ -4950,7 +5157,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Glutes', 'Adductors'],
         difficulty: 'intermediate',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Partial Wall Sit'],
         swapAlternative: {
           name: 'Wall Sit',
@@ -5037,15 +5244,17 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Glute medius', 'Hamstrings'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Glute Bridge (no band)'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Clamshell',
           cue: 'Side-lying, open top knee against band - glute medius isolation',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
           name: 'Glute Bridge (no band)',
+          equipmentRequired: 'resistance bands',
           cue: 'Without band, focus on squeeze - reduces lateral knee pressure',
           suggestedLoad: 'Bodyweight',
           triggerRegions: ['hip_groin', 'lower_back', 'knee'],
@@ -5129,6 +5338,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Supported Split Squat'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Reverse Lunge',
           cue: 'Step back, control descent - same quad/glute pattern, no rear foot elevation',
           suggestedLoad: '8-14 kg per hand',
@@ -5158,6 +5368,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Single-Leg DB Hip Thrust',
           cue: 'One leg up, drive through working leg - double glute demand per rep',
           suggestedLoad: '12-18 kg',
@@ -5187,6 +5398,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Bodyweight Step-Up (low box)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Reverse Lunge',
           cue: 'Step back, control the descent - same muscles, better balance accessibility',
           suggestedLoad: '8-14 kg per hand',
@@ -5216,12 +5428,14 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Banded Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Leg RDL',
           cue: 'One leg, hinge and reach - same hamstring loading with balance demand',
           suggestedLoad: '8-14 kg per hand',
         },
         comfortVariant: {
           name: 'Banded Good Morning',
+          equipmentRequired: 'resistance bands',
           cue: 'Band across the upper back, not the neck, hinge slowly - hamstring loading with minimal spinal compression',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
@@ -5245,6 +5459,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Box Goblet Squat'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bulgarian Split Squat',
           cue: 'Rear foot elevated, front knee tracks toe - single-leg quad emphasis',
           suggestedLoad: '8-14 kg per hand',
@@ -5274,6 +5489,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Bodyweight Calf Raise'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Single-Leg DB Calf Raise',
           cue: 'One DB, one leg - double load per calf, balance from the free hand',
           suggestedLoad: '10-16 kg',
@@ -5303,12 +5519,14 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Banded Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'DBs at sides, hinge - same posterior chain with less spinal lever',
           suggestedLoad: '12-20 kg per hand',
         },
         comfortVariant: {
           name: 'Banded Good Morning',
+          equipmentRequired: 'resistance bands',
           cue: 'Band across the upper back, not the neck, hinge - minimal spinal compression',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
@@ -5361,6 +5579,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Supported Single-Leg Hinge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'Both feet down, hinge at hips - same hamstring focus without balance demand',
           suggestedLoad: '12-20 kg per hand',
@@ -5390,6 +5609,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Bodyweight Lateral Lunge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bulgarian Split Squat',
           cue: 'Rear foot elevated, front knee tracks toe - more quad isolation',
           suggestedLoad: '8-14 kg per hand',
@@ -5419,6 +5639,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Single-Leg Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hip Thrust',
           cue: 'Two legs, heavier load - same glute pump with more total weight',
           suggestedLoad: '20-32 kg',
@@ -5506,6 +5727,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Shrug Walk'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Farmer Carry',
           cue: 'Both hands, walk tall - bilateral carry, less lateral core demand',
           suggestedLoad: '20-30 kg per hand',
@@ -5537,6 +5759,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Bodyweight Reverse Lunge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bulgarian Split Squat',
           cue: 'Rear foot elevated, front knee tracks toe - more isolation and stretch',
           suggestedLoad: '8-14 kg per hand',
@@ -5566,6 +5789,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Leg Press (Partial ROM)'],
         swapAlternative: {
+      equipmentRequired: 'machine',
           name: 'Hack Squat Machine',
           cue: 'Feet forward on plate, same quad focus as leg press but more upright',
           suggestedLoad: '60-100 kg',
@@ -5595,6 +5819,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Bodyweight Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hip Thrust',
           cue: 'Same movement with dumbbells - easier to set up, same glute stimulus',
           suggestedLoad: '20-32 kg',
@@ -5711,6 +5936,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Hack Squat (Partial ROM)'],
         swapAlternative: {
+      equipmentRequired: 'machine',
           name: 'Leg Press',
           cue: 'Same quad-dominant push with back supported - easier to load heavy',
           suggestedLoad: '80-120 kg',
@@ -5769,6 +5995,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Bodyweight Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'barbell',
           name: 'Barbell Hip Thrust',
           cue: 'Bar across hips, full extension - heavier glute pump with back supported',
           suggestedLoad: '40-70 kg',
@@ -5798,6 +6025,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'cable machine',
         injuryFriendlyAlternatives: ['Partial Nordic Curl'],
         swapAlternative: {
+      equipmentRequired: 'machine',
           name: 'Leg Curl (Machine)',
           cue: 'Curl heels to glutes, slow negative - same hamstring work with machine support',
           suggestedLoad: '30-50 kg',
@@ -6046,6 +6274,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Good Morning',
+          equipmentRequired: 'resistance bands',
           cue: 'Band across the upper back, not the neck, hinge slowly - minimal spinal compression, same posterior chain activation',
           suggestedLoad: 'Light band',
           triggerRegions: ['lower_back', 'hamstrings', 'hip_groin'],
@@ -6108,6 +6337,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Band Pull-Apart',
+          equipmentRequired: 'resistance bands',
           cue: 'High reps, light band - shoulder health',
           suggestedLoad: 'Light band',
           triggerRegions: ['rear_shoulder', 'upper_back', 'elbow', 'wrist', 'bicep', 'lat_mid_back'],
@@ -6137,6 +6367,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         },
         comfortVariant: {
           name: 'Banded Lateral Raise',
+          equipmentRequired: 'resistance bands',
           cue: 'Light band, controlled - shoulder sensitive alternative',
           suggestedLoad: 'Light band',
           triggerRegions: ['front_shoulder', 'rear_shoulder', 'neck'],
@@ -6160,6 +6391,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Wall Slide'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart (high reps)',
           cue: 'Light band, 30 reps - same rear delt and rhomboid stimulus standing',
           suggestedLoad: 'Light band',
@@ -6249,7 +6481,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Brachialis', 'Brachioradialis'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Band Hammer Curl'],
         swapAlternative: {
           name: 'Inverted Row (underhand grip)',
@@ -6257,6 +6489,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Hammer Curl',
           cue: 'Neutral grip, thumbs up - easier on the wrist and elbow',
           suggestedLoad: 'Light band',
@@ -6281,6 +6514,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Prone Y-T-W Raise'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Arms straight, pull band apart to chest - similar rear delt and rhomboid work',
           suggestedLoad: 'Light band',
@@ -6371,11 +6605,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'bodyweight',
         injuryFriendlyAlternatives: ['Banded Row'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Arms straight, pull band apart to chest - same rear delt and rhomboid focus',
           suggestedLoad: 'Light band',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Row',
           cue: 'Anchor band, hinge forward, pull to hip - same pulling pattern without floor position',
           suggestedLoad: 'Light-medium band',
@@ -6455,7 +6691,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Teres minor', 'Rear deltoid'],
         difficulty: 'beginner',
         isUnilateral: true,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Doorway Stretch'],
         swapAlternative: {
           name: 'Prone Y-T-W Raise',
@@ -6489,11 +6725,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Pull-Apart'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Chest-Supported Row',
           cue: 'Lie on incline bench, pull both DBs to hips - removes lower back demand',
           suggestedLoad: '12-18 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Light resistance, high reps - shoulder health',
           suggestedLoad: 'Light band',
@@ -6521,11 +6759,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         // The band is the half of it they actually have.
         injuryFriendlyAlternatives: ['Band Lateral Raise'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Prone DB Rear Delt Fly',
           cue: 'Face down on bench, arms wide - rear delt and upper back emphasis',
           suggestedLoad: '4-6 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Lateral Raise',
           cue: 'Stand on a light band and raise to shoulder height - the tension builds through the range, so there is less load in the pinch point',
           suggestedLoad: 'Light band',
@@ -6550,6 +6790,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Tricep Kickback'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Skull Crusher',
           cue: 'Lie flat, lower DBs to temples - same tricep long head with different elbow angle',
           suggestedLoad: '6-10 kg per hand',
@@ -6579,11 +6820,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Seated Incline DB Curl (light)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hammer Curl',
           cue: 'Neutral grip, thumbs up - shifts load to brachialis and forearm',
           suggestedLoad: '8-14 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Seated Incline DB Curl (light)',
           cue: 'Back supported, lighter load, controlled - reduces elbow strain',
           suggestedLoad: '4-8 kg per hand',
@@ -6608,11 +6851,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Hammer Curl'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bicep Curl',
           cue: 'Supinated grip, curl and squeeze - more direct biceps peak',
           suggestedLoad: '8-14 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Hammer Curl',
           cue: 'Neutral grip, light band - constant tension, very low joint load',
           suggestedLoad: 'Light band',
@@ -6637,11 +6882,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Face Pull'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Prone DB Rear Delt Fly',
           cue: 'Chest on incline bench, arms wide - removes lower back demand',
           suggestedLoad: '4-6 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Face Pull',
           cue: 'Pull band to forehead, elbows high - rear delt work with no hinge demand',
           suggestedLoad: 'Light band',
@@ -6666,6 +6913,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Landmine Press'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Shoulder Press',
           cue: 'Press straight overhead, no rotation - simpler, same deltoid load',
           suggestedLoad: '10-16 kg per hand',
@@ -6695,11 +6943,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Chest-Supported DB Row'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Arm Row',
           cue: 'Braced on bench, pull to hip - same lat work without the plank demand',
           suggestedLoad: '14-22 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Chest-Supported DB Row',
           cue: 'Incline bench, pull both DBs - removes wrist/shoulder plank load',
           suggestedLoad: '10-16 kg per hand',
@@ -6724,11 +6974,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Chest Fly (limited arc)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Floor Fly',
           cue: 'Same fly lying on the floor - the upper arms stop at the ground, so the shoulder never reaches end range',
           suggestedLoad: '6-12 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Chest Fly (limited arc)',
           cue: 'Arms only to parallel, smaller range - reduces shoulder end-range stretch',
           suggestedLoad: '6-10 kg per hand',
@@ -6753,6 +7005,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Hammer Curl (light)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bicep Curl',
           cue: 'Supinate at top, slow negative - simpler version without rotation',
           suggestedLoad: '8-14 kg per hand',
@@ -6782,6 +7035,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Tricep Kickback'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Overhead Tricep Extension',
           cue: 'Standing or seated, same overhead pattern - more range of motion',
           suggestedLoad: '8-14 kg per hand',
@@ -6811,6 +7065,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Landmine Press'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Arnold Press',
           cue: 'Start palms-in, rotate as you press - hits all deltoid heads through range',
           suggestedLoad: '8-14 kg per hand',
@@ -6840,11 +7095,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Half-Kneeling DB Press'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Seated DB Shoulder Press',
           cue: 'Seated, removes core stability demand - same deltoid stimulus',
           suggestedLoad: '10-18 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Half-Kneeling DB Press',
           cue: 'One knee on floor, press one arm - reduces lumbar compression, great shoulder health drill',
           suggestedLoad: '6-12 kg',
@@ -6869,11 +7126,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Front Raise'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Lateral Raise',
           cue: 'Arms out to sides - same deltoid isolation, different head emphasis',
           suggestedLoad: '4-8 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Front Raise',
           cue: 'Lighter resistance, constant tension - less joint impingement at the top',
           suggestedLoad: 'Light band',
@@ -6898,11 +7157,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Pull-Apart'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Arm Row',
           cue: 'Brace on bench, pull to hip - same lat and rhomboid, one arm at a time',
           suggestedLoad: '14-22 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Pull-Apart',
           cue: 'Arms straight, pull apart - rear delt and rhomboid with zero spinal or elbow load',
           suggestedLoad: 'Light band',
@@ -6927,6 +7188,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Tricep Kickback'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Overhead Tricep Extension',
           cue: 'Seated, lower behind head - same long-head tricep stretch',
           suggestedLoad: '8-14 kg per hand',
@@ -6956,11 +7218,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Tricep Pushdown (light band)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Skull Crushers',
           cue: 'Elbows in, lower to ears - same long-head tricep with different elbow angle',
           suggestedLoad: '6-12 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Tricep Pushdown (light band)',
           cue: 'Stand, push band down to sides - zero elbow stress at stretched position',
           suggestedLoad: 'Light band',
@@ -6992,6 +7256,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '40-60 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Face Pull',
           cue: 'Light weight, high reps, external rotation at top',
           suggestedLoad: '10-15 kg',
@@ -7016,6 +7281,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Landmine Press'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Shoulder Press',
           cue: 'DBs at ear height, press overhead - independent arms, same deltoid stimulus',
           suggestedLoad: '14-22 kg per hand',
@@ -7045,11 +7311,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Tricep Kickback (light DB)'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Overhead Cable Tricep Extension',
           cue: 'Cable behind head, extend to ceiling - hits long head more, great stretch',
           suggestedLoad: '10-18 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Tricep Kickback (light DB)',
           cue: 'Hinge, extend arm back - very low elbow stress, pain-sensitive option',
           suggestedLoad: '4-6 kg per hand',
@@ -7079,6 +7347,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Neutral-Grip Lat Pulldown',
           cue: 'Palms facing, lighter load - shoulder-friendly grip',
           suggestedLoad: '30-45 kg',
@@ -7109,11 +7378,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Cable Hammer Curl (rope)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bicep Curl',
           cue: 'Free weight, supinate at top - independent arms',
           suggestedLoad: '8-14 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Hammer Curl (rope)',
           cue: 'Neutral grip on rope, lighter - reduces wrist and elbow strain',
           suggestedLoad: '10-18 kg',
@@ -7138,11 +7409,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'cable machine',
         injuryFriendlyAlternatives: ['Cable Face Pull'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Chest-Supported Row',
           cue: 'Incline bench, pull both DBs - same mid-back stimulus',
           suggestedLoad: '12-18 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Face Pull',
           cue: 'Light weight, high elbows, external rotation - shoulder-friendly back work',
           suggestedLoad: '10-15 kg',
@@ -7167,6 +7440,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'cable machine',
         injuryFriendlyAlternatives: ['Landmine Press'],
         swapAlternative: {
+      equipmentRequired: 'barbell',
           name: 'Incline Barbell Press',
           cue: 'Barbell on incline - same upper-chest emphasis, heavier loading',
           suggestedLoad: '30-50 kg',
@@ -7196,11 +7470,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['High-to-Low Cable Fly (light)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Chest Fly',
           cue: 'Lie flat, wide arc, soft elbows - same stretch and squeeze with free weights',
           suggestedLoad: '8-14 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'High-to-Low Cable Fly (light)',
           cue: 'Shorter range, lighter load - reduces front shoulder stretch stress',
           suggestedLoad: '6-12 kg per side',
@@ -7225,11 +7501,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'cable machine',
         injuryFriendlyAlternatives: ['Hammer Curl (DB)'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Bicep Curl',
           cue: 'Constant cable tension, elbows pinned - same curl pattern',
           suggestedLoad: '15-25 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Hammer Curl (DB)',
           cue: 'Neutral grip, lighter weight - reduces elbow supination stress',
           suggestedLoad: '6-10 kg per hand',
@@ -7254,11 +7532,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Machine Chest Press (partial ROM)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Dumbbell Bench Press',
           cue: 'Full ROM with dumbbells - same pressing pattern with more shoulder stability demand',
           suggestedLoad: '16-28 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Machine Chest Press (partial ROM)',
           cue: 'Shorter range, lighter weight - reduces shoulder impingement risk',
           suggestedLoad: '25-45 kg',
@@ -7283,11 +7563,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'machine',
         injuryFriendlyAlternatives: ['Band Chest Fly'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Chest Fly',
           cue: 'Same arc movement with cable - better range and constant tension',
           suggestedLoad: '10-20 kg per side',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Chest Fly',
           cue: 'Band anchored behind, bring hands together - less shoulder joint load than machine',
           suggestedLoad: 'Light-medium band',
@@ -7312,6 +7594,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'machine',
         injuryFriendlyAlternatives: ['Landmine Press'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Incline DB Press',
           cue: 'DBs at 30°, same upper-chest emphasis - more shoulder freedom',
           suggestedLoad: '14-24 kg per hand',
@@ -7346,6 +7629,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '60-100 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Machine Chest Press',
           cue: 'Fixed path, seated - removes shoulder positioning complexity',
           suggestedLoad: '40-70 kg',
@@ -7375,6 +7659,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Tricep Pushdown',
           cue: 'Elbows pinned, push down - zero shoulder positioning load',
           suggestedLoad: '15-25 kg',
@@ -7457,11 +7742,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Cable Overhead Extension'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Skull Crushers',
           cue: 'Same movement with dumbbells - independent arms, slightly easier on wrists',
           suggestedLoad: '6-12 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Overhead Extension',
           cue: 'Face away from cable, extension overhead - same long-head tricep work with constant tension',
           suggestedLoad: '10-20 kg',
@@ -7486,6 +7773,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Tricep Kickback (light)'],
         swapAlternative: {
+      equipmentRequired: 'cable machine',
           name: 'Cable Tricep Pushdown',
           cue: 'Straight bar instead of rope - same tricep pump, less wrist rotation',
           suggestedLoad: '15-30 kg',
@@ -7524,6 +7812,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '15-25 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Tricep Pushdown',
           cue: 'Band anchored overhead, push down - zero machine needed, constant tension',
           suggestedLoad: 'Light-medium band',
@@ -7553,6 +7842,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '4-8 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Single-Arm Pushdown',
           cue: 'Band anchored, one arm - same unilateral stimulus with very low load',
           suggestedLoad: 'Light band',
@@ -7577,11 +7867,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'cable machine',
         injuryFriendlyAlternatives: ['Band Front Raise'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Dumbbell Front Raise',
           cue: 'DBs at thighs, raise to shoulder height - same anterior deltoid isolation',
           suggestedLoad: '5-10 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Front Raise',
           cue: 'Lighter constant tension - reduces shoulder impingement risk at top',
           suggestedLoad: 'Light band',
@@ -7669,6 +7961,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band-Assisted Pull-Up',
           cue: 'Loop a band under your feet for assistance - reduces shoulder/elbow load',
           suggestedLoad: 'Light band assist',
@@ -7785,7 +8078,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Erector spinae', 'Glutes'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Standing Hip Hinge Against Wall'],
         swapAlternative: {
           name: 'Romanian Deadlift (bodyweight)',
@@ -7819,7 +8112,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Rear deltoid', 'Trapezius'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Wall Slide'],
         swapAlternative: {
           name: 'Prone Y-T-W Raise',
@@ -7935,7 +8228,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Obliques', 'Glutes'],
         difficulty: 'intermediate',
         isUnilateral: true,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Plank Shoulder Tap'],
         swapAlternative: {
           name: 'Dead Bug',
@@ -8022,7 +8315,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         secondaryMuscles: ['Glute medius', 'Hamstrings'],
         difficulty: 'beginner',
         isUnilateral: false,
-        equipmentRequired: 'bodyweight',
+        equipmentRequired: 'resistance bands',
         injuryFriendlyAlternatives: ['Banded Glute Bridge'],
         swapAlternative: {
           name: 'Bodyweight Hip Thrust',
@@ -8030,6 +8323,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Glute Bridge',
           cue: 'Floor version with band - removes bench setup, same glute medius activation',
           suggestedLoad: 'Light-medium band',
@@ -8056,6 +8350,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'Single-Leg DB Hip Thrust',
           cue: 'One leg, drive through working glute - double load demand per rep',
           suggestedLoad: '12-18 kg',
@@ -8085,11 +8380,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Chest-Supported DB Row'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Arm Row',
           cue: 'Brace on bench, pull to hip - same lat stimulus with more stability',
           suggestedLoad: '14-20 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Chest-Supported DB Row',
           cue: 'Incline bench - removes low back stress',
           suggestedLoad: '10-14 kg per hand',
@@ -8114,11 +8411,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Banded Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Deadlift (light, fast reps)',
           cue: 'Lighter than working weight, explosive concentric - power endurance version of the hinge',
           suggestedLoad: '12-18 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Good Morning',
           cue: 'Band across the upper back, not the neck, hinge slowly - hip hinge pattern with minimal spinal load',
           suggestedLoad: 'Light band',
@@ -8143,6 +8442,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'kettlebell',
         injuryFriendlyAlternatives: ['Prone Trap Raise (Y)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Shrug (paused)',
           cue: 'Same shrug holding the top for two seconds each rep - more time under tension without more weight',
           suggestedLoad: '16-28 kg per hand',
@@ -8172,6 +8472,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Supported Single-Leg RDL'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'Both feet down, hinge - same hamstring loading with simpler balance',
           suggestedLoad: '12-20 kg per hand',
@@ -8201,11 +8502,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Band Face Pull'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Bent-Over Lateral Raise',
           cue: 'Hinge, arms wide, thumbs down - same rear delt focus',
           suggestedLoad: '4-8 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Face Pull',
           cue: 'Anchor band at face height, pull to forehead - no hinge load on the back',
           suggestedLoad: 'Light band',
@@ -8230,11 +8533,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Chest-Supported DB Row'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Arm Row',
           cue: 'Braced on bench, pull to hip - same lat work without plank demand',
           suggestedLoad: '14-22 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Chest-Supported DB Row',
           cue: 'Incline bench, pull both DBs - removes wrist/shoulder plank load',
           suggestedLoad: '10-16 kg per hand',
@@ -8259,11 +8564,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Wide-Stance DB Squat'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'Hip-width stance, hinge back - same posterior chain with less adductor demand',
           suggestedLoad: '14-22 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'Wide-Stance DB Squat',
           cue: 'Sumo stance but squat pattern - reduces hip hinge demand for lower back sensitivity',
           suggestedLoad: '12-20 kg',
@@ -8293,6 +8600,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '24-36 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Shrug Walk',
           cue: 'Shorter distance, lighter load - reduces grip and spine demand',
           suggestedLoad: '16-24 kg per hand',
@@ -8317,11 +8625,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['KB / DB Swing'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB High Pull',
           cue: 'Pull DBs to chin height explosively - same triple extension without the catch',
           suggestedLoad: '12-20 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'KB / DB Swing',
           cue: 'Hip snap, bell floats to chest - same explosive hip extension without overhead catch',
           suggestedLoad: '12-20 kg',
@@ -8346,11 +8656,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['Banded Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'Soft knees, hinge at hips - same posterior chain with a safer knee position',
           suggestedLoad: '12-20 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Good Morning',
           cue: 'Band across the upper back, not the neck, hinge - hamstring loading with minimal spinal compression',
           suggestedLoad: 'Light band',
@@ -8375,11 +8687,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Chest-Supported Row'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Single-Arm Row',
           cue: 'One hand braced, row the DB to the hip - same lat work with no overhead reach',
           suggestedLoad: '14-22 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Chest-Supported Row',
           cue: 'Chest on an incline bench, row both DBs - takes the shoulder out of end range entirely',
           suggestedLoad: '10-18 kg per hand',
@@ -8409,6 +8723,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Standing Single-Leg Curl (banded)',
           cue: 'Band at ankle, curl heel toward glute standing - zero floor pressure on knee',
           suggestedLoad: 'Light band',
@@ -8433,6 +8748,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Good Morning',
           cue: 'One DB held on the upper back, hinge forward with a flat spine - same hamstrings, less grip',
           suggestedLoad: '10-18 kg',
@@ -8462,11 +8778,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'dumbbells',
         injuryFriendlyAlternatives: ['DB Hold (standard grip)'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Farmer Carry',
           cue: 'Walk with heavy DBs - same grip stimulus with added locomotion demand',
           suggestedLoad: '24-36 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hold (standard grip)',
           cue: 'Same hold without fat grips or lighter weight - reduces wrist and elbow strain',
           suggestedLoad: '16-24 kg per hand',
@@ -8493,6 +8811,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Bodyweight Glute Bridge'],
         swapAlternative: {
+      equipmentRequired: 'barbell',
           name: 'Single-Leg Barbell Hip Thrust',
           cue: 'One leg, full extension - double per-side demand',
           suggestedLoad: '30-50 kg',
@@ -8527,6 +8846,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '30-50 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Seated Cable Row',
           cue: 'Upright torso, removes lower back demand',
           suggestedLoad: '30-45 kg',
@@ -8556,6 +8876,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '24-40 kg one hand',
         },
         comfortVariant: {
+      equipmentRequired: 'barbell',
           name: 'Trap Bar Carry (lighter load)',
           cue: 'Neutral grip, lighter weight, shorter distance - same posture demand with less spinal compressive force',
           suggestedLoad: '16-24 kg per hand',
@@ -8580,11 +8901,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Banded Good Morning'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'KB Swing',
           cue: 'Explosive hip snap, bell floats up - same hinge power, free weight',
           suggestedLoad: '16-24 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Banded Good Morning',
           cue: 'Band across the upper back, not the neck, hinge slowly - hip hinge with minimal spinal load',
           suggestedLoad: 'Light band',
@@ -8614,6 +8937,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '40-60 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Seated Cable Row',
           cue: 'Upright torso, removes hinge demand - mid-back work without lower back load',
           suggestedLoad: '30-45 kg',
@@ -8638,6 +8962,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Hip Thrust'],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'DBs at sides, hinge - similar posterior chain with less spinal compression',
           suggestedLoad: '16-24 kg per hand',
@@ -8672,6 +8997,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Neutral-Grip Lat Pulldown',
           cue: 'Palms facing, lighter load - shoulder-friendly grip',
           suggestedLoad: '30-45 kg',
@@ -8707,6 +9033,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '50-80 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift',
           cue: 'Lighter DBs, easier to control - same hinge pattern with less spinal compression',
           suggestedLoad: '12-20 kg per hand',
@@ -8731,6 +9058,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Prone Y-T-W'],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Face Pull',
           cue: 'Same movement with a band - great portable alternative',
           suggestedLoad: 'Medium band',
@@ -8876,11 +9204,13 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
         equipmentRequired: 'barbell',
         injuryFriendlyAlternatives: ['Band Straight Arm Pulldown'],
         swapAlternative: {
+      equipmentRequired: 'machine',
           name: 'Lat Pulldown',
           cue: 'Seated, pull bar to chest - same lat focus with elbow drive helping',
           suggestedLoad: '40-60 kg',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band Straight Arm Pulldown',
           cue: 'Band anchored overhead, pull down with straight arms - same lat isolation, reduced load',
           suggestedLoad: 'Light-medium band',
@@ -8910,6 +9240,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '12-20 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'cable machine',
           name: 'Seated Cable Row (upright)',
           cue: 'Tall posture, pull to navel - removes lower back load, similar mid-back stimulus',
           suggestedLoad: '30-45 kg',
@@ -8997,6 +9328,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '24-36 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hold (full hand grip)',
           cue: 'Standard grip, full hand on DB - reduces finger flexor demand significantly',
           suggestedLoad: '16-24 kg per hand',
@@ -9026,6 +9358,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: '40-70 kg per hand',
         },
         comfortVariant: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Hold',
           cue: 'Lighter DBs at sides, same static grip - reduces spinal compression',
           suggestedLoad: '20-30 kg per hand',
@@ -9055,6 +9388,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'machine',
           name: 'Lat Pulldown (underhand)',
           cue: 'Supinated grip pulldown - same muscle pattern with adjustable weight',
           suggestedLoad: '35-55 kg',
@@ -9202,6 +9536,7 @@ const ACCESSORIES: Record<MainSessionType, Record<InternalTier, ExerciseTemplate
           suggestedLoad: 'Bodyweight',
         },
         comfortVariant: {
+      equipmentRequired: 'resistance bands',
           name: 'Band-Assisted Pull-Up',
           cue: 'Band under feet for assistance - reduces shoulder/elbow load',
           suggestedLoad: 'Light band assist',
@@ -9481,6 +9816,7 @@ const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> 
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'resistance bands',
           name: 'Band External Rotation',
           cue: 'Elbow pinned to side, rotate out against band - rotator cuff prehab',
           suggestedLoad: 'Light band',
@@ -10039,6 +10375,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'KB Swing Intervals',
             cue: 'Hip snap to chest height - more posterior chain focus',
             suggestedLoad: '14-20 kg',
@@ -10062,6 +10399,7 @@ const FINISHERS: Record<
           isUnilateral: true,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Goblet Squat Intervals',
             cue: '15 goblet squats, 30s rest - bilateral version if lunges cause knee discomfort',
             suggestedLoad: '12-18 kg',
@@ -10087,6 +10425,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Squat + Press Intervals',
             cue: '10 squat to press, 30s rest - full-body finisher without the sprint',
             suggestedLoad: '10-14 kg per hand',
@@ -10110,6 +10449,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Thruster + Shuttle Run',
             cue: '5 thrusters then sprint - adds cardio component',
             suggestedLoad: '10-14 kg per hand',
@@ -10133,6 +10473,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Squat + Press AMRAP',
             cue: '10 squat to press, 30s rest - same exercises, easier pacing format',
             suggestedLoad: '10-14 kg per hand',
@@ -10592,6 +10933,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'Light DB Lateral Raise Walk',
             cue: 'Walk slowly raising arms to shoulder height, lower - gentle shoulder recovery',
             suggestedLoad: '4-6 kg per hand',
@@ -10667,6 +11009,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Push Press Intervals',
             cue: '12 push presses, 30s rest - power finisher, dumbbells and floor space only',
             suggestedLoad: '10-14 kg per hand',
@@ -10713,6 +11056,7 @@ const FINISHERS: Record<
           isUnilateral: true,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Push Press Intervals',
             cue: '12 push presses, 30s rest - upper body focus with more pressing',
             suggestedLoad: '10-14 kg per hand',
@@ -10738,6 +11082,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'Push-Up + DB Row EMOM',
             cue: 'Every minute: 8 push-ups + 6 rows each arm - easier to pace than the full complex',
             suggestedLoad: '10-14 kg per hand',
@@ -10761,6 +11106,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Complex EMOM',
             cue: '5 cleans + 5 press every minute - slightly lower complexity',
             suggestedLoad: '8-12 kg per hand',
@@ -10784,6 +11130,7 @@ const FINISHERS: Record<
           isUnilateral: true,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Complex EMOM',
             cue: '5 cleans + 5 press - add the clean for more complexity',
             suggestedLoad: '8-12 kg per hand',
@@ -10834,6 +11181,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'cable machine',
             name: 'Cable Push-Pull Circuit',
             cue: 'Alternating pushdown and row - same cable pump, different structure',
             suggestedLoad: '10-20 kg cable',
@@ -10857,6 +11205,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'cable machine',
             name: 'Cable Push-Pull Circuit',
             cue: 'Pushdown + row circuit - adds back component to the finish',
             suggestedLoad: '10-20 kg cable',
@@ -10882,6 +11231,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'cable machine',
             name: 'Cable Row Intervals',
             cue: '20s hard seated row, 40s rest - upper-back metabolic work without a cardio machine',
             suggestedLoad: '40-60 kg cable',
@@ -10928,6 +11278,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'machine',
             name: 'Machine Chest Fly (Pump)',
             cue: 'Machine fly 20 reps - same pec pump without cable adjustment',
             suggestedLoad: '20-30 kg machine',
@@ -11248,6 +11599,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'Light DB Carry Walk',
             cue: 'Walk at comfortable pace with lighter weights - easier on grip and lower back',
             suggestedLoad: '8-12 kg per hand',
@@ -11319,6 +11671,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'KB Swing Intervals',
             cue: '15 swings, 30s rest - same hip power, skip the shuttle',
             suggestedLoad: '14-20 kg',
@@ -11342,6 +11695,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'KB Swing + Shuttle',
             cue: '10 swings then 20m sprint - adds running demand',
             suggestedLoad: '16-20 kg',
@@ -11365,6 +11719,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'KB Swing Intervals',
             cue: '15 swings, 30s rest - explosive hip drive version',
             suggestedLoad: '14-20 kg',
@@ -11390,6 +11745,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Deadlift + Push Press Circuit',
             cue: '8 deadlifts + 8 push presses, repeat - full-body finisher without the complexity',
             suggestedLoad: '12-16 kg per hand',
@@ -11413,6 +11769,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Man Maker AMRAP',
             cue: 'Push-up + row + clean + press - adds upper-body complexity',
             suggestedLoad: '10-14 kg per hand',
@@ -11436,6 +11793,7 @@ const FINISHERS: Record<
           isUnilateral: false,
           injuryFriendlyAlternatives: [],
           swapAlternative: {
+      equipmentRequired: 'dumbbells',
             name: 'DB Deadlift + Push Press AMRAP',
             cue: '8 DL + 8 press, rest 30s - full-body instead of pure hinge',
             suggestedLoad: '12-16 kg per hand',
@@ -15963,15 +16321,18 @@ const ORM_TEST: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>
 
 // ─── EXPORTS ─────────────────────────────────────────────────────────────────
 
-export function getPrep(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
-  return PREP[sessionType][toInternalTier(tier)];
+export function getPrep(
+  sessionType: MainSessionType,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate[] {
+  return onlyPossible(PREP[sessionType][toInternalTier(effectiveOf(tier))], ownedFrom(tier));
 }
 
 export function getMechanical(
   sessionType: MainSessionType,
-  tier: EquipmentTier
+  tier: EquipmentTier | readonly EquipmentTier[]
 ): ExerciseTemplate[] {
-  return MECHANICAL[sessionType][toInternalTier(tier)];
+  return onlyPossible(MECHANICAL[sessionType][toInternalTier(effectiveOf(tier))], ownedFrom(tier));
 }
 
 /**
@@ -15982,13 +16343,19 @@ export function getMechanical(
  */
 export function getPowerMechanical(
   sessionType: MainSessionType,
-  tier: EquipmentTier
+  tier: EquipmentTier | readonly EquipmentTier[]
 ): ExerciseTemplate[] {
-  return POWER_MECHANICAL[sessionType][toInternalTier(tier)];
+  return onlyPossible(
+    POWER_MECHANICAL[sessionType][toInternalTier(effectiveOf(tier))],
+    ownedFrom(tier)
+  );
 }
 
-export function getNeuro(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
-  return NEURO[sessionType][toInternalTier(tier)];
+export function getNeuro(
+  sessionType: MainSessionType,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate[] {
+  return onlyPossible(NEURO[sessionType][toInternalTier(effectiveOf(tier))], ownedFrom(tier));
 }
 
 /**
@@ -15997,31 +16364,60 @@ export function getNeuro(sessionType: MainSessionType, tier: EquipmentTier): Exe
  * (depth drops, power cleans, clap push-ups) designed to maximise CNS
  * activation before the KPI lift for rate-of-force development.
  */
-export function getPowerNeuro(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {
-  return POWER_NEURO[sessionType][toInternalTier(tier)];
+/**
+ * NOT FILTERED, and deliberately.
+ *
+ * This returns ONE template rather than a pool, so filtering it could only
+ * return nothing, and a session with a hole where its main work should be is
+ * worse than the problem being fixed. What guards these two instead is a
+ * contract test asserting that every one of them is already performable at its
+ * own tier, which it is: the bodyweight main lifts are Bodyweight Squat, Push-Up
+ * and Single-Leg Hinge, and the power picks are jumps.
+ */
+export function getPowerNeuro(
+  sessionType: MainSessionType,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate {
+  return withPossibleVariants(
+    POWER_NEURO[sessionType][toInternalTier(effectiveOf(tier))],
+    ownedFrom(tier)
+  );
 }
 
-export function getMainLift(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate {
-  return MAIN_LIFTS[sessionType][toInternalTier(tier)];
+/** One template, so not filtered. See getPowerNeuro. */
+export function getMainLift(
+  sessionType: MainSessionType,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate {
+  return withPossibleVariants(
+    MAIN_LIFTS[sessionType][toInternalTier(effectiveOf(tier))],
+    ownedFrom(tier)
+  );
 }
 
 export function getAccessories(
   sessionType: MainSessionType,
-  tier: EquipmentTier
+  tier: EquipmentTier | readonly EquipmentTier[]
 ): ExerciseTemplate[] {
-  return ACCESSORIES[sessionType][toInternalTier(tier)];
+  return onlyPossible(ACCESSORIES[sessionType][toInternalTier(effectiveOf(tier))], ownedFrom(tier));
 }
 
-export function getPrehab(sessionType: MainSessionType, tier: EquipmentTier): ExerciseTemplate[] {
-  return PREHAB[sessionType][toInternalTier(tier)];
+export function getPrehab(
+  sessionType: MainSessionType,
+  tier: EquipmentTier | readonly EquipmentTier[]
+): ExerciseTemplate[] {
+  return onlyPossible(PREHAB[sessionType][toInternalTier(effectiveOf(tier))], ownedFrom(tier));
 }
 
 export function getFinisher(
   sessionType: MainSessionType,
-  tier: EquipmentTier,
+  tier: EquipmentTier | readonly EquipmentTier[],
   energy: 'easy' | 'normal' | 'hard'
 ): ExerciseTemplate[] {
-  return FINISHERS[sessionType][toInternalTier(tier)][energy];
+  return onlyPossible(
+    FINISHERS[sessionType][toInternalTier(effectiveOf(tier))][energy],
+    ownedFrom(tier)
+  );
 }
 
 export function getCooldown(): ExerciseTemplate[] {
@@ -16273,6 +16669,7 @@ const GOAL_CONDITIONING_BLOCKS: Record<
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Romanian Deadlift + Jump',
           cue: '8 RDLs then 4 broad jumps - hip hinge power variation without the swing pattern',
           suggestedLoad: '12-18 kg per hand',
@@ -16316,6 +16713,7 @@ const GOAL_CONDITIONING_BLOCKS: Record<
         isUnilateral: false,
         injuryFriendlyAlternatives: [],
         swapAlternative: {
+      equipmentRequired: 'dumbbells',
           name: 'DB Power Clean',
           cue: '6 explosive power cleans from hang - lower swing volume, higher peak force - same rate-of-force demand',
           suggestedLoad: '14-20 kg per hand',
@@ -17466,7 +17864,7 @@ const PREHAB_BY_REGION: Record<PainRegion, ExerciseTemplate[]> = {
       movementPattern: 'rehabilitation',
       primaryMuscle: 'Obliques',
       secondaryMuscles: [],
-      equipmentRequired: 'bodyweight',
+      equipmentRequired: 'resistance bands',
       difficulty: 'beginner',
       isUnilateral: false,
       injuryFriendlyAlternatives: [],
@@ -19242,6 +19640,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Front Squat',
         cue: 'A dumbbell racked on each shoulder instead of one at the chest. Keep elbows high so the torso stays upright.',
         suggestedLoad: '10-18 kg (each hand)',
@@ -19264,6 +19663,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Sumo Deadlift',
         cue: 'Wide stance, one dumbbell between the feet. More hip and inner thigh, less hamstring stretch.',
         suggestedLoad: '20-32 kg',
@@ -19286,6 +19686,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: true,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Reverse Lunge',
         cue: 'Step back rather than elevating the rear foot. Same load, less balance demand.',
         suggestedLoad: '10-20 kg (each hand)',
@@ -19308,6 +19709,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: true,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Walking Lunge',
         cue: 'Lunge forward and walk through. Keeps the single-leg work without needing a box.',
         suggestedLoad: '10-20 kg (each hand)',
@@ -19330,6 +19732,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: true,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB B-Stance RDL',
         cue: 'Back toe lightly touching for balance, most of the weight through the front leg. Easier to control than fully single-leg.',
         suggestedLoad: '12-20 kg (each hand)',
@@ -19354,6 +19757,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Barbell Front Squat',
         cue: 'Bar racked across the front delts, elbows high. More quad and upright torso, less lower-back load.',
         suggestedLoad: '40-80 kg',
@@ -19376,6 +19780,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Barbell Good Morning',
         cue: 'Bar on the back, hinge forward with soft knees. Same hinge, more hamstring stretch at lighter load.',
         suggestedLoad: '30-60 kg',
@@ -19398,6 +19803,7 @@ const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: true,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Barbell Reverse Lunge',
         cue: 'Bar on the back, step back and drop the rear knee. Less balance demand than the elevated version.',
         suggestedLoad: '30-60 kg',
@@ -19598,6 +20004,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Floor Press',
         cue: 'Same press lying on the floor. The upper arms stop at the ground, which spares the shoulder.',
         suggestedLoad: '15-25 kg (each hand)',
@@ -19620,6 +20027,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Chest-Supported Row',
         cue: 'Chest on an incline bench. Takes the lower back out entirely so the lats do the work.',
         suggestedLoad: '12-22 kg (each hand)',
@@ -19642,6 +20050,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Arnold Press',
         cue: 'Start palms-in and rotate out as you press. More front delt through a longer range.',
         suggestedLoad: '10-18 kg (each hand)',
@@ -19664,6 +20073,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Single-Arm Row',
         cue: 'One hand and knee on a bench, row the dumbbell to the hip. More direct lat work.',
         suggestedLoad: '15-25 kg',
@@ -19686,6 +20096,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Front Raise',
         cue: 'Raise to the front rather than the side. Shifts the work to the front delt.',
         suggestedLoad: '6-12 kg (each hand)',
@@ -19710,6 +20121,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Incline Barbell Bench Press',
         cue: 'Bench set to 30 degrees. Biases the upper chest and is often easier on the shoulder.',
         suggestedLoad: '40-80 kg',
@@ -19776,6 +20188,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'cable machine',
       swapAlternative: {
+      equipmentRequired: 'cable machine',
         name: 'Seated Cable Row',
         cue: 'Horizontal pull instead of vertical. More mid-back and rear delt.',
         suggestedLoad: '50-80 kg',
@@ -19798,6 +20211,7 @@ const WEEKLY_UPPER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: true,
       equipmentRequired: 'cable machine',
       swapAlternative: {
+      equipmentRequired: 'cable machine',
         name: 'Cable Woodchop',
         cue: 'Same anti-rotation demand, but moving through the range rather than holding.',
         suggestedLoad: '10-20 kg',
@@ -19938,6 +20352,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Front Squat',
         cue: 'A dumbbell on each shoulder rather than one at the chest. Elbows high, torso upright.',
         suggestedLoad: '10-18 kg (each hand)',
@@ -19960,6 +20375,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Sumo Deadlift',
         cue: 'Wide stance with one dumbbell between the feet. More hip, less hamstring stretch.',
         suggestedLoad: '20-32 kg',
@@ -19982,6 +20398,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Floor Press',
         cue: 'Press from the floor so the upper arms stop at the ground. Easier on the shoulder.',
         suggestedLoad: '15-25 kg (each hand)',
@@ -20004,6 +20421,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Chest-Supported Row',
         cue: 'Chest on an incline bench, taking the lower back out of it.',
         suggestedLoad: '12-22 kg (each hand)',
@@ -20026,6 +20444,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Arnold Press',
         cue: 'Start palms-in and rotate out as you press. Longer range through the front delt.',
         suggestedLoad: '10-18 kg (each hand)',
@@ -20048,6 +20467,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'dumbbells',
       swapAlternative: {
+      equipmentRequired: 'dumbbells',
         name: 'DB Single-Arm Row',
         cue: 'One hand and knee on a bench, row to the hip. More direct lat work.',
         suggestedLoad: '15-25 kg',
@@ -20072,6 +20492,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Barbell Front Squat',
         cue: 'Bar across the front delts, elbows high. More quad, less lower-back load.',
         suggestedLoad: '40-80 kg',
@@ -20099,6 +20520,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Trap Bar Deadlift',
         cue: 'Neutral handles with the load in line with you. Friendlier to the lower back than a straight bar.',
         suggestedLoad: '70-120 kg',
@@ -20121,6 +20543,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'barbell',
       swapAlternative: {
+      equipmentRequired: 'barbell',
         name: 'Incline Barbell Bench Press',
         cue: 'Bench at 30 degrees. Biases upper chest, often easier on the shoulder.',
         suggestedLoad: '40-80 kg',
@@ -20187,6 +20610,7 @@ const WEEKLY_FULL_BODY: Record<InternalTier, ExerciseTemplate[]> = {
       isUnilateral: false,
       equipmentRequired: 'cable machine',
       swapAlternative: {
+      equipmentRequired: 'cable machine',
         name: 'Seated Cable Row',
         cue: 'Horizontal pull rather than vertical. More mid-back and rear delt.',
         suggestedLoad: '50-80 kg',

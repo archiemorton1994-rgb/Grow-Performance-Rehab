@@ -48,6 +48,8 @@ import {
   getWeeklyFullBodyExercises,
   getAllPickableExercises,
   type PickableExercise,
+  canPerformWith,
+  possibleFor,
 } from './exercise-db';
 import {
   isEquipmentVariant,
@@ -1374,7 +1376,23 @@ function applyComfortOrBadge(
   overrideCategory?: ExerciseCategory
 ): Exercise {
   const isDumbbell = isDumbbellTier(tier);
-  if (hasAches && shouldSwapForComfort(template, painRegion) && template.comfortVariant) {
+  /**
+   * A comfort variant is only comfort if they can actually do it.
+   *
+   * These are hand-authored gentler versions, and a great many of them reach for
+   * a band: a Glute Bridge offers a Banded Clamshell, a Pike Push-Up offers a
+   * Banded Lateral Raise. Handed to somebody who ticked "No Equipment" the
+   * kinder option is the one they cannot perform, and it arrives at exactly the
+   * moment they have said something hurts.
+   *
+   * Falling through to the ordinary exercise is the right failure: it is the
+   * movement they were already going to do, and the injury screen above this
+   * has separately removed anything genuinely unsafe for the area.
+   */
+  const comfortIsPossible =
+    !!template.comfortVariant &&
+    canPerformWith(template.comfortVariant.equipmentRequired ?? template.equipmentRequired, [tier]);
+  if (hasAches && shouldSwapForComfort(template, painRegion) && comfortIsPossible && template.comfortVariant) {
     const cv = template.comfortVariant;
     return {
       id: template.id + '-comfort',
@@ -1847,6 +1865,11 @@ function alternativePool(
   const tierRank = TIER_RANK.indexOf(internal);
   const isUsable = (p: PickableExercise) =>
     p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
+    // AND the kit it actually needs. The rank test above is a three-rung ladder
+    // that cannot tell a band from a press-up, so somebody who ticked "No
+    // Equipment" was offered banded stand-ins behind the swap button and as
+    // forced injury substitutions. canPerformWith asks the real question.
+    canPerformWith(p.template.equipmentRequired, [tier]) &&
     !usedNames.has(p.template.name.toLowerCase()) &&
     canSubstituteFor(region, p.template.primaryMuscle) &&
     isClean(p.template);
@@ -2175,6 +2198,30 @@ export function fillSwapAlternatives(
      * behind the swap button. The app removed the thing and then offered it
      * back one tap later.
      */
+    /**
+     * ...and only if they own the kit for it.
+     *
+     * The same shape of hole as the injury one described above, one field
+     * across. A Fire Hydrant correctly declared as bodyweight carries "Banded
+     * Clamshell" as its authored swap; a Glute Bridge carries the same. Somebody
+     * who ticked "No Equipment" was shown a clean bodyweight session and then
+     * found band work one tap behind every exercise on it.
+     *
+     * The variant's own declaration wins where it has one. Where it does not,
+     * the catalogue entry of the same name does, and failing both it inherits
+     * the exercise it hangs off, which is the reading that was always intended.
+     */
+    const authoredKit = (name?: string): string | undefined => {
+      if (!name) return source?.equipmentRequired;
+      const lower = name.toLowerCase();
+      if (source?.swapAlternative?.name === name && source.swapAlternative.equipmentRequired)
+        return source.swapAlternative.equipmentRequired;
+      if (source?.comfortVariant?.name === name && source.comfortVariant.equipmentRequired)
+        return source.comfortVariant.equipmentRequired;
+      return byName.get(lower)?.template.equipmentRequired ?? source?.equipmentRequired;
+    };
+    const ownsAuthored = (name?: string) => canPerformWith(authoredKit(name), [tier]);
+
     const authored: { name: string; cue?: string; load?: string }[] = [];
     if (
       ex.swapName &&
@@ -2184,7 +2231,8 @@ export function fillSwapAlternatives(
       // stretch instruction lives in the sentence rather than the title -
       // "Bodyweight Good Morning" reads as a hinge until you get to "feel the
       // hamstring stretch", which is what the protocol withholds from a strain.
-      restrictedTagsOn(ex.swapName, banned, undefined, ex.swapCue).length === 0
+      restrictedTagsOn(ex.swapName, banned, undefined, ex.swapCue).length === 0 &&
+      ownsAuthored(ex.swapName)
     ) {
       authored.push({ name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
     }
@@ -2192,7 +2240,8 @@ export function fillSwapAlternatives(
       ex.swap2Name &&
       ex.swap2Name !== ex.name &&
       ex.swap2Name !== authored[0]?.name &&
-      restrictedTagsOn(ex.swap2Name, banned, undefined, ex.swap2Cue).length === 0
+      restrictedTagsOn(ex.swap2Name, banned, undefined, ex.swap2Cue).length === 0 &&
+      ownsAuthored(ex.swap2Name)
     ) {
       authored.push({ name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
     }
@@ -2493,6 +2542,26 @@ function generateWorkoutUnscreened(
       // shorter — padding it with someone else's rehab is worse than ending
       // early.
       const acute = readiness.acute === true;
+      /**
+       * NOT equipment-filtered, and this is a deliberate exception.
+       *
+       * Everything else in this file now refuses to prescribe kit the user does
+       * not own. These circuits are the one place that rule collides with a
+       * bigger one. They are hand-authored injury protocols: a fixed warm-up,
+       * the exercises chosen for that specific joint, and a cool-down, in that
+       * order, and two contract tests guard both the structure and the fact that
+       * every exercise picked for the joint survives.
+       *
+       * Filtering them broke both. Some of the knee and shoulder work is done
+       * against a light band, so a bodyweight user lost part of the protocol and
+       * the remaining list no longer split into its three phases.
+       *
+       * Dropping a rehab exercise because somebody has no band is a clinical
+       * decision, and the right fix is a bodyweight alternative authored for each
+       * one by a physiotherapist rather than a filter deleting it. Until those
+       * exist, the protocol stays whole and this is the one place the app can
+       * still name a band somebody may not have.
+       */
       const regionPlan = getRegionPrehabWorkout(primaryRegion, { acute });
       const warmup = regionPlan.filter((e) => e.category === 'prep');
       const core = regionPlan.filter((e) => e.category === 'prehab');
@@ -2530,7 +2599,7 @@ function generateWorkoutUnscreened(
     // fresh joint-health work across sessions rather than the same 7 each time.
     // Bookend structure: [warmup (prep)] + [7-of-13 rotated middle (prehab)] + [cooldown].
     const PICK = 7;
-    const allPrehab = getStandalonePrehabWorkout();
+    const allPrehab = possibleFor(getStandalonePrehabWorkout(), equipmentTier);
     const warmup = allPrehab.filter((e) => e.category === 'prep');
     const middle = allPrehab.filter((e) => e.category === 'prehab');
     const cooldown = allPrehab.filter((e) => e.category === 'cooldown');
@@ -2541,7 +2610,7 @@ function generateWorkoutUnscreened(
   if (sessionType === 'flexibility') {
     // Rotate the middle stretch pool so users see fresh exercises across sessions.
     // Bookend structure: [warmup (prep)] + [8-of-14 rotated middle] + [cooldown bookend].
-    const allFlex = getStandaloneFlexibilityWorkout();
+    const allFlex = possibleFor(getStandaloneFlexibilityWorkout(), equipmentTier);
     const warmup = allFlex.slice(0, 1); // Diaphragmatic Breathing (always first)
     const cooldown = allFlex.slice(-1); // Legs-Up-The-Wall (always last)
     const middle = allFlex.slice(1, -1); // 14-exercise shuffleable pool
@@ -2769,7 +2838,7 @@ function generateWorkoutUnscreened(
 
   // ── 9. Cool Down breathing (60 min only) ─────────────────────────────────
   if (timeAvailable === '60') {
-    const cooldown = getCooldown();
+    const cooldown = possibleFor(getCooldown(), equipmentTier);
     exercises.push(templateToExercise(cooldown[0]));
   }
 
@@ -3095,7 +3164,7 @@ function generateWeeklyWorkout(
   }
 
   // ── 6. Cooldown (ALL sessions — always closes with recovery) ──────────────
-  const cooldownPool = getCooldown();
+  const cooldownPool = possibleFor(getCooldown(), equipmentTier);
   if (cooldownPool.length > 0) {
     exercises.push(templateToExercise(cooldownPool[0]));
   }
@@ -3155,7 +3224,7 @@ function generateConditioningWorkout(
 ): Exercise[] {
   const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
-  const templates = getConditioningWorkout(equipmentTier, energyKey);
+  const templates = possibleFor(getConditioningWorkout(equipmentTier, energyKey), equipmentTier);
 
   // Insert active mobility stretches right after the cardio warm-up (always
   // templates[0] in this pool) — raising the heart rate isn't the same as
@@ -3249,7 +3318,7 @@ export function generate1RMWorkout(
   loadUnit: WeightUnit = 'kg'
 ): Exercise[] {
   if (sessionType === 'conditioning' || sessionType === 'custom') return [];
-  const protocol = get1RMProtocol(sessionType as MainSessionType, equipmentTier);
+  const protocol = possibleFor(get1RMProtocol(sessionType as MainSessionType, equipmentTier), equipmentTier);
   let exercises = protocol.map((t) => templateToExercise(t));
 
   const toGrid = (v: number) => roundToLoadable(v, loadUnit);

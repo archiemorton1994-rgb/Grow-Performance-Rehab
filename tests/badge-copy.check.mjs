@@ -253,10 +253,37 @@ check(
 );
 
 // 3c. Perfect Week is seven SESSIONS, not seven days.
+//
+// BOTH FIXTURE DAYS HAVE TO SIT INSIDE THE CURRENT WEEK. Weeks start on
+// Monday (lib/utils.ts startOfWeek, the badge engine's isoWeek, and the
+// calendar grid all agree). Hard-coding "yesterday and the day before" put one
+// or both of them in the PREVIOUS week every Monday and Tuesday, so only four
+// of the seven sessions counted, the badge was not earned, and this check
+// inverted and failed for a reason that has nothing to do with badge copy.
+//
+// Picking the two most recent in-week days keeps the thing being tested
+// intact - seven sessions spread over FEWER than seven days - on every day of
+// the week. On a Monday both groups land on the same day, which tests it
+// harder rather than less.
+const weekStartMs = (() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay() || 7; // 1 = Mon … 7 = Sun
+  d.setDate(d.getDate() - (dow - 1));
+  return d.getTime();
+})();
+const inThisWeek = (n) => Date.now() - n * DAY >= weekStartMs;
+const dayA = inThisWeek(1) ? 1 : 0;
+const dayB = inThisWeek(2) ? 2 : dayA;
 const sevenOnTwoDays = [
-  ...Array.from({ length: 4 }, () => sess({ date: daysAgo(1) })),
-  ...Array.from({ length: 3 }, () => sess({ date: daysAgo(2) })),
+  ...Array.from({ length: 4 }, () => sess({ date: daysAgo(dayA) })),
+  ...Array.from({ length: 3 }, () => sess({ date: daysAgo(dayB) })),
 ];
+check(
+  'the fixture for it lands inside the current week, whatever day this is run',
+  inThisWeek(dayA) && inThisWeek(dayB),
+  'otherwise the check below is answering a question about week boundaries'
+);
 check(
   'the "perfect week" badge is not described as a session every day',
   earns({ completedSessions: sevenOnTwoDays }, 'consistent_7x_1wk')
