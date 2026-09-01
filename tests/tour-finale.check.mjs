@@ -218,9 +218,19 @@ check(
   'without it Android flattens the view, measureInWindow returns 0x0, and the spotlight silently points at nothing'
 );
 check(
-  'the tour has a step for it',
-  /spotlightRef: 'trainElse'/.test(homeCode),
-  ''
+  // The step that taught this used to be on Home and is now on Train, where
+  // the sessions actually are. What has to stay true is that the first-run
+  // tour teaches it SOMEWHERE, and says the part that matters: choosing
+  // something else costs you nothing.
+  'the tour still teaches that nobody is stuck with the session the app picked',
+  (() => {
+    const train = read('app/(tabs)/train.tsx');
+    return (
+      /whether you are on a programme or not/.test(train) &&
+      /moves your programme along or sets it back/.test(train)
+    );
+  })(),
+  'a way out nobody is told about is a way out nobody takes'
 );
 check(
   'and a step for achievements',

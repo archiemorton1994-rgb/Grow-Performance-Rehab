@@ -498,6 +498,47 @@ check(
   'logging under the range stops the weight climbing, and that rule was written into the engine without ever being said to anyone'
 );
 
+// ── 10. It teaches the app as it is now ──────────────────────────────────────
+//
+// A tour written before programmes existed pointed at a streak, a session and a
+// trophy, and never once at the thing that decides what everybody trains.
+// Archie, after using it: "the tour needs changing to reflect these recent
+// changes, they should know where their program stuff is located, but also know
+// they can manually choose pre-written sessions from the train area, that would
+// have no baring on their program progress."
+console.log('\n[10] It points at the programme, and says it is not the whole app');
+
+{
+  const home = read('app/(tabs)/index.tsx');
+  const train = read('app/(tabs)/train.tsx');
+
+  check(
+    'there is a step on where the programme lives',
+    /spotlightRef: 'programme'/.test(home) && /Your programme lives here/.test(home),
+    '"the process to try and edit / change / program didnt feel simple" starts with not knowing where it is'
+  );
+  check(
+    'and it spotlights the tile that opens it, measurably',
+    /ref=\{programmeTileRef\}[\s\S]{0,60}?collapsable=\{false\}/.test(home) &&
+      /programme: programmeTileRef,/.test(home),
+    'without collapsable Android flattens the view and the spotlight points at nothing'
+  );
+  check(
+    // The old copy promised the barbell to everybody, because it was written
+    // when the rotation was the only programme there was.
+    'the session card no longer promises a rotation nobody is on',
+    !/rotating through Squat, Bench and Deadlift/.test(home) &&
+      /next session in your programme/.test(home),
+    'a Joint Health user being told the app rotates squat, bench and deadlift'
+  );
+  check(
+    'and Train says choosing something else costs nothing',
+    /whether you are on a programme or not/.test(train) &&
+      /moves your programme along or sets it back/.test(train),
+    'the sentence that stops the programme reading as the whole app'
+  );
+}
+
 console.log('');
 if (failures > 0) {
   console.error(`guided-tour: ${failures}/${total} check(s) FAILED\n`);

@@ -49,12 +49,14 @@ const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
     spotlightRef: 'kpi',
     iconName: 'flash-outline',
     iconLabel: 'KPI',
-    title: 'Your strength foundation',
+    title: 'Pick any of these, any time',
     // Absorbed the old "Every other way to train" step. That one spotlighted a
     // section headed ADDITIONAL SESSIONS containing four cards named Lower
     // Body, Upper Body, Full Body and Conditioning, to say they were four ways
     // to train — a card spent telling the user what they were already reading.
-    body: 'Squat, Bench and Deadlift drive your 1RM and everything else is measured against them. Below, Lower, Upper, Full Body and Conditioning cover the rest of the week.',
+    // The sentence Archie asked for, on the screen it is about: choosing a
+    // session here is free, and the programme is not the whole app.
+    body: 'Every session in Grow is here whether you are on a programme or not. Nothing you pick here moves your programme along or sets it back: it is logged, it counts towards your records, and your block waits where it was.',
   },
   {
     // Same region as the step above — Custom sits in that grid — but it is a

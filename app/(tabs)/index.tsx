@@ -80,7 +80,7 @@ import { resumeParams } from '@/lib/resume-params';
  * most people would never press unprompted.
  */
 interface HomeTutorialStep {
-  spotlightRef: 'session' | 'trainElse' | 'coach' | 'streak' | 'achievements';
+  spotlightRef: 'session' | 'programme' | 'coach' | 'streak' | 'achievements';
   iconName: string;
   iconLabel: string;
   title: string;
@@ -93,33 +93,49 @@ const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
      * THIS CARD DESCRIBED THE WRONG SCREEN.
      *
      * It said "Tap Start and the whole session gets built for you", and
-     * sessionCardRef wraps a conditional: with zero completed sessions the hero
-     * is the first-session CHOOSER, which has three rows and no Start button at
-     * all. A brand-new user running the tour is looking at the chooser, so the
-     * card and the screen disagreed for exactly the audience the tour exists
-     * for. It now says what both variants actually do.
+     * sessionCardRef wraps a conditional, and it has been wrong about which
+     * conditional twice now. It first said "tap Start" when a brand-new user
+     * was looking at a three-lift chooser with no Start button on it. That
+     * chooser is gone; the card is either the next session in somebody's
+     * PROGRAMME or an invitation to choose one, and this now describes the
+     * first without promising the barbell to a person on Joint Health.
      */
     spotlightRef: 'session',
     iconName: 'flash-outline',
     iconLabel: 'Today',
     title: 'Start here every day',
-    body: 'This card is what to train next, rotating through Squat, Bench and Deadlift. Pick one and the whole session gets built for you: warm-up, main lift, accessories and the weight for every set.',
+    body: 'This is the next session in your programme, named above it so you always know where it came from. Tap Start and the whole thing gets built for you: warm-up, main work, accessories and the weight for every set.',
   },
+  /**
+   * THE WAY OUT USED TO BE A STEP OF ITS OWN, AND IS NOW THE TRAIN TAB'S.
+   *
+   * It spotlighted the "Train something else" button to say the app is bigger
+   * than one recommended session. That is still true and still has to be said -
+   * it is now said on the Train tab, in the step that step used to point at,
+   * seconds later in the same run and on the screen it is actually about.
+   *
+   * Cut rather than kept because the tour has a hard ceiling of fourteen steps
+   * and the programme below had to go in: the first rule of this tour is say it
+   * once, and two cards a minute apart making the same promise is the shape
+   * that pushed it to eighteen the first time.
+   */
   {
     /**
-     * THE WAY OUT, WHICH THE APP NEVER MENTIONED.
+     * WHERE THE PROGRAMME LIVES.
      *
-     * Everything on this screen points at one recommended session, and a lot of
-     * people will open the app wanting something else: a conditioning day, ten
-     * minutes of mobility, a sore shoulder seen to. All of that exists, one tab
-     * across, and nothing told them. A button is not enough on its own - the
-     * first run is the only time anyone is looking at the furniture.
+     * A tour written before programmes existed pointed at a streak, a session
+     * and a trophy, and never once at the thing that now decides what everybody
+     * trains. Reported after use: "the process to try and edit / change /
+     * program didnt feel simple", which starts with not knowing where it is.
+     *
+     * It is also the natural place to say the programme is not the whole app,
+     * because it is the moment somebody is looking straight at it.
      */
-    spotlightRef: 'trainElse',
-    iconName: 'grid-outline',
-    iconLabel: 'Train',
-    title: 'You do not have to do this one',
-    body: 'Train something else opens the Train tab, where you can pick any lift, a conditioning or full body day, mobility work, or build a session around the time you have. Nothing here is compulsory.',
+    spotlightRef: 'programme',
+    iconName: 'albums-outline',
+    iconLabel: 'Programme',
+    title: 'Your programme lives here',
+    body: 'Tap this to see the whole block, the recovery sessions that sit alongside it, and every control: days a week, how long, your level, a different programme, or one you build yourself.',
   },
   {
     /**
@@ -788,6 +804,7 @@ export default function HomeScreen() {
   // one that measures - which is also why the button has to exist in BOTH
   // branches or this step spotlights nothing for a brand-new user.
   const trainElseRef = useRef<View>(null);
+  const programmeTileRef = useRef<View>(null);
   const achievementsTileRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
   const scrollHint = useScrollIndicator();
@@ -813,7 +830,7 @@ export default function HomeScreen() {
     if (tutStep === null || homeEffectiveTutorial[tutStep] == null) return;
     const refLookup = {
       session: sessionCardRef,
-      trainElse: trainElseRef,
+      programme: programmeTileRef,
       coach: coachButtonRef,
       streak: streakTileRef,
       achievements: achievementsTileRef,
@@ -1220,6 +1237,8 @@ export default function HomeScreen() {
 
             {/* Your Program */}
             <Pressable
+              ref={programmeTileRef}
+              collapsable={false}
               style={styles.summaryCard}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
