@@ -119,7 +119,10 @@ console.log('\n[2] Every answer in the tree lands somewhere that uses it');
 reset();
 S().applyProfileTree(
   {
-    units: 'lbs',
+    // Kilograms, because every number below is a kilogram number and this
+    // journey's assertions are about what reaches the profile rather than about
+    // units. The pounds case has its own check, at the end of this section.
+    units: 'kg',
     name: 'Archie',
     focus: 'muscle',
     days: '4',
@@ -171,11 +174,88 @@ check(
   'until now this was re-learned before every session and forgotten after it'
 );
 check(
+  /**
+   * FOUND WHILE WIRING THE KIT CEILING, AND IT WAS ALREADY THERE.
+   *
+   * lib/bodyweight.ts validates a typed bodyweight IN THE USER'S UNIT, and its
+   * own docblock records the last time these two halves disagreed. outcomeFrom
+   * then stored the raw typed number as `bodyweightKg` with no conversion, so
+   * somebody who picked pounds and typed 176 passed the check and had 176
+   * KILOGRAMS written to their profile.
+   *
+   * Not cosmetic: bodyweight scales every accessory load the app prescribes, and
+   * the three lifts go straight into oneRepMaxes, which every working weight is
+   * derived from. Both were more than doubled for every user in pounds.
+   *
+   * The fixture above USED to run in pounds and assert the number came back
+   * unchanged, which is the bug written down as an expectation.
+   */
+  'a weight typed in pounds is stored in kilograms',
+  (() => {
+    reset({ completedSessions: [] });
+    S().applyProfileTree(
+      {
+        units: 'lbs',
+        name: 'Archie',
+        focus: 'strength',
+        days: '3',
+        minutes: '45',
+        length: '12',
+        experience: 'intermediate',
+        age: 34,
+        sex: 'male',
+        bodyweight: 176,
+        equipment: ['fullgym'],
+        sore: 'no',
+        avoid: ['none'],
+        liftsSquat: 315,
+      },
+      '2026-08-31T09:00:00.000Z'
+    );
+    const kg = S().userProfile.bodyweightKg;
+    const squat = S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight ?? 0;
+    // 176 lb is 79.8 kg and 315 lb is 142.9 kg, both to within a rounding step.
+    return Math.abs(kg - 79.8) < 0.5 && Math.abs(squat - 142.9) < 0.5;
+  })(),
+  `${S().userProfile.bodyweightKg} kg, squat ${S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight}`
+);
+check(
+  'and a weight typed in kilograms is stored exactly as typed',
+  (() => {
+    reset({ completedSessions: [] });
+    S().applyProfileTree(
+      {
+        units: 'kg',
+        name: 'Archie',
+        focus: 'strength',
+        days: '3',
+        minutes: '45',
+        length: '12',
+        experience: 'intermediate',
+        sex: 'male',
+        bodyweight: 82,
+        equipment: ['fullgym'],
+        sore: 'no',
+        liftsSquat: 140,
+      },
+      '2026-08-31T09:00:00.000Z'
+    );
+    return (
+      S().userProfile.bodyweightKg === 82 &&
+      S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight === 140
+    );
+  })(),
+  ''
+);
+
+check(
   'equipment is set',
   JSON.stringify(after.equipmentTiers) === JSON.stringify(['dumbbells', 'kettlebells']),
   ''
 );
-check('the weight unit follows the answer', after.weightUnit === 'lbs', '');
+// The journey above answers kilograms; the pounds case below asserts the
+// other half, and both halves of the unit answer now have a check.
+check('the weight unit follows the answer', after.weightUnit === 'kg', '');
 check(
   'and how long they usually have becomes the readiness default',
   after.lastReadinessTime === '30',

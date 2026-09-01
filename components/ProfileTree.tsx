@@ -67,6 +67,7 @@ import { ageIssue, oneRepMaxIssue } from '@/lib/one-rep-max-input';
 import {
   isAnswered,
   nextNode,
+  REGION_OPTION_NODES,
   treeProgress,
   visibleNodes,
   type Answers,
@@ -74,6 +75,7 @@ import {
   type TreeOption,
 } from '@/lib/profile-tree';
 import type { WeightUnit } from '@/lib/store';
+import { displayUnitToKg, kgToDisplayUnit } from '@/lib/utils';
 
 /** Artwork for the equipment question. The only node with pictures. */
 const EQUIPMENT_IMAGES: Record<string, number> = {
@@ -274,17 +276,42 @@ export function ProfileTree({
     (node: TreeNode, value: string) => {
       haptic();
       const current = Array.isArray(answers[node.id]) ? (answers[node.id] as string[]) : [];
+      /**
+       * "None" is exclusive, in both directions.
+       *
+       * Two questions carry one - the movement screen and the clinical one -
+       * and on both of them "none of these" and a list of these are answers
+       * that contradict each other. Ticking none clears the list; ticking
+       * anything from the list clears none. Left to itself the pair produces
+       * "I can do a plank, and none of these", which the outcome would have to
+       * guess about.
+       */
       const next = current.includes(value)
         ? current.filter((v) => v !== value)
-        : [...current, value];
+        : value === 'none'
+          ? ['none']
+          : [...current.filter((v) => v !== 'none'), value];
       write({ [node.id]: next });
     },
     [answers, write, haptic]
   );
 
   const optionsFor = useCallback(
-    (node: TreeNode): TreeOption[] =>
-      node.id === 'soreArea' ? regionOptions : (node.options ?? []),
+    (node: TreeNode): TreeOption[] => {
+      if (node.id === REGION_OPTION_NODES[0]) return regionOptions;
+      /**
+       * The clinical question uses the same regions, plus a real "nothing".
+       *
+       * An empty multi-select does not count as answered - see isAnswered - so
+       * without this the only way past would be to name an area they do not
+       * have. A considered no and a question nobody engaged with are different
+       * answers and the tree has to be able to tell them apart.
+       */
+      if (node.id === REGION_OPTION_NODES[1]) {
+        return [...regionOptions, { value: 'none', label: 'Nothing, no' }];
+      }
+      return node.options ?? [];
+    },
     [regionOptions]
   );
 
@@ -296,6 +323,16 @@ export function ProfileTree({
         return t.trim() === '' ? null : bodyweightIssue(t, weightUnit);
       }
       if (node.id === 'age') return ageIssue(String(answers.age ?? ''));
+      if (node.id === 'kit') {
+        const t = String(answers.kit ?? '').trim();
+        if (t === '') return null;
+        const n = Number(t);
+        // Written as a plain range rather than a rule, because the number that
+        // arrives here is almost always a typo rather than a misunderstanding.
+        return Number.isFinite(n) && n > 0 && displayUnitToKg(n, weightUnit) <= 200
+          ? null
+          : `A weight between 1 and ${Math.floor(kgToDisplayUnit(200, weightUnit))} ${weightUnit}`;
+      }
       if (node.subFields) {
         for (const f of node.subFields) {
           const issue = oneRepMaxIssue(String(answers[f.key] ?? ''));
@@ -768,15 +805,37 @@ function TreeRow({
                         ]}
                       >
                         {art ? <Image source={art} style={styles.tileArt} resizeMode="contain" /> : null}
-                        <Text
-                          style={[
-                            art ? styles.tileLabel : dense ? styles.chipLabel : styles.optionLabel,
-                            picked && { color: C.primaryText },
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {o.label}
-                        </Text>
+                        {/* The hint has to reach the multi list too, and did not.
+                            The movement screen's options each carry the actual
+                            benchmark - ten reps, thirty seconds - and without it
+                            "squat to parallel with your heels down" is a
+                            different question that somebody ticks having done
+                            one. Wrapped so the two lines stay together, and only
+                            on the roomy layout: a chip and a tile have nowhere
+                            to put a second line. */}
+                        {!art && !dense && !!o.hint ? (
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[styles.optionLabel, picked && { color: C.primaryText }]}
+                              numberOfLines={2}
+                            >
+                              {o.label}
+                            </Text>
+                            <Text style={styles.optionHint} numberOfLines={1}>
+                              {o.hint}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text
+                            style={[
+                              art ? styles.tileLabel : dense ? styles.chipLabel : styles.optionLabel,
+                              picked && { color: C.primaryText },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {o.label}
+                          </Text>
+                        )}
                         {picked && !art && !dense && (
                           <Ionicons name="checkmark-circle" size={19} color={go.fill} />
                         )}
@@ -857,11 +916,27 @@ function answerSummary(
   const v = answers[node.id];
   if (v == null || v === '') return '';
   if (Array.isArray(v)) {
+    /**
+     * The two long multi-selects say how MANY, not which.
+     *
+     * "Bend at the hips with a flat back, Squat to parallel with your heels
+     * down and 2 more" is longer than the question that produced it and reads
+     * as an error. A count is the only useful thing to say about six ticks in
+     * a collapsed row, and the card itself is one tap away.
+     */
+    if (node.id === 'screen') {
+      const n = v.filter((x) => x !== 'none').length;
+      return n === 0 ? 'None of these yet' : `${n} of 6`;
+    }
+    if (node.id === 'avoid' && (v.length === 0 || v.includes('none'))) return 'Nothing';
     const labels = v.map((x) => options.find((o) => o.value === x)?.label ?? x);
     return labels.length > 2 ? `${labels.slice(0, 2).join(', ')} and ${labels.length - 2} more` : labels.join(', ');
   }
   if (node.id === 'bodyweight') return `${v} ${unit}`;
   if (node.id === 'age') return `${v}`;
+  // Same fault the block length had: a bare number is not an answer to
+  // "what is the heaviest you can pick up".
+  if (node.id === 'kit') return `${v} ${unit}`;
   // The grid's labels are bare numbers, which is right inside a nine-cell grid
   // and wrong on a line of its own halfway up the spine. "12" is not an answer;
   // "12 sessions" is.
@@ -872,6 +947,7 @@ function answerSummary(
 function placeholderFor(node: TreeNode, unit: WeightUnit): string {
   if (node.id === 'name') return 'Your name';
   if (node.id === 'age') return 'Years';
+  if (node.id === 'kit') return `Heaviest, in ${unit}`;
   // NOT a number. A guessed weight sitting in the box before anybody has typed
   // is the same problem as printing the assumption out loud.
   if (node.id === 'bodyweight') return 'Optional';

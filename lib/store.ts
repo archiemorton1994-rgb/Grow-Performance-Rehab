@@ -442,6 +442,31 @@ export interface UserProfile {
    */
   earnedLevelBonus?: number;
   /**
+   * WHICH MOVEMENT PATTERNS THEY CAN ACTUALLY DO, from the builder's zero-load
+   * screen. See PROGRESSION-LADDERS.md, Phase 1.
+   *
+   * UNDEFINED IS NOT AN EMPTY LIST. Undefined means no screen was ever taken -
+   * every account before this existed, and anybody who skipped the question -
+   * and must leave the app behaving exactly as it does for them today. An empty
+   * array is somebody who took the screen and passed none of it, and every
+   * pattern starts from foundations.
+   */
+  screenPassed?: string[];
+  /**
+   * Areas a CLINICIAN has told them to stay off, which is not the same list as
+   * what is sore.
+   *
+   * A shoulder that does not hurt today because it has been avoided for six
+   * months is absent from standingSoreRegions and belongs here. It is treated
+   * as a standing area to work around whether or not anything hurts.
+   */
+  clinicalAvoid?: string[];
+  /**
+   * The heaviest hand weight they can reach, in kg. Absent for a full gym, and
+   * for everybody who did not say.
+   */
+  maxKitKg?: number;
+  /**
    * Areas reported as sore in the BUILDER, which is a standing fact about a
    * person rather than the per-session pain flag on the readiness screen. Until
    * now a shoulder that had hurt for six months was re-learned before every
@@ -1813,6 +1838,12 @@ export const useAppStore = create<AppState>()(
             ageYears: outcome.ageYears > 0 ? outcome.ageYears : undefined,
             standingSoreRegions: outcome.soreRegions,
             standingSoreSince: outcome.soreFor,
+            // Null means the screen was skipped, and undefined is how the rest
+            // of the app spells "never taken". Kept apart from an empty array,
+            // which is somebody who took it and passed nothing.
+            screenPassed: outcome.screenPassed ?? undefined,
+            clinicalAvoid: outcome.avoidRegions,
+            maxKitKg: outcome.maxKitKg > 0 ? outcome.maxKitKg : undefined,
           },
           equipmentTiers: outcome.equipmentTiers.length ? outcome.equipmentTiers : s.equipmentTiers,
           testWeekFrequency: outcome.testWeekFrequency,

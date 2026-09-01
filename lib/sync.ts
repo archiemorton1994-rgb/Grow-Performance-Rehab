@@ -18,6 +18,21 @@ export interface SyncPayload {
     ageYears?: number;
     standingSoreRegions?: string[];
     standingSoreSince?: string | null;
+    /**
+     * The three the builder learned to ask, plus the rung earned by finishing
+     * blocks. All optional for the reason every field here is: a payload from
+     * an older build does not carry them, and an absent field must leave what
+     * is on the device alone rather than clearing it.
+     *
+     * The clinical one matters most of the four. Sign-out wipes the device, so
+     * a field missing from this payload is not un-synced, it is destroyed - and
+     * an instruction from somebody's surgeon is not a thing to lose on a phone
+     * upgrade.
+     */
+    screenPassed?: string[];
+    clinicalAvoid?: string[];
+    maxKitKg?: number;
+    earnedLevelBonus?: number;
   };
   equipmentTiers: string[];
   completedSessions: any[];

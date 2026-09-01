@@ -26,6 +26,7 @@
  */
 import {
   PROFILE_TREE,
+  REGION_OPTION_NODES,
   everyJourney,
   forks,
   isAnswered,
@@ -82,8 +83,17 @@ check(
 const noQuestion = PROFILE_TREE.filter((n) => !n.question || n.question.length < 4);
 check('every node asks something', noQuestion.length === 0, noQuestion.map((n) => n.id).join(', '));
 
+/**
+ * The exception used to be spelled 'soreArea' here, which went red the day a
+ * second node started drawing the body's regions. The node was fine; the list
+ * was stale. It is now read from the tree itself, so the two cannot drift.
+ */
 const badChoice = PROFILE_TREE.filter(
-  (n) => (n.kind === 'single' || n.kind === 'multi') && !n.options && !n.subFields && n.id !== 'soreArea'
+  (n) =>
+    (n.kind === 'single' || n.kind === 'multi') &&
+    !n.options &&
+    !n.subFields &&
+    !REGION_OPTION_NODES.includes(n.id)
 );
 check(
   'every choice node has options, apart from the one filled in at runtime',

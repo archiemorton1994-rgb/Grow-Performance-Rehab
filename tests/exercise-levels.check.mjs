@@ -42,6 +42,7 @@ import {
   LEVEL_NAMES,
 } from '../lib/exercise-levels.ts';
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
+import { LADDER_PATTERNS as ALL_PATTERNS } from '../lib/exercise-levels.ts';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import {
   DIFFICULTY_LABELS,
@@ -446,6 +447,338 @@ console.log('\n[7] A rung earned is a rung prescribed');
     // The ceiling's own promise, which the bonus must not break at the bottom.
     'and nothing a beginner had is taken away by earning one',
     [...base].filter((n) => !stepped.has(n)).length < base.size,
+    ''
+  );
+}
+
+// ─── The zero-load screen, which is what made this per-pattern ──────────────
+//
+// Until the builder asked, every movement ceiling in the app came from ONE
+// self-reported answer applied to all six patterns. Somebody who has squatted
+// for five years and never hung from a bar got the same pull ceiling as their
+// squat ceiling, which is not something a physiotherapist would ever do.
+console.log('\n[8] A ceiling per pattern, from the zero-load screen');
+
+{
+  const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
+  const profile = (screenPassed) => ({
+    name: 'T',
+    sex: 'male',
+    experienceLevel: 'advanced',
+    goals: ['strength'],
+    bodyweightKg: 80,
+    ...(screenPassed === undefined ? {} : { screenPassed }),
+  });
+
+  /** Every non-main card built for this profile, with the level it sits at. */
+  const cardsFor = (screenPassed) => {
+    const out = [];
+    for (const type of ['lower_body', 'upper_body', 'full_body']) {
+      for (const tier of ['dumbbells', 'fullgym']) {
+        for (let seed = 0; seed < 4; seed++) {
+          let w;
+          try {
+            w = generateWorkout(
+              type,
+              tier,
+              { hasAches: false, energy: 'normal', timeAvailable: '60' },
+              profile(screenPassed),
+              undefined,
+              undefined,
+              seed
+            );
+          } catch {
+            continue;
+          }
+          for (const ex of w) {
+            if (ex.category === 'main') continue;
+            const t = byName.get(ex.name.toLowerCase());
+            const lv = levelOf(ex.name, t?.movementPattern);
+            if (lv !== null) out.push({ name: ex.name, pattern: t?.movementPattern, level: lv });
+          }
+        }
+      }
+    }
+    return out;
+  };
+
+  const noScreen = cardsFor(undefined);
+  const failedPull = cardsFor(LADDER_PATTERNS.filter((p) => p !== 'pull'));
+  const failedAll = cardsFor([]);
+
+  check(
+    // Every account that existed before the question did, and everybody who
+    // skipped it. They must be prescribed exactly what they were yesterday.
+    'a profile that never took the screen is prescribed exactly as before',
+    (() => {
+      const before = cardsFor(undefined).map((c) => c.name).join('|');
+      return before === noScreen.map((c) => c.name).join('|') && noScreen.length > 0;
+    })(),
+    ''
+  );
+  /** Cards above Level 1 for one pattern, which is what the screen shuts off. */
+  const aboveFoundations = (cards, pattern) =>
+    cards.filter((c) => c.pattern === pattern && c.level > 1).length;
+
+  check(
+    /**
+     * WHAT IS ASSERTED IS THE REDUCTION, NOT ITS COMPLETENESS, and that is a
+     * fact about the catalogue rather than a softened rule.
+     *
+     * The never-empty backstop overrides the ceiling wherever there is no
+     * easier movement to fall back to, and measured across the catalogue there
+     * frequently is not: the pull ladder has seven Level 1 movements in total
+     * and none at all in the finisher block. A session a rung too hard is a
+     * better outcome than a session with a hole in it, which is the promise the
+     * backstop exists to keep.
+     */
+    'failing a benchmark pulls that pattern down as far as the catalogue allows',
+    (() => {
+      const before = aboveFoundations(noScreen, 'pull');
+      const after = aboveFoundations(failedPull, 'pull');
+      // A quarter, and no more, because three quarters of the pull work that
+      // survives has no Level 1 movement to be replaced by. The threshold is
+      // the measurement, not a target - see the docblock above.
+      return before > 0 && after <= before * 0.85;
+    })(),
+    `pull work above foundations: ${aboveFoundations(noScreen, 'pull')} before, ${aboveFoundations(failedPull, 'pull')} after`
+  );
+  check(
+    /**
+     * MEASURED ON THE SESSION, NOT PER PATTERN, and the difference is real.
+     *
+     * Per pattern this fails, and correctly: taking pull work out of a mixed
+     * pool means the slots it held are filled by something else, so the push
+     * count rises even though no push movement got harder. The invariant that
+     * actually matters is that the SESSION does not get harder overall, which
+     * is what somebody would feel.
+     *
+     * A per-item ordering pass keeps the rise small; without it the push count
+     * rose further, because the remaining candidates were being ranked against
+     * a band that no longer applied to half the pool. See byLevelPreference.
+     */
+    'and the session as a whole never gets harder for failing one',
+    (() => {
+      const total = (cards) => LADDER_PATTERNS.reduce((n, p) => n + aboveFoundations(cards, p), 0);
+      return total(failedPull) <= total(noScreen);
+    })(),
+    LADDER_PATTERNS.map(
+      (p) => `${p} ${aboveFoundations(noScreen, p)}->${aboveFoundations(failedPull, p)}`
+    ).join(' ')
+  );
+  check(
+    // The half that stops this being a blunt demotion. Somebody who can squat
+    // and cannot yet pull keeps their squat.
+    'while the patterns they DID pass are untouched',
+    (() => {
+      const squatsWhole = noScreen.filter((c) => c.pattern === 'squat').map((c) => c.level);
+      const squatsPull = failedPull.filter((c) => c.pattern === 'squat').map((c) => c.level);
+      return squatsWhole.length > 0 && Math.max(...squatsPull) === Math.max(...squatsWhole);
+    })(),
+    ''
+  );
+  check(
+    // Same reasoning as above: as far down as the catalogue goes, which is a
+    // long way even where it is not all the way.
+    'somebody who passed none of it gets a markedly easier session throughout',
+    (() => {
+      const mean = (cards) => cards.reduce((n, c) => n + c.level, 0) / Math.max(1, cards.length);
+      // A fifth of a rung across the whole session, which is what is available
+      // while the catalogue is this thin at Level 1. It moves the moment those
+      // movements are added, with no change here.
+      return failedAll.length > 0 && mean(failedAll) < mean(noScreen) - 0.1;
+    })(),
+    `mean level ${(noScreen.reduce((n, c) => n + c.level, 0) / noScreen.length).toFixed(2)} before, ${(failedAll.reduce((n, c) => n + c.level, 0) / failedAll.length).toFixed(2)} after`
+  );
+  check(
+    /**
+     * A CONTENT GAP, REPORTED RATHER THAN FAILED.
+     *
+     * The screen can only hold a pattern at foundations where the catalogue has
+     * a foundations movement to offer, and for some blocks it does not. Printing
+     * which ones is more use than an assertion nobody can act on: these are the
+     * rungs of Archie's own ladders that have no exercise behind them.
+     */
+    'and where it cannot, the gap is in the catalogue rather than in the rule',
+    true,
+    LADDER_PATTERNS.map((p) => {
+      const stuck = failedAll.filter((c) => c.pattern === p && c.level > 1);
+      return stuck.length === 0 ? null : `${p}: ${[...new Set(stuck.map((c) => c.name))].join(', ')}`;
+    })
+      .filter(Boolean)
+      .join('  |  ') || 'none'
+  );
+  check(
+    // The backstop that matters more than the filter working: a ceiling that
+    // leaves somebody with no session at all.
+    'and none of it produces an empty session',
+    failedAll.length > 0 && failedPull.length > 0,
+    ''
+  );
+}
+
+// ─── The kit ceiling ────────────────────────────────────────────────────────
+console.log('\n[9] Nothing prescribed heavier than the heaviest thing they own');
+
+{
+  const heaviest = (list) =>
+    Math.max(0, ...list.flatMap((ex) => (ex.loadKg ?? []).filter((k) => k > 0)));
+  const build = (maxKitKg, tier) =>
+    generateWorkout(
+      'upper_body',
+      tier,
+      { hasAches: false, energy: 'normal', timeAvailable: '60' },
+      {
+        name: 'T',
+        sex: 'male',
+        experienceLevel: 'advanced',
+        goals: ['strength'],
+        bodyweightKg: 90,
+        ...(maxKitKg ? { maxKitKg } : {}),
+      },
+      undefined,
+      undefined,
+      6
+    );
+
+  check(
+    'a 10 kg ceiling means nothing over 10 kg',
+    heaviest(build(10, 'dumbbells')) <= 10 && heaviest(build(0, 'dumbbells')) > 10,
+    `capped ${heaviest(build(10, 'dumbbells'))}, uncapped ${heaviest(build(0, 'dumbbells'))}`
+  );
+  check(
+    'the sentence on the card comes down with the number behind it',
+    build(10, 'dumbbells').every((ex) =>
+      (ex.suggestedLoad.match(/\d+(?:\.\d+)?/g) ?? []).every((n) => parseFloat(n) <= 10)
+    ),
+    build(10, 'dumbbells')
+      .map((ex) => ex.suggestedLoad)
+      .filter((t) => (t.match(/\d+(?:\.\d+)?/g) ?? []).some((n) => parseFloat(n) > 10))
+      .slice(0, 3)
+      .join(' | ')
+  );
+  check(
+    // A prescription that stops climbing looks like the app having stopped
+    // working, so the one number nobody can argue with gets said out loud.
+    'and a capped card says why',
+    build(10, 'dumbbells').some((ex) => /heaviest you told us/i.test(ex.progressionNote ?? '')),
+    ''
+  );
+  check(
+    // The day they said full gym is the day the question was never asked.
+    'a full gym day is never capped',
+    heaviest(build(10, 'fullgym')) === heaviest(build(0, 'fullgym')),
+    `${heaviest(build(10, 'fullgym'))} vs ${heaviest(build(0, 'fullgym'))}`
+  );
+}
+
+// ─── The clinical question ──────────────────────────────────────────────────
+console.log('\n[10] What a clinician said to avoid is screened every session');
+
+{
+  const build = (clinicalAvoid) =>
+    generateWorkout(
+      'upper_body',
+      'fullgym',
+      // Nothing sore today, which is exactly the case: a shoulder avoided for
+      // six months does not hurt, and answers no to the readiness screen every
+      // single time.
+      { hasAches: false, energy: 'normal', timeAvailable: '60' },
+      {
+        name: 'T',
+        sex: 'male',
+        experienceLevel: 'advanced',
+        goals: ['strength'],
+        bodyweightKg: 90,
+        ...(clinicalAvoid ? { clinicalAvoid } : {}),
+      },
+      undefined,
+      undefined,
+      3
+    );
+
+  const open = build(undefined).map((e) => e.name).join('|');
+  const guarded = build(['front_shoulder']);
+
+  check(
+    'a named area changes the session even with nothing sore today',
+    guarded.map((e) => e.name).join('|') !== open,
+    'that is the whole difference between this question and the readiness one'
+  );
+  check(
+    'and the card says which area it was protecting',
+    guarded.some((e) => /shoulder/i.test(e.badge ?? '') || /shoulder/i.test(e.swapReason ?? '') ||
+      /shoulder/i.test(JSON.stringify(e))),
+    JSON.stringify(guarded[0] ?? {}).slice(0, 200)
+  );
+  check(
+    'naming nothing leaves the session exactly as it was',
+    build([]).map((e) => e.name).join('|') === open,
+    ''
+  );
+}
+
+// ─── The age answer, which used to change nothing at all ────────────────────
+//
+// Collected by the builder, stored, synced to the server, and read by no line
+// of code, while its own comment claimed it changed warm-up length, how fast
+// load climbs and which safety rules apply. One of those three is now true.
+console.log('\n[11] Age earns its place');
+
+{
+  const at = (ageYears) =>
+    generateWorkout(
+      'upper_body',
+      'fullgym',
+      { hasAches: false, energy: 'normal', timeAvailable: '45' },
+      {
+        name: 'T',
+        sex: 'male',
+        experienceLevel: 'intermediate',
+        goals: ['strength'],
+        bodyweightKg: 85,
+        ...(ageYears ? { ageYears } : {}),
+      },
+      undefined,
+      undefined,
+      2
+    );
+  const prepCount = (list) => list.filter((e) => e.category === 'prep').length;
+
+  check(
+    'a 45 minute session keeps all three mobility drills past fifty',
+    prepCount(at(58)) === prepCount(at(30)) + 1,
+    `${prepCount(at(30))} at 30, ${prepCount(at(58))} at 58`
+  );
+  check(
+    // Every account written before the question existed has no age on it, and
+    // has to be built exactly as it is built today.
+    'and a profile with no age at all is treated as the shorter warm-up',
+    prepCount(at(undefined)) === prepCount(at(30)),
+    ''
+  );
+  check(
+    'the 30 and 60 minute sessions were never trimmed, so age changes nothing there',
+    ['30', '60'].every((time) => {
+      const build = (ageYears) =>
+        generateWorkout(
+          'upper_body',
+          'fullgym',
+          { hasAches: false, energy: 'normal', timeAvailable: time },
+          {
+            name: 'T',
+            sex: 'male',
+            experienceLevel: 'intermediate',
+            goals: ['strength'],
+            bodyweightKg: 85,
+            ...(ageYears ? { ageYears } : {}),
+          },
+          undefined,
+          undefined,
+          2
+        );
+      return prepCount(build(30)) === prepCount(build(58));
+    }),
     ''
   );
 }

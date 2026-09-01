@@ -55,6 +55,7 @@ import {
 } from './exercise-db';
 import { byLevelPreference, withinLevel } from './exercise-levels';
 import { levelBandForExperience } from './programme';
+import { isLadderPattern, type ExerciseLevel, type LevelBand } from './exercise-levels';
 import {
   isEquipmentVariant,
   isSameMuscleAlternative,
@@ -1686,6 +1687,67 @@ function applyPersonalization(
 }
 
 /**
+ * The age past which a session warms up for longer.
+ *
+ * Fifty, which is the round number every published guideline sits near rather
+ * than a threshold anything sharp happens at. It buys one more mobility drill
+ * in the 45 minute session, which is where the warm-up was trimmed to two.
+ */
+export const LONGER_WARMUP_AGE = 50;
+
+/**
+ * How many mobility drills go in before the work.
+ *
+ * The 45 minute session drops to two so the main work survives the clock. Past
+ * fifty it keeps all three, which is the one use of the age answer that nobody
+ * would argue with - and until this existed, age was collected, stored, synced,
+ * and read by nothing at all.
+ */
+export function prepCountFor(timeAvailable: TimeAvailable, ageYears?: number): number {
+  if (timeAvailable !== '45') return 3;
+  return (ageYears ?? 0) >= LONGER_WARMUP_AGE ? 3 : 2;
+}
+
+/**
+ * NOTHING PRESCRIBED HEAVIER THAN THE HEAVIEST THING THEY OWN.
+ *
+ * Equipment used to be a yes or a no, so a person with two five kilo dumbbells
+ * and a person with a full rack got the same prescription and one of them was
+ * being told to lift a weight they do not have. The builder now asks, of exactly
+ * the people who have a ceiling worth naming.
+ *
+ * APPLIED BY TIER RATHER THAN PER EXERCISE. On a dumbbell or kettlebell day
+ * every loaded movement in the session is a hand-weight movement, because that
+ * is all the generator had to draw from - so the cap is right for the whole
+ * list. On a full gym day it is not applied at all, which is also the day the
+ * question was never asked. Catalogue loads for these movements are written per
+ * hand, so the cap is a per-hand number and needs no doubling.
+ */
+export function capToKit(list: Exercise[], maxKg: number, tier: EquipmentTier): Exercise[] {
+  if (maxKg <= 0 || (tier !== 'dumbbells' && tier !== 'kettlebells')) return list;
+  return list.map((ex): Exercise => {
+    const overLoad = (ex.loadKg ?? []).some((kg) => kg > maxKg);
+    const overText = (ex.suggestedLoad.match(/\d+(?:\.\d+)?/g) ?? []).some(
+      (n) => parseFloat(n) > maxKg
+    );
+    if (!overLoad && !overText) return ex;
+    return {
+      ...ex,
+      suggestedLoad: ex.suggestedLoad.replace(/\d+(?:\.\d+)?/g, (m) => {
+        const n = parseFloat(m);
+        return n > maxKg ? String(maxKg) : m;
+      }),
+      loadKg: ex.loadKg ? ex.loadKg.map((kg) => Math.min(kg, maxKg)) : ex.loadKg,
+      // Said out loud, because a prescription that stops climbing looks like
+      // the app having stopped working. The one number nobody can argue with
+      // is the one they gave us themselves.
+      progressionNote: `Capped at ${maxKg} kg, the heaviest you told us you can reach`,
+      progressionDirection: 'hold',
+    };
+  });
+}
+
+/**
  * Share of the usual load in a planned easier week.
  *
  * The same 10% the stall deload takes off, and deliberately so: a person who
@@ -1816,6 +1878,31 @@ export function generateWorkout(
   exerciseRepTarget?: Record<string, string>
 ): Exercise[] {
   const layoff = getLayoff(daysSinceLastSession);
+
+  /**
+   * AREAS A CLINICIAN NAMED ARE SCREENED WHETHER OR NOT ANYTHING HURTS TODAY.
+   *
+   * The readiness screen asks what is sore right now, which is the correct
+   * question for the day to day and the wrong one for a shoulder somebody was
+   * told to stay off six months ago. That shoulder does not hurt, precisely
+   * because they have been avoiding it, so it answers no every single time.
+   *
+   * Merged into the regions rather than given its own pass, so it goes through
+   * the same swap machinery and produces the same honest caption on the card.
+   * Severity and the acute flag are deliberately untouched: this is "look after
+   * this area", not "this is hurting now", and setting acute would route
+   * somebody onto the acute rehab protocol permanently with no way off it.
+   */
+  const named = readiness.painRegion
+    ? Array.isArray(readiness.painRegion)
+      ? readiness.painRegion
+      : [readiness.painRegion]
+    : [];
+  const avoid = (profile?.clinicalAvoid ?? []) as PainRegion[];
+  const screenedReadiness: ReadinessCheck =
+    avoid.length === 0
+      ? readiness
+      : { ...readiness, painRegion: [...new Set([...named, ...avoid])] };
   // Screen first, then fill the swap slots — so the alternatives on offer are
   // alternatives to what the user is actually being shown, and a substituted
   // exercise gets its own stand-ins rather than inheriting the removed one's.
@@ -1823,7 +1910,7 @@ export function generateWorkout(
     generateWorkoutUnscreened(
       sessionType,
       equipmentTier,
-      readiness,
+      screenedReadiness,
       profile,
       exerciseFeedback,
       bestOrmKg,
@@ -1836,7 +1923,7 @@ export function generateWorkout(
       layoff,
       loadUnit
     ),
-    readiness,
+    screenedReadiness,
     equipmentTier,
     profile,
     strengthSessionCount,
@@ -1844,7 +1931,7 @@ export function generateWorkout(
   );
   const withSwaps = fillSwapAlternatives(
     screened,
-    readiness,
+    screenedReadiness,
     equipmentTier,
     profile,
     strengthSessionCount + getLocalDayIndex()
@@ -1863,9 +1950,14 @@ export function generateWorkout(
         ex.id && exerciseRepTarget[ex.id] ? { ...ex, reps: exerciseRepTarget[ex.id] } : ex
       );
 
-  // LAST, after the earned rep target, so an easier week eases the prescription
-  // the user actually has rather than the catalogue's default one.
-  return readiness.deload ? easeForDeloadWeek(targeted, loadUnit) : targeted;
+  // After the earned rep target, so an easier week eases the prescription the
+  // user actually has rather than the catalogue's default one.
+  const eased = readiness.deload ? easeForDeloadWeek(targeted, loadUnit) : targeted;
+
+  // And the kit ceiling LAST of all, because it is a fact about the room rather
+  // than a judgement about the session: whatever every rule above worked out,
+  // a weight they do not own is still a weight they cannot lift.
+  return capToKit(eased, profile?.maxKitKg ?? 0, equipmentTier);
 }
 
 /**
@@ -2407,8 +2499,98 @@ function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): Exercis
     (profile?.experienceLevel as ExperienceLevel) ?? 'intermediate',
     profile?.earnedLevelBonus ?? 0
   );
-  const kept = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
-  return byLevelPreference(kept.length > 0 ? kept : pool, band, (t) => t);
+  /**
+   * AND A CEILING PER PATTERN, from the builder's zero-load screen.
+   *
+   * The weakest link in the whole level system until now: one self-reported
+   * answer set the ceiling for all six movement patterns at once, so somebody
+   * who has squatted for five years and never hung from a bar got the same pull
+   * ceiling as their squat ceiling. Phase 1 of the screening matrix in
+   * PROGRESSION-LADDERS.md is the fix, and this is where it lands.
+   *
+   * UNDEFINED IS NOT AN EMPTY LIST. Undefined means no screen was taken - every
+   * account that existed before the question did, and everybody who skipped it -
+   * and those people are prescribed exactly what they are prescribed today. An
+   * empty array is somebody who answered "none of these yet".
+   */
+  const screened = profile?.screenPassed;
+  const ceilingFor = (pattern?: string): ExerciseLevel => {
+    if (!screened || !isLadderPattern(pattern)) return band.max;
+    // A benchmark not passed is the gate between Level 1 and Level 2 of that
+    // ladder still shut, whatever anybody has said about their experience.
+    return screened.includes(pattern) ? band.max : 1;
+  };
+  /**
+   * TWO FILTERS, WITH DIFFERENT BACKSTOPS, AND THEY MUST NOT BE MERGED.
+   *
+   * The first is the person's own ceiling, and it falls back POOL-WIDE: a pool
+   * with nothing inside the ceiling comes back untouched, because a session
+   * missing its warm-up is a worse outcome than a warm-up a rung too hard.
+   * Unchanged, and it has to be, because it is the promise that nobody is ever
+   * prescribed past the hardest band their experience can reach.
+   *
+   * The second is the movement screen's extra cap on one pattern, and it falls
+   * back PER PATTERN. Measured while writing this: doing both per pattern
+   * quietly weakened the first, because a group with no in-ceiling option now
+   * fell back on its own where before the pool as a whole had survived the
+   * filter. Eight level 3 movements and three level 4 ones reached beginners
+   * that had not reached them the day before.
+   */
+  const withinCeiling = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
+  const base = withinCeiling.length > 0 ? withinCeiling : pool;
+  if (!screened) return byLevelPreference(base, band, (t) => t);
+
+  const groups = new Map<string, ExerciseTemplate[]>();
+  for (const t of base) {
+    const key = isLadderPattern(t.movementPattern) ? t.movementPattern : '';
+    const list = groups.get(key);
+    if (list) list.push(t);
+    else groups.set(key, [t]);
+  }
+  /**
+   * THE SCREEN CHANGES WHICH MOVEMENT YOU GET, NOT HOW MUCH OF THE PATTERN.
+   *
+   * Two wrong versions of this before the right one, both found by measuring
+   * rather than by reading.
+   *
+   * Sorting the whole filtered pool by the person's one band pushed the capped
+   * pattern's easy work to the BACK, because level 1 is a long way from a
+   * band built on level 4 - so failing the pull benchmark nearly deleted pull
+   * work from the session and filled the slots with push.
+   *
+   * Sorting it by each item's OWN band did the opposite and put the capped
+   * work at the very front, because level 1 measured against a ceiling of 1 is
+   * a perfect match - so the failed pattern crowded out the squat work of
+   * somebody whose squat was never in question.
+   *
+   * Neither is what a screen should do. Somebody who cannot yet do a scapular
+   * pull-up should get the same amount of pulling and an easier version of it,
+   * so the ordering happens INSIDE each pattern and the patterns keep the slots
+   * they already had.
+   */
+  const sorted = new Map<string, ExerciseTemplate[]>();
+  for (const [pattern, list] of groups) {
+    const ceiling = ceilingFor(pattern || undefined);
+    const within = list.filter((t) => withinLevel(t.name, t.movementPattern, ceiling));
+    const kept = within.length > 0 ? within : list;
+    const own: LevelBand = ceiling >= band.max ? band : { prefer: ceiling, max: ceiling };
+    sorted.set(pattern, byLevelPreference(kept, own, (t) => t));
+  }
+  const taken = new Map<string, number>();
+  const out: ExerciseTemplate[] = [];
+  for (const t of base) {
+    const key = isLadderPattern(t.movementPattern) ? t.movementPattern : '';
+    const queue = sorted.get(key) ?? [];
+    const at = taken.get(key) ?? 0;
+    // A group that lost members to the filter runs out before its slots do, and
+    // the slots simply go unfilled: the caller is taking the first N of a list
+    // that is allowed to be shorter than the pool it came from.
+    if (at < queue.length) {
+      out.push(queue[at]);
+      taken.set(key, at + 1);
+    }
+  }
+  return out.length > 0 ? out : base;
 }
 
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
@@ -2980,7 +3162,7 @@ function generateWorkoutUnscreened(
     atEarnedLevel(getPrep(mainType, equipmentTier), profile),
     sessionSeed
   );
-  const prepCount = timeAvailable === '45' ? 2 : 3;
+  const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
   /**
    * WARM-UPS APPLY THEIR COMFORT VARIANTS TOO, AND USED NOT TO.
    *
@@ -3267,7 +3449,7 @@ function generateWeeklyWorkout(
     atEarnedLevel(getPrep(prepSource, equipmentTier), profile),
     sessionSeed
   );
-  const prepCount = timeAvailable === '45' ? 2 : 3;
+  const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
   for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
   // ── 3. Main exercises — pattern-first, never drop required movements ───────

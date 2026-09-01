@@ -45,7 +45,16 @@
  * than read a copy of it. The type-only import from ./store is erased at compile
  * time, which lib/rep-scheme.ts already relies on.
  */
-import type { EquipmentTier, ExperienceLevel, PainRegion, Sex, TestWeekFrequency } from './store';
+import { LADDER_PATTERNS, type LadderPattern } from './exercise-levels';
+import type {
+  EquipmentTier,
+  ExperienceLevel,
+  PainRegion,
+  Sex,
+  TestWeekFrequency,
+  WeightUnit,
+} from './store';
+import { displayUnitToKg } from './utils';
 
 // ─── The vocabulary the builder introduces ──────────────────────────────────
 
@@ -192,6 +201,18 @@ export interface TreeNode {
 }
 
 // ─── Helpers used by the branch conditions ──────────────────────────────────
+
+/**
+ * They train with hand weights and have no full gym behind them.
+ *
+ * A full gym has a rack running to whatever anybody can lift, so there is no
+ * ceiling worth asking about and the question would be noise. Bands and
+ * bodyweight have no number either.
+ */
+export function hasKitButNoGym(a: Answers): boolean {
+  const kit = Array.isArray(a.equipment) ? (a.equipment as string[]) : [];
+  return (kit.includes('dumbbells') || kit.includes('kettlebells')) && !kit.includes('fullgym');
+}
 
 const focusIs = (a: Answers, ...want: ProgrammeFocus[]) =>
   want.includes(a.focus as ProgrammeFocus);
@@ -351,15 +372,83 @@ export const PROFILE_TREE: TreeNode[] = [
   },
   {
     /**
+     * PHASE 1 OF THE SCREENING MATRIX, from PROGRESSION-LADDERS.md.
+     *
+     * The weakest link in the level system, and this is the fix for it. Every
+     * movement ceiling in the app comes from the one answer above this: how
+     * long somebody says they have been training. One number, applied to six
+     * different patterns. Somebody who has squatted for five years and never
+     * hung from a bar gets the same pull ceiling as their squat ceiling.
+     *
+     * Six benchmarks, one per pattern, all zero-load and all doable in a
+     * kitchen. Each one is the gate between Level 1 and Level 2 of its ladder,
+     * so an unticked pattern is built from foundations however experienced the
+     * person is - which is exactly what a physiotherapist would do, and exactly
+     * what the app has never been able to do.
+     *
+     * THE PAIN GATE IS FOLDED INTO THE TICK. The matrix asks separately whether
+     * a movement produces sharp pain, and routes a yes to Level 1. Since not
+     * being able to do it and it hurting when you try lead to the same answer,
+     * one box does both jobs, and the hint says so.
+     *
+     * OPTIONAL, AND THAT IS LOAD-BEARING. Skipping means no screen was taken,
+     * which leaves the app doing exactly what it does today. Only an answer
+     * given caps anything. Somebody who genuinely passes none of them has
+     * "None of these yet" to say so, which is a different statement from
+     * saying nothing.
+     */
+    id: 'screen',
+    question: 'Which of these can you do right now?',
+    hint: 'No weight and no gym needed. Leave anything unticked that you cannot do yet, or that pinches when you try. It sets where each movement starts you, and you can change it later.',
+    kind: 'multi',
+    tier: 'tune',
+    optional: true,
+    skipLabel: 'Not sure',
+    options: [
+      /**
+       * The hint on each is the BENCHMARK, and it has to fit one line.
+       *
+       * Seven options with a wrapping second line each is a card taller than
+       * two phones, and this is one question. So the label is what the movement
+       * is and the hint is the number that decides whether it passes - which is
+       * the half that cannot be left out, because "squat to parallel with your
+       * heels down" without "ten times" is a question somebody ticks having
+       * done one.
+       */
+      { value: 'hinge', label: 'Bend at the hips with a flat back', hint: '10 reps, back staying flat' },
+      { value: 'squat', label: 'Squat to parallel with your heels down', hint: '10 reps, knees not caving' },
+      { value: 'push', label: 'Hold a plank', hint: '30 seconds, hips level' },
+      { value: 'pull', label: 'Strict scapular pull-ups or pulldowns', hint: '5 reps, shoulder blades moving' },
+      { value: 'lunge', label: 'A slow split squat', hint: '3 seconds down, no wobble' },
+      { value: 'carry', label: 'Carry something heavy on one side', hint: '30 seconds without leaning' },
+      {
+        value: 'none',
+        label: 'None of these yet',
+        hint: 'Everything starts from foundations',
+      },
+    ],
+  },
+  {
+    /**
      * Not currently asked anywhere, and it is the first line of every
-     * assessment form a physiotherapist has ever filled in. Changes warm-up
-     * length, how fast load climbs, and which safety rules apply.
+     * assessment form a physiotherapist has ever filled in.
+     *
+     * WHAT IT ACTUALLY DOES, which is one thing and used to be none. Past fifty
+     * a 45 minute session keeps all three mobility drills instead of dropping
+     * to two - see prepCountFor in lib/workout-engine.ts.
+     *
+     * This comment used to claim it changed warm-up length, how fast load
+     * climbs and which safety rules apply. None of the three was true: the
+     * answer was collected, stored, synced to the server and read by nothing.
+     * The other two are real ideas and they are clinical decisions, so they are
+     * Archie's to make rather than mine to assume.
      */
     id: 'age',
     question: 'How old are you?',
     kind: 'number',
     tier: 'tune',
   },
+
   {
     id: 'sex',
     question: 'Your biological sex',
@@ -417,6 +506,28 @@ export const PROFILE_TREE: TreeNode[] = [
   },
   {
     /**
+     * ONLY ASKED OF PEOPLE WITH A LIMIT, which is what makes it worth asking.
+     *
+     * "Dumbbells" is a yes or a no today, so a person with two five kilo
+     * dumbbells and a person with a full rack get the same prescription, and one
+     * of them is being told to lift a weight they do not own. Somebody with a
+     * full gym has no ceiling worth naming and is not asked.
+     */
+    id: 'kit',
+    question: 'What is the heaviest you can pick up?',
+    hint: 'The biggest dumbbell or kettlebell you can get your hands on. Nothing is ever prescribed heavier than this.',
+    kind: 'number',
+    tier: 'tune',
+    optional: true,
+    skipLabel: 'Not sure',
+    branch: {
+      from: 'equipment',
+      when: (a) => hasKitButNoGym(a),
+      label: 'Because you train with dumbbells or kettlebells',
+    },
+  },
+  {
+    /**
      * THE QUESTION THAT MAKES GROW GROW.
      *
      * Pain is asked before every single session, which is right for the day to
@@ -463,6 +574,28 @@ export const PROFILE_TREE: TreeNode[] = [
       { value: 'months', label: 'Months' },
       { value: 'years', label: 'A year or more', hint: 'Long standing, so we work around it' },
     ],
+  },
+  {
+    /**
+     * THE QUESTION A PHYSIOTHERAPIST ALWAYS ASKS, and the app never did.
+     *
+     * Not the same question as "is anything sore right now". A shoulder that
+     * does not hurt today because it has been avoided for six months answers no
+     * to that one and yes to this one, and it is the second answer that should
+     * change what somebody is handed.
+     *
+     * Asked of everybody, on the trunk, because it is not conditional on
+     * anything they have already said. "Nothing" is an explicit option rather
+     * than an empty answer, so the difference between a considered no and a
+     * question nobody engaged with survives.
+     */
+    id: 'avoid',
+    question: 'Has a clinician told you to avoid loading anything?',
+    hint: 'A physio, a doctor or a surgeon. Anything named here is worked around in every session, whether it hurts today or not.',
+    kind: 'multi',
+    tier: 'tune',
+    // Region options come from the body diagram at runtime, plus "nothing".
+    // See regionOptionsFor and optionsFor in components/ProfileTree.tsx.
   },
   {
     id: 'testWeeks',
@@ -661,6 +794,19 @@ export function everyJourney(): Answers[] {
  * around, and a second copy of it here is a drift waiting to happen. The
  * paywall's pain-zone count is read off the same list for the same reason.
  */
+/**
+ * The nodes whose options are the body's regions, filled in at render time.
+ *
+ * Named here rather than in the screen, because three separate places need to
+ * agree about it: the screen that draws them, the check that every choice node
+ * has something to tap, and anybody reading the tree and wondering why two of
+ * its nodes have no options listed.
+ *
+ * They are drawn from lib/exercise-db rather than written out here so the
+ * question and the body diagram can never offer different lists.
+ */
+export const REGION_OPTION_NODES = ['soreArea', 'avoid'] as const;
+
 export function regionOptionsFor(regions: readonly { value: PainRegion; label: string }[]): TreeOption[] {
   return regions.map((r) => ({ value: r.value, label: r.label }));
 }
@@ -683,6 +829,22 @@ export interface TreeOutcome {
   soreFor: InjuryAge | null;
   testWeekFrequency: TestWeekFrequency;
   oneRepMaxes: { squat: number | null; bench: number | null; deadlift: number | null };
+  /**
+   * The movement patterns whose zero-load benchmark they can do.
+   *
+   * NULL WHEN THE SCREEN WAS NOT TAKEN, which is a different thing from an
+   * empty list. Null leaves every ceiling exactly where the experience answer
+   * put it, which is the app as it is today; an empty list is somebody saying
+   * "none of these yet" and means every pattern starts at foundations.
+   */
+  screenPassed: LadderPattern[] | null;
+  /** Areas a clinician has told them to stay off. Empty when there are none. */
+  avoidRegions: PainRegion[];
+  /**
+   * The heaviest hand weight they can reach, in kg. Zero when they have a full
+   * gym, or did not say.
+   */
+  maxKitKg: number;
 }
 
 const num = (v: AnswerValue, fallback: number): number => {
@@ -699,6 +861,24 @@ const num = (v: AnswerValue, fallback: number): number => {
  * the builder does now for anyone who does not touch it.
  */
 export function outcomeFrom(answers: Answers): TreeOutcome {
+  /**
+   * EVERY WEIGHT TYPED INTO THE TREE IS IN THE UNIT THEY PICKED, and the tree
+   * stores kilograms.
+   *
+   * The unit question is the second one asked, precisely so the bodyweight
+   * question can be validated against a plausible range - see the docblock in
+   * lib/bodyweight.ts, which records the last time these two halves disagreed.
+   * The validation was converting and the storage was not, so a person who
+   * picked pounds and typed 176 passed the check and had 176 KILOGRAMS written
+   * to their profile. Bodyweight scales every accessory load the app
+   * prescribes, so that is not a cosmetic profile error.
+   *
+   * One conversion, here, where every typed number passes through.
+   */
+  const unit: WeightUnit = answers.units === 'lbs' ? 'lbs' : 'kg';
+  const kg = (v: AnswerValue, fallback: number): number =>
+    displayUnitToKg(num(v, fallback), unit);
+
   const soreRegions = Array.isArray(answers.soreArea)
     ? (answers.soreArea as PainRegion[])
     : [];
@@ -738,17 +918,34 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
     experience: (answers.experience as ExperienceLevel) ?? 'beginner',
     ageYears: num(answers.age, 0),
     sex: (answers.sex as Sex) ?? 'other',
-    bodyweightKg: num(answers.bodyweight, 0),
+    bodyweightKg: kg(answers.bodyweight, 0),
     equipmentTiers: Array.isArray(answers.equipment)
       ? (answers.equipment as EquipmentTier[])
       : [],
     soreRegions: answers.sore === 'yes' ? soreRegions : [],
     soreFor: answers.sore === 'yes' ? ((answers.soreAge as InjuryAge) ?? null) : null,
     testWeekFrequency,
+    /**
+     * "none" is an ANSWER, and the empty list it produces is not the same as no
+     * answer at all. Somebody who ticked nothing at all skipped the screen and
+     * is treated exactly as they are today; somebody who ticked "none of these
+     * yet" has told us something, and every pattern starts from foundations.
+     */
+    screenPassed: Array.isArray(answers.screen)
+      ? (answers.screen as string[]).filter((v): v is LadderPattern =>
+          LADDER_PATTERNS.includes(v as LadderPattern)
+        )
+      : null,
+    avoidRegions: Array.isArray(answers.avoid)
+      ? (answers.avoid as string[]).filter((v): v is PainRegion => v !== 'none')
+      : [],
+    maxKitKg: Math.max(0, kg(answers.kit, 0)),
     oneRepMaxes: {
-      squat: answers.liftsSquat != null ? num(answers.liftsSquat, 0) || null : null,
-      bench: answers.liftsBench != null ? num(answers.liftsBench, 0) || null : null,
-      deadlift: answers.liftsDeadlift != null ? num(answers.liftsDeadlift, 0) || null : null,
+      // Same conversion, and the same bug: these three go straight into
+      // oneRepMaxes, which every working weight is derived from.
+      squat: answers.liftsSquat != null ? kg(answers.liftsSquat, 0) || null : null,
+      bench: answers.liftsBench != null ? kg(answers.liftsBench, 0) || null : null,
+      deadlift: answers.liftsDeadlift != null ? kg(answers.liftsDeadlift, 0) || null : null,
     },
   };
 }

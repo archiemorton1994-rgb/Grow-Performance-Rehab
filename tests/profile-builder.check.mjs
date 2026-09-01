@@ -30,7 +30,8 @@
  * Run:  npx tsx tests/profile-builder.check.mjs
  */
 import { readFileSync } from 'fs';
-import { PROFILE_TREE, nextNode, visibleNodes } from '../lib/profile-tree.ts';
+import { PROFILE_TREE, nextNode, visibleNodes, outcomeFrom } from '../lib/profile-tree.ts';
+import { LADDER_PATTERNS } from '../lib/exercise-levels.ts';
 
 let passed = 0;
 let failed = 0;
@@ -156,9 +157,36 @@ check(
   'a number left in a box goes on to become a prescribed working weight'
 );
 check(
-  'only the two questions with a real reason to decline are optional',
-  PROFILE_TREE.filter((n) => n.optional).map((n) => n.id).sort().join(',') === 'bodyweight,lifts',
-  'every other question changes the programme, so none of them can be passed'
+  /**
+   * FOUR NOW, AND THE RULE IS UNCHANGED: a question may be passed only when
+   * "I would rather not" or "I do not know" is a real answer to it rather than
+   * a hole in the profile.
+   *
+   *   bodyweight  a guess is better than an interrogation, and the guess is
+   *               never quoted back at them
+   *   lifts       plenty of people have never tested a one rep max
+   *   screen      skipping means no movement screen was taken, which leaves
+   *               every ceiling exactly where the experience answer put it.
+   *               "None of these yet" is the separate, explicit answer
+   *   kit         somebody who genuinely does not know what their heaviest
+   *               dumbbell is should not be blocked by it
+   *
+   * Everything else changes the programme in a way nothing can fill in.
+   */
+  'only questions where "I would rather not" is a real answer are optional',
+  PROFILE_TREE.filter((n) => n.optional)
+    .map((n) => n.id)
+    .sort()
+    .join(',') === 'bodyweight,kit,lifts,screen',
+  PROFILE_TREE.filter((n) => n.optional).map((n) => n.id).join(',')
+);
+check(
+  // Skipping is only honest if the way past says what passing means.
+  'and every one of them says what the way past is',
+  PROFILE_TREE.filter((n) => n.optional).every(
+    (n) => typeof n.skipLabel === 'string' && n.skipLabel.trim().length > 0
+  ),
+  '"Skip" says nothing about what skipping means'
 );
 
 // ─── 5. The order of the two barbell questions ──────────────────────────────
@@ -278,6 +306,120 @@ check(
   'the question in focus is the only lit card on the rail',
   /borderColor: C\.primaryMuted/.test(treeCode) && /dotHalo/.test(treeCode),
   'the card you are answering looked exactly like the six you are not'
+);
+
+// ─── The three questions the builder learned to ask ─────────────────────────
+//
+// A question collected and never read is worse than a question not asked: it
+// costs a tap and buys nothing, and it leaves a comment claiming an effect that
+// does not exist. Two fields were already in that state when these were added -
+// ageYears and standingSoreRegions - which is why every one of these asserts
+// that the answer LANDS somewhere as well as that it is asked.
+console.log('\n[8] The movement screen, the kit ceiling and the clinical question');
+
+const byIdNode = (id) => PROFILE_TREE.find((n) => n.id === id);
+
+check(
+  'the zero-load screen is asked, and covers every ladder in the app',
+  (() => {
+    const n = byIdNode('screen');
+    if (!n || n.kind !== 'multi') return false;
+    const values = (n.options ?? []).map((o) => o.value);
+    return LADDER_PATTERNS.every((p) => values.includes(p)) && values.includes('none');
+  })(),
+  JSON.stringify((byIdNode('screen')?.options ?? []).map((o) => o.value))
+);
+check(
+  // Skipping it must leave the app doing exactly what it does today, or every
+  // account that existed before the question would be silently demoted.
+  'skipping it is a different answer from failing it',
+  (() => {
+    const skipped = outcomeFrom({}).screenPassed;
+    const failed = outcomeFrom({ screen: ['none'] }).screenPassed;
+    const passed = outcomeFrom({ screen: ['hinge', 'squat'] }).screenPassed;
+    return (
+      skipped === null &&
+      Array.isArray(failed) &&
+      failed.length === 0 &&
+      passed?.join(',') === 'hinge,squat'
+    );
+  })(),
+  JSON.stringify({ skipped: outcomeFrom({}).screenPassed, failed: outcomeFrom({ screen: ['none'] }).screenPassed })
+);
+check(
+  'and every benchmark on it is something you can do with no kit at all',
+  (byIdNode('screen')?.options ?? [])
+    .filter((o) => o.value !== 'none')
+    .every((o) => !/barbell|dumbbell|kettlebell|machine|rack/i.test(o.label + ' ' + (o.hint ?? ''))),
+  'the whole point of a zero-load gate is that it needs nothing'
+);
+
+check(
+  'the kit ceiling is only put to people who have one',
+  (() => {
+    const n = byIdNode('kit');
+    if (!n?.branch) return false;
+    return (
+      n.branch.when({ equipment: ['dumbbells'] }) === true &&
+      n.branch.when({ equipment: ['kettlebells', 'bands'] }) === true &&
+      // A full gym has a rack running to whatever anybody can lift.
+      n.branch.when({ equipment: ['dumbbells', 'fullgym'] }) === false &&
+      n.branch.when({ equipment: ['bodyweight'] }) === false &&
+      n.branch.when({}) === false
+    );
+  })(),
+  ''
+);
+check(
+  'and it reaches the outcome as a number, or as nothing',
+  outcomeFrom({ kit: '24' }).maxKitKg === 24 &&
+    outcomeFrom({}).maxKitKg === 0 &&
+    outcomeFrom({ kit: '-5' }).maxKitKg === 0,
+  ''
+);
+
+check(
+  'the clinical question is put to everybody, not hung off the sore branch',
+  (() => {
+    const n = byIdNode('avoid');
+    return !!n && n.kind === 'multi' && n.branch === undefined;
+  })(),
+  'a shoulder avoided for six months does not hurt, so it answers no to "is anything sore"'
+);
+check(
+  '"nothing" is an answer to it rather than an empty one',
+  (() => {
+    const none = outcomeFrom({ avoid: ['none'] }).avoidRegions;
+    const some = outcomeFrom({ avoid: ['shoulder', 'none'] }).avoidRegions;
+    return none.length === 0 && some.join(',') === 'shoulder';
+  })(),
+  ''
+);
+check(
+  // The screen and the clinical question both carry one, and on both of them
+  // "none of these" and a list of these contradict each other.
+  'and the screen that draws them makes "none" exclusive',
+  (() => {
+    const tree = read('components/ProfileTree.tsx');
+    return /value === 'none'\s*\?\s*\['none'\]/.test(tree) && /filter\(\(v\) => v !== 'none'\)/.test(tree);
+  })(),
+  '"I can do a plank, and none of these" is an answer the outcome would have to guess about'
+);
+
+check(
+  // It was collected, stored, synced to the server, and read by nothing, while
+  // its own comment claimed it changed three things.
+  'the age answer now does something, and the comment says what',
+  (() => {
+    const src = read('lib/profile-tree.ts');
+    const engine = read('lib/workout-engine.ts');
+    return (
+      /prepCountFor/.test(engine) &&
+      /profile\?\.ageYears/.test(engine) &&
+      /prepCountFor in lib\/workout-engine/.test(src)
+    );
+  })(),
+  'a question that changes nothing has not earned its place, by the tree own rule'
 );
 
 console.log(`\nprofile-builder: ${passed} passed, ${failed} failed`);
