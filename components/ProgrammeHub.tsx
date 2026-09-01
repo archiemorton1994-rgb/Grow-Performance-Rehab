@@ -50,7 +50,8 @@ import {
   type ProgrammeId,
 } from '@/lib/programme';
 import { SESSION_COUNTS, type TrainingDays } from '@/lib/profile-tree';
-import { bandLabel } from '@/lib/exercise-levels';
+import { bandLabel, LEVEL_NAMES } from '@/lib/exercise-levels';
+import { levelBandForExperience } from '@/lib/programme';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
 
@@ -76,6 +77,7 @@ export function ProgrammeHub() {
   const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
   const setUserProfile = useAppStore((s) => s.setUserProfile);
   const completedProgrammes = useAppStore((s) => s.completedProgrammes);
+  const earnedLevelBonus = useAppStore((s) => s.userProfile?.earnedLevelBonus ?? 0);
 
   const [changing, setChanging] = useState(false);
 
@@ -117,6 +119,16 @@ export function ProgrammeHub() {
     cycle
   );
   const pct = Math.min(100, Math.round((position.onPlan / position.totalSessions) * 100));
+  /**
+   * The movements they are actually prescribed from, which is the experience
+   * answer PLUS whatever finishing blocks has earned.
+   *
+   * Not difficulty.band. That is a property of the programme - how hard the work
+   * it prescribes is - and this is a property of the person. The two were both
+   * being called "your level", which is how somebody could take a rung on the
+   * report and find the hub saying exactly what it said before.
+   */
+  const earnedBand = levelBandForExperience(experienceLevel ?? 'beginner', earnedLevelBonus);
 
   /** Which sessions of the block are done, for the plan list. */
   const doneUpTo = position.onPlan;
@@ -404,6 +416,39 @@ export function ProgrammeHub() {
           movements the app will ever put in front of you. Move it up when the work stops being
           hard, not before.
         </Text>
+
+        {/* The other half of the ceiling: what finishing blocks has earned. It
+            lives here rather than only on the report, because this is the screen
+            that claims to describe somebody's level and it would otherwise read
+            exactly the same before and after they took a rung. */}
+        <View style={styles.rung} testID="hub-earned-rung">
+          <Ionicons
+            name={earnedLevelBonus > 0 ? 'trending-up' : 'lock-closed-outline'}
+            size={15}
+            color={earnedLevelBonus > 0 ? C.primaryText : C.textTertiary}
+          />
+          <Text style={styles.rungText}>
+            {/* Named rather than numbered, matching the report. bandLabel
+                reads "Level 4 to 5 work", which said five twice once "out of
+                five" was appended to it and told nobody what level 4 is. */}
+            {earnedLevelBonus > 0
+              ? `Plus ${earnedLevelBonus === 1 ? 'one rung' : `${earnedLevelBonus} rungs`} you earned by finishing blocks. Your sessions are built on ${LEVEL_NAMES[earnedBand.prefer].toLowerCase()} movements, with ${LEVEL_NAMES[earnedBand.max].toLowerCase()} work available on top.`
+              : `Your sessions are built on ${LEVEL_NAMES[earnedBand.prefer].toLowerCase()} movements, with ${LEVEL_NAMES[earnedBand.max].toLowerCase()} work available on top. Finish a block comfortably and you earn a rung above that.`}
+          </Text>
+          {earnedLevelBonus > 0 && (
+            <Pressable
+              onPress={() => {
+                haptic();
+                setUserProfile({ earnedLevelBonus: earnedLevelBonus - 1 });
+              }}
+              testID="hub-give-back-rung"
+              hitSlop={8}
+              style={({ pressed }) => [styles.rungBack, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.rungBackText}>Give one back</Text>
+            </Pressable>
+          )}
+        </View>
 
         <Text style={styles.ctrlLabel}>DAYS A WEEK</Text>
         <View style={styles.segment}>
@@ -734,6 +779,32 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontSize: 11.5,
       fontFamily: 'Inter_400Regular',
       color: C.textTertiary,
+    },
+
+    rung: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      marginTop: 4,
+      padding: 11,
+      borderRadius: 11,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    rungText: {
+      flex: 1,
+      fontSize: 11.5,
+      lineHeight: 16,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
+    rungBack: { paddingVertical: 1 },
+    rungBackText: {
+      fontSize: 11,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      textDecorationLine: 'underline',
     },
 
     planWrap: { marginTop: 12, gap: 7 },

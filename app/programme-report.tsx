@@ -46,7 +46,6 @@ import { GO } from '@/lib/go-colors';
 import { SESSION_DISPLAY_NAMES } from '@/lib/session-meta';
 import { getPainRegionLabel } from '@/lib/workout-engine';
 import { LEVEL_NAMES } from '@/lib/exercise-levels';
-import { DIFFICULTY_LABELS } from '@/lib/programme';
 import type { CompletedProgramme, ProgrammeReport } from '@/lib/programme-report';
 import { formatWeight, kgToDisplayUnit } from '@/lib/utils';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
@@ -80,8 +79,9 @@ export default function ProgrammeReportScreen() {
   const pendingId = useAppStore((s) => s.pendingProgrammeReportId);
   const clearPending = useAppStore((s) => s.clearPendingProgrammeReport);
   const acceptLevelStep = useAppStore((s) => s.acceptLevelStep);
+  /** Rungs held right now, so a report already acted on says so. */
+  const earnedBonus = useAppStore((s) => s.userProfile.earnedLevelBonus ?? 0);
   const switchProgramme = useAppStore((s) => s.switchProgramme);
-  const experienceLevel = useAppStore((s) => s.userProfile.experienceLevel);
   const weightUnit = useAppStore((s) => s.weightUnit);
   const name = useAppStore((s) => s.userProfile.name);
 
@@ -319,8 +319,11 @@ export default function ProgrammeReportScreen() {
               Your first session of the block against your last. Extra reps at the same weight
               count, because that is how the app adds load: reps first, then a plate.
             </Text>
-            {r.movers.map((m) => (
-              <View key={m.exerciseId} style={styles.moveRow}>
+            {r.movers.map((m, i) => (
+              <View
+                key={m.exerciseId}
+                style={[styles.moveRow, i === r.movers.length - 1 && styles.moveRowLast]}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.moveName} numberOfLines={1}>
                     {m.exerciseName}
@@ -345,8 +348,11 @@ export default function ProgrammeReportScreen() {
                   And what went the other way. Worth knowing rather than worth worrying about:
                   a lift often dips while something else is climbing hard.
                 </Text>
-                {r.slipped.map((m) => (
-                  <View key={m.exerciseId} style={styles.moveRow}>
+                {r.slipped.map((m, i) => (
+                  <View
+                    key={m.exerciseId}
+                    style={[styles.moveRow, i === r.slipped.length - 1 && styles.moveRowLast]}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.moveName} numberOfLines={1}>
                         {m.exerciseName}
@@ -436,27 +442,35 @@ export default function ProgrammeReportScreen() {
           {r.step.earned && (
             <View style={styles.stepPanel}>
               <View style={styles.stepFromTo}>
+{/* The rung sessions are BUILT on at each end, which is the thing
+                    that changes. Showing the ceilings instead read "Range and
+                    asymmetry to Elite" after one finished block, which names
+                    the highest thing unlocked rather than what happened. */}
                 <View style={styles.stepEnd}>
-                  <Text style={styles.stepEndLabel}>NOW</Text>
-                  <Text style={styles.stepEndValue}>{LEVEL_NAMES[r.step.fromCeiling]}</Text>
+                  <Text style={styles.stepEndLabel}>BUILT ON NOW</Text>
+                  <Text style={styles.stepEndValue}>{LEVEL_NAMES[r.step.fromBand.prefer]}</Text>
                 </View>
                 <Ionicons name="arrow-forward" size={16} color={PAGE.inkFaint} />
                 <View style={styles.stepEnd}>
                   <Text style={styles.stepEndLabel}>NEXT BLOCK</Text>
                   <Text style={[styles.stepEndValue, { color: GO.light.fill }]}>
-                    {LEVEL_NAMES[r.step.toCeiling]}
+                    {LEVEL_NAMES[r.step.toBand.prefer]}
                   </Text>
                 </View>
               </View>
               <Text style={styles.stepNote}>
-                Nothing changes until you say so, and you can move it back any time from your
-                programme.
+                One rung of the movement ladder, not a jump to a different plan. Nothing changes
+                until you say so, and the level control in your programme is still yours.
               </Text>
-              {experienceLevel === r.step.to ? (
+              {/* Read from what is held NOW rather than from the frozen
+                  report, so reopening a report acted on months ago says taken
+                  instead of offering the same rung a second time. */}
+              {earnedBonus >= r.step.toBonus ? (
                 <View style={styles.stepTaken} testID="report-step-taken">
                   <Ionicons name="checkmark-circle" size={16} color={GO.light.fill} />
                   <Text style={styles.stepTakenText}>
-                    Taken. Your next block is built at {DIFFICULTY_LABELS[1]} level and up.
+                    Taken. Your sessions are built on{' '}
+                    {LEVEL_NAMES[r.step.toBand.prefer].toLowerCase()} movements from here.
                   </Text>
                 </View>
               ) : (
@@ -464,7 +478,7 @@ export default function ProgrammeReportScreen() {
                   onPress={() => {
                     if (Platform.OS !== 'web')
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    acceptLevelStep(r.step.to);
+                    acceptLevelStep(r.step.toBonus);
                   }}
                   testID="report-step-accept"
                   style={({ pressed }) => [
@@ -712,6 +726,8 @@ const makeStyles = (C: ReturnType<typeof useColors>) =>
       borderBottomWidth: 1,
       borderBottomColor: PAGE.hairline,
     },
+    // A rule under the last row is a line under nothing.
+    moveRowLast: { borderBottomWidth: 0, paddingBottom: 2 },
     moveName: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: PAGE.ink },
     moveDetail: {
       marginTop: 1,

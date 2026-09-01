@@ -44,8 +44,8 @@ import type {
 import type { EnrolledProgramme } from './programme';
 import { cycleOf, deloadWeeksFor, nameOf, tagSessions, weeksFor } from './programme';
 import { estimateOrmFromAmrap } from './workout-engine';
-import { levelCeilingFor } from './programme';
-import { LEVEL_NAMES, type ExerciseLevel } from './exercise-levels';
+import { levelBandForExperience } from './programme';
+import { LEVEL_NAMES, type LevelBand } from './exercise-levels';
 
 /**
  * The shape version, stamped on every report as it is built.
@@ -112,11 +112,30 @@ export type ReportHighlight =
  */
 export interface LevelStep {
   earned: boolean;
-  from: ExperienceLevel;
-  to: ExperienceLevel;
-  /** The movement ceiling at each end, so the offer names a real consequence. */
-  fromCeiling: ExerciseLevel;
-  toCeiling: ExerciseLevel;
+  /**
+   * Rungs already earned, and the number after taking this one.
+   *
+   * A BONUS RATHER THAN A NEW EXPERIENCE LEVEL. The first version of this raised
+   * `experienceLevel`, which was wrong twice. Wrong in size, because the three
+   * answers are coarse and intermediate to advanced moves the ceiling two rungs
+   * at once on the strength of one finished block. And wrong in field, because
+   * that answer is something somebody told us about their life outside the app
+   * and is the one the hub's own level control edits - overwriting it would mean
+   * the app and the user were both writing to one box for two different reasons.
+   */
+  fromBonus: number;
+  toBonus: number;
+  /**
+   * The BAND at each end, not just the ceiling.
+   *
+   * A band is the pair the generator actually uses: the rung sessions are built
+   * on, and the rung they will not go past. Reporting only the ceiling produced
+   * an offer that read "Range and asymmetry to Elite" after one finished block,
+   * which names the highest thing unlocked rather than the thing that changed.
+   * What changed is where sessions are built, which is `prefer`.
+   */
+  fromBand: LevelBand;
+  toBand: LevelBand;
   /** One line naming what decided it, in the app's voice. */
   because: string;
 }
@@ -236,11 +255,16 @@ const STEP_MIN_CLEAN_SHARE = 0.8;
 /** Fewer rated exercises than this and there is not enough signal to act on. */
 const STEP_MIN_RATED = 6;
 
-const NEXT_LEVEL: Record<ExperienceLevel, ExperienceLevel> = {
-  beginner: 'intermediate',
-  intermediate: 'advanced',
-  advanced: 'advanced',
-};
+/**
+ * The most rungs anybody can earn this way, however many blocks they finish.
+ *
+ * Two. Past that the app would be prescribing at the top of the ladder to
+ * somebody it has only ever watched inside its own sessions, and the top of
+ * these ladders is loaded single-leg and asymmetric work that a physiotherapist
+ * puts people on by looking at them. Somebody who genuinely belongs there can
+ * still say so: the level control in the hub is theirs.
+ */
+export const MAX_EARNED_BONUS = 2;
 
 /**
  * DID THEY EARN THE NEXT LEVEL, and what does saying yes actually change?
@@ -268,24 +292,39 @@ const NEXT_LEVEL: Record<ExperienceLevel, ExperienceLevel> = {
  */
 export function levelStepFor(
   experience: ExperienceLevel,
-  input: { cleanSessions: number; onPlan: number; effort: { easy: number; hard: number; rated: number } }
+  /** Rungs already earned. See UserProfile.earnedLevelBonus. */
+  earnedBonus: number,
+  input: {
+    cleanSessions: number;
+    onPlan: number;
+    effort: { easy: number; hard: number; rated: number };
+  }
 ): LevelStep {
-  const to = NEXT_LEVEL[experience];
-  const fromCeiling = levelCeilingFor(experience);
-  const toCeiling = levelCeilingFor(to);
+  const fromBonus = Math.max(0, Math.trunc(earnedBonus));
+  const fromBand = levelBandForExperience(experience, fromBonus);
+  const toBonus = fromBonus + 1;
+  const toBand = levelBandForExperience(experience, toBonus);
   const at = (earned: boolean, because: string): LevelStep => ({
     earned,
-    from: experience,
-    to: earned ? to : experience,
-    fromCeiling,
-    toCeiling: earned ? toCeiling : fromCeiling,
+    fromBonus,
+    toBonus: earned ? toBonus : fromBonus,
+    fromBand,
+    toBand: earned ? toBand : fromBand,
     because,
   });
 
-  if (to === experience) {
+  /**
+   * Nowhere left to go, judged by whether the band would actually MOVE.
+   *
+   * Checking the bonus against its cap is not enough: somebody who answered
+   * "3 yrs plus" is already at the top of every ladder, so a rung would be
+   * offered, accepted, and change nothing at all - which is the worst kind of
+   * promise the app can make.
+   */
+  if (fromBonus >= MAX_EARNED_BONUS || toBand.max <= fromBand.max) {
     return at(
       false,
-      'You are already at the top level the app prescribes from. Your next block is built on the same movements, and the weights keep moving as they always have.'
+      'You are at the top of what the app will prescribe on its own. It keeps adding weight from here; the movements themselves are yours to change from your programme whenever you want.'
     );
   }
   if (input.effort.rated < STEP_MIN_RATED) {
@@ -310,7 +349,7 @@ export function levelStepFor(
   }
   return at(
     true,
-    `You finished this block with room to spare. Your next one can be built a level up, which opens ${LEVEL_NAMES[toCeiling]} movements the app has been holding back.`
+    `You finished this block with room to spare, so you have earned a rung. Your next one is built on ${LEVEL_NAMES[toBand.prefer].toLowerCase()} movements rather than ${LEVEL_NAMES[fromBand.prefer].toLowerCase()}, with ${LEVEL_NAMES[toBand.max].toLowerCase()} work available on top.`
   );
 }
 
@@ -335,11 +374,14 @@ export interface ReportInput {
    */
   historyBefore: CompletedSession[];
   experience: ExperienceLevel;
+  /** Rungs already earned from earlier blocks. Zero for a first one. */
+  earnedBonus?: number;
   finishedAt: string;
 }
 
 export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
   const { programme, sessionsSinceEnrolment, historyBefore, experience } = input;
+  const earnedBonus = Math.max(0, Math.trunc(input.earnedBonus ?? 0));
   const tags = tagSessions(
     programme,
     sessionsSinceEnrolment.map((s) => s.sessionType)
@@ -467,21 +509,39 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
       bestBefore.set(log.exerciseId, Math.max(bestBefore.get(log.exerciseId) ?? 0, best.kg));
     }
   }
-  const personalBests: ReportBest[] = [];
-  const pbSeen = new Set<string>();
+  /**
+   * THE BEST OF THE BLOCK, not the first set that beat the old mark.
+   *
+   * The first version recorded a lift the moment it passed its previous best and
+   * then stopped looking, so a deadlift that went 140 to 170 was written up as
+   * 155. On a page headed "weights you had never lifted before this block began",
+   * printing the fourth heaviest is worse than printing nothing.
+   *
+   * Still one entry per exercise. Beating your own set from session two is
+   * progression rather than a first, and listing every one of them would fill
+   * the page with the same lift five times over.
+   */
+  const bestInBlock = new Map<string, ReportBest>();
   for (const s of all) {
     for (const log of s.exerciseLogs) {
       const best = bestSet(log);
       if (!log.exerciseId || !best) continue;
-      const prior = bestBefore.get(log.exerciseId) ?? 0;
-      // Only a weight nobody in this account had lifted before the block began.
-      // Beating your own set from session two is progression, not a first, and
-      // listing both would fill the page with the same lift five times.
-      if (prior > 0 && best.kg > prior && !pbSeen.has(log.exerciseId)) {
-        pbSeen.add(log.exerciseId);
-        personalBests.push({ exerciseName: log.exerciseName, kg: best.kg, reps: best.reps });
+      const held = bestInBlock.get(log.exerciseId);
+      if (!held || best.kg > held.kg || (best.kg === held.kg && best.reps > held.reps)) {
+        bestInBlock.set(log.exerciseId, {
+          exerciseName: log.exerciseName,
+          kg: best.kg,
+          reps: best.reps,
+        });
       }
     }
+  }
+  const personalBests: ReportBest[] = [];
+  for (const [id, best] of bestInBlock) {
+    // A prior of zero means the app has never seen this exercise before, and
+    // everything anybody ever does would be a personal best on that reading.
+    const prior = bestBefore.get(id) ?? 0;
+    if (prior > 0 && best.kg > prior) personalBests.push(best);
   }
   personalBests.sort((a, b) => b.kg - a.kg);
 
@@ -547,7 +607,7 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
     acheTrend,
     cleanSessions,
     effort,
-    step: levelStepFor(experience, {
+    step: levelStepFor(experience, earnedBonus, {
       cleanSessions,
       onPlan: onPlanSessions.length,
       effort,

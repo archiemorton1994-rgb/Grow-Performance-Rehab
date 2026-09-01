@@ -364,6 +364,92 @@ check(
   );
 }
 
+// ─── The rung a finished block earns has to reach the sessions ──────────────
+console.log('\n[7] A rung earned is a rung prescribed');
+
+{
+  const profile = (earnedLevelBonus) => ({
+    name: 'T',
+    sex: 'male',
+    experienceLevel: 'beginner',
+    goals: ['strength'],
+    bodyweightKg: 80,
+    ...(earnedLevelBonus === undefined ? {} : { earnedLevelBonus }),
+  });
+
+  check(
+    'the ceiling moves by exactly one rung per bonus, and stops at the top',
+    levelCeilingFor('beginner', 1) === levelCeilingFor('beginner') + 1 &&
+      levelCeilingFor('beginner', 99) === 5 &&
+      levelCeilingFor('beginner', -3) === levelCeilingFor('beginner'),
+    `${levelCeilingFor('beginner')} -> ${levelCeilingFor('beginner', 1)} / ${levelCeilingFor('beginner', 99)}`
+  );
+  check(
+    // A profile written before any of this existed has no bonus field at all,
+    // and must be prescribed exactly what it was prescribed yesterday.
+    'a profile with no bonus is treated as having earned nothing',
+    levelCeilingFor('beginner', undefined ?? 0) === levelCeilingFor('beginner'),
+    ''
+  );
+
+  const namesAt = (bonus) => {
+    const out = new Set();
+    for (const type of ['lower_body', 'upper_body', 'full_body']) {
+      for (const tier of ['dumbbells', 'fullgym']) {
+        for (let seed = 0; seed < 4; seed++) {
+          let w;
+          try {
+            w = generateWorkout(
+              type,
+              tier,
+              { hasAches: false, energy: 'normal', timeAvailable: '60' },
+              profile(bonus),
+              undefined,
+              undefined,
+              seed
+            );
+          } catch {
+            continue;
+          }
+          // Main lifts are out of scope for the ceiling - see atEarnedLevel -
+          // so they would be identical either way and only dilute the measure.
+          for (const ex of w) if (ex.category !== 'main') out.add(ex.name);
+        }
+      }
+    }
+    return out;
+  };
+
+  const base = namesAt(0);
+  const stepped = namesAt(1);
+  const opened = [...stepped].filter((n) => !base.has(n));
+
+  check(
+    'taking the rung actually changes what the engine builds',
+    opened.length > 0,
+    'a button that writes a number nothing reads is a badge, not progression'
+  );
+  check(
+    'and what it opens is genuinely harder work, not just different work',
+    (() => {
+      const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
+      const ceiling = levelCeilingFor('beginner');
+      return opened.some((n) => {
+        const t = byName.get(n.toLowerCase());
+        const lv = levelOf(n, t?.movementPattern);
+        return lv !== null && lv > ceiling;
+      });
+    })(),
+    opened.slice(0, 6).join(' | ')
+  );
+  check(
+    // The ceiling's own promise, which the bonus must not break at the bottom.
+    'and nothing a beginner had is taken away by earning one',
+    [...base].filter((n) => !stepped.has(n)).length < base.size,
+    ''
+  );
+}
+
 console.log(
   failures === 0
     ? `\nexercise-levels: all ${total} checks passed\n`

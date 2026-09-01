@@ -40,6 +40,7 @@ import {
   archivedTagFor,
   levelStepFor,
   REPORT_VERSION,
+  MAX_EARNED_BONUS,
 } from '../lib/programme-report.ts';
 import { cycleOf } from '../lib/programme.ts';
 
@@ -300,6 +301,47 @@ console.log('\n[3] A first is a first against everything, not against session on
   );
 }
 
+check(
+  /**
+   * CAUGHT BY LOOKING AT THE SCREEN, not by this file.
+   *
+   * The first version recorded a lift the moment it passed its previous best
+   * and then stopped looking, so a deadlift that climbed 140 to 170 across a
+   * block was written up as 155. Every fixture here happened to peak on its
+   * last session, so all of them passed. On a page headed "weights you had
+   * never lifted before this block began", printing the fourth heaviest is
+   * worse than printing nothing.
+   */
+  'the best of the block is the one reported, not the first to beat the old mark',
+  (() => {
+    const p = block({ sessions: 6, days: 3, startedAtSessionCount: 1 });
+    const cycle = cycleOf(p);
+    const before = [
+      sess('deadlift', { exerciseLogs: [log('dl', 'Deadlift', [[140, 3]])] }),
+    ];
+    // Passes the old best of 140 on the second session and keeps climbing.
+    const kg = [130, 145, 150, 160, 170, 165];
+    const done = kg.map((w, i) =>
+      sess(cycle[i % cycle.length], { exerciseLogs: [log('dl', 'Deadlift', [[w, 3]])] })
+    );
+    const r = report(p, done, { historyBefore: before });
+    const pb = r.personalBests.find((b) => b.exerciseName === 'Deadlift');
+    return !!pb && pb.kg === 170;
+  })(),
+  JSON.stringify(
+    (() => {
+      const p = block({ sessions: 6, days: 3, startedAtSessionCount: 1 });
+      const cycle = cycleOf(p);
+      const done = [130, 145, 150, 160, 170, 165].map((w, i) =>
+        sess(cycle[i % cycle.length], { exerciseLogs: [log('dl', 'Deadlift', [[w, 3]])] })
+      );
+      return report(p, done, {
+        historyBefore: [sess('deadlift', { exerciseLogs: [log('dl', 'Deadlift', [[140, 3]])] })],
+      }).personalBests;
+    })()
+  )
+);
+
 // ─── 4. How it felt ─────────────────────────────────────────────────────────
 console.log('\n[4] How it went, honestly');
 
@@ -372,67 +414,100 @@ check(
 );
 
 // ─── 5. The step up ─────────────────────────────────────────────────────────
-console.log('\n[5] Nobody is promoted on nothing');
+//
+// A RUNG, NOT A NEW BIOGRAPHY. The first cut of this raised experienceLevel,
+// which moved the ceiling from 3 to 5 in one go and produced copy promising
+// "Elite movements" to somebody who had finished a single twelve session block.
+// It was also writing over an answer the user gave about their life outside the
+// app, in the same box the hub's own level control edits. So the step is an
+// earned bonus of one rung, on top of whatever the experience answer allows.
+console.log('\n[5] A rung, earned, and never on nothing');
 
 const effort = (rated, hard) => ({ easy: rated - hard, hard, rated });
+const clean = (over = {}) => ({ cleanSessions: 12, onPlan: 12, effort: effort(20, 2), ...over });
 
 check(
-  'a block finished cleanly and comfortably earns the next level',
+  'a block finished cleanly and comfortably earns exactly one rung',
   (() => {
-    const step = levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(20, 2) });
-    return step.earned && step.to === 'intermediate' && step.toCeiling > step.fromCeiling;
+    const step = levelStepFor('beginner', 0, clean());
+    return step.earned && step.toBonus === 1 && step.toBand.prefer === step.fromBand.prefer + 1;
   })(),
-  JSON.stringify(levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(20, 2) }))
+  JSON.stringify(levelStepFor('beginner', 0, clean()))
+);
+check(
+  // The failure that made this a bonus rather than a promotion: two rungs of a
+  // physiotherapist's ladder handed over on the strength of twelve sessions.
+  'and never more than one, however good the block was',
+  (() => {
+    const perfect = levelStepFor('beginner', 0, clean({ effort: effort(40, 0) }));
+    return perfect.toBand.max - perfect.fromBand.max === 1;
+  })(),
+  ''
 );
 check(
   // Two ratings out of two is a hundred percent of nothing. Promoting on it puts
   // a beginner in front of a movement a physiotherapist would not have given
   // them, which is the exact failure the level ceiling exists to prevent.
   'but not on two ratings out of two',
-  levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(2, 0) }).earned === false,
+  levelStepFor('beginner', 0, clean({ effort: effort(2, 0) })).earned === false,
   ''
 );
 check(
   'a block that was hard work is not a step up, and says so kindly',
   (() => {
-    const step = levelStepFor('intermediate', {
-      cleanSessions: 12,
-      onPlan: 12,
-      effort: effort(20, 10),
-    });
-    return !step.earned && step.to === 'intermediate' && step.because.length > 40;
+    const step = levelStepFor('intermediate', 0, clean({ effort: effort(20, 10) }));
+    return !step.earned && step.toBonus === 0 && step.because.length > 40;
   })(),
-  levelStepFor('intermediate', { cleanSessions: 12, onPlan: 12, effort: effort(20, 10) }).because
+  levelStepFor('intermediate', 0, clean({ effort: effort(20, 10) })).because
 );
 check(
   'nor is a block with sets left unfinished',
-  levelStepFor('beginner', { cleanSessions: 6, onPlan: 12, effort: effort(20, 0) }).earned === false,
+  levelStepFor('beginner', 0, clean({ cleanSessions: 6, effort: effort(20, 0) })).earned === false,
   ''
 );
 check(
-  'the top level has nowhere to go, and does not pretend otherwise',
+  'the rungs run out, and it says so rather than offering one that does not exist',
   (() => {
-    const step = levelStepFor('advanced', { cleanSessions: 12, onPlan: 12, effort: effort(20, 0) });
-    return !step.earned && step.to === 'advanced' && step.fromCeiling === step.toCeiling;
+    const step = levelStepFor('intermediate', MAX_EARNED_BONUS, clean());
+    return !step.earned && step.toBonus === MAX_EARNED_BONUS && step.fromBand.max === step.toBand.max;
   })(),
-  ''
+  JSON.stringify(levelStepFor('intermediate', MAX_EARNED_BONUS, clean()))
+);
+check(
+  // Somebody who answered "3 yrs plus" is already at the top of the ladder, so
+  // there is nothing to earn and the app must not invent a sixth rung.
+  'and somebody already at the top of the ladder is offered nothing',
+  (() => {
+    const step = levelStepFor('advanced', 0, clean({ effort: effort(20, 0) }));
+    return !step.earned && step.fromBand.max === step.toBand.max && step.fromBand.max === 5;
+  })(),
+  JSON.stringify(levelStepFor('advanced', 0, clean({ effort: effort(20, 0) })))
 );
 check(
   'a step that is not earned never moves the ceiling either',
   ['beginner', 'intermediate', 'advanced'].every((lvl) => {
-    const step = levelStepFor(lvl, { cleanSessions: 1, onPlan: 12, effort: effort(20, 10) });
-    return !step.earned && step.from === step.to && step.fromCeiling === step.toCeiling;
+    const step = levelStepFor(lvl, 0, clean({ cleanSessions: 1, effort: effort(20, 10) }));
+    return !step.earned && step.fromBonus === step.toBonus && step.fromBand.max === step.toBand.max;
   }),
+  ''
+);
+check(
+  'a nonsense bonus cannot drag somebody below the level they answered for',
+  (() => {
+    const step = levelStepFor('intermediate', -5, clean());
+    return step.fromBonus === 0 && step.fromBand.max === levelStepFor('intermediate', 0, clean()).fromBand.max;
+  })(),
   ''
 );
 check(
   'every outcome names what decided it',
   [
-    levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(20, 0) }),
-    levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(2, 0) }),
-    levelStepFor('beginner', { cleanSessions: 1, onPlan: 12, effort: effort(20, 0) }),
-    levelStepFor('beginner', { cleanSessions: 12, onPlan: 12, effort: effort(20, 19) }),
-    levelStepFor('advanced', { cleanSessions: 12, onPlan: 12, effort: effort(20, 0) }),
+    levelStepFor('beginner', 0, clean({ effort: effort(20, 0) })),
+    levelStepFor('beginner', 0, clean({ effort: effort(2, 0) })),
+    levelStepFor('beginner', 0, clean({ cleanSessions: 1 })),
+    levelStepFor('beginner', 0, clean({ effort: effort(20, 19) })),
+    levelStepFor('advanced', 0, clean({ effort: effort(20, 0) })),
+    levelStepFor('intermediate', MAX_EARNED_BONUS, clean()),
   ].every((s) => s.because.trim().length > 30 && !/undefined|NaN/.test(s.because)),
   ''
 );

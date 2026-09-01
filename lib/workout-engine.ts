@@ -2394,8 +2394,19 @@ function sameJobAlternatives(
  * Unlevelled work - rehab, conditioning, mobility - passes straight through.
  * See the docblock in lib/exercise-levels.ts for why that is not an oversight.
  */
-function atEarnedLevel(pool: ExerciseTemplate[], experienceLevel?: string): ExerciseTemplate[] {
-  const band = levelBandForExperience((experienceLevel as ExperienceLevel) ?? 'intermediate');
+function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): ExerciseTemplate[] {
+  /**
+   * The WHOLE profile, not just the experience answer.
+   *
+   * The ceiling is what somebody told us plus what they have shown us, and the
+   * second half arrives as earnedLevelBonus. Taking only the string here is how
+   * a rung earned by finishing a block would be recorded, displayed on the
+   * report, and then quietly ignored by the thing that picks the exercises.
+   */
+  const band = levelBandForExperience(
+    (profile?.experienceLevel as ExperienceLevel) ?? 'intermediate',
+    profile?.earnedLevelBonus ?? 0
+  );
   const kept = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
   return byLevelPreference(kept.length > 0 ? kept : pool, band, (t) => t);
 }
@@ -2966,7 +2977,7 @@ function generateWorkoutUnscreened(
   //   45 min → first 2 stretches
   //   60 min → all 3 stretches
   const prep = seededShuffleDiverse(
-    atEarnedLevel(getPrep(mainType, equipmentTier), profile?.experienceLevel),
+    atEarnedLevel(getPrep(mainType, equipmentTier), profile),
     sessionSeed
   );
   const prepCount = timeAvailable === '45' ? 2 : 3;
@@ -3002,7 +3013,7 @@ function generateWorkoutUnscreened(
       ? getPowerMechanical(mainType, equipmentTier)
       : getMechanical(mainType, equipmentTier);
   const mechanical = seededShuffleDiverse(
-    atEarnedLevel(mechanicalPool, profile?.experienceLevel),
+    atEarnedLevel(mechanicalPool, profile),
     sessionSeed
   );
   if (timeAvailable === '60') {
@@ -3028,7 +3039,7 @@ function generateWorkoutUnscreened(
     // exactly that. getPowerNeuro returns a single template and is left alone
     // for the same reason the main lift is - see atEarnedLevel.
     const neuroTemplate = seededShuffleDiverse(
-      atEarnedLevel(neuroPool, profile?.experienceLevel),
+      atEarnedLevel(neuroPool, profile),
       sessionSeed
     )[0];
     const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
@@ -3077,7 +3088,7 @@ function generateWorkoutUnscreened(
   // Diversify by movement pattern so the 1-2 chosen accessories don't stack the
   // same pattern (e.g. two 'push' moves) within a single session.
   const allAccessories = seededShuffleDiverse(
-    atEarnedLevel(getAccessories(mainType, equipmentTier), profile?.experienceLevel),
+    atEarnedLevel(getAccessories(mainType, equipmentTier), profile),
     sessionSeed
   );
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
@@ -3123,7 +3134,7 @@ function generateWorkoutUnscreened(
   } else if (timeAvailable !== '30') {
     const finisherPool = atEarnedLevel(
       getFinisher(mainType, equipmentTier, finisherKey),
-      profile?.experienceLevel
+      profile
     );
     const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
     exercises.push(templateToExercise(finisher, finBadge));
@@ -3253,7 +3264,7 @@ function generateWeeklyWorkout(
   const prepSource: MainSessionType =
     sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
   const prep = seededShuffleDiverse(
-    atEarnedLevel(getPrep(prepSource, equipmentTier), profile?.experienceLevel),
+    atEarnedLevel(getPrep(prepSource, equipmentTier), profile),
     sessionSeed
   );
   const prepCount = timeAvailable === '45' ? 2 : 3;
@@ -3331,8 +3342,8 @@ function generateWeeklyWorkout(
     // The OPTIONAL half of the weekly list. The required half above is this
     // session's identity and is left exactly as curated, same reasoning as the
     // main lift: a ceiling may narrow the variety, never the session.
-    ...atEarnedLevel(allMainExercises.slice(minRequired), profile?.experienceLevel),
-    ...atEarnedLevel(getAccessories(accessorySource, equipmentTier), profile?.experienceLevel),
+    ...atEarnedLevel(allMainExercises.slice(minRequired), profile),
+    ...atEarnedLevel(getAccessories(accessorySource, equipmentTier), profile),
   ];
 
   // The main movement is resolved BEFORE anything is filtered, so nothing else
@@ -3470,7 +3481,7 @@ function generateWeeklyWorkout(
       sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
     const finisherPool = atEarnedLevel(
       getFinisher(finisherSource, equipmentTier, finisherKey),
-      profile?.experienceLevel
+      profile
     );
     if (finisherPool.length > 0) {
       // Rotated on the same seed as everything else in this session. It used to

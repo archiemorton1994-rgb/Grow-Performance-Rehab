@@ -761,14 +761,24 @@ export interface ProgrammeDifficulty {
  * programme does not make somebody able to do harder movements, which is the
  * whole point of the earn-the-barbell rule in PROGRESSION-LADDERS.md.
  */
-export function levelCeilingFor(experience: ExperienceLevel): ExerciseLevel {
+export function levelCeilingFor(
+  experience: ExperienceLevel,
+  /** Rungs earned by finishing blocks. See UserProfile.earnedLevelBonus. */
+  earnedBonus: number = 0
+): ExerciseLevel {
   let max = 1;
   for (let i = 0; i <= CAPABILITY_CEILING[experience]; i++) {
     const band = levelBandFor(DIFFICULTY_LABELS[i]);
     if (band.max > max) max = band.max;
   }
-  return max as ExerciseLevel;
+  // Clamped at both ends. A negative bonus cannot drag somebody below the level
+  // they answered for, and nothing can climb past the top of the ladder.
+  const bonus = Math.max(0, Math.trunc(earnedBonus));
+  return Math.min(MAX_EXERCISE_LEVEL, max + bonus) as ExerciseLevel;
 }
+
+/** The top of every ladder in lib/exercise-levels.ts. Nothing goes past it. */
+export const MAX_EXERCISE_LEVEL = 5;
 
 /**
  * What the generator builds on, and what it will not go past.
@@ -786,8 +796,11 @@ export function levelCeilingFor(experience: ExperienceLevel): ExerciseLevel {
  * and the LABEL is a fact about the programme, and levelCeilingFor above keeps
  * the two from disagreeing.
  */
-export function levelBandForExperience(experience: ExperienceLevel): LevelBand {
-  const max = levelCeilingFor(experience);
+export function levelBandForExperience(
+  experience: ExperienceLevel,
+  earnedBonus: number = 0
+): LevelBand {
+  const max = levelCeilingFor(experience, earnedBonus);
   return { prefer: (max > 1 ? max - 1 : 1) as ExerciseLevel, max };
 }
 

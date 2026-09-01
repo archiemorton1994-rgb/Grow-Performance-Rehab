@@ -42,7 +42,7 @@ import {
   selectProgramme,
   tagSessions,
 } from './programme';
-import { archiveIdFor, completeProgramme } from './programme-report';
+import { archiveIdFor, completeProgramme, MAX_EARNED_BONUS } from './programme-report';
 import type { CompletedProgramme } from './programme-report';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
@@ -425,6 +425,20 @@ export interface UserProfile {
    * to behave exactly as it does today for a profile that has none of them.
    */
   ageYears?: number;
+  /**
+   * RUNGS OF THE MOVEMENT LADDER EARNED BY FINISHING BLOCKS, on top of whatever
+   * `experienceLevel` allows. Zero for everybody who has not finished one.
+   *
+   * SEPARATE FROM experienceLevel ON PURPOSE. That answer is something somebody
+   * told us about their life outside the app, and it is the answer the hub's own
+   * level control edits. This is something they showed us inside it. Writing the
+   * second over the first would lose the answer they gave, and would mean the
+   * app and the user were both writing to one box for two different reasons.
+   *
+   * One rung per block cleared, offered by the report and never applied without
+   * being accepted. See levelStepFor in lib/programme-report.ts.
+   */
+  earnedLevelBonus?: number;
   /**
    * Areas reported as sore in the BUILDER, which is a standing fact about a
    * person rather than the per-session pain flag on the readiness screen. Until
@@ -941,14 +955,18 @@ interface AppState {
   archiveIfBlockComplete: (nowIso: string) => void;
   clearPendingProgrammeReport: () => void;
   /**
-   * Take the step up the report offered.
+   * Take the rung the report offered.
    *
    * Never applied automatically. Making somebody's next eight weeks harder
    * because the app decided they looked comfortable is the app changing
    * underneath them, which is the one thing the programme layer promises not to
    * do. See levelStepFor.
+   *
+   * It writes earnedLevelBonus and NOT experienceLevel: what somebody told us
+   * about their training history is theirs, and the hub's level control is the
+   * only thing that edits it.
    */
-  acceptLevelStep: (to: ExperienceLevel) => void;
+  acceptLevelStep: (toBonus: number) => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
   /**
@@ -1890,6 +1908,7 @@ export const useAppStore = create<AppState>()(
           sessionsSinceEnrolment: since,
           historyBefore: before,
           experience: userProfile.experienceLevel,
+          earnedBonus: userProfile.earnedLevelBonus ?? 0,
           finishedAt: nowIso,
         });
         set((st) => ({
@@ -1900,8 +1919,15 @@ export const useAppStore = create<AppState>()(
 
       clearPendingProgrammeReport: () => set({ pendingProgrammeReportId: null }),
 
-      acceptLevelStep: (to) =>
-        set((st) => ({ userProfile: { ...st.userProfile, experienceLevel: to } })),
+      acceptLevelStep: (toBonus) =>
+        set((st) => ({
+          userProfile: {
+            ...st.userProfile,
+            // Clamped here as well as in the report, because this is reachable
+            // from a screen and a screen is reachable from a stale report.
+            earnedLevelBonus: Math.max(0, Math.min(MAX_EARNED_BONUS, Math.trunc(toBonus))),
+          },
+        })),
 
       getProgrammePosition: () => {
         const { programme, completedSessions } = get();
