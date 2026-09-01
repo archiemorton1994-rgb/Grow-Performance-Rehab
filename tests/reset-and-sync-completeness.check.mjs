@@ -137,6 +137,8 @@ const NOT_SYNCED = {
   resetPendingUpload: 'a flag about THIS device\'s upload state',
   calibrationBannerDismissed: 'a dismissal on this device',
   exerciseRepNote: 'travels with exerciseRepTarget; see the check below',
+  pendingProgrammeReportId:
+    'a nudge saying a report has not been opened on THIS device, not a fact about the user. The report itself is in completedProgrammes, which is synced, so a new phone finds it on the shelf rather than being handed it again',
 };
 const syncBody = store.slice(
   store.indexOf('getDataForSync: () => {'),

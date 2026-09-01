@@ -46,6 +46,7 @@ export function ProgrammeStats() {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const programme = useAppStore((s) => s.programme);
+  const completedProgrammes = useAppStore((s) => s.completedProgrammes);
   const completedSessions = useAppStore((s) => s.completedSessions);
   const getProgrammePosition = useAppStore((s) => s.getProgrammePosition);
   const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
@@ -71,7 +72,38 @@ export function ProgrammeStats() {
     return since / weeksElapsed;
   }, [programme, completedSessions]);
 
-  if (!programme || !position) return null;
+  /**
+   * The shelf, shown whether or not a block is running.
+   *
+   * Pulled out above the early return on purpose. Somebody between programmes
+   * has no current block and may have four finished ones, and the old early
+   * return took the entire section off the Stats tab for exactly that person.
+   */
+  const shelf =
+    completedProgrammes.length === 0 ? null : (
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/completed-programmes');
+        }}
+        testID="stats-completed-programmes"
+        style={({ pressed }) => [styles.shelf, pressed && { opacity: 0.9 }]}
+      >
+        <Ionicons name="albums-outline" size={17} color={C.textSecondary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.shelfTitle}>
+            {completedProgrammes.length}{' '}
+            {completedProgrammes.length === 1 ? 'block finished' : 'blocks finished'}
+          </Text>
+          <Text style={styles.shelfSub} numberOfLines={1}>
+            {completedProgrammes[completedProgrammes.length - 1].name} was the last one
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+      </Pressable>
+    );
+
+  if (!programme || !position) return shelf;
 
   const cycle = cycleOf(programme);
   const difficulty = programmeDifficulty(
@@ -84,7 +116,7 @@ export function ProgrammeStats() {
   const pct = Math.min(100, Math.round((position.onPlan / position.totalSessions) * 100));
   const left = Math.max(0, position.totalSessions - position.onPlan);
 
-  return (
+  const card = (
     <Pressable
       onPress={() => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -178,6 +210,15 @@ export function ProgrammeStats() {
       </View>
     </Pressable>
   );
+
+  return shelf === null ? (
+    card
+  ) : (
+    <View style={{ gap: 12 }}>
+      {card}
+      {shelf}
+    </View>
+  );
 }
 
 function makeStyles(C: ReturnType<typeof useColors>) {
@@ -190,6 +231,25 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.border,
       gap: 10,
     },
+    shelf: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 11,
+      borderRadius: 16,
+      paddingHorizontal: 15,
+      paddingVertical: 13,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    shelfTitle: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.text },
+    shelfSub: {
+      marginTop: 1,
+      fontSize: 11.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+    },
+
     head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
     eyebrow: {
       fontSize: 9.5,

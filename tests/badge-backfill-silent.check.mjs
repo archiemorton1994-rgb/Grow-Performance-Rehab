@@ -61,9 +61,9 @@ check(
 );
 
 /**
- * ANCHORED ON THE BRANCH, AND MEASURED AGAINST THE CODE RATHER THAN THE PROSE.
+ * ANCHORED ON THE BRANCH, AND MEASURED BY ITS BRACES RATHER THAN ITS LENGTH.
  *
- * Two things were wrong with the old version of this check.
+ * Three versions of this check, and the first two both failed the same way.
  *
  * It started from `completedCount: data.completedSessions`, a field that
  * changed when sessions began being unioned by id instead of replaced wholesale
@@ -71,19 +71,45 @@ check(
  * an unrelated change, which is the same class of fault as one that stays green
  * for an unrelated reason.
  *
- * And it counted characters over the RAW file. This repo comments heavily and
- * deliberately, so every paragraph written inside mergeServerData ate into a
- * window that was measuring explanation as though it were code. Stripped, the
- * span this cares about is about 1,650 characters and stable; unstripped it had
- * already grown past the limit twice.
+ * It then counted characters over the file. Stripping the comments bought one
+ * more round; the window was 1,800 characters and had already outgrown two
+ * earlier limits, and adding one more field to the same branch pushed it over a
+ * third time with the behaviour untouched.
+ *
+ * A distance is not the claim. The claim is that the branch which adopts the
+ * server's view of the world records badges SILENTLY, so take exactly that
+ * branch by matching its braces and read what is in it. That cannot break by
+ * getting longer, and it catches something the window never could: a loud award
+ * added alongside the silent one.
  */
 const codeOnly = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+/** The body of `if (serverCount > localCount) { ... }`, braces balanced. */
+function serverAheadBranch(code) {
+  const at = code.indexOf('if (serverCount > localCount) {');
+  if (at < 0) return null;
+  let depth = 0;
+  for (let i = code.indexOf('{', at); i < code.length; i++) {
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}') {
+      depth--;
+      if (depth === 0) return code.slice(at, i + 1);
+    }
+  }
+  return null;
+}
+
+const serverAhead = serverAheadBranch(codeOnly);
+
 check(
   'the server restore backfills silently',
-  /if \(serverCount > localCount\) \{[\s\S]{0,1800}?awardNewBadges\(\{ silent: true \}\)/.test(
-    codeOnly
-  ),
+  serverAhead !== null && /awardNewBadges\(\{ silent: true \}\)/.test(serverAhead),
   'mergeServerData must record restored badges without celebrating them'
+);
+check(
+  'and nothing in that branch celebrates them',
+  serverAhead !== null && !/awardNewBadges\(\s*\)/.test(serverAhead),
+  'restoring a backup is not an achievement'
 );
 
 check(

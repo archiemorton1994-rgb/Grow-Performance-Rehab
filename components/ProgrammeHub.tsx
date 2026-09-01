@@ -75,6 +75,7 @@ export function ProgrammeHub() {
   const equipmentTiers = useAppStore((s) => s.equipmentTiers);
   const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
   const setUserProfile = useAppStore((s) => s.setUserProfile);
+  const completedProgrammes = useAppStore((s) => s.completedProgrammes);
 
   const [changing, setChanging] = useState(false);
 
@@ -196,15 +197,34 @@ export function ProgrammeHub() {
         )}
 
         {position.complete && (
-          <View style={styles.doneBadge} testID="hub-complete">
-            <Ionicons name="ribbon-outline" size={16} color={PAGE.ink} />
-            <Text style={styles.doneBadgeText}>Block complete</Text>
-          </View>
+          /* Was a chip that said "Block complete" and did nothing. Weeks of
+             work, acknowledged with a label. The report is what was behind it
+             all along, and this is the way in. */
+          <Pressable
+            onPress={() => {
+              haptic(true);
+              router.push('/programme-report');
+            }}
+            testID="hub-complete"
+            style={({ pressed }) => [styles.doneBadge, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="ribbon" size={17} color={PAGE.ink} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.doneBadgeText}>Block complete</Text>
+              <Text style={styles.doneBadgeSub}>
+                Read the report: what you did, what moved, and what comes next
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={PAGE.inkMuted} />
+          </Pressable>
         )}
       </View>
 
       {/* ── Next up ──────────────────────────────────────────────────── */}
-      {!programme.paused && (
+      {/* Not once it is finished. "Session 13 of 12" is the app failing to
+          notice the thing it just counted to, and the question at that point is
+          what happens next rather than what is next. */}
+      {!programme.paused && !position.complete && (
         <View style={styles.block}>
           <Text style={styles.blockTitle}>Next in your programme</Text>
           <Pressable
@@ -307,6 +327,27 @@ export function ProgrammeHub() {
           })}
         </View>
       </View>
+
+      {completedProgrammes.length > 0 && (
+        <Pressable
+          onPress={() => {
+            haptic();
+            router.push('/completed-programmes');
+          }}
+          testID="hub-completed-link"
+          style={({ pressed }) => [styles.archiveRow, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="albums-outline" size={18} color={C.textSecondary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.archiveTitle}>
+              {completedProgrammes.length}{' '}
+              {completedProgrammes.length === 1 ? 'block finished' : 'blocks finished'}
+            </Text>
+            <Text style={styles.archiveSub}>Every report you have earned, kept for good</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={C.textTertiary} />
+        </Pressable>
+      )}
 
       {/* ── Change it ────────────────────────────────────────────────── */}
       <View style={styles.block} testID="hub-controls">
@@ -601,16 +642,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: PAGE.inkFaint,
       marginTop: 12,
     },
+    // A full-width row now rather than a chip that hugs its own text: it is a
+    // control with a second line and a chevron, and a small pill would read as
+    // a label somebody had accidentally made tappable.
     doneBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
-      alignSelf: 'flex-start',
-      marginTop: 13,
-      paddingVertical: 6,
-      paddingHorizontal: 11,
-      borderRadius: 9,
+      gap: 10,
+      marginTop: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 13,
+      borderRadius: 12,
       backgroundColor: PAGE.inset,
+      borderWidth: 1,
+      borderColor: PAGE.hairline,
     },
     doneBadgeText: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: PAGE.ink },
 
@@ -663,6 +708,33 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primaryMuted,
     },
     extraText: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
+
+    doneBadgeSub: {
+      marginTop: 2,
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily: 'Inter_400Regular',
+      color: PAGE.inkMuted,
+    },
+
+    archiveRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 15,
+      paddingVertical: 13,
+    },
+    archiveTitle: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.text },
+    archiveSub: {
+      marginTop: 1,
+      fontSize: 11.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.textTertiary,
+    },
 
     planWrap: { marginTop: 12, gap: 7 },
     planWeek: { flexDirection: 'row', alignItems: 'center', gap: 10 },

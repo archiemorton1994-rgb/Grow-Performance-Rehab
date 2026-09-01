@@ -42,6 +42,8 @@ import {
   selectProgramme,
   tagSessions,
 } from './programme';
+import { archiveIdFor, completeProgramme } from './programme-report';
+import type { CompletedProgramme } from './programme-report';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
 export type EnergyLevel = 'low' | 'normal' | 'high';
@@ -911,6 +913,42 @@ interface AppState {
   switchProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
   setProgrammePaused: (paused: boolean) => void;
   leaveProgramme: () => void;
+  /**
+   * EVERY BLOCK THEY HAVE EVER FINISHED, oldest first.
+   *
+   * Frozen records rather than references. See lib/programme-report.ts for why
+   * a finished block is the one thing in the programme layer that is stored
+   * instead of derived.
+   */
+  completedProgrammes: CompletedProgramme[];
+  /**
+   * A block finished and its report has not been opened yet.
+   *
+   * Persisted on purpose. Somebody who finishes their twelfth session at ten at
+   * night and closes the app should still be handed the report in the morning;
+   * weeks of work is not something to show once and drop.
+   */
+  pendingProgrammeReportId: string | null;
+  /**
+   * Freeze the current block if it has just been finished, and flag the report.
+   *
+   * Called after every session rather than from a screen, because the moment a
+   * block completes is a fact about the history and not about where anybody
+   * happens to be looking. Idempotent: the archive id is derived from the
+   * enrolment, so training on past the end of a block never collects a second
+   * certificate for the same one.
+   */
+  archiveIfBlockComplete: (nowIso: string) => void;
+  clearPendingProgrammeReport: () => void;
+  /**
+   * Take the step up the report offered.
+   *
+   * Never applied automatically. Making somebody's next eight weeks harder
+   * because the app decided they looked comfortable is the app changing
+   * underneath them, which is the one thing the programme layer promises not to
+   * do. See levelStepFor.
+   */
+  acceptLevelStep: (to: ExperienceLevel) => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
   /**
@@ -1042,6 +1080,8 @@ export const useAppStore = create<AppState>()(
       weeklyStreakGoal: 2,
       cycleStartOffset: 0,
       programme: null,
+      completedProgrammes: [],
+      pendingProgrammeReportId: null,
       themePreference: 'dark',
       profilePhotoUri: null,
       exerciseNormalStreak: {},
@@ -1499,6 +1539,15 @@ export const useAppStore = create<AppState>()(
         });
         // Award any newly unlocked badges based on the updated state.
         get().awardNewBadges();
+        /**
+         * AND FREEZE THE BLOCK IF THAT WAS THE LAST SESSION OF IT.
+         *
+         * Here rather than on a screen. A block completing is a fact about the
+         * history, not about where anybody happens to be looking when it
+         * happens - and the session summary is not the only way a session can
+         * be logged.
+         */
+        get().archiveIfBlockComplete(session.date);
       },
 
       addOneRepMax: (orm) => {
@@ -1541,6 +1590,10 @@ export const useAppStore = create<AppState>()(
           exerciseRepNote: {},
           exerciseFeedback: {},
           testWeekDeferred: false,
+          // The blocks go with the sessions they were built from. A report about
+          // twelve sessions that no longer exist is a document about nothing.
+          completedProgrammes: [],
+          pendingProgrammeReportId: null,
           earnedBadges: [],
           newlyUnlockedBadges: [],
           // The half-finished session goes too. Left behind, Home kept offering
@@ -1812,6 +1865,43 @@ export const useAppStore = create<AppState>()(
         set((s) => (s.programme ? { programme: { ...s.programme, paused } } : {})),
 
       leaveProgramme: () => set({ programme: null }),
+
+      archiveIfBlockComplete: (nowIso) => {
+        const { programme, completedSessions, completedProgrammes, userProfile } = get();
+        if (!programme) return;
+        const pos = get().getProgrammePosition();
+        if (!pos || !pos.complete) return;
+        const id = archiveIdFor(programme);
+        // Derived rather than generated, so this is safe to call after every
+        // single session for the rest of the block's life.
+        if (completedProgrammes.some((c) => c.id === id)) return;
+
+        /**
+         * Same reversal as getProgrammePosition, and the same one thing that
+         * can be wrong about it: completedSessions is NEWEST FIRST, and the
+         * report walks the block forwards.
+         */
+        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
+        const since = completedSessions.slice(0, sinceCount).reverse();
+        const before = completedSessions.slice(sinceCount);
+
+        const done = completeProgramme({
+          programme,
+          sessionsSinceEnrolment: since,
+          historyBefore: before,
+          experience: userProfile.experienceLevel,
+          finishedAt: nowIso,
+        });
+        set((st) => ({
+          completedProgrammes: [...st.completedProgrammes, done],
+          pendingProgrammeReportId: done.id,
+        }));
+      },
+
+      clearPendingProgrammeReport: () => set({ pendingProgrammeReportId: null }),
+
+      acceptLevelStep: (to) =>
+        set((st) => ({ userProfile: { ...st.userProfile, experienceLevel: to } })),
 
       getProgrammePosition: () => {
         const { programme, completedSessions } = get();
@@ -2211,6 +2301,7 @@ export const useAppStore = create<AppState>()(
           testWeekDeferred: s.testWeekDeferred,
           cycleStartOffset: s.cycleStartOffset,
           programme: s.programme,
+          completedProgrammes: s.completedProgrammes,
           lastLoggedWeights: s.lastLoggedWeights,
           lastSessionPerformance: s.lastSessionPerformance,
           exerciseNormalStreak: s.exerciseNormalStreak,
@@ -2398,6 +2489,23 @@ export const useAppStore = create<AppState>()(
             // (which has no programme key at all) leaves the local enrolment
             // alone instead of un-enrolling somebody on their next sign-in.
             programme: (data.programme as EnrolledProgramme | null) ?? s.programme,
+            /**
+             * NEVER REPLACED, ALWAYS UNIONED, whichever side is ahead.
+             *
+             * Same rule as the session list and for the same reason: two
+             * devices can each hold a finished block the other has never seen,
+             * and adopting one side's view would delete a record of weeks of
+             * somebody's training. Ids are derived from the enrolment, so the
+             * union needs no gate.
+             */
+            completedProgrammes: (() => {
+              const incoming = (data.completedProgrammes as CompletedProgramme[]) ?? [];
+              const byId = new Map(s.completedProgrammes.map((c) => [c.id, c]));
+              for (const c of incoming) if (!byId.has(c.id)) byId.set(c.id, c);
+              return [...byId.values()].sort((a, b) =>
+                a.finishedAt < b.finishedAt ? -1 : a.finishedAt > b.finishedAt ? 1 : 0
+              );
+            })(),
             lastLoggedWeights: data.lastLoggedWeights ?? s.lastLoggedWeights,
             lastSessionPerformance:
               (data.lastSessionPerformance as any) ?? s.lastSessionPerformance,
@@ -2613,6 +2721,21 @@ export const useAppStore = create<AppState>()(
           p.sessions = Math.max(4, Math.min(20, converted));
           delete p.blockWeeks;
         }
+        /**
+         * Nobody upgrading has a finished block on record.
+         *
+         * Deliberately NOT backfilled from history. The app could look at
+         * somebody who has done ninety sessions and manufacture seven blocks
+         * they were never on, and every number in those reports would be a
+         * guess dressed up as a record. Their first real block is the first one
+         * they finish from here.
+         */
+        if (!Array.isArray(persistedState.completedProgrammes)) {
+          persistedState.completedProgrammes = [];
+        }
+        if (!('pendingProgrammeReportId' in persistedState)) {
+          persistedState.pendingProgrammeReportId = null;
+        }
         if (!persistedState.exerciseNormalStreak) {
           persistedState.exerciseNormalStreak = {};
         }
@@ -2762,7 +2885,7 @@ export const useAppStore = create<AppState>()(
         }
         return persistedState;
       },
-      version: 31,
+      version: 32,
     }
   )
 );

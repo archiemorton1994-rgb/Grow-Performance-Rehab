@@ -504,6 +504,8 @@ function RootLayoutNav() {
             path. */}
         <Stack.Screen name="custom-session" options={{ headerShown: false }} />
         <Stack.Screen name="build-programme" options={{ headerShown: false }} />
+        <Stack.Screen name="programme-report" options={{ headerShown: false }} />
+        <Stack.Screen name="completed-programmes" options={{ headerShown: false }} />
       </Stack>
       {currentToast &&
         (isSummaryToast(currentToast) ? (

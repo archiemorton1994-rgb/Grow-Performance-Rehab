@@ -306,6 +306,13 @@ export default function HomeScreen() {
    * behind them.
    */
   const programmeName = programme ? nameOf(programme) : null;
+  /**
+   * A block has finished and its report has not been opened.
+   *
+   * The one state where the programme tile stops being about where you are and
+   * starts being about what you just did.
+   */
+  const reportReady = useAppStore((s) => s.pendingProgrammeReportId) !== null;
   const programmeTilePlace = (() => {
     if (!programme) return null;
     const pos = getProgrammePosition();
@@ -1254,11 +1261,16 @@ export default function HomeScreen() {
               ref={programmeTileRef}
               collapsable={false}
               style={styles.summaryCard}
+              /* The testID never changes. This is one tile with two states, and
+                 the tour spotlights it by name - an id that moves when a block
+                 finishes is a tour that breaks for exactly the people who have
+                 been using the app longest. */
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/program');
+                router.push(reportReady ? '/programme-report' : '/program');
               }}
               testID="your-program-card"
+              accessibilityLabel={reportReady ? 'Read your programme report' : 'Your programme'}
             >
               <Image
                 source={HOME_ICONS.yourProgram}
@@ -1270,7 +1282,7 @@ export default function HomeScreen() {
                   everybody, which is the three-lift rotation's own counter and
                   describes nothing for a person on Joint Health. */}
               <Text style={styles.summaryCycleLabel}>
-                {programme ? 'SESSION' : 'CYCLE'}
+                {reportReady ? 'FINISHED' : programme ? 'SESSION' : 'CYCLE'}
               </Text>
               <Text style={styles.summaryBigNum}>
                 {programme && programmeTilePlace
@@ -1281,11 +1293,13 @@ export default function HomeScreen() {
                 {programme ? programmeName?.toUpperCase() : 'YOUR PROGRAM'}
               </Text>
               <Text style={styles.summaryCardSub} numberOfLines={1}>
-                {programme && programmeTilePlace
-                  ? `of ${programmeTilePlace.total} in the block`
-                  : strengthCount === 0
-                    ? 'Choose one'
-                    : 'Choose a programme'}
+                {reportReady
+                  ? 'Read your report'
+                  : programme && programmeTilePlace
+                    ? `of ${programmeTilePlace.total} in the block`
+                    : strengthCount === 0
+                      ? 'Choose one'
+                      : 'Choose a programme'}
               </Text>
             </Pressable>
 

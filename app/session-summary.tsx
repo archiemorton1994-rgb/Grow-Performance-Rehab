@@ -780,6 +780,7 @@ export default function SessionSummaryScreen() {
   const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
   const programme = useAppStore((s) => s.programme);
   const getSessionPlanTags = useAppStore((s) => s.getSessionPlanTags);
+  const pendingProgrammeReportId = useAppStore((s) => s.pendingProgrammeReportId);
   const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
 
   // Badges earned by the session you just finished, celebrated here rather than
@@ -1482,6 +1483,31 @@ export default function SessionSummaryScreen() {
             this file) so the two tabs read as one continuous moment. The
             controls sitting on top of it still followed light/dark, which put
             dark-mode chrome on a cream page for anybody not in light mode. */}
+        {/* THE BLOCK JUST FINISHED.
+
+            Gated on this being the newest session as well as on the report
+            being unread, so scrolling back through history months later does
+            not congratulate somebody all over again for something they have
+            already been congratulated for. */}
+        {!!pendingProgrammeReportId && isLatestSession && (
+          <Pressable
+            onPress={() => router.push('/programme-report')}
+            testID="summary-block-complete"
+            style={({ pressed }) => [styles.blockDone, pressed && { opacity: 0.9 }]}
+          >
+            <View style={styles.blockDoneSeal}>
+              <Ionicons name="ribbon" size={19} color={SAGE.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockDoneTitle}>That finished your block</Text>
+              <Text style={styles.blockDoneSub}>
+                Your programme report is ready: what you did, what moved, and what comes next
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={SAGE.muted} />
+          </Pressable>
+        )}
+
         <View style={styles.tabSwitcherRow}>
           <View style={[styles.tabSwitcher, { backgroundColor: SAGE.pillBg }]}>
             <Pressable
@@ -2034,6 +2060,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
     marginTop: 12,
+  },
+
+  blockDone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginBottom: 12,
+    padding: 13,
+    borderRadius: 15,
+    backgroundColor: SAGE.cardGradient[0],
+    borderWidth: 1.5,
+    borderColor: SAGE.accent,
+  },
+  blockDoneSeal: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SAGE.badgeBg,
+  },
+  blockDoneTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: SAGE.text },
+  blockDoneSub: {
+    marginTop: 2,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontFamily: 'Inter_400Regular',
+    color: SAGE.muted,
   },
 
   planPanel: {

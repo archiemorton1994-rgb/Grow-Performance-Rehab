@@ -341,9 +341,28 @@ check(
     'training something else costing nothing is a claim until a number shows it'
   );
   check(
-    'it renders nothing at all for somebody not on a programme',
-    /if \(!programme \|\| !position\) return null;/.test(stats),
+    /**
+     * WAS PINNED TO `return null;`, on a line whose behaviour changed on
+     * purpose.
+     *
+     * The claim survives: a card describing a block must not be shown to
+     * somebody who has no block. What changed is what they get instead. A
+     * person between programmes with four finished ones behind them now sees
+     * the shelf, and under the old spelling that improvement read as a
+     * regression.
+     */
+    'a card about a block is never rendered to somebody with no block',
+    (() => {
+      const guard = stats.match(/if \(!programme \|\| !position\) return (\w+);/);
+      return !!guard && guard[1] !== 'card';
+    })(),
     'a card about a block, to somebody with no block'
+  );
+  check(
+    'and the only thing they can be shown instead is the blocks they finished',
+    /completedProgrammes\.length === 0 \? null/.test(stats) &&
+      /stats-completed-programmes/.test(stats),
+    'anything else on that branch is a card invented for somebody with no data'
   );
   check(
     // Every figure on it is replayed from the sessions list, so nothing on this
@@ -730,6 +749,262 @@ check(
     return /tag\.deload \? ' · easier week' : ''/.test(h) && /Your own choice/.test(h);
   })(),
   ''
+);
+
+// ─── The block has an ending, and the ending is kept ────────────────────────
+//
+// A block finishing is a fact about the session history, so it is detected in
+// completeSession rather than on a screen: there is more than one way to log a
+// session and only one of them ends on the summary. Everything below is about
+// that being true exactly once, at the right moment, and surviving.
+console.log('\n[14] A finished block is written up, once, and kept');
+
+/** Log a full block of the enrolled cycle, one session at a time. */
+const trainWholeBlock = () => {
+  const p = S().programme;
+  const cycle = cycleFor(p.templateId, p.days);
+  for (let i = 0; i < p.sessions; i++) {
+    S().completeSession({ ...session(cycle[i % cycle.length]), exerciseLogs: [], exerciseCount: 0 });
+  }
+};
+
+check(
+  'finishing the last session of a block writes the report there and then',
+  (() => {
+    reset({ completedSessions: [], completedProgrammes: [], pendingProgrammeReportId: null });
+    S().enrolInProgramme('barbell', '2026-09-01T00:00:00.000Z');
+    S().updateProgramme({ sessions: 6, days: 3 });
+    trainWholeBlock();
+    const done = S().completedProgrammes;
+    return (
+      done.length === 1 &&
+      done[0].report.onPlan === 6 &&
+      done[0].name === 'Barbell Strength' &&
+      S().pendingProgrammeReportId === done[0].id
+    );
+  })(),
+  JSON.stringify({
+    archived: S().completedProgrammes.length,
+    pending: S().pendingProgrammeReportId,
+  })
+);
+check(
+  // Its id is derived from the enrolment rather than generated, precisely so
+  // this is safe. Somebody who keeps training after finishing a block must not
+  // collect a fresh certificate on every session for the rest of the month.
+  'and training on past the end of it does not collect a second one',
+  (() => {
+    const before = S().completedProgrammes.length;
+    S().completeSession({ ...session('squat'), exerciseLogs: [], exerciseCount: 0 });
+    S().completeSession({ ...session('bench'), exerciseLogs: [], exerciseCount: 0 });
+    return S().completedProgrammes.length === before;
+  })(),
+  `${S().completedProgrammes.length}`
+);
+check(
+  'a block still running is not written up early',
+  (() => {
+    reset({ completedSessions: [], completedProgrammes: [], pendingProgrammeReportId: null });
+    S().enrolInProgramme('foundations', '2026-09-01T00:00:00.000Z');
+    S().updateProgramme({ sessions: 6, days: 3 });
+    const cycle = cycleFor('foundations', 3);
+    for (let i = 0; i < 5; i++)
+      S().completeSession({ ...session(cycle[i % cycle.length]), exerciseLogs: [], exerciseCount: 0 });
+    return S().completedProgrammes.length === 0 && S().pendingProgrammeReportId === null;
+  })(),
+  ''
+);
+check(
+  // The promise, at the moment it matters most. Somebody who did four
+  // conditioning sessions in the middle of their block has not finished it.
+  'and sessions somebody chose themselves do not finish it for them',
+  (() => {
+    for (let i = 0; i < 4; i++)
+      S().completeSession({ ...session('conditioning'), exerciseLogs: [], exerciseCount: 0 });
+    return S().completedProgrammes.length === 0;
+  })(),
+  ''
+);
+check(
+  'the last on-plan session still finishes it, whatever went on in between',
+  (() => {
+    S().completeSession({
+      ...session(cycleFor('foundations', 3)[0]),
+      exerciseLogs: [],
+      exerciseCount: 0,
+    });
+    return S().completedProgrammes.length === 1 && S().completedProgrammes[0].report.offPlan === 4;
+  })(),
+  JSON.stringify(S().completedProgrammes[0]?.report?.offPlan)
+);
+check(
+  'starting a new block leaves the finished one alone and arms a fresh one',
+  (() => {
+    const first = S().completedProgrammes[0].id;
+    S().switchProgramme('lean', '2026-12-01T00:00:00.000Z');
+    return (
+      S().completedProgrammes.length === 1 &&
+      S().completedProgrammes[0].id === first &&
+      S().getProgrammePosition()?.onPlan === 0
+    );
+  })(),
+  ''
+);
+check(
+  // Frozen means frozen. The report was built from a cycle and a name that can
+  // both be changed afterwards, and a record that rewrites itself is worth less
+  // than no record at all.
+  'and changing the live programme cannot rewrite what the finished one says',
+  (() => {
+    const before = JSON.stringify(S().completedProgrammes[0]);
+    S().updateProgramme({ sessions: 20, days: 5 });
+    S().enrolInCustomProgramme(
+      { name: 'Something Else', cycle: ['prehab'] },
+      2,
+      4,
+      '2026-12-02T00:00:00.000Z'
+    );
+    return JSON.stringify(S().completedProgrammes[0]) === before;
+  })(),
+  ''
+);
+check(
+  'reading the report is what clears the flag, and it clears only once',
+  (() => {
+    S().clearPendingProgrammeReport();
+    return S().pendingProgrammeReportId === null;
+  })(),
+  ''
+);
+check(
+  // Never automatic. Making somebody's next eight weeks harder because the app
+  // decided they looked comfortable is the app changing underneath them.
+  'a step up moves the level only when it is taken',
+  (() => {
+    const was = S().userProfile.experienceLevel;
+    S().acceptLevelStep('advanced');
+    const now = S().userProfile.experienceLevel;
+    S().acceptLevelStep(was);
+    return now === 'advanced' && S().userProfile.experienceLevel === was;
+  })(),
+  ''
+);
+check(
+  'a finished block travels to the server, and comes back unioned rather than replaced',
+  (() => {
+    const payload = S().getDataForSync();
+    if (!Array.isArray(payload.completedProgrammes)) return false;
+    const mine = S().completedProgrammes;
+    const theirs = [{ ...mine[0], id: 'from-another-device', name: 'Their Block' }];
+    S().mergeServerData({
+      ...payload,
+      completedSessions: [
+        ...payload.completedSessions,
+        { ...session('squat'), exerciseLogs: [], exerciseCount: 0 },
+        { ...session('bench'), exerciseLogs: [], exerciseCount: 0 },
+      ],
+      completedProgrammes: theirs,
+    });
+    const after = S().completedProgrammes;
+    return after.length === 2 && after.some((c) => c.id === 'from-another-device');
+  })(),
+  `${S().completedProgrammes.length}`
+);
+
+const reportScreen = read('app/programme-report.tsx');
+check(
+  'the report formats what was frozen rather than working anything out again',
+  !/buildProgrammeReport|tagSessions|programmePosition/.test(reportScreen),
+  'a document that recomputes itself is a document that can change after it was issued'
+);
+check(
+  'it speaks weights in the unit the reader has set today',
+  /kgToDisplayUnit|formatWeight/.test(reportScreen) && /weightUnit/.test(reportScreen),
+  'a frozen number still has to be read out loud in somebody own unit'
+);
+check(
+  'it offers the step up rather than applying it',
+  /report-step-accept/.test(reportScreen) && /acceptLevelStep/.test(reportScreen),
+  ''
+);
+check(
+  'and it asks what happens next instead of assuming',
+  /report-another-block/.test(reportScreen) &&
+    /report-choose-other/.test(reportScreen) &&
+    /report-decide-later/.test(reportScreen),
+  'the block ended; the decision is theirs'
+);
+
+const archiveScreen = read('app/completed-programmes.tsx');
+check(
+  'there is a place the reports are kept',
+  /completed-programmes/.test(archiveScreen) && /programme-report/.test(archiveScreen),
+  ''
+);
+check(
+  // Nothing is manufactured from history. The app could look at ninety sessions
+  // and invent seven blocks nobody was ever on, and every number in those
+  // reports would be a guess dressed up as a record.
+  'and it says plainly that older training is not counted back into it',
+  /not counted back|never on|first one here/i.test(archiveScreen),
+  ''
+);
+
+check(
+  'every route into the report is registered, or it renders a bare file path',
+  (() => {
+    const layout = read('app/_layout.tsx');
+    return (
+      /name="programme-report"/.test(layout) && /name="completed-programmes"/.test(layout)
+    );
+  })(),
+  ''
+);
+check(
+  'the session that finished the block says so before anything else on the screen',
+  (() => {
+    const summary = read('app/session-summary.tsx');
+    const at = summary.indexOf('summary-block-complete');
+    const tabs = summary.indexOf('summary-tab-summary');
+    return at > -1 && at < tabs && /isLatestSession/.test(summary.slice(at - 400, at));
+  })(),
+  'scrolling back through history must not congratulate somebody a second time'
+);
+check(
+  'the hub badge is a door rather than a label',
+  (() => {
+    const hub = read('components/ProgrammeHub.tsx');
+    const at = hub.indexOf('hub-complete');
+    return at > -1 && /programme-report/.test(hub.slice(at - 400, at + 400));
+  })(),
+  '"Block complete" as a chip that does nothing is weeks of work acknowledged with a label'
+);
+check(
+  'and it stops offering session thirteen of twelve',
+  /!programme\.paused && !position\.complete && \(/.test(read('components/ProgrammeHub.tsx')),
+  ''
+);
+check(
+  'Home points at the report without adding a row to a screen that cannot scroll',
+  (() => {
+    const home = read('app/(tabs)/index.tsx');
+    return (
+      /reportReady/.test(home) &&
+      /router\.push\(reportReady \? '\/programme-report' : '\/program'\)/.test(home) &&
+      // The id must NOT move with the state: the tour spotlights this tile by
+      // name, so a conditional id breaks the tour for the longest-standing users.
+      /testID="your-program-card"/.test(home)
+    );
+  })(),
+  ''
+);
+check(
+  'and a session keeps the block it was in after that block is written up',
+  (() => {
+    const history = read('app/past-sessions.tsx');
+    return /archivedTagFor/.test(history) && /completedProgrammes/.test(history);
+  })(),
+  'the replay only knows the CURRENT enrolment, so twelve rows would go blank on the day'
 );
 
 console.log(`\nprogramme-wiring: ${passed} passed, ${failed} failed`);

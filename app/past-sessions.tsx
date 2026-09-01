@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, Platform, Image } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useColors, AppColors } from '@/constants/colors';
 import { useAppStore, CompletedSession } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { getSessionLabel } from '@/lib/workout-engine';
+import { archivedTagFor } from '@/lib/programme-report';
 import { formatDate, formatWeight } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -55,6 +56,25 @@ export default function PastSessionsScreen() {
     // recomputed exactly when one of them moves.
     [getSessionPlanTags, completedSessions, programme]
   );
+  const completedProgrammes = useAppStore((s) => s.completedProgrammes);
+  /**
+   * The tag for a row, current block first and the archive behind it.
+   *
+   * Without the second half, finishing a block wipes the chip off every session
+   * that was in it: the replay only ever runs against the enrolment somebody is
+   * on NOW. Twelve rows that said "Programme, session 4" would go blank on the
+   * day the block they belonged to was written up.
+   */
+  const tagFor = useCallback(
+    (id: string) => {
+      const live = planTags[id];
+      if (live) return { ...live, name: null as string | null };
+      const old = archivedTagFor(completedProgrammes, id);
+      if (!old) return null;
+      return { onPlan: true, blockIndex: old.blockIndex, deload: old.deload, name: old.name };
+    },
+    [planTags, completedProgrammes]
+  );
   const topPad = Platform.OS === 'web' ? WEB_TOP_INSET : insets.top;
   const bottomPad = Platform.OS === 'web' ? WEB_BOTTOM_INSET : insets.bottom;
   const total = completedSessions.length;
@@ -65,7 +85,7 @@ export default function PastSessionsScreen() {
       item.durationSeconds && item.durationSeconds > 0
         ? formatDuration(item.durationSeconds)
         : null;
-    const tag = planTags[item.id];
+    const tag = tagFor(item.id);
 
     return (
       <Pressable
@@ -106,9 +126,12 @@ export default function PastSessionsScreen() {
                 size={10}
                 color={tag.onPlan ? C.primaryText : C.textTertiary}
               />
-              <Text style={[styles.planTagText, !tag.onPlan && styles.planTagOwnText]}>
+              <Text
+                style={[styles.planTagText, !tag.onPlan && styles.planTagOwnText]}
+                numberOfLines={1}
+              >
                 {tag.onPlan
-                  ? `Programme · session ${tag.blockIndex}${tag.deload ? ' · easier week' : ''}`
+                  ? `${tag.name ?? 'Programme'} · session ${tag.blockIndex}${tag.deload ? ' · easier week' : ''}`
                   : 'Your own choice'}
               </Text>
             </View>

@@ -41,6 +41,16 @@ export const PAGE = {
   /** A caution note on parchment. The themed warning token is tuned for the
    *  app background and sits at about 2:1 on cream. */
   warn: '#8a5300',
+  /**
+   * A number that went the other way, on parchment.
+   *
+   * Deliberately not a traffic-light red. A lift that dipped during a block is
+   * still training that was logged, and often the price of something else
+   * climbing hard, so it is a warm rust rather than an alarm. Same value and
+   * same reasoning as TONE_DOWN on the session certificate, which is the other
+   * document printed on this paper.
+   */
+  down: '#9a3412',
   /** The surround for the YouTube button. Its red is a brand mark and stays
    *  itself; only the tile behind it is lightened to sit on paper. */
   videoBg: '#fbe4e4',

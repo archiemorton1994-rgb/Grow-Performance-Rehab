@@ -40,6 +40,17 @@ export interface SyncPayload {
    * no explanation and no way to get their block back.
    */
   programme?: unknown;
+  /**
+   * Every block they have finished, frozen. Optional for the same reason
+   * `programme` is: no payload written before this existed carries it.
+   *
+   * It has to travel for a harder reason than the enrolment does. An enrolment
+   * can be rebuilt in about a minute from the hub; a report about twelve
+   * sessions is a record of weeks of somebody's training and cannot be
+   * reconstructed from anything once the device it was written on is gone. The
+   * merge unions rather than replaces - see mergeServerData.
+   */
+  completedProgrammes?: unknown[];
   lastLoggedWeights: Record<string, number>;
   lastSessionPerformance: Record<string, string>;
   exerciseNormalStreak: Record<string, number>;
