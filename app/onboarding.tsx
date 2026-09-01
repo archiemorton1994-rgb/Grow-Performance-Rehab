@@ -42,6 +42,7 @@ import { GrowIcon } from '@/components/GrowIcon';
 import type { GrowIconName } from '@/lib/icon-art';
 import { ProfileTree } from '@/components/ProfileTree';
 import { ProgrammeCertificate } from '@/components/ProgrammeCertificate';
+import { ProgrammeBuildMark } from '@/components/ProgrammeBuildMark';
 import { PAIN_CATEGORIES, useAppStore, type WeightUnit } from '@/lib/store';
 import { outcomeFrom, type Answers, type TreeOption } from '@/lib/profile-tree';
 import { selectProgramme, type EnrolledProgramme } from '@/lib/programme';
@@ -206,7 +207,7 @@ export default function OnboardingScreen() {
       <View style={[styles.root, { paddingTop: insets.top + 28 }]}>
         <View style={styles.welcome}>
           <Animated.View entering={FadeIn.duration(420)} style={styles.mark}>
-            <GrowIcon name="leaf" size={54} color={C.primaryText} />
+            <ProgrammeBuildMark size={124} />
           </Animated.View>
 
           <Animated.Text entering={FadeInDown.delay(90).duration(380)} style={styles.title}>
@@ -274,15 +275,20 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     root: { flex: 1, backgroundColor: C.background },
 
     welcome: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
+    /**
+     * No disc behind it any more.
+     *
+     * The green circle was a frame for a logo, and what sits here now is a
+     * drawing of the thing about to happen. Boxing it made it small and made it
+     * read as a badge; letting it stand at 124 makes it the illustration it is.
+     */
     mark: {
-      width: 92,
-      height: 92,
-      borderRadius: 46,
-      backgroundColor: C.primaryMuted,
+      width: 124,
+      height: 124,
       alignItems: 'center',
       justifyContent: 'center',
       alignSelf: 'center',
-      marginBottom: 26,
+      marginBottom: 22,
     },
     title: {
       fontSize: 28,
