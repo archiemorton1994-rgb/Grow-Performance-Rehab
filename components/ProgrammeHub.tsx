@@ -217,6 +217,7 @@ export function ProgrammeHub() {
               <Text style={styles.nextSub}>
                 Session {Math.min(position.onPlan + 1, position.totalSessions)} of{' '}
                 {position.totalSessions}
+                {position.deload ? ' · easier week' : ''}
               </Text>
             </View>
             <View style={[styles.nextGo, { backgroundColor: go.fill }]}>
@@ -256,14 +257,29 @@ export function ProgrammeHub() {
           It repeats {cycle.length} sessions at a time. What you get on the day is still built
           around how you feel and whatever is sore.
         </Text>
+        {/* Named before the strip rather than left to a mark nobody can read.
+            A row that goes quiet for a week with no explanation is a row that
+            looks like a mistake. */}
+        {position.deloadWeeks.length > 0 && (
+          <Text style={styles.blockSub} testID="hub-deload-note">
+            {position.deloadWeeks.length === 1
+              ? `Week ${position.deloadWeeks[0]} is a planned easier week`
+              : `Weeks ${position.deloadWeeks.join(' and ')} are planned easier weeks`}
+            : about 10% off the bar and one set fewer on the hard work, so you come into the
+            weeks after them fresh.
+          </Text>
+        )}
         <View style={styles.planWrap}>
           {Array.from({ length: position.weeks }, (_, w) => {
             const week = w + 1;
             const items = plan.filter((p) => p.week === week);
             const firstIndex = w * programme.days;
+            const easier = items.length > 0 && items[0].deload;
             return (
               <View key={week} style={styles.planWeek}>
-                <Text style={styles.planWeekNo}>W{week}</Text>
+                <Text style={[styles.planWeekNo, easier && styles.planWeekNoEasy]}>
+                  W{week}
+                </Text>
                 <View style={styles.planItems}>
                   {items.map((it, i) => {
                     const done = firstIndex + i < doneUpTo;
@@ -281,6 +297,11 @@ export function ProgrammeHub() {
                 <Text style={styles.planWeekTypes} numberOfLines={1}>
                   {items.map((it) => SESSION_SHORT_LABELS[it.type]).join(' · ')}
                 </Text>
+                {easier && (
+                  <View style={styles.planEasy} testID={`hub-week-easy-${week}`}>
+                    <Text style={styles.planEasyText}>EASIER</Text>
+                  </View>
+                )}
               </View>
             );
           })}
@@ -658,6 +679,26 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 5,
       backgroundColor: C.surfaceTertiary,
     },
+    // The week number carries it too, so the row still reads as different work
+    // when the chip is pushed off the end of a narrow phone. Theme colours, not
+    // PAGE ones: this strip sits on the app's own surface rather than on the
+    // parchment above it, and ink-on-cream here is invisible in the dark theme.
+    planWeekNoEasy: { color: C.text },
+    planEasy: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 5,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    planEasyText: {
+      fontSize: 8.5,
+      fontFamily: 'Inter_700Bold',
+      color: C.textSecondary,
+      letterSpacing: 0.7,
+    },
+
     planWeekTypes: {
       flex: 1,
       fontSize: 11.5,

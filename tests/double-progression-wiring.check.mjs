@@ -20,7 +20,10 @@
  * from three failures and earned a 10% deload. Rep progress is excluded from the
  * stall counter.
  */
+globalThis.__DEV__ = false;
+
 import { readFileSync } from 'fs';
+import { generateWorkout } from '../lib/workout-engine.ts';
 
 let passed = 0;
 let failed = 0;
@@ -134,8 +137,51 @@ check(
   'a swapped-in substitute must keep its own prescription, not inherit the replaced movement\'s reps'
 );
 check(
+  /**
+   * WAS PINNED TO A SPELLING, AND WENT RED OVER A RENAME.
+   *
+   * The assertion was the literal line `if (!exerciseRepTarget) return
+   * withSwaps;`. That early return had to become a named variable so a second
+   * post-pass could run after it, and this failed over the shape of the code
+   * while the promise it guards was never in any danger.
+   *
+   * The promise is that somebody who has earned nothing gets the reps the
+   * catalogue prescribes. Ask the engine.
+   */
   'an exercise with no earned target is untouched',
-  /if \(!exerciseRepTarget\) return withSwaps;/.test(engine),
+  (() => {
+    const profile = {
+      name: 'T',
+      sex: 'male',
+      experienceLevel: 'intermediate',
+      goals: ['strength'],
+      bodyweightKg: 80,
+    };
+    const build = (targets) =>
+      generateWorkout(
+        'squat',
+        'fullgym',
+        { hasAches: false, energy: 'normal', timeAvailable: '60' },
+        profile,
+        undefined,
+        undefined,
+        10,
+        {},
+        undefined,
+        undefined,
+        0,
+        'kg',
+        undefined,
+        targets
+      );
+    const none = build(undefined);
+    const otherId = build({ 'no-such-exercise-id': '99' });
+    return (
+      none.length > 0 &&
+      none.length === otherId.length &&
+      none.every((ex, i) => ex.reps === otherId[i].reps)
+    );
+  })(),
   'every account before its first session, and all timed and rehab work forever'
 );
 check(

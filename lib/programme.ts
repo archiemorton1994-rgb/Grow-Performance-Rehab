@@ -429,6 +429,88 @@ export interface ProgrammePosition {
   totalSessions: number;
   /** True once the block has been finished. */
   complete: boolean;
+  /**
+   * The next session falls in a deliberately easier week. See deloadWeeksFor.
+   *
+   * Carried on the position rather than worked out by each screen because four
+   * of them need it - the home tile, the hub, the session screen and the
+   * summary - and a deload that some surfaces know about and others do not is
+   * worse than no deload at all.
+   */
+  deload: boolean;
+  /** Which weeks of this block are the easier ones, 1-based. */
+  deloadWeeks: number[];
+}
+
+// ─── The easier week ────────────────────────────────────────────────────────
+
+/**
+ * A BLOCK THAT ONLY EVER GOES UP IS NOT A BLOCK.
+ *
+ * Twenty sessions of climbing load with nothing planned in between is not how
+ * anybody who writes programmes for a living writes one, and it is not what the
+ * app was doing to people by accident either - it was doing it by omission.
+ * Every easing mechanism in here so far is REACTIVE: the weight comes down after
+ * three failed sessions, or after a fortnight away. Both of those are the app
+ * noticing damage. A deload is the app preventing it.
+ *
+ * EVERY FOURTH WEEK, AND NEVER THE LAST ONE.
+ *
+ * Four is the number the literature and every commercial programme converge on,
+ * and it falls out of the same arithmetic here: at three days a week that is
+ * twelve sessions of accumulation, which is about as long as load can climb
+ * before it stops being a straight line.
+ *
+ * The second half of the rule matters as much. A deload is a run-up to
+ * something, so an easier week with no week after it is just a block that ends
+ * quietly. A four week block therefore has no deload in it at all - it is not
+ * long enough to need one - and a five week block eases off in week four and
+ * finishes hard in week five.
+ */
+export const DELOAD_EVERY_WEEKS = 4;
+
+/**
+ * Session types with a load worth taking off.
+ *
+ * A deload week on a cycle of prehab and mobility is meaningless: there is
+ * nothing to ease. Two days a week of Joint Health therefore never sees one,
+ * and five days of it does, because at five days that cycle picks up a full
+ * body session. The same rule the test-week gate follows - look at what is
+ * actually in the cycle, not at the name on the front.
+ */
+const LOADED_TYPES: SessionType[] = [
+  'squat',
+  'bench',
+  'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
+];
+
+export function cycleHasLoadedWork(cycle: SessionType[]): boolean {
+  return cycle.some((t) => LOADED_TYPES.includes(t));
+}
+
+/** Which weeks of this block are deliberately easier, 1-based, in order. */
+export function deloadWeeksFor(p: EnrolledProgramme): number[] {
+  if (!cycleHasLoadedWork(cycleOf(p))) return [];
+  const weeks = weeksFor(p.sessions, p.days);
+  const out: number[] = [];
+  for (let w = DELOAD_EVERY_WEEKS; w < weeks; w += DELOAD_EVERY_WEEKS) out.push(w);
+  return out;
+}
+
+/**
+ * Is the on-plan session at this 0-based index in an easier week?
+ *
+ * Indexed by session rather than dated, for the same reason the block is: the
+ * week you are in is the week's worth of work you have reached. Somebody who
+ * trained twice in a fortnight has not deloaded by accident.
+ */
+export function isDeloadIndex(p: EnrolledProgramme, onPlanIndex: number): boolean {
+  if (onPlanIndex < 0 || onPlanIndex >= p.sessions) return false;
+  const week = Math.floor(onPlanIndex / p.days) + 1;
+  return deloadWeeksFor(p).includes(week);
 }
 
 /**
@@ -473,6 +555,10 @@ export function programmePosition(
     weeks,
     totalSessions,
     complete,
+    // The session about to be done, not the one just finished, which is why it
+    // is indexed by onPlan rather than onPlan - 1.
+    deload: !complete && isDeloadIndex(p, onPlan),
+    deloadWeeks: deloadWeeksFor(p),
   };
 }
 
@@ -497,6 +583,8 @@ export interface SessionPlanTag {
   onPlan: boolean;
   /** Its 1-based place in the block, for the ones that were. */
   blockIndex: number | null;
+  /** It fell in one of the block's planned easier weeks. */
+  deload: boolean;
 }
 
 export function tagSessions(
@@ -508,10 +596,13 @@ export function tagSessions(
   let onPlan = 0;
   for (const type of sessionTypesSinceEnrolment) {
     if (type === cycle[onPlan % cycle.length]) {
+      // Read at the index this session OCCUPIED, which is the count before it
+      // was added, not after.
+      const deload = isDeloadIndex(p, onPlan);
       onPlan++;
-      out.push({ onPlan: true, blockIndex: onPlan });
+      out.push({ onPlan: true, blockIndex: onPlan, deload });
     } else {
-      out.push({ onPlan: false, blockIndex: null });
+      out.push({ onPlan: false, blockIndex: null, deload: false });
     }
   }
   return out;
@@ -533,11 +624,15 @@ export function nextSessionType(
  * on a three day plan actually means, and the list says so rather than padding
  * it out to something they did not ask for.
  */
-export function blockPlan(p: EnrolledProgramme): { week: number; type: SessionType }[] {
+export function blockPlan(
+  p: EnrolledProgramme
+): { week: number; type: SessionType; deload: boolean }[] {
   const cycle = cycleOf(p);
-  const out: { week: number; type: SessionType }[] = [];
+  const weeks = new Set(deloadWeeksFor(p));
+  const out: { week: number; type: SessionType; deload: boolean }[] = [];
   for (let i = 0; i < p.sessions; i++) {
-    out.push({ week: Math.floor(i / p.days) + 1, type: cycle[i % cycle.length] });
+    const week = Math.floor(i / p.days) + 1;
+    out.push({ week, type: cycle[i % cycle.length], deload: weeks.has(week) });
   }
   return out;
 }

@@ -616,5 +616,121 @@ check(
 );
 
 
+// ─── The easier week reaches every screen that has to mention it ────────────
+//
+// The rule itself is tested in tests/programme.check.mjs and the effect on a
+// session in tests/deload.check.mjs. What is asserted here is the thing neither
+// of those can see: that a session which is 10% lighter than the last one says
+// so on every surface a person could be looking at when they find out.
+//
+// A deload the engine applies and the home screen does not mention is not a
+// deload. It is the app appearing to have lost somebody's weights.
+console.log('\n[13] The planned easier week is announced, not just applied');
+
+check(
+  'the store answers "is this an easier week" in one place',
+  (() => {
+    reset({ completedSessions: [] });
+    S().enrolInProgramme('barbell', '2026-09-01T00:00:00.000Z');
+    S().updateProgramme({ sessions: 20, days: 3 });
+    const p = S().programme;
+    const cycle = cycleFor('barbell', 3);
+    // Nine on-plan sessions done puts the tenth next, which is week four.
+    reset({
+      completedSessions: Array.from({ length: 9 }, (_, i) => session(cycle[(8 - i) % cycle.length])),
+      programme: { ...p, startedAtSessionCount: 0 },
+    });
+    const pos = S().getProgrammePosition();
+    return pos?.deload === true && S().isDeloadSession(pos.next) === true;
+  })(),
+  JSON.stringify(S().getProgrammePosition())
+);
+check(
+  // An easier week is part of a plan. Something somebody chose to do instead is
+  // their own session, and the app has no business quietly watering it down.
+  'and only ever for the session the programme is actually asking for',
+  (() => {
+    const pos = S().getProgrammePosition();
+    const other = ['conditioning', 'flexibility', 'prehab'].find((t) => t !== pos?.next);
+    return S().isDeloadSession(other) === false;
+  })(),
+  ''
+);
+check(
+  'a paused programme has no easier weeks, because it has no weeks',
+  (() => {
+    S().setProgrammePaused(true);
+    const paused = S().isDeloadSession(S().getProgrammePosition()?.next);
+    S().setProgrammePaused(false);
+    return paused === false;
+  })(),
+  ''
+);
+
+const sessionScreen = read('app/session.tsx');
+check(
+  'the session screen asks the store rather than working it out again',
+  /isDeloadSession\(sessionType\)/.test(sessionScreen) && /deload: isDeloadWeek/.test(sessionScreen),
+  'two copies of this rule is one copy that goes wrong'
+);
+check(
+  // Read live it would regenerate on the last set of the last session of an
+  // easier week and take 10% off a session already finished.
+  'and freezes the answer at the start, like the load unit beside it',
+  /useRef<boolean>\(isDeloadSession\(sessionType\)\)\.current/.test(sessionScreen),
+  ''
+);
+check(
+  'it tells the user before the first set, not after the last',
+  /session-deload/.test(sessionScreen) && /Easier week/.test(sessionScreen),
+  ''
+);
+
+const homeScreen = read('app/(tabs)/index.tsx');
+check(
+  'the home tile says so on the line it already had',
+  /deload: pos\.deload/.test(homeScreen) && /Easier week/.test(homeScreen),
+  'Home is sized not to scroll, so this cannot be a new row'
+);
+
+const hub = read('components/ProgrammeHub.tsx');
+check(
+  'the hub is the one place you can see an easier week coming',
+  /hub-deload-note/.test(hub) && /position\.deloadWeeks/.test(hub),
+  'the hub shows the whole block at once, so it is the only screen that can'
+);
+check(
+  'and the week strip marks which weeks they are',
+  /hub-week-easy-/.test(hub) && /items\[0\]\.deload/.test(hub),
+  ''
+);
+
+const summary = read('app/session-summary.tsx');
+check(
+  'the certificate knows which kind of session it was recording',
+  /summary-programme-panel/.test(summary) && /summary-own-panel/.test(summary),
+  'the two genuinely different pieces of work produced two identical documents'
+);
+check(
+  // Not a better and a worse version. One gets the block; the other gets the
+  // promise the app keeps for it.
+  'the off-plan one is a reassurance rather than a smaller badge',
+  (() => {
+    const at = summary.indexOf('summary-own-panel');
+    if (at < 0) return false;
+    const near = summary.slice(at, at + 700);
+    return /where you left it/.test(near) && /counts towards/.test(near);
+  })(),
+  ''
+);
+check(
+  'and a history row says which of them it was',
+  (() => {
+    const h = read('app/past-sessions.tsx');
+    return /tag\.deload \? ' · easier week' : ''/.test(h) && /Your own choice/.test(h);
+  })(),
+  ''
+);
+
 console.log(`\nprogramme-wiring: ${passed} passed, ${failed} failed`);
 process.exitCode = failed > 0 ? 1 : 0;

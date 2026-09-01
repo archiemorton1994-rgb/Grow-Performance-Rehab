@@ -38,6 +38,10 @@ import {
   tagSessions,
   cycleOf,
   programmeFor,
+  deloadWeeksFor,
+  isDeloadIndex,
+  cycleHasLoadedWork,
+  DELOAD_EVERY_WEEKS,
   extrasOf,
   nameOf,
   demandOfCycle,
@@ -843,6 +847,139 @@ check(
   'and there is a ceiling on how long a cycle can get',
   MAX_CUSTOM_CYCLE >= 4 && MAX_CUSTOM_CYCLE <= 12,
   `${MAX_CUSTOM_CYCLE}`
+);
+
+// ─── The planned easier week ────────────────────────────────────────────────
+console.log('\n[D] A block that only ever goes up is not a block');
+
+const block = (over) => ({
+  templateId: 'barbell',
+  days: 3,
+  sessions: 12,
+  minutes: 45,
+  startedAt: '2026-01-01T00:00:00.000Z',
+  startedAtSessionCount: 0,
+  ...over,
+});
+
+check(
+  'a block long enough to need an easier week gets one, every fourth week',
+  (() => {
+    // 15 sessions at 3 a week is 5 weeks, so week 4 eases and week 5 finishes.
+    const w = deloadWeeksFor(block({ sessions: 16, days: 3 }));
+    return w.length === 1 && w[0] === DELOAD_EVERY_WEEKS;
+  })(),
+  JSON.stringify(deloadWeeksFor(block({ sessions: 16, days: 3 })))
+);
+check(
+  // The half of the rule that is easy to lose. A deload is a run-up to
+  // something; an easier week with no week after it is a block that ends
+  // quietly, which is the opposite of what a block should do.
+  'and never in the last week, so a four week block has none at all',
+  (() => {
+    const p = block({ sessions: 12, days: 3 });
+    return weeksFor(p.sessions, p.days) === 4 && deloadWeeksFor(p).length === 0;
+  })(),
+  `weeks=${weeksFor(12, 3)} deloads=${JSON.stringify(deloadWeeksFor(block({ sessions: 12, days: 3 })))}`
+);
+check(
+  'a long block gets more than one',
+  deloadWeeksFor(block({ sessions: 20, days: 2 })).join(',') === '4,8',
+  JSON.stringify(deloadWeeksFor(block({ sessions: 20, days: 2 })))
+);
+check(
+  // A deload week on a cycle of prehab and mobility is meaningless: there is
+  // nothing to ease. Naming one anyway would be the app inventing a rest from
+  // work that is already rest.
+  'a cycle with nothing to ease never has one',
+  deloadWeeksFor(block({ templateId: 'joints', days: 2, sessions: 20 })).length === 0 &&
+    !cycleHasLoadedWork(['prehab', 'flexibility']) &&
+    cycleHasLoadedWork(['prehab', 'flexibility', 'full_body']),
+  ''
+);
+check(
+  'the sessions inside an easier week are the ones marked, and no others',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    // Weeks are 1-based; week 4 holds the 0-based indexes 9, 10, 11.
+    const inWeek4 = [9, 10, 11].every((i) => isDeloadIndex(p, i));
+    const outside = [8, 12].every((i) => !isDeloadIndex(p, i));
+    return deloadWeeksFor(p).includes(4) && inWeek4 && outside;
+  })(),
+  ''
+);
+check(
+  'an index past the end of the block is not in any week',
+  !isDeloadIndex(block({ sessions: 20, days: 3 }), 99) &&
+    !isDeloadIndex(block({ sessions: 20, days: 3 }), -1),
+  ''
+);
+check(
+  // The position is what four screens read, so this is the assertion that keeps
+  // the home tile, the hub, the session screen and the summary saying the same
+  // thing on the same day.
+  'the position says whether the NEXT session is an easier one',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const cycle = cycleOf(p);
+    const done = (n) => Array.from({ length: n }, (_, i) => cycle[i % cycle.length]);
+    // 9 done means the 10th is next, which is index 9, which is week 4.
+    return (
+      programmePosition(p, done(9)).deload === true &&
+      programmePosition(p, done(8)).deload === false &&
+      programmePosition(p, done(12)).deload === false
+    );
+  })(),
+  ''
+);
+check(
+  'a finished block is never also an easier week',
+  programmePosition(block({ sessions: 4, days: 2 }), ['squat', 'bench', 'deadlift', 'squat'])
+    .deload === false,
+  ''
+);
+check(
+  // Read at the index the session OCCUPIED, not the one after it. Off by one
+  // here labels the wrong week easier in the history, on a certificate somebody
+  // may have shared.
+  'a logged session is tagged with the week it was actually done in',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const cycle = cycleOf(p);
+    const tags = tagSessions(
+      p,
+      Array.from({ length: 12 }, (_, i) => cycle[i % cycle.length])
+    );
+    // The 10th, 11th and 12th on-plan sessions sit at indexes 9, 10, 11.
+    return (
+      tags[8].deload === false &&
+      tags[9].deload === true &&
+      tags[11].deload === true &&
+      tags[9].blockIndex === 10
+    );
+  })(),
+  ''
+);
+check(
+  'an off-plan session is never an easier week, whatever week it fell in',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const cycle = cycleOf(p);
+    const hist = Array.from({ length: 9 }, (_, i) => cycle[i % cycle.length]);
+    hist.push('flexibility');
+    const tags = tagSessions(p, hist);
+    return tags[9].onPlan === false && tags[9].deload === false;
+  })(),
+  ''
+);
+check(
+  'the block plan marks the same weeks the position does',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const weeks = new Set(deloadWeeksFor(p));
+    return blockPlan(p).every((row) => row.deload === weeks.has(row.week));
+  })(),
+  ''
 );
 
 console.log(`\nprogramme: ${passed} passed, ${failed} failed`);

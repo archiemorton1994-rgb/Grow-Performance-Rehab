@@ -31,7 +31,13 @@
 globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
-import { progressedLoad, deloadedLoad } from '../lib/workout-engine.ts';
+import {
+  progressedLoad,
+  deloadedLoad,
+  easeForDeloadWeek,
+  generateWorkout,
+  DELOAD_WEEK_LOAD,
+} from '../lib/workout-engine.ts';
 import { roundToLoadable } from '../lib/utils.ts';
 
 const toGrid = (v) => roundToLoadable(v, 'kg');
@@ -145,6 +151,146 @@ check(
   'an unknown level is treated as intermediate, not as the fastest',
   run(undefined) === intermediate,
   'a missing profile should not get novice progression'
+);
+
+// ─── The PLANNED easier week, which is the other half of the same idea ──────
+//
+// Everything above is the app noticing damage: three failed sessions, so back
+// the weight off. A deload week is the app preventing it, and it is the only
+// load reduction in here that happens while everything is going well - which is
+// exactly why it has to be announced as loudly as it is applied.
+console.log('\n[Planned easier week]');
+
+const ex = (over = {}) => ({
+  id: 'x',
+  name: 'Back Squat',
+  sets: 4,
+  reps: '5',
+  cue: '',
+  suggestedLoad: '100 kg',
+  loadKg: [100],
+  category: 'main',
+  videoId: '',
+  hasSwap: false,
+  ...over,
+});
+
+const eased = easeForDeloadWeek([ex()], 'kg')[0];
+
+check(
+  'the bar comes down, in the sentence AND in the number the app lifts from',
+  eased.suggestedLoad.includes('90') && eased.loadKg[0] === 90,
+  `${eased.suggestedLoad} / ${JSON.stringify(eased.loadKg)}`
+);
+check(
+  // Two halves of one prescription. Taking 10% off and leaving the volume where
+  // it was is a lighter session, not an easier week.
+  'and a set comes off the hard work',
+  eased.sets === 3,
+  `${eased.sets}`
+);
+check(
+  // The single most damaging way a deload can look. Every other note the app
+  // writes about a load explains a step up; the same note over a weight that
+  // just dropped 10% is the app appearing to have lost the user's numbers.
+  'the card says why, rather than leaving a lighter weight to be discovered',
+  /easier week/i.test(eased.progressionNote ?? '') && eased.progressionDirection === 'hold',
+  eased.progressionNote
+);
+check(
+  'nothing is eased below two working sets',
+  easeForDeloadWeek([ex({ sets: 2 })], 'kg')[0].sets === 2,
+  ''
+);
+check(
+  // The warm-up is not the hard work, and neither is the rehab. Taking a set
+  // off either makes the session worse and the week no easier.
+  'prep, prehab and cooldown keep their sets',
+  ['prep', 'prehab', 'cooldown', 'mechanical', 'neuro'].every(
+    (category) => easeForDeloadWeek([ex({ category, sets: 4 })], 'kg')[0].sets === 4
+  ),
+  ''
+);
+check(
+  'work with no weight on it still loses its set, and is not given a number',
+  (() => {
+    const band = easeForDeloadWeek(
+      [ex({ suggestedLoad: 'Bodyweight', loadKg: undefined, category: 'accessory' })],
+      'kg'
+    )[0];
+    return band.sets === 3 && band.suggestedLoad === 'Bodyweight';
+  })(),
+  ''
+);
+check(
+  // A coarse grid can round a 10% cut straight back onto the weight it came
+  // from. "Eased back" printed over an unchanged number is the one outcome
+  // worse than not easing at all.
+  'a cut that the grid rounds away never reads as heavier than it was',
+  easeForDeloadWeek([ex({ suggestedLoad: '2.5 kg', loadKg: [2.5] })], 'kg')[0].loadKg[0] <= 2.5,
+  ''
+);
+check(
+  'the share taken off is a real cut and a modest one',
+  DELOAD_WEEK_LOAD > 0.8 && DELOAD_WEEK_LOAD < 1,
+  `${DELOAD_WEEK_LOAD}`
+);
+
+// The whole path, not just the transform: a flag on the readiness check has to
+// reach the finished list, or the week is planned and never happens.
+const profile = {
+  name: 'T',
+  sex: 'male',
+  experienceLevel: 'intermediate',
+  goals: ['strength'],
+  bodyweightKg: 80,
+};
+const build = (deload) =>
+  generateWorkout(
+    'squat',
+    'fullgym',
+    { hasAches: false, energy: 'normal', timeAvailable: '60', deload },
+    profile,
+    undefined,
+    undefined,
+    10,
+    { squat: 100 },
+    undefined,
+    undefined,
+    0
+  );
+
+const plain = build(false);
+const light = build(true);
+
+check(
+  'a deload flag on the readiness check reaches the session that is built',
+  (() => {
+    const setsPlain = plain.reduce((n, e) => n + e.sets, 0);
+    const setsLight = light.reduce((n, e) => n + e.sets, 0);
+    return plain.length > 0 && setsLight < setsPlain;
+  })(),
+  `${plain.reduce((n, e) => n + e.sets, 0)} sets vs ${light.reduce((n, e) => n + e.sets, 0)}`
+);
+check(
+  'and every weight in it is lighter than the same session without the flag',
+  (() => {
+    const weightOf = (list) =>
+      list
+        .filter((e) => (e.loadKg ?? []).some((k) => k > 0))
+        .map((e) => `${e.id}:${Math.max(...e.loadKg)}`);
+    const a = new Map(weightOf(plain).map((x) => x.split(':')));
+    const b = new Map(weightOf(light).map((x) => x.split(':')));
+    if (a.size === 0) return false;
+    let compared = 0;
+    for (const [id, kg] of a) {
+      if (!b.has(id)) continue;
+      compared++;
+      if (Number(b.get(id)) > Number(kg)) return false;
+    }
+    return compared > 0;
+  })(),
+  ''
 );
 
 console.log('');

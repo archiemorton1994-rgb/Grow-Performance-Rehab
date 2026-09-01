@@ -107,7 +107,9 @@ export default function PastSessionsScreen() {
                 color={tag.onPlan ? C.primaryText : C.textTertiary}
               />
               <Text style={[styles.planTagText, !tag.onPlan && styles.planTagOwnText]}>
-                {tag.onPlan ? `Programme · session ${tag.blockIndex}` : 'Your own choice'}
+                {tag.onPlan
+                  ? `Programme · session ${tag.blockIndex}${tag.deload ? ' · easier week' : ''}`
+                  : 'Your own choice'}
               </Text>
             </View>
           )}

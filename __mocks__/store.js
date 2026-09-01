@@ -39,6 +39,10 @@ const defaultState = {
   lastSessionPerformance: {},
   pendingCustomExercises: [],
   clearPendingCustomExercises: jest.fn(),
+  // Nobody is on a programme in the default fixture, so no session of theirs is
+  // ever a planned easier week. Present rather than absent because session.tsx
+  // CALLS it during render, and a missing function is a thrown TypeError.
+  isDeloadSession: jest.fn(() => false),
   // Fields used by ReadinessScreen
   lastReadinessEnergy: 'normal',
   lastReadinessTime: '60',

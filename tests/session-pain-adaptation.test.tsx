@@ -656,6 +656,7 @@ const STORE_BASE = {
   lastSessionPerformance: {},
   pendingCustomExercises: [],
   clearPendingCustomExercises: () => {},
+  isDeloadSession: () => false,
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

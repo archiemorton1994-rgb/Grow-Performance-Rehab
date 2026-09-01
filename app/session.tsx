@@ -2959,6 +2959,7 @@ export default function SessionScreen() {
     getLastExerciseNote,
     inSessionAssistantEnabled,
     setInSessionAssistantEnabled,
+    isDeloadSession,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -3001,6 +3002,15 @@ export default function SessionScreen() {
    * the new grid takes effect from the next session.
    */
   const loadUnitAtStart = useRef<WeightUnit>(weightUnit);
+  /**
+   * Is this one of the block's planned easier weeks?
+   *
+   * Frozen at the start for the same reason the unit above is: it is derived
+   * from the session history, and the history moves the moment this session is
+   * logged. Read live, the list would regenerate on the last set of the last
+   * session of a deload week and take 10% back off a session already finished.
+   */
+  const isDeloadWeek = useRef<boolean>(isDeloadSession(sessionType)).current;
   // Snapshot custom exercises at mount so store.clearPendingCustomExercises() doesn't empty the list mid-session.
   // On resume, pendingCustomExercises is already cleared; fall back to what was persisted in activeSession.
   const customExercisesSnapshot = useRef<CustomExercise[]>(
@@ -3143,6 +3153,7 @@ export default function SessionScreen() {
         acute: isAcute,
         energy,
         timeAvailable,
+        deload: isDeloadWeek,
       },
       userProfile,
       exerciseFeedbackAtStart.current,
@@ -3165,6 +3176,7 @@ export default function SessionScreen() {
     energy,
     timeAvailable,
     runsMaxTest,
+    isDeloadWeek,
     testWeekBaselineKg,
     userProfile,
     getBestORM,
@@ -4598,6 +4610,17 @@ export default function SessionScreen() {
             />
           ) : isTestWeek ? (
             <Text style={styles.sessionSub}>No max test on a rehab goal</Text>
+          ) : isDeloadWeek ? (
+            /* Said BEFORE the first set, not explained afterwards. The weights
+               on this session are lighter than the ones on the last, and an
+               app that lets somebody discover that on their own has, as far as
+               they can tell, lost their numbers. */
+            <GlossaryTerm
+              term="Easier week"
+              definition="A planned lighter week, built into your block. Around 10% off the bar and one set fewer on the hard work, so you arrive at the next few weeks fresh rather than worn down. Nothing has been lost and nothing is being taken away: the weights pick up where they left off next week."
+              textStyle={styles.sessionSub}
+              testID="session-deload"
+            />
           ) : null}
         </View>
         <View style={styles.topBarRight}>

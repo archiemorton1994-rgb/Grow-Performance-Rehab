@@ -310,10 +310,24 @@ export default function HomeScreen() {
     if (!programme) return null;
     const pos = getProgrammePosition();
     if (!pos) return null;
-    return { done: pos.onPlan, total: pos.totalSessions, next: pos.onPlan + 1 };
+    return {
+      done: pos.onPlan,
+      total: pos.totalSessions,
+      next: pos.onPlan + 1,
+      deload: pos.deload,
+    };
   })();
+  /**
+   * Appended rather than given its own line, because this card cannot grow.
+   *
+   * Home is sized to fit without scrolling and every tile in it is fixed, so a
+   * second row here is a second row everywhere. Six words on the end of a line
+   * that was already there is the whole announcement, and the session screen
+   * carries the explanation.
+   */
   const programmePlace = programmeTilePlace
-    ? `Session ${Math.min(programmeTilePlace.next, programmeTilePlace.total)} of ${programmeTilePlace.total}`
+    ? `Session ${Math.min(programmeTilePlace.next, programmeTilePlace.total)} of ${programmeTilePlace.total}` +
+      (programmeTilePlace.deload ? ' · Easier week' : '')
     : null;
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();

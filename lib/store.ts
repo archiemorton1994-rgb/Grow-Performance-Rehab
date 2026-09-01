@@ -920,6 +920,18 @@ interface AppState {
    * before enrolment: those were not off plan, there was no plan.
    */
   getSessionPlanTags: () => Record<string, SessionPlanTag>;
+  /**
+   * Is starting THIS session type right now a planned easier week?
+   *
+   * One rule, in one place, because four screens ask it and a deload that the
+   * session screen applies and the home tile does not mention is the app
+   * appearing to have lost somebody's weights.
+   *
+   * Only ever true for the session the programme is actually asking for. An
+   * easier week is part of a plan; something somebody chose to do off plan is
+   * their own session and the app has no business quietly watering it down.
+   */
+  isDeloadSession: (type: SessionType) => boolean;
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
@@ -1845,6 +1857,14 @@ export const useAppStore = create<AppState>()(
           if (tags[i]) out[s.id] = tags[i];
         });
         return out;
+      },
+
+      isDeloadSession: (type) => {
+        const { programme } = get();
+        if (!programme || programme.paused) return false;
+        const pos = get().getProgrammePosition();
+        if (!pos || !pos.deload) return false;
+        return pos.next === type;
       },
 
       isOnStrengthProgramme: () => {

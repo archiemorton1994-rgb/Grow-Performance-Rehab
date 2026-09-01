@@ -209,6 +209,16 @@ interface ReadinessCheck {
   acute?: boolean;
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
+  /**
+   * This session falls in a planned easier week. See deloadWeeksFor in
+   * lib/programme.ts for which weeks those are and why.
+   *
+   * On the readiness check rather than as another positional parameter because
+   * it is the same KIND of fact as the other four: something true about today
+   * that changes what today's session should be. It also means every generator
+   * already has it in hand, though only the post-pass below reads it.
+   */
+  deload?: boolean;
 }
 
 /**
@@ -1676,6 +1686,78 @@ function applyPersonalization(
 }
 
 /**
+ * Share of the usual load in a planned easier week.
+ *
+ * The same 10% the stall deload takes off, and deliberately so: a person who
+ * has met one of these should recognise the other. Ten percent is enough to be
+ * felt and small enough that nobody reads it as the app losing their weights,
+ * which matters more here than it does after a stall, because after a stall
+ * there is at least an obvious reason.
+ */
+export const DELOAD_WEEK_LOAD = 0.9;
+
+/**
+ * The categories that lose a set in an easier week.
+ *
+ * The hard work, and only the hard work. Taking a set off the prep block makes
+ * the warm-up worse and the week no easier, and taking one off the prehab block
+ * takes away the part of the session an easier week is the best time to do.
+ */
+const DELOAD_DROPS_A_SET: ExerciseCategory[] = ['main', 'accessory', 'finisher'];
+
+/**
+ * LESS WEIGHT, ONE FEWER SET, AND IT SAYS SO ON EVERY CARD.
+ *
+ * The third of those is not decoration. Every other note the app writes about a
+ * load explains a step up; a session that quietly prescribes 10% less than last
+ * time, with the usual "nudged up" underneath it, is the app appearing to have
+ * lost the user's weights. That is the single most damaging thing a deload can
+ * look like, so the note is rewritten here rather than left to whatever
+ * applyPersonalization decided before the week was taken into account.
+ *
+ * Runs over the finished list so it lands on what is actually being shown,
+ * including a swapped-in substitute, for the same reason the earned rep target
+ * is applied there.
+ */
+export function easeForDeloadWeek(
+  list: Exercise[],
+  loadUnit: WeightUnit = 'kg'
+): Exercise[] {
+  const toGrid = (v: number) => roundToLoadable(v, loadUnit);
+  return list.map((ex): Exercise => {
+    const sets =
+      DELOAD_DROPS_A_SET.includes(ex.category) && ex.sets > 2 ? ex.sets - 1 : ex.sets;
+    // A load that never resolved to a number is a rep range, a band or a time,
+    // and there is nothing here to take off. Its set count still comes down.
+    const hasWeight = (ex.loadKg ?? []).some((kg) => kg > 0) || /\d/.test(ex.suggestedLoad);
+    if (!hasWeight) {
+      return sets === ex.sets
+        ? ex
+        : { ...ex, sets, progressionNote: 'Easier week - one set fewer', progressionDirection: 'hold' };
+    }
+    const eased = ex.suggestedLoad.replace(/\d+(?:\.\d+)?/g, (match) => {
+      const num = parseFloat(match);
+      if (num <= 0) return match;
+      const kg = toGrid(num * DELOAD_WEEK_LOAD);
+      // A coarse grid can round a 10% cut straight back onto the weight it came
+      // from on a light lift. Saying "eased back" over an unchanged number is
+      // the one outcome worse than not easing at all.
+      return String(kg < num ? kg : num);
+    });
+    return {
+      ...ex,
+      sets,
+      suggestedLoad: eased,
+      loadKg: ex.loadKg
+        ? ex.loadKg.map((kg) => (kg > 0 ? Math.min(kg, toGrid(kg * DELOAD_WEEK_LOAD)) : kg))
+        : ex.loadKg,
+      progressionNote: `Easier week - about ${Math.round((1 - DELOAD_WEEK_LOAD) * 100)}% off, so the next block has somewhere to climb from`,
+      progressionDirection: 'hold',
+    };
+  });
+}
+
+/**
  * Every generation path, then the injury screen.
  *
  * The screen runs LAST, over the finished list, rather than being threaded
@@ -1775,10 +1857,15 @@ export function generateWorkout(
    * shown: a swapped-in substitute keeps its own prescription rather than
    * inheriting the rep count of the movement it replaced.
    */
-  if (!exerciseRepTarget) return withSwaps;
-  return withSwaps.map((ex) =>
-    ex.id && exerciseRepTarget[ex.id] ? { ...ex, reps: exerciseRepTarget[ex.id] } : ex
-  );
+  const targeted = !exerciseRepTarget
+    ? withSwaps
+    : withSwaps.map((ex) =>
+        ex.id && exerciseRepTarget[ex.id] ? { ...ex, reps: exerciseRepTarget[ex.id] } : ex
+      );
+
+  // LAST, after the earned rep target, so an easier week eases the prescription
+  // the user actually has rather than the catalogue's default one.
+  return readiness.deload ? easeForDeloadWeek(targeted, loadUnit) : targeted;
 }
 
 /**

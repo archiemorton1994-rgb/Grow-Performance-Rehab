@@ -39,6 +39,7 @@ import {
   WeightUnit,
 } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
+import { nameOf } from '@/lib/programme';
 import {
   getExerciseCategoryMap,
   getExerciseTargetRegionsMap,
@@ -777,6 +778,8 @@ export default function SessionSummaryScreen() {
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
   const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
   const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
+  const programme = useAppStore((s) => s.programme);
+  const getSessionPlanTags = useAppStore((s) => s.getSessionPlanTags);
   const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
 
   // Badges earned by the session you just finished, celebrated here rather than
@@ -952,6 +955,21 @@ export default function SessionSummaryScreen() {
   }, [session, completedSessions]);
 
   const isMilestone = MILESTONE_SESSION_THRESHOLDS.includes(sessionNumber);
+
+  /**
+   * Was this one the programme's, and where did it sit in the block?
+   *
+   * Null for everybody not enrolled, and for every session logged before they
+   * enrolled - those were not off plan, there was no plan. The panel below
+   * renders nothing at all in that case rather than inventing a distinction
+   * that did not exist at the time.
+   */
+  const planTag = useMemo(() => {
+    if (!session || !programme) return null;
+    return getSessionPlanTags()[session.id] ?? null;
+  }, [session, programme, getSessionPlanTags, completedSessions]);
+  const programmeName = programme ? nameOf(programme) : null;
+  const blockTotal = programme?.sessions ?? 0;
 
   /**
    * Where the work landed.
@@ -1584,6 +1602,60 @@ export default function SessionSummaryScreen() {
                     </View>
                   </Animated.View>
 
+                  {/* WHICH KIND OF SESSION THIS WAS. See the docblock at the
+                      head of the patch that added it. */}
+                  {planTag?.onPlan && programmeName ? (
+                    <Animated.View
+                      entering={FadeInDown.duration(500).delay(110)}
+                      style={styles.planPanel}
+                      testID="summary-programme-panel"
+                    >
+                      <View style={styles.planPanelHead}>
+                        <Ionicons name="flag" size={12} color={SAGE.accent} />
+                        <Text style={styles.planPanelName} numberOfLines={1}>
+                          {programmeName.toUpperCase()}
+                        </Text>
+                        {planTag.deload && (
+                          <View style={styles.planPanelChip}>
+                            <Text style={styles.planPanelChipText}>EASIER WEEK</Text>
+                          </View>
+                        )}
+                      </View>
+                      {/* The block itself, so the certificate carries the thing
+                          this session was part of rather than just naming it.
+                          Capped at the block length; a 20 session block still
+                          fits because the pips shrink to share the row. */}
+                      <View style={styles.planPips}>
+                        {Array.from({ length: blockTotal }, (_, i) => (
+                          <View
+                            key={i}
+                            style={[
+                              styles.planPip,
+                              i < (planTag.blockIndex ?? 0) && styles.planPipDone,
+                              i === (planTag.blockIndex ?? 0) - 1 && styles.planPipThis,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.planPanelPlace}>
+                        Session {planTag.blockIndex} of {blockTotal} in the block
+                      </Text>
+                    </Animated.View>
+                  ) : planTag ? (
+                    <Animated.View
+                      entering={FadeInDown.duration(500).delay(110)}
+                      style={styles.ownPanel}
+                      testID="summary-own-panel"
+                    >
+                      <Ionicons name="person" size={12} color={SAGE.faint} />
+                      <Text style={styles.ownPanelText}>
+                        Your own choice, not your programme. It counts towards your history and
+                        your records, and{programmeName ? ` ${programmeName}` : ' your block'} is
+                        exactly where you left it.
+                      </Text>
+                    </Animated.View>
+                  ) : null}
+
                   {/* Cycle results — only on the last test of a block */}
                   {cycleRows.length > 0 && (
                     <Animated.View
@@ -1962,6 +2034,63 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
     marginTop: 12,
+  },
+
+  planPanel: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: SAGE.hairline,
+    gap: 7,
+  },
+  planPanelHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planPanelName: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    color: SAGE.accent,
+    letterSpacing: 1,
+  },
+  planPanelChip: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    backgroundColor: SAGE.badgeBg,
+  },
+  planPanelChipText: {
+    fontSize: 7.5,
+    fontFamily: 'Inter_700Bold',
+    color: SAGE.muted,
+    letterSpacing: 0.6,
+  },
+  // flex:1 on each pip rather than a fixed width, so four and twenty both fill
+  // the row exactly. A fixed pip wraps at about fourteen, which is inside the
+  // block lengths people can actually choose.
+  planPips: { flexDirection: 'row', gap: 3 },
+  planPip: { flex: 1, height: 4, borderRadius: 2, backgroundColor: SAGE.hairline },
+  planPipDone: { backgroundColor: SAGE.accent },
+  planPipThis: { height: 6, borderRadius: 3, marginTop: -1 },
+  planPanelPlace: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    color: SAGE.muted,
+  },
+
+  ownPanel: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: SAGE.hairline,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+  },
+  ownPanelText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15.5,
+    fontFamily: 'Inter_400Regular',
+    color: SAGE.faint,
   },
 
   // Certificate card

@@ -20,10 +20,12 @@ export function GlossaryTerm({
   term,
   definition,
   textStyle,
+  testID,
 }: {
   term: string;
   definition: string;
   textStyle?: TextStyle | TextStyle[];
+  testID?: string;
 }) {
   const C = useColors();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -78,6 +80,7 @@ export function GlossaryTerm({
     <>
       <Text
         ref={termRef}
+        testID={testID}
         onPress={reveal}
         style={[
           textStyle,
