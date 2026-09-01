@@ -259,5 +259,26 @@ check(
   'a bare "12" halfway up the spine is not an answer to anything'
 );
 
+check(
+  // The one change that makes the spine a journey rather than a decoration:
+  // you can see how far down you have come without reading the counter.
+  'the rail shows the part of it you have travelled',
+  /styles\.spineTravel/.test(treeCode) && /travelStyle/.test(treeCode),
+  'a flat line looks identical on question two and question twelve'
+);
+check(
+  // Counted from answers it overshot the dot by however much taller the open
+  // card is than a collapsed row, which reads as having travelled past yourself.
+  'and it is measured to the stop you are at rather than counted',
+  /if \(id === focusId\) setTravelY\(y\);/.test(treeCode) &&
+    /height: travelled\.value/.test(treeCode),
+  ''
+);
+check(
+  'the question in focus is the only lit card on the rail',
+  /borderColor: C\.primaryMuted/.test(treeCode) && /dotHalo/.test(treeCode),
+  'the card you are answering looked exactly like the six you are not'
+);
+
 console.log(`\nprofile-builder: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

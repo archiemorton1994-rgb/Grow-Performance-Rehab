@@ -52,6 +52,8 @@ import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { PAGE } from '@/lib/session-identity';
 import { SESSION_DISPLAY_NAMES, SESSION_TYPE_COUNT } from '@/lib/session-meta';
 import { distinctExerciseCount } from '@/lib/exercise-db';
+import { getSessionImage } from '@/lib/session-images';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
 import {
   PROGRAMME_PROMISES,
@@ -108,6 +110,32 @@ export function ProgrammeCertificate({
   const difficulty = programmeDifficulty(programme.templateId, outcome.experience, programme.days, cycle);
   const weeks = weeksFor(programme.sessions, programme.days);
 
+  /**
+   * The date on the seal.
+   *
+   * Formatted once on mount rather than on every render: this is the only place
+   * in the app that prints a date nobody can change, and a certificate whose
+   * issue date ticks over while you are reading it is not a certificate.
+   */
+  const issuedOn = useMemo(
+    () =>
+      new Date(programme.startedAt).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [programme.startedAt]
+  );
+
+  /**
+   * The distinct sessions in the cycle, for the artwork strip.
+   *
+   * Distinct, because a Full Body Foundations cycle is the same session three
+   * times and three identical pictures is a printing error rather than a
+   * design. Capped at four so the row never wraps.
+   */
+  const faces = useMemo(() => [...new Set(cycle)].slice(0, 4), [cycle]);
+
   // Once per mount. distinctExerciseCount walks the whole catalogue, and this is
   // the only screen outside the paywall that wants it.
   const included = useMemo(
@@ -149,19 +177,55 @@ export function ProgrammeCertificate({
       label: 'Your programme',
       body: (
         <>
+          {/* Paper, not a rectangle. The PAGE palette has carried a bgEdge for
+              exactly this since the session recap was built, and this page was
+              the one place drawing the flat colour and ignoring it. */}
+          <LinearGradient
+            colors={[PAGE.bg, PAGE.bgEdge]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+
           <View style={styles.pageHead}>
             <Image
               source={require('@/assets/images/logo.png')}
               style={styles.mark}
               resizeMode="cover"
             />
-            <Text style={styles.pageEyebrow}>YOUR PROGRAMME</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pageEyebrow}>ISSUED TO</Text>
+              <Text style={styles.issuedTo} numberOfLines={1}>
+                {outcome.name || 'You'}
+              </Text>
+            </View>
           </View>
 
           <Text style={styles.name} testID="programme-name">
             {displayName}
           </Text>
           <Text style={styles.blurb}>{template.blurb}</Text>
+
+          {/* The sessions, as the pictures the rest of the app draws them with.
+              The page had no image on it at all, which is what made a document
+              about somebody's training read as a settings summary. */}
+          <View style={styles.faces}>
+            {faces.map((t) => (
+              <View key={t} style={styles.face}>
+                <Image
+                  source={getSessionImage(t, outcome.sex)}
+                  style={styles.faceArt}
+                  resizeMode="contain"
+                />
+              </View>
+            ))}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.facesLabel} numberOfLines={2}>
+                {cycle.map((t) => SESSION_DISPLAY_NAMES[t]).join(' · ')}
+              </Text>
+            </View>
+          </View>
 
           {/* The difficulty, named and justified in the same breath, with the
               rungs of the movement ladders it draws from. A label on its own
@@ -193,6 +257,16 @@ export function ProgrammeCertificate({
               <Text style={styles.careText}>{careNote}</Text>
             </View>
           )}
+
+          {/* The seal. A date and a signature line is the difference between a
+              summary of your answers and a thing that was issued to you, and it
+              costs one row at the foot of the page. */}
+          <View style={styles.seal} testID="programme-seal">
+            <View style={styles.sealRule} />
+            <Text style={styles.sealText}>
+              Issued {issuedOn} · Grow Performance and Rehabilitation
+            </Text>
+          </View>
         </>
       ),
     },
@@ -388,6 +462,18 @@ export function ProgrammeCertificate({
               style={styles.page}
               testID={i === 0 ? 'programme-certificate' : `booklet-page-${p.key}`}
             >
+              {/* Paper, not a rectangle, and on the SHEET rather than inside
+                  its scrolling content: laid over the content it stopped where
+                  the words did, so two thirds of a short page stayed flat. The
+                  PAGE palette has carried a bgEdge for exactly this since the
+                  session recap was built. */}
+              <LinearGradient
+                colors={[PAGE.bg, PAGE.bgEdge]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+                pointerEvents="none"
+              />
               {/* Each page scrolls inside itself. The longest of them is seven
                   features and it does not fit a small phone, and a booklet whose
                   pages silently clip is worse than one you scroll a little. */}
@@ -451,7 +537,13 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 const statStyles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center' },
-  value: { fontSize: 26, fontFamily: 'Inter_700Bold', color: PAGE.ink, letterSpacing: -0.6 },
+  value: {
+    fontSize: 30,
+    fontFamily: 'Inter_700Bold',
+    color: PAGE.ink,
+    letterSpacing: -0.8,
+    fontVariant: ['tabular-nums'],
+  },
   label: {
     fontSize: 10.5,
     fontFamily: 'Inter_500Medium',
@@ -490,8 +582,46 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: PAGE.bgEdge,
     },
-    pageHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-    mark: { width: 30, height: 30, borderRadius: 8 },
+    pageHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+    mark: { width: 34, height: 34, borderRadius: 9 },
+    issuedTo: {
+      fontSize: 15,
+      fontFamily: 'Inter_700Bold',
+      color: PAGE.ink,
+      letterSpacing: -0.2,
+      marginTop: 1,
+    },
+
+    faces: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+    face: {
+      width: 46,
+      height: 46,
+      borderRadius: 13,
+      backgroundColor: PAGE.inset,
+      borderWidth: 1,
+      borderColor: PAGE.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    faceArt: { width: '86%', height: '86%' },
+    facesLabel: {
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: PAGE.inkFaint,
+      marginLeft: 2,
+    },
+
+    seal: { marginTop: 'auto', paddingTop: 18, gap: 8 },
+    sealRule: { height: 1, backgroundColor: PAGE.hairline },
+    sealText: {
+      fontSize: 10,
+      lineHeight: 14,
+      fontFamily: 'Inter_500Medium',
+      color: PAGE.inkFaint,
+      letterSpacing: 0.3,
+    },
     pageEyebrow: {
       fontSize: 10,
       fontFamily: 'Inter_700Bold',
@@ -681,7 +811,10 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     bookHead: { paddingHorizontal: 18, paddingBottom: 12 },
     pager: { flex: 1 },
-    pageInner: { paddingBottom: 6 },
+    // flexGrow, so a short page still fills its sheet and marginTop: 'auto'
+    // can put the seal at the foot of the paper rather than under the last
+    // paragraph that happened to be written.
+    pageInner: { paddingBottom: 6, flexGrow: 1 },
     pageTitle: {
       fontSize: 24,
       lineHeight: 29,

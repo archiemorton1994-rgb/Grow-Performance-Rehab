@@ -50,6 +50,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import Animated, {
+  Easing,
   FadeIn,
   FadeInDown,
   useAnimatedStyle,
@@ -159,6 +160,8 @@ export function ProfileTree({
    */
   const travelling = useRef<string | null>(null);
   const [finishing, setFinishing] = useState(false);
+  /** Where the current stop sits on the rail, in points. See landAt. */
+  const [travelY, setTravelY] = useState(0);
 
   const focusIndex = Math.max(
     0,
@@ -217,12 +220,17 @@ export function ProfileTree({
   const landAt = useCallback(
     (id: string, y: number) => {
       positions.current[id] = y;
+      // The rail fill runs to the stop you are AT, so it is measured here
+      // rather than worked out from a fraction of the questions answered.
+      // Counted, it overshot the dot by however much taller the open card is
+      // than a collapsed row, which reads as having travelled past yourself.
+      if (id === focusId) setTravelY(y);
       if (travelling.current === id) {
         travelling.current = null;
         scrollToY(y);
       }
     },
-    [scrollToY]
+    [scrollToY, focusId]
   );
 
   const write = useCallback(
@@ -395,6 +403,22 @@ export function ProfileTree({
   const done = progress.answered;
   const total = progress.total;
 
+  /**
+   * How far down the rail they have come, 0 to 1.
+   *
+   * Counted in questions rather than measured in pixels, which is very slightly
+   * wrong where two rows are different heights and exactly right in every way
+   * anybody notices: the fill reaches the bottom when the last question is
+   * answered, and it moves once per answer.
+   */
+  const travelled = useSharedValue(0);
+  useEffect(() => {
+    travelled.value = reduceMotion
+      ? travelY
+      : withTiming(travelY, { duration: 460, easing: Easing.out(Easing.cubic) });
+  }, [travelY, reduceMotion, travelled]);
+  const travelStyle = useAnimatedStyle(() => ({ height: travelled.value }));
+
   return (
     <View style={styles.root}>
       {/* Progress. Counts THIS journey, so nobody is shown a total that
@@ -424,6 +448,17 @@ export function ProfileTree({
           {/* One line, drawn behind everything. Per-row segments left a gap at
               every tier heading and every fork, which read as a broken rail. */}
           <View style={styles.spine} pointerEvents="none" />
+          {/* And the part of it you have travelled, on top of the same line.
+              scaleY off a top-aligned wrapper rather than an animated height:
+              a percentage height cannot be driven from the UI thread, and this
+              is the one piece of motion on the screen that has to keep up with
+              a tap. */}
+          <View style={styles.spineTravelWrap} pointerEvents="none">
+            <Animated.View
+              style={[styles.spineTravel, { backgroundColor: go.fill }, travelStyle]}
+            />
+            {/* Nothing else here: the fill's own height IS the travel. */}
+          </View>
           {rows}
         </View>
 
@@ -583,6 +618,14 @@ function TreeRow({
       <View style={styles.row}>
         {/* The rail: the line, and this stop on it. */}
         <View style={styles.rail}>
+          {/* A soft ring behind the current stop. The dot is 18pt and the rail
+              is 34 wide, so there is room for it without moving anything. */}
+          {state === 'focus' && (
+            <View
+              style={[styles.dotHalo, { borderColor: go.fill }]}
+              pointerEvents="none"
+            />
+          )}
           <Animated.View
             style={[
               styles.dot,
@@ -850,17 +893,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     railTrack: {
       flex: 1,
-      height: 3,
-      borderRadius: 2,
+      height: 4,
+      borderRadius: 3,
       backgroundColor: C.surfaceSecondary,
       overflow: 'hidden',
     },
-    railFill: { height: 3, borderRadius: 2 },
+    // Full height of the track it sits in. It was 3 inside a 3, which is fine
+    // until the track grows and the fill does not, and then the bar has a
+    // permanent hairline of unfilled space along its bottom edge.
+    railFill: { height: '100%', borderRadius: 3 },
     headerCount: {
-      fontSize: 11.5,
+      fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
-      color: C.textTertiary,
+      color: C.textSecondary,
       letterSpacing: 0.4,
+      // The count is the one number on the screen that changes under the
+      // reader's eye, and proportional digits make it jitter as it does.
+      fontVariant: ['tabular-nums'],
     },
 
     scroll: { flex: 1 },
@@ -876,8 +925,21 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       top: 8,
       bottom: 8,
       width: 2,
+      borderRadius: 1,
       backgroundColor: C.border,
     },
+    spineTravelWrap: {
+      position: 'absolute',
+      left: 16,
+      top: 8,
+      bottom: 8,
+      width: 2,
+      justifyContent: 'flex-start',
+    },
+    // Half strength on purpose. At full saturation a line running the height of
+    // the screen competes with the one green button that finishes it, and the
+    // rail is something to read rather than something to press.
+    spineTravel: { width: '100%', borderRadius: 1, opacity: 0.5 },
 
     horizon: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
     horizonRail: { width: 34, alignItems: 'center', gap: 4 },
@@ -933,6 +995,16 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
 
+    dotHalo: {
+      position: 'absolute',
+      top: 6,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 1.5,
+      opacity: 0.28,
+    },
+
     body: { flex: 1, paddingBottom: 6 },
 
     doneRow: {
@@ -950,12 +1022,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
 
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: C.border,
-      padding: 16,
+      // The accent at hairline weight, not a glow. The question in focus is the
+      // only lit thing on the rail and it should read that way from across the
+      // room, without turning into a button.
+      borderColor: C.primaryMuted,
+      padding: 18,
       marginLeft: 2,
-      marginVertical: 6,
+      marginVertical: 10,
+      // Depth, so the card sits ON the rail rather than in it. Barely visible
+      // on the dark theme and doing real work on the light one, which is the
+      // right way round: light is where a flat card disappears.
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
     },
     question: { fontSize: 21, lineHeight: 27, fontFamily: 'Inter_700Bold', color: C.text },
     hint: {
