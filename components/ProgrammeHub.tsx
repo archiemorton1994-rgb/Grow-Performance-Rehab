@@ -37,14 +37,15 @@ import { useColors, useGoColors } from '@/constants/colors';
 import { PAGE } from '@/lib/session-identity';
 import { SESSION_DISPLAY_NAMES, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { useAppStore } from '@/lib/store';
-import type { SessionType } from '@/lib/store';
+import type { ExperienceLevel, SessionType } from '@/lib/store';
 import {
   PROGRAMMES,
   PROGRAMME_IDS,
   blockPlan,
-  cycleFor,
-  extrasFor,
+  cycleOf,
+  extrasOf,
   programmeDifficulty,
+  nameOf,
   programmeFor,
   type ProgrammeId,
 } from '@/lib/programme';
@@ -52,6 +53,13 @@ import { SESSION_COUNTS, type TrainingDays } from '@/lib/profile-tree';
 import { bandLabel } from '@/lib/exercise-levels';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
+
+/** The same three the profile builder asks, in the same order. */
+const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string }[] = [
+  { value: 'beginner', label: 'New to it' },
+  { value: 'intermediate', label: '1 to 3 yrs' },
+  { value: 'advanced', label: '3 yrs plus' },
+];
 
 export function ProgrammeHub() {
   const C = useColors();
@@ -66,6 +74,7 @@ export function ProgrammeHub() {
   const setProgrammePaused = useAppStore((s) => s.setProgrammePaused);
   const equipmentTiers = useAppStore((s) => s.equipmentTiers);
   const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
+  const setUserProfile = useAppStore((s) => s.setUserProfile);
 
   const [changing, setChanging] = useState(false);
 
@@ -96,13 +105,15 @@ export function ProgrammeHub() {
   if (!position) return null;
 
   const template = programmeFor(programme.templateId);
-  const cycle = cycleFor(programme.templateId, programme.days);
-  const extras = extrasFor(programme.templateId, programme.days);
+  const displayName = nameOf(programme);
+  const cycle = cycleOf(programme);
+  const extras = extrasOf(programme);
   const plan = blockPlan(programme);
   const difficulty = programmeDifficulty(
     programme.templateId,
     experienceLevel ?? 'beginner',
-    programme.days
+    programme.days,
+    cycle
   );
   const pct = Math.min(100, Math.round((position.onPlan / position.totalSessions) * 100));
 
@@ -137,7 +148,7 @@ export function ProgrammeHub() {
       {/* ── Where you are ────────────────────────────────────────────── */}
       <View style={styles.page} testID="hub-card">
         <Text style={styles.pageEyebrow}>YOUR PROGRAMME</Text>
-        <Text style={styles.name}>{template.name}</Text>
+        <Text style={styles.name}>{displayName}</Text>
         <Text style={styles.blurb}>{template.blurb}</Text>
 
         <View style={styles.difficultyRow} testID="hub-difficulty">
@@ -284,6 +295,54 @@ export function ProgrammeHub() {
           one of these.
         </Text>
 
+        {/**
+          * CHANGE THE LEVEL BY CHANGING WHAT DRIVES IT.
+          *
+          * "I was assigned a certain level and difficulty, but what if I wanted
+          * to change this?" The honest control is not a dropdown of the six
+          * labels: the label is a description of the work, so setting it
+          * directly would let somebody rename an Intermediate programme Elite
+          * and change nothing about what they are handed.
+          *
+          * What they can change is the thing the label is computed FROM, and it
+          * is the same self-reported answer the profile builder takes. Moving it
+          * moves the label AND the movement-level ceiling that decides which
+          * exercises they are ever prescribed, which is what "change my level"
+          * has to mean if it is to mean anything.
+          */}
+        <Text style={styles.ctrlLabel}>YOUR LEVEL</Text>
+        <View style={styles.segment}>
+          {EXPERIENCE_OPTIONS.map((e) => (
+            <Pressable
+              key={e.value}
+              onPress={() => {
+                haptic();
+                setUserProfile({ experienceLevel: e.value });
+              }}
+              testID={`hub-experience-${e.value}`}
+              style={[
+                styles.segItem,
+                experienceLevel === e.value && { backgroundColor: C.primaryMuted },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.segTextSmall,
+                  experienceLevel === e.value && { color: C.primaryText },
+                ]}
+                numberOfLines={1}
+              >
+                {e.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.ctrlNote}>
+          This sets your difficulty, which is {difficulty.label} right now, and the hardest
+          movements the app will ever put in front of you. Move it up when the work stops being
+          hard, not before.
+        </Text>
+
         <Text style={styles.ctrlLabel}>DAYS A WEEK</Text>
         <View style={styles.segment}>
           {DAY_OPTIONS.map((d) => (
@@ -354,6 +413,28 @@ export function ProgrammeHub() {
 
         {changing && (
           <View style={styles.switchList} testID="hub-switch-list">
+            {/* Building your own is a switch target like any other, and it is
+                first because it is the only one that is not already on the
+                list. Somebody already on a custom cycle gets "Change mine"
+                here, which is the only way back into the builder. */}
+            <Pressable
+              onPress={() => {
+                haptic(true);
+                router.push('/build-programme');
+              }}
+              testID="hub-switch-custom"
+              style={({ pressed }) => [styles.switchItem, pressed && { opacity: 0.85 }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchName}>
+                  {programme.templateId === 'custom' ? 'Change my own cycle' : 'Put one together myself'}
+                </Text>
+                <Text style={styles.switchBlurb}>
+                  Choose the kinds of session and the order they repeat in.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={C.textTertiary} />
+            </Pressable>
             {PROGRAMME_IDS.map((id) => {
               const p = PROGRAMMES[id];
               const current = id === programme.templateId;
@@ -607,6 +688,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 9,
     },
     segText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
+    // Three words rather than one digit, so they get their own size.
+    segTextSmall: { fontSize: 12.5, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     segmentWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',

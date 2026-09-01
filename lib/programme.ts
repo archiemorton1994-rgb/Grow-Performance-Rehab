@@ -56,7 +56,17 @@ export type ProgrammeId =
   | 'muscle'
   | 'comeback'
   | 'lean'
-  | 'joints';
+  | 'joints'
+  /**
+   * A cycle somebody put together themselves.
+   *
+   * It is an id like the other seven so that everything downstream - the hub,
+   * the history tagging, the position replay, the difficulty label - keeps
+   * working without knowing custom programmes exist. What makes it different is
+   * that its cycle lives on the ENROLMENT rather than in the table below, which
+   * is why cycleOf and extrasOf take an enrolment and cycleFor does not.
+   */
+  | 'custom';
 
 export interface ProgrammeTemplate {
   id: ProgrammeId;
@@ -185,9 +195,36 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
     },
     extras: ['conditioning', 'full_body'],
   },
+  /**
+   * THE FALLBACK for a custom programme, never the thing itself.
+   *
+   * A real custom enrolment carries its own cycle and its own name. This entry
+   * exists so that programmeFor('custom') has something to return rather than
+   * silently handing back Full Body Foundations, which is what the ?? in
+   * programmeFor would have done - and a person's own programme quietly
+   * becoming somebody else's is the worst kind of bug, because it looks like
+   * the app working.
+   */
+  custom: {
+    id: 'custom',
+    name: 'Your Own Programme',
+    blurb: 'The sessions you chose, in the order you chose them.',
+    cycle: { 2: ['full_body'], 3: ['full_body'], 4: ['full_body'], 5: ['full_body'] },
+    extras: ['prehab', 'flexibility', 'conditioning'],
+  },
 };
 
-export const PROGRAMME_IDS = Object.keys(PROGRAMMES) as ProgrammeId[];
+/**
+ * The seven you can pick off a list.
+ *
+ * 'custom' is deliberately not in here. It is built, not chosen, so it must not
+ * appear in the chooser, in "and six more, included", or in any of the places
+ * that enumerate what somebody could switch to. Everything that wants ALL eight
+ * reads PROGRAMMES directly.
+ */
+export const PROGRAMME_IDS = (Object.keys(PROGRAMMES) as ProgrammeId[]).filter(
+  (id) => id !== 'custom'
+);
 
 /**
  * What somebody is enrolled in.
@@ -209,6 +246,14 @@ export interface EnrolledProgramme {
   sessions: SessionCount;
   /** Their usual session length, used as the readiness default. */
   minutes: SessionLength;
+  /**
+   * The cycle they built, present only when templateId is 'custom'.
+   *
+   * Stored on the enrolment rather than anywhere central because it belongs to
+   * one person and one block. Switching to a named programme leaves it here,
+   * untouched and unread, so switching back does not mean building it again.
+   */
+  custom?: CustomProgramme;
   /** ISO timestamp the block began. */
   startedAt: string;
   /**
@@ -221,6 +266,70 @@ export interface EnrolledProgramme {
   startedAtSessionCount: number;
   /** Paused from the hub. The suggestion falls back to the old behaviour. */
   paused?: boolean;
+}
+
+/** A cycle somebody assembled, and what they called it. */
+export interface CustomProgramme {
+  /** Their name for it. Never empty: the builder falls back to a default. */
+  name: string;
+  /** The repeating order. At least one session, and never 'custom' itself. */
+  cycle: SessionType[];
+}
+
+/**
+ * The most sessions a custom cycle may hold.
+ *
+ * Eight, which is a week and a bit. Longer than that and the cycle stops being
+ * something you can hold in your head, which is the only reason to build one
+ * rather than pick one.
+ */
+export const MAX_CUSTOM_CYCLE = 8;
+
+/**
+ * The session types somebody may put in their own cycle.
+ *
+ * Every type the generator can actually build, which is every one except
+ * 'custom': generateWorkout returns an empty list for that, because a custom
+ * SESSION is assembled in the session builder rather than generated, so a slot
+ * holding one would hand somebody an empty workout.
+ */
+export const BUILDABLE_SESSION_TYPES: SessionType[] = [
+  'squat',
+  'bench',
+  'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
+  'conditioning',
+  'prehab',
+  'flexibility',
+];
+
+/**
+ * The cycle for an ENROLMENT, which is the only thing that knows about custom.
+ *
+ * Everything that has an enrolment in its hand should call this rather than
+ * cycleFor: the position replay, the block plan, the history tagging, the hub.
+ * cycleFor stays for the places that only have a template id - the chooser
+ * previewing a programme nobody is on yet, and the reasons on the certificate.
+ */
+export function cycleOf(p: EnrolledProgramme): SessionType[] {
+  if (p.templateId === 'custom' && p.custom && p.custom.cycle.length > 0) {
+    return p.custom.cycle;
+  }
+  return cycleFor(p.templateId, p.days);
+}
+
+/** What is offered alongside THIS enrolment. See extrasFor. */
+export function extrasOf(p: EnrolledProgramme): SessionType[] {
+  const inCycle = new Set(cycleOf(p));
+  return programmeFor(p.templateId).extras.filter((e) => !inCycle.has(e));
+}
+
+/** What to call it. Their name for a custom one, the template's otherwise. */
+export function nameOf(p: EnrolledProgramme): string {
+  if (p.templateId === 'custom' && p.custom?.name.trim()) return p.custom.name.trim();
+  return programmeFor(p.templateId).name;
 }
 
 export function programmeFor(id: ProgrammeId): ProgrammeTemplate {
@@ -349,7 +458,7 @@ export function programmePosition(
   p: EnrolledProgramme,
   sessionTypesSinceEnrolment: SessionType[]
 ): ProgrammePosition {
-  const cycle = cycleFor(p.templateId, p.days);
+  const cycle = cycleOf(p);
   const totalSessions = p.sessions;
   const weeks = weeksFor(totalSessions, p.days);
   const tags = tagSessions(p, sessionTypesSinceEnrolment);
@@ -394,7 +503,7 @@ export function tagSessions(
   p: EnrolledProgramme,
   sessionTypesSinceEnrolment: SessionType[]
 ): SessionPlanTag[] {
-  const cycle = cycleFor(p.templateId, p.days);
+  const cycle = cycleOf(p);
   const out: SessionPlanTag[] = [];
   let onPlan = 0;
   for (const type of sessionTypesSinceEnrolment) {
@@ -425,7 +534,7 @@ export function nextSessionType(
  * it out to something they did not ask for.
  */
 export function blockPlan(p: EnrolledProgramme): { week: number; type: SessionType }[] {
-  const cycle = cycleFor(p.templateId, p.days);
+  const cycle = cycleOf(p);
   const out: { week: number; type: SessionType }[] = [];
   for (let i = 0; i < p.sessions; i++) {
     out.push({ week: Math.floor(i / p.days) + 1, type: cycle[i % cycle.length] });
@@ -491,7 +600,34 @@ const TEMPLATE_DEMAND: Record<ProgrammeId, number> = {
   foundations: 0,
   comeback: -1,
   joints: -1,
+  // Never read. A custom programme's demand comes from what is actually in its
+  // cycle - see demandOfCycle - because that is the only thing there is to read.
+  custom: 0,
 };
+
+/**
+ * How demanding a cycle somebody built is, read off the cycle itself.
+ *
+ * The seven named programmes get a number because a physiotherapist decided
+ * what each one is for. A cycle somebody assembled has no such statement of
+ * intent, so the work in it has to speak: barbell and split sessions are the
+ * heavy end, prehab and mobility the gentle end, and a cycle that is mostly one
+ * or the other is mostly one or the other.
+ *
+ * Rounded to the same -1, 0, 1 the table above uses, so a custom programme and
+ * a named one are scored on one scale rather than two.
+ */
+const HEAVY: SessionType[] = ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body'];
+const GENTLE: SessionType[] = ['prehab', 'flexibility'];
+
+export function demandOfCycle(cycle: SessionType[]): number {
+  if (cycle.length === 0) return 0;
+  const heavy = cycle.filter((t) => HEAVY.includes(t)).length / cycle.length;
+  const gentle = cycle.filter((t) => GENTLE.includes(t)).length / cycle.length;
+  if (heavy >= 0.6) return 1;
+  if (gentle >= 0.6) return -1;
+  return 0;
+}
 
 const CAPABILITY: Record<ExperienceLevel, number> = {
   beginner: 0,
@@ -563,9 +699,11 @@ export function levelBandForExperience(experience: ExperienceLevel): LevelBand {
 export function programmeDifficulty(
   id: ProgrammeId,
   experience: ExperienceLevel,
-  days: TrainingDays
+  days: TrainingDays,
+  /** The cycle, which is the only source of demand for a custom programme. */
+  cycle?: SessionType[]
 ): ProgrammeDifficulty {
-  const work = TEMPLATE_DEMAND[id] ?? 0;
+  const work = id === 'custom' ? demandOfCycle(cycle ?? []) : (TEMPLATE_DEMAND[id] ?? 0);
   const volume = days >= 5 ? 1 : days <= 2 ? -1 : 0;
   const raw = CAPABILITY[experience] + work + volume;
   const score = Math.max(0, Math.min(CAPABILITY_CEILING[experience], raw));

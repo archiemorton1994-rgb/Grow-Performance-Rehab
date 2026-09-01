@@ -33,7 +33,7 @@ import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { useAppStore, STRENGTH_SESSION_TYPES, SESSION_ORDER } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
-import { programmeFor } from '@/lib/programme';
+import { nameOf } from '@/lib/programme';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/workout-engine';
@@ -289,7 +289,7 @@ export default function HomeScreen() {
    * chooser instead, so the Today card only ever reads these with a programme
    * behind them.
    */
-  const programmeName = programme ? programmeFor(programme.templateId).name : null;
+  const programmeName = programme ? nameOf(programme) : null;
   const programmeTilePlace = (() => {
     if (!programme) return null;
     const pos = getProgrammePosition();

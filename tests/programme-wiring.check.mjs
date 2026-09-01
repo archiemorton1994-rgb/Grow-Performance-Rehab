@@ -505,6 +505,60 @@ console.log('\n[5] One thing in the suggested box, and somewhere to go without o
 }
 
 check(
+  'a cycle somebody built is enrolled, named and trained straight away',
+  (() => {
+    reset({ completedSessions: [], lastReadinessTime: '60' });
+    S().enrolInCustomProgramme(
+      { name: 'Tuesdays and Fridays', cycle: ['upper_body', 'conditioning'] },
+      2,
+      8,
+      '2026-09-01T00:00:00.000Z'
+    );
+    const p = S().programme;
+    return (
+      p?.templateId === 'custom' &&
+      p?.custom?.name === 'Tuesdays and Fridays' &&
+      p?.days === 2 &&
+      p?.sessions === 8 &&
+      p?.minutes === 60 &&
+      // And the suggestion follows their cycle rather than a template's.
+      S().getCurrentSessionType() === 'upper_body'
+    );
+  })(),
+  JSON.stringify(S().programme)
+);
+check(
+  // A custom cycle full of prehab has no barbell lift in it, so the same rule
+  // that stopped Joint Health being interrupted has to cover this too.
+  'and a custom cycle with no barbell in it is never interrupted by a strength test',
+  (() => {
+    reset({ testWeekFrequency: 12 });
+    S().enrolInCustomProgramme(
+      { name: 'Just recovery', cycle: ['prehab', 'flexibility'] },
+      2,
+      8,
+      '2026-09-01T00:00:00.000Z'
+    );
+    return S().getTestWeekProgress().active === false;
+  })(),
+  JSON.stringify(S().getTestWeekProgress())
+);
+
+const buildScreen = read('components/BuildProgramme.tsx');
+check(
+  'the builder cannot start an empty cycle',
+  /const ready = cycle\.length > 0;/.test(buildScreen) && /disabled={!ready}/.test(buildScreen),
+  'a programme with nothing in it is a home screen with nothing on it'
+);
+check(
+  // The line that stops somebody hunting for exercise-level control on a screen
+  // that does not have it, and points at the tool that does.
+  'and it says what it does not do, rather than leaving people to find out',
+  /build-custom-session-link/.test(buildScreen) && /different tool/.test(buildScreen),
+  ''
+);
+
+check(
   'enrolling from the chooser produces a block that can be trained immediately',
   (() => {
     reset({ completedSessions: [session('conditioning')], lastReadinessTime: '30' });

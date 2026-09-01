@@ -29,9 +29,14 @@ import {
 
 import type { Answers, InjuryAge } from './profile-tree';
 import { outcomeFrom } from './profile-tree';
-import type { EnrolledProgramme, ProgrammePosition, SessionPlanTag } from './programme';
+import type {
+  CustomProgramme,
+  EnrolledProgramme,
+  ProgrammePosition,
+  SessionPlanTag,
+} from './programme';
 import {
-  cycleFor,
+  cycleOf,
   goalsForFocus,
   programmePosition,
   selectProgramme,
@@ -889,6 +894,19 @@ interface AppState {
    * shape from what the app already knows and lets the hub change the rest.
    */
   enrolInProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
+  /**
+   * Start a programme somebody assembled themselves.
+   *
+   * Separate from enrolInProgramme rather than an argument to it, because this
+   * one carries the three things the builder collects and that one deliberately
+   * guesses: the cycle, how often, and how long.
+   */
+  enrolInCustomProgramme: (
+    custom: CustomProgramme,
+    days: EnrolledProgramme['days'],
+    sessions: EnrolledProgramme['sessions'],
+    nowIso: string
+  ) => void;
   /** Swap to a different programme, starting a fresh block from today. */
   switchProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
   setProgrammePaused: (paused: boolean) => void;
@@ -1750,6 +1768,19 @@ export const useAppStore = create<AppState>()(
           },
         })),
 
+      enrolInCustomProgramme: (custom, days, sessions, nowIso) =>
+        set((s) => ({
+          programme: {
+            templateId: 'custom',
+            custom,
+            days,
+            sessions,
+            minutes: (Number(s.lastReadinessTime) || 45) as EnrolledProgramme['minutes'],
+            startedAt: nowIso,
+            startedAtSessionCount: s.completedSessions.length,
+          },
+        })),
+
       switchProgramme: (templateId, nowIso) =>
         set((s) =>
           s.programme
@@ -1983,7 +2014,7 @@ export const useAppStore = create<AppState>()(
         const enrolled = get().programme;
         if (
           enrolled &&
-          !cycleFor(enrolled.templateId, enrolled.days).some((t) =>
+          !cycleOf(enrolled).some((t) =>
             SESSION_ORDER.includes(t)
           )
         ) {

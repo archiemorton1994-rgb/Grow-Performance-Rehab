@@ -109,6 +109,27 @@ export function ChooseProgramme({ onKeepRotation }: ChooseProgrammeProps) {
         <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
       </Pressable>
 
+      <Pressable
+        onPress={() => {
+          haptic(true);
+          router.push('/build-programme');
+        }}
+        testID="choose-build-own"
+        style={({ pressed }) => [styles.builder, styles.builderQuiet, pressed && { opacity: 0.9 }]}
+      >
+        <View style={[styles.builderIcon, { backgroundColor: C.surfaceSecondary }]}>
+          <Ionicons name="albums-outline" size={20} color={C.text} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.builderTitle}>Put one together myself</Text>
+          <Text style={styles.builderSub}>
+            Choose the kinds of session and the order they repeat in. What is inside each one is
+            still built on the day.
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
+      </Pressable>
+
       <Text style={styles.sectionLabel}>OR CHOOSE ONE YOURSELF</Text>
 
       {PROGRAMME_IDS.map((id) => {
@@ -235,6 +256,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    // The second route in is the same row, quieter: the questions are the
+    // better answer for most people, and two equally loud options is a
+    // decision nobody asked to make.
+    builderQuiet: {
+      borderColor: C.border,
+      backgroundColor: C.surface,
+      marginTop: 8,
     },
     builderTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
     builderSub: {

@@ -125,9 +125,11 @@ check(
 console.log('\n[3] The rehab and recovery work is right there');
 
 check(
+  // extrasOf, not extrasFor: a custom programme's cycle lives on the enrolment
+  // rather than in the template table, so what is left over to offer alongside
+  // it can only be worked out from the enrolment.
   'the extras are listed and can be started',
-  /extrasFor\(programme\.templateId, programme\.days\)/.test(hubCode) &&
-    /testID={`hub-extra-\$\{t\}`}/.test(hub),
+  /extrasOf\(programme\)/.test(hubCode) && /testID={`hub-extra-\$\{t\}`}/.test(hub),
   ''
 );
 check(

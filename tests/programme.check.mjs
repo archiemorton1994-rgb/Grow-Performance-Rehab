@@ -36,6 +36,13 @@ import {
   otherProgrammes,
   includedInGrow,
   tagSessions,
+  cycleOf,
+  programmeFor,
+  extrasOf,
+  nameOf,
+  demandOfCycle,
+  BUILDABLE_SESSION_TYPES,
+  MAX_CUSTOM_CYCLE,
   DIFFICULTY_LABELS,
   programmeDifficulty,
   weeksFor,
@@ -721,6 +728,121 @@ check(
   'and nothing is ever discarded: every session comes back tagged one way or the other',
   tagSessions(enrol, ['custom', 'conditioning', 'prehab']).length === 3,
   'a session that falls out of the replay is one the user did and the app forgot'
+);
+
+// ─── 13. A cycle somebody put together themselves ───────────────────────────
+console.log('\n[13] A custom programme behaves like every other one');
+
+const mine = {
+  templateId: 'custom',
+  custom: { name: 'Tuesdays and Fridays', cycle: ['upper_body', 'conditioning', 'lower_body'] },
+  days: 3,
+  sessions: 12,
+  minutes: 45,
+  startedAt: '2026-09-01T00:00:00.000Z',
+  startedAtSessionCount: 0,
+};
+
+check(
+  // The one that would break everything quietly. programmeFor falls back to
+  // Full Body Foundations for an unknown id, so without a real entry a person's
+  // own programme would silently become somebody else's, and it would look like
+  // the app working.
+  'custom is a real template rather than a hole that falls through to Foundations',
+  PROGRAMMES.custom?.id === 'custom' && programmeFor('custom').id === 'custom',
+  JSON.stringify(programmeFor('custom')?.id)
+);
+check(
+  'and it is NOT on the list of programmes you can pick',
+  !PROGRAMME_IDS.includes('custom') && PROGRAMME_IDS.length === 7,
+  `${PROGRAMME_IDS.length}: ${PROGRAMME_IDS.join(', ')}`
+);
+check(
+  'nor among the ones offered as alternatives to whatever you are on',
+  otherProgrammes('barbell').every((p) => p.id !== 'custom') &&
+    otherProgrammes('custom').length === 7,
+  'a page that says "and 7 more, included" must not be counting the one they built'
+);
+check(
+  'the cycle comes off the enrolment, not the template table',
+  JSON.stringify(cycleOf(mine)) ===
+    JSON.stringify(['upper_body', 'conditioning', 'lower_body']),
+  JSON.stringify(cycleOf(mine))
+);
+check(
+  'and a named programme still reads its own',
+  JSON.stringify(cycleOf({ ...mine, templateId: 'barbell', custom: undefined })) ===
+    JSON.stringify(cycleFor('barbell', 3)),
+  ''
+);
+check(
+  // Switching away leaves the custom cycle sitting on the enrolment unread.
+  // If cycleOf looked at `custom` rather than at the id, switching to Barbell
+  // Strength would hand back their own sessions under somebody else's name.
+  'a leftover custom cycle is ignored the moment they are on something else',
+  JSON.stringify(cycleOf({ ...mine, templateId: 'joints' })) ===
+    JSON.stringify(cycleFor('joints', 3)),
+  JSON.stringify(cycleOf({ ...mine, templateId: 'joints' }))
+);
+check(
+  'it is called what they called it',
+  nameOf(mine) === 'Tuesdays and Fridays' &&
+    nameOf({ ...mine, custom: { name: '   ', cycle: mine.custom.cycle } }) ===
+      'Your Own Programme' &&
+    nameOf({ ...mine, templateId: 'lean' }) === PROGRAMMES.lean.name,
+  nameOf(mine)
+);
+check(
+  'the position, the plan and the tags all walk the cycle they built',
+  (() => {
+    const pos = programmePosition(mine, ['upper_body', 'squat', 'conditioning']);
+    const plan = blockPlan(mine);
+    return (
+      pos.onPlan === 2 &&
+      pos.offPlan === 1 &&
+      pos.next === 'lower_body' &&
+      plan.length === 12 &&
+      plan[0].type === 'upper_body' &&
+      plan[3].type === 'upper_body'
+    );
+  })(),
+  JSON.stringify(programmePosition(mine, ['upper_body', 'squat', 'conditioning']))
+);
+check(
+  'what it offers alongside is whatever is not already in it',
+  (() => {
+    const extras = extrasOf(mine);
+    return extras.includes('prehab') && extras.includes('flexibility') && !extras.includes('conditioning');
+  })(),
+  JSON.stringify(extrasOf(mine))
+);
+check(
+  // A cycle nobody wrote a description for has to be read off the work in it,
+  // or every custom programme comes back at the same difficulty.
+  'its difficulty is read from the cycle rather than from a table',
+  (() => {
+    const heavy = programmeDifficulty('custom', 'advanced', 3, ['squat', 'bench', 'deadlift']);
+    const gentle = programmeDifficulty('custom', 'advanced', 3, ['prehab', 'flexibility']);
+    return heavy.score > gentle.score && demandOfCycle(['squat', 'bench']) === 1;
+  })(),
+  `${programmeDifficulty('custom', 'advanced', 3, ['squat', 'bench', 'deadlift']).label} vs ${programmeDifficulty('custom', 'advanced', 3, ['prehab', 'flexibility']).label}`
+);
+check(
+  'an empty cycle is neither heavy nor gentle, rather than dividing by zero',
+  demandOfCycle([]) === 0 && Number.isFinite(programmeDifficulty('custom', 'beginner', 3, []).score),
+  ''
+);
+check(
+  // generateWorkout returns an empty list for 'custom', so a slot holding one
+  // would hand somebody a workout with nothing in it.
+  'the sessions you can put in a cycle are all sessions the app can build',
+  BUILDABLE_SESSION_TYPES.length === 9 && !BUILDABLE_SESSION_TYPES.includes('custom'),
+  BUILDABLE_SESSION_TYPES.join(', ')
+);
+check(
+  'and there is a ceiling on how long a cycle can get',
+  MAX_CUSTOM_CYCLE >= 4 && MAX_CUSTOM_CYCLE <= 12,
+  `${MAX_CUSTOM_CYCLE}`
 );
 
 console.log(`\nprogramme: ${passed} passed, ${failed} failed`);

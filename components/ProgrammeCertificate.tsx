@@ -55,12 +55,13 @@ import { distinctExerciseCount } from '@/lib/exercise-db';
 import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
 import {
   PROGRAMME_PROMISES,
-  cycleFor,
-  extrasFor,
+  cycleOf,
+  extrasOf,
   includedInGrow,
   otherProgrammes,
   programmeCareNote,
   programmeDifficulty,
+  nameOf,
   programmeFor,
   programmeReasons,
   weeksFor,
@@ -98,12 +99,13 @@ export function ProgrammeCertificate({
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const template = programmeFor(programme.templateId);
-  const cycle = cycleFor(programme.templateId, programme.days);
-  const extras = extrasFor(programme.templateId, programme.days);
+  const displayName = nameOf(programme);
+  const cycle = cycleOf(programme);
+  const extras = extrasOf(programme);
   const reasons = programmeReasons(outcome);
   const careNote = programmeCareNote(outcome);
   const others = otherProgrammes(programme.templateId);
-  const difficulty = programmeDifficulty(programme.templateId, outcome.experience, programme.days);
+  const difficulty = programmeDifficulty(programme.templateId, outcome.experience, programme.days, cycle);
   const weeks = weeksFor(programme.sessions, programme.days);
 
   // Once per mount. distinctExerciseCount walks the whole catalogue, and this is
@@ -157,7 +159,7 @@ export function ProgrammeCertificate({
           </View>
 
           <Text style={styles.name} testID="programme-name">
-            {template.name}
+            {displayName}
           </Text>
           <Text style={styles.blurb}>{template.blurb}</Text>
 
