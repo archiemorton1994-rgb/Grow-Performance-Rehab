@@ -49,6 +49,7 @@ import {
   type ProgrammeId,
 } from '@/lib/programme';
 import { SESSION_COUNTS, type TrainingDays } from '@/lib/profile-tree';
+import { bandLabel } from '@/lib/exercise-levels';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
 
@@ -143,7 +144,9 @@ export function ProgrammeHub() {
           <View style={styles.difficultyPill}>
             <Text style={styles.difficultyPillText}>{difficulty.label.toUpperCase()}</Text>
           </View>
-          <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
+          <Text style={styles.difficultyWhy}>
+            {difficulty.because} {bandLabel(difficulty.band)}, out of five.
+          </Text>
         </View>
 
         <View style={styles.rule} />

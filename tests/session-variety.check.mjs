@@ -50,10 +50,18 @@ function check(label, condition, detail) {
 console.log('\n[1] Weekly sessions draw on the real accessory pool');
 
 check(
+  // Read to the END of the array literal rather than to a character count. The
+  // 160-character window this used to allow was a limit on how much the block
+  // could be commented, which is not a rule anybody meant to write: adding a
+  // comment inside widePool broke a test about where the exercises come from.
   'the wide pool is built from getAccessories',
-  /const widePool = \[[\s\S]{0,160}?getAccessories\(accessorySource, equipmentTier\),?\s*\]/.test(
-    engineSrc
-  ),
+  (() => {
+    const at = engineSrc.indexOf('const widePool = [');
+    if (at < 0) return false;
+    const end = engineSrc.indexOf('];', at);
+    if (end < 0) return false;
+    return /getAccessories\(accessorySource, equipmentTier\)/.test(engineSrc.slice(at, end));
+  })(),
   'the optional slots used to be leftovers of the same five-exercise weekly list'
 );
 check(

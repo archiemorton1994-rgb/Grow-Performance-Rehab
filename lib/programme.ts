@@ -47,6 +47,7 @@ import type {
   TrainingDays,
   TreeOutcome,
 } from './profile-tree';
+import { levelBandFor, type ExerciseLevel, type LevelBand } from './exercise-levels';
 
 export type ProgrammeId =
   | 'barbell'
@@ -511,6 +512,52 @@ export interface ProgrammeDifficulty {
   score: number;
   /** One line, naming what made it that. Shown under the label. */
   because: string;
+  /** The rungs of the movement ladders it is built from. See lib/exercise-levels. */
+  band: LevelBand;
+}
+
+/**
+ * The hardest rung the app will prescribe to somebody, whatever they picked.
+ *
+ * WHY THIS IS DERIVED RATHER THAN WRITTEN DOWN. The label is a property of the
+ * PROGRAMME and the ceiling is a property of the PERSON, and the two have to
+ * agree or the app shows one thing and does another. Computing the ceiling as
+ * the hardest band any programme could reach at that experience means they
+ * cannot come apart: if the difficulty table changes, this moves with it.
+ *
+ * It is also the honest reading of the brief. A beginner should not be handed
+ * level 4 work because they chose the barbell programme; choosing a harder
+ * programme does not make somebody able to do harder movements, which is the
+ * whole point of the earn-the-barbell rule in PROGRESSION-LADDERS.md.
+ */
+export function levelCeilingFor(experience: ExperienceLevel): ExerciseLevel {
+  let max = 1;
+  for (let i = 0; i <= CAPABILITY_CEILING[experience]; i++) {
+    const band = levelBandFor(DIFFICULTY_LABELS[i]);
+    if (band.max > max) max = band.max;
+  }
+  return max as ExerciseLevel;
+}
+
+/**
+ * What the generator builds on, and what it will not go past.
+ *
+ * BUILD ON THE RUNG BELOW THE CEILING. That is the whole rule, and it is a
+ * coaching one rather than an arithmetic one: a session built AT somebody's
+ * limit is a session with nowhere left to go, and the app's job is to leave the
+ * next rung in front of them. So a beginner is built on foundations and allowed
+ * the first loaded rung; somebody experienced is built on full-range barbell
+ * work and allowed the asymmetry rung above it.
+ *
+ * The generator uses this rather than the programme's own band because it does
+ * not know which programme somebody is on - it is handed a session type and a
+ * profile. That is the right division: the CEILING is a fact about the person
+ * and the LABEL is a fact about the programme, and levelCeilingFor above keeps
+ * the two from disagreeing.
+ */
+export function levelBandForExperience(experience: ExperienceLevel): LevelBand {
+  const max = levelCeilingFor(experience);
+  return { prefer: (max > 1 ? max - 1 : 1) as ExerciseLevel, max };
 }
 
 export function programmeDifficulty(
@@ -535,6 +582,7 @@ export function programmeDifficulty(
   return {
     label: DIFFICULTY_LABELS[score],
     score,
+    band: levelBandFor(DIFFICULTY_LABELS[score]),
     because:
       parts.length > 0
         ? `Because ${parts.join(', ')}.`

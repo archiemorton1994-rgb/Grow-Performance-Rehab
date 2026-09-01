@@ -57,6 +57,7 @@ import {
   type EnrolledProgramme,
 } from '@/lib/programme';
 import type { TreeOutcome } from '@/lib/profile-tree';
+import { bandLabel } from '@/lib/exercise-levels';
 
 export interface ProgrammeCertificateProps {
   programme: EnrolledProgramme;
@@ -142,13 +143,20 @@ export function ProgrammeCertificate({
           </Text>
           <Text style={styles.blurb}>{template.blurb}</Text>
 
-          {/* The difficulty, named and justified in the same breath. A label on
-              its own invites the question; the line under it answers it. */}
+          {/* The difficulty, named and justified in the same breath, with the
+              rungs of the movement ladders it draws from. A label on its own
+              invites the question; the line under it answers it, and the band
+              is what makes the answer checkable rather than a claim. */}
           <View style={styles.difficultyRow} testID="programme-difficulty">
             <View style={styles.difficultyPill}>
               <Text style={styles.difficultyPillText}>{difficulty.label.toUpperCase()}</Text>
             </View>
-            <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.difficultyWhy}>{difficulty.because}</Text>
+              <Text style={styles.difficultyBand}>
+                {bandLabel(difficulty.band)}, out of five.
+              </Text>
+            </View>
           </View>
 
           <View style={styles.rule} />
@@ -369,11 +377,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: PAGE.ink,
     },
     difficultyWhy: {
-      flex: 1,
       fontSize: 12,
       lineHeight: 16,
       fontFamily: 'Inter_400Regular',
       color: PAGE.inkMuted,
+    },
+    difficultyBand: {
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: PAGE.inkMuted,
+      marginTop: 1,
     },
 
     rule: { height: 1, backgroundColor: PAGE.hairline, marginVertical: 18 },

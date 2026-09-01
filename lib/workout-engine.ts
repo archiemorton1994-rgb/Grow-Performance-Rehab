@@ -6,6 +6,7 @@ import type {
   EnergyLevel,
   ExerciseFeedback,
   ExercisePerformance,
+  ExperienceLevel,
   FitnessGoal,
   PainRegion,
   SessionType,
@@ -52,6 +53,8 @@ import {
   possibleFor,
   getRegionsByExerciseNameMap,
 } from './exercise-db';
+import { byLevelPreference, withinLevel } from './exercise-levels';
+import { levelBandForExperience } from './programme';
 import {
   isEquipmentVariant,
   isSameMuscleAlternative,
@@ -2278,6 +2281,38 @@ function sameJobAlternatives(
   return out;
 }
 
+/**
+ * A pool held to the rungs this person has earned, easiest-suited first.
+ *
+ * WHAT IT DOES AND WHAT IT DELIBERATELY DOES NOT.
+ *
+ *   IT FILTERS the accessory, warm-up and finisher pools by the movement-level
+ *   ceiling from lib/exercise-levels.ts, so somebody new to structured training
+ *   stops being handed level 3 and 4 work as "accessories". That is the visible
+ *   half of the ladders.
+ *
+ *   IT DOES NOT TOUCH THE MAIN LIFT. A squat session's main movement is the
+ *   squat, and holding a beginner off the barbell there is the earn-the-barbell
+ *   rule, which needs their LOGGED history rather than a label: nobody is
+ *   promoted by answering a question differently. That is the next piece of
+ *   work and it is not this one.
+ *
+ *   IT NEVER EMPTIES A POOL. A ceiling that leaves a session without its warm-up
+ *   is a worse outcome than a warm-up that is a rung too hard, so a pool with
+ *   nothing left inside the ceiling comes back untouched. Measured across the
+ *   catalogue in tests/exercise-levels.check.mjs: at every ceiling the app can
+ *   apply, every pattern keeps at least three movements, so this is a backstop
+ *   rather than a routine escape.
+ *
+ * Unlevelled work - rehab, conditioning, mobility - passes straight through.
+ * See the docblock in lib/exercise-levels.ts for why that is not an oversight.
+ */
+function atEarnedLevel(pool: ExerciseTemplate[], experienceLevel?: string): ExerciseTemplate[] {
+  const band = levelBandForExperience((experienceLevel as ExperienceLevel) ?? 'intermediate');
+  const kept = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
+  return byLevelPreference(kept.length > 0 ? kept : pool, band, (t) => t);
+}
+
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
   return {
     name: t.name,
@@ -2843,7 +2878,10 @@ function generateWorkoutUnscreened(
   //   30 min → all 3 stretches (safety warmup - never skip)
   //   45 min → first 2 stretches
   //   60 min → all 3 stretches
-  const prep = seededShuffleDiverse(getPrep(mainType, equipmentTier), sessionSeed);
+  const prep = seededShuffleDiverse(
+    atEarnedLevel(getPrep(mainType, equipmentTier), profile?.experienceLevel),
+    sessionSeed
+  );
   const prepCount = timeAvailable === '45' ? 2 : 3;
   /**
    * WARM-UPS APPLY THEIR COMFORT VARIANTS TOO, AND USED NOT TO.
@@ -2876,7 +2914,10 @@ function generateWorkoutUnscreened(
     hasPowerGoal && !hasAches
       ? getPowerMechanical(mainType, equipmentTier)
       : getMechanical(mainType, equipmentTier);
-  const mechanical = seededShuffleDiverse(mechanicalPool, sessionSeed);
+  const mechanical = seededShuffleDiverse(
+    atEarnedLevel(mechanicalPool, profile?.experienceLevel),
+    sessionSeed
+  );
   if (timeAvailable === '60') {
     for (const m of mechanical.slice(0, 2))
       exercises.push(applyComfortOrBadge(m, hasAches, painRegion, equipmentTier));
@@ -2893,7 +2934,16 @@ function generateWorkoutUnscreened(
       hasPowerGoal && !hasAches
         ? [getPowerNeuro(mainType, equipmentTier)]
         : getNeuro(mainType, equipmentTier);
-    const neuroTemplate = seededShuffleDiverse(neuroPool, sessionSeed)[0];
+    // The power block is where the jumps live, and jumping is level 3 work
+    // on the squat ladder. Somebody new to structured training was being
+    // primed with lateral bounds and split squat jumps before their first
+    // squat; the zero-load screen in PROGRESSION-LADDERS.md exists to stop
+    // exactly that. getPowerNeuro returns a single template and is left alone
+    // for the same reason the main lift is - see atEarnedLevel.
+    const neuroTemplate = seededShuffleDiverse(
+      atEarnedLevel(neuroPool, profile?.experienceLevel),
+      sessionSeed
+    )[0];
     const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
     // Power goal: always perform 5 sets in the neuro block.
     if (hasPowerGoal && !hasAches) {
@@ -2939,7 +2989,10 @@ function generateWorkoutUnscreened(
   // users see different exercises rather than always the same first two.
   // Diversify by movement pattern so the 1-2 chosen accessories don't stack the
   // same pattern (e.g. two 'push' moves) within a single session.
-  const allAccessories = seededShuffleDiverse(getAccessories(mainType, equipmentTier), sessionSeed);
+  const allAccessories = seededShuffleDiverse(
+    atEarnedLevel(getAccessories(mainType, equipmentTier), profile?.experienceLevel),
+    sessionSeed
+  );
   // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
   // general conditioning capacity. Both benefit from a single conditioning
   // exercise that replaces the standard finisher slot.
@@ -2981,7 +3034,10 @@ function generateWorkoutUnscreened(
     }
     for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
   } else if (timeAvailable !== '30') {
-    const finisherPool = getFinisher(mainType, equipmentTier, finisherKey);
+    const finisherPool = atEarnedLevel(
+      getFinisher(mainType, equipmentTier, finisherKey),
+      profile?.experienceLevel
+    );
     const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
     exercises.push(templateToExercise(finisher, finBadge));
   }
@@ -3109,7 +3165,10 @@ function generateWeeklyWorkout(
   //   prehab/finisher already are below (upper→bench, lower→squat, full→deadlift).
   const prepSource: MainSessionType =
     sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-  const prep = seededShuffleDiverse(getPrep(prepSource, equipmentTier), sessionSeed);
+  const prep = seededShuffleDiverse(
+    atEarnedLevel(getPrep(prepSource, equipmentTier), profile?.experienceLevel),
+    sessionSeed
+  );
   const prepCount = timeAvailable === '45' ? 2 : 3;
   for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
 
@@ -3182,8 +3241,11 @@ function generateWeeklyWorkout(
   const accessorySource: MainSessionType =
     sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
   const widePool = [
-    ...allMainExercises.slice(minRequired),
-    ...getAccessories(accessorySource, equipmentTier),
+    // The OPTIONAL half of the weekly list. The required half above is this
+    // session's identity and is left exactly as curated, same reasoning as the
+    // main lift: a ceiling may narrow the variety, never the session.
+    ...atEarnedLevel(allMainExercises.slice(minRequired), profile?.experienceLevel),
+    ...atEarnedLevel(getAccessories(accessorySource, equipmentTier), profile?.experienceLevel),
   ];
 
   // The main movement is resolved BEFORE anything is filtered, so nothing else
@@ -3319,7 +3381,10 @@ function generateWeeklyWorkout(
     const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
     const finisherSource: MainSessionType =
       sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-    const finisherPool = getFinisher(finisherSource, equipmentTier, finisherKey);
+    const finisherPool = atEarnedLevel(
+      getFinisher(finisherSource, equipmentTier, finisherKey),
+      profile?.experienceLevel
+    );
     if (finisherPool.length > 0) {
       // Rotated on the same seed as everything else in this session. It used to
       // be finisherPool[0], so every 60-minute weekly session for the rest of
