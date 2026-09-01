@@ -47,7 +47,13 @@ import type {
   TrainingDays,
   TreeOutcome,
 } from './profile-tree';
-import { levelBandFor, type ExerciseLevel, type LevelBand } from './exercise-levels';
+import {
+  LADDER_PATTERNS,
+  levelBandFor,
+  type ExerciseLevel,
+  type LadderPattern,
+  type LevelBand,
+} from './exercise-levels';
 
 export type ProgrammeId =
   | 'barbell'
@@ -973,6 +979,22 @@ export function programmeDifficulty(
 
 // ─── Saying why ─────────────────────────────────────────────────────────────
 
+/**
+ * The six patterns as somebody would say them out loud.
+ *
+ * "hinge" and "carry" are the words the ladders use and the words a
+ * physiotherapist uses; they are not the words anybody reading a certificate
+ * uses about themselves.
+ */
+const PATTERN_WORDS: Record<LadderPattern, string> = {
+  hinge: 'hinge',
+  squat: 'squat',
+  lunge: 'split squat',
+  push: 'plank',
+  pull: 'pull-up',
+  carry: 'carry',
+};
+
 const AGE_WORDS: Record<InjuryAge, string> = {
   days: 'for a few days',
   weeks: 'for a few weeks',
@@ -1056,6 +1078,38 @@ export function programmeReasons(outcome: TreeOutcome): string[] {
   out.push(
     `Around ${outcome.minutes} minutes a session, and a day you only have 30 gives you the same session with less of it rather than a different one.`
   );
+
+  /**
+   * THE MOVEMENT SCREEN, WHICH IS THE ONE PEOPLE WILL NOTICE MOST.
+   *
+   * Somebody who leaves four boxes unticked gets a visibly gentler set of
+   * exercises than their training history would suggest, and without a sentence
+   * saying why, the reasonable reading is that the app has underestimated them.
+   * Only said when something was actually held back: a full house changes
+   * nothing and does not need a line.
+   */
+  if (outcome.screenPassed !== null) {
+    const held = LADDER_PATTERNS.filter((p) => !outcome.screenPassed!.includes(p));
+    if (held.length > 0) {
+      out.push(
+        held.length === LADDER_PATTERNS.length
+          ? 'You have not got the movement checks yet, so everything starts from the foundation version and works up from there.'
+          : `You have not got the ${held.map((p) => PATTERN_WORDS[p]).join(', ')} ${held.length === 1 ? 'check' : 'checks'} yet, so those start from the foundation version. Everything else is built at your level.`
+      );
+    }
+  }
+
+  if (outcome.maxKitKg > 0) {
+    out.push(
+      `Nothing is ever prescribed above ${outcome.maxKitKg} kg, because that is the heaviest you told us you can reach.`
+    );
+  }
+
+  if (outcome.avoidRegions.length > 0) {
+    out.push(
+      'A clinician has told you to stay off something, so it is worked around in every session whether or not it hurts that day.'
+    );
+  }
 
   if (outcome.soreRegions.length > 0) {
     const age = outcome.soreFor ? ` ${AGE_WORDS[outcome.soreFor]}` : '';

@@ -1178,5 +1178,89 @@ check(
   ''
 );
 
+// ─── The certificate says what the new answers did ──────────────────────────
+//
+// The reasons list exists because the app has just made a decision on somebody's
+// behalf, and naming the answer that caused it is what separates a considered
+// app from a black box. Three answers that change the prescription and say
+// nothing on the page explaining the prescription is the black box growing.
+console.log('\n[F] Every answer that changed something says so');
+
+const outcome = (over = {}) => ({
+  name: 'Archie',
+  focus: 'strength',
+  days: 3,
+  minutes: 45,
+  sessions: 12,
+  experience: 'intermediate',
+  ageYears: 34,
+  sex: 'male',
+  bodyweightKg: 82,
+  equipmentTiers: ['fullgym'],
+  soreRegions: [],
+  soreFor: null,
+  testWeekFrequency: 'never',
+  oneRepMaxes: { squat: null, bench: null, deadlift: null },
+  screenPassed: null,
+  avoidRegions: [],
+  maxKitKg: 0,
+  ...over,
+});
+
+const said = (over) => programmeReasons(outcome(over)).join(' ');
+
+check(
+  'a movement check they have not got yet is named, and in words they would use',
+  (() => {
+    const line = said({ screenPassed: ['hinge', 'squat', 'push', 'lunge', 'carry'] });
+    // "pull" is what the ladder calls it. Nobody says it about themselves.
+    return /pull-up/.test(line) && /foundation/.test(line) && !/\bpull\b(?!-)/.test(line);
+  })(),
+  said({ screenPassed: ['hinge', 'squat', 'push', 'lunge', 'carry'] })
+);
+check(
+  // A full house changes nothing, so a line about it would be an explanation of
+  // something that did not happen.
+  'passing all six says nothing at all',
+  !/foundation version/.test(said({ screenPassed: ['hinge', 'squat', 'lunge', 'push', 'pull', 'carry'] })),
+  ''
+);
+check(
+  'and skipping the screen says nothing either',
+  !/foundation version/.test(said({ screenPassed: null })),
+  'somebody who was never asked must not be told what their answer did'
+);
+check(
+  'passing none of it is said in one sentence rather than six',
+  (() => {
+    const line = said({ screenPassed: [] });
+    return /everything starts from the foundation version/i.test(line);
+  })(),
+  said({ screenPassed: [] })
+);
+check(
+  'the kit ceiling is named with its number',
+  /above 24 kg/.test(said({ maxKitKg: 24 })) && !/above 0/.test(said({ maxKitKg: 0 })),
+  said({ maxKitKg: 24 })
+);
+check(
+  'and the clinical instruction is said in its own words, not as soreness',
+  (() => {
+    const line = said({ avoidRegions: ['front_shoulder'] });
+    return /clinician/.test(line) && /whether or not it hurts/.test(line);
+  })(),
+  said({ avoidRegions: ['front_shoulder'] })
+);
+check(
+  'no reason ever reads as an unfinished sentence',
+  [
+    said({}),
+    said({ screenPassed: [] }),
+    said({ screenPassed: ['hinge'] }),
+    said({ maxKitKg: 20, avoidRegions: ['knee'] }),
+  ].every((line) => !/undefined|NaN|null|,\s*\./.test(line)),
+  ''
+);
+
 console.log(`\nprogramme: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
