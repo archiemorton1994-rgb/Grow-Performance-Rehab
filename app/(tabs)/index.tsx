@@ -314,6 +314,19 @@ export default function HomeScreen() {
    * starts being about what you just did.
    */
   const reportReady = useAppStore((s) => s.pendingProgrammeReportId) !== null;
+  /**
+   * The pounds fault, if this account has it. Null for almost everybody.
+   *
+   * Recomputed when the profile or the maxes move, which is exactly when
+   * answering the card changes the answer to null and takes it off the screen.
+   */
+  const getUnitCorrection = useAppStore((s) => s.getUnitCorrection);
+  const resolveUnitCorrection = useAppStore((s) => s.resolveUnitCorrection);
+  const unitFix = useMemo(
+    () => getUnitCorrection(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getUnitCorrection, userProfile.bodyweightKg, bodyweightUpdatedAt, oneRepMaxes]
+  );
   const programmeTilePlace = (() => {
     if (!programme) return null;
     const pos = getProgrammePosition();
@@ -1349,8 +1362,70 @@ export default function HomeScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Secondary actionable card - priority: resume > milestone > broken streak (mutually exclusive) */}
-          {activeSession ? (
+          {/* Secondary actionable card - priority: the pounds fault > resume >
+              milestone > broken streak (mutually exclusive).
+
+              The pounds fault leads because the weights behind the Resume button
+              are the wrong weights, so sending somebody into a session before
+              asking would be the app knowing and not saying. */}
+          {unitFix ? (
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.unitFixCard}
+              testID="unit-fix-card"
+            >
+              <View style={styles.unitFixHead}>
+                <Ionicons name="alert-circle" size={19} color={C.warning} />
+                <Text style={styles.unitFixTitle}>
+                  {unitFix.certain
+                    ? 'Your weights were recorded in the wrong unit'
+                    : 'Can we check your bodyweight?'}
+                </Text>
+              </View>
+              <Text style={styles.unitFixBody}>
+                {unitFix.certain
+                  ? `We have you down as ${unitFix.storedKg} kg, which we recorded from what you typed when you set up. It should have been ${unitFix.correctedKg} kg. That was our fault, and it has been making your weights too heavy${unitFix.lifts.length > 0 ? ', along with your best lifts' : ''}.`
+                  : `We have you down as ${unitFix.storedKg} kg. You train in pounds, and there was a fault in our setup screen that recorded pounds as kilos, so this may have meant ${unitFix.correctedKg} kg${unitFix.lifts.length > 0 ? '. Your best lifts would be the same' : ''}.`}
+              </Text>
+              <View style={styles.unitFixActions}>
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== 'web')
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    resolveUnitCorrection('pounds');
+                  }}
+                  testID="unit-fix-accept"
+                  style={({ pressed }) => [
+                    styles.unitFixPrimary,
+                    { backgroundColor: C.primaryDark },
+                    pressed && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={[styles.unitFixPrimaryText, { color: C.primaryDarkText }]}>
+                    {unitFix.certain
+                      ? `Put it right, I am ${unitFix.correctedKg} kg`
+                      : `Yes, I am ${unitFix.correctedKg} kg`}
+                  </Text>
+                </Pressable>
+                {/* Not offered when the recorded figure is impossible as a
+                    bodyweight. Asking "no, I really am 340 kg" would be the app
+                    pretending not to know something it does know, and
+                    setUserProfile would refuse the value anyway, so the card
+                    would simply come back for ever. */}
+                {!unitFix.certain && (
+                  <Pressable
+                    onPress={() => resolveUnitCorrection('kilograms')}
+                    testID="unit-fix-keep"
+                    style={({ pressed }) => [styles.unitFixSecondary, pressed && { opacity: 0.8 }]}
+                  >
+                    <Text style={styles.unitFixSecondaryText}>
+                      No, {unitFix.storedKg} kg is right
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </Animated.View>
+          ) : activeSession ? (
             <Animated.View
               entering={FadeInDown.delay(180).duration(380)}
               style={styles.resumeSecondary}
@@ -2108,6 +2183,38 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
       fontFamily: 'Inter_400Regular',
       color: C.primaryText,
       lineHeight: 15,
+    },
+
+    unitFixCard: {
+      gap: 10,
+      backgroundColor: C.surface,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      borderWidth: 1,
+      borderColor: C.warning,
+    },
+    unitFixHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+    unitFixTitle: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+    },
+    unitFixBody: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+    },
+    unitFixActions: { gap: 8 },
+    unitFixPrimary: { borderRadius: 11, paddingVertical: 12, alignItems: 'center' },
+    unitFixPrimaryText: { fontSize: 13.5, fontFamily: 'Inter_700Bold' },
+    unitFixSecondary: { paddingVertical: 9, alignItems: 'center' },
+    unitFixSecondaryText: {
+      fontSize: 12.5,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
     },
 
     calibrationCompleteCard: {

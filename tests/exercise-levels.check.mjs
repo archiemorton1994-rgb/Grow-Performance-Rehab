@@ -43,7 +43,7 @@ import {
 } from '../lib/exercise-levels.ts';
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
 import { LADDER_PATTERNS as ALL_PATTERNS } from '../lib/exercise-levels.ts';
-import { generateWorkout } from '../lib/workout-engine.ts';
+import { generateWorkout, patternCeiling } from '../lib/workout-engine.ts';
 import {
   DIFFICULTY_LABELS,
   PROGRAMME_IDS,
@@ -566,15 +566,56 @@ console.log('\n[8] A ceiling per pattern, from the zero-load screen');
       (p) => `${p} ${aboveFoundations(noScreen, p)}->${aboveFoundations(failedPull, p)}`
     ).join(' ')
   );
+  /**
+   * THE RULE ITSELF, CHECKED WHERE IT IS DECIDED.
+   *
+   * Three attempts were made at asserting "a pattern they passed is untouched"
+   * through generateWorkout, and all three could not fail. The first compared
+   * the hardest squat card in each run, which is not an invariant at all -
+   * filtering one pattern out shortens the returned list, so the slot a card
+   * sits in moves and whether it falls inside the caller's slice changes. The
+   * rotation is seeded on the day index as well, so it passed on 1 September
+   * and failed on 2 September with no code change.
+   *
+   * The second and third asked whether a capped pattern still produced work
+   * above foundations. It does, capped or not: the never-empty backstop
+   * overrides the ceiling wherever the catalogue has no easier movement, and
+   * measured across every ladder it usually does not. Breaking the rule
+   * deliberately left both of them green.
+   *
+   * So the rule is asserted directly, and the generator tests below assert only
+   * what is genuinely visible through the generator.
+   */
   check(
-    // The half that stops this being a blunt demotion. Somebody who can squat
-    // and cannot yet pull keeps their squat.
-    'while the patterns they DID pass are untouched',
-    (() => {
-      const squatsWhole = noScreen.filter((c) => c.pattern === 'squat').map((c) => c.level);
-      const squatsPull = failedPull.filter((c) => c.pattern === 'squat').map((c) => c.level);
-      return squatsWhole.length > 0 && Math.max(...squatsPull) === Math.max(...squatsWhole);
-    })(),
+    'the screen holds a pattern whose benchmark was not passed at foundations',
+    patternCeiling(4, ['hinge', 'squat'], 'pull') === 1,
+    `${patternCeiling(4, ['hinge', 'squat'], 'pull')}`
+  );
+  check(
+    'and leaves a pattern they DID pass exactly where their experience put it',
+    patternCeiling(4, ['hinge', 'squat'], 'squat') === 4 &&
+      patternCeiling(2, ['hinge', 'squat'], 'hinge') === 2,
+    ''
+  );
+  check(
+    // Every account that existed before the question, and everybody who skipped
+    // it. They must be prescribed exactly what they were prescribed yesterday.
+    'a screen that was never taken caps nothing at all',
+    LADDER_PATTERNS.every((p) => patternCeiling(4, undefined, p) === 4),
+    ''
+  );
+  check(
+    // An empty list is somebody who answered "none of these yet", which is a
+    // different statement from saying nothing.
+    'while passing none of it caps every one of them',
+    LADDER_PATTERNS.every((p) => patternCeiling(4, [], p) === 1),
+    ''
+  );
+  check(
+    // Rehab, conditioning and mobility are not rungs on any ladder, so the
+    // screen has nothing to say about them.
+    'and work that is on no ladder is never capped by it',
+    patternCeiling(4, [], undefined) === 4 && patternCeiling(4, [], 'not-a-pattern') === 4,
     ''
   );
   check(

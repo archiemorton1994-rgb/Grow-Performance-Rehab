@@ -2486,6 +2486,36 @@ function sameJobAlternatives(
  * Unlevelled work - rehab, conditioning, mobility - passes straight through.
  * See the docblock in lib/exercise-levels.ts for why that is not an oversight.
  */
+/**
+ * THE HARDEST RUNG OF ONE PATTERN THIS PERSON MAY BE PRESCRIBED.
+ *
+ * Two inputs and one rule. The experience ceiling applies to everything; the
+ * builder's zero-load screen then holds any pattern whose benchmark was not
+ * passed at foundations, because that benchmark IS the gate between Level 1 and
+ * Level 2 of that ladder, whatever anybody has said about how long they have
+ * been training.
+ *
+ * UNDEFINED IS NOT AN EMPTY LIST, and the distinction is the whole safety of
+ * this. Undefined means no screen was ever taken - every account that existed
+ * before the question, and everybody who skipped it - and those people must be
+ * prescribed exactly what they were prescribed yesterday. An empty array is
+ * somebody who answered "none of these yet".
+ *
+ * EXPORTED SO IT CAN BE TESTED WHERE IT IS DECIDED. Through generateWorkout this
+ * rule is close to invisible: the never-empty backstop overrides it wherever the
+ * catalogue has no easier movement to fall back to, which across these ladders
+ * is most of the time. Two attempts at a behavioural check for it both passed
+ * with the rule deliberately broken.
+ */
+export function patternCeiling(
+  experienceCeiling: ExerciseLevel,
+  screenPassed: string[] | undefined,
+  pattern?: string
+): ExerciseLevel {
+  if (!screenPassed || !isLadderPattern(pattern)) return experienceCeiling;
+  return screenPassed.includes(pattern) ? experienceCeiling : 1;
+}
+
 function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): ExerciseTemplate[] {
   /**
    * The WHOLE profile, not just the experience answer.
@@ -2514,12 +2544,8 @@ function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): Exercis
    * empty array is somebody who answered "none of these yet".
    */
   const screened = profile?.screenPassed;
-  const ceilingFor = (pattern?: string): ExerciseLevel => {
-    if (!screened || !isLadderPattern(pattern)) return band.max;
-    // A benchmark not passed is the gate between Level 1 and Level 2 of that
-    // ladder still shut, whatever anybody has said about their experience.
-    return screened.includes(pattern) ? band.max : 1;
-  };
+  const ceilingFor = (pattern?: string): ExerciseLevel =>
+    patternCeiling(band.max, screened, pattern);
   /**
    * TWO FILTERS, WITH DIFFERENT BACKSTOPS, AND THEY MUST NOT BE MERGED.
    *

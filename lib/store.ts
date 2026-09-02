@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SyncPayload } from '@/lib/sync';
 import { evaluateBadges } from '@/lib/badge-engine';
-import { isoWeek } from '@/lib/utils';
+import { displayUnitToKg, isoWeek } from '@/lib/utils';
 import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 import { performanceForLog } from '@/lib/set-performance';
@@ -45,6 +45,8 @@ import {
   tagSessions,
 } from './programme';
 import { archiveIdFor, completeProgramme, MAX_EARNED_BONUS } from './programme-report';
+import { builderTypedMaxes, unitCorrectionFor } from './unit-correction';
+import type { UnitCorrection } from './unit-correction';
 import type { CompletedProgramme } from './programme-report';
 
 export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
@@ -1023,6 +1025,26 @@ interface AppState {
    * programme after one busy fortnight is an app that nags.
    */
   getProgrammeDrift: () => ProgrammeDrift | null;
+  /**
+   * Does this account look like the pounds fault? Null for almost everybody.
+   *
+   * See lib/unit-correction.ts for what it can and cannot tell, and why the
+   * card it feeds asks rather than rewriting anything on its own.
+   */
+  getUnitCorrection: () => UnitCorrection | null;
+  /**
+   * Their answer to it.
+   *
+   * 'pounds' means the figures were pounds all along and are divided down.
+   * 'kilograms' means the recorded figures were right, and nothing changes
+   * except that the question stops being asked.
+   *
+   * BOTH ANSWERS WRITE A BODYWEIGHT, which is the point: setUserProfile stamps
+   * bodyweightUpdatedAt, and that stamp is what makes the detector stop
+   * matching. One record, syncing already, rather than a second flag that could
+   * disagree with it.
+   */
+  resolveUnitCorrection: (answer: 'pounds' | 'kilograms') => void;
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
@@ -2022,6 +2044,49 @@ export const useAppStore = create<AppState>()(
         const pos = get().getProgrammePosition();
         if (!pos || !pos.deload) return false;
         return pos.next === type;
+      },
+
+      getUnitCorrection: () => {
+        const s = get();
+        return unitCorrectionFor({
+          weightUnit: s.weightUnit,
+          bodyweightKg: s.userProfile.bodyweightKg,
+          bodyweightUpdatedAt: s.bodyweightUpdatedAt,
+          oneRepMaxes: s.oneRepMaxes,
+        });
+      },
+
+      resolveUnitCorrection: (answer) => {
+        const found = get().getUnitCorrection();
+        if (!found) return;
+        if (answer === 'pounds') {
+          /**
+           * The maxes first, and by identity rather than by position.
+           *
+           * They are matched on the exact objects the detector found, so a max
+           * logged between the card appearing and the tap landing cannot be
+           * caught by a stale index and silently halved.
+           */
+          const bad = new Set(builderTypedMaxes(get().oneRepMaxes));
+          set((st) => ({
+            oneRepMaxes: st.oneRepMaxes.map((m) =>
+              bad.has(m)
+                ? { ...m, weight: Math.round(displayUnitToKg(m.weight, 'lbs') * 10) / 10 }
+                : m
+            ),
+          }));
+        }
+        /**
+         * And the bodyweight, through setUserProfile either way.
+         *
+         * Confirming a figure is a real answer about it, so it earns the same
+         * stamp and the same weigh-in entry as changing one. Without that, an
+         * account that answered "kilograms" would be asked again on every
+         * launch for ever.
+         */
+        get().setUserProfile({
+          bodyweightKg: answer === 'pounds' ? found.correctedKg : found.storedKg,
+        });
       },
 
       getProgrammeDrift: () => {
