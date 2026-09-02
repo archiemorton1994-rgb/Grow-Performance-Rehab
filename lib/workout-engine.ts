@@ -954,7 +954,8 @@ const TIER_SEPARATION_CAP = 0.1;
  * lifter now has something that brings it back, which is a better fix than
  * making every step smaller for everybody.
  */
-const DELOAD_AFTER_STALLS = 3;
+/** Exported so the wiring test can assert against the real threshold. */
+export const DELOAD_AFTER_STALLS = 3;
 /** What a deload leaves you holding. */
 const DELOAD_FRACTION = 0.9;
 

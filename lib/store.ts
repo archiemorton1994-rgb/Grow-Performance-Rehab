@@ -1523,8 +1523,11 @@ export const useAppStore = create<AppState>()(
               // metRepFloor - without this the rep floor climbed away from
               // anyone who consistently fell a rep or two short of it.
               const reachedTheFloor = metRepFloor(log.targetReps, log.sets, log.category);
+              // Held so the rep target can be compared against itself below.
+              // Overwriting it first is what hid the stall for so long.
+              const repsBefore = newRepTarget[log.exerciseId] ?? log.targetReps;
               const next = nextPrescription(
-                newRepTarget[log.exerciseId] ?? log.targetReps,
+                repsBefore,
                 log.targetReps,
                 hitEverySet && reachedTheFloor && perfWithFeedback !== 'failed',
                 get().userProfile.goals,
@@ -1555,7 +1558,22 @@ export const useAppStore = create<AppState>()(
                   newStreak[log.exerciseId] = CLEAN_SESSIONS_PER_BIG_JUMP;
                   earnedTheJump.add(log.exerciseId);
                 } else {
-                  repsStillClimbing.add(log.exerciseId);
+                  /**
+                   * ONLY A REP TARGET THAT ACTUALLY MOVED IS A CLIMB.
+                   *
+                   * This is the line that stopped every stall in the app from
+                   * ever being counted. A FAILED session comes back from
+                   * nextPrescription as "same again - finish every set at this
+                   * weight first", which is the same reps it went in with. That
+                   * was landing here and being recorded as reps still climbing,
+                   * and the stuck counter below resets to zero for anything in
+                   * that set. Six failed sessions in a row left the counter at
+                   * zero and the weight unchanged, so the 10% drop that is meant
+                   * to rescue somebody stuck on a weight never once fired.
+                   *
+                   * A climb is a climb only when the number changed.
+                   */
+                  if (next.reps !== repsBefore) repsStillClimbing.add(log.exerciseId);
                   newPerformance[log.exerciseId] = 'failed';
                 }
               }

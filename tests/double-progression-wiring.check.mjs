@@ -22,8 +22,10 @@
  */
 globalThis.__DEV__ = false;
 
+import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
-import { generateWorkout } from '../lib/workout-engine.ts';
+import { generateWorkout, DELOAD_AFTER_STALLS } from '../lib/workout-engine.ts';
+import { useAppStore } from '../lib/store.ts';
 
 let passed = 0;
 let failed = 0;
@@ -63,10 +65,62 @@ check(
   /nextPrescription\(/.test(store),
   ''
 );
+/**
+ * WAS A SPELLING TEST. It pinned the exact expression handed to
+ * nextPrescription, so it went red the moment that expression was lifted into a
+ * named variable - while the behaviour it guards was untouched. Worse, it would
+ * have stayed green if the argument had been swapped for the catalogue default
+ * as long as the characters still matched somewhere in the file.
+ *
+ * The claim is about what the rep target DOES across sessions, so ask that.
+ */
+const climbTarget = (() => {
+  useAppStore.getState().setUserProfile({
+    name: 'A',
+    sex: 'male',
+    experienceLevel: 'intermediate',
+    goals: ['muscle'],
+    bodyweightKg: 82,
+  });
+  const clean = (i) => ({
+    sessionType: 'lower_body',
+    date: new Date(Date.parse('2026-06-01T09:00:00Z') + i * 3 * 86400000).toISOString(),
+    equipmentTier: 'fullgym',
+    hadAches: false,
+    painRegions: [],
+    energy: 'good',
+    timeAvailable: '45',
+    exerciseCount: 1,
+    durationSeconds: 2700,
+    exerciseLogs: [
+      {
+        exerciseId: 'wlb-fg-rdl',
+        exerciseName: 'Romanian Deadlift',
+        targetReps: '8-12',
+        category: 'accessory',
+        sets: [
+          { weight: 60, reps: 12, completed: true, skipped: false },
+          { weight: 60, reps: 12, completed: true, skipped: false },
+          { weight: 60, reps: 12, completed: true, skipped: false },
+        ],
+      },
+    ],
+  });
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    useAppStore.getState().completeSession(clean(i));
+    seen.push(useAppStore.getState().exerciseRepTarget['wlb-fg-rdl']);
+  }
+  return seen;
+})();
+
 check(
-  'it compares against the target that was shown, not the catalogue default',
-  /newRepTarget\[log\.exerciseId\] \?\? log\.targetReps,\s*\r?\n?\s*log\.targetReps,/.test(store),
-  'passing only the catalogue default would restart the climb every session'
+  'the climb carries forward instead of restarting from the catalogue every session',
+  // Handing nextPrescription only the catalogue default would produce the same
+  // second rung every session, for ever. A climb that carries forward cannot
+  // repeat its first value three times.
+  climbTarget.length === 3 && new Set(climbTarget).size > 1,
+  'rep target after each of three clean sessions: ' + climbTarget.join(' then ')
 );
 check(
   'every set has to be finished for reps to move',
@@ -111,10 +165,71 @@ check(
 
 console.log('\n[4] Holding for reps is not a stall');
 
+/**
+ * THIS ASSERTION IS THE REASON THE STALL WAS BROKEN FOR SO LONG.
+ *
+ * It was a regex over the source, and it stayed green while the thing it
+ * guards did the opposite of what it says. The exclusion it pinned was being
+ * applied to EVERY held load, not only to a held load with climbing reps,
+ * because a failed session comes back from nextPrescription as "same again"
+ * and that was read as rep progress. Six consecutive failed sessions left the
+ * stall counter at zero, so the 10% drop never fired for anybody, ever.
+ *
+ * The claim has two halves and a source regex can see neither. Both are now
+ * measured by running the store.
+ */
+const stallAfter = (finishEverySet) => {
+  useAppStore.getState().resetProgress?.();
+  useAppStore.getState().setUserProfile({
+    name: 'A',
+    sex: 'male',
+    experienceLevel: 'intermediate',
+    goals: ['muscle'],
+    bodyweightKg: 82,
+  });
+  const session = (i) => ({
+    sessionType: 'lower_body',
+    date: new Date(Date.parse('2027-01-01T09:00:00Z') + i * 3 * 86400000).toISOString(),
+    equipmentTier: 'fullgym',
+    hadAches: false,
+    painRegions: [],
+    energy: 'good',
+    timeAvailable: '45',
+    exerciseCount: 1,
+    durationSeconds: 2700,
+    exerciseLogs: [
+      {
+        exerciseId: 'stall-probe',
+        exerciseName: 'Romanian Deadlift',
+        targetReps: '8-12',
+        category: 'accessory',
+        sets: [
+          { weight: 60, reps: 12, completed: true, skipped: false },
+          { weight: 60, reps: 12, completed: true, skipped: false },
+          // The whole difference between the two runs is this last set.
+          finishEverySet
+            ? { weight: 60, reps: 12, completed: true, skipped: false }
+            : { weight: 60, reps: 4, completed: false, skipped: false },
+        ],
+      },
+    ],
+  });
+  for (let i = 0; i < 3; i++) useAppStore.getState().completeSession(session(i));
+  return useAppStore.getState().exerciseStuckStreak['stall-probe'] ?? 0;
+};
+
+const stalledRun = stallAfter(false);
+const climbingRun = stallAfter(true);
+
 check(
-  'rep progress is excluded from the deload counter',
-  /perfWithFeedback !== 'failed' \|\| repsStillClimbing\.has\(log\.exerciseId\)/.test(store),
-  'three good sessions of rep progress would otherwise look like three failures and earn a 10% deload'
+  'three genuinely failed sessions reach the count that triggers the 10% drop',
+  stalledRun >= DELOAD_AFTER_STALLS,
+  'stall counter after three failed sessions: ' + stalledRun + ', needs ' + DELOAD_AFTER_STALLS
+);
+check(
+  'while a load held because the REPS are climbing never counts as a stall',
+  climbingRun === 0,
+  'stall counter after three clean climbing sessions: ' + climbingRun
 );
 
 console.log('\n[5] The earned reps reach the card');
