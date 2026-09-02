@@ -40,6 +40,7 @@ import {
   programmeFor,
   deloadWeeksFor,
   deloadIndexes,
+  cycleOfAt,
   DELOAD_EVERY_SESSIONS,
   isDeloadIndex,
   cycleHasLoadedWork,
@@ -1129,6 +1130,97 @@ check(
   })(),
   ''
 );
+
+// ─── Changing the days a week mid-block ─────────────────────────────────────
+//
+// The day count is not a preference, it is the plan: most templates prescribe a
+// different CYCLE at four days a week than at three. Patching it used to re-walk
+// the whole block against the new cycle, so a user six sessions into Lean and
+// Fit who tapped "4" instead of "3" watched the hub drop from "Session 7 of 12,
+// week 3 of 4, 50%" to "Session 2 of 12, week 1 of 3, 8%" - five weeks of their
+// work reclassified as sessions they had chosen themselves, on one tap, with no
+// warning, on a control the screen presents as a simple preference.
+console.log('\n[D2] A day count is a fact with a date on it');
+
+{
+  const lean3 = { templateId: 'lean', days: 3, sessions: 12, minutes: 45, startedAt: '2026-01-01T00:00:00.000Z', startedAtSessionCount: 0 };
+  const cycle3 = cycleOf(lean3);
+  const cycle4 = cycleOf({ ...lean3, days: 4 });
+
+  check(
+    'the two cycles really are different, or none of this would matter',
+    cycle3.join(',') !== cycle4.join(','),
+    `3 days: ${cycle3.join(' > ')}  |  4 days: ${cycle4.join(' > ')}`
+  );
+
+  // Six sessions done under the three-day cycle, then the switch.
+  const done = Array.from({ length: 6 }, (_, i) => cycle3[i % cycle3.length]);
+  const switched = {
+    ...lean3,
+    days: 4,
+    daySegments: [
+      { fromOnPlan: 0, days: 3 },
+      { fromOnPlan: 6, days: 4 },
+    ],
+  };
+
+  check(
+    'without the record, changing days throws the finished sessions off the plan',
+    (() => {
+      // The old behaviour, reproduced deliberately: no segments, so the whole
+      // history is read against the new cycle.
+      const naive = tagSessions({ ...lean3, days: 4 }, done);
+      return naive.filter((t) => t.onPlan).length < 6;
+    })(),
+    'this is the fault, kept here so the fix cannot quietly be undone'
+  );
+  check(
+    'with it, every session already done keeps the cycle it was done under',
+    tagSessions(switched, done).every((t) => t.onPlan),
+    JSON.stringify(tagSessions(switched, done).map((t) => t.onPlan))
+  );
+  check(
+    'and the new cycle applies from the next session onwards',
+    (() => {
+      const after = [...done, cycle4[6 % cycle4.length]];
+      const tags = tagSessions(switched, after);
+      return tags[6].onPlan === true && tags[6].blockIndex === 7;
+    })(),
+    JSON.stringify(tagSessions(switched, [...done, cycle4[6 % cycle4.length]]).map((t) => t.onPlan))
+  );
+  check(
+    // Belt and braces on the shape: a block nobody has ever changed must behave
+    // exactly as it did before any of this existed.
+    'a block that never changed days is read exactly as it was',
+    (() => {
+      const plain = tagSessions(lean3, done);
+      const withEmpty = tagSessions({ ...lean3, daySegments: [] }, done);
+      return plain.every((t, i) => t.onPlan === withEmpty[i].onPlan) && plain.every((t) => t.onPlan);
+    })(),
+    ''
+  );
+  check(
+    'a custom cycle ignores the day count entirely, as it always has',
+    (() => {
+      const custom = {
+        ...lean3,
+        templateId: 'custom',
+        custom: { name: 'Mine', cycle: ['squat', 'prehab'] },
+        daySegments: [{ fromOnPlan: 0, days: 2 }, { fromOnPlan: 1, days: 5 }],
+      };
+      return cycleOfAt(custom, 0).join(',') === 'squat,prehab' &&
+        cycleOfAt(custom, 9).join(',') === 'squat,prehab';
+    })(),
+    ''
+  );
+  check(
+    'and a point before any recorded change reads the earliest cycle',
+    cycleOfAt(switched, 0).join(',') === cycle3.join(',') &&
+      cycleOfAt(switched, 5).join(',') === cycle3.join(',') &&
+      cycleOfAt(switched, 6).join(',') === cycle4.join(','),
+    ''
+  );
+}
 
 // ─── The block being trained around ─────────────────────────────────────────
 //

@@ -288,6 +288,20 @@ export interface EnrolledProgramme {
    * middle of the history. Where they were has to be remembered, not how many.
    */
   pausedRanges?: { from: number; to?: number }[];
+  /**
+   * WHICH DAY COUNT WAS IN FORCE AT EACH POINT OF THE BLOCK.
+   *
+   * Appended whenever the hub's "days a week" control changes mid-block, keyed
+   * by the on-plan session index it took effect at. Absent for every block that
+   * has never had it changed, which is nearly all of them, and absent means
+   * "p.days all the way through" - so nothing about an existing block moves.
+   *
+   * It exists because most templates prescribe a different CYCLE at four days a
+   * week than at three. Without it, one tap re-walked the entire history against
+   * the new cycle and reclassified weeks of work as sessions the user had chosen
+   * themselves. See cycleOfAt.
+   */
+  daySegments?: { fromOnPlan: number; days: TrainingDays }[];
 }
 
 /**
@@ -377,6 +391,38 @@ export function cycleOf(p: EnrolledProgramme): SessionType[] {
     return p.custom.cycle;
   }
   return cycleFor(p.templateId, p.days);
+}
+
+/**
+ * THE CYCLE A SESSION AT THIS POINT IN THE BLOCK WAS MEASURED AGAINST.
+ *
+ * Most templates prescribe a different cycle at four days a week than at three,
+ * so the day count is not a preference, it is the plan. Changing it used to
+ * re-walk the WHOLE block against the new cycle: a user six sessions into Lean
+ * and Fit who tapped "4" instead of "3" watched the hub go from "Session 7 of
+ * 12, week 3 of 4, 50%" to "Session 2 of 12, week 1 of 3, 8%", with five weeks
+ * of their work reclassified as sessions they had chosen themselves. One tap,
+ * no warning, on a control the screen presents as a simple preference.
+ *
+ * A day count is now a fact with a date on it. Sessions already done keep the
+ * cycle they were done under, and the new one applies from here forward.
+ */
+export function cycleOfAt(p: EnrolledProgramme, onPlanIndex: number): SessionType[] {
+  if (p.templateId === 'custom' && p.custom && p.custom.cycle.length > 0) {
+    return p.custom.cycle;
+  }
+  const segments = p.daySegments;
+  if (!segments || segments.length === 0) return cycleFor(p.templateId, p.days);
+  // The last segment that had started by this point. Segments are appended in
+  // order, so a reverse scan finds it without sorting.
+  let days = p.days;
+  for (let i = segments.length - 1; i >= 0; i--) {
+    if (segments[i].fromOnPlan <= onPlanIndex) {
+      days = segments[i].days;
+      break;
+    }
+  }
+  return cycleFor(p.templateId, days);
 }
 
 /** What is offered alongside THIS enrolment. See extrasFor. */
@@ -716,10 +762,12 @@ export function tagSessions(
   p: EnrolledProgramme,
   sessionTypesSinceEnrolment: SessionType[]
 ): SessionPlanTag[] {
-  const cycle = cycleOf(p);
   const out: SessionPlanTag[] = [];
   let onPlan = 0;
   for (const type of sessionTypesSinceEnrolment) {
+    // Asked per session rather than once, so a day count changed mid-block does
+    // not reclassify everything done before it. See cycleOfAt.
+    const cycle = cycleOfAt(p, onPlan);
     if (type === cycle[onPlan % cycle.length]) {
       // Read at the index this session OCCUPIED, which is the count before it
       // was added, not after.

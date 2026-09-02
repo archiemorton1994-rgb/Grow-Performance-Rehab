@@ -1904,8 +1904,37 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      /**
+       * CHANGING THE DAYS A WEEK DOES NOT REWRITE WHAT IS ALREADY DONE.
+       *
+       * Most templates prescribe a different cycle at four days a week than at
+       * three, so the day count is the plan rather than a preference. Patching
+       * it used to re-walk the whole block against the new cycle: a user six
+       * sessions into Lean and Fit who tapped "4" watched the hub drop from
+       * "Session 7 of 12, week 3 of 4, 50%" to "Session 2 of 12, week 1 of 3,
+       * 8%", with five weeks of their work reclassified as sessions they had
+       * chosen themselves. One tap, no warning.
+       *
+       * The change is recorded as taking effect HERE, so the sessions already
+       * logged keep the cycle they were done under and the new one applies from
+       * the next session on.
+       */
       updateProgramme: (patch) =>
-        set((s) => (s.programme ? { programme: { ...s.programme, ...patch } } : {})),
+        set((s) => {
+          if (!s.programme) return {};
+          const changingDays = patch.days !== undefined && patch.days !== s.programme.days;
+          if (!changingDays) return { programme: { ...s.programme, ...patch } };
+          const at = get().getProgrammePosition()?.onPlan ?? 0;
+          const segments = [...(s.programme.daySegments ?? [])];
+          // The block as it stood before this tap, so the sessions already done
+          // are still read against the cycle they were done under. Only recorded
+          // once: a second change at the same point replaces rather than stacks.
+          if (segments.length === 0) segments.push({ fromOnPlan: 0, days: s.programme.days });
+          const last = segments[segments.length - 1];
+          if (last.fromOnPlan === at) segments[segments.length - 1] = { fromOnPlan: at, days: patch.days! };
+          else segments.push({ fromOnPlan: at, days: patch.days! });
+          return { programme: { ...s.programme, ...patch, daySegments: segments } };
+        }),
 
       /**
        * A fresh block from today, keeping every other answer they gave.
