@@ -272,6 +272,59 @@ export interface EnrolledProgramme {
   startedAtSessionCount: number;
   /** Paused from the hub. The suggestion falls back to the old behaviour. */
   paused?: boolean;
+  /**
+   * SESSIONS THAT DO NOT COUNT TOWARDS THE BLOCK, as half-open ranges over the
+   * chronological session count: [from, to). The one still open while paused has
+   * no `to` yet.
+   *
+   * The hub says, in these words, "Paused. You are still training, it just is
+   * not moving the block along." That was false: the position is replayed from
+   * every session logged since enrolment, and nothing consulted `paused`. A
+   * twelve session block paused and then trained through advanced on every
+   * session and finished itself, archiving a report the user never asked for.
+   *
+   * A COUNT WOULD NOT HAVE BEEN ENOUGH. Sessions logged during a pause are the
+   * most recent ones only until training resumes, after which they sit in the
+   * middle of the history. Where they were has to be remembered, not how many.
+   */
+  pausedRanges?: { from: number; to?: number }[];
+}
+
+/**
+ * THE SESSIONS THAT COUNT TOWARDS THE BLOCK, oldest first.
+ *
+ * Four places used to work this out for themselves - the position, the report,
+ * the history tags and the drift rule - each doing the same reverse-and-slice
+ * and each carrying its own comment warning that the store keeps sessions
+ * newest first. Four copies of one rule is four chances to get it wrong, and
+ * when pausing had to start excluding sessions there would have been four
+ * places to remember.
+ *
+ * Two things are dropped:
+ *
+ *   EVERYTHING BEFORE ENROLMENT, so somebody with two years of history who
+ *   starts a block starts it at session one rather than session four hundred.
+ *
+ *   AND EVERYTHING LOGGED WHILE THE BLOCK WAS PAUSED, which is what the hub has
+ *   always promised and never did. See pausedRanges.
+ *
+ * Takes sessions NEWEST FIRST, which is how the store holds them, and returns
+ * them oldest first, which is the order every replay wants.
+ */
+export function sessionsCountingToward<T>(
+  p: EnrolledProgramme,
+  completedNewestFirst: readonly T[]
+): T[] {
+  const total = completedNewestFirst.length;
+  const chronological = completedNewestFirst.slice().reverse();
+  const ranges = p.pausedRanges ?? [];
+  const paused = (index: number) =>
+    ranges.some((r) => index >= r.from && index < (r.to ?? Number.POSITIVE_INFINITY));
+  const out: T[] = [];
+  for (let i = p.startedAtSessionCount; i < total; i++) {
+    if (!paused(i)) out.push(chronological[i]);
+  }
+  return out;
 }
 
 /** A cycle somebody assembled, and what they called it. */

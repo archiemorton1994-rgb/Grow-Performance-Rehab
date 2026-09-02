@@ -42,6 +42,7 @@ import {
   programmePosition,
   programmeDrift,
   selectProgramme,
+  sessionsCountingToward,
   tagSessions,
 } from './programme';
 import { archiveIdFor, completeProgramme, MAX_EARNED_BONUS } from './programme-report';
@@ -1966,14 +1967,53 @@ export const useAppStore = create<AppState>()(
             : {}
         ),
 
+      /**
+       * Pausing OPENS a range of sessions that will not count, and resuming
+       * closes it.
+       *
+       * The hub has always said "you are still training, it just is not moving
+       * the block along". Nothing implemented it: the position replayed every
+       * session logged since enrolment and never consulted the flag, so a paused
+       * block advanced normally and finished itself. Recording where the pause
+       * began is what makes the sentence true, and it has to be a range rather
+       * than a count because once training resumes those sessions are no longer
+       * the most recent ones.
+       */
       setProgrammePaused: (paused) =>
-        set((s) => (s.programme ? { programme: { ...s.programme, paused } } : {})),
+        set((s) => {
+          if (!s.programme) return {};
+          const at = s.completedSessions.length;
+          const ranges = [...(s.programme.pausedRanges ?? [])];
+          const openIndex = ranges.findIndex((r) => r.to === undefined);
+          if (paused) {
+            // Already paused: leave the range that is open where it is, rather
+            // than moving its start forward and quietly counting the sessions in
+            // between.
+            if (openIndex < 0) ranges.push({ from: at });
+          } else if (openIndex >= 0) {
+            const open = ranges[openIndex];
+            // A pause nobody trained through leaves nothing behind.
+            if (at > open.from) ranges[openIndex] = { ...open, to: at };
+            else ranges.splice(openIndex, 1);
+          }
+          return { programme: { ...s.programme, paused, pausedRanges: ranges } };
+        }),
 
       leaveProgramme: () => set({ programme: null }),
 
       archiveIfBlockComplete: (nowIso) => {
         const { programme, completedSessions, completedProgrammes, userProfile } = get();
         if (!programme) return;
+        /**
+         * A PAUSED BLOCK CANNOT FINISH ITSELF.
+         *
+         * The position no longer advances while paused, so in practice this is
+         * belt and braces - but a block that completed and archived a report
+         * while its owner had explicitly stopped it is the exact thing being
+         * fixed, and the report is frozen the moment it is written. There is no
+         * next render to take it back on.
+         */
+        if (programme.paused) return;
         const pos = get().getProgrammePosition();
         if (!pos || !pos.complete) return;
         const id = archiveIdFor(programme);
@@ -1982,13 +2022,16 @@ export const useAppStore = create<AppState>()(
         if (completedProgrammes.some((c) => c.id === id)) return;
 
         /**
-         * Same reversal as getProgrammePosition, and the same one thing that
-         * can be wrong about it: completedSessions is NEWEST FIRST, and the
-         * report walks the block forwards.
+         * One shared rule for what counts towards the block - since enrolment,
+         * and not while it was paused - rather than a fourth hand-rolled
+         * reverse-and-slice. See sessionsCountingToward.
          */
-        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
-        const since = completedSessions.slice(0, sinceCount).reverse();
-        const before = completedSessions.slice(sinceCount);
+        const since = sessionsCountingToward(programme, completedSessions);
+        const counted = new Set(since.map((x) => x.id));
+        // Everything else, for the personal-best comparison: the history before
+        // this block AND anything logged while it was paused, which is real
+        // training and still has to be beaten to count as a best.
+        const before = completedSessions.filter((x) => !counted.has(x.id));
 
         const done = completeProgramme({
           programme,
@@ -2026,12 +2069,11 @@ export const useAppStore = create<AppState>()(
          * the wrong session, which is why programmePosition's own contract test
          * asserts the direction rather than trusting the caller.
          */
-        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
-        const types = completedSessions
-          .slice(0, sinceCount)
-          .map((x) => x.sessionType)
-          .reverse();
-        return programmePosition(programme, types);
+        const since = sessionsCountingToward(programme, completedSessions);
+        return programmePosition(
+          programme,
+          since.map((x) => x.sessionType)
+        );
       },
 
       /**
@@ -2046,11 +2088,7 @@ export const useAppStore = create<AppState>()(
       getSessionPlanTags: () => {
         const { programme, completedSessions } = get();
         if (!programme) return {};
-        const sinceCount = Math.max(
-          0,
-          completedSessions.length - programme.startedAtSessionCount
-        );
-        const since = completedSessions.slice(0, sinceCount).reverse();
+        const since = sessionsCountingToward(programme, completedSessions);
         const tags = tagSessions(
           programme,
           since.map((x) => x.sessionType)
@@ -2116,14 +2154,11 @@ export const useAppStore = create<AppState>()(
       getProgrammeDrift: () => {
         const { programme, completedSessions } = get();
         if (!programme) return null;
-        // Same reversal as getProgrammePosition, and the same one thing that can
-        // be wrong about it: the store keeps sessions newest first.
-        const sinceCount = Math.max(0, completedSessions.length - programme.startedAtSessionCount);
-        const types = completedSessions
-          .slice(0, sinceCount)
-          .map((x) => x.sessionType)
-          .reverse();
-        return programmeDrift(programme, types);
+        const since = sessionsCountingToward(programme, completedSessions);
+        return programmeDrift(
+          programme,
+          since.map((x) => x.sessionType)
+        );
       },
 
       isOnStrengthProgramme: () => {
