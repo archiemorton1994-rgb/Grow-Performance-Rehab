@@ -1858,6 +1858,51 @@ export function ExerciseCard({
                 </View>
               )}
 
+              {/* ── The one safety question, asked where it matters ──────────
+                  The builder's movement screen is optional, and skipping it
+                  deliberately caps nothing - a wall of movement self-tests at
+                  sign-up is exactly the friction that makes people give up
+                  before they have trained once. That leaves a gap: somebody who
+                  skipped it and called themselves experienced is handed complex
+                  movements with nothing having checked anything.
+
+                  So for those people only, the first time a session offers a
+                  genuinely complex movement on a ladder they have never
+                  answered for, the card asks the one question that matters
+                  about it. Answering no eases every movement on that ladder
+                  down to foundations, from the next session on.
+
+                  INLINE, NOT A MODAL. Every "the app has frozen" report this
+                  project has had was two native modals at once, and a safety
+                  question that freezes the app is not a safety feature. */}
+              {!!movementCheck && (
+                <View style={styles.moveCheck} testID={`move-check-${index}`}>
+                  <View style={styles.moveCheckHead}>
+                    <Ionicons name="shield-checkmark-outline" size={15} color={C.primaryText} />
+                    <Text style={styles.moveCheckTitle}>Quick check</Text>
+                  </View>
+                  <Text style={styles.moveCheckQ}>{movementCheck.question}</Text>
+                  <View style={styles.moveCheckRow}>
+                    <Pressable
+                      onPress={() => movementCheck.answer(true)}
+                      style={[styles.moveCheckBtn, styles.moveCheckYes]}
+                      testID={`move-check-yes-${index}`}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.moveCheckYesText}>Yes</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => movementCheck.answer(false)}
+                      style={styles.moveCheckBtn}
+                      testID={`move-check-no-${index}`}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.moveCheckNoText}>Not yet</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
               {/* Offered only on barbell lifts, because it only means
                   anything there. A "plates" button on a cable fly is noise. */}
               {onOpenPlates && isBarbellExercise(exercise.name) && (
@@ -2097,54 +2142,11 @@ export function ExerciseCard({
                   )}
                 </View>
 
-              {/* ── The one safety question, asked where it matters ──────────
-                  The builder's movement screen is optional, and skipping it
-                  deliberately caps nothing - a wall of movement self-tests at
-                  sign-up is exactly the friction that makes people give up
-                  before they have trained once. That leaves a gap: somebody who
-                  skipped it and called themselves experienced is handed complex
-                  movements with nothing having checked anything.
 
-                  So for those people only, the first time a session offers a
-                  genuinely complex movement on a ladder they have never
-                  answered for, the card asks the one question that matters
-                  about it. Answering no eases every movement on that ladder
-                  down to foundations, from the next session on.
-
-                  INLINE, NOT A MODAL. Every "the app has frozen" report this
-                  project has had was two native modals at once, and a safety
-                  question that freezes the app is not a safety feature. */}
-              {!!movementCheck && (
-                <View style={styles.moveCheck} testID={`move-check-${index}`}>
-                  <View style={styles.moveCheckHead}>
-                    <Ionicons name="shield-checkmark-outline" size={15} color={C.primaryText} />
-                    <Text style={styles.moveCheckTitle}>Quick check</Text>
-                  </View>
-                  <Text style={styles.moveCheckQ}>{movementCheck.question}</Text>
-                  <View style={styles.moveCheckRow}>
-                    <Pressable
-                      onPress={() => movementCheck.answer(true)}
-                      style={[styles.moveCheckBtn, styles.moveCheckYes]}
-                      testID={`move-check-yes-${index}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.moveCheckYesText}>Yes</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => movementCheck.answer(false)}
-                      style={styles.moveCheckBtn}
-                      testID={`move-check-no-${index}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.moveCheckNoText}>Not yet</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
 
               {/* One control for everything you read rather than do, with the
                   video beside it because "show me how" is the same question. */}
-              <View style={[styles.howRow, !!movementCheck && styles.howRowTight]}>
+              <View style={styles.howRow}>
                 <Pressable
                   ref={detailsBtnRef}
                   onPress={() => setExpanded(!expanded)}
@@ -5687,7 +5689,12 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // Tinted rather than boxed in a warning colour: this is a check, not a
     // problem, and colouring it like an alert would make it read as one.
     moveCheck: {
-      marginTop: 'auto',
+      // NOT marginTop:'auto' any more. At the bottom of the card the buttons
+      // sat behind the set-logging bar, so the one question the card exists to
+      // ask could be read but not answered. A gate belongs before the thing it
+      // gates, which is the top of the card.
+      marginTop: 4,
+      marginBottom: 4,
       padding: 12,
       borderRadius: 12,
       backgroundColor: C.primarySurface,
@@ -5728,15 +5735,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       marginTop: 'auto',
       paddingTop: 10,
     },
-    /**
-     * The same row when the movement check is above it.
-     *
-     * marginTop:'auto' is what pushes this row to the bottom of the card, and
-     * with the check also claiming that space the two ended up separated by the
-     * whole card. Only one of them can hold the bottom; when the check is there
-     * it does, and the row tucks under it.
-     */
-    howRowTight: { marginTop: 8, paddingTop: 0 },
     howAssistant: { marginLeft: 'auto' },
     howBtn: {
       flexDirection: 'row',
