@@ -37,6 +37,8 @@ import {
   treeProgress,
   visibleNodes,
 } from '../lib/profile-tree.ts';
+import { readFileSync } from 'fs';
+import { oneRepMaxIssue } from '../lib/one-rep-max-input.ts';
 
 let passed = 0;
 let failed = 0;
@@ -429,6 +431,96 @@ console.log('\n[block length]');
     'and the grid layout is asked for on the node rather than guessed from the count',
     PROFILE_TREE.filter((n) => n.layout === 'grid').length === 1,
     'the six things a programme can be built around are sentences, not numbers'
+  );
+}
+
+
+// ─── The escape hatch, and the unit it speaks ───────────────────────────────
+//
+// Three faults that all lived in the same corner of the builder, and all three
+// wrote a number the user had not agreed to.
+console.log('\n[Skipping, and the unit the boxes are in]');
+
+{
+  const tree = readFileSync(new URL('../components/ProfileTree.tsx', import.meta.url), 'utf8');
+
+  check(
+    /**
+     * "Rather not say" used to clear only a question's SUB-FIELDS, so every
+     * question with a single answer kept whatever had been typed. Somebody who
+     * put 95 in the bodyweight box and thought better of it had the 95 written
+     * to their profile. Somebody who typed 500 by accident saw "that looks too
+     * high", saw Continue go grey, tapped the skip - and the 500 was stored
+     * anyway, through the one door the validation does not watch.
+     */
+    'skipping a question clears the answer, not only its sub-fields',
+    /cleared\[focusNode\.id\] =/.test(tree),
+    'a rejected number must not get in through the escape hatch'
+  );
+  check(
+    /**
+     * The clinical one. The movement screen is designed so that skipping means
+     * no screen was taken and nothing is capped - undefined and an empty array
+     * are deliberately different things, and patternCeiling reads the
+     * difference. Leaving ticked boxes behind recorded a screen that HAD been
+     * taken and failed on everything unticked, holding those patterns at the
+     * easiest rung on a question the user declined to answer.
+     */
+    'and a multi-select is cleared to nothing rather than to a partial answer',
+    /focusNode\.kind === 'multi' \? \[\] : ''/.test(tree),
+    ''
+  );
+  check(
+    /**
+     * The three best-lift boxes were the only weight inputs in the builder with
+     * a hardcoded unit, and they are the ones every working weight for the whole
+     * block is derived from. A pounds user who believed the box and typed 140
+     * had it read as 140 lb and stored as 63.5 kg.
+     */
+    'the best-lift boxes are labelled in the unit the user picked',
+    /placeholder=\{weightUnit\}/.test(tree) && !/placeholder="kg"/.test(tree),
+    ''
+  );
+  check(
+    'and the check on them is told which unit it is reading',
+    /oneRepMaxIssue\(String\(answers\[f\.key\] \?\? ''\), weightUnit\)/.test(tree),
+    ''
+  );
+}
+
+{
+  check(
+    // 550 lb is 249 kg, an entirely ordinary strong deadlift, and it was refused.
+    'a strong lift typed in pounds is accepted',
+    oneRepMaxIssue('550', 'lbs') === null,
+    String(oneRepMaxIssue('550', 'lbs'))
+  );
+  check(
+    // And the other end: a typed 10 used to pass as a 10 kg best when it meant
+    // 4.5 kg, which is not a best lift, it is a typo.
+    'while a figure too small to be anybody\'s best lift is still refused',
+    oneRepMaxIssue('5', 'lbs') !== null,
+    String(oneRepMaxIssue('5', 'lbs'))
+  );
+  check(
+    'the message quotes the unit the user is actually working in',
+    (() => {
+      const msg = oneRepMaxIssue('20000', 'lbs');
+      return !!msg && msg.includes('lbs') && !msg.includes('kg');
+    })(),
+    String(oneRepMaxIssue('20000', 'lbs'))
+  );
+  check(
+    'and somebody in kilograms sees exactly what they saw before',
+    oneRepMaxIssue('150') === null &&
+      oneRepMaxIssue('150', 'kg') === null &&
+      (oneRepMaxIssue('2', 'kg') ?? '').includes('kg'),
+    String(oneRepMaxIssue('2', 'kg'))
+  );
+  check(
+    'blank is still a real answer in either unit',
+    oneRepMaxIssue('', 'lbs') === null && oneRepMaxIssue('   ', 'kg') === null,
+    ''
   );
 }
 

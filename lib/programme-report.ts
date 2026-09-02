@@ -404,6 +404,8 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
       offPlan++;
     }
   });
+  /** Which of the block's sessions the programme actually asked for. */
+  const onPlanIds = new Set(onPlanSessions.map((s) => s.id));
 
   /**
    * EVERYTHING IS COUNTED, ON PLAN OR NOT.
@@ -419,6 +421,8 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
   let totalReps = 0;
   let volumeKg = 0;
   let cleanSessions = 0;
+  /** The same count, over the sessions the PROGRAMME asked for. See below. */
+  let cleanOnPlan = 0;
   let minutesTrained = 0;
   let testSessions = 0;
   let acheSessions = 0;
@@ -453,7 +457,24 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
         if (set.weight > 0) volumeKg += set.weight * Math.max(0, set.reps);
       }
     }
-    if (!unfinished) cleanSessions++;
+    if (!unfinished) {
+      cleanSessions++;
+      /**
+       * AND SEPARATELY, THE PROGRAMME'S OWN CLEAN SESSIONS.
+       *
+       * The promotion rule is "four sessions in five finished with nothing left
+       * behind", but its numerator counted every session logged during the
+       * block - extras the user chose themselves included - while its
+       * denominator counted only the sessions the programme asked for. Any extra
+       * session inflated the score, so a block where half the programme's own
+       * sessions were abandoned still offered the user a harder level.
+       *
+       * The report's own "how it went" sentence deliberately counts everything,
+       * because everything you did while the block was running is yours. Only
+       * the promotion needs the two halves to describe the same set.
+       */
+      if (onPlanIds.has(s.id)) cleanOnPlan++;
+    }
   }
 
   // ── What moved ───────────────────────────────────────────────────────────
@@ -611,7 +632,8 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
     cleanSessions,
     effort,
     step: levelStepFor(experience, earnedBonus, {
-      cleanSessions,
+      // Both halves over the same set of sessions.
+      cleanSessions: cleanOnPlan,
       onPlan: onPlanSessions.length,
       effort,
     }),

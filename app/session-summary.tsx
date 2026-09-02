@@ -876,8 +876,23 @@ export default function SessionSummaryScreen() {
       let deltaReps = 0;
 
       if (isWeighted && thisBest) {
+        /**
+         * "LAST TIME" MEANS THE TIME BEFORE THIS ONE, not the most recent time.
+         *
+         * This used to take the newest other session of the exercise, which is
+         * right when you have just finished a session and wrong every other
+         * time. Opening an old session from the history compared it against
+         * TODAY, so a lifter who squatted 100, then 110, then 120 opened their
+         * very first session and read "Back Squat: 20 kg lighter than last
+         * time". Every session anybody ever looked back on told them they had
+         * gone backwards, on the one screen whose whole job is showing progress.
+         *
+         * Strictly older, and by date rather than by position: the store keeps
+         * sessions newest first but a session logged late for an earlier day
+         * would still sit at the top of the list.
+         */
         const history = getExerciseHistory(log.exerciseId).filter(
-          (h) => h.sessionId !== session.id
+          (h) => h.sessionId !== session.id && h.date < session.date
         );
         let prevBest: { weight: number; reps: number } | null = null;
         for (const h of history) {
@@ -943,8 +958,13 @@ export default function SessionSummaryScreen() {
   // has ever been logged, since there's nothing yet to compare against.
   const previousTotals = useMemo(() => {
     if (!session) return null;
+    // STRICTLY OLDER, for the same reason the per-exercise comparison above is:
+    // this used to take the newest other session of the type, so opening an old
+    // one from the history compared it against today and reported a rise as a
+    // fall. completedSessions is newest first, so the first match older than
+    // this one is the session immediately before it.
     const prev = completedSessions.find(
-      (s) => s.sessionType === session.sessionType && s.id !== session.id
+      (s) => s.sessionType === session.sessionType && s.id !== session.id && s.date < session.date
     );
     return prev ? computeSessionTotals(prev) : null;
   }, [session, completedSessions]);

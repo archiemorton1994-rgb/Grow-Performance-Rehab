@@ -466,6 +466,86 @@ check(
   ''
 );
 check(
+  /**
+   * THE FRACTION HAD TO DESCRIBE ONE SET OF SESSIONS, and it did not.
+   *
+   * levelStepFor was always right; what the report HANDED it was not. The clean
+   * count was taken over every session logged during the block - extras the
+   * user chose themselves included - while the denominator counted only the
+   * sessions the programme asked for. Every extra session inflated the score, so
+   * a block where half the programme's own sessions were abandoned still offered
+   * a harder level. Six sloppy on-plan sessions plus six tidy extras came out as
+   * twelve clean of twelve.
+   *
+   * Tested through buildProgrammeReport rather than through levelStepFor,
+   * because the fault was never in the rule.
+   */
+  'extra sessions somebody chose do not buy a step up the block did not earn',
+  (() => {
+    const p = block({ sessions: 12, days: 3 });
+    const cycle = cycleOf(p);
+    const done = [];
+    for (let i = 0; i < 12; i++) {
+      // Half the programme's own sessions leave a set unfinished.
+      const sloppy = i % 2 === 0;
+      done.push(
+        sess(cycle[i % cycle.length], {
+          exerciseLogs: [
+            {
+              exerciseId: 'squat',
+              exerciseName: 'Back Squat',
+              feedbackRating: 'easy',
+              sets: [
+                { setNumber: 1, weight: 100, reps: 5, completed: true },
+                { setNumber: 2, weight: 100, reps: 5, completed: !sloppy },
+              ],
+            },
+          ],
+        })
+      );
+      // And a tidy extra alongside every one of them.
+      done.push(
+        sess('conditioning', {
+          exerciseLogs: [log('run', 'Run', [[0, 1]], { feedbackRating: 'easy' })],
+        })
+      );
+    }
+    const r = report(p, done);
+    return r.cleanSessions >= 12 && r.step.earned === false;
+  })(),
+  JSON.stringify({
+    step: (() => {
+      const p = block({ sessions: 12, days: 3 });
+      const cycle = cycleOf(p);
+      const done = [];
+      for (let i = 0; i < 12; i++) {
+        const sloppy = i % 2 === 0;
+        done.push(
+          sess(cycle[i % cycle.length], {
+            exerciseLogs: [
+              {
+                exerciseId: 'squat',
+                exerciseName: 'Back Squat',
+                feedbackRating: 'easy',
+                sets: [
+                  { setNumber: 1, weight: 100, reps: 5, completed: true },
+                  { setNumber: 2, weight: 100, reps: 5, completed: !sloppy },
+                ],
+              },
+            ],
+          })
+        );
+        done.push(
+          sess('conditioning', {
+            exerciseLogs: [log('run', 'Run', [[0, 1]], { feedbackRating: 'easy' })],
+          })
+        );
+      }
+      return report(p, done).step.earned;
+    })(),
+  })
+);
+check(
   'the rungs run out, and it says so rather than offering one that does not exist',
   (() => {
     const step = levelStepFor('intermediate', MAX_EARNED_BONUS, clean());

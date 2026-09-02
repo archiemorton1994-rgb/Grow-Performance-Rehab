@@ -477,6 +477,19 @@ export default function HomeScreen() {
     consecutiveActiveWeeks,
     daysSinceLast,
     balanceNudgeDismissedAt,
+    /**
+     * WITHOUT THIS, WAVING A MESSAGE AWAY DID NOTHING.
+     *
+     * Tapping the small x records the dismissal, but nothing here changed, so
+     * the panel was never rebuilt and the message sat exactly where it was.
+     * The home tab stays mounted, so it stayed for the rest of the visit rather
+     * than the rest of the render. app/assistant.tsx has always had this in its
+     * own list, which is why the same x works there and not here.
+     */
+    coachDismissedAt,
+    testWeekFrequency,
+    oneRepMaxes.length,
+    exerciseStuckStreak,
   ]);
 
   const coachMessages = useMemo(() => getCoachMessages(coachInput), [coachInput]);

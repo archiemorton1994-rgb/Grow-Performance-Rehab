@@ -335,7 +335,7 @@ export function ProfileTree({
       }
       if (node.subFields) {
         for (const f of node.subFields) {
-          const issue = oneRepMaxIssue(String(answers[f.key] ?? ''));
+          const issue = oneRepMaxIssue(String(answers[f.key] ?? ''), weightUnit);
           if (issue) return issue;
         }
       }
@@ -523,11 +523,30 @@ export function ProfileTree({
             onPress={() => {
               haptic();
               Keyboard.dismiss();
-              // Skipping CLEARS the boxes. A half-typed number left behind
-              // would go on to become a prescribed working weight, and "I do
-              // not know my best lifts" is a real answer rather than a
-              // reluctance to answer.
+              /**
+               * Skipping CLEARS the boxes. A half-typed number left behind
+               * would go on to become a prescribed working weight, and "I do
+               * not know my best lifts" is a real answer rather than a
+               * reluctance to answer.
+               *
+               * IT ONLY CLEARED THE SUB-FIELDS, and every question with a single
+               * answer kept whatever was in it. Somebody who typed 95 into
+               * bodyweight and then thought better of it had the 95 written to
+               * their profile anyway. Worse, somebody who typed 500 by accident
+               * saw "that looks too high" and Continue go grey, and the skip
+               * stored the 500 regardless - a number the app had just refused,
+               * let in through the escape hatch.
+               *
+               * Worst of the three, because it is clinical rather than
+               * arithmetic: ticking two boxes on the movement screen and then
+               * tapping "Not sure" recorded a screen that had been TAKEN and
+               * failed on the other four, holding those patterns at the easiest
+               * rung. Skipping is meant to mean no screen was taken at all, and
+               * the difference between the two is the whole design of that
+               * question.
+               */
               const cleared: Answers = {};
+              cleared[focusNode.id] = focusNode.kind === 'multi' ? [] : '';
               for (const f of focusNode.subFields ?? []) cleared[f.key] = '';
               cleared[`${focusNode.id}__skipped`] = true;
               const next = { ...answers, ...cleared };
@@ -869,7 +888,14 @@ function TreeRow({
                       <TextInput
                         value={String(answers[f.key] ?? '')}
                         onChangeText={(t) => onType(f.key, t)}
-                        placeholder="kg"
+                        /* WAS HARDCODED "kg", to everybody. Every other weight
+                           box in the builder labels itself properly - bodyweight
+                           carries a unit tag, the dumbbell question says
+                           "Heaviest, in lbs" - and these three, which set every
+                           working weight for the whole block, told a pounds user
+                           to type kilograms. Believe the box and a 140 lb squat
+                           was read as 140 lb and stored as 63.5 kg. */
+                        placeholder={weightUnit}
                         placeholderTextColor={C.textTertiary}
                         keyboardType="numeric"
                         style={[styles.input, styles.subInput]}

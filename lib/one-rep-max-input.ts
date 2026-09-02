@@ -22,14 +22,30 @@ import {
   MAX_ONE_REP_MAX_KG,
   isPlausibleOneRepMaxKg,
 } from './store';
+import type { WeightUnit } from './store';
+import { displayUnitToKg, kgToDisplayUnit } from './utils';
 import { TYPED_NUMBER } from './bodyweight';
 
-export function oneRepMaxIssue(text: string): string | null {
+/**
+ * IN THE UNIT THEY CHOSE, which it was not.
+ *
+ * The typed number was compared straight against the kilogram bounds and the
+ * message quoted kilograms, to somebody who had picked pounds two questions
+ * earlier. A 550 lb deadlift - 249 kg, an entirely ordinary strong lift - was
+ * refused with "Enter a best lift between 5 and 500 kg", and at the other end a
+ * typed 10 sailed through as a 4.5 kg best.
+ *
+ * The bodyweight question next door had always converted before checking. This
+ * is the same shape, so the two now agree.
+ */
+export function oneRepMaxIssue(text: string, unit: WeightUnit = 'kg'): string | null {
   const trimmed = text.trim();
   if (trimmed === '') return null;
   if (!TYPED_NUMBER.test(trimmed)) return 'Enter a number, or leave this blank';
-  if (!isPlausibleOneRepMaxKg(parseFloat(trimmed))) {
-    return `Enter a best lift between ${MIN_ONE_REP_MAX_KG} and ${MAX_ONE_REP_MAX_KG} kg, or leave it blank.`;
+  if (!isPlausibleOneRepMaxKg(displayUnitToKg(parseFloat(trimmed), unit))) {
+    const lo = Math.ceil(kgToDisplayUnit(MIN_ONE_REP_MAX_KG, unit));
+    const hi = Math.floor(kgToDisplayUnit(MAX_ONE_REP_MAX_KG, unit));
+    return `Enter a best lift between ${lo} and ${hi} ${unit}, or leave it blank.`;
   }
   return null;
 }
