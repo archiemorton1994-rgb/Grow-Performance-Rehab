@@ -399,28 +399,40 @@ export const PROFILE_TREE: TreeNode[] = [
      */
     id: 'screen',
     question: 'Which of these can you do right now?',
-    hint: 'No weight and no gym needed. Leave anything unticked that you cannot do yet, or that pinches when you try. It sets where each movement starts you, and you can change it later.',
+    hint: 'Tick what you could do today without it hurting. No kit needed, and nothing here is a test. Skip it if you would rather just start.',
     kind: 'multi',
     tier: 'tune',
     optional: true,
-    skipLabel: 'Not sure',
+    skipLabel: 'Skip this',
     options: [
       /**
-       * The hint on each is the BENCHMARK, and it has to fit one line.
+       * PLAIN ENGLISH, AND THE JARGON IS GONE.
        *
-       * Seven options with a wrapping second line each is a card taller than
-       * two phones, and this is one question. So the label is what the movement
-       * is and the hint is the number that decides whether it passes - which is
-       * the half that cannot be left out, because "squat to parallel with your
-       * heels down" without "ten times" is a question somebody ticks having
-       * done one.
+       * The first version of this asked about "strict scapular pull-ups or
+       * pulldowns", "a slow split squat" and squatting "to parallel". Reviewed
+       * from outside, the verdict was that it reads as niche technical
+       * terminology and causes exactly the friction that makes people drop out
+       * of an onboarding flow - and the pull one was worse than jargon, because
+       * it named two exercises needing different equipment, so somebody at home
+       * literally could not test it. Leaving it unticked then clamped every
+       * pulling movement they would ever be given to the easiest rung.
+       *
+       * So each option is now something a person can picture doing in their
+       * kitchen, described the way they would describe it themselves. The
+       * benchmark - the number that decides whether it passes - stays on the
+       * hint line, because "squat down and stand back up" without "ten times"
+       * is a question somebody ticks having done one.
+       *
+       * WHAT IT MEASURES HAS NOT CHANGED. These are still the six patterns and
+       * still the gate between Level 1 and Level 2 of each ladder. Only the
+       * words a person reads are different.
        */
-      { value: 'hinge', label: 'Bend at the hips with a flat back', hint: '10 reps, back staying flat' },
-      { value: 'squat', label: 'Squat to parallel with your heels down', hint: '10 reps, knees not caving' },
+      { value: 'hinge', label: 'Touch your shins without rounding your back', hint: '10 times, back staying flat' },
+      { value: 'squat', label: 'Squat down and stand back up', hint: '10 times, heels staying down' },
       { value: 'push', label: 'Hold a plank', hint: '30 seconds, hips level' },
-      { value: 'pull', label: 'Strict scapular pull-ups or pulldowns', hint: '5 reps, shoulder blades moving' },
-      { value: 'lunge', label: 'A slow split squat', hint: '3 seconds down, no wobble' },
-      { value: 'carry', label: 'Carry something heavy on one side', hint: '30 seconds without leaning' },
+      { value: 'pull', label: 'Hang from a bar, or pull a band down to your chest', hint: '5 times, either one counts' },
+      { value: 'lunge', label: 'Step one foot back and lower your knee', hint: '5 times each side, without wobbling' },
+      { value: 'carry', label: 'Carry a heavy shopping bag in one hand', hint: '30 seconds without leaning' },
       {
         value: 'none',
         label: 'None of these yet',

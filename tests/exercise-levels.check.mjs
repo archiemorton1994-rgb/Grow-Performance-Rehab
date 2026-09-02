@@ -44,6 +44,8 @@ import {
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
 import { LADDER_PATTERNS as ALL_PATTERNS } from '../lib/exercise-levels.ts';
 import { generateWorkout, patternCeiling } from '../lib/workout-engine.ts';
+import { readFileSync } from 'fs';
+import { PATTERN_CHECK_QUESTIONS, CHECK_FROM_LEVEL } from '../lib/exercise-levels.ts';
 import {
   DIFFICULTY_LABELS,
   PROGRAMME_IDS,
@@ -823,6 +825,132 @@ console.log('\n[11] Age earns its place');
     ''
   );
 }
+
+
+// ─── The same question, asked in a session ──────────────────────────────────
+//
+// The builder's movement screen is optional and always will be: a wall of
+// movement self-tests during sign-up was called out on review as exactly the
+// friction that makes people give up before they have trained once, and
+// skipping it deliberately caps nothing. That leaves a gap - somebody who
+// skipped it and called themselves experienced is handed complex movements with
+// nothing having checked anything - so the check moved to the point of use for
+// those people only.
+console.log('\n[12] The check that happens in the session instead');
+
+check(
+  'every ladder has a question, so none of them is silently skipped',
+  LADDER_PATTERNS.every((p) => (PATTERN_CHECK_QUESTIONS[p] ?? '').length > 20),
+  JSON.stringify(Object.keys(PATTERN_CHECK_QUESTIONS))
+);
+check(
+  // A question full of gym vocabulary is the thing being fixed, not repeated.
+  'and they are asked in plain words rather than in movement jargon',
+  Object.values(PATTERN_CHECK_QUESTIONS).every(
+    (q) => !/scapular|eccentric|concentric|parallel|dorsiflex|unilateral/i.test(q)
+  ),
+  Object.values(PATTERN_CHECK_QUESTIONS).join(' | ')
+);
+check(
+  'a builder answer always beats one given in a session, in both directions',
+  patternCeiling(4, ['squat'], 'squat', { squat: false }) === 4 &&
+    patternCeiling(4, [], 'squat', { squat: true }) === 1,
+  'the screen was answered about all six at once, with the whole question in view'
+);
+check(
+  // The trap this design exists to avoid: writing one in-session answer into
+  // screenPassed would flip somebody from "no screen" to "took it and passed
+  // one", clamping the other five patterns on the strength of a question about
+  // one of them.
+  'an unanswered ladder is still uncapped, so one answer does not clamp the rest',
+  (() => {
+    const answeredSquat = { squat: true };
+    return (
+      patternCeiling(4, undefined, 'pull', answeredSquat) === 4 &&
+      patternCeiling(4, undefined, 'hinge', answeredSquat) === 4
+    );
+  })(),
+  ''
+);
+check(
+  'answering no holds that ladder at foundations',
+  patternCeiling(4, undefined, 'squat', { squat: false }) === 1,
+  ''
+);
+check(
+  'answering yes leaves it exactly where their experience put it',
+  patternCeiling(4, undefined, 'squat', { squat: true }) === 4 &&
+    patternCeiling(2, undefined, 'squat', { squat: true }) === 2,
+  ''
+);
+check(
+  'and work that is on no ladder is never capped by an answer about one',
+  patternCeiling(4, undefined, undefined, { squat: false }) === 4 &&
+    patternCeiling(4, undefined, 'conditioning', { squat: false }) === 4,
+  ''
+);
+
+{
+  // The cards have to carry the two facts the session screen needs, or the
+  // question can never be asked at all.
+  const profile = {
+    name: 'A',
+    sex: 'male',
+    experienceLevel: 'advanced',
+    goals: ['strength'],
+    bodyweightKg: 82,
+  };
+  const list = generateWorkout(
+    'squat',
+    'fullgym',
+    { hasAches: false, energy: 'normal', timeAvailable: '45' },
+    profile,
+    undefined,
+    { squat: 140 },
+    3
+  );
+  const onLadder = list.filter((e) => LADDER_PATTERNS.includes(e.movementPattern));
+  const asks = onLadder.filter((e) => (e.level ?? 1) >= CHECK_FROM_LEVEL);
+
+  check(
+    'a generated card carries the ladder it is on and the rung it sits at',
+    onLadder.length > 0 && onLadder.every((e) => typeof e.level === 'number'),
+    JSON.stringify(list.map((e) => [e.name, e.movementPattern, e.level]).slice(0, 4))
+  );
+  check(
+    // A safety prompt that fires on every card is one people learn to tap
+    // through. Level 3 up is where the movements stop being forgiving.
+    'only a few cards in a session would ask, not most of them',
+    asks.length > 0 && asks.length <= Math.ceil(list.length / 3),
+    `${asks.length} of ${list.length} cards: ${asks.map((e) => e.name).join(', ')}`
+  );
+  check(
+    'and nothing off a ladder ever would',
+    list
+      .filter((e) => !LADDER_PATTERNS.includes(e.movementPattern))
+      .every((e) => e.level === undefined),
+    'rehab, conditioning and mobility carry no rung, so they cannot trigger it'
+  );
+}
+
+check(
+  // Four conditions, and the screen check is the one that matters most: anybody
+  // who answered the builder must never see this.
+  'the session only asks somebody who skipped the builder screen',
+  (() => {
+    const src = readFileSync(new URL('../app/session.tsx', import.meta.url), 'utf8');
+    const at = src.indexOf('const movementCheckFor');
+    if (at < 0) return false;
+    const body = src.slice(at, at + 1400);
+    return (
+      /screenPassed !== undefined/.test(body) &&
+      /isLadderPattern/.test(body) &&
+      /CHECK_FROM_LEVEL/.test(body) &&
+      /patternChecks/.test(body)
+    );
+  })(),
+  ''
+);
 
 console.log(
   failures === 0

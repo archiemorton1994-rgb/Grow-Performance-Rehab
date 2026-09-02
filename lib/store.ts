@@ -456,6 +456,29 @@ export interface UserProfile {
    */
   screenPassed?: string[];
   /**
+   * THE SAME QUESTION, ASKED ONE AT A TIME, WHERE IT MATTERS.
+   *
+   * The builder's movement screen is optional and always will be: reviewed from
+   * outside, a wall of movement self-tests during sign-up was called out as the
+   * kind of friction that makes people drop out, and skipping it deliberately
+   * caps nothing. That leaves a gap. Somebody who skipped it and described
+   * themselves as experienced is handed complex movements with nothing having
+   * checked anything.
+   *
+   * So the check moved to the point of use for those people: the first time a
+   * session offers a genuinely complex movement on a ladder they have never
+   * answered for, the card asks one plain question and eases the movement down
+   * if the answer is no. The answer is kept here.
+   *
+   * KEPT APART FROM screenPassed ON PURPOSE. That field has three states and the
+   * difference between them is load-bearing: undefined is "no screen taken" and
+   * caps nothing, an empty array is "took it and passed none" and caps
+   * everything. Writing one in-session answer into it would flip somebody from
+   * the first state to the second and clamp the other five patterns on the
+   * strength of a question about one.
+   */
+  patternChecks?: Record<string, boolean>;
+  /**
    * Areas a CLINICIAN has told them to stay off, which is not the same list as
    * what is sore.
    *
@@ -1003,6 +1026,13 @@ interface AppState {
    * only thing that edits it.
    */
   acceptLevelStep: (toBonus: number) => void;
+  /**
+   * Record a movement check answered inside a session.
+   *
+   * Only ever reached by somebody who SKIPPED the builder screen - see
+   * patternChecks on UserProfile for why the two are kept apart.
+   */
+  setPatternCheck: (pattern: string, canDo: boolean) => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
   /**
@@ -2077,6 +2107,14 @@ export const useAppStore = create<AppState>()(
       },
 
       clearPendingProgrammeReport: () => set({ pendingProgrammeReportId: null }),
+
+      setPatternCheck: (pattern, canDo) =>
+        set((st) => ({
+          userProfile: {
+            ...st.userProfile,
+            patternChecks: { ...(st.userProfile.patternChecks ?? {}), [pattern]: canDo },
+          },
+        })),
 
       acceptLevelStep: (toBonus) =>
         set((st) => ({

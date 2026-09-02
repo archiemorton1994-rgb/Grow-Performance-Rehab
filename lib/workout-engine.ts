@@ -53,7 +53,7 @@ import {
   possibleFor,
   getRegionsByExerciseNameMap,
 } from './exercise-db';
-import { byLevelPreference, withinLevel } from './exercise-levels';
+import { byLevelPreference, levelOf, withinLevel } from './exercise-levels';
 import { levelBandForExperience } from './programme';
 import { isLadderPattern, type ExerciseLevel, type LevelBand } from './exercise-levels';
 import {
@@ -182,6 +182,10 @@ export interface Exercise {
    * place. Data that travels with the object cannot go missing.
    */
   primaryMuscle?: string;
+  /** The movement ladder this sits on, when it sits on one. */
+  movementPattern?: string;
+  /** Which rung of that ladder, 1 to 5. Absent for anything off a ladder. */
+  level?: ExerciseLevel;
 }
 
 interface ReadinessCheck {
@@ -616,6 +620,17 @@ function templateToExercise(
     swap2Load: swap2?.suggestedLoad,
     isDumbbellExercise: isDumbbell,
     primaryMuscle: t.primaryMuscle,
+    /**
+     * The ladder this movement sits on, and which rung.
+     *
+     * Carried onto the card so the session screen can ask the one safety
+     * question the builder's movement screen would have asked, at the moment it
+     * actually matters, for somebody who skipped that screen. Null for
+     * everything off a ladder - rehab, conditioning, mobility - which is most of
+     * a session and none of the risk.
+     */
+    movementPattern: t.movementPattern,
+    level: levelOf(t.name, t.movementPattern) ?? undefined,
   };
 }
 
@@ -2533,10 +2548,20 @@ function sameJobAlternatives(
 export function patternCeiling(
   experienceCeiling: ExerciseLevel,
   screenPassed: string[] | undefined,
-  pattern?: string
+  pattern?: string,
+  /**
+   * Answers given in a session rather than in the builder, for somebody who
+   * skipped the screen. Read only when there is no screen to read, so a builder
+   * answer always wins - it was given about all six patterns at once and with
+   * the whole question in front of them.
+   */
+  patternChecks?: Record<string, boolean>
 ): ExerciseLevel {
-  if (!screenPassed || !isLadderPattern(pattern)) return experienceCeiling;
-  return screenPassed.includes(pattern) ? experienceCeiling : 1;
+  if (!isLadderPattern(pattern)) return experienceCeiling;
+  if (screenPassed) return screenPassed.includes(pattern) ? experienceCeiling : 1;
+  const answered = patternChecks?.[pattern];
+  if (answered === undefined) return experienceCeiling;
+  return answered ? experienceCeiling : 1;
 }
 
 function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): ExerciseTemplate[] {
@@ -2568,7 +2593,7 @@ function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): Exercis
    */
   const screened = profile?.screenPassed;
   const ceilingFor = (pattern?: string): ExerciseLevel =>
-    patternCeiling(band.max, screened, pattern);
+    patternCeiling(band.max, screened, pattern, profile?.patternChecks);
   /**
    * TWO FILTERS, WITH DIFFERENT BACKSTOPS, AND THEY MUST NOT BE MERGED.
    *

@@ -30,6 +30,8 @@ export interface SyncPayload {
      * upgrade.
      */
     screenPassed?: string[];
+    /** Movement checks answered in a session by somebody who skipped the screen. */
+    patternChecks?: Record<string, boolean>;
     clinicalAvoid?: string[];
     maxKitKg?: number;
     earnedLevelBonus?: number;

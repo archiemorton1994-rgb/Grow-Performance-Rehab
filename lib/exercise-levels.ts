@@ -49,6 +49,38 @@ export function isLadderPattern(p?: string): p is LadderPattern {
   return !!p && (LADDER_PATTERNS as string[]).includes(p);
 }
 
+/**
+ * THE ONE QUESTION THAT DECIDES EACH LADDER, in the words a person would use.
+ *
+ * The same six benchmarks the builder's movement screen asks about, phrased for
+ * the moment somebody is standing in a gym looking at the exercise rather than
+ * sitting through a sign-up flow. Asked one at a time, only of people who
+ * skipped the screen, and only when a genuinely complex movement on that ladder
+ * is about to be prescribed.
+ *
+ * Kept here beside the patterns so the two lists cannot drift: a ladder without
+ * a question would be a ladder the session gate silently ignores.
+ */
+export const PATTERN_CHECK_QUESTIONS: Record<LadderPattern, string> = {
+  hinge: 'Can you touch your shins without rounding your back, and no pain?',
+  squat: 'Can you squat down and stand back up with your heels flat, and no pain?',
+  push: 'Can you hold a plank for 30 seconds with your hips level?',
+  pull: 'Can you hang from a bar, or pull a band to your chest, 5 times?',
+  lunge: 'Can you step one foot back and lower your knee without wobbling?',
+  carry: 'Can you carry something heavy in one hand for 30 seconds without leaning?',
+};
+
+/**
+ * The rung at which the session gate starts asking.
+ *
+ * Level 2 is the first rung above foundations and covers a great deal of
+ * ordinary work, so asking there would be a question on nearly every card. Three
+ * is where the movements stop being forgiving, which is the point Gemini's
+ * review was making about checking before a COMPLEX lift rather than before all
+ * of them.
+ */
+export const CHECK_FROM_LEVEL: ExerciseLevel = 3;
+
 /** What each rung is called, for anywhere that shows one to a user. */
 export const LEVEL_NAMES: Record<ExerciseLevel, string> = {
   1: 'Foundations',
