@@ -8,6 +8,8 @@
  * has earned.
  */
 export type BadgeCategory =
+  | 'programme' // training blocks: enrolled, finished, adhered to
+  | 'progression' // moving up: the screen, the rungs, what settled
   | 'milestone' // total session count
   | 'streak' // consecutive training weeks
   | 'strength_progress' // % improvement on 1RM lifts
@@ -52,7 +54,10 @@ export type BadgeCriteriaType =
   | 'comeback' // gap between consecutive sessions
   | 'pain_adaptation' // sessions with pain-region adaptation active
   | 'low_energy' // sessions completed when energy was reported low
-  | 'exercise_specific'; // specific named exercise logged for the first time
+  | 'exercise_specific' // specific named exercise logged for the first time
+  | 'programme_block' // finishing a training block
+  | 'programme_adherence' // staying with the plan through one
+  | 'level_progress'; // the movement screen, and the rungs earned from a block
 
 /**
  * How rare a badge is within its family. This is the ONLY thing badge colour
@@ -1658,6 +1663,8 @@ type BadgeSeed = Omit<Badge, 'tier'>;
  * art.
  */
 const CATEGORY_ICON: Record<BadgeCategory, string> = {
+  programme: 'layers-outline', // a block, made of sessions
+  progression: 'trending-up-outline', // moving up a rung
   milestone: 'footsteps-outline', // sessions accumulated, one after another
   streak: 'flame-outline', // an unbroken run
   strength_progress: 'trending-up-outline', // a lift going up over time
@@ -1720,8 +1727,229 @@ function applyVisualSystem(seeds: BadgeSeed[]): Badge[] {
 
 // ─── Final catalog assembly ───────────────────────────────────────────────────
 
+
+/**
+ * ── TRAINING BLOCKS ────────────────────────────────────────────────────────
+ *
+ * DECLARATION ORDER IS THE DIFFICULTY ORDER. tierForPosition assigns bronze
+ * through Grow by quarters of position within a family, on the stated
+ * assumption that families are declared easiest first. Getting that wrong is
+ * how "Complete your first session" ended up struck in the rarest metal in the
+ * app, so these are in the order somebody would actually reach them.
+ *
+ * Everything here is evaluated from the ARCHIVE - the frozen report written
+ * when a block finished - rather than recomputed from history, so a badge can
+ * never be taken back by a later edit to a session.
+ */
+const programmeBadges: BadgeSeed[] = [
+  {
+    id: 'programme_enrolled',
+    name: 'On a Plan',
+    description: 'Start your first training block',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_deload_1',
+    name: 'Eased Off Once',
+    description: 'Train through your first planned easier session',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_block_1',
+    name: 'Block One',
+    description: 'Finish a training block, first session to last',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_pace',
+    name: 'Kept the Pace',
+    description: 'Finish a block at or above the sessions a week it was written for',
+    category: 'programme',
+    criteriaType: 'programme_adherence',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_block_2',
+    name: 'Back for the Next One',
+    description: 'Finish a second training block',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    /**
+     * THE HONEST VERSION OF "never missed a session".
+     *
+     * The app has no concept of a missed session and deliberately never will:
+     * an off-plan session leaves the block exactly where it was, which is the
+     * promise the whole programme layer rests on. A GAP is the only thing that
+     * can be measured without breaking it.
+     */
+    id: 'programme_no_long_gap',
+    name: 'Never More Than a Week',
+    description: 'Finish a block without ever going more than seven days between sessions',
+    category: 'programme',
+    criteriaType: 'programme_adherence',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_two_shapes',
+    name: 'Tried Another Shape',
+    description: 'Finish blocks of two different programmes',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_clean_block',
+    name: 'Nothing Left Out',
+    description: 'Finish a block where every session of it was completed in full',
+    category: 'programme',
+    criteriaType: 'programme_adherence',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_custom_built',
+    name: 'Your Own Cycle',
+    description: 'Build a programme yourself and finish a block of it',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_every_week',
+    name: 'Every Week of It',
+    description: 'Train at least twice in every full week of a block',
+    category: 'programme',
+    criteriaType: 'programme_adherence',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_block_4',
+    name: 'Four Blocks Deep',
+    description: 'Finish four training blocks',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_block_8',
+    name: 'Eight Blocks Deep',
+    description: 'Finish eight training blocks',
+    category: 'programme',
+    criteriaType: 'programme_block',
+    icon: 'layers-outline',
+    color: C.green,
+  },
+];
+
+/**
+ * ── MOVING UP ──────────────────────────────────────────────────────────────
+ *
+ * The rungs, the screen, and the one thing this app exists to do. Same
+ * declaration-order rule as above.
+ */
+const progressionBadges: BadgeSeed[] = [
+  {
+    id: 'screen_taken',
+    name: 'Measured, Not Guessed',
+    description: 'Take the movement screen, so your sessions are built on what you can do',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_deload_4',
+    name: 'Knows When to Back Off',
+    description: 'Train through four planned easier sessions',
+    category: 'progression',
+    criteriaType: 'programme_block',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    id: 'programme_pb_block',
+    name: 'Three Bests in One Block',
+    description: 'Finish a block with three or more personal bests in it',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    /**
+     * Keyed on ACCEPTING the step, not on being offered one. The report never
+     * applies a rung by itself - an app that makes your next eight weeks harder
+     * because it decided you looked comfortable is an app that changed
+     * underneath you - so being offered one is not an achievement, taking it is.
+     */
+    id: 'level_step_1',
+    name: 'Earned the Next Rung',
+    description: 'Take a level step a finished block offered you',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    id: 'screen_all_patterns',
+    name: 'Six for Six',
+    description: 'Pass the movement screen in all six patterns',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    /**
+     * THE CLINICAL CLAIM THE APP IS BUILT ON, and it had no badge at all.
+     *
+     * acheTrend is computed by comparing the first half of a block with the
+     * second, and is null when nothing was ever flagged - so this cannot fire
+     * for somebody who was never sore, which is what stops it being a
+     * participation award.
+     */
+    id: 'programme_ache_settled',
+    name: 'It Settled',
+    description: 'Finish a block where what was sore at the start had eased by the end',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+  {
+    id: 'level_step_max',
+    name: 'Top of the Ladder',
+    description: 'Take both level steps a finished block can offer',
+    category: 'progression',
+    criteriaType: 'level_progress',
+    icon: 'trending-up-outline',
+    color: C.green,
+  },
+];
+
 export const BADGE_CATALOG: Badge[] = applyVisualSystem([
   onboardingBadge,
+  ...programmeBadges,
+  ...progressionBadges,
   ...milestoneBadges,
   ...streakBadges,
   ...strengthProgressBadges,
@@ -1744,6 +1972,8 @@ export const BADGE_CATALOG: Badge[] = applyVisualSystem([
 export const BADGE_MAP: ReadonlyMap<string, Badge> = new Map(BADGE_CATALOG.map((b) => [b.id, b]));
 
 export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
+  programme: 'Training Blocks',
+  progression: 'Moving Up',
   milestone: 'Milestones',
   streak: 'Streaks',
   strength_progress: 'Lift Progress',
@@ -1770,6 +2000,19 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
 
 /** Ordered list of categories for the Achievements screen. */
 export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
+  /**
+   * FIRST, ABOVE MILESTONES, because blocks are the spine of the product.
+   *
+   * A category missing from this array never renders at all, so this list is
+   * load-bearing rather than cosmetic. Putting the thing the app is actually
+   * built around at the top of the cabinet is the point of the exercise: until
+   * now a user could enrol in a programme, train it for twelve sessions, sit
+   * through a planned easier week, finish the block, read a frozen report and
+   * be offered a level step, and earn exactly ONE badge for the whole arc -
+   * a session-count milestone that would have fired anyway.
+   */
+  'programme',
+  'progression',
   'milestone',
   'streak',
   'consistency',

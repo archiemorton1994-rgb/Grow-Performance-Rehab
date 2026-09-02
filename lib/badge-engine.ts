@@ -19,6 +19,10 @@ import type {
   EquipmentTier,
 } from '@/lib/store';
 import { isoWeek } from '@/lib/utils';
+import type { EnrolledProgramme } from '@/lib/programme';
+import { LADDER_PATTERNS } from '@/lib/exercise-levels';
+import type { CompletedProgramme } from '@/lib/programme-report';
+import { MAX_EARNED_BONUS } from '@/lib/programme-report';
 import { TOUR_WELCOME_BADGE_ID } from '@/lib/badges';
 
 export interface BadgeEvalState {
@@ -35,6 +39,19 @@ export interface BadgeEvalState {
   tourGenuinelyCompleted: boolean;
   /** Minimum sessions per Mon–Sun week required to keep a streak alive. Default 2. */
   weeklyStreakGoal: number;
+  /**
+   * THE BLOCK THEY ARE ON, AND EVERY BLOCK THEY HAVE FINISHED.
+   *
+   * Added because this file contained the word "programme" exactly zero times
+   * while programmes were the spine of the product. A user could enrol, train
+   * twelve sessions, sit through a planned easier week, finish the block, read
+   * a frozen report and be offered a level step, and earn ONE badge for the
+   * whole arc - a session-count milestone that would have fired anyway.
+   *
+   * Types only, so the no-store-import rule this file keeps still holds.
+   */
+  programme: EnrolledProgramme | null;
+  completedProgrammes: CompletedProgramme[];
 }
 
 // ─── Pre-computed stats ───────────────────────────────────────────────────────
@@ -152,8 +169,19 @@ function computeStats(state: BadgeEvalState): Stats {
 
     // Volume
     let sessionVol = 0;
-    for (const log of session.exerciseLogs) {
-      for (const set of log.sets) {
+    /**
+     * GUARDED, like the two reads further down this file already were.
+     *
+     * This file's own contract is "when a criterion cannot be verified, skip
+     * silently", and a session with no logs is exactly that. It went unnoticed
+     * while badges were only ever evaluated after completeSession, which always
+     * writes an array - but the moment enrolling, switching and taking a rung
+     * started evaluating too, any older or partially synced session without the
+     * field took the whole evaluation down with it. A badge engine must never be
+     * the thing that stops somebody changing programme.
+     */
+    for (const log of session.exerciseLogs ?? []) {
+      for (const set of log.sets ?? []) {
         if (set.completed && set.weight > 0) {
           const vol = set.weight * set.reps;
           totalVolumeKg += vol;
@@ -737,5 +765,139 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   awardIf(s.lowEnergyCount >= 5, 'endurance_5');
   awardIf(s.lowEnergyCount >= 10, 'endurance_10');
 
+  // ── 28. Training Blocks ───────────────────────────────────────────────────
+  //
+  // Read off the ARCHIVE - the report frozen when a block finished - rather
+  // than recomputed from history, so nothing here can be taken back by a later
+  // edit to a session. The one exception is being enrolled, which is a fact
+  // about now rather than about a finished thing.
+  /**
+   * Defaulted rather than trusted, for the same reason the session logs above
+   * are. The type makes these required so a real caller cannot forget them and
+   * silently stop awarding, but this function is also driven directly by a dozen
+   * plain-JavaScript check scripts that TypeScript never sees - and a badge
+   * engine that throws is a badge engine that can take a screen down with it.
+   */
+  const blocks = state.completedProgrammes ?? [];
+  awardIf(!!state.programme || blocks.length > 0, 'programme_enrolled');
+  awardIf(blocks.length >= 1, 'programme_block_1');
+  awardIf(blocks.length >= 2, 'programme_block_2');
+  awardIf(blocks.length >= 4, 'programme_block_4');
+  awardIf(blocks.length >= 8, 'programme_block_8');
+  awardIf(new Set(blocks.map((b) => b.templateId)).size >= 2, 'programme_two_shapes');
+  awardIf(
+    blocks.some((b) => b.templateId === 'custom'),
+    'programme_custom_built'
+  );
+
+  const deloadsDone = blocks.reduce((n, b) => n + (deloadSessionsIn(b) ?? 0), 0);
+  awardIf(deloadsDone >= 1, 'programme_deload_1');
+  awardIf(deloadsDone >= 4, 'programme_deload_4');
+
+  awardIf(
+    blocks.some((b) => b.report.perWeek >= b.report.plannedPerWeek),
+    'programme_pace'
+  );
+  awardIf(
+    // cleanSessions counts sessions where every set was either finished or
+    // deliberately skipped, so this does not punish somebody who sensibly
+    // dropped a set - only somebody who walked away mid-session.
+    blocks.some((b) => b.report.onPlan > 0 && b.report.cleanSessions >= b.report.onPlan),
+    'programme_clean_block'
+  );
+
+  // The two that need the actual session dates rather than the report's summary.
+  const datesOf = (b: CompletedProgramme): number[] => {
+    const inBlock = new Set(b.sessionIds);
+    return state.completedSessions
+      .filter((x) => inBlock.has(x.id))
+      .map((x) => Date.parse(x.date))
+      .filter((t) => Number.isFinite(t))
+      .sort((a, c) => a - c);
+  };
+  awardIf(
+    blocks.some((b) => {
+      const d = datesOf(b);
+      if (d.length < 2) return false;
+      for (let i = 1; i < d.length; i++) {
+        if (d[i] - d[i - 1] > 7 * 86400000) return false;
+      }
+      return true;
+    }),
+    'programme_no_long_gap'
+  );
+  awardIf(
+    blocks.some((b) => {
+      const d = datesOf(b);
+      if (d.length < 2) return false;
+      const perWeek = new Map<string, number>();
+      for (const t of d) {
+        const k = isoWeek(new Date(t));
+        perWeek.set(k, (perWeek.get(k) ?? 0) + 1);
+      }
+      const weeks = [...perWeek.keys()];
+      if (weeks.length < 2) return false;
+      /**
+       * THE FIRST AND LAST WEEK ARE ALLOWED TO BE THIN, and without that this
+       * badge could not be earned at all.
+       *
+       * A block almost never starts on a Monday or ends on a Sunday, so its
+       * first and last calendar weeks are partial by definition. Measured on a
+       * clean twelve session block trained every other day: every interior week
+       * held three or four sessions and the two end weeks held one each, so a
+       * flat "twice every week" rule failed a block nobody could have trained
+       * more faithfully.
+       *
+       * The middle weeks are the ones that describe the habit, so they carry
+       * the bar. The ends only have to exist, which is what stops somebody
+       * skipping a fortnight in the middle and still collecting it.
+       */
+      const counts = weeks.map((k) => perWeek.get(k) ?? 0);
+      const middle = counts.slice(1, -1);
+      return counts[0] >= 1 && counts[counts.length - 1] >= 1 && middle.every((n) => n >= 2);
+    }),
+    'programme_every_week'
+  );
+
+  // ── 29. Moving Up ─────────────────────────────────────────────────────────
+  // Optional-chained for the same reason as the two defaults above: this is
+  // driven by plain-JavaScript check scripts whose fixtures predate the field.
+  const screen = state.userProfile?.screenPassed;
+  // An empty array counts: somebody who took it and passed nothing has still
+  // taken it, and the difference between that and never taking it is the whole
+  // design of the question.
+  awardIf(screen !== undefined, 'screen_taken');
+  awardIf(
+    screen !== undefined && LADDER_PATTERNS.every((p) => screen.includes(p)),
+    'screen_all_patterns'
+  );
+  const bonus = state.userProfile?.earnedLevelBonus ?? 0;
+  awardIf(bonus >= 1, 'level_step_1');
+  awardIf(bonus >= MAX_EARNED_BONUS, 'level_step_max');
+  awardIf(
+    blocks.some((b) => b.report.personalBests.length >= 3),
+    'programme_pb_block'
+  );
+  awardIf(
+    blocks.some((b) => b.report.acheTrend === 'settled'),
+    'programme_ache_settled'
+  );
+
   return earned;
+}
+
+/**
+ * How many deliberately easier sessions a finished block contained.
+ *
+ * A REPORT IS FROZEN THE DAY IT IS WRITTEN, and the field changed name when the
+ * deload schedule moved from counting weeks to counting sessions. An archive
+ * from before that carries the old one, and reading only the new name would
+ * quietly award nothing for blocks somebody actually trained through.
+ */
+function deloadSessionsIn(b: CompletedProgramme): number {
+  const r = b.report as { deloadSessionsDone?: unknown; deloadWeeksDone?: unknown };
+  const now = r.deloadSessionsDone;
+  if (typeof now === 'number' && Number.isFinite(now)) return now;
+  const then = r.deloadWeeksDone;
+  return typeof then === 'number' && Number.isFinite(then) ? then : 0;
 }

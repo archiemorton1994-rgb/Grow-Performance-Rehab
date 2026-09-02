@@ -1678,6 +1678,18 @@ export const useAppStore = create<AppState>()(
          * be logged.
          */
         get().archiveIfBlockComplete(session.date);
+        /**
+         * AND AGAIN, AFTER THE ARCHIVE, because the block badges read the
+         * archive and the archive is written on the line above.
+         *
+         * Without this second pass every "you finished a block" badge arrives
+         * one session LATE, which is the worst possible timing: the user
+         * finishes the block, opens the report, is congratulated for nothing,
+         * and is then told about it halfway through the next session. Cheap to
+         * call twice - it diffs against what is already earned and returns
+         * immediately when nothing is new.
+         */
+        get().awardNewBadges();
       },
 
       addOneRepMax: (orm) => {
@@ -1837,6 +1849,9 @@ export const useAppStore = create<AppState>()(
           onboardingComplete: state.onboardingComplete,
           tourGenuinelyCompleted: state.tourGenuinelyCompleted,
           weeklyStreakGoal: state.weeklyStreakGoal ?? 2,
+          // The spine of the product, which the engine could not see at all.
+          programme: state.programme,
+          completedProgrammes: state.completedProgrammes,
         });
         const newlyUnlocked = allEarned.filter((id) => !state.earnedBadges.includes(id));
         if (newlyUnlocked.length === 0) return;
@@ -1932,6 +1947,10 @@ export const useAppStore = create<AppState>()(
           oneRepMaxes: maxes.length ? [...maxes, ...s.oneRepMaxes] : s.oneRepMaxes,
           programme: selectProgramme(outcome, nowIso, s.completedSessions.length),
         });
+        // Finishing the builder enrols them in a block and can answer the
+        // movement screen, and both of those are badges. This path never told
+        // the engine anything had happened either.
+        get().awardNewBadges();
       },
 
       /**
@@ -1973,7 +1992,7 @@ export const useAppStore = create<AppState>()(
        * block starts at week one. Without that, somebody switching programmes in
        * week nine would land in week nine of the new one.
        */
-      enrolInProgramme: (templateId, nowIso) =>
+      enrolInProgramme: (templateId, nowIso) => {
         set((s) => ({
           programme: {
             templateId,
@@ -1996,9 +2015,13 @@ export const useAppStore = create<AppState>()(
             startedAt: nowIso,
             startedAtSessionCount: s.completedSessions.length,
           },
-        })),
+        }));
+        // Enrolling is itself a badge, and this path never told the engine
+        // anything had happened.
+        get().awardNewBadges();
+      },
 
-      enrolInCustomProgramme: (custom, days, sessions, nowIso) =>
+      enrolInCustomProgramme: (custom, days, sessions, nowIso) => {
         set((s) => ({
           programme: {
             templateId: 'custom',
@@ -2009,9 +2032,11 @@ export const useAppStore = create<AppState>()(
             startedAt: nowIso,
             startedAtSessionCount: s.completedSessions.length,
           },
-        })),
+        }));
+        get().awardNewBadges();
+      },
 
-      switchProgramme: (templateId, nowIso) =>
+      switchProgramme: (templateId, nowIso) => {
         set((s) =>
           s.programme
             ? {
@@ -2024,7 +2049,9 @@ export const useAppStore = create<AppState>()(
                 },
               }
             : {}
-        ),
+        );
+        get().awardNewBadges();
+      },
 
       /**
        * Pausing OPENS a range of sessions that will not count, and resuming
@@ -2116,7 +2143,7 @@ export const useAppStore = create<AppState>()(
           },
         })),
 
-      acceptLevelStep: (toBonus) =>
+      acceptLevelStep: (toBonus) => {
         set((st) => ({
           userProfile: {
             ...st.userProfile,
@@ -2124,7 +2151,11 @@ export const useAppStore = create<AppState>()(
             // from a screen and a screen is reachable from a stale report.
             earnedLevelBonus: Math.max(0, Math.min(MAX_EARNED_BONUS, Math.trunc(toBonus))),
           },
-        })),
+        }));
+        // TAKING the rung is the achievement. Being offered one is not: the
+        // report never applies a step by itself, on purpose.
+        get().awardNewBadges();
+      },
 
       getProgrammePosition: () => {
         const { programme, completedSessions } = get();

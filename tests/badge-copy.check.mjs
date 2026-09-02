@@ -162,13 +162,40 @@ check(
   'the awardIf shape has changed and this section has gone blind'
 );
 
+/**
+ * THE NUMBER MAY BE SPELLED, and this rule allows it for the same reason it
+ * already skips thresholds of 1.
+ *
+ * The point is that the description must not DISAGREE with the engine, not that
+ * it must print a digit. "Finish a second training block" and "Train through
+ * four planned easier sessions" agree with 2 and 4 exactly, and both read better
+ * than the digit would - which is the argument this file already makes two
+ * paragraphs up about "your first".
+ *
+ * Ordinals count too, because "a second block" is how a person says it.
+ */
+const NUMBER_WORDS = {
+  2: ['two', 'second', 'twice'],
+  3: ['three', 'third'],
+  4: ['four', 'fourth'],
+  5: ['five', 'fifth'],
+  6: ['six', 'sixth'],
+  7: ['seven', 'seventh'],
+  8: ['eight', 'eighth'],
+  9: ['nine', 'ninth'],
+  10: ['ten', 'tenth'],
+  12: ['twelve', 'twelfth'],
+};
+
 const mismatched = [];
 for (const b of BADGE_CATALOG) {
   const idNums = (b.id.match(/\d+/g) ?? []).map(Number);
   const n = thresholds.get(b.id) ?? (idNums.length ? idNums[idNums.length - 1] : null);
   if (n == null || n <= 1) continue;
   const desc = b.description.replace(/,/g, '');
-  if (!new RegExp(`\\b${n}\\b`).test(desc)) mismatched.push(`${b.id} wants ${n}: "${b.description}"`);
+  const spellings = [String(n), ...(NUMBER_WORDS[n] ?? [])];
+  const says = spellings.some((w) => new RegExp(`\\b${w}\\b`, 'i').test(desc));
+  if (!says) mismatched.push(`${b.id} wants ${n}: "${b.description}"`);
 }
 check(
   'no badge prints a number the engine does not use',
@@ -403,10 +430,19 @@ console.log('\n[4] The hint on a locked badge is true of every badge in its fami
  * for thirty-minute sessions. A hint carrying a number is the bug.
  */
 const achievements = read('app/achievements.tsx');
-const hintBlock = achievements.slice(
-  achievements.indexOf('session_count:'),
-  achievements.indexOf('exercise_specific:') + 200
-);
+/**
+ * READ TO THE END OF THE RECORD, not to a fixed number of characters past one
+ * of its members.
+ *
+ * This used to slice from session_count to "exercise_specific: + 200", which
+ * happened to cover the record while exercise_specific was the last entry in
+ * it. Three hints added after it were half inside the window and half outside,
+ * so the test reported two criteria types as having no hint at all while they
+ * were sitting in the file being read. A window pinned to one member's position
+ * is a window that goes blind the moment somebody appends.
+ */
+const hintStart = achievements.indexOf('session_count:');
+const hintBlock = achievements.slice(hintStart, achievements.indexOf('};', hintStart));
 const hints = [...hintBlock.matchAll(/^\s*([a-z_]+):\s*'([^']+)'/gm)].map((m) => [m[1], m[2]]);
 check(
   `the locked-badge hints were found (${hints.length})`,

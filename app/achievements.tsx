@@ -55,6 +55,9 @@ const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
   pain_adaptation: 'Complete sessions while managing a pain region.',
   low_energy: 'Log a session even on a low-energy day.',
   exercise_specific: 'Log this specific exercise in one of your sessions.',
+  programme_block: 'Finish the block you are on. Every session of it counts.',
+  programme_adherence: 'Stay with the plan through a whole block.',
+  level_progress: 'Your level moves when a finished block says it should.',
 };
 
 // A cabinet, not a spreadsheet. The previous layout put 277 badges into a

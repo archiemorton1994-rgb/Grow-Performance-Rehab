@@ -760,6 +760,14 @@ function ProgressTab({
   );
 }
 
+/**
+ * How many unlock banners one session may show.
+ *
+ * Three at 3.2 seconds each is about ten seconds, which is a celebration. The
+ * whole queue was twenty-six seconds, in the engine's push order.
+ */
+const MAX_SESSION_BANNERS = 3;
+
 export default function SessionSummaryScreen() {
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
@@ -799,7 +807,23 @@ export default function SessionSummaryScreen() {
       const b = BADGE_MAP.get(id);
       return b ? [b] : [];
     });
-    if (resolved.length > 0) setSessionBadges(resolved);
+    /**
+     * RAREST FIRST, AND AT MOST THREE.
+     *
+     * The whole queue used to go to the banner, which steps through it ONE AT A
+     * TIME at 3.2 seconds each. A first ever session unlocks eight badges, so
+     * the reward for finishing it was twenty-six seconds of full-screen banners
+     * in the engine's internal push order - the biggest one as likely to be
+     * eighth as first.
+     *
+     * That mattered more the moment blocks got badges of their own: finishing a
+     * block is the largest thing that happens in this product and it would have
+     * been sharing a queue with "Complete 10 sessions" said four different ways.
+     * The rest are not lost - they are in the cabinet, which is one tap away.
+     */
+    const order: Record<Badge['tier'], number> = { grow: 0, gold: 1, silver: 2, bronze: 3 };
+    const ranked = [...resolved].sort((a, b) => order[a.tier] - order[b.tier]);
+    if (ranked.length > 0) setSessionBadges(ranked.slice(0, MAX_SESSION_BANNERS));
     clearNewlyUnlockedBadges();
   }, [newlyUnlockedBadges, clearNewlyUnlockedBadges]);
 

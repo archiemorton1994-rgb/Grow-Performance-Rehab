@@ -50,6 +50,33 @@ export type ArtShape =
   | (ShapeBase & { k: 'path'; d: string });
 
 export const BADGE_GLYPHS: Record<BadgeCategory, ArtShape[]> = {
+  /**
+   * A BLOCK OF TRAINING: three stacked slabs, seen slightly from the side.
+   *
+   * Deliberately not a calendar (that is consistency) and not a staircase
+   * (that is milestone). A block is a solid thing made of sessions, and the
+   * lower two slabs are drawn behind the top one so it reads as depth rather
+   * than as three separate bars.
+   */
+  programme: [
+    { k: 'path', d: 'M24 6 L42 15 L24 24 L6 15 Z', fill: 'glyph' },
+    { k: 'path', d: 'M6 24 L24 33 L42 24', stroke: 'glyph', sw: 2.8 },
+    { k: 'path', d: 'M6 33 L24 42 L42 33', stroke: 'glyph', sw: 2.8 },
+  ],
+
+  /**
+   * MOVING UP: an arrow stepping over a rung.
+   *
+   * The ladder metaphor the whole level system is built on, reduced to the one
+   * moment it is about - clearing the next rung rather than standing on it.
+   */
+  progression: [
+    { k: 'path', d: 'M8 40 L18 40 M8 32 L18 32 M8 24 L18 24', stroke: 'glyph', sw: 2.8 },
+    { k: 'path', d: 'M13 44 L13 20', stroke: 'glyph', sw: 2.8 },
+    { k: 'path', d: 'M20 34 C26 34 28 22 34 14', stroke: 'glyph', sw: 3.2 },
+    { k: 'path', d: 'M27 10 L40 8 L38 21 Z', fill: 'glyph' },
+  ],
+
   // Sessions stacking up: a staircase climbing to a planted flag.
   //
   // Drawn as one connected silhouette, not three columns. Three columns is what
