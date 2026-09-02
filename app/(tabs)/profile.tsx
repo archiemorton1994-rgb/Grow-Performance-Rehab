@@ -25,7 +25,7 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
 import { StatStrip } from '@/components/StatStrip';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
-import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -69,6 +69,7 @@ import { subscriptionDateLabel } from '@/lib/subscription-period';
 import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/lib/utils';
 import { router } from 'expo-router';
+import StandingAreasCard from '@/components/StandingAreasCard';
 
 const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
@@ -447,7 +448,7 @@ export default function ProfileScreen() {
    * list whose sections are all still at y=0.
    */
   const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null);
-  const settingsScrollRef = useRef<ScrollView>(null);
+  const settingsScrollRef = useRef<ScrollView>(null);
   const scrollHint = useScrollIndicator();
   const settingsSectionY = useRef<Record<string, number>>({});
   useEffect(() => {
@@ -1259,6 +1260,13 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
+        {/* The two standing injury answers, and the only place they can be
+            changed. Both are asked once in the builder, which cannot be
+            re-entered, and both now suppress work in every session - so
+            without this card a knee that got better would keep squats off the
+            menu for ever. See components/StandingAreasCard.tsx. */}
+        <StandingAreasCard C={C} />
+
         {/* SETTINGS USED TO BE ONE ROW.
             Six destinations — Account, Profile, Preferences, Subscription, App,
             Legal — behind a single tap, named only in a bullet list crammed
@@ -1302,7 +1310,7 @@ export default function ProfileScreen() {
           ))}
         </Animated.View>
         </View>
-      </ScrollView>
+      </ScrollView>
       <ScrollIndicator {...scrollHint.state} top={8} bottom={92} />
 
       {/* Edit Details Modal */}

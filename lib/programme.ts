@@ -1113,8 +1113,25 @@ export function programmeReasons(outcome: TreeOutcome): string[] {
 
   if (outcome.soreRegions.length > 0) {
     const age = outcome.soreFor ? ` ${AGE_WORDS[outcome.soreFor]}` : '';
+    /**
+     * THIS SENTENCE WAS A LIE FOR AS LONG AS IT EXISTED, in both halves.
+     *
+     * It said every session was built around the area and that gentle work for
+     * it went in. Neither happened: the answer was written to the profile,
+     * synced, and read by nothing at all. Two sessions generated side by side,
+     * identical but for a standing knee, came back with the same exercises.
+     *
+     * The first half is now true - see the standing-areas merge in
+     * generateWorkout. The second is not, and rather than wire up something
+     * nobody designed, the claim has come out. What the app actually does is
+     * swap the loading away, so that is what it says.
+     *
+     * It also says where to change it, which is the other half of being honest
+     * about a standing fact: an answer given once at sign-up that suppresses
+     * work for ever needs a door out, and now has one.
+     */
     out.push(
-      `Something has been sore${age}, so every session is built around it and gentle work for that area goes in.`
+      `Something has been sore${age}, so every session works around it: the movements that load that area are swapped for ones that do not. You can change this any time in your profile.`
     );
   }
 
@@ -1155,7 +1172,14 @@ export function programmeCareNote(outcome: TreeOutcome): string | null {
   if (outcome.soreRegions.length === 0) return null;
   if (outcome.focus === 'comeback' || outcome.focus === 'joints') return null;
   if (outcome.soreFor !== 'days') return null;
-  return 'Something has only been sore for a few days, so the first two weeks go easy on it. If it is not settling, Return to Lifting is the better programme and you can switch any time.';
+  /**
+   * "The first two weeks go easy on it" was never implemented either, and it was
+   * the worse of the two promises because it was a dated commitment. There is no
+   * two-week window anywhere in the engine. What there is, now, is the standing
+   * area being worked around from the first session onwards - which is a
+   * stronger thing to be able to say, and true.
+   */
+  return 'Something has only been sore for a few days, so that area is worked around from your first session. If it is not settling, Return to Lifting is the better programme and you can switch any time.';
 }
 
 /**

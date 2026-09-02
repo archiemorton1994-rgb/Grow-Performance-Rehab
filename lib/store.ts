@@ -461,8 +461,14 @@ export interface UserProfile {
    * A shoulder that does not hurt today because it has been avoided for six
    * months is absent from standingSoreRegions and belongs here. It is treated
    * as a standing area to work around whether or not anything hurts.
+   *
+   * TYPED AS REGIONS rather than plain strings, which it always was in practice:
+   * the builder filters its answers down to PainRegion before storing them, and
+   * the engine cast it back on the way in. The loose type bought nothing and
+   * meant the two standing lists - this and standingSoreRegions, which do the
+   * same job through the same code path - did not agree on what they held.
    */
-  clinicalAvoid?: string[];
+  clinicalAvoid?: PainRegion[];
   /**
    * The heaviest hand weight they can reach, in kg. Absent for a full gym, and
    * for everybody who did not say.

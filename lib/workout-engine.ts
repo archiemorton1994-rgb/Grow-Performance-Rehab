@@ -1899,11 +1899,33 @@ export function generateWorkout(
       ? readiness.painRegion
       : [readiness.painRegion]
     : [];
-  const avoid = (profile?.clinicalAvoid ?? []) as PainRegion[];
+  const avoid = profile?.clinicalAvoid ?? [];
+  /**
+   * AND WHATEVER THEY TOLD US WAS ALREADY SORE WHEN THEY SIGNED UP.
+   *
+   * The builder asks "is anything sore or injured right now", then asks where
+   * and for how long. Those three answers were written to the profile, synced
+   * to the server, and read by NOTHING - while the programme certificate told
+   * the user, in as many words, that every session was being built around the
+   * area. Two sessions generated side by side, identical but for a standing
+   * knee problem, came back with the same exercises down to the last card.
+   *
+   * Merged here rather than given a pass of its own, for the same reasons the
+   * clinician's answer is: it goes through the same swap machinery and produces
+   * the same honest caption. Severity and the acute flag are left alone - this
+   * is "look after this area", not "this is hurting right now", and setting
+   * acute would route somebody onto the acute rehab protocol with no way off.
+   *
+   * IT HAS TO BE CLEARABLE, which is why this landed alongside the standing
+   * areas card in Profile. An answer given once at sign-up that silently
+   * suppresses half the catalogue for ever is worse than one that does nothing.
+   */
+  const standing = profile?.standingSoreRegions ?? [];
+  const workAround = [...new Set([...avoid, ...standing])];
   const screenedReadiness: ReadinessCheck =
-    avoid.length === 0
+    workAround.length === 0
       ? readiness
-      : { ...readiness, painRegion: [...new Set([...named, ...avoid])] };
+      : { ...readiness, painRegion: [...new Set([...named, ...workAround])] };
   // Screen first, then fill the swap slots — so the alternatives on offer are
   // alternatives to what the user is actually being shown, and a substituted
   // exercise gets its own stand-ins rather than inheriting the removed one's.
