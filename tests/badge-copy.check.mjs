@@ -493,6 +493,94 @@ check(
 );
 
 console.log('');
+// ─── Colour has to mean what the catalogue says it means ────────────────────
+//
+// The catalogue documents colour as the ONE thing encoding rarity: bronze means
+// you are early, the brand green means you have put the work in. Tier is
+// assigned by position within a family on the stated assumption that families
+// are declared easiest first.
+//
+// Goals broke that assumption and nothing caught it. Thirty-six badges, six
+// unrelated ladders declared one after another, measured as a single family -
+// so the last quarter went to whatever happened to be declared last, and
+// "Complete your first session" came out in the rarest metal in the app while
+// "Complete 100 strength sessions" came out bronze. The colour system was
+// saying the opposite of what it promised.
+
+const FIRST_SESSION = /^complete your first( training)? session$/i;
+
+check(
+  'no badge asking for a single session is struck in the rarest metal',
+  BADGE_CATALOG.filter((b) => b.tier === 'grow' && FIRST_SESSION.test(b.description)).length === 0,
+  BADGE_CATALOG.filter((b) => b.tier === 'grow' && FIRST_SESSION.test(b.description))
+    .map((b) => `${b.name}: "${b.description}"`)
+    .join(' | ')
+);
+
+/**
+ * The general form of the same rule: inside one ladder, a badge asking for MORE
+ * must never wear a rarer metal than one asking for less.
+ *
+ * ONLY WHERE THE NUMBERS ARE THE SAME KIND OF THING. A first attempt at this
+ * pulled the first digit out of every description and compared them, which put
+ * "Complete 5 sessions of 60 minutes" up against "Complete 10 sessions of 45
+ * minutes" and reported a fault that was really the test comparing minutes with
+ * session counts. So the shape is pinned: "complete N <noun> sessions", and only
+ * badges sharing a noun are compared.
+ */
+const faultsBySize = (() => {
+  const rank = { bronze: 0, silver: 1, gold: 2, grow: 3 };
+  const SHAPE = /^complete (\d+)\s*([a-z ]*?)\s*sessions$/i;
+  const ladders = new Map();
+  for (const b of BADGE_CATALOG) {
+    const m = b.description.replace(/,/g, '').match(SHAPE);
+    if (!m) continue;
+    // The tier group, the way the catalogue derives it, plus the noun so
+    // "conditioning sessions" is never weighed against plain "sessions".
+    // The catalogue's own grouping: a tierGroup where one is declared, the
+    // category otherwise. Read off the ids, which is where tierGroup comes from.
+    const group =
+      (b.id.match(/^(goal_[a-z]+)_/) ?? b.id.match(/^(exercise_custom)_/) ?? [, b.category])[1];
+    const key = `${group}|${m[2].trim()}`;
+    if (!ladders.has(key)) ladders.set(key, []);
+    ladders.get(key).push({ b, n: Number(m[1]) });
+  }
+  const faults = [];
+  for (const [key, list] of ladders) {
+    for (const a of list) {
+      for (const c of list) {
+        if (a.n < c.n && rank[a.b.tier] > rank[c.b.tier]) {
+          faults.push(
+            `${key}: "${a.b.description}" is ${a.b.tier} but "${c.b.description}" is ${c.b.tier}`
+          );
+        }
+      }
+    }
+  }
+  return faults;
+})();
+
+check(
+  'inside every ladder, asking for more is never worth a lesser metal',
+  faultsBySize.length === 0,
+  faultsBySize.slice(0, 4).join(' | ')
+);
+
+check(
+  // A tie on "most recent" is broken by rarity rather than by the order the
+  // engine's rules happen to be written in. After a first ever sixty minute
+  // session the hero showcased "45 Minute Club" over "First Step".
+  'the showcase breaks a same-moment tie on rarity, not on evaluation order',
+  (() => {
+    const src = read('app/achievements.tsx');
+    const at = src.indexOf('const latest = useMemo');
+    if (at < 0) return false;
+    const body = src.slice(at, at + 1200);
+    return /rank\[b\.tier\] < rank\[best\.tier\]/.test(body);
+  })(),
+  ''
+);
+
 if (failures > 0) {
   console.error(`badge-copy: ${failures}/${total} check(s) FAILED\n`);
   process.exitCode = 1;

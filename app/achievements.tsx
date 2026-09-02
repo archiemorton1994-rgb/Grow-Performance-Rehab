@@ -395,14 +395,36 @@ export default function AchievementsScreen() {
     [isKpiLocked]
   );
 
-  // The showcase. earnedBadges is appended to in unlock order, so the last id
-  // still present in the catalogue is the most recent thing won.
+  /**
+   * The showcase. earnedBadges is appended to in unlock order, so the last id
+   * still in the catalogue is the most recent thing won.
+   *
+   * TIES BREAK ON RARITY, because "most recent" is not a single badge. Eight
+   * badges earned in the same instant are appended in the ENGINE'S evaluation
+   * order, which is the order the rules happen to be written in and means
+   * nothing to anybody. After a first ever sixty-minute session the screen
+   * showcased "45 Minute Club" over "First Step". The tie-break looks back over
+   * the badges that arrived together and shows the rarest of them.
+   */
   const latest = useMemo(() => {
-    for (let i = earnedBadges.length - 1; i >= 0; i--) {
-      const b = BADGE_MAP.get(earnedBadges[i]);
-      if (b) return b;
-    }
-    return null;
+    const resolved = earnedBadges.flatMap((id) => {
+      const b = BADGE_MAP.get(id);
+      return b ? [b] : [];
+    });
+    if (resolved.length === 0) return null;
+    /**
+     * How many of the trailing badges to consider "the same moment".
+     *
+     * There is no timestamp on an earned badge, so the tail is the only handle
+     * on it. Eight is what a first session unlocks, which is the worst case
+     * this exists for.
+     */
+    const SAME_MOMENT = 8;
+    const tail = resolved.slice(-SAME_MOMENT);
+    const rank: Record<Badge['tier'], number> = { grow: 0, gold: 1, silver: 2, bronze: 3 };
+    let best = tail[tail.length - 1];
+    for (const b of tail) if (rank[b.tier] < rank[best.tier]) best = b;
+    return best;
   }, [earnedBadges]);
 
   // With nothing earned there is no showcase, so name the badge that unlocks

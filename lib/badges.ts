@@ -490,7 +490,17 @@ const consistencyBadges: BadgeSeed[] = [
 ];
 
 // ─── 15. Goal-Specific Badges ─────────────────────────────────────────────────
-const goalsBadges: BadgeSeed[] = [
+/**
+ * SIX LADDERS ON ONE SHELF, and each is measured against itself.
+ *
+ * Every id here already says which ladder it belongs to - goal_strength_*,
+ * goal_muscle_*, goal_fatloss_*, goal_fitness_*, goal_rehab_*, goal_power_* -
+ * so the group is derived from the id rather than written out thirty-six times
+ * beside it. A hand-written field would drift the first time somebody added a
+ * badge and forgot it, and the failure is silent: the colours would just start
+ * lying again.
+ */
+const goalsBadgesRaw: BadgeSeed[] = [
   // Strength
   {
     id: 'goal_strength_1rm',
@@ -826,6 +836,17 @@ const goalsBadges: BadgeSeed[] = [
     color: C.violet,
   },
 ];
+
+/**
+ * The same list, each badge tagged with the ladder it belongs to.
+ *
+ * goal_strength_1rm -> "goal_strength". Anything that does not match the shape
+ * keeps the category as its group, which is the old behaviour.
+ */
+const goalsBadges: BadgeSeed[] = goalsBadgesRaw.map((b) => {
+  const m = b.id.match(/^(goal_[a-z]+)_/);
+  return m ? { ...b, tierGroup: m[1] } : b;
+});
 
 // ─── Onboarding Welcome Badge ─────────────────────────────────────────────────
 // The ONLY badge that is not earned through training. Awarded once, when the
@@ -1468,11 +1489,31 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     icon: 'shuffle-outline',
     color: C.emerald,
   },
+  /**
+   * TWO BADGES THAT SAY EXACTLY WHAT TWO OTHERS ON THE SAME SHELF SAY.
+   *
+   * "Complete 10 custom sessions" and "Complete 25 custom sessions" already
+   * exist as custom_session_10 and custom_session_25, with the same trigger and
+   * the same words. These two are declared LAST in the category, so measuring
+   * rarity across the whole shelf handed them the brand green - the rarest metal
+   * in the app - while the identical badges three rows up came out silver.
+   *
+   * Their own tier group fixes the colour: they are measured against each other,
+   * so the smaller one is bronze and the larger is Grow, and neither steals a
+   * rarity the shelf's real ladder has earned.
+   *
+   * THE DUPLICATION ITSELF IS LEFT ALONE ON PURPOSE. Removing them would take
+   * two badges off the count of everybody who has already earned them, and
+   * whether this pair should be retired or given real criteria of their own -
+   * their names promise BUILDING something, not doing it - is a decision about
+   * the product rather than a defect to quietly patch. Flagged, not swallowed.
+   */
   {
     id: 'exercise_custom_10',
     name: 'Exercise Architect',
     description: 'Complete 10 custom sessions',
     category: 'session_custom',
+    tierGroup: 'exercise_custom',
     criteriaType: 'session_type_count',
     icon: 'construct-outline',
     color: C.grey,
@@ -1482,6 +1523,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     name: 'Programme Designer',
     description: 'Complete 25 custom sessions',
     category: 'session_custom',
+    tierGroup: 'exercise_custom',
     criteriaType: 'session_type_count',
     icon: 'construct-outline',
     color: C.teal,
@@ -1652,7 +1694,17 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
  * so a Recovery badge, a Test Week badge and a Duration badge were
  * indistinguishable.
  */
-type BadgeSeed = Omit<Badge, 'tier'>;
+type BadgeSeed = Omit<Badge, 'tier'> & {
+  /**
+   * Which family this badge's RARITY is measured against, when that is not its
+   * category. See tierGroupOf.
+   *
+   * Only Goals needs it: six unrelated ladders share one shelf, and measuring
+   * rarity across all thirty-six of them put "Complete your first session" in
+   * the rarest metal in the app.
+   */
+  tierGroup?: string;
+};
 
 /**
  * One glyph per family, chosen to describe the thing being rewarded.
@@ -1707,15 +1759,42 @@ function tierForPosition(index: number, total: number): BadgeTier {
   return 'grow';
 }
 
+/**
+ * WHICH FAMILY A BADGE'S RARITY IS MEASURED AGAINST.
+ *
+ * Usually its category, and for twenty of the twenty-four that is right. Goals
+ * is the exception and it broke the whole colour system: thirty-six badges, six
+ * unrelated ladders (strength, muscle, fat loss, fitness, rehab, power) declared
+ * one after another, and tierForPosition treated the lot as ONE family in
+ * ascending difficulty. The last quarter therefore went to whatever happened to
+ * be declared last, which is the Power ladder - so "Complete your first session"
+ * was struck in the rarest metal in the app, and "Complete 100 sessions" on the
+ * Strength ladder came out bronze.
+ *
+ * The catalogue documents colour as the one thing encoding rarity. It was
+ * saying the opposite.
+ *
+ * A group is only needed where a category holds more than one ladder, so
+ * everything without one falls back to its category and nothing else moves.
+ */
+function tierGroupOf(s: BadgeSeed): string {
+  if (s.tierGroup) return s.tierGroup;
+  return s.category;
+}
+
 function applyVisualSystem(seeds: BadgeSeed[]): Badge[] {
-  const seen = new Map<BadgeCategory, number>();
-  const totals = new Map<BadgeCategory, number>();
-  for (const s of seeds) totals.set(s.category, (totals.get(s.category) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  const totals = new Map<string, number>();
+  for (const s of seeds) {
+    const g = tierGroupOf(s);
+    totals.set(g, (totals.get(g) ?? 0) + 1);
+  }
 
   return seeds.map((s) => {
-    const index = seen.get(s.category) ?? 0;
-    seen.set(s.category, index + 1);
-    const tier = tierForPosition(index, totals.get(s.category) ?? 1);
+    const g = tierGroupOf(s);
+    const index = seen.get(g) ?? 0;
+    seen.set(g, index + 1);
+    const tier = tierForPosition(index, totals.get(g) ?? 1);
     return {
       ...s,
       icon: CATEGORY_ICON[s.category],
