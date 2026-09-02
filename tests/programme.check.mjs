@@ -39,6 +39,8 @@ import {
   cycleOf,
   programmeFor,
   deloadWeeksFor,
+  deloadIndexes,
+  DELOAD_EVERY_SESSIONS,
   isDeloadIndex,
   cycleHasLoadedWork,
   DELOAD_EVERY_WEEKS,
@@ -866,30 +868,130 @@ const block = (over) => ({
   ...over,
 });
 
+/**
+ * THE RULE CHANGED, AND THESE ASSERTIONS ARE WHY IT HAD TO.
+ *
+ * The old schedule counted in WEEKS, where a week is however many sessions you
+ * train. That made the gap between easier weeks four times the training
+ * frequency: every 8 sessions at twice a week, every 20 at five times a week.
+ * The person doing the most work waited the longest. Worse, the last week was
+ * excluded, so measured across every block length the builder offers against
+ * every frequency, 24 of the 36 combinations had no easier week at all -
+ * including the DEFAULT block at every realistic frequency.
+ *
+ * Fatigue accumulates per session, so the schedule counts sessions now, and the
+ * deload lands on the same session number whoever you are.
+ */
 check(
-  'a block long enough to need an easier week gets one, every fourth week',
+  'a block long enough to need one gets it after a fixed number of SESSIONS',
   (() => {
-    // 15 sessions at 3 a week is 5 weeks, so week 4 eases and week 5 finishes.
-    const w = deloadWeeksFor(block({ sessions: 16, days: 3 }));
-    return w.length === 1 && w[0] === DELOAD_EVERY_WEEKS;
+    const idx = [...deloadIndexes(block({ sessions: 16, days: 3 }))].sort((a, b) => a - b);
+    return idx.length > 0 && idx[0] === DELOAD_EVERY_SESSIONS;
   })(),
-  JSON.stringify(deloadWeeksFor(block({ sessions: 16, days: 3 })))
+  JSON.stringify([...deloadIndexes(block({ sessions: 16, days: 3 }))])
 );
 check(
-  // The half of the rule that is easy to lose. A deload is a run-up to
-  // something; an easier week with no week after it is a block that ends
-  // quietly, which is the opposite of what a block should do.
-  'and never in the last week, so a four week block has none at all',
+  // The whole point of the change. Two people on the same block, training at
+  // different frequencies, must ease at the same place in it.
+  'and the same block eases at the same place however often you train',
   (() => {
-    const p = block({ sessions: 12, days: 3 });
-    return weeksFor(p.sessions, p.days) === 4 && deloadWeeksFor(p).length === 0;
+    // TWENTY, not sixteen. A sixteen session block only has room for one window,
+    // and its start is the same under both the old rule and the new one - so a
+    // sixteen session block cannot tell them apart, and this assertion stayed
+    // green with the frequency dependence deliberately put back. Twenty has two
+    // windows, and the second is where the old rule drifted.
+    const at = (days) =>
+      [...deloadIndexes(block({ sessions: 20, days }))].sort((a, b) => a - b).join(',');
+    const starts = [...deloadIndexes(block({ sessions: 20, days: 2 }))].sort((a, b) => a - b);
+    return (
+      starts.length > 0 &&
+      // Every frequency opens its windows at the same session numbers. The
+      // windows differ in LENGTH, capped, so compare the openings.
+      [2, 3, 4, 5].every((d) => {
+        const idx = [...deloadIndexes(block({ sessions: 20, days: d }))].sort((a, b) => a - b);
+        const opens = idx.filter((i) => !idx.includes(i - 1));
+        return opens.join(',') === [DELOAD_EVERY_SESSIONS, DELOAD_EVERY_SESSIONS * 2].join(',');
+      }) &&
+      at(2) !== ''
+    );
   })(),
-  `weeks=${weeksFor(12, 3)} deloads=${JSON.stringify(deloadWeeksFor(block({ sessions: 12, days: 3 })))}`
+  [2, 3, 4, 5]
+    .map((d) => d + ': ' + [...deloadIndexes(block({ sessions: 20, days: d }))].sort((a, b) => a - b).join(','))
+    .join(' | ')
+);
+check(
+  // 24 of 36 got nothing under the old rule, the default among them.
+  'and every block the builder offers from ten sessions up now has one',
+  (() => {
+    const missing = [];
+    for (const sessions of [10, 12, 14, 16, 18, 20]) {
+      for (const days of [2, 3, 4, 5]) {
+        if (deloadIndexes(block({ sessions, days })).size === 0) missing.push(sessions + '/' + days);
+      }
+    }
+    return missing.length === 0;
+  })(),
+  'blocks with no easier session at all'
+);
+check(
+  // The half of the rule that is easy to lose, and the reason a window is
+  // trimmed rather than dropped. Finishing a block on a deliberately light
+  // session takes the ending away; the block boundary is its own rest.
+  'and the last session of a block is never an easier one',
+  (() => {
+    for (const sessions of [10, 12, 14, 16, 18, 20]) {
+      for (const days of [2, 3, 4, 5]) {
+        const p = block({ sessions, days });
+        if (deloadIndexes(p).has(sessions - 1)) return false;
+      }
+    }
+    return true;
+  })(),
+  'a block that ends on a deload ends quietly'
+);
+check(
+  // Trimming, not dropping. Under a naive "skip any window that would reach the
+  // end" rule the five-day user loses their deload again, which is the exact
+  // fault this whole change exists to remove.
+  'a window that would reach the end is trimmed rather than thrown away',
+  (() => {
+    const p = block({ sessions: 12, days: 5 });
+    const idx = [...deloadIndexes(p)].sort((a, b) => a - b);
+    return idx.length > 0 && !idx.includes(11);
+  })(),
+  JSON.stringify([...deloadIndexes(block({ sessions: 12, days: 5 }))])
+);
+check(
+  // A four session block is a try-it-out, and easing a quarter of it is absurd.
+  'a block too short to have earned one still gets none',
+  deloadIndexes(block({ sessions: 4, days: 2 })).size === 0 &&
+    deloadIndexes(block({ sessions: 8, days: 3 })).size === 0,
+  ''
 );
 check(
   'a long block gets more than one',
-  deloadWeeksFor(block({ sessions: 20, days: 2 })).join(',') === '4,8',
-  JSON.stringify(deloadWeeksFor(block({ sessions: 20, days: 2 })))
+  (() => {
+    const idx = [...deloadIndexes(block({ sessions: 20, days: 3 }))].sort((a, b) => a - b);
+    // Two windows, one opening at each multiple of the interval.
+    return idx.includes(DELOAD_EVERY_SESSIONS) && idx.includes(DELOAD_EVERY_SESSIONS * 2);
+  })(),
+  JSON.stringify([...deloadIndexes(block({ sessions: 20, days: 3 }))])
+);
+check(
+  // An easier stretch is a week's worth, capped. Five days a week over twenty
+  // sessions was two windows of five, which eased 40% of the block - not a
+  // deload, a different programme.
+  'and no block has more than a third of it eased',
+  (() => {
+    for (const sessions of [10, 12, 14, 16, 18, 20]) {
+      for (const days of [2, 3, 4, 5]) {
+        const p = block({ sessions, days });
+        if (deloadIndexes(p).size / sessions > 1 / 3) return false;
+      }
+    }
+    return true;
+  })(),
+  'the worst share is 20 sessions at 3+ days'
 );
 check(
   // A deload week on a cycle of prehab and mobility is meaningless: there is
@@ -902,15 +1004,31 @@ check(
   ''
 );
 check(
-  'the sessions inside an easier week are the ones marked, and no others',
+  'the sessions in the window are the ones marked, and no others',
   (() => {
     const p = block({ sessions: 20, days: 3 });
-    // Weeks are 1-based; week 4 holds the 0-based indexes 9, 10, 11.
-    const inWeek4 = [9, 10, 11].every((i) => isDeloadIndex(p, i));
-    const outside = [8, 12].every((i) => !isDeloadIndex(p, i));
-    return deloadWeeksFor(p).includes(4) && inWeek4 && outside;
+    const idx = [...deloadIndexes(p)].sort((a, b) => a - b);
+    const inside = idx.every((i) => isDeloadIndex(p, i));
+    const outside = [0, DELOAD_EVERY_SESSIONS - 1, 19].every((i) => !isDeloadIndex(p, i));
+    return idx.length > 0 && inside && outside;
   })(),
-  ''
+  JSON.stringify([...deloadIndexes(block({ sessions: 20, days: 3 }))])
+);
+check(
+  // The weeks list is for display only and is DERIVED from the sessions, so the
+  // chips in the hub cannot claim a week the engine will not actually ease.
+  'the weeks shown are exactly the weeks those sessions fall in',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const fromSessions = new Set(
+      [...deloadIndexes(p)].map((i) => Math.floor(i / p.days) + 1)
+    );
+    const shown = deloadWeeksFor(p);
+    return (
+      shown.length === fromSessions.size && shown.every((w) => fromSessions.has(w))
+    );
+  })(),
+  JSON.stringify(deloadWeeksFor(block({ sessions: 20, days: 3 })))
 );
 check(
   'an index past the end of the block is not in any week',
@@ -927,14 +1045,30 @@ check(
     const p = block({ sessions: 20, days: 3 });
     const cycle = cycleOf(p);
     const done = (n) => Array.from({ length: n }, (_, i) => cycle[i % cycle.length]);
-    // 9 done means the 10th is next, which is index 9, which is week 4.
+    const eased = [...deloadIndexes(p)].sort((a, b) => a - b);
+    const first = eased[0];
+    // n done means index n is next.
     return (
-      programmePosition(p, done(9)).deload === true &&
-      programmePosition(p, done(8)).deload === false &&
-      programmePosition(p, done(12)).deload === false
+      programmePosition(p, done(first)).deload === true &&
+      programmePosition(p, done(first - 1)).deload === false &&
+      programmePosition(p, done(eased[eased.length - 1] + 1)).deload === false
     );
   })(),
-  ''
+  JSON.stringify([...deloadIndexes(block({ sessions: 20, days: 3 }))])
+);
+check(
+  // Four screens read the position, so the session numbers it publishes have to
+  // be the same ones isDeloadIndex answers for.
+  'and the session numbers it publishes are the ones the engine will ease',
+  (() => {
+    const p = block({ sessions: 20, days: 3 });
+    const pos = programmePosition(p, []);
+    return (
+      pos.deloadSessions.length === deloadIndexes(p).size &&
+      pos.deloadSessions.every((n) => isDeloadIndex(p, n - 1))
+    );
+  })(),
+  JSON.stringify(programmePosition(block({ sessions: 20, days: 3 }), []).deloadSessions)
 );
 check(
   'a finished block is never also an easier week',
@@ -946,7 +1080,7 @@ check(
   // Read at the index the session OCCUPIED, not the one after it. Off by one
   // here labels the wrong week easier in the history, on a certificate somebody
   // may have shared.
-  'a logged session is tagged with the week it was actually done in',
+  'a logged session is tagged at the index it actually occupied',
   (() => {
     const p = block({ sessions: 20, days: 3 });
     const cycle = cycleOf(p);
@@ -954,15 +1088,15 @@ check(
       p,
       Array.from({ length: 12 }, (_, i) => cycle[i % cycle.length])
     );
-    // The 10th, 11th and 12th on-plan sessions sit at indexes 9, 10, 11.
+    // Every tag has to agree with the schedule at its own index, and the block
+    // index has to be the 1-based position, not the one after it.
     return (
-      tags[8].deload === false &&
-      tags[9].deload === true &&
-      tags[11].deload === true &&
-      tags[9].blockIndex === 10
+      tags.every((t, i) => t.deload === isDeloadIndex(p, i)) &&
+      tags[9].blockIndex === 10 &&
+      tags.some((t) => t.deload)
     );
   })(),
-  ''
+  JSON.stringify(tagSessions(block({ sessions: 20, days: 3 }), Array.from({ length: 12 }, (_, i) => cycleOf(block({ sessions: 20, days: 3 }))[i % 3])).map((t) => t.deload))
 );
 check(
   'an off-plan session is never an easier week, whatever week it fell in',
@@ -977,11 +1111,21 @@ check(
   ''
 );
 check(
-  'the block plan marks the same weeks the position does',
+  // ROW FOR ROW, not week for week. A trimmed window covers part of a week, and
+  // marking the whole week in the printed plan would promise an easier session
+  // the engine is going to build at full weight.
+  'the block plan marks the same SESSIONS the engine will ease',
   (() => {
     const p = block({ sessions: 20, days: 3 });
-    const weeks = new Set(deloadWeeksFor(p));
-    return blockPlan(p).every((row) => row.deload === weeks.has(row.week));
+    return blockPlan(p).every((row, i) => row.deload === isDeloadIndex(p, i));
+  })(),
+  ''
+);
+check(
+  'and it is the same for a block whose window had to be trimmed',
+  (() => {
+    const p = block({ sessions: 12, days: 5 });
+    return blockPlan(p).every((row, i) => row.deload === isDeloadIndex(p, i));
   })(),
   ''
 );

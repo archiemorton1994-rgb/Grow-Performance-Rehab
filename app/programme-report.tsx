@@ -69,6 +69,19 @@ function readableMinutes(mins: number): { value: string; unit: string } {
   return { value: m === 0 ? `${h}` : `${h}.${Math.round((m / 60) * 10)}`, unit: 'hours' };
 }
 
+/**
+ * What a report written before the deload rule changed called its easier weeks.
+ *
+ * Reports are frozen at the moment they are built and are never recomputed, so
+ * an archive from before the change still holds deloadWeeksDone and a count in
+ * weeks. Reading it here keeps that line on the document instead of quietly
+ * dropping it, and the wording stays the wording that was true on the day.
+ */
+function legacyDeloadWeeks(r: unknown): number {
+  const n = (r as { deloadWeeksDone?: unknown })?.deloadWeeksDone;
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0;
+}
+
 export default function ProgrammeReportScreen() {
   const C = useColors();
   const insets = useSafeAreaInsets();
@@ -296,9 +309,20 @@ export default function ProgrammeReportScreen() {
           <Text style={styles.line}>
             You trained {r.perWeek} times a week over that stretch, against the{' '}
             {r.plannedPerWeek} the block was written for.
-            {r.deloadWeeksDone > 0
-              ? ` ${r.deloadWeeksDone === 1 ? 'One week of it was' : `${r.deloadWeeksDone} weeks of it were`} a planned easier week.`
-              : ''}
+            {/* Sessions, not weeks. The easier stretch is placed by session
+                count now, and a window trimmed to keep the last session normal
+                is not a whole week off.
+
+                A REPORT IS FROZEN THE DAY IT IS WRITTEN, so a block finished
+                before this change carries the old field and the old unit. It
+                still gets its sentence, in the words that were true when it was
+                issued, rather than silently losing a line off a document
+                somebody may have shared. */}
+            {r.deloadSessionsDone > 0
+              ? ` ${r.deloadSessionsDone === 1 ? 'One session of it was' : `${r.deloadSessionsDone} sessions of it were`} a planned easier one.`
+              : legacyDeloadWeeks(r) > 0
+                ? ` ${legacyDeloadWeeks(r) === 1 ? 'One week of it was' : `${legacyDeloadWeeks(r)} weeks of it were`} a planned easier week.`
+                : ''}
           </Text>
           <View style={styles.typeRow}>
             {r.byType.map((t) => (

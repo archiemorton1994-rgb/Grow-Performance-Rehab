@@ -794,13 +794,20 @@ check(
 
 const hub = read('components/ProgrammeHub.tsx');
 check(
-  'the hub is the one place you can see an easier week coming',
-  /hub-deload-note/.test(hub) && /position\.deloadWeeks/.test(hub),
+  'the hub is the one place you can see an easier session coming',
+  // Driven by the SESSION list rather than the week list. The schedule is
+  // decided in sessions, and a trimmed window covers only part of a week, so
+  // naming the week would promise an easier session the engine builds at full
+  // weight.
+  /hub-deload-note/.test(hub) && /position\.deloadSessions/.test(hub),
   'the hub shows the whole block at once, so it is the only screen that can'
 );
 check(
-  'and the week strip marks which weeks they are',
-  /hub-week-easy-/.test(hub) && /items\[0\]\.deload/.test(hub),
+  'and the week strip asks every session in the week, not just the first',
+  // Was `items[0].deload`, which called a whole week ordinary whenever the
+  // easier stretch opened part way through it - which is exactly what a trimmed
+  // window does.
+  /hub-week-easy-/.test(hub) && /items\.some\(\(p\) => p\.deload\)/.test(hub),
   ''
 );
 

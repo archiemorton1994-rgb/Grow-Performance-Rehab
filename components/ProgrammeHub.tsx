@@ -55,6 +55,25 @@ import { levelBandForExperience } from '@/lib/programme';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
 
+/**
+ * "9, 10 and 11" rather than "9,10,11".
+ *
+ * A run of consecutive session numbers is the usual case, and joining them with
+ * commas reads like a part number. Contiguous runs collapse to "9 to 11", which
+ * is both shorter and how a person would say it out loud.
+ */
+function listSessions(nums: number[]): string {
+  const runs: number[][] = [];
+  for (const n of nums) {
+    const last = runs[runs.length - 1];
+    if (last && n === last[last.length - 1] + 1) last.push(n);
+    else runs.push([n]);
+  }
+  const parts = runs.map((r) => (r.length === 1 ? `${r[0]}` : `${r[0]} to ${r[r.length - 1]}`));
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
+
 /** The same three the profile builder asks, in the same order. */
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string }[] = [
   { value: 'beginner', label: 'New to it' },
@@ -292,13 +311,20 @@ export function ProgrammeHub() {
         {/* Named before the strip rather than left to a mark nobody can read.
             A row that goes quiet for a week with no explanation is a row that
             looks like a mistake. */}
-        {position.deloadWeeks.length > 0 && (
+        {position.deloadSessions.length > 0 && (
           <Text style={styles.blockSub} testID="hub-deload-note">
-            {position.deloadWeeks.length === 1
-              ? `Week ${position.deloadWeeks[0]} is a planned easier week`
-              : `Weeks ${position.deloadWeeks.join(' and ')} are planned easier weeks`}
-            : about 10% off the bar and one set fewer on the hard work, so you come into the
-            weeks after them fresh.
+            {/* SESSIONS, NOT WEEKS. The schedule is decided in sessions now, and
+                a trimmed window covers only part of a week - saying "week 4 is
+                an easier week" would promise an easier session the plan has
+                deliberately left alone. */}
+            {position.deloadSessions.length === 1
+              ? `Session ${position.deloadSessions[0]} is a planned easier one`
+              : `Sessions ${listSessions(position.deloadSessions)} are planned easier ones`}
+            {/* "One set fewer" is not always true: the set only comes off work
+                that already has more than two, and a shorter Full Body session
+                is built entirely on two-set exercises. */}
+            : about 10% off the bar, and a set off the hard work where there is one to take, so
+            you come into what follows fresh.
           </Text>
         )}
         <View style={styles.planWrap}>
@@ -306,7 +332,10 @@ export function ProgrammeHub() {
             const week = w + 1;
             const items = plan.filter((p) => p.week === week);
             const firstIndex = w * programme.days;
-            const easier = items.length > 0 && items[0].deload;
+            // ANY eased session in the week, not just the first one. A trimmed
+            // deload window can start mid-week, and asking only the first
+            // session called that whole week ordinary.
+            const easier = items.some((p) => p.deload);
             return (
               <View key={week} style={styles.planWeek}>
                 <Text style={[styles.planWeekNo, easier && styles.planWeekNoEasy]}>

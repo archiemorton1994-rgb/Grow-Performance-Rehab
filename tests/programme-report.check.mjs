@@ -42,7 +42,7 @@ import {
   REPORT_VERSION,
   MAX_EARNED_BONUS,
 } from '../lib/programme-report.ts';
-import { cycleOf } from '../lib/programme.ts';
+import { cycleOf, deloadIndexes } from '../lib/programme.ts';
 
 let passed = 0;
 let failed = 0;
@@ -617,14 +617,16 @@ check(
   ''
 );
 check(
-  'the easier weeks that were actually done are counted',
+  'the easier sessions that were actually done are counted',
   (() => {
     const p = block({ sessions: 20, days: 3 });
     const done = fullBlock(p, () => ({ exerciseLogs: [log('x', 'X', [[50, 5]])] }));
-    // 20 sessions at 3 a week is 7 weeks, so week 4 eases and nothing else does.
-    return report(p, done).deloadWeeksDone === 1;
+    // Counted in SESSIONS, matching the schedule that placed them, and derived
+    // from that schedule rather than written out again here - a hard-coded
+    // number is how this assertion went stale when the rule changed.
+    return report(p, done).deloadSessionsDone === deloadIndexes(p).size;
   })(),
-  `${report(block({ sessions: 20, days: 3 }), fullBlock(block({ sessions: 20, days: 3 }))).deloadWeeksDone}`
+  `${report(block({ sessions: 20, days: 3 }), fullBlock(block({ sessions: 20, days: 3 }))).deloadSessionsDone}`
 );
 
 console.log(`\nprogramme-report: ${passed} passed, ${failed} failed`);

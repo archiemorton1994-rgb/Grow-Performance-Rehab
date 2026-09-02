@@ -444,8 +444,17 @@ export interface ProgrammePosition {
    * worse than no deload at all.
    */
   deload: boolean;
-  /** Which weeks of this block are the easier ones, 1-based. */
+  /** Which weeks of this block contain easier work, 1-based. */
   deloadWeeks: number[];
+  /**
+   * And which SESSIONS are the easier ones, 1-based.
+   *
+   * The schedule is decided in sessions, so this is the honest unit to show. A
+   * deload window that was trimmed to keep the last session normal covers only
+   * part of a week, and "week 4 is an easier week" then overstates it - the
+   * screens say which sessions instead.
+   */
+  deloadSessions: number[];
 }
 
 // ─── The easier week ────────────────────────────────────────────────────────
@@ -497,13 +506,66 @@ export function cycleHasLoadedWork(cycle: SessionType[]): boolean {
   return cycle.some((t) => LOADED_TYPES.includes(t));
 }
 
-/** Which weeks of this block are deliberately easier, 1-based, in order. */
-export function deloadWeeksFor(p: EnrolledProgramme): number[] {
-  if (!cycleHasLoadedWork(cycleOf(p))) return [];
-  const weeks = weeksFor(p.sessions, p.days);
-  const out: number[] = [];
-  for (let w = DELOAD_EVERY_WEEKS; w < weeks; w += DELOAD_EVERY_WEEKS) out.push(w);
+/**
+ * WHICH SESSIONS OF THIS BLOCK ARE DELIBERATELY EASIER. 0-based, on-plan only.
+ *
+ * COUNTED IN SESSIONS, AND THAT IS THE WHOLE FIX. This used to be counted in
+ * weeks, where a "week" is however many sessions you train. So the gap between
+ * easier weeks was four times your training frequency: every 8 sessions if you
+ * trained twice a week, every 20 if you trained five times. The person doing
+ * the most work waited the longest, which is exactly backwards, and because the
+ * last week was excluded the DEFAULT block got nothing at all. Measured across
+ * every block length the builder offers against every frequency, 24 of the 36
+ * combinations had no easier week anywhere in them.
+ *
+ * Fatigue accumulates per session, not per calendar week, so the schedule now
+ * does too. The deload lands on the same session number for everybody.
+ *
+ * A DELOAD IS STILL A WEEK'S WORTH, not one session. It opens at the session
+ * below and runs for `days` sessions, which is what "an easier week" means to
+ * somebody following the plan.
+ *
+ * AND IT NEVER TOUCHES THE LAST SESSION. Finishing a block on a deliberately
+ * light session would take the ending away, and the block boundary is its own
+ * rest. A window that would reach the end is trimmed rather than dropped, so a
+ * five-day-a-week user still gets one.
+ */
+export const DELOAD_EVERY_SESSIONS = 8;
+
+/**
+ * And at most three sessions of it, however often somebody trains.
+ *
+ * A week's worth is the right idea and the wrong measure at the top end: five
+ * days a week over a twenty session block is two windows of five, which eases
+ * eight sessions out of twenty. Forty per cent of a block is not a deload, it is
+ * a different programme. Three is a real easier stretch for anybody and caps the
+ * damage at the frequencies where a week is a large fraction of the block.
+ */
+export const DELOAD_MAX_SESSIONS = 3;
+
+export function deloadIndexes(p: EnrolledProgramme): Set<number> {
+  const out = new Set<number>();
+  if (!cycleHasLoadedWork(cycleOf(p))) return out;
+  const span = Math.min(p.days, DELOAD_MAX_SESSIONS);
+  // The last session is never eased, so it is also the last thing a window may
+  // reach back from.
+  const lastEasable = p.sessions - 2;
+  for (let start = DELOAD_EVERY_SESSIONS; start <= lastEasable; start += DELOAD_EVERY_SESSIONS) {
+    for (let i = start; i < start + span && i <= lastEasable; i++) out.add(i);
+  }
   return out;
+}
+
+/**
+ * The same thing expressed in weeks, for anywhere that shows one.
+ *
+ * Derived from the sessions rather than computed alongside them, so the chips
+ * in the hub and the sessions the engine actually eases cannot drift apart.
+ */
+export function deloadWeeksFor(p: EnrolledProgramme): number[] {
+  const weeks = new Set<number>();
+  for (const i of deloadIndexes(p)) weeks.add(Math.floor(i / p.days) + 1);
+  return [...weeks].sort((a, b) => a - b);
 }
 
 /**
@@ -515,8 +577,11 @@ export function deloadWeeksFor(p: EnrolledProgramme): number[] {
  */
 export function isDeloadIndex(p: EnrolledProgramme, onPlanIndex: number): boolean {
   if (onPlanIndex < 0 || onPlanIndex >= p.sessions) return false;
-  const week = Math.floor(onPlanIndex / p.days) + 1;
-  return deloadWeeksFor(p).includes(week);
+  // Asked of the sessions directly rather than of the weeks they fall in. A
+  // window that was trimmed to keep the last session normal covers part of a
+  // week, and rounding that back up to the whole week would ease a session the
+  // schedule deliberately left alone.
+  return deloadIndexes(p).has(onPlanIndex);
 }
 
 /**
@@ -565,6 +630,7 @@ export function programmePosition(
     // is indexed by onPlan rather than onPlan - 1.
     deload: !complete && isDeloadIndex(p, onPlan),
     deloadWeeks: deloadWeeksFor(p),
+    deloadSessions: [...deloadIndexes(p)].sort((a, b) => a - b).map((i) => i + 1),
   };
 }
 
@@ -769,11 +835,13 @@ export function blockPlan(
   p: EnrolledProgramme
 ): { week: number; type: SessionType; deload: boolean }[] {
   const cycle = cycleOf(p);
-  const weeks = new Set(deloadWeeksFor(p));
+  // The session set, not the week set: the printed plan has to agree row for
+  // row with what the engine will actually build.
+  const eased = deloadIndexes(p);
   const out: { week: number; type: SessionType; deload: boolean }[] = [];
   for (let i = 0; i < p.sessions; i++) {
     const week = Math.floor(i / p.days) + 1;
-    out.push({ week, type: cycle[i % cycle.length], deload: weeks.has(week) });
+    out.push({ week, type: cycle[i % cycle.length], deload: eased.has(i) });
   }
   return out;
 }

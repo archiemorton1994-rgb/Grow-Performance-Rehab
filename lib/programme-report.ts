@@ -168,7 +168,8 @@ export interface ProgrammeReport {
   /** Weight moved, in kg, summed over every completed set that had a load. */
   volumeKg: number;
   distinctExercises: number;
-  deloadWeeksDone: number;
+  /** How many deliberately easier SESSIONS of the block were actually done. */
+  deloadSessionsDone: number;
   testSessions: number;
 
   // ── What changed ─────────────────────────────────────────────────────────
@@ -395,7 +396,9 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
     if (tag?.onPlan) {
       onPlanSessions.push(s);
       if (tag.deload && tag.blockIndex !== null) {
-        deloadDone.add(Math.floor((tag.blockIndex - 1) / programme.days) + 1);
+        // COUNTED IN SESSIONS, matching the schedule that placed them. Rounding
+        // these up to whole weeks overstated a trimmed window as a full week off.
+        deloadDone.add(tag.blockIndex);
       }
     } else {
       offPlan++;
@@ -596,7 +599,7 @@ export function buildProgrammeReport(input: ReportInput): ProgrammeReport {
     totalReps,
     volumeKg: Math.round(volumeKg),
     distinctExercises: exerciseIds.size,
-    deloadWeeksDone: deloadDone.size,
+    deloadSessionsDone: deloadDone.size,
     testSessions,
     movers,
     slipped,
