@@ -3028,6 +3028,7 @@ export default function SessionScreen() {
     inSessionAssistantEnabled,
     setInSessionAssistantEnabled,
     isDeloadSession,
+    programme,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -5233,11 +5234,39 @@ export default function SessionScreen() {
               }}
             >
               {
+                /**
+                 * PROMISED A PROGRAMME TO EVERYBODY, including the person who
+                 * had just declined one in the builder. Same fault as the end
+                 * card in the tree, in the last place the tour speaks.
+                 */
                 isShowcase
                   ? 'Every session is built like that one, around what you have, how you feel and what you lifted last time.'
-                  : 'Your programme is ready. It will suggest squat, bench and deadlift in turn, and Train something else on the home screen gets you a different kind of day whenever you want one.'
+                  : programme
+                    ? 'Your programme is ready, and it will choose your sessions in turn. Train something else on the home screen gets you a different kind of day whenever you want one.'
+                    : 'Every session is built like that one, around what you have, how you feel and what you lifted last time. Pick whichever you fancy from Train, and start a programme whenever you want one.'
               }
             </Text>
+            {/* XP, INTRODUCED WHERE IT IS FIRST EARNED.
+                The practice session is deliberately not saved, so claiming it
+                earned anything would be the tour's one lie. The badge for
+                finishing the tour IS real and does pay, so this says what
+                happens from here rather than congratulating them for a session
+                that did not count. */}
+            {!isShowcase && (
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Inter_400Regular',
+                  color: C.textSecondary,
+                  lineHeight: 21,
+                  textAlign: 'center',
+                }}
+                testID="demo-complete-xp"
+              >
+                Every session you finish from here earns XP, and your level sits on your profile
+                picture. That practice one was not saved, so it does not count.
+              </Text>
+            )}
             <Pressable
               testID="demo-complete-continue"
               onPress={() => {
