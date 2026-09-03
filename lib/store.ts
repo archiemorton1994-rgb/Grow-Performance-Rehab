@@ -3304,9 +3304,56 @@ export const useAppStore = create<AppState>()(
             !persistedState.dataOwnerId &&
             (persistedState.completedSessions?.length ?? 0) > 0;
         }
+        /**
+         * XP FOR EVERYTHING SOMEBODY DID BEFORE XP EXISTED.
+         *
+         * Without this, a user with two hundred sessions behind them opens the
+         * app after an update and reads "Level 1, Getting started". That is not
+         * a neutral starting point, it is the app telling its most loyal users
+         * that none of it counted - and it cannot be fixed later, because the
+         * badges they already hold will never unlock again and the sessions
+         * they already logged will never be completed again. There is exactly
+         * one moment to do this and it is here.
+         *
+         * Deliberately generous in what it counts and conservative in what it
+         * claims: every past session is paid at the plain session rate plus its
+         * sets, and every badge already earned is paid at its tier. On-plan
+         * bonuses, personal bests and block completions are NOT reconstructed -
+         * the data to do it honestly is there, but replaying it would take
+         * seconds on a long history at the exact moment the app is starting up.
+         * The floor is the right side to err on: nobody is told they earned
+         * something they did not.
+         *
+         * Each session also gets its own frozen figure, so opening an old
+         * summary shows a number rather than nothing.
+         */
+        if (!('xpTotal' in persistedState)) {
+          let backfilled = 0;
+          const pastSessions = Array.isArray(persistedState.completedSessions)
+            ? persistedState.completedSessions
+            : [];
+          for (const past of pastSessions) {
+            if (!past || typeof past !== 'object') continue;
+            let sets = 0;
+            for (const log of past.exerciseLogs ?? []) {
+              for (const set of log?.sets ?? []) {
+                if (set?.completed && !set?.skipped) sets++;
+              }
+            }
+            const earned = sessionXp({ sets }).total;
+            past.xpEarned = earned;
+            backfilled += earned;
+          }
+          for (const badgeId of persistedState.earnedBadges ?? []) {
+            const tier = BADGE_MAP.get(badgeId)?.tier;
+            if (tier) backfilled += XP_BY_BADGE_TIER[tier];
+          }
+          persistedState.xpTotal = backfilled;
+        }
+
         return persistedState;
       },
-      version: 32,
+      version: 33,
     }
   )
 );

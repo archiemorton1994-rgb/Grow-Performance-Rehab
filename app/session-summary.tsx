@@ -48,6 +48,7 @@ import {
 import { Badge, BADGE_MAP, MILESTONE_SESSION_THRESHOLDS } from '@/lib/badges';
 import { AchievementBanner } from '@/components/AchievementBanner';
 import { BodyDiagram, musclesWorked } from '@/components/BodyDiagram';
+import SessionXpPanel from '@/components/SessionXpPanel';
 import { formatDate, formatWeight, kgToDisplayUnit } from '@/lib/utils';
 
 const WEB_TOP_INSET = 67;
@@ -790,6 +791,7 @@ export default function SessionSummaryScreen() {
   const getSessionPlanTags = useAppStore((s) => s.getSessionPlanTags);
   const pendingProgrammeReportId = useAppStore((s) => s.pendingProgrammeReportId);
   const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
+  const completedProgrammes = useAppStore((s) => s.completedProgrammes);
 
   // Badges earned by the session you just finished, celebrated here rather than
   // waiting until you happen to open a tab.
@@ -1025,6 +1027,40 @@ export default function SessionSummaryScreen() {
    * and a lower back the user had never touched. The figures can shade a
    * forearm or an ankle perfectly well — nothing was gained by hiding them.
    */
+  /**
+   * WHAT THIS SESSION WAS WORTH, and what the account stood at before it.
+   *
+   * "Before" is the sum of every session OLDER than this one rather than the
+   * live total minus this session, because the summary is reachable from the
+   * history: opening a session from three weeks ago has to show the bar where
+   * it was that day, not where it is now with a month of training on top.
+   */
+  const xpPanel = useMemo(() => {
+    if (!session) return null;
+    const xpBefore = completedSessions
+      .filter((x) => x.date < session.date)
+      .reduce((n, x) => n + (x.xpEarned ?? 0), 0);
+    // Did this session finish a block? The archive records which sessions were
+    // in each one, and the last of them is the session that closed it.
+    const blockComplete = completedProgrammes.some(
+      (b) => b.sessionIds[b.sessionIds.length - 1] === session.id
+    );
+    return {
+      xpBefore,
+      xpEarned: session.xpEarned,
+      breakdown: {
+        sets: summary.totalSets,
+        onPlan: planTag?.onPlan === true,
+        deload: planTag?.deload === true,
+        testSession: session.isTestWeek === true,
+        // The rows already worked out which lifts beat their own history; a
+        // 'first' badge is a first appearance, which is deliberately not one.
+        personalBests: summary.rows.filter((r) => r.badge === 'gain-weight').length,
+        blockComplete,
+      },
+    };
+  }, [session, completedSessions, completedProgrammes, summary, planTag]);
+
   const workedRegions = useMemo(() => {
     if (!session || session.exerciseLogs.length === 0) return null;
     const targetMap = getExerciseTargetRegionsMap();
@@ -1780,6 +1816,15 @@ export default function SessionSummaryScreen() {
                       </View>
                     ))}
                   </Animated.View>
+
+                  {xpPanel && (
+                    <SessionXpPanel
+                      P={SAGE}
+                      xpBefore={xpPanel.xpBefore}
+                      xpEarned={xpPanel.xpEarned}
+                      breakdown={xpPanel.breakdown}
+                    />
+                  )}
 
                   {/* Body diagram */}
                   <Animated.View

@@ -70,6 +70,8 @@ import { getApiUrl } from '@/lib/query-client';
 import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/lib/utils';
 import { router } from 'expo-router';
 import StandingAreasCard from '@/components/StandingAreasCard';
+import LevelRing from '@/components/LevelRing';
+import { xpStanding, xpBandName } from '@/lib/xp';
 
 const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
@@ -411,6 +413,7 @@ export default function ProfileScreen() {
     setBodyweightReminderEnabled,
     profilePhotoUri,
     setProfilePhotoUri,
+    xpTotal,
     getBestORM,
     oneRepMaxes,
     isWeightReminderVisible,
@@ -1029,20 +1032,27 @@ export default function ProfileScreen() {
             accessibilityLabel="Change profile photo"
             accessibilityRole="button"
           >
-            <View style={styles.avatar}>
-              {profilePhotoUri ? (
-                <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
-              ) : userProfile.name ? (
-                <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
-              ) : (
-                <Ionicons name="person" size={38} color={C.primaryDark} />
-              )}
-            </View>
+            <LevelRing C={C} xpTotal={xpTotal}>
+              <View style={styles.avatar}>
+                {profilePhotoUri ? (
+                  <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
+                ) : userProfile.name ? (
+                  <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
+                ) : (
+                  <Ionicons name="person" size={38} color={C.primaryDark} />
+                )}
+              </View>
+            </LevelRing>
             <View style={styles.avatarEditBadge}>
               <Ionicons name="camera" size={13} color={C.textInverse} />
             </View>
           </Pressable>
           <View style={styles.heroTags}>
+            {/* What the level is called. A bare number on the rim says how far,
+                not how it is going, and one word does the second job. */}
+            <View style={styles.tagGreen} testID="profile-xp-band">
+              <Text style={styles.tagGreenText}>{xpBandName(xpStanding(xpTotal).level)}</Text>
+            </View>
             <View style={styles.tagGreen}>
               <Text style={styles.tagGreenText}>{expLabel}</Text>
             </View>
