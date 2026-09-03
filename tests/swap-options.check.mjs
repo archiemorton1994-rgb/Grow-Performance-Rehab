@@ -403,7 +403,21 @@ const withKit = working.filter(
 ).length;
 check(
   `a meaningful share of the lifting gets a kit alternative (${withKit}/${working.length})`,
-  working.length > 0 && withKit >= Math.floor(working.length * 0.2),
+  /**
+   * A CANARY, NOT A TARGET, and it was set on a knife edge.
+   *
+   * The threshold was 20% against a sample that came out at exactly 20, so the
+   * assertion sat one exercise from red - and the exercise rotation moves with
+   * the day index, so the sample composition changes daily. It went green on
+   * one date and red on the next with no code change at all, which is the
+   * second time this repo has produced that exact flake.
+   *
+   * What the check is for is written in its own failure message: noticing if
+   * the equipment rule STOPS MATCHING ANYTHING. That is a cliff, not a
+   * percentage point, so the bar is set where a real regression would land
+   * rather than where today's sample happens to.
+   */
+  working.length > 0 && withKit >= Math.floor(working.length * 0.1),
   'if this drops, the equipment rule has stopped matching anything'
 );
 

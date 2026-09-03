@@ -47,6 +47,8 @@ import {
 } from './programme';
 import { archiveIdFor, completeProgramme, MAX_EARNED_BONUS } from './programme-report';
 import { builderTypedMaxes, unitCorrectionFor } from './unit-correction';
+import { sessionXp, XP, XP_BY_BADGE_TIER } from './xp';
+import { BADGE_MAP } from './badges';
 import type { UnitCorrection } from './unit-correction';
 import type { CompletedProgramme } from './programme-report';
 
@@ -370,6 +372,20 @@ export interface CompletedSession {
   displayLabel?: string;
   /** Optional free-text note the user added on the session summary screen. */
   notes?: string;
+  /**
+   * XP this session was worth, frozen at the moment it was logged.
+   *
+   * Stored rather than recomputed for the same reason the Programme Report is:
+   * it is a record of a thing that happened. If the XP table is ever retuned,
+   * somebody's level must not move underneath them because of sessions they
+   * finished months ago. The BREAKDOWN on the summary screen is recomputed
+   * live from the session's own data, so it stays cheap to sync - only the
+   * total is kept.
+   *
+   * Absent on every session logged before XP existed, which reads as zero and
+   * is correct: nobody earned XP before there was any.
+   */
+  xpEarned?: number;
 }
 
 /** One logged appearance of a weighted exercise within a single completed session. */
@@ -925,6 +941,13 @@ interface AppState {
 
   /** IDs of all badges the user has earned. Persisted. */
   earnedBadges: string[];
+  /**
+   * TOTAL XP EVER EARNED. The level is derived from it, never stored.
+   *
+   * Same rule the programme position follows: one number that cannot disagree
+   * with itself. See lib/xp.ts for the curve and what earns it.
+   */
+  xpTotal: number;
   /** IDs of badges earned since the last time the user viewed their badge toasts. Cleared by `clearNewlyUnlockedBadges`. Persisted so toasts survive app restarts. */
   newlyUnlockedBadges: string[];
   /** Whether the "You're all set" calibration-complete banner has been dismissed. Once true, the banner never shows again. */
@@ -938,6 +961,8 @@ interface AppState {
   reconcileBadgesSilently: () => void;
   /** Clear the `newlyUnlockedBadges` queue after the user has seen the pop-ups. */
   clearNewlyUnlockedBadges: () => void;
+  /** Add XP. Never subtracts, and never accepts a negative. */
+  awardXp: (amount: number) => void;
   /** Permanently dismiss the calibration-complete banner. */
   setCalibrationBannerDismissed: (dismissed: boolean) => void;
 
@@ -1218,6 +1243,7 @@ export const useAppStore = create<AppState>()(
       sessionEquipmentOverride: null,
       earnedBadges: [],
       newlyUnlockedBadges: [],
+      xpTotal: 0,
       calibrationBannerDismissed: false,
 
       setOnboardingComplete: (complete) => {
@@ -1496,6 +1522,38 @@ export const useAppStore = create<AppState>()(
         // postponement here the held test would silently vanish for a whole
         // block — which is the failure the hold exists to prevent.
         const testHeldForComeback = get().getTestWeekProgress().held;
+        /**
+         * HOW MANY WEIGHTS IN THIS SESSION BEAT ANYTHING IN THE ACCOUNT.
+         *
+         * Measured here, before the session is stored, because storing it is
+         * what makes it part of its own history - asked afterwards, every set
+         * beats nothing and every session is all personal bests.
+         */
+        const bestBefore = new Map<string, number>();
+        for (const past of get().completedSessions) {
+          for (const log of past.exerciseLogs) {
+            let best = 0;
+            for (const set of log.sets) {
+              if (set.completed && !set.skipped && set.weight > best) best = set.weight;
+            }
+            if (best > (bestBefore.get(log.exerciseId) ?? 0)) bestBefore.set(log.exerciseId, best);
+          }
+        }
+        let personalBests = 0;
+        let completedSets = 0;
+        for (const log of session.exerciseLogs) {
+          let best = 0;
+          for (const set of log.sets) {
+            if (!set.completed || set.skipped) continue;
+            completedSets++;
+            if (set.weight > best) best = set.weight;
+          }
+          // A first-ever appearance is not a personal best. Everybody's first
+          // squat would beat a history that does not exist, and a session where
+          // every lift is new would be worth more than any session after it.
+          const prior = bestBefore.get(log.exerciseId);
+          if (best > 0 && prior !== undefined && best > prior) personalBests++;
+        }
         set((state) => {
           // Derive per-exercise session performance from actual set completion data.
           // This is the primary input for the workout engine's progressive overload
@@ -1690,6 +1748,34 @@ export const useAppStore = create<AppState>()(
          * immediately when nothing is new.
          */
         get().awardNewBadges();
+
+        /**
+         * AND WHAT THE SESSION WAS WORTH.
+         *
+         * Last, because it needs answers only the lines above can give: whether
+         * the session was the one the programme asked for, whether it was a
+         * planned easier one, and whether it finished the block. Awarding
+         * earlier would pay the wrong amount for the most important session
+         * somebody ever logs.
+         */
+        const tag = get().getSessionPlanTags()[id];
+        const blockJustFinished = get().pendingProgrammeReportId !== null;
+        const earned = sessionXp({
+          sets: completedSets,
+          onPlan: tag?.onPlan === true,
+          deload: tag?.deload === true,
+          testSession: session.isTestWeek === true,
+          personalBests,
+          blockComplete: blockJustFinished,
+        });
+        get().awardXp(earned.total);
+        // Frozen onto the session, so a later retune of the table cannot move
+        // somebody's level underneath them. See CompletedSession.xpEarned.
+        set((st) => ({
+          completedSessions: st.completedSessions.map((x) =>
+            x.id === id ? { ...x, xpEarned: earned.total } : x
+          ),
+        }));
       },
 
       addOneRepMax: (orm) => {
@@ -1855,6 +1941,17 @@ export const useAppStore = create<AppState>()(
         });
         const newlyUnlocked = allEarned.filter((id) => !state.earnedBadges.includes(id));
         if (newlyUnlocked.length === 0) return;
+        /**
+         * ACHIEVEMENTS PAY BY HOW RARE THEY ARE, which is what the tier already
+         * means. Awarded even on a silent backfill: the badges are being
+         * granted either way, and paying for some unlocks and not others
+         * depending on how they happened would make the total unexplainable.
+         */
+        const bonus = newlyUnlocked.reduce((n, badgeId) => {
+          const tier = BADGE_MAP.get(badgeId)?.tier;
+          return n + (tier ? XP_BY_BADGE_TIER[tier] : 0);
+        }, 0);
+        if (bonus > 0) get().awardXp(bonus);
         set((s) => ({
           earnedBadges: [...new Set([...s.earnedBadges, ...newlyUnlocked])],
           newlyUnlockedBadges: opts?.silent
@@ -1866,6 +1963,19 @@ export const useAppStore = create<AppState>()(
       reconcileBadgesSilently: () => get().awardNewBadges({ silent: true }),
 
       clearNewlyUnlockedBadges: () => set({ newlyUnlockedBadges: [] }),
+
+      /**
+       * XP only ever goes up.
+       *
+       * Guarded rather than trusted: this is called from five places and a
+       * negative reaching it would take a level away from somebody, which is
+       * the one thing a progress number must never do.
+       */
+      awardXp: (amount) =>
+        set((s) => {
+          const add = Math.max(0, Math.floor(Number.isFinite(amount) ? amount : 0));
+          return add > 0 ? { xpTotal: (s.xpTotal ?? 0) + add } : {};
+        }),
       setCalibrationBannerDismissed: (dismissed) => set({ calibrationBannerDismissed: dismissed }),
 
       /**
@@ -1951,6 +2061,10 @@ export const useAppStore = create<AppState>()(
         // movement screen, and both of those are badges. This path never told
         // the engine anything had happened either.
         get().awardNewBadges();
+        // And the screen is worth something on its own. Paid only when it was
+        // actually answered - skipping it is allowed and earns nothing rather
+        // than being punished, which is the same distinction the engine makes.
+        if (outcome.screenPassed !== null) get().awardXp(XP.screenTaken);
       },
 
       /**
@@ -2144,6 +2258,11 @@ export const useAppStore = create<AppState>()(
         })),
 
       acceptLevelStep: (toBonus) => {
+        // Only pays when the rung actually moves, so re-opening a report and
+        // tapping an offer that was already taken does not pay for it twice.
+        if (Math.trunc(toBonus) > (get().userProfile.earnedLevelBonus ?? 0)) {
+          get().awardXp(XP.levelStep);
+        }
         set((st) => ({
           userProfile: {
             ...st.userProfile,
