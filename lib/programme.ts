@@ -499,7 +499,22 @@ export function selectProgramme(
   outcome: TreeOutcome,
   nowIso: string,
   sessionCount: number
-): EnrolledProgramme {
+): EnrolledProgramme | null {
+  /**
+   * NOBODY IS PUT ON A BLOCK THEY DID NOT ASK FOR.
+   *
+   * The builder used to enrol everyone who finished it. That was defensible on
+   * paper - an off-plan session leaves the block where it was, so a programme
+   * costs you nothing to ignore - and wrong in practice: somebody who wanted to
+   * look around got a twelve session block and a progress bar quietly measuring
+   * how much of it they had not done.
+   *
+   * Choosing to explore is not choosing less. Every session they pick is still
+   * built from the same profile, the same movement screen and the same injuries;
+   * they simply choose which one. The programme chooser is one tap away in Train
+   * for the day they want one, and starting one then costs them nothing either.
+   */
+  if (!outcome.guided) return null;
   return {
     templateId: templateIdFor(outcome.focus, outcome.days, outcome.experience === 'beginner'),
     days: outcome.days,

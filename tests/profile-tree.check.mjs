@@ -147,10 +147,35 @@ check(
   stranded.slice(0, 3).join(' | ')
 );
 
+/**
+ * RAISED FROM 16 TO 17, ONCE, AND THE TRADE IS WORTH WRITING DOWN.
+ *
+ * The bound exists so the form cannot creep. What pushed past it was the
+ * question asking whether somebody wants a programme at all - which costs the
+ * guided journey one question and saves the exploring journey SIX, because
+ * focus, days, minutes, length, test weeks and best lifts all exist to shape a
+ * block nobody is building.
+ *
+ * So the longest path got one longer and the shortest got a third shorter. That
+ * is the right direction for a form, and it is the only reason this number
+ * moved. It should not move again without the same kind of argument.
+ */
 check(
   'and the longest journey is short enough to be worth finishing',
-  longest <= 16,
+  longest <= 17,
   `${longest} questions is a form people abandon; branch more or move some after the first session`
+);
+check(
+  // The other half of the trade, asserted so it cannot quietly be lost.
+  'and somebody who declines a programme is asked meaningfully fewer',
+  (() => {
+    const asked = (a) => PROFILE_TREE.filter((n) => nodeApplies(n, a)).length;
+    const base = { look: 'dark', units: 'kg', experience: 'intermediate', sore: 'no' };
+    const guided = asked({ ...base, guided: 'yes', focus: 'barbell' });
+    const exploring = asked({ ...base, guided: 'no' });
+    return exploring <= guided - 5;
+  })(),
+  'the whole point of the question is that it saves the questions after it'
 );
 
 // ─── 3. Nobody is asked something irrelevant ────────────────────────────────
@@ -286,9 +311,29 @@ check(
 );
 
 check(
+  /**
+   * THE SIMPLEST JOURNEY MOVED, and it is now the explorer's.
+   *
+   * Somebody who wants a programme necessarily crosses one fork: the four
+   * questions that shape a block hang off having asked for one. That fork is
+   * drawn ONCE for the whole limb, not once per question - see opensFork in
+   * components/ProfileTree.tsx - so it is one line of explanation, which is
+   * what a fork is for.
+   *
+   * The journey with no fork at all is the person who declined: the four
+   * questions are not asked, so there is no limb to label.
+   */
   'nobody with a straight journey is shown a fork at all',
-  forks({ focus: 'joints', experience: 'beginner', sore: 'no' }).length === 0,
-  ''
+  forks({ guided: 'no', experience: 'beginner', sore: 'no' }).length === 0,
+  JSON.stringify(forks({ guided: 'no', experience: 'beginner', sore: 'no' }))
+);
+check(
+  'and somebody who asked for a programme crosses exactly one, drawn once',
+  (() => {
+    const f = forks({ guided: 'yes', focus: 'joints', experience: 'beginner', sore: 'no' });
+    return f.length === 1;
+  })(),
+  JSON.stringify(forks({ guided: 'yes', focus: 'joints', experience: 'beginner', sore: 'no' }))
 );
 
 // ─── 5. Progress counts the path, not the tree ──────────────────────────────

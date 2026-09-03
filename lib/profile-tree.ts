@@ -214,6 +214,9 @@ export function hasKitButNoGym(a: Answers): boolean {
   return (kit.includes('dumbbells') || kit.includes('kettlebells')) && !kit.includes('fullgym');
 }
 
+/** They explicitly declined. An unanswered question is not the same as a no. */
+const saidNo = (a: Answers, id: string) => a[id] === 'no';
+
 const focusIs = (a: Answers, ...want: ProgrammeFocus[]) =>
   want.includes(a.focus as ProgrammeFocus);
 
@@ -277,6 +280,46 @@ export const PROFILE_TREE: TreeNode[] = [
   },
   {
     /**
+     * THE CHOICE THE APP NEVER GAVE ANYBODY.
+     *
+     * Everybody who finished the builder was enrolled in a programme. It was
+     * true that they could pause it or ignore it - an off-plan session leaves
+     * the block exactly where it was, and always has - but being handed
+     * something and told you may put it down is not the same as being asked.
+     * Somebody who wanted to poke around, do a custom session and see what was
+     * in here got a twelve session block and a counter measuring how much of it
+     * they had not done.
+     *
+     * ASKED BEFORE the four questions that exist only to shape a programme, so
+     * answering "let me explore" skips all four rather than collecting answers
+     * for a thing nobody is building.
+     *
+     * EVERYTHING IN THE SECOND TIER IS STILL ASKED EITHER WAY. Experience, the
+     * movement screen, injuries and equipment decide what somebody is
+     * PRESCRIBED, and a person choosing their own sessions needs those to be
+     * right exactly as much as somebody on a block does. Arguably more: nobody
+     * is checking their week for them.
+     */
+    id: 'guided',
+    question: 'Want a programme built for you?',
+    hint: 'Either way you can train whatever you like, whenever you like. You can start a programme later, or leave one, without losing anything.',
+    kind: 'single',
+    tier: 'shape',
+    options: [
+      {
+        value: 'yes',
+        label: 'Yes, build me one',
+        hint: 'A few more questions, then every session is chosen for you',
+      },
+      {
+        value: 'no',
+        label: 'No, let me explore',
+        hint: 'Pick your own sessions, and start a programme whenever you want one',
+      },
+    ],
+  },
+  {
+    /**
      * The fork the whole app has been missing.
      *
      * Six answers, and each one selects a different programme template rather
@@ -289,6 +332,11 @@ export const PROFILE_TREE: TreeNode[] = [
     hint: 'This picks your programme. You can change it whenever you like.',
     kind: 'single',
     tier: 'shape',
+    branch: {
+      from: 'guided',
+      when: (a) => !saidNo(a, 'guided'),
+      label: 'Because you want a programme',
+    },
     options: [
       {
         value: 'barbell',
@@ -316,6 +364,12 @@ export const PROFILE_TREE: TreeNode[] = [
     hint: 'Be honest rather than hopeful. The programme is built to fit.',
     kind: 'single',
     tier: 'shape',
+    branch: {
+      from: 'guided',
+      when: (a) => !saidNo(a, 'guided'),
+      label: 'Because you want a programme',
+    },
+
     options: [
       { value: '2', label: '2 days', hint: 'Full body each time' },
       { value: '3', label: '3 days' },
@@ -328,6 +382,12 @@ export const PROFILE_TREE: TreeNode[] = [
     question: 'How long have you usually got?',
     kind: 'single',
     tier: 'shape',
+    branch: {
+      from: 'guided',
+      when: (a) => !saidNo(a, 'guided'),
+      label: 'Because you want a programme',
+    },
+
     options: [
       { value: '30', label: '30 minutes' },
       { value: '45', label: '45 minutes' },
@@ -344,6 +404,11 @@ export const PROFILE_TREE: TreeNode[] = [
      * when they sit side by side and as a wall when they are stacked.
      */
     id: 'length',
+    branch: {
+      from: 'guided',
+      when: (a) => !saidNo(a, 'guided'),
+      label: 'Because you want a programme',
+    },
     question: 'How many sessions should your first block be?',
     hint: 'Counted in sessions, not weeks, so it only moves when you train. It finishes with a review of everything that changed.',
     kind: 'single',
@@ -660,8 +725,24 @@ export const PROFILE_TREE: TreeNode[] = [
     ],
     branch: {
       from: 'focus',
-      when: (a) => focusIs(a, 'barbell', 'strength') && a.experience !== 'beginner',
-      label: 'Because you train the barbell lifts',
+      /**
+       * ASKED OF EXPLORERS TOO, and that is not an afterthought.
+       *
+       * These three numbers set every working weight in the app. Somebody who
+       * declined a programme is choosing which session to do, not asking to be
+       * given lighter ones - and without this branch they were never asked,
+       * because it hangs off a focus question they never saw. Their opening
+       * weights would have come from a bodyweight estimate alone while the
+       * person next to them, who ticked "build me a programme", got theirs from
+       * what they actually lift.
+       *
+       * Still not asked of a beginner, either way: somebody new to structured
+       * training has no honest number to give, and the app calibrates from their
+       * first two sessions instead.
+       */
+      when: (a) =>
+        (focusIs(a, 'barbell', 'strength') || saidNo(a, 'guided')) && a.experience !== 'beginner',
+      label: 'Because you lift with a barbell',
     },
   },
 ];
@@ -826,6 +907,17 @@ export function regionOptionsFor(regions: readonly { value: PainRegion; label: s
 /** What a finished tree says, in the types the rest of the app already uses. */
 export interface TreeOutcome {
   name: string;
+  /**
+   * Whether they asked for a programme at all.
+   *
+   * False means "let me explore": no block is started, and the four questions
+   * that only shape a block were never asked, so `focus`, `days`, `minutes` and
+   * `sessions` below hold defaults rather than answers. They are still filled in
+   * because the rest of the app reads them for other things - session length
+   * seeds the readiness screen, and the focus decides the rep ranges - but
+   * nothing should read them as a statement about a programme.
+   */
+  guided: boolean;
   focus: ProgrammeFocus;
   days: TrainingDays;
   minutes: SessionLength;
@@ -913,6 +1005,10 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
 
   return {
     name: String(answers.name ?? '').trim(),
+    // An unanswered question is not a no. Everybody who came through the
+    // builder before this question existed, and anybody whose draft predates it,
+    // gets the programme they have always been given.
+    guided: answers.guided !== 'no',
     focus: (answers.focus as ProgrammeFocus) ?? 'strength',
     days: (num(answers.days, 3) as TrainingDays) ?? 3,
     minutes: (num(answers.minutes, 45) as SessionLength) ?? 45,
@@ -943,11 +1039,26 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
      * is treated exactly as they are today; somebody who ticked "none of these
      * yet" has told us something, and every pattern starts from foundations.
      */
-    screenPassed: Array.isArray(answers.screen)
-      ? (answers.screen as string[]).filter((v): v is LadderPattern =>
-          LADDER_PATTERNS.includes(v as LadderPattern)
-        )
-      : null,
+    /**
+     * AND A SKIPPED SCREEN IS NOT AN EMPTY ONE, which is the distinction the
+     * whole question rests on and which the skip button quietly broke.
+     *
+     * The skip handler clears the node's answer, and clearing a multi-select
+     * means writing an empty array. That is the value meaning "I took the
+     * screen and passed nothing", which caps EVERY pattern at foundations - so
+     * tapping "Not sure" gave an advanced lifter the most restrictive answer in
+     * the question rather than no answer at all. Measured: an advanced profile
+     * that skipped came out with a pull ceiling of 1.
+     *
+     * The skip already leaves a marker behind. Reading it here is what turns
+     * "I would rather not say" back into silence.
+     */
+    screenPassed:
+      Array.isArray(answers.screen) && answers.screen__skipped !== true
+        ? (answers.screen as string[]).filter((v): v is LadderPattern =>
+            LADDER_PATTERNS.includes(v as LadderPattern)
+          )
+        : null,
     avoidRegions: Array.isArray(answers.avoid)
       ? (answers.avoid as string[]).filter((v): v is PainRegion => v !== 'none')
       : [],

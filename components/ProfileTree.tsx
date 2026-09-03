@@ -509,9 +509,13 @@ export function ProfileTree({
               <Ionicons name="checkmark" size={17} color={go.on} />
             </View>
             <Text style={styles.endTitle}>That is everything</Text>
+            {/* THE CARD HAS TO KNOW WHICH ENDING IS COMING. It promised a
+                programme to everybody, including the person who had just said
+                they did not want one two screens earlier. */}
             <Text style={styles.endBody}>
-              Your programme is built from these answers. You can change any of them later, and
-              change the programme itself whenever you like.
+              {answers.guided === 'no'
+                ? 'Every session you pick is built from these answers. You can change any of them later, and start a programme whenever you want one.'
+                : 'Your programme is built from these answers. You can change any of them later, and change the programme itself whenever you like.'}
             </Text>
           </Animated.View>
         )}

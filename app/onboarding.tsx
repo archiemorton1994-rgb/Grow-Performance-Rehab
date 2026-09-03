@@ -42,6 +42,7 @@ import { GrowIcon } from '@/components/GrowIcon';
 import type { GrowIconName } from '@/lib/icon-art';
 import { ProfileTree } from '@/components/ProfileTree';
 import { ProgrammeCertificate } from '@/components/ProgrammeCertificate';
+import { ExploreStart } from '@/components/ExploreStart';
 import { ProgrammeBuildMark } from '@/components/ProgrammeBuildMark';
 import { PAIN_CATEGORIES, useAppStore, type WeightUnit } from '@/lib/store';
 import { outcomeFrom, type Answers, type TreeOption } from '@/lib/profile-tree';
@@ -159,7 +160,7 @@ export default function OnboardingScreen() {
    * startedAtSessionCount is the history length now, which is zero for anybody
    * coming through onboarding and correct for anybody who is not.
    */
-  const preview: { programme: EnrolledProgramme; outcome: ReturnType<typeof outcomeFrom> } | null =
+  const preview: { programme: EnrolledProgramme | null; outcome: ReturnType<typeof outcomeFrom> } | null =
     useMemo(() => {
       if (!finished) return null;
       const outcome = outcomeFrom(finished);
@@ -193,12 +194,23 @@ export default function OnboardingScreen() {
   }, [started, finished]);
 
   if (preview) {
-    return (
+    /**
+     * TWO ENDINGS, ONE BUILDER.
+     *
+     * Somebody who asked for a programme is issued one, on paper, with its name
+     * and its shape. Somebody who said "let me explore" is not handed a
+     * document about a block they declined - they get the same paper listing
+     * what HAS been set up for them, which is everything except the block, and
+     * where to go next.
+     */
+    return preview.programme ? (
       <ProgrammeCertificate
         programme={preview.programme}
         outcome={preview.outcome}
         onContinue={onAccept}
       />
+    ) : (
+      <ExploreStart outcome={preview.outcome} onContinue={onAccept} />
     );
   }
 
