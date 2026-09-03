@@ -303,7 +303,7 @@ export default function ProgramScreen() {
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Your Program</Text>
+          <Text style={styles.headerTitle}>Your Programme</Text>
         </View>
         {/* The rotation's own badge, so it belongs to the rotation view. */}
         {!programme && showRotation && onStrengthProgramme && (

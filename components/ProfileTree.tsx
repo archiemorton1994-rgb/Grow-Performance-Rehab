@@ -980,8 +980,12 @@ function placeholderFor(node: TreeNode, unit: WeightUnit): string {
   if (node.id === 'kit') return `Heaviest, in ${unit}`;
   // Said "Optional", which it no longer is. Still NOT a number: a guessed weight
   // sitting in the box before anybody has typed is the same problem as printing
-  // the assumption out loud, and the unit is the useful thing to put there.
-  if (node.id === 'bodyweight') return `Your weight, in ${unit}`;
+  // the assumption out loud.
+  //
+  // And not "in kg" either. The field already carries a unit tag beside it, so
+  // the placeholder said the unit twice - photographed, and it read as clutter
+  // on the one question nobody can now skip past.
+  if (node.id === 'bodyweight') return 'Your weight';
   return '';
 }
 

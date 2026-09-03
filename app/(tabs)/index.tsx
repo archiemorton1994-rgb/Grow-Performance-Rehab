@@ -626,8 +626,6 @@ export default function HomeScreen() {
   );
   const blockCycleNumber = testWeeksCompleted + 1;
 
-  const progCycleNumber = Math.floor(strengthCount / 3) + 1;
-
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [draftWeight, setDraftWeight] = useState('');
@@ -1314,16 +1312,26 @@ export default function HomeScreen() {
                   is not. This tile used to read "CYCLE 10 · Session 3 of 3" to
                   everybody, which is the three-lift rotation's own counter and
                   describes nothing for a person on Joint Health. */}
+              {/* NO NUMBER WHEN THERE IS NO BLOCK.
+                  The un-enrolled branch showed progCycleNumber - the old
+                  three-lift rotation counter, completed strength sessions
+                  divided by three - as the biggest thing on the tile. It means
+                  nothing to anybody not on that rotation, a brand new user saw
+                  a large "1", and somebody who had just finished a block and
+                  earned a report was shown "FINISHED 7" where the 7 had nothing
+                  to do with the block they finished. An invitation does not need
+                  a figure. */}
               <Text style={styles.summaryCycleLabel}>
-                {reportReady ? 'FINISHED' : programme ? 'SESSION' : 'CYCLE'}
+                {reportReady ? 'FINISHED' : programme ? 'SESSION' : ''}
               </Text>
+              {/* The line is KEPT either way, with a space in it. Home is sized
+                  not to scroll and these tiles are fixed height, so dropping an
+                  element out of one is a layout change rather than a copy one. */}
               <Text style={styles.summaryBigNum}>
-                {programme && programmeTilePlace
-                  ? programmeTilePlace.done
-                  : progCycleNumber}
+                {programme && programmeTilePlace ? programmeTilePlace.done : ' '}
               </Text>
               <Text style={styles.summaryCardTitle} numberOfLines={1}>
-                {programme ? programmeName?.toUpperCase() : 'YOUR PROGRAM'}
+                {programme ? programmeName?.toUpperCase() : 'YOUR PROGRAMME'}
               </Text>
               <Text style={styles.summaryCardSub} numberOfLines={1}>
                 {reportReady
