@@ -71,6 +71,7 @@ import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/l
 import { router } from 'expo-router';
 import StandingAreasCard from '@/components/StandingAreasCard';
 import LevelRing from '@/components/LevelRing';
+import { strengthScore, strengthScoreLabel } from '@/lib/strength-score';
 import { xpStanding, xpBandName } from '@/lib/xp';
 
 const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
@@ -1121,9 +1122,40 @@ export default function ProfileScreen() {
               .filter((x) => x.orm !== null);
             if (lifts.length === 0) return null;
             const bwDisplay = kgToDisplayUnit(userProfile.bodyweightKg, weightUnit);
+            /**
+             * ONE NUMBER SUMMARISING THE THREE UNDER IT, and nowhere else in
+             * the app. The multipliers were already here and are the working;
+             * this is the answer. Deliberately not on the profile picture,
+             * which belongs to the XP level - two numbers competing for the
+             * same spot is exactly the "overwhelmed with scores" this had to
+             * avoid.
+             */
+            const strength = strengthScore({
+              bodyweightKg: userProfile.bodyweightKg,
+              sex: userProfile.sex,
+              bestKgByLift: Object.fromEntries(
+                lifts.map(({ lift, orm }) => [lift, orm!.weight])
+              ) as Partial<Record<'squat' | 'bench' | 'deadlift', number>>,
+            });
             return (
               <Animated.View entering={FadeInDown.delay(90).duration(400)} style={styles.ratioCard}>
                 <Text style={styles.ratioCardTitle}>Your strength progress</Text>
+                {strength && (
+                  <View style={styles.scoreRow} testID="strength-score">
+                    <Text style={styles.scoreValue}>{strength.score}</Text>
+                    <Text style={styles.scoreOutOf}>/100</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scoreLabel}>
+                        {strengthScoreLabel(strength.score)}
+                      </Text>
+                      <Text style={styles.scoreSub} numberOfLines={2}>
+                        {strength.missing > 0
+                          ? `Your lifts against your bodyweight, from ${strength.lifts.length} of 3 lifts.`
+                          : 'Your lifts against your bodyweight.'}
+                      </Text>
+                    </View>
+                  </View>
+                )}
                 <Text style={styles.ratioCardSub}>Bodyweight Multipliers</Text>
                 <View style={styles.ratioItemsRow}>
                   {lifts.map(({ lift, orm }) => {
@@ -2795,6 +2827,34 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 12,
+    },
+    /* The score sits above the multipliers it summarises, on the same card.
+       Big enough to be the answer, quiet enough not to become a second level. */
+    scoreRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'baseline' as const,
+      gap: 4,
+      marginTop: 10,
+      marginBottom: 14,
+    },
+    scoreValue: {
+      fontSize: 34,
+      fontFamily: 'Inter_700Bold',
+      color: C.primaryText,
+      fontVariant: ['tabular-nums'] as const,
+    },
+    scoreOutOf: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textTertiary,
+      marginRight: 8,
+    },
+    scoreLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.text },
+    scoreSub: {
+      fontSize: 11.5,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
     },
     ratioItemsRow: { flexDirection: 'row' as const, alignItems: 'center' as const },
     ratioItem: { flex: 1, alignItems: 'center' as const },

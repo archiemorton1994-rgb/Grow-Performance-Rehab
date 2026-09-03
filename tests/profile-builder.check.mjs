@@ -177,8 +177,30 @@ check(
   PROFILE_TREE.filter((n) => n.optional)
     .map((n) => n.id)
     .sort()
-    .join(',') === 'bodyweight,kit,lifts,screen',
+    .join(',') === 'kit,lifts,screen',
   PROFILE_TREE.filter((n) => n.optional).map((n) => n.id).join(',')
+);
+check(
+  /**
+   * BODYWEIGHT CAME OFF THIS LIST, and it is the one worth defending.
+   *
+   * It was optional on the reasoning that nobody should have to type their
+   * weight to use the app. What overturned that is what the fallback does: a
+   * bodyweight is not one input among several, it scales the opening load of
+   * every accessory, every bodyweight-relative movement and every estimate made
+   * before the app has watched anybody lift. Assuming 75 kg for a 55 kg person
+   * opens them about 35% too heavy on the one session where they are least able
+   * to tell that a weight is wrong for them.
+   *
+   * The other three are genuinely answerable with "I do not know": a movement
+   * screen nobody took leaves the ceilings where experience put them, a
+   * heaviest dumbbell nobody has measured should not block the form, and
+   * unknown best lifts are estimated from bodyweight - which is now always
+   * there to estimate from.
+   */
+  'and bodyweight is not one of them, so there is no way past it',
+  !PROFILE_TREE.some((n) => n.id === 'bodyweight' && (n.optional || n.skipLabel)),
+  'the skip button only renders for an optional node, so this is the whole gate'
 );
 check(
   // Skipping is only honest if the way past says what passing means.
@@ -209,9 +231,19 @@ check(
   `"${optedOut}" vs "${optedIn}"`
 );
 check(
-  'both versions say the numbers set the starting weights',
-  /starting weights/i.test(optedOut) && /starting weights/i.test(optedIn),
+  // WAS A SPELLING TEST for the exact phrase "starting weights", and it went red
+  // when the hint was rewritten to say more rather than less. What it is for is
+  // that both versions explain what answering BUYS, so ask that.
+  'both versions say what the numbers are actually for',
+  /(starting|opening) weights/i.test(optedOut) && /(starting|opening) weights/i.test(optedIn),
   'that is the reason the question survives an opt-out, so it has to be said either way'
+);
+check(
+  // The half that was missing: the old hint said the cost of answering and
+  // nothing about the benefit, so the rational move was to skip.
+  'and both say what skipping costs, so the choice is an informed one',
+  /conservativ/i.test(optedOut) && /conservativ/i.test(optedIn),
+  'a question that only says "optional" is a question people skip'
 );
 check(
   'only the opted-in version promises a re-test',

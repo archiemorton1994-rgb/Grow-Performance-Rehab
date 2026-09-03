@@ -454,40 +454,50 @@ check(
 );
 
 /**
- * THE BODYWEIGHT QUESTION NO LONGER READS ANYONE THEIR ASSUMED WEIGHT.
+ * BODYWEIGHT IS NOW REQUIRED, AND THIS ASSERTION USED TO SAY THE OPPOSITE.
  *
- * Skipping still falls back to ASSUMED_BODYWEIGHT_KG internally, because the
- * first session has to start somewhere. Printing that number is a different
- * matter. The people most likely to leave this blank are the ones least likely
- * to want a guess about their weight read back to them, and it is exactly those
- * people the guess will be furthest out for. It was in the placeholder too,
- * sitting in the box before they had typed anything.
+ * It read "nobody should have to type their weight to use the app", which was a
+ * real position honestly held. What overturned it is what the fallback actually
+ * does rather than what it costs to ask.
+ *
+ * Bodyweight is not one input among several. It scales the opening load of every
+ * accessory, every bodyweight-relative movement and every estimate the app makes
+ * before it has watched anybody lift. Assuming 75 kg for a 55 kg person opens
+ * them about 35% too heavy on the one session where they are least able to
+ * judge that a weight is wrong for them. "We will tune it from your first few
+ * sessions" was true, and was also a promise to be wrong for the first few
+ * sessions.
+ *
+ * So the question stays plain, keeps its reason attached, and has no way past.
  */
 check(
-  'answering it is optional, and the way past says what skipping means',
-  bw.optional === true && (bw.skipLabel ?? '').length > 3,
-  'nobody should have to type their weight to use the app'
+  'answering it is required, with no skip offered',
+  bw.optional !== true && bw.skipLabel === undefined,
+  'a guessed bodyweight is a guess in every session, not just this one'
 );
 check(
-  'it never prints the assumed figure at the user',
+  'and the question says why it is needed rather than just demanding it',
+  /needed/i.test(bw.hint ?? '') && /prescribe|worked out from it/i.test(bw.hint ?? ''),
+  'a required field with no reason on it is the one people abandon a form over'
+);
+check(
+  // Unchanged, and still right: the people most likely to balk are the ones the
+  // guess is furthest out for, so it is never read back at them.
+  'it never prints an assumed figure at the user',
   !/\b165|\b75 ?kg|ASSUMED/.test(JSON.stringify(bw)),
   'it said "the app assumes 165.3 lbs", and put the same number in the input as a placeholder'
 );
-const builderSrc = read('components/ProfileTree.tsx');
 check(
-  'the placeholder is not a number either',
-  /if \(node\.id === 'bodyweight'\) return 'Optional';/.test(builderSrc),
-  'a guessed weight sitting in the box is the same problem in a quieter voice'
-);
-check(
-  'and it says what actually happens instead, which is also true',
-  /tune your weights from how your first few sessions go/.test(bw.hint ?? ''),
-  'starting loads are an opening bid; the answers and the reps are what set the weight'
-);
-check(
-  'the fallback itself is untouched, because a first session needs a number',
-  /ASSUMED_BODYWEIGHT_KG/.test(read('lib/bodyweight.ts')),
-  'this is about what is said out loud, not about how the app works'
+  'there is no way past it anywhere in the builder',
+  (() => {
+    const tree = read('lib/profile-tree.ts');
+    const at = tree.indexOf("id: 'bodyweight',");
+    if (at < 0) return false;
+    // The node's own block, up to the next node's opening brace.
+    const block = tree.slice(at, tree.indexOf('\n  {', at));
+    return !/optional:\s*true/.test(block) && !/skipLabel/.test(block);
+  })(),
+  'the skip button only renders for an optional node, so this is the whole gate'
 );
 
 console.log('');

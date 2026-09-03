@@ -540,22 +540,30 @@ export const PROFILE_TREE: TreeNode[] = [
   },
   {
     /**
-     * OPTIONAL, and it has to stay optional.
+     * REQUIRED, AND IT WAS OPTIONAL UNTIL NOW.
      *
-     * Skipping falls back to ASSUMED_BODYWEIGHT_KG internally, because a first
-     * session has to start somewhere. That number is never read back at the
-     * user: the people most likely to leave this blank are the ones least likely
-     * to want a guess about their weight quoted at them, and they are exactly
-     * the people the guess is furthest out for. It is not in the placeholder
-     * either, for the same reason in a quieter voice.
+     * The old note here argued the other way, and the argument was a good one:
+     * the people least likely to answer are the people least likely to want a
+     * guess quoted at them. What settled it was what the guess actually does.
+     *
+     * Bodyweight is not one input among several. It scales the opening load of
+     * every accessory, every bodyweight-relative movement and every starting
+     * estimate the app makes before it has seen anybody lift. Assuming 75 kg for
+     * a 55 kg person opens them roughly 35% too heavy on their first session -
+     * which is the session where somebody is least able to judge whether a
+     * weight is wrong for them, and the one where getting it wrong costs the
+     * most. "We will tune it from your first few sessions" was true and was also
+     * a promise to be wrong for the first few sessions.
+     *
+     * So the question is asked plainly, with the reason attached, and there is
+     * no way past it: no skip, no blank, and setUserProfile refuses a figure
+     * outside MIN and MAX either way.
      */
     id: 'bodyweight',
-    question: 'Your current bodyweight',
-    hint: 'It sets your opening weights. Leave it blank if you would rather not, and we will tune your weights from how your first few sessions go.',
+    question: 'What do you weigh?',
+    hint: 'This one is needed. Nearly every weight the app prescribes is worked out from it, so a guess here is a guess in every session. It stays on your device unless you sign in, and you can change it whenever you like.',
     kind: 'number',
     tier: 'tune',
-    optional: true,
-    skipLabel: 'Rather not say',
   },
   {
     /**
@@ -709,11 +717,21 @@ export const PROFILE_TREE: TreeNode[] = [
      */
     id: 'lifts',
     question: 'Your best lifts',
+    /**
+     * THE HINT SAYS WHAT ANSWERING BUYS THEM, not just that it is optional.
+     *
+     * "Rough is fine" told somebody the cost of answering and nothing about the
+     * benefit, so the rational move was to skip. These three numbers are what
+     * separate a first session built for this person from a first session built
+     * for the average of everybody - both the weight on the bar and which
+     * variations of a movement they are handed at all. Saying so is the honest
+     * way to ask, and it is also the only way to get an answer.
+     */
     hint: 'Rough is fine. The app corrects itself within two sessions.',
     hintFor: (a) =>
       a.testWeeks === 'never'
-        ? 'These set your starting weights. Rough is fine, and the app corrects itself within two sessions.'
-        : 'These set your starting weights. Rough is fine, and your first strength test will re-measure them.',
+        ? 'These set your opening weights and the variations you are given, so your first session is pitched at you rather than at an average. Rough is fine, and the app corrects itself within two sessions. Skip them and it starts you conservatively instead.'
+        : 'These set your opening weights and the variations you are given, so your first session is pitched at you rather than at an average. Rough is fine, and your first strength test will re-measure them. Skip them and it starts you conservatively instead.',
     kind: 'number',
     tier: 'tune',
     optional: true,

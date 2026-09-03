@@ -978,9 +978,10 @@ function placeholderFor(node: TreeNode, unit: WeightUnit): string {
   if (node.id === 'name') return 'Your name';
   if (node.id === 'age') return 'Years';
   if (node.id === 'kit') return `Heaviest, in ${unit}`;
-  // NOT a number. A guessed weight sitting in the box before anybody has typed
-  // is the same problem as printing the assumption out loud.
-  if (node.id === 'bodyweight') return 'Optional';
+  // Said "Optional", which it no longer is. Still NOT a number: a guessed weight
+  // sitting in the box before anybody has typed is the same problem as printing
+  // the assumption out loud, and the unit is the useful thing to put there.
+  if (node.id === 'bodyweight') return `Your weight, in ${unit}`;
   return '';
 }
 
