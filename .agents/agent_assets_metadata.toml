@@ -89,27 +89,46 @@ id = "Y0cuoC_vzhSZp4BoB9Wmj"
 uri = "file://screenshots/subscription-preview.jpg"
 type = "image"
 title = "Paywall screenshot — £4.99 price + trial button"
+logical_id = "fdd6d50f-67c8-47a4-85a1-1d08268279d7"
 
 [[outputs]]
 id = "J0_UOUK5vHzSLC6qhqII5"
 uri = "file://screenshots/subscription-promo-1024.png"
 type = "image"
 title = "Subscription promotional image — 1024×1024 PNG"
+logical_id = "da4d995b-20e2-4b91-81b5-21861367c511"
 
 [[outputs]]
 id = "Q645CEj_6I-dEW-1IdRL-"
 uri = "file://screenshots/subscription-apple-1024.png"
 type = "image"
 title = "Apple subscription image — 1024×1024, 72 DPI, RGB, flat"
+logical_id = "68c48d39-6015-43a3-8ece-8fb562aa404e"
 
 [[outputs]]
 id = "eTwvv1cbWjUbkCzopCtbh"
 uri = "file://screenshots/subscription-apple-1024.jpg"
 type = "image"
 title = "Apple subscription image — 1024×1024, JPEG, 72 DPI, RGB, no alpha"
+logical_id = "b891d0b4-726f-4725-bce9-78e35dd34b80"
 
 [[outputs]]
 id = "NmjM2YyPL-3btfOvc3kZg"
 uri = "file://screenshots/subscription-review-1284x2778.jpg"
 type = "image"
 title = "Review Information screenshot — 1284×2778, JPEG, 72 DPI, RGB"
+logical_id = "60c697c1-548a-47e4-81a8-f162c222a055"
+
+[[outputs]]
+id = "SlzRBmJEWVWlXDHhfu7Ho"
+uri = "file://attached_assets/expo-go-sdk57-qr.png"
+type = "image"
+title = "Expo Go SDK 57 QR code"
+description = "Open Expo Go on your iPhone and scan this code to test the upgraded app."
+logical_id = "373053ed-dcb6-4e22-bb74-0a546adc0b40"
+content_hash = "sha256:6aea9143239303a743eb7ef11402cc685005ad68fde5be04fbe45ecb4a181ea9"
+size = 908
+mtime_ms = 1788864112218
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:c5ff05af-5744-4e34-8e2b-d9f9c73d49f2/373053ed-dcb6-4e22-bb74-0a546adc0b40/8c0760c6-9f5e-435a-b1c2-441a576e7df4"
+storage_version_token = "1788864112844616"
+content_type = "image/png"
