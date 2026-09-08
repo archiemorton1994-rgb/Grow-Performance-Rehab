@@ -1651,7 +1651,7 @@ export default function SessionSummaryScreen() {
                 <View ref={certRef} collapsable={false} style={styles.card}>
                   <LinearGradient
                     colors={SAGE.cardGradient}
-                    style={StyleSheet.absoluteFillObject}
+                    style={StyleSheet.absoluteFill}
                     pointerEvents="none"
                   />
                   {/* Top line: brand + date */}

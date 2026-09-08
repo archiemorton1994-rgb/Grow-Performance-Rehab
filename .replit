@@ -24,6 +24,7 @@ externalPort = 80
 [[ports]]
 localPort = 8082
 externalPort = 3000
+exposeLocalhost = true
 
 [[ports]]
 localPort = 8083
@@ -126,7 +127,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN npx expo start --port 8082 --localhost"
+args = "sh -c 'if [ -n \"$REPLIT_EXPO_SESSION_SECRET\" ]; then npx create-launch login --session \"$REPLIT_EXPO_SESSION_SECRET\" || true; fi; exec env EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN npx expo start --port 8082 --localhost'"
 
 [[workflows.workflow]]
 name = "body-diagram-fill-check"

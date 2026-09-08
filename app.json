@@ -7,17 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "growperformance",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#fafbfa",
-      "dark": {
-        "image": "./assets/images/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#0f1412"
-      }
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.growperformance",
@@ -33,7 +22,9 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
       }
@@ -73,7 +64,23 @@
           "savePhotosPermission": "Allow Grow to save your workout certificate to your photo library.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-image",
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#fafbfa",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#0f1412"
+          }
+        }
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

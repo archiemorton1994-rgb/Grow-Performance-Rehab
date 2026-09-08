@@ -1285,7 +1285,7 @@ export function BodyDiagram({
               width={svgWidth}
               height={svgWidth * DIAGRAM_ASPECT}
               viewBox="0 0 200 480"
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             >
               {/* scaleY 5/6: library renders at 400*scale px, container is 480*scale px.
                   Compressing hotspot paths by 400/480 aligns them with the visual body. */}
@@ -1318,7 +1318,7 @@ export function BodyDiagram({
               directly; this sits on top and wins real touches.
             */}
             <Pressable
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               onPress={(e) => {
                 const region = regionAtY(e.nativeEvent.locationY);
                 if (!region) return;

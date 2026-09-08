@@ -95,7 +95,7 @@ export function GlossaryTerm({
       </Text>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOpen(false)}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)}>
           {anchor && (
             <View
               style={[
