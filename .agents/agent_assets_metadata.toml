@@ -146,3 +146,17 @@ mtime_ms = 1789379041942
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:c5ff05af-5744-4e34-8e2b-d9f9c73d49f2/e1186e43-f35f-4218-9109-591a484b321f/89f5a138-b4bb-405b-93be-c15b5d85eb3e"
 storage_version_token = "1789379042699313"
 content_type = "image/png"
+
+[[outputs]]
+id = "tGLj6DOef1-Nqiyq09EIA"
+uri = "file://share/growtesters-expo-go-qr.png"
+type = "image"
+title = "Grow shared Expo Go QR"
+description = "Both phones should sign into Expo Go as growtesters before scanning this QR code."
+logical_id = "bd5c5b83-789f-4dcb-97c6-9fb65cada535"
+content_hash = "sha256:21ff6d1f991d98b04bb18b550218674f2dd51513afba4c4da75e492ce0d9111d"
+size = 5231
+mtime_ms = 1789380807985
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:c5ff05af-5744-4e34-8e2b-d9f9c73d49f2/bd5c5b83-789f-4dcb-97c6-9fb65cada535/0bc517d7-754e-4e8c-a565-38583fd26519"
+storage_version_token = "1789380808628142"
+content_type = "image/png"
