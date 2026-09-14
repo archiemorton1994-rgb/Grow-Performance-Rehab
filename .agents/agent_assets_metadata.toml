@@ -132,3 +132,17 @@ mtime_ms = 1788864112218
 storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:c5ff05af-5744-4e34-8e2b-d9f9c73d49f2/373053ed-dcb6-4e22-bb74-0a546adc0b40/85b186d4-f767-4900-af60-b0216ccc21ed"
 storage_version_token = "1789373542366157"
 content_type = "image/png"
+
+[[outputs]]
+id = "w-uDYJGKM9pboa6vBCqC2"
+uri = "file://share/expo-go-partner-qr.png"
+type = "image"
+title = "Expo Go partner QR code"
+description = "Send this QR code to your partner. They should sign into Expo Go as rosshannaford94 before scanning it."
+logical_id = "e1186e43-f35f-4218-9109-591a484b321f"
+content_hash = "sha256:21ff6d1f991d98b04bb18b550218674f2dd51513afba4c4da75e492ce0d9111d"
+size = 5231
+mtime_ms = 1789379041942
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:c5ff05af-5744-4e34-8e2b-d9f9c73d49f2/e1186e43-f35f-4218-9109-591a484b321f/89f5a138-b4bb-405b-93be-c15b5d85eb3e"
+storage_version_token = "1789379042699313"
+content_type = "image/png"
