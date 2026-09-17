@@ -70,20 +70,53 @@ check(
   'an end-range passive stretch on a strained pec, in the warm-up, is the one place it must not go'
 );
 
+/**
+ * Press-ups used to be listed below as a substitute that must SURVIVE a chest
+ * complaint, on the argument that removing the regression leaves nothing to put
+ * in the gap. Archie overruled that (decision 11, 2026-09-17) and the protocol
+ * he wrote is why: ACUTE_PROTOCOL_NOTES.chest.avoid reads "Press-ups of any
+ * kind, including incline - the bottom of a press-up is a loaded stretch of the
+ * pec". The app was printing that sentence on the rehab banner and serving
+ * press-ups in the same session.
+ *
+ * Every spelling, because the catalogue and the library disagree about the
+ * word: "Push-Up", "Push Up", "Press Ups", and the variants underneath them.
+ */
+for (const name of [
+  'Push-Up',
+  'Push Up',
+  'Kneeling Press Ups',
+  'Kneeling Incline Press Ups',
+  'Bench Press Ups',
+  'Incline Push-Up',
+  'Deficit Press Ups',
+  'Decline Press Ups',
+  'TRX Push Ups',
+  'Wide Push-Up',
+  'Scapular Push-Up',
+]) {
+  check(
+    `"${name}" is screened out (decision 11)`,
+    blocked(name),
+    'no press-up variation may reach a session where the chest is the sore area'
+  );
+}
+
 console.log('\n[2] ...without gutting the session or banning the substitutes');
 
 for (const name of [
-  'Push-Up',
   'Leg Press',
   'DB Shoulder Press',
   'Landmine Press',
   'Barbell Row',
   'Bodyweight Squat',
+  'Banded Serratus Punch',
+  'Door Frame Rows',
 ]) {
   check(
     `"${name}" is still allowed`,
     !blocked(name),
-    'over-screening leaves nothing to put in the gap - push-ups in particular are the regression the screen reaches for'
+    'over-screening leaves nothing to put in the gap - a chest complaint must still be able to train'
   );
 }
 

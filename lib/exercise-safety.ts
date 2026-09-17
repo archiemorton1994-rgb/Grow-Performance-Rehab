@@ -115,8 +115,19 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // Feet leaving the ground, and the landings that follow. Running belongs here
   // too — a 20 m shuttle is a hundred landings, and the names that carry it
   // ("KB Swing + Shuttle", "Steady Walk / Light Jog") never say jump.
-  { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskip\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
-  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskip\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging/i },
+  // \bskipping\b as well as \bskips?\b. Archie's conditioning list spells it
+  // "Skipping", and \bskip\b matched neither that nor "Skipping Rope" — so the
+  // one rope exercise the library actually contains was invisible to every
+  // impact rule, in a list of nine where it is the only thing that lands.
+  // Ball slams are here because a slam is a whole-body throw from overhead into
+  // the floor. Battle rope slams are deliberately NOT: the arms move, the feet
+  // do not, and a sore knee has no reason to lose one.
+  { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskips?\b|\bskipping\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat|shuttle|\bruns?\b|running|\bjogs?\b|jogging|(?:med ?ball|medicine ball|slam ?ball)[a-z ()]{0,14}slams?\b/i },
+  // Sled pushes and forward drags are driven off the toes, which is a large
+  // calf and Achilles demand; a duck walk is a squat walked in full
+  // dorsiflexion. Sled Pull is Archie's backwards drag and is deliberately
+  // absent - walking backwards is the option a sore ankle or knee keeps.
+  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskips?\b|\bskipping\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging|duck walks?\b|(?:sled|prowler)\s+(?:push|drag)/i },
 
   // Knee. The barbell squats and the leg press belong here for the same reason
   // the front squat does — the knee goes past 90° with the heaviest load the
@@ -132,7 +143,17 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // top of the accessory pool for a sore quad and the card read "Swapped from
   // Bulgarian Split Squat to protect your quads". Reproduced at
   // lower_body/bodyweight for quads and knee, at mild and at severe.
-  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squat\b|\bback squat\b|barbell squat|belt squat|zercher|\bleg press\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|knee drive|\bwall sit\b/i },
+  // Plurals. \bfront squat\b and \bback squat\b could not match "Band Resisted
+  // Front Squats" or "Band Resisted Back Squats", because the boundary after
+  // "squat" fails on the "s" - so the two heaviest squats in Archie's Athlete
+  // row carried no knee tag at all while their singular spellings did.
+  // Step-downs and step-overs, because "Slow Step-Down" is named in BOTH
+  // knee.avoid and quads.avoid and "step-up|step up" matched neither. A step
+  // down is the eccentric half of a step up, which is the harder half.
+  // Pin, pause and zombie squats are Archie's Advanced squats: all of them are
+  // a loaded barbell squat to full depth under a different name.
+  // A duck walk is a squat walked forwards, held at the bottom the whole time.
+  { tag: 'deep_knee_flexion', test: /bulgarian|split squat|sissy squat|pistol|cossack|curtsy|hack squat|deep squat|\bfront squats?\b|\bback squats?\b|barbell squat|belt squat|zercher|\bleg press\b|overhead squat|walking lunge|reverse lunge|lateral lunge|forward lunge|\blunge\b|step-up|step up|step-?\s?downs?\b|step-?\s?overs?\b|\b(?:pin|pause|zombie|anderson)\s+squats?\b|duck walks?\b|knee drive|\bwall sit\b/i },
   { tag: 'open_chain_knee', test: /leg extension|knee extension|quad extension/i },
   /**
    * The Copenhagen plank and its relatives.
@@ -149,15 +170,43 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
    * with the movement leaves nothing to put in its place - the same reasoning
    * as the light squats above.
    */
-  { tag: 'adductor_load', test: /copenhagen|\badductor\b|butterfly stretch|groin stretch|frog stretch/i },
+  // Sumo and wide-stance work, side lunges and cossacks added because
+  // hip_groin.avoid names them in so many words: "Lateral Band Walk, side
+  // lunges and wide-stance squats - these pull the groin long while it is
+  // under load and weight-bearing". A sumo goblet squat carried no groin tag
+  // at all, which is how a wide-stance squat reached a fresh groin strain.
+  // \bbutterfly\b, not `butterfly stretch`: the catalogue calls it "Seated
+  // Butterfly", which is the exact movement hip_groin.avoid opens its second
+  // line with, and the longer spelling missed it.
+  { tag: 'adductor_load', test: /copenhagen|\badductor\b|\bbutterfly\b|groin stretch|frog stretch|side lunges?\b|lateral lunges?\b|cossack|\bsumo\b|wide[- ]stance squat/i },
 
   // Hip and low back.
   // \bswings?\b spelled exactly as grip_load spells it. The plural was missing
   // here too: "EMOM Finisher: KB / DB Swings" and "Tabata Finisher: Alternating
   // Swings" were hinge-free, so a sore low back kept both.
-  { tag: 'loaded_hinge', test: /deadlift|romanian|\brdl\b|good morning|\bswings?\b|hip thrust|clean\b|snatch|jefferson|back extension|hyperextension|jump shrug/i },
-  { tag: 'spinal_compression', test: /back squat|front squat|overhead squat|zercher|barbell squat|standing (?:overhead|military|shoulder) press|push press|jerk|\bthruster\b|farmer|yoke|good morning|\bshrug\b/i },
-  { tag: 'lumbar_flexion', test: /sit-up|situp|crunch|toe touch|jackknife|v-up|\bv up\b|roll-?up|jefferson curl|russian twist/i },
+  // The WALL hip hinge, and only that one. Both protocols name the unloaded
+  // teaching drill by name - hamstrings.avoid opens its third line with "The
+  // wall hip hinge", lower_back.avoid ends its fifth with "including Hip Hinge
+  // Against Wall" - and Archie's library spells it "Wall Hip Hinge", which
+  // matched nothing. A bare `hip hinge` was tried first and is wrong: it swept
+  // in "Bodyweight Hip Hinge" and "Supported Hip Hinge", which are unloaded
+  // pattern practice and not a loaded hinge by this tag's own definition, and
+  // it pushed a sore glute past the third of the session the screen is allowed
+  // to rewrite. The bodyweight version is still caught for a sore hamstring by
+  // its own cue, which is the rule that belongs to it.
+  // A rack pull is a deadlift started at the knee, a pull-through is a hinge
+  // done with a cable, and a high pull is a deadlift finished at the chin.
+  { tag: 'loaded_hinge', test: /deadlift|romanian|\brdl\b|good morning|\bswings?\b|hip thrust|clean\b|snatch|jefferson|back extension|hyperextension|jump shrug|wall hip hinge|hip hinge[a-z ,()-]{0,14}wall|hip hinge drill|rack pulls?\b|pull-?\s?throughs?\b|high pulls?\b/i },
+  // Pin, pause, zombie and barbell box squats all put a loaded bar on the body.
+  // The standing-press pattern was written against three spellings of the same
+  // lift; "Standing Dumbbell Press" is the fourth, and it is the one in the
+  // library. A waiter carry is a weight held overhead and walked with.
+  { tag: 'spinal_compression', test: /back squats?\b|front squats?\b|overhead squat|zercher|barbell\s+(?:box\s+|belt\s+)?squats?\b|barbell squat|\b(?:pin|pause|zombie|anderson)\s+squats?\b|standing\s+(?:overhead|military|shoulder|dumbbell|db|kettlebell|kb|barbell|bb)?\s*press\b|push press|jerk|\bthruster\b|farmer|yoke|good morning|\bshrug\b|waiter carr(?:y|ies)/i },
+  // core_ribs.avoid closes on "Sit-ups, crunches, russian twists and leg
+  // raises - full-range trunk flexion is the fastest way to set this back".
+  // Spelled tightly around the hanging version so the many rehab drills called
+  // a straight leg raise are left alone.
+  { tag: 'lumbar_flexion', test: /sit-up|situp|crunch|toe touch|jackknife|v-up|\bv up\b|roll-?up|jefferson curl|russian twist|hanging\s+(?:straight[- ])?(?:leg|knee)\s+raises?\b/i },
 
   // Shoulder, elbow, wrist, neck.
   // \bslam\b, because a slam STARTS overhead. Reading that off the cue instead
@@ -165,14 +214,36 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // thing the prescription is trusted for — so the name has to carry it, and
   // every slam in the catalogue (med ball, battle rope) is thrown from above
   // the head. Without it "Med Ball Slam + Jump Rope Round" was overhead-free.
-  { tag: 'overhead', test: /overhead|\bohp\b|military press|shoulder press|push press|\bjerk\b|snatch|handstand|pull-?up|chin-?up|lat pulldown|\bthruster\b|\bpress-?out\b|\bslams?\b/i },
+  // Spellings, and they were costing whole exercises. `pull-?up` and
+  // `chin-?up` matched the catalogue's hyphens and missed Archie's library
+  // entirely: "Pull Ups", "Chin Ups" and "Band Assisted Chin Up" came back
+  // with NO tags at all - not overhead, not grip, not elbow - so a sore neck,
+  // a strained tricep and a healing elbow could all be handed a pull-up.
+  // The seated/standing/single-arm/alternating press list is the same story on
+  // the push side: every dumbbell overhead press in the library is named after
+  // the stance rather than the direction. It is written so that the equipment
+  // word must be followed by "press", which is what keeps "Alternating
+  // Dumbbell Bench Press" out of it.
+  // `snatch` now refuses "snatch grip", which is a deadlift grip and has
+  // nothing overhead about it.
+  // Hanging is overhead with the whole bodyweight on it, and a halo takes the
+  // bell around the head; front_shoulder.avoid closes on "Lifting the arm
+  // above shoulder height against gravity".
+  { tag: 'overhead', test: /overhead|\bohp\b|military press|shoulder press|push press|\bjerk\b|\bsnatch\b(?!\s*grip)|handstand|pull-?\s?ups?\b|chin-?\s?ups?\b|lat pulldowns?|\bthruster\b|\bpress-?out\b|\bslams?\b|landmine press|(?:seated|standing|single[- ]arm|alternating|half[- ]kneeling|tall[- ]kneeling)\s+(?:dumbbell|db|kettlebell|kb|barbell|bb|landmine|plate|arnold|neutral[- ]grip)?\s*press(?:es)?\b|\bhanging\b|dead hang|\bhalos?\b|waiter carr(?:y|ies)/i },
   // \brings?\b, not ring\b. Without the leading boundary it matched "Nordic
   // HamstRING Curl", so reporting shoulder pain removed a hamstring exercise.
   // A doorway chest opener is an end-range passive stretch on the front of the
   // shoulder and the pec. It was surviving a SEVERE chest complaint, in the
   // warm-up, which is the one place a strained pec should not be taken to end
   // range at all.
-  { tag: 'shoulder_end_range', test: /\bdips?\b|\bfly\b|\bflye\b|pec deck|upright row|behind[- ]the[- ]neck|behind neck|\bpullover\b|deep push-?up|\brings?\b|chest opener|doorway/i },
+  // Band pull-aparts are named by three protocols at once - rear_shoulder
+  // ("Band Pull-Apart and Prone Y Raise at their usual dose - both take the
+  // injured rear deltoid through full range under load and squeeze hard at the
+  // end"), upper_back and lat_mid_back - and matched nothing. A halo circles
+  // the shoulder at end range; a high pull finishes like an upright row.
+  // `doorway` still means the chest opener and NOT Archie's Door Frame Rows,
+  // which is the no-equipment pull a beginner with a sore chest keeps.
+  { tag: 'shoulder_end_range', test: /\bdips?\b|\bfly\b|\bflye\b|pec deck|upright row|behind[- ]the[- ]neck|behind neck|\bpullover\b|deep push-?up|\brings?\b|chest opener|doorway|pull-?\s?aparts?\b|\bhalos?\b|high pulls?\b/i },
   /**
    * Horizontal pressing — the tag the catalogue never had.
    *
@@ -182,22 +253,45 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
    * Bench Press 60-100 kg standing as the main lift, with close-grip and decline
    * bench behind it. The app asked where it hurt and then changed nothing.
    *
-   * Deliberately NOT push-ups: they are the regression the screen reaches for
-   * when heavier pressing is removed, and banning the substitute alongside the
-   * movement leaves nothing to put in its place. Same reasoning as the light
-   * squats under deep_knee_flexion.
+   * PRESS-UPS ARE IN THIS RULE, AND THEY USED NOT TO BE (Archie, decision 11).
+   *
+   * They were left out on the argument that a press-up is the regression the
+   * screen reaches for when heavier pressing is removed, so banning the
+   * substitute alongside the movement leaves nothing to put in its place - the
+   * same reasoning as the light squats under deep_knee_flexion.
+   *
+   * The chest protocol disagreed with that in writing, and the protocol wins.
+   * ACUTE_PROTOCOL_NOTES.chest.avoid line two reads "Press-ups of any kind,
+   * including incline - the bottom of a press-up is a loaded stretch of the
+   * pec". The app was therefore telling someone with a strained pec, on the
+   * rehab banner, that press-ups of any kind were out, and then serving them
+   * press-ups in the same session. Archie's decision 11 settles it: with a sore
+   * chest, no press-up variation is served. It costs the chest region its
+   * gentlest push and that is the intended price - there is nothing gentle
+   * about the bottom of a press-up for a healing pec.
+   *
+   * A bear crawl is here for the same reason: it is the top of a press-up,
+   * held, and moved. A plate squeeze press is a maximal pec contraction with
+   * the arms out in front. Supine med ball throws are a bench press thrown.
    */
   // Written against the names that actually exist. "incline press" alone missed
   // "DB Incline Press" and "Incline Barbell Bench Press", so incline/decline
   // allow words in between; "board press" and "JM press" are bench variants that
   // say neither. Leg Press is excluded explicitly - it is the one press in the
-  // catalogue that is nothing to do with the chest.
-  { tag: 'horizontal_press', test: /bench press|chest press|floor press|(?:incline|decline)\b[^,]{0,20}\bpress|board press|\bjm press\b|\bchest fly\b|chest pass|\bpec deck\b/i },
-  { tag: 'elbow_load', test: /\bcurl\b|curls\b|skull ?crusher|triceps? extension|triceps? pushdown|pushdown|kickback|\bdip\b|dips\b|chin-?up|preacher|concentration/i },
+  // catalogue that is nothing to do with the chest. Both spellings of the
+  // press-up: the catalogue writes "Push-Up", Archie writes "Press Ups", and
+  // the old `push-?up` pattern matched neither "Push Up" nor "Press Ups".
+  { tag: 'horizontal_press', test: /bench press|chest press|floor press|(?:incline|decline)\b[^,]{0,20}\bpress|board press|\bjm press\b|\bchest fly\b|chest pass|\bpec deck\b|\bbarbell press\b|push-?\s?ups?\b|press-?\s?ups?\b|bear crawl|squeeze press|(?:med ?ball|medicine ball)[a-z ()]{0,14}throws?\b/i },
+  { tag: 'elbow_load', test: /\bcurl\b|curls\b|skull ?crusher|triceps? extension|triceps? pushdown|pushdown|kickback|\bdip\b|dips\b|chin-?\s?ups?\b|preacher|concentration/i },
   // An ab wheel is the most wrist-extended loaded position in the catalogue —
   // bodyweight through a straight arm on a rolling handle — and it was being
   // offered as the exercise that would protect a sore wrist.
-  { tag: 'wrist_load', test: /push-?up|plank|bear crawl|front rack|handstand|burpee|renegade|\bdip\b|dips\b|upright row|wrist curl|mountain climber|ab wheel|\broll-?outs?\b/i },
+  // Catching and throwing a med ball is bodyweight-scale force arriving through
+  // an open hand; wrist.avoid and elbow.avoid both name loaded arm work.
+  // Both spellings of the press-up, for the reason given under
+  // horizontal_press: "Push Up", "Press Ups" and "TRX Push Ups" all carried no
+  // wrist tag, which is most of the push pattern in Archie's library.
+  { tag: 'wrist_load', test: /push-?\s?ups?\b|press-?\s?ups?\b|plank|bear crawl|front rack|handstand|burpee|renegade|\bdip\b|dips\b|upright row|wrist curl|mountain climber|ab wheel|\broll-?outs?\b|(?:med ?ball|medicine ball)[a-z ()]{0,14}(?:throws?|pass|slams?)\b/i },
   // `neck bridge` only — NOT a bare \bbridge\b. Every one of the 15 exercises in
   // the catalogue with "bridge" in its name is a GLUTE bridge, so the bare word
   // was a 100% false-positive rule: reporting neck or upper-back pain deleted
@@ -217,7 +311,11 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // matched the same bare word already, so the two rules disagreed about which
   // exercise "Swing" named. The mobility swings are stripped before any rule
   // runs — see NOT_WHAT_IT_LOOKS_LIKE.
-  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?up|chin-?up|snatch|\bclean\b|fat grip|grip strength|gripper|\bswings?\b/i },
+  //
+  // \bsuitcase\b, because a suitcase HOLD is the same hand as a suitcase
+  // CARRY and only the carry was matching. Sled rows and door frame rows are
+  // gripped hard for the whole set with nothing to rest the hand on.
+  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?\s?ups?\b|chin-?\s?ups?\b|snatch|\bclean\b|fat grip|grip strength|gripper|\bswings?\b|\bsuitcase\b|rack pulls?\b|high pulls?\b|sled rows?\b|door frame rows?\b/i },
 ];
 
 /**
@@ -236,6 +334,11 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
  *     Hamstring Curl to protect your bicep" and a sore tricep produced the same
  *     for "Hamstring Curl (light)". Same shape of mistake as \brings?\b once
  *     matching "Nordic HamstRING Curl", in the same corner of the catalogue.
+ *   plank — bodyweight through an open hand, except on the forearms, where the
+ *     wrist is not in the equation at all. wrist.avoid draws that line itself:
+ *     "Press-ups, planks, front rack holds or anything that puts bodyweight
+ *     through the palm". A forearm plank is what a sore wrist is supposed to
+ *     be given INSTEAD of a plank, and Archie's library names one.
  *
  * Removed from the name before any rule sees it rather than excluded rule by
  * rule, so a name containing BOTH a leg swing and a kettlebell swing still
@@ -244,7 +347,7 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
  * stripping it would cost lumbar_flexion the only pattern that catches it.
  */
 const NOT_WHAT_IT_LOOKS_LIKE =
-  /\b(?:arm|leg|shoulder|torso)\s+swings?\b|\b(?:leg|hamstring|nordic)\s+curls?\b/gi;
+  /\b(?:arm|leg|shoulder|torso)\s+swings?\b|\b(?:leg|hamstring|nordic)\s+curls?\b|\bforearm\s+(?:side\s+)?planks?\b|\belbow\s+planks?\b/gi;
 
 /**
  * The landing a name does not admit to.
@@ -413,9 +516,18 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   ankle_achilles: ['high_impact', 'ankle_load', 'calf_lengthen'],
   hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge', 'adductor_load', 'hip_end_range', 'quad_hipflexor_lengthen'],
   lower_back: ['high_impact', 'spinal_compression', 'lumbar_flexion', 'loaded_hinge', 'quad_hipflexor_lengthen'],
-  upper_back: ['spinal_compression', 'overhead', 'neck_load', 'spinal_end_range', 'neck_trap_lengthen'],
+  // shoulder_end_range, because upper_back.avoid names "Band Pull-Apart -
+  // straight-arm band work puts more pull through the rhomboids and mid-traps
+  // than a fresh strain can take" and "Prone T-Spine Extension". Both are
+  // end-range shoulder work and the region could not remove either.
+  upper_back: ['spinal_compression', 'overhead', 'neck_load', 'spinal_end_range', 'neck_trap_lengthen', 'shoulder_end_range'],
   neck: ['neck_load', 'overhead', 'spinal_compression', 'neck_trap_lengthen'],
-  front_shoulder: ['overhead', 'shoulder_end_range', 'pec_lengthen', 'posterior_shoulder_lengthen'],
+  // horizontal_press, because front_shoulder.avoid line four is "Press-ups,
+  // dips, bench pressing and overhead pressing - loaded shoulder flexion is a
+  // return-to-sport task, not a day 2-10 task". Three of those four were
+  // already removed and bench pressing was not, so the protocol said one thing
+  // on the banner and the session did another.
+  front_shoulder: ['overhead', 'shoulder_end_range', 'pec_lengthen', 'posterior_shoulder_lengthen', 'horizontal_press'],
   rear_shoulder: ['overhead', 'shoulder_end_range', 'posterior_shoulder_lengthen'],
   elbow: ['elbow_load', 'overhead', 'wrist_load', 'forearm_lengthen'],
   wrist: ['wrist_load', 'grip_load', 'forearm_lengthen'],
@@ -445,7 +557,14 @@ export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   chest: ['shoulder_end_range', 'horizontal_press', 'pec_lengthen'],
   bicep: ['elbow_load', 'grip_load', 'bicep_lengthen', 'posterior_shoulder_lengthen', 'forearm_lengthen'],
   tricep: ['elbow_load', 'overhead', 'tricep_lengthen', 'forearm_lengthen'],
-  lat_mid_back: ['loaded_hinge', 'spinal_compression', 'lat_lengthen'],
+  // overhead, because lat_mid_back.avoid says it plainly: "Any overhead
+  // reaching or hanging position - the lat is already at full stretch before
+  // you have even added load", and then "Pull-ups, lat pulldowns and dumbbell
+  // rows - the classic way people re-tear a lat is going back to pulling too
+  // soon". The pull-ups, the pulldowns and the hangs are covered by this. Rows
+  // are not, deliberately: taking every row away from a sore lat would empty
+  // the pull pattern, and that is a question for Archie rather than a spelling.
+  lat_mid_back: ['loaded_hinge', 'spinal_compression', 'lat_lengthen', 'overhead'],
   core_ribs: ['lumbar_flexion', 'loaded_hinge', 'spinal_end_range'],
 };
 
