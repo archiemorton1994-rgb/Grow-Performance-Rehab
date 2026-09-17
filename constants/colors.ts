@@ -1,4 +1,3 @@
-import { useColorScheme } from 'react-native';
 import { useAppStore } from '@/lib/store';
 import { GO } from '@/lib/go-colors';
 
@@ -307,27 +306,21 @@ export type AppColors = typeof LightColors;
 
 export function useColors(): AppColors {
   const themePreference = useAppStore((s) => s.themePreference);
-  const systemScheme = useColorScheme();
-  if (themePreference === 'light') return LightColors;
-  if (themePreference === 'dark') return DarkColors;
-  return systemScheme === 'light' ? LightColors : DarkColors;
+  return themePreference === 'light' ? LightColors : DarkColors;
 }
 
 /**
- * True when the app is painting its dark palette, whatever chose it.
+ * True when the app is painting its dark palette.
  *
- * The same three-way decision useColors makes, exposed on its own for the one
- * thing tokens cannot answer: which of a session's two shades to use. A session
+ * The same decision useColors makes, exposed on its own for the one thing
+ * tokens cannot answer: which of a session's two shades to use. A session
  * colour has a deep version for the exercise card's parchment and a bright one
  * for the app's own near-black background, and only the caller knows which
  * ground it is drawing on.
  */
 export function useIsDarkTheme(): boolean {
   const themePreference = useAppStore((s) => s.themePreference);
-  const systemScheme = useColorScheme();
-  if (themePreference === 'light') return false;
-  if (themePreference === 'dark') return true;
-  return systemScheme !== 'light';
+  return themePreference !== 'light';
 }
 
 /**
@@ -335,7 +328,7 @@ export function useIsDarkTheme(): boolean {
  *
  * Start the session, Did It, Mark Set Done, Complete Session. The values live
  * in lib/go-colors.ts, which has no react-native import so a contract test can
- * read them; this is only the three-way theme decision applied to them.
+ * read them; this is only the theme decision applied to them.
  */
 export function useGoColors(): { fill: string; on: string } {
   return useIsDarkTheme() ? GO.dark : GO.light;

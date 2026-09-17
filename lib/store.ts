@@ -29,6 +29,8 @@ import {
 
 import type { Answers, InjuryAge } from './profile-tree';
 import { outcomeFrom } from './profile-tree';
+import type { ThemePreference } from './theme-options';
+import { DEFAULT_THEME_PREFERENCE, normaliseThemePreference } from './theme-options';
 import type {
   CustomProgramme,
   EnrolledProgramme,
@@ -825,8 +827,8 @@ interface AppState {
   streakProtectionTime: string;
   /** Offset into the squat→bench→deadlift rotation for new users who chose a different starting session. */
   cycleStartOffset: number;
-  /** User's preferred colour scheme. 'system' follows the device setting. Default 'dark'. Persisted. */
-  themePreference: 'dark' | 'light' | 'system';
+  /** User's preferred colour scheme. Dark or Light, nothing else. Default 'dark'. Persisted. */
+  themePreference: ThemePreference;
   /**
    * Transient per-session equipment override. Set by the Train or Home tab chip; cleared on app
    * restart. NOT persisted — lives only in memory for the current app session.
@@ -941,7 +943,7 @@ interface AppState {
   setStreakProtectionTime: (time: string) => void;
   setWeeklyStreakGoal: (goal: number) => void;
   setCycleStartOffset: (offset: number) => void;
-  setThemePreference: (pref: 'dark' | 'light' | 'system') => void;
+  setThemePreference: (pref: ThemePreference) => void;
   setProfilePhotoUri: (uri: string | null) => void;
   setSessionEquipmentOverride: (tiers: EquipmentTier[]) => void;
   clearSessionEquipmentOverride: () => void;
@@ -1255,7 +1257,7 @@ export const useAppStore = create<AppState>()(
       programme: null,
       completedProgrammes: [],
       pendingProgrammeReportId: null,
-      themePreference: 'dark',
+      themePreference: DEFAULT_THEME_PREFERENCE,
       profilePhotoUri: null,
       exerciseNormalStreak: {},
       exerciseStuckStreak: {},
@@ -1428,7 +1430,7 @@ export const useAppStore = create<AppState>()(
         get().awardNewBadges();
       },
       setCycleStartOffset: (offset) => set({ cycleStartOffset: offset }),
-      setThemePreference: (pref) => set({ themePreference: pref }),
+      setThemePreference: (pref) => set({ themePreference: normaliseThemePreference(pref) }),
       setProfilePhotoUri: (uri) => {
         set({ profilePhotoUri: uri });
         if (uri) get().awardNewBadges();
@@ -2939,6 +2941,12 @@ export const useAppStore = create<AppState>()(
             oneRepMaxes: data.oneRepMaxes ?? s.oneRepMaxes,
             exerciseFeedback: data.exerciseFeedback ?? s.exerciseFeedback,
             weightUnit: (data.weightUnit as any) ?? s.weightUnit,
+            // themePreference is deliberately NOT adopted here: it is not part
+            // of SyncPayload, so the look is per device. If it is ever synced,
+            // it must arrive through normaliseThemePreference, because a copy
+            // uploaded by an older build can still say 'system' and would put
+            // back the value the v34 migration exists to remove.
+            // tests/theme-options.check.mjs holds this.
             testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
             testWeekDeferred: data.testWeekDeferred ?? s.testWeekDeferred,
             cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
@@ -3248,11 +3256,30 @@ export const useAppStore = create<AppState>()(
         if (!('testWeekDeferred' in persistedState)) {
           persistedState.testWeekDeferred = false;
         }
-        if (!('themePreference' in persistedState)) {
-          persistedState.themePreference = 'dark';
-        }
+        /**
+         * v34: the third theme is gone, and anyone on it lands on Light.
+         *
+         * 'system' followed the phone. It looked the same as Light to the
+         * people using it, so it was removed rather than kept as a button that
+         * buys nothing. Unconditional rather than the usual "seed it if it is
+         * missing", because there are two jobs here: a device that predates the
+         * field still needs the default, and a device that chose "Match my
+         * phone" needs converting. Left alone, useColors would fall through to
+         * Dark and somebody on a light phone would open the app black.
+         */
+        persistedState.themePreference = normaliseThemePreference(persistedState.themePreference);
         if (!('onboardingDraft' in persistedState)) {
           persistedState.onboardingDraft = null;
+        }
+        // And inside a half-finished builder, for the person who was midway
+        // through it when the update landed. Their saved answer to "Choose your
+        // look" is an option the question no longer offers, so on resume the
+        // screen would draw a question with nothing highlighted and no clue
+        // that they had already answered it.
+        if (persistedState.onboardingDraft?.treeAnswers?.look !== undefined) {
+          persistedState.onboardingDraft.treeAnswers.look = normaliseThemePreference(
+            persistedState.onboardingDraft.treeAnswers.look
+          );
         }
         // v21: badge prestige revamp. Profile-setup badges were removed — badges
         // are now earned through training only. Strip the 9 retired profile IDs
@@ -3389,7 +3416,7 @@ export const useAppStore = create<AppState>()(
 
         return persistedState;
       },
-      version: 33,
+      version: 34,
     }
   )
 );

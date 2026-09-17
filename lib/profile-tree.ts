@@ -55,6 +55,7 @@ import type {
   WeightUnit,
 } from './store';
 import { displayUnitToKg } from './utils';
+import { THEME_OPTIONS } from './theme-options';
 
 // ─── The vocabulary the builder introduces ──────────────────────────────────
 
@@ -248,11 +249,12 @@ export const PROFILE_TREE: TreeNode[] = [
     question: 'Choose your look',
     kind: 'single',
     tier: 'shape',
-    options: [
-      { value: 'dark', label: 'Dark' },
-      { value: 'light', label: 'Light' },
-      { value: 'system', label: 'Match my phone' },
-    ],
+    /**
+     * The same two buttons the Appearance row in settings offers, drawn from
+     * the same array so the builder and settings cannot drift apart. "Match my
+     * phone" used to sit under these; it looked the same as Light, so it went.
+     */
+    options: THEME_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
   },
   {
     /**

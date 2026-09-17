@@ -43,6 +43,7 @@ import {
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
+import { THEME_OPTIONS } from '@/lib/theme-options';
 import { uploadUserData } from '@/lib/sync';
 import { nextTestNotice } from '@/lib/test-week-copy';
 import { buildPhysioSummary } from '@/lib/physio-summary';
@@ -2299,13 +2300,7 @@ export default function ProfileScreen() {
               <Text style={styles.settingItemLabel}>Appearance</Text>
               <Text style={styles.settingItemSub}>Choose your preferred colour theme</Text>
               <View style={styles.freqRow}>
-                {(
-                  [
-                    { value: 'dark', label: 'Dark' },
-                    { value: 'light', label: 'Light' },
-                    { value: 'system', label: 'System' },
-                  ] as const
-                ).map(({ value, label }) => (
+                {THEME_OPTIONS.map(({ value, label }) => (
                   <Pressable
                     key={value}
                     onPress={() => {

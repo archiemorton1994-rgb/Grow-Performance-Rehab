@@ -46,6 +46,7 @@ import { ExploreStart } from '@/components/ExploreStart';
 import { ProgrammeBuildMark } from '@/components/ProgrammeBuildMark';
 import { PAIN_CATEGORIES, useAppStore, type WeightUnit } from '@/lib/store';
 import { outcomeFrom, type Answers, type TreeOption } from '@/lib/profile-tree';
+import { normaliseThemePreference } from '@/lib/theme-options';
 import { selectProgramme, type EnrolledProgramme } from '@/lib/programme';
 
 /**
@@ -123,8 +124,14 @@ export default function OnboardingScreen() {
    */
   const onAnswersChange = useCallback(
     (answers: Answers) => {
-      const look = answers.look;
-      if (look === 'dark' || look === 'light' || look === 'system') {
+      /**
+       * 'system' is still listed here on purpose. The option is gone from the
+       * tree, but a draft saved by a build that still offered "Match my phone"
+       * is read back by this build, and its answer has to land somewhere. It
+       * becomes Light, the same place the v34 migration sends it.
+       */
+      const look = normaliseThemePreference(answers.look);
+      if (answers.look === 'dark' || answers.look === 'light' || answers.look === 'system') {
         setThemePreference(look);
       }
       if (answers.units === 'kg' || answers.units === 'lbs') {
