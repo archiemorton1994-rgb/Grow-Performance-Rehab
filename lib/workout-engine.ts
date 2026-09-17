@@ -3272,12 +3272,11 @@ function generateWorkoutUnscreened(
     atEarnedLevel(mechanicalPool, profile),
     sessionSeed
   );
-  if (timeAvailable === '60') {
-    for (const m of mechanical.slice(0, 2))
-      exercises.push(applyComfortOrBadge(m, hasAches, painRegion, equipmentTier));
-  } else {
-    exercises.push(applyComfortOrBadge(mechanical[0], hasAches, painRegion, equipmentTier));
-  }
+  // A slice rather than mechanical[0], so an empty pool drops the block instead
+  // of handing undefined on and throwing. See tests/empty-pools.check.mjs.
+  const mechanicalCount = timeAvailable === '60' ? 2 : 1;
+  for (const m of mechanical.slice(0, mechanicalCount))
+    exercises.push(applyComfortOrBadge(m, hasAches, painRegion, equipmentTier));
 
   // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
   // Power goal: use goal-specific plyometric templates (depth jumps, power
@@ -3297,13 +3296,16 @@ function generateWorkoutUnscreened(
     const neuroTemplate = seededShuffleDiverse(
       atEarnedLevel(neuroPool, profile),
       sessionSeed
-    )[0];
-    const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
-    // Power goal: always perform 5 sets in the neuro block.
-    if (hasPowerGoal && !hasAches) {
-      neuroEx.sets = Math.max(neuroEx.sets, 5);
+    )[0] as ExerciseTemplate | undefined;
+    // An empty pool drops the block. See tests/empty-pools.check.mjs.
+    if (neuroTemplate) {
+      const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
+      // Power goal: always perform 5 sets in the neuro block.
+      if (hasPowerGoal && !hasAches) {
+        neuroEx.sets = Math.max(neuroEx.sets, 5);
+      }
+      exercises.push(neuroEx);
     }
-    exercises.push(neuroEx);
   }
 
   // ── 5. KPI Lift ──────────────────────────────────────────────────────────
@@ -3392,8 +3394,12 @@ function generateWorkoutUnscreened(
       getFinisher(mainType, equipmentTier, finisherKey),
       profile
     );
-    const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
-    exercises.push(templateToExercise(finisher, finBadge));
+    const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] as
+      | ExerciseTemplate
+      | undefined;
+    // An empty pool drops the block, as the weekly sessions' finisher already
+    // did. See tests/empty-pools.check.mjs.
+    if (finisher) exercises.push(templateToExercise(finisher, finBadge));
   }
 
   // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
@@ -3402,21 +3408,25 @@ function generateWorkoutUnscreened(
     // their session is the acute one. It used to be PREHAB_BY_REGION[region][0]
     // — for hamstrings, a 45-second-a-side Standing Hamstring Stretch on a
     // muscle they had just reported as strained.
-    const prehabTemplate = readiness?.painRegion
+    const prehabTemplate: ExerciseTemplate | undefined = readiness?.painRegion
       ? getRegionPrehabExercise(
           Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion,
           { acute: true }
         )
       : seededShuffleDiverse(getPrehab(mainType, equipmentTier), sessionSeed)[0];
-    const phEx = templateToExercise(prehabTemplate);
-    phEx.sets = 1;
-    exercises.push(phEx);
+    // An empty pool drops the slot. See tests/empty-pools.check.mjs.
+    if (prehabTemplate) {
+      const phEx = templateToExercise(prehabTemplate);
+      phEx.sets = 1;
+      exercises.push(phEx);
+    }
   }
 
   // ── 9. Cool Down breathing (60 min only) ─────────────────────────────────
   if (timeAvailable === '60') {
     const cooldown = possibleFor(getCooldown(), equipmentTier);
-    exercises.push(templateToExercise(cooldown[0]));
+    // An empty pool drops the block. See tests/empty-pools.check.mjs.
+    if (cooldown.length > 0) exercises.push(templateToExercise(cooldown[0]));
   }
 
   const isUpperBody = mainType === 'bench';
@@ -3710,7 +3720,7 @@ function generateWeeklyWorkout(
   if (timeAvailable === '45') {
     // Same rule as the KPI path above: a named region is a sore region, so the
     // rehab slot comes from the acute protocol.
-    const prehabTemplate = painRegion
+    const prehabTemplate: ExerciseTemplate | undefined = painRegion
       ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion, {
           acute: true,
         })
@@ -3725,9 +3735,12 @@ function generateWeeklyWorkout(
           ),
           sessionSeed
         )[0];
-    const phEx = templateToExercise(prehabTemplate);
-    phEx.sets = 1;
-    exercises.push(phEx);
+    // An empty pool drops the slot. See tests/empty-pools.check.mjs.
+    if (prehabTemplate) {
+      const phEx = templateToExercise(prehabTemplate);
+      phEx.sets = 1;
+      exercises.push(phEx);
+    }
   }
 
   // ── 5. Finisher (60 min only) ─────────────────────────────────────────────
@@ -3836,7 +3849,13 @@ function generateConditioningWorkout(
   // the order of two or three efforts, not which efforts they are. Rotation was
   // the engine half of this defect; the other half is more entries in
   // CONDITIONING_WORKOUTS, and that is lib/exercise-db.ts.
-  const rest = templates.slice(1);
+  //
+  // The opening warm-up is recognised as a warm-up rather than assumed to be
+  // there. When its pool is empty, the first card in the list is a piece of the
+  // circuit, and treating that as the warm-up left it unshuffled at the top with
+  // the mobility stretches below it, in the middle of the work.
+  const warmup = templates[0]?.category === 'prep' ? templates.slice(0, 1) : [];
+  const rest = templates.slice(warmup.length);
   const finisher = rest.filter((t) => t.category === 'finisher');
   const cooldown = rest.filter((t) => t.category === 'cooldown');
   const work = seededShuffleDiverse(
@@ -3845,7 +3864,7 @@ function generateConditioningWorkout(
   );
   const withPrep =
     templates.length > 0
-      ? [templates[0], ...prepTemplates, ...work, ...finisher, ...cooldown]
+      ? [...warmup, ...prepTemplates, ...work, ...finisher, ...cooldown]
       : templates;
 
   const personalized = withPrep.map((t) =>

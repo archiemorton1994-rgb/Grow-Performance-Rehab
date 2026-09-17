@@ -16446,6 +16446,12 @@ function localDayIndex(): number {
  *
  * The four pools are walked at different lengths on purpose — 4, 8, 5 and 3 —
  * so the combination only comes round again every 120 days.
+ *
+ * AN EMPTY POOL CONTRIBUTES NOTHING, rather than an undefined entry. Modulo by
+ * a length of zero is NaN, so the old pick handed back undefined, and spreading
+ * an undefined circuit threw before the session was built. The rebuild onto the
+ * exercise library empties several of these pools, and a session with no
+ * finisher is a shorter session, not a crash. tests/empty-pools.check.mjs.
  */
 export function getConditioningWorkout(
   tier: EquipmentTier,
@@ -16453,12 +16459,13 @@ export function getConditioningWorkout(
   rotation: number = localDayIndex()
 ): ExerciseTemplate[] {
   const internal = toInternalTier(tier);
-  const pick = <T,>(pool: T[]): T => pool[((rotation % pool.length) + pool.length) % pool.length];
+  const pick = <T,>(pool: T[]): T[] =>
+    pool.length === 0 ? [] : [pool[((rotation % pool.length) + pool.length) % pool.length]];
   return [
-    pick(CONDITIONING_WARMUPS[internal]),
-    ...pick(CONDITIONING_WORKOUTS[internal][energy]),
-    pick(CONDITIONING_FINISHERS[internal][energy]),
-    pick(CONDITIONING_COOLDOWNS),
+    ...pick(CONDITIONING_WARMUPS[internal]),
+    ...pick(CONDITIONING_WORKOUTS[internal][energy]).flat(),
+    ...pick(CONDITIONING_FINISHERS[internal][energy]),
+    ...pick(CONDITIONING_COOLDOWNS),
   ];
 }
 
@@ -16887,6 +16894,9 @@ export function getGoalConditioningBlock(
   // Only use the first (primary) exercise - keeps the conditioning block tight
   // and avoids bloating the session with a second finisher exercise.
   const primary = base[0];
+  // An empty pool drops the block. Reading `.sets` off nothing threw, and took
+  // the whole strength session down with it. See tests/empty-pools.check.mjs.
+  if (!primary) return [];
   // Scale sets based on experience level so beginners work at lower volume
   // (−1 set, min 1) and advanced athletes at higher volume (+1 set).
   const scaledSets =
@@ -19069,11 +19079,14 @@ export function getRegionPrehabWorkout(
  *
  * The acute list leads with its gentlest exercise deliberately, so taking the
  * first entry is still the right rule — it now yields an isometric.
+ *
+ * Undefined when the region's list is empty, and the session then goes without
+ * its rehab slot rather than failing to build. See tests/empty-pools.check.mjs.
  */
 export function getRegionPrehabExercise(
   region: PainRegion,
   opts: PrehabOptions = {}
-): ExerciseTemplate {
+): ExerciseTemplate | undefined {
   if (opts.acute) return ACUTE_PREHAB_BY_REGION[region][0];
   return PREHAB_BY_REGION[region][0];
 }
@@ -20630,6 +20643,47 @@ export function getWeeklyUpperBodyExercises(tier: EquipmentTier): ExerciseTempla
 export function getWeeklyFullBodyExercises(tier: EquipmentTier): ExerciseTemplate[] {
   return WEEKLY_FULL_BODY[toInternalTier(tier)];
 }
+
+/**
+ * Every pool a session generator reads from, by name.
+ *
+ * FOR tests/empty-pools.check.mjs, NOT FOR THE APP. The rebuild onto the
+ * exercise library empties many of these, and a read of an empty pool used to
+ * throw and take the whole session with it. That check empties each pool in
+ * turn, in memory, and builds every kind of session to prove none of them
+ * crashes or shows a blank card. It can only empty what it can reach, so a new
+ * pool that a generator reads belongs in this list too.
+ *
+ * The same arrays, not copies. Nothing in the app should read or change them
+ * through here; the accessors above are the way in.
+ *
+ * Not listed: MAIN_LIFTS, POWER_NEURO and PREHAB_COOLDOWN_BY_REGION, which hold
+ * one exercise per cell rather than a pool, so there is nothing to empty.
+ */
+export const SESSION_POOLS = {
+  CARDIO_WARMUPS,
+  PREP,
+  MECHANICAL,
+  POWER_MECHANICAL,
+  NEURO,
+  ACCESSORIES,
+  PREHAB,
+  FINISHERS,
+  COOLDOWN,
+  CONDITIONING_WARMUPS,
+  CONDITIONING_WORKOUTS,
+  CONDITIONING_FINISHERS,
+  CONDITIONING_COOLDOWNS,
+  GOAL_CONDITIONING_BLOCKS,
+  ORM_TEST,
+  STANDALONE_PREHAB,
+  STANDALONE_FLEXIBILITY,
+  PREHAB_BY_REGION,
+  ACUTE_PREHAB_BY_REGION,
+  WEEKLY_LOWER_BODY,
+  WEEKLY_UPPER_BODY,
+  WEEKLY_FULL_BODY,
+};
 
 export interface PickableExercise {
   template: ExerciseTemplate;
