@@ -53,6 +53,7 @@ import {
   type CoachAction,
 } from '@/lib/coach';
 import { resumeParams } from '@/lib/resume-params';
+import { photoSource } from '@/lib/profile-photo';
 
 /**
  * THE TOUR, REBUILT — and mostly by deleting.
@@ -251,6 +252,7 @@ export default function HomeScreen() {
   } = useAppStore();
 
   const [coachOpen, setCoachOpen] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
@@ -1012,8 +1014,14 @@ export default function HomeScreen() {
               accessibilityLabel="Open profile"
               accessibilityRole="button"
             >
-              {profilePhotoUri ? (
-                <Image source={{ uri: profilePhotoUri }} style={styles.headerAvatarImg} />
+              {profilePhotoUri && !photoFailed ? (
+                <Image
+                  source={{ uri: photoSource(profilePhotoUri) }}
+                  style={styles.headerAvatarImg}
+                  // A saved photo whose file has gone falls back to the initial
+                  // rather than an empty circle. See lib/profile-photo.ts.
+                  onError={() => setPhotoFailed(true)}
+                />
               ) : firstName ? (
                 <Text style={styles.headerAvatarInitial}>{firstName[0].toUpperCase()}</Text>
               ) : (

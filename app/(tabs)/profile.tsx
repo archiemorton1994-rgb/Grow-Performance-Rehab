@@ -71,6 +71,7 @@ import { kgToDisplayUnit, displayUnitToKg, formatDate, friendlyError } from '@/l
 import { router } from 'expo-router';
 import StandingAreasCard from '@/components/StandingAreasCard';
 import LevelRing from '@/components/LevelRing';
+import { keepProfilePhoto, photoSource } from '@/lib/profile-photo';
 import { strengthScore, strengthScoreLabel } from '@/lib/strength-score';
 import { xpStanding, xpBandName } from '@/lib/xp';
 
@@ -442,6 +443,12 @@ export default function ProfileScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  /**
+   * The saved photo could not be drawn: an old address from before photos were
+   * kept properly, whose file the phone has since cleared. Show the initial
+   * instead of an empty circle. Reset whenever a new photo is picked.
+   */
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   /**
    * Opening the settings sheet at a particular section.
@@ -845,9 +852,20 @@ export default function ProfileScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        // Only web needs the picture itself: there is no file there to keep.
+        base64: Platform.OS === 'web',
       });
       if (!result.canceled && result.assets[0]?.uri) {
-        setProfilePhotoUri(result.assets[0].uri);
+        const picked = result.assets[0];
+        // Kept somewhere the phone will not clear. See lib/profile-photo.ts.
+        const kept = await keepProfilePhoto(
+          picked.uri,
+          picked.base64,
+          picked.mimeType,
+          profilePhotoUri
+        );
+        setPhotoFailed(false);
+        setProfilePhotoUri(kept);
         if (Platform.OS !== 'web')
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -1035,8 +1053,12 @@ export default function ProfileScreen() {
           >
             <LevelRing C={C} xpTotal={xpTotal}>
               <View style={styles.avatar}>
-                {profilePhotoUri ? (
-                  <Image source={{ uri: profilePhotoUri }} style={styles.avatarPhoto} />
+                {profilePhotoUri && !photoFailed ? (
+                  <Image
+                    source={{ uri: photoSource(profilePhotoUri) }}
+                    style={styles.avatarPhoto}
+                    onError={() => setPhotoFailed(true)}
+                  />
                 ) : userProfile.name ? (
                   <Text style={styles.avatarInitial}>{userProfile.name[0].toUpperCase()}</Text>
                 ) : (
