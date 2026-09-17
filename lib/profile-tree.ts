@@ -883,6 +883,9 @@ export function everyJourney(): Answers[] {
     'fitness',
     'joints',
   ];
+  // The three the tree actually offers. There is a fourth level in the engine,
+  // Athlete, and no picker can set it yet, so there is no journey to walk for
+  // it. It joins this list in the change that adds it to the experience node.
   const experiences: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced'];
   const out: Answers[] = [];
   for (const focus of focuses) {

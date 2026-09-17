@@ -4,9 +4,11 @@
  * THE THREE THINGS THAT MUST HOLD
  * ───────────────────────────────
  * EVERY ANSWER LANDS. Six answers to "what should this be built around", four
- * frequencies and three experience levels. Every combination has to produce a
- * real programme with a real cycle of real session types. A combination that
- * falls through to undefined is a home screen offering an empty workout.
+ * frequencies and every experience level there is. Every combination has to
+ * produce a real programme with a real cycle of real session types. A
+ * combination that falls through to undefined is a home screen offering an
+ * empty workout. The levels are read off the store rather than copied in here,
+ * because a hand-written copy is how a fourth level was added and never tested.
  *
  * THE OLD BEHAVIOUR SURVIVES. Barbell Strength on two or three days a week is
  * squat, bench, deadlift, in that order, which is exactly what every user of the
@@ -59,6 +61,8 @@ import {
   weeksFor,
 } from '../lib/programme.ts';
 import { outcomeFrom, SESSION_COUNTS } from '../lib/profile-tree.ts';
+import './_persist-shim.mjs';
+import { EXPERIENCE_LEVELS } from '../lib/store.ts';
 
 let passed = 0;
 let failed = 0;
@@ -85,7 +89,10 @@ const SESSION_TYPES = (() => {
 
 const FOCUSES = ['barbell', 'strength', 'muscle', 'comeback', 'fitness', 'joints'];
 const DAYS = [2, 3, 4, 5];
-const LEVELS = ['beginner', 'intermediate', 'advanced'];
+/** Every training level the app has, from the store. Not a copy of them. */
+const LEVELS = [...EXPERIENCE_LEVELS];
+/** Whoever is at the top of that list, rather than whoever was on the day. */
+const TOP_LEVEL = LEVELS[LEVELS.length - 1];
 
 // ─── 1. The templates are sound ─────────────────────────────────────────────
 console.log('\n[1] Every template can actually be trained');
@@ -94,6 +101,12 @@ check(
   'the session types were read off the store',
   SESSION_TYPES.length >= 8 && SESSION_TYPES.includes('squat'),
   `got ${JSON.stringify(SESSION_TYPES)}; the union has moved and this file is now guessing`
+);
+
+check(
+  `and so were the ${LEVELS.length} training levels: ${LEVELS.join(', ')}`,
+  LEVELS.length >= 3 && LEVELS[0] === 'beginner' && LEVELS.includes('advanced'),
+  `got ${JSON.stringify(LEVELS)}; everything below walks this list, so a wrong one proves nothing`
 );
 
 check('there are programmes', PROGRAMME_IDS.length >= 6, `${PROGRAMME_IDS.length}`);
@@ -655,8 +668,10 @@ check(
   ''
 );
 check(
-  'Elite is reachable, so it is a label rather than decoration',
-  programmeDifficulty('barbell', 'advanced', 5).label === 'Elite' &&
+  // Whoever is top of the list, rather than whoever was top on the day this was
+  // written: the check is that the hardest label is reachable at all.
+  'Elite is reachable by the top level, so it is a label rather than decoration',
+  programmeDifficulty('barbell', TOP_LEVEL, 5).label === 'Elite' &&
     DIFFICULTY_LABELS[DIFFICULTY_LABELS.length - 1] === 'Elite',
   'a band nothing can ever land in is a word on a page'
 );
@@ -665,21 +680,50 @@ check(
   (() => {
     const seen = new Set();
     for (const id of PROGRAMME_IDS)
-      for (const e of ['beginner', 'intermediate', 'advanced'])
-        for (const d of [2, 3, 4, 5]) seen.add(programmeDifficulty(id, e, d).label);
+      for (const e of LEVELS)
+        for (const d of DAYS) seen.add(programmeDifficulty(id, e, d).label);
     return DIFFICULTY_LABELS.every((l) => seen.has(l));
   })(),
   'six words with only four outcomes behind them'
 );
 check(
-  'and every one of them says why, naming something real',
-  PROGRAMME_IDS.every((id) =>
-    [2, 3, 4, 5].every((d) => {
-      const why = programmeDifficulty(id, 'advanced', d).because;
-      return why.length > 12 && !/undefined|NaN/.test(why);
-    })
-  ),
+  // Hardened deliberately. The old version read only the sentence, and a level
+  // with no row in the capability table produces label undefined and score NaN
+  // while still writing a perfectly sensible sentence - so the sentence alone
+  // would have passed on output that crashes four screens.
+  'and every combination gives a real label, a real score and says why',
+  (() => {
+    const bad = [];
+    for (const id of PROGRAMME_IDS)
+      for (const e of LEVELS)
+        for (const d of DAYS) {
+          const r = programmeDifficulty(id, e, d);
+          if (
+            !DIFFICULTY_LABELS.includes(r.label) ||
+            !Number.isFinite(r.score) ||
+            r.because.length <= 12 ||
+            /undefined|NaN/.test(r.because)
+          )
+            bad.push(`${id}/${e}/${d} -> ${r.label} (${r.score})`);
+        }
+    return bad.length === 0;
+  })(),
   'a label on its own invites the question it should be answering'
+);
+check(
+  // The list is in ascending order, so this is the shape of the whole table:
+  // answering that you train more cannot be given a gentler programme.
+  'the difficulty never drops as the level goes up',
+  PROGRAMME_IDS.every((id) =>
+    DAYS.every((d) =>
+      LEVELS.every(
+        (e, i) =>
+          i === 0 ||
+          programmeDifficulty(id, e, d).score >= programmeDifficulty(id, LEVELS[i - 1], d).score
+      )
+    )
+  ),
+  'somebody further up the list is being handed an easier block than somebody below them'
 );
 
 // ─── 12. Which sessions were the programme's ────────────────────────────────

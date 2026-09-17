@@ -48,10 +48,13 @@ import { readFileSync } from 'fs';
 import { PATTERN_CHECK_QUESTIONS, CHECK_FROM_LEVEL } from '../lib/exercise-levels.ts';
 import {
   DIFFICULTY_LABELS,
+  MAX_EXERCISE_LEVEL,
   PROGRAMME_IDS,
   levelCeilingFor,
   programmeDifficulty,
 } from '../lib/programme.ts';
+import './_persist-shim.mjs';
+import { EXPERIENCE_LEVELS } from '../lib/store.ts';
 
 let failures = 0;
 let total = 0;
@@ -289,22 +292,43 @@ check(
 // ─── 5. It reaches a real session ────────────────────────────────────────────
 console.log('\n[5] The ceiling reaches the sessions people are actually handed');
 
+/** Every level the app has, read off the store rather than copied in here. */
+const LEVELS = [...EXPERIENCE_LEVELS];
+
+/** What each experience level can actually be prescribed, from the real function. */
+const reachableFor = (e) =>
+  DIFFICULTY_LABELS.filter((d) =>
+    PROGRAMME_IDS.some((id) => [2, 3, 4, 5].some((days) => programmeDifficulty(id, e, days).label === d))
+  );
+
 check(
   // The label is a fact about the programme and the ceiling is a fact about the
   // person, and they have to agree or the app shows one thing and does another.
   'nobody can be prescribed past the hardest band their experience can reach',
-  ['beginner', 'intermediate', 'advanced'].every((e) => {
-    const ceiling = levelCeilingFor(e);
-    const reachable = DIFFICULTY_LABELS.filter((d) => {
-      // Every difficulty this experience can actually land on, from the real
-      // function rather than from a copy of its table.
-      return PROGRAMME_IDS.some((id) =>
-        [2, 3, 4, 5].some((days) => programmeDifficulty(id, e, days).label === d)
-      );
-    });
-    return reachable.every((d) => levelBandFor(d).max <= ceiling);
-  }),
+  LEVELS.every((e) => reachableFor(e).every((d) => levelBandFor(d).max <= levelCeilingFor(e))),
   'a beginner choosing the barbell programme must not unlock level 4 work by answering differently'
+);
+check(
+  // Without this the check above passes VACUOUSLY for any level whose table row
+  // is missing: the labels come back undefined, so nothing is "reachable", so
+  // [].every() is true. Measured - that is exactly what a fourth level with no
+  // capability row did.
+  'and every level can reach something, so that is not an empty list',
+  LEVELS.every((e) => reachableFor(e).length > 0),
+  LEVELS.map((e) => `${e}:${reachableFor(e).length}`).join(' ')
+);
+check(
+  'the movement ceiling never drops as the level goes up, and the top level reaches the top rung',
+  (() => {
+    const ceilings = LEVELS.map((e) => levelCeilingFor(e));
+    const top = LEVELS[LEVELS.length - 1];
+    return (
+      ceilings.every((c, i) => i === 0 || c >= ceilings[i - 1]) &&
+      levelCeilingFor(top) === MAX_EXERCISE_LEVEL &&
+      levelCeilingFor(top, 99) === MAX_EXERCISE_LEVEL
+    );
+  })(),
+  LEVELS.map((e) => `${e}:${levelCeilingFor(e)}`).join(' ')
 );
 
 {

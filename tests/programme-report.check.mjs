@@ -42,7 +42,12 @@ import {
   REPORT_VERSION,
   MAX_EARNED_BONUS,
 } from '../lib/programme-report.ts';
-import { cycleOf, deloadIndexes } from '../lib/programme.ts';
+import { cycleOf, deloadIndexes, levelCeilingFor, MAX_EXERCISE_LEVEL } from '../lib/programme.ts';
+import './_persist-shim.mjs';
+import { EXPERIENCE_LEVELS } from '../lib/store.ts';
+
+/** Every training level, from the store. Not three of them copied in here. */
+const LEVELS = [...EXPERIENCE_LEVELS];
 
 let passed = 0;
 let failed = 0;
@@ -554,18 +559,32 @@ check(
   JSON.stringify(levelStepFor('intermediate', MAX_EARNED_BONUS, clean()))
 );
 check(
-  // Somebody who answered "3 yrs plus" is already at the top of the ladder, so
-  // there is nothing to earn and the app must not invent a sixth rung.
+  // Anybody whose experience already reaches the top of the ladder has nothing
+  // to earn, and the app must not invent a sixth rung for them. Written as
+  // "every level at the ceiling", not as "advanced", so it keeps meaning the
+  // same thing when there is a level above advanced.
   'and somebody already at the top of the ladder is offered nothing',
   (() => {
-    const step = levelStepFor('advanced', 0, clean({ effort: effort(20, 0) }));
-    return !step.earned && step.fromBand.max === step.toBand.max && step.fromBand.max === 5;
+    const atTop = LEVELS.filter((lvl) => levelCeilingFor(lvl, 0) === MAX_EXERCISE_LEVEL);
+    return (
+      // The top of the list is one of them, or something has put the highest
+      // level anybody can pick somewhere below the top of the ladder.
+      atTop.includes(LEVELS[LEVELS.length - 1]) &&
+      atTop.every((lvl) => {
+        const step = levelStepFor(lvl, 0, clean({ effort: effort(20, 0) }));
+        return (
+          !step.earned &&
+          step.fromBand.max === step.toBand.max &&
+          step.fromBand.max === MAX_EXERCISE_LEVEL
+        );
+      })
+    );
   })(),
-  JSON.stringify(levelStepFor('advanced', 0, clean({ effort: effort(20, 0) })))
+  LEVELS.map((lvl) => `${lvl}:${JSON.stringify(levelStepFor(lvl, 0, clean({ effort: effort(20, 0) })))}`).join(' ')
 );
 check(
   'a step that is not earned never moves the ceiling either',
-  ['beginner', 'intermediate', 'advanced'].every((lvl) => {
+  LEVELS.every((lvl) => {
     const step = levelStepFor(lvl, 0, clean({ cleanSessions: 1, effort: effort(20, 10) }));
     return !step.earned && step.fromBonus === step.toBonus && step.fromBand.max === step.toBand.max;
   }),
@@ -586,10 +605,28 @@ check(
     levelStepFor('beginner', 0, clean({ effort: effort(2, 0) })),
     levelStepFor('beginner', 0, clean({ cleanSessions: 1 })),
     levelStepFor('beginner', 0, clean({ effort: effort(20, 19) })),
-    levelStepFor('advanced', 0, clean({ effort: effort(20, 0) })),
     levelStepFor('intermediate', MAX_EARNED_BONUS, clean()),
+    // One perfect block at every level, so a level with no table row cannot
+    // slip through with a sentence built out of undefined.
+    ...LEVELS.map((lvl) => levelStepFor(lvl, 0, clean({ effort: effort(20, 0) }))),
   ].every((s) => s.because.trim().length > 30 && !/undefined|NaN/.test(s.because)),
   ''
+);
+check(
+  // The measured failure was a sentence reading "built on foundations movements
+  // rather than foundations": a level with no ceiling row was offered a rung
+  // from level 1 to level 2, and both ends of the sentence named the same band.
+  'and a rung that is offered always names two different rungs',
+  LEVELS.every((lvl) =>
+    [0, 1, MAX_EARNED_BONUS].every((bonus) => {
+      const step = levelStepFor(lvl, bonus, clean({ effort: effort(20, 0) }));
+      // The sentence names the rung it builds on at each end, so the two have
+      // to be different rungs or it reads "built on foundations movements
+      // rather than foundations".
+      return !step.earned || (step.toBand.prefer > step.fromBand.prefer && step.toBand.max > step.fromBand.max);
+    })
+  ),
+  LEVELS.map((lvl) => `${lvl}:${JSON.stringify(levelStepFor(lvl, 0, clean({ effort: effort(20, 0) })))}`).join(' ')
 );
 
 // ─── 6. Freezing it ─────────────────────────────────────────────────────────

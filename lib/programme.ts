@@ -1053,6 +1053,14 @@ const CAPABILITY: Record<ExperienceLevel, number> = {
   beginner: 0,
   intermediate: 2,
   advanced: 3,
+  // The same as advanced, deliberately. This number decides the WORD printed on
+  // the block, and the label has to describe the work. An athlete on the three
+  // day barbell block is handed the same sessions as an advanced lifter - the
+  // same movement band, the same schemes, the same sets - so calling it Elite
+  // for one of them and Advanced for the other would be the app flattering
+  // somebody for the answer they gave. Raise it when athlete sessions actually
+  // differ, and not before.
+  athlete: 3,
 };
 
 /** The hardest label each experience level can be prescribed. See the docblock. */
@@ -1060,6 +1068,12 @@ const CAPABILITY_CEILING: Record<ExperienceLevel, number> = {
   beginner: 1,
   intermediate: 3,
   advanced: 5,
+  // Also the same as advanced, and this one is the earn-the-barbell rule. The
+  // ladders stop at level 5 and advanced already reaches it, so the top of the
+  // scale cannot move up. Do NOT make room by lowering advanced: everybody who
+  // has already answered "3 yrs plus" would lose a rung overnight for a change
+  // they never made.
+  athlete: 5,
 };
 
 export interface ProgrammeDifficulty {

@@ -1,4 +1,4 @@
-import { EquipmentTier, ExerciseCategory, SessionType, PainRegion } from './store';
+import { EquipmentTier, ExerciseCategory, ExperienceLevel, SessionType, PainRegion } from './store';
 // The acute-phase protocols. Kept in their own file rather than in this one:
 // they are the safety-critical half of the rehab content and need to be
 // readable on their own, not buried at line 18,000 of a 20,000-line database.
@@ -16888,7 +16888,7 @@ const GOAL_CONDITIONING_BLOCKS: Record<
 export function getGoalConditioningBlock(
   tier: EquipmentTier,
   energy: 'easy' | 'normal' | 'hard',
-  experienceLevel?: 'beginner' | 'intermediate' | 'advanced'
+  experienceLevel?: ExperienceLevel
 ): ExerciseTemplate[] {
   const base = GOAL_CONDITIONING_BLOCKS[toInternalTier(tier)][energy];
   // Only use the first (primary) exercise - keeps the conditioning block tight
@@ -16898,11 +16898,15 @@ export function getGoalConditioningBlock(
   // the whole strength session down with it. See tests/empty-pools.check.mjs.
   if (!primary) return [];
   // Scale sets based on experience level so beginners work at lower volume
-  // (−1 set, min 1) and advanced athletes at higher volume (+1 set).
+  // (−1 set, min 1) and experienced lifters at higher volume (+1 set).
+  //
+  // Athlete gets what advanced gets, and no more. The finisher is meant to be
+  // tight: a five set sled push would become seven, and the extra capacity an
+  // athlete has belongs in their main work rather than in a longer finisher.
   const scaledSets =
     experienceLevel === 'beginner'
       ? Math.max(1, primary.sets - 1)
-      : experienceLevel === 'advanced'
+      : experienceLevel === 'advanced' || experienceLevel === 'athlete'
         ? primary.sets + 1
         : primary.sets;
   return [{ ...primary, sets: scaledSets }];

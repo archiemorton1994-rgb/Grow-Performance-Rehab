@@ -74,7 +74,15 @@ function listSessions(nums: number[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-/** The same three the profile builder asks, in the same order. */
+/**
+ * The same three the profile builder asks, in the same order.
+ *
+ * There is a fourth level in the engine now, Athlete, and it is deliberately
+ * not here yet: the picker copy is being rewritten in one go rather than a word
+ * at a time, and nothing can set 'athlete' until it is. Both lists move
+ * together when it lands, because a level this control cannot show is a level
+ * somebody gets demoted out of by tapping the segment next to it.
+ */
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string }[] = [
   { value: 'beginner', label: 'New to it' },
   { value: 'intermediate', label: '1 to 3 yrs' },

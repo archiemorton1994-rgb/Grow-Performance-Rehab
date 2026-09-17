@@ -99,10 +99,35 @@ function getLegalUrls() {
 }
 const { privacyUrl, termsUrl } = getLegalUrls();
 
+/**
+ * The word for each level, wherever this screen prints one.
+ *
+ * Typed on the level union, so every level has a word and a new one cannot be
+ * forgotten. It is kept apart from the chips below because the chips are what
+ * can be CHOSEN here and this is what can be SHOWN here, and for the moment
+ * those are different lists: Athlete exists in the engine and is not offered by
+ * any picker yet. Reading the label off the chips is how somebody would have
+ * been shown "Beginner" for a level this screen simply had no chip for.
+ */
+const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  athlete: 'Athlete',
+};
+
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string }[] = [
-  { value: 'beginner', label: 'Beginner', desc: 'New to gym or returning after a long break' },
-  { value: 'intermediate', label: 'Intermediate', desc: '1-3 years consistent training' },
-  { value: 'advanced', label: 'Advanced', desc: '3+ years, familiar with main lifts' },
+  {
+    value: 'beginner',
+    label: EXPERIENCE_LABELS.beginner,
+    desc: 'New to gym or returning after a long break',
+  },
+  {
+    value: 'intermediate',
+    label: EXPERIENCE_LABELS.intermediate,
+    desc: '1-3 years consistent training',
+  },
+  { value: 'advanced', label: EXPERIENCE_LABELS.advanced, desc: '3+ years, familiar with main lifts' },
 ];
 
 const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ionicons.glyphMap }[] =
@@ -875,13 +900,14 @@ export default function ProfileScreen() {
   };
 
   const displayName = userProfile.name || 'Set your name';
-  const expLabel =
-    EXPERIENCE_OPTIONS.find((e) => e.value === userProfile.experienceLevel)?.label ?? 'Beginner';
+  const expLabel = EXPERIENCE_LABELS[userProfile.experienceLevel] ?? '';
   const activeGoals = userProfile.goals?.length ? userProfile.goals : ['fitness' as FitnessGoal];
   const firstGoalLabel = GOAL_OPTIONS.find((o) => o.value === activeGoals[0])?.label ?? 'Fitness';
 
   const equipmentSubtitle = getEquipmentLabel(effectiveTier);
-  const editDetailsSubtitle = `${expLabel} · ${firstGoalLabel}`;
+  // A level with no word for it drops out of the line rather than dragging a
+  // stray separator onto the card with it.
+  const editDetailsSubtitle = expLabel ? `${expLabel} · ${firstGoalLabel}` : firstGoalLabel;
 
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -1076,9 +1102,11 @@ export default function ProfileScreen() {
             <View style={styles.tagGreen} testID="profile-xp-band">
               <Text style={styles.tagGreenText}>{xpBandName(xpStanding(xpTotal).level)}</Text>
             </View>
-            <View style={styles.tagGreen}>
-              <Text style={styles.tagGreenText}>{expLabel}</Text>
-            </View>
+            {expLabel !== '' && (
+              <View style={styles.tagGreen}>
+                <Text style={styles.tagGreenText}>{expLabel}</Text>
+              </View>
+            )}
             {activeGoals.map((g) => {
               const opt = GOAL_OPTIONS.find((o) => o.value === g);
               return (

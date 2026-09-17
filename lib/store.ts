@@ -98,7 +98,43 @@ export type TimeAvailable = '30' | '45' | '60';
  * touched a KPI lift.
  */
 export type TestWeekFrequency = 12 | 18 | 'never';
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+/**
+ * THE TRAINING LEVELS, easiest first, and the one list everything reads.
+ *
+ * The order is load-bearing: several checks walk it and assert that nothing a
+ * level is allowed goes DOWN as you move along it. Anything appended has to be
+ * harder than what is already here.
+ *
+ * ATHLETE SITS ON TOP OF ADVANCED, NOT PAST IT. The movement ladders stop at
+ * level 5 and Advanced already reaches it, so choosing Athlete unlocks no
+ * movement that Advanced does not: harder movements are earned by finishing
+ * blocks, never by picking a bigger word for yourself. What Athlete carries is
+ * its own row in every table the engine keys on experience, so it can be given
+ * its own weights and its own rate of climb when there is a reason to.
+ *
+ * ADDING ONE IS THE POINT OF THE CONST. Every table keyed on experience is
+ * typed `Record<ExperienceLevel, ...>` rather than `Record<string, ...>`, so a
+ * level with no row of its own fails the build instead of silently picking up
+ * whatever the `??` fallback beside it happened to say. That fallback was how
+ * an athlete would have been handed an intermediate's starting weights.
+ *
+ * NOT OFFERED ANYWHERE YET. Nothing in the app can set 'athlete' at the time of
+ * writing; the pickers still show three. This is the plumbing, put in first and
+ * on its own so the behaviour can be checked before anybody can choose it.
+ */
+export const EXPERIENCE_LEVELS = ['beginner', 'intermediate', 'advanced', 'athlete'] as const;
+export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
+
+/**
+ * Is this stored string one of the levels this build knows?
+ *
+ * For values arriving from outside the type system: a persisted profile, a
+ * payload synced down from another device, a half-finished onboarding draft.
+ * Anything else is not a level, and the caller decides what to do about it.
+ */
+export function isExperienceLevel(x: unknown): x is ExperienceLevel {
+  return typeof x === 'string' && (EXPERIENCE_LEVELS as readonly string[]).includes(x);
+}
 export type FitnessGoal = 'strength' | 'muscle' | 'fat_loss' | 'fitness' | 'rehab' | 'power';
 export type WeightUnit = 'kg' | 'lbs';
 

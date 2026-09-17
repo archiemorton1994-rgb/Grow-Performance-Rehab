@@ -1000,10 +1000,18 @@ const DELOAD_FRACTION = 0.9;
  * slightly too fast now ends in a stall and a 10% reset rather than in a number
  * that climbs forever, so the system is self-limiting whatever this says.
  */
-const EXPERIENCE_RATE: Record<string, number> = {
+const EXPERIENCE_RATE: Record<ExperienceLevel, number> = {
   beginner: 1,
   intermediate: 0.6,
   advanced: 0.4,
+  // The same rate as advanced. Somebody training near their ceiling does not
+  // adapt faster than an experienced lifter, so the honest answer to "how fast
+  // should the bar climb for an athlete" is "no faster than this". It is its
+  // own row rather than a shared one because the table below used to be keyed
+  // on plain strings with a fallback to intermediate, and a missing row meant
+  // an athlete climbed FASTER than an advanced lifter without anything saying
+  // so. Typed on the level union, a new level cannot be forgotten here.
+  athlete: 0.4,
 };
 
 /**
@@ -1040,7 +1048,13 @@ export function progressedLoad(
   // exported and its name promises a progression, not a hold.
   if (performance === 'failed' || lastKg <= 0) return lastKg;
 
-  const rate = EXPERIENCE_RATE[experienceLevel ?? 'intermediate'] ?? EXPERIENCE_RATE.intermediate;
+  // The cast and the fallback are both deliberate. The parameter is a plain
+  // string because what arrives here is whatever was persisted or synced down,
+  // which can be a level this build has never heard of; anything unrecognised
+  // is treated as intermediate rather than as the fastest climber. The table
+  // itself is typed on the level union, so a level this build DOES know about
+  // cannot quietly land on that same fallback.
+  const rate = EXPERIENCE_RATE[experienceLevel as ExperienceLevel] ?? EXPERIENCE_RATE.intermediate;
   const pct =
     (performance === 'very_easy'
       ? PROGRESSION_PCT.very_easy
@@ -1314,7 +1328,25 @@ function personalizeLoad(
   const REF_BW = 80;
   const bwRatio = profile.bodyweightKg / REF_BW;
 
-  const expFactor: Record<string, number> = { beginner: 0.45, intermediate: 0.7, advanced: 1.0 };
+  /**
+   * The first weight, before anything has been logged.
+   *
+   * Athlete is 1.0, the same as advanced. This is a guess made from bodyweight
+   * alone, and the low end of the range is what gets prescribed, so a number
+   * above advanced would open an athlete's first session heavier than anything
+   * they have shown the app they can lift. An honest "that was easy" moves it
+   * up within the session and keeps it there; a failed opening set does not.
+   *
+   * Typed on the level union so a level with no row fails the build. It used to
+   * be keyed on plain strings with `?? 0.7` below, which would have started an
+   * athlete 30% LIGHTER than an advanced lifter and never said a word.
+   */
+  const expFactor: Record<ExperienceLevel, number> = {
+    beginner: 0.45,
+    intermediate: 0.7,
+    advanced: 1.0,
+    athlete: 1.0,
+  };
   const goalFactor: Record<string, number> = {
     strength: 1.08,
     muscle: 1.0,

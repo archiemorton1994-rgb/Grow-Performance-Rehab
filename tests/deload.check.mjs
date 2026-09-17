@@ -39,6 +39,11 @@ import {
   DELOAD_WEEK_LOAD,
 } from '../lib/workout-engine.ts';
 import { roundToLoadable } from '../lib/utils.ts';
+import './_persist-shim.mjs';
+import { EXPERIENCE_LEVELS } from '../lib/store.ts';
+
+/** Every training level the app has, read off the store rather than copied. */
+const LEVELS = [...EXPERIENCE_LEVELS];
 
 const toGrid = (v) => roundToLoadable(v, 'kg');
 
@@ -151,6 +156,34 @@ check(
   'an unknown level is treated as intermediate, not as the fastest',
   run(undefined) === intermediate,
   'a missing profile should not get novice progression'
+);
+
+/**
+ * AND EVERY LEVEL, ON A GRID THAT CAN SHOW THE DIFFERENCE.
+ *
+ * The run above uses the real 2.5 kg grid, where every rate from 0.4 down lands
+ * on the same 170 kg from 140 kg. That is fine for beginner against
+ * intermediate, and blind to everything finer: a level silently given the
+ * intermediate rate would pass it. Measured on an exact grid from 220 kg, the
+ * tiers separate, and a missing table row shows up as a level climbing faster
+ * than the one below it.
+ */
+const exactGrid = (v) => v;
+function runExact(level) {
+  let w = 220;
+  for (let i = 0; i < 12; i++) w = progressedLoad(w, undefined, i, exactGrid, level);
+  return w;
+}
+const climbed = LEVELS.map((lvl) => [lvl, runExact(lvl)]);
+check(
+  `from 220 kg on an exact grid: ${climbed.map(([l, w]) => `${l} ${w.toFixed(1)}`).join(', ')}`,
+  climbed.every(([, w], i) => i === 0 || w <= climbed[i - 1][1] + 1e-9),
+  'a level further up the list climbs faster than the one below it, which is the fallback showing'
+);
+check(
+  'and that measurement can tell the tiers apart, so it is not passing on a tie',
+  runExact('advanced') < runExact('intermediate') && runExact('beginner') > runExact('intermediate'),
+  climbed.map(([l, w]) => `${l} ${w}`).join(', ')
 );
 
 // ─── The PLANNED easier week, which is the other half of the same idea ──────
