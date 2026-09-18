@@ -53,13 +53,20 @@ export function oneRepMaxIssue(text: string, unit: WeightUnit = 'kg'): string | 
 /**
  * The same idea for age.
  *
- * Asked for the first time by the profile tree. The bounds are deliberately
- * wide: this exists to catch 3 and 900, not to argue with anybody's real age.
- * Under 14 the app should not be prescribing barbell loads at all, and over 100
- * is a typo rather than a user.
+ * SIXTEEN TO NINETY, which is Archie's range and narrower than the 14 to 100
+ * this started at. It is not a guess at who might download the app: age moves
+ * the opening load estimate and the number of preparation drills a session
+ * starts with, and outside those bounds the app would be prescribing loaded
+ * training to somebody it has no business prescribing it to. The App Store
+ * listing sets the same floor.
+ *
+ * Blank returns null rather than a message. The screen asking the question is
+ * what decides whether an answer is required; this only says what is wrong with
+ * an answer that has been given, and telling somebody off for an empty box they
+ * are still typing into is not the same thing.
  */
-export const MIN_AGE_YEARS = 14;
-export const MAX_AGE_YEARS = 100;
+export const MIN_AGE_YEARS = 16;
+export const MAX_AGE_YEARS = 90;
 
 export function ageIssue(text: string): string | null {
   const trimmed = text.trim();

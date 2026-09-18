@@ -360,15 +360,18 @@ const builderScreen = read('app/onboarding.tsx');
 const builderTree = read('components/ProfileTree.tsx');
 
 check(
-  'the builder starts from the saved draft',
-  /initialAnswers=\{draft\?\.treeAnswers/.test(builderScreen),
-  'an eight-question form that restarts from nothing is a form most people do not fill in twice'
+  // The sign-up is a pager again, and the trap is the one the tree did not have,
+  // so it is worth naming: a restored draft has to reach BOTH the answers and
+  // the page, or somebody who stopped on page six comes back to page one with
+  // their answers in boxes they have to swipe forward to find.
+  'the sign-up starts from the saved draft, on the page it was left on',
+  /draftToAnswers\(draft\)/.test(builderScreen) && /resumePage\(draft\)/.test(builderScreen),
+  'a ten-question form that restarts from nothing is a form most people do not fill in twice'
 );
 check(
   'and the whole answer set is saved on every change, not answer by answer',
-  /onAnswersChange\?\.\(next\)/.test(builderTree) &&
-    /treeAnswers: answers/.test(builderScreen),
-  'saving them one at a time is what let the pager drop the ones nobody remembered to list'
+  /saveOnboardingDraft\(answersToDraft\(answers, page/.test(builderScreen),
+  'saving them one at a time is what let the first pager drop the ones nobody remembered to list'
 );
 check(
   'nothing is cleared when the builder mounts',

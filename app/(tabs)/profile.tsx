@@ -44,6 +44,7 @@ import {
   useAppStore,
 } from '@/lib/store';
 import { THEME_OPTIONS } from '@/lib/theme-options';
+import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
 import { nextTestNotice } from '@/lib/test-week-copy';
 import { buildPhysioSummary } from '@/lib/physio-summary';
@@ -101,35 +102,16 @@ function getLegalUrls() {
 const { privacyUrl, termsUrl } = getLegalUrls();
 
 /**
- * The word for each level, wherever this screen prints one.
+ * THE LEVELS COME FROM ONE LIST NOW, AND SO DO THEIR WORDS.
  *
- * Typed on the level union, so every level has a word and a new one cannot be
- * forgotten. It is kept apart from the chips below because the chips are what
- * can be CHOSEN here and this is what can be SHOWN here, and for the moment
- * those are different lists: Athlete exists in the engine and is not offered by
- * any picker yet. Reading the label off the chips is how somebody would have
- * been shown "Beginner" for a level this screen simply had no chip for.
+ * This screen used to keep its own label map and its own chip list, and the two
+ * had drifted from each other and from the sign-up: the map knew about Athlete
+ * and the chips did not, so an athlete could read their level here and then be
+ * demoted to Advanced by tapping the nearest chip, because the chip they were
+ * actually on was not drawn. lib/experience-options.ts holds the four levels,
+ * built from the store's own union, and sign-up, this sheet and the programme
+ * hub all read it.
  */
-const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-  athlete: 'Athlete',
-};
-
-const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string; desc: string }[] = [
-  {
-    value: 'beginner',
-    label: EXPERIENCE_LABELS.beginner,
-    desc: 'New to gym or returning after a long break',
-  },
-  {
-    value: 'intermediate',
-    label: EXPERIENCE_LABELS.intermediate,
-    desc: '1-3 years consistent training',
-  },
-  { value: 'advanced', label: EXPERIENCE_LABELS.advanced, desc: '3+ years, familiar with main lifts' },
-];
 
 const GOAL_OPTIONS: { value: FitnessGoal; label: string; icon: keyof typeof Ionicons.glyphMap }[] =
   [

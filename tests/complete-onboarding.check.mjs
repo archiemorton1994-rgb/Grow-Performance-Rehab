@@ -316,6 +316,29 @@ check(
   `got ${JSON.stringify(S().userProfile.goals)}`
 );
 
+/**
+ * THE ONE THAT GIVES THE ASSERTION ABOVE ITS TEETH.
+ *
+ * "General fitness is not added for them" cannot fail while every fixture picks
+ * two goals: the old `goals.length ? goals : ['fitness']` fallback only fires on
+ * an empty list, so reintroducing the exact defect left the suite green. The
+ * sign-up will not let anybody past the goals page without picking one, but the
+ * action is what the promise belongs to, and it is the action that used to
+ * break it.
+ */
+freshAccount();
+S().completeOnboarding(answers({ goals: [] }), NOW);
+check(
+  'somebody who picked nothing has nothing put in their mouth',
+  Array.isArray(S().userProfile.goals) && S().userProfile.goals.length === 0,
+  `the fallback used to write general fitness here. Got ${JSON.stringify(S().userProfile.goals)}`
+);
+check(
+  'and the rest of their sign-up still lands',
+  S().onboardingComplete === true && S().userProfile.name === 'Jo Fielding',
+  'one set() writes all of it or none of it'
+);
+
 // ─── 7. A bodyweight that cannot be right ────────────────────────────────────
 console.log('\n[7] An impossible bodyweight is refused rather than stored');
 

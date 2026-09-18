@@ -43,11 +43,15 @@ export function bodyweightIssue(text: string, unit: WeightUnit): string | null {
 }
 
 /**
- * What the app assumes when someone would rather not say.
+ * THERE IS NO ASSUMED BODYWEIGHT ANY MORE, AND THAT IS THE POINT.
  *
- * Answering is optional, and it has to stay optional — but the load maths needs
- * a number, so declining means accepting an assumption. The onboarding step says
- * this figure out loud rather than banking it silently, which is the difference
- * between an assumption and a guess the user never agreed to.
+ * This file used to export ASSUMED_BODYWEIGHT_KG = 75, for the sign-up page that
+ * let the question be skipped. Declining meant accepting a number, and 75 kg is
+ * a long way from a 55 kg person: it opens them about a third too heavy on the
+ * one session where they have least idea what a right weight feels like.
+ *
+ * Bodyweight is required now, in whichever unit they picked, so nothing has to
+ * be assumed. The constant is deliberately gone rather than left unused, because
+ * the next thing to need a bodyweight would have found it sitting here looking
+ * like a sanctioned default.
  */
-export const ASSUMED_BODYWEIGHT_KG = 75;

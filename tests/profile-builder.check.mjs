@@ -1,5 +1,18 @@
 /**
- * Contract test: the builder screen, which is now a tree rather than a pager.
+ * Contract test: the profile tree, which app/onboarding.tsx no longer draws.
+ *
+ * WHERE THE SCREEN HALF OF THIS FILE WENT
+ * ───────────────────────────────────────
+ * Sign-up is a short linear pager again, so every assertion here that read
+ * app/onboarding.tsx was describing a screen that does not exist any more.
+ * All of them moved to tests/onboarding-pager.check.mjs, and most of them are
+ * now RUN rather than matched against source text, because the rules they
+ * guard live in lib/sign-up.ts, which has no React in it: the profile is
+ * written once by one action, the draft is kept, the screen never routes for
+ * itself, and no question can be passed without answering it.
+ *
+ * What is left below is the tree itself, which is still in the repo and is
+ * deleted in the next step of the rebuild along with the rest of the builder.
  *
  * WHAT THIS REPLACED, AND WHY IT IS NOT SIMPLY DELETED
  * ───────────────────────────────────────────────────
@@ -48,34 +61,21 @@ function check(label, condition, detail) {
 const read = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-const screen = read('app/onboarding.tsx');
-const screenCode = stripComments(screen);
 const tree = read('components/ProfileTree.tsx');
 const treeCode = stripComments(tree);
 const byId = new Map(PROFILE_TREE.map((n) => [n.id, n]));
 
-// ─── 1. The pager really is gone ────────────────────────────────────────────
-console.log('\n[1] The builder is a tree, not a pager');
+// ─── 1. The tree, and the screen that no longer draws it ────────────────────
+console.log('\n[1] The tree is data rather than a hand-written form');
 
 check(
-  'the screen renders the tree',
-  /<ProfileTree/.test(screenCode),
-  'this whole file is testing the wrong thing otherwise'
-);
-check(
-  'and nothing is left of the index-driven pager',
-  !/currentIndex/.test(screenCode) &&
-    !/CELEBRATION_INDEX|LIFTS_INDEX|TEST_WEEK_INDEX/.test(screenCode),
-  'a step index and a set of answers can disagree, and the index is the one that gets it wrong'
-);
-check(
-  'the questions live in data rather than in the screen',
-  /from '@\/lib\/profile-tree'/.test(screenCode) || /profile-tree/.test(treeCode),
+  'the questions live in data rather than in a screen',
+  /profile-tree/.test(treeCode),
   ''
 );
 
-// ─── 2. The two answers that must take effect at once ───────────────────────
-console.log('\n[2] The look and the unit apply the moment they are given');
+// ─── 2. The order of the first two questions ────────────────────────────────
+console.log('\n[2] The look and the unit are asked before anything is validated');
 
 check(
   'the first question is the theme',
@@ -87,59 +87,15 @@ check(
   PROFILE_TREE[1]?.id === 'units',
   'the bodyweight question is validated against a plausible range, and 176 is a fine number of pounds and an impossible number of kilos'
 );
-check(
-  'both are applied on change rather than at the end',
-  /setThemePreference\(look\)/.test(screenCode) && /setWeightUnit\(/.test(screenCode),
-  'picking Light and watching the app stay dark reads as a control that does not work'
-);
 
-// ─── 3. The profile is written once, at the end ─────────────────────────────
-console.log('\n[3] Nothing is saved until every question has been asked');
+// ─── 3. The tree finishes in one piece ──────────────────────────────────────
+console.log('\n[3] The tree hands over only once it is done');
 
-check(
-  'the profile is written through the one action, exactly once',
-  (screenCode.match(/applyProfileTree\(/g) ?? []).length === 1 &&
-    /applyProfileTree\(finished, new Date\(\)\.toISOString\(\)\)/.test(screenCode),
-  'seven separate setters could half-succeed; one set() cannot, and two calls to it are two chances to disagree'
-);
-check(
-  'and onboarding is completed in the same breath, also exactly once',
-  (screenCode.match(/setOnboardingComplete\(true\)/g) ?? []).length === 1,
-  'a profile written without completing leaves somebody looping through the builder for ever'
-);
-check(
-  // The certificate is where somebody first sees what their answers produced.
-  // Enrolling them before they have seen it means backing out of that screen
-  // would leave them enrolled in something they never agreed to.
-  'nothing is written when the TREE finishes, only when the certificate is accepted',
-  (() => {
-    const at = screenCode.indexOf('const onTreeComplete');
-    if (at < 0) return false;
-    const body = screenCode.slice(at, screenCode.indexOf('  );', at));
-    return !/applyProfileTree|setOnboardingComplete/.test(body);
-  })(),
-  'the tree handing over and the user accepting are two different events'
-);
-check(
-  'the certificate is what stands between them',
-  /<ProgrammeCertificate/.test(screenCode) && /onContinue=\{onAccept\}/.test(screenCode),
-  'the button on the certificate has to be the thing that enrols them'
-);
 check(
   'the tree only calls onComplete once it has finished',
   /if \(finishing\) return onFinish\(\);/.test(treeCode) &&
     /const onFinish = useCallback\(/.test(treeCode),
   'the finish button and the continue button are the same control, and it must not finish early'
-);
-check(
-  'the screen never navigates for itself',
-  !/router\.(replace|push)/.test(screenCode),
-  'the gate in app/_layout.tsx decides what comes next; routing from here skips auth and the paywall'
-);
-check(
-  'a half-finished builder is kept as a draft',
-  /saveOnboardingDraft\(/.test(screenCode) && /treeAnswers: answers/.test(screenCode),
-  'an eight-question form that restarts from nothing is a form most people do not fill in twice'
 );
 
 // ─── 4. Skipping is an answer, and it clears the boxes ──────────────────────

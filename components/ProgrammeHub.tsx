@@ -37,7 +37,7 @@ import { useColors, useGoColors } from '@/constants/colors';
 import { PAGE } from '@/lib/session-identity';
 import { SESSION_DISPLAY_NAMES, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { useAppStore } from '@/lib/store';
-import type { ExperienceLevel, SessionType } from '@/lib/store';
+import type { SessionType } from '@/lib/store';
 import {
   PROGRAMMES,
   PROGRAMME_IDS,
@@ -52,6 +52,7 @@ import {
   type TrainingDays,
 } from '@/lib/programme';
 import { bandLabel, LEVEL_NAMES } from '@/lib/exercise-levels';
+import { EXPERIENCE_OPTIONS } from '@/lib/experience-options';
 import { levelBandForExperience } from '@/lib/programme';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
@@ -76,19 +77,18 @@ function listSessions(nums: number[]): string {
 }
 
 /**
- * The same three the profile builder asks, in the same order.
+ * ALL FOUR LEVELS, FROM THE LIST SIGN-UP AND PROFILE ALSO READ.
  *
- * There is a fourth level in the engine now, Athlete, and it is deliberately
- * not here yet: the picker copy is being rewritten in one go rather than a word
- * at a time, and nothing can set 'athlete' until it is. Both lists move
- * together when it lands, because a level this control cannot show is a level
- * somebody gets demoted out of by tapping the segment next to it.
+ * This control used to offer three, while the engine had four. That was safe
+ * only for as long as nothing could set 'athlete': the moment sign-up started
+ * offering it, an athlete opening this screen would have found no segment lit
+ * and been demoted to Advanced by tapping the nearest one, which is a real
+ * change to the movements they are prescribed made by a control that looked
+ * like it was only describing them.
+ *
+ * The words are Archie's, from lib/experience-options.ts. A fifth level added
+ * to the store appears here on its own.
  */
-const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string }[] = [
-  { value: 'beginner', label: 'New to it' },
-  { value: 'intermediate', label: '1 to 3 yrs' },
-  { value: 'advanced', label: '3 yrs plus' },
-];
 
 export function ProgrammeHub() {
   const C = useColors();
@@ -443,6 +443,8 @@ export function ProgrammeHub() {
                   experienceLevel === e.value && { color: C.primaryText },
                 ]}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {e.label}
               </Text>
