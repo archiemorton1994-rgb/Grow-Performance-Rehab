@@ -161,15 +161,59 @@ check(
   'four points on the curve should not collapse to one or two weights'
 );
 check(
+  /**
+   * MATCHED BY NAME, ACROSS MANY SESSIONS, AND IT HAD TO BE.
+   *
+   * This compared two lists of weights BY POSITION out of a single squat
+   * session, so it was really asking "is the nth accessory lighter than the nth
+   * accessory", of two lists that need not hold the same exercises at all. The
+   * rotation is seeded on the calendar as well as on the session count, so the
+   * session it happened to look at changed from one day to the next with no
+   * code change anywhere - and on 18 September 2026 it failed, on the commit
+   * that had passed it the day before. What it drew that day was one loadable
+   * accessory, a Dumbbell Walking Lunge at 7.5 kg, which is the lightest rung
+   * the dumbbell grid has: a layoff cannot take anything off a weight that is
+   * already on the floor, so there was nothing for the rule to be true of.
+   *
+   * The rule itself was never in doubt, so it is now asserted in a way the
+   * calendar cannot reach: every accessory that appears in BOTH the fresh and
+   * the rusty version of the same session, matched on its name, across three
+   * session types, two kit tiers and six session counts. Two things must hold
+   * of those pairs, and the second is new - the old positional form could not
+   * express it:
+   *
+   *   SOME OF THEM COME DOWN. Time away costs load away from the main lift too.
+   *
+   *   AND NOT ONE OF THEM GOES UP. A layoff must never hand somebody a heavier
+   *   accessory than they would have had if they had never stopped.
+   */
   'accessories are eased back too, not just the main lift',
   (() => {
-    const acc = (d) =>
-      generateWorkout('squat', 'fullgym', READINESS, PROFILE, {}, undefined, 8, {}, {}, {}, d)
-        .filter((e) => e.category === 'accessory' && e.loadKg?.length)
-        .map((e) => e.loadKg[0]);
-    const fresh = acc(0);
-    const rusty = acc(40);
-    return fresh.length > 0 && rusty.length > 0 && rusty.some((kg, i) => kg < fresh[i]);
+    const acc = (days, type, tier, count) =>
+      new Map(
+        generateWorkout(type, tier, READINESS, PROFILE, {}, undefined, count, LAST_LOGGED, {}, {}, days)
+          .filter((e) => e.category === 'accessory' && e.loadKg?.length)
+          .map((e) => [e.name, e.loadKg[0]])
+      );
+    let compared = 0;
+    let eased = 0;
+    let heavier = 0;
+    for (const type of ['squat', 'bench', 'deadlift']) {
+      for (const tier of ['fullgym', 'dumbbells']) {
+        // From 8, so auto-progression is already running in every one of them.
+        for (let count = 8; count < 14; count++) {
+          const fresh = acc(0, type, tier, count);
+          const rusty = acc(40, type, tier, count);
+          for (const [name, kg] of fresh) {
+            if (!rusty.has(name)) continue;
+            compared++;
+            if (rusty.get(name) < kg) eased++;
+            if (rusty.get(name) > kg) heavier++;
+          }
+        }
+      }
+    }
+    return compared > 0 && eased > 0 && heavier === 0;
   })(),
   'a body that lost tolerance lost it everywhere, not only under the bar'
 );
