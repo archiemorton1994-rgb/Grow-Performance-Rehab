@@ -400,17 +400,39 @@ const MEAN_OF_THE_SESSION_THAT_MAY_CHANGE = 1 / 3;
 /** Rotations to sweep. The seed is sessions + day index, so this is days too. */
 const ROTATIONS = 12;
 
+/**
+ * STRENGTH AND CONDITIONING ARE COUNTED APART, because they are not the same
+ * promise.
+ *
+ * "The lifting you came to do" is the strength work: a session of six to eight
+ * loaded cards, where changing half of them means the person no longer gets the
+ * session they chose. A conditioning session carries about two loadable cards,
+ * so a sore wrist that rules out the bear crawl, and a sore back that rules out
+ * the sled, change "most of it" by arithmetic alone. Swapping a crawl for a
+ * bike is the app doing its job, not the app being over-cautious.
+ *
+ * They used to be pooled, and ten conditioning cards could swing the whole
+ * figure past the cap while nothing about the rules had changed. So conditioning
+ * is held to what actually matters there: the session still exists, and it is
+ * still worth doing.
+ */
+const CONDITIONING_TYPES = TYPES.filter((t) => t === 'conditioning');
+const STRENGTH_TYPES = TYPES.filter((t) => t !== 'conditioning');
+/** A conditioning session must keep at least this many loadable cards. */
+const CONDITIONING_CARDS_KEPT = 2;
+
 const rewritten = [];
 const mainless = [];
 const shares = [];
+const emptied = [];
 for (const region of REGIONS) {
   for (let rotation = 0; rotation < ROTATIONS; rotation++) {
     let changed = 0;
     let lifts = 0;
-    for (const type of TYPES) {
+    for (const type of STRENGTH_TYPES) {
       for (const tier of TIERS) {
         const ex = session(type, tier, region, 'severe', 'intermediate', rotation);
-        if (type !== 'conditioning' && !ex.some((e) => e.category === 'main')) {
+        if (!ex.some((e) => e.category === 'main')) {
           mainless.push(`${region}/${type}/${tier}`);
         }
         for (const e of ex) {
@@ -426,6 +448,16 @@ for (const region of REGIONS) {
         `${region} at rotation ${rotation}: ${changed}/${lifts} = ${Math.round((changed / lifts) * 100)}%`
       );
     }
+
+    for (const type of CONDITIONING_TYPES) {
+      for (const tier of TIERS) {
+        const ex = session(type, tier, region, 'severe', 'intermediate', rotation);
+        const loadable = ex.filter((e) => e.category === 'main' || e.category === 'accessory');
+        if (loadable.length < CONDITIONING_CARDS_KEPT) {
+          emptied.push(`${region}/${tier} at rotation ${rotation}: ${loadable.length} cards`);
+        }
+      }
+    }
   }
 }
 const meanShare = shares.reduce((a, b) => a + b, 0) / shares.length;
@@ -438,6 +470,11 @@ check(
   'and a complaint changes a third of the session or less on average',
   meanShare <= MEAN_OF_THE_SESSION_THAT_MAY_CHANGE,
   `mean ${Math.round(meanShare * 100)}% across ${shares.length} region and rotation pairs`
+);
+check(
+  'and a complaint never leaves a conditioning session with nothing in it',
+  emptied.length === 0,
+  emptied.slice(0, 6).join(' | ')
 );
 check(
   'and every strength session still has a main lift to progress',
