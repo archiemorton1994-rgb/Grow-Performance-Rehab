@@ -28,8 +28,7 @@ import {
   SESSION_DISPLAY_NAMES,
 } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
-import { programContextMessage, sessionsUntilTest } from '@/lib/test-week-copy';
-import { nonStrengthContextMessage } from '@/lib/program-copy';
+import { nonStrengthContextMessage, programContextMessage } from '@/lib/program-copy';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
 import { ProgrammeHub } from '@/components/ProgrammeHub';
 import { ChooseProgramme } from '@/components/ChooseProgramme';
@@ -48,20 +47,16 @@ const SESSION_IMAGES: Partial<Record<string, any>> = {
 };
 
 /*
- * getContextMessage MOVED TO lib/test-week-copy.ts as programContextMessage,
- * and not only for tidiness.
+ * THE LINE UNDER THE HEADER LIVES IN lib/program-copy.ts, not here.
  *
- * It took a plain `testWeekFrequency: number`, and the caller passed
- * `cycleLength` - which is the frequency with 'never' aliased to 12 so the arc
- * dots below have something to draw. So somebody who had switched strength
- * tests off, and still trains the barbell lifts, was told "2 sessions until
- * your next strength test" about a schedule they had cancelled. If they went
- * looking for it they found nothing, because isTestWeekDue is permanently false
- * for them.
+ * Both halves of it do: programContextMessage for somebody on the barbell
+ * rotation, nonStrengthContextMessage for everybody else. They are pure, so
+ * tests run them rather than reading this screen for phrases.
  *
- * The replacement takes the real TestWeekFrequency, gates every sentence that
- * mentions a test on it, and is run by tests/test-week-honesty.check.mjs rather
- * than read.
+ * Neither one counts down to a strength test any more. That branch is gone with
+ * test weeks themselves, and with it the whole cycle arithmetic this screen used
+ * to carry: a "sessions until test" tile, a trophy on the timeline row a test
+ * was due on, and a dot marking every twelfth session as a test.
  */
 
 function getLastTrainedLabel(
@@ -88,8 +83,6 @@ export default function ProgramScreen() {
 
   const {
     completedSessions,
-    testWeekFrequency,
-    isTestWeekDue,
     isOnStrengthProgramme,
     getCurrentSessionType,
     getThisWeekCount,
@@ -103,17 +96,6 @@ export default function ProgramScreen() {
   } = useAppStore();
 
   const onStrengthProgramme = isOnStrengthProgramme();
-  /**
-   * A DUE TEST ONLY MEANS ANYTHING ON THE BARBELL ROTATION.
-   *
-   * isTestWeekDue() is about the strength-session count and knows nothing about
-   * what the user has been training lately. Someone who did twelve barbell
-   * sessions and then six weeks of conditioning is off the programme by
-   * isOnStrengthProgramme's own reckoning, and still has a test outstanding -
-   * so this screen drew a trophy and the words "Strength Test" over their next
-   * conditioning session, and the start button sent isTestWeek:'true' with it.
-   */
-  const testWeek = isTestWeekDue() && onStrengthProgramme;
   const suggestedNext = getCurrentSessionType();
 
   const strengthCount = useMemo(
@@ -127,16 +109,17 @@ export default function ProgramScreen() {
   const todayEffectiveTier = getEffectiveTier(todayTiers);
 
   const progCycleNumber = Math.floor(strengthCount / 3) + 1;
-  // With test weeks off there is no cycle to be part-way through, so fall back
-  // to the default block length purely so the dots have something to draw.
-  // (The whole of this screen is still the three-lift rotation by construction
-  // — making it speak a non-KPI plan is the next piece of work, not this one.)
-  const cycleLength = testWeekFrequency === 'never' ? 12 : testWeekFrequency;
-  const progCyclePos = strengthCount % cycleLength;
-  const progCycleLength = cycleLength;
-  // null when strength tests are off, which is what stops the tile below from
-  // counting down to an event that will never arrive.
-  const progSessToTest = sessionsUntilTest(testWeekFrequency, strengthCount);
+  /**
+   * A twelve-session block, purely so the arc dots have a length to draw.
+   *
+   * It used to be the user's test-week frequency, with 'never' aliased to 12.
+   * Test weeks are retired and there is no frequency left to read, so the alias
+   * is all that survives. (The whole of this screen is still the three-lift
+   * rotation by construction; making it speak a non-KPI plan is a later piece
+   * of work, not this one.)
+   */
+  const progCycleLength = 12;
+  const progCyclePos = strengthCount % progCycleLength;
 
   // What this person actually trains, most-used first — used in place of the
   // hardcoded "Squat · Bench · Deadlift" subtitle.
@@ -153,7 +136,7 @@ export default function ProgramScreen() {
   }, [completedSessions]);
 
   const contextMsg = onStrengthProgramme
-    ? programContextMessage(testWeekFrequency, strengthCount, testWeek)
+    ? programContextMessage(strengthCount)
     : nonStrengthContextMessage({
         sessionCount: completedSessions.length,
         mix: trainingMix,
@@ -166,7 +149,6 @@ export default function ProgramScreen() {
     const items: {
       sessionType: SessionType;
       status: 'completed' | 'current' | 'upcoming';
-      isTestMarker: boolean;
     }[] = [];
 
     // Not on the barbell rotation? Then do not draw one.
@@ -185,25 +167,23 @@ export default function ProgramScreen() {
     if (!onStrengthProgramme) {
       const recent = completedSessions.slice(0, NON_KPI_TIMELINE).reverse();
       for (const s of recent) {
-        items.push({ sessionType: s.sessionType, status: 'completed', isTestMarker: false });
+        items.push({ sessionType: s.sessionType, status: 'completed' });
       }
-      items.push({ sessionType: suggestedNext, status: 'current', isTestMarker: false });
+      items.push({ sessionType: suggestedNext, status: 'current' });
       return items;
     }
 
-    const tlLen = Math.min(cycleLength, 9);
+    const tlLen = Math.min(progCycleLength, 9);
     const posInCycle = strengthCount % tlLen;
     for (let i = 0; i < tlLen; i++) {
       const sessionType = SESSION_ORDER[i % 3];
       const status: 'completed' | 'current' | 'upcoming' =
         i < posInCycle ? 'completed' : i === posInCycle ? 'current' : 'upcoming';
-      const sessionNumber = strengthCount - posInCycle + i + 1;
-      const isTestMarker = testWeekFrequency !== 'never' && sessionNumber % cycleLength === 0;
-      items.push({ sessionType, status, isTestMarker });
+      items.push({ sessionType, status });
     }
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strengthCount, testWeekFrequency, onStrengthProgramme, completedSessions, suggestedNext]);
+  }, [strengthCount, onStrengthProgramme, completedSessions, suggestedNext]);
 
   /**
    * Every session type, not just the three barbell lifts.
@@ -274,7 +254,6 @@ export default function ProgramScreen() {
         pathname: '/readiness',
         params: {
           sessionType: currentItem.sessionType,
-          isTestWeek: testWeek ? 'true' : 'false',
           equipmentOverride: equipmentOverrideParam,
         },
       });
@@ -370,24 +349,12 @@ export default function ProgramScreen() {
             <Text style={styles.cycleLabel}>sessions done</Text>
           </View>
           <View style={styles.cycleDivider} />
-          {/*
-            THE GATE IS THE FREQUENCY, NOT THE PROGRAMME.
-
-            This read onStrengthProgramme, which is about what the user trains.
-            Whether a test is coming is about what they agreed to, and the two
-            are different people: somebody who squats, benches and deadlifts and
-            turned strength tests OFF is on the strength programme and is never
-            tested. They were shown a live countdown to it. progSessToTest is
-            null for them now and they get their week streak, which is the same
-            thing the non-strength branch already showed.
-          */}
+          {/* This used to be a live countdown to the next strength test. Test
+              weeks are retired, so it shows the week streak for everybody, which
+              is what the non-strength branch always showed. */}
           <View style={styles.cycleCard}>
-            <Text style={styles.cycleNumber}>
-              {progSessToTest !== null ? progSessToTest : getStreakDays()}
-            </Text>
-            <Text style={styles.cycleLabel}>
-              {progSessToTest !== null ? 'until test' : 'week streak'}
-            </Text>
+            <Text style={styles.cycleNumber}>{getStreakDays()}</Text>
+            <Text style={styles.cycleLabel}>week streak</Text>
           </View>
         </View>
 
@@ -438,18 +405,10 @@ export default function ProgramScreen() {
                     styles.timelineDot,
                     isCompleted && styles.timelineDotDone,
                     isCurrent && styles.timelineDotCurrent,
-                    isCurrent && testWeek && styles.timelineDotTest,
                   ]}
                 >
                   {isCompleted && <Ionicons name="checkmark" size={10} color={C.textInverse} />}
-                  {isCurrent && (
-                    <View
-                      style={[
-                        styles.currentPulse,
-                        testWeek && { backgroundColor: C.categoryPrehabText },
-                      ]}
-                    />
-                  )}
+                  {isCurrent && <View style={styles.currentPulse} />}
                 </View>
                 {index < timeline.length - 1 && (
                   <View style={[styles.timelineLine, isCompleted && styles.timelineLineDone]} />
@@ -463,15 +422,12 @@ export default function ProgramScreen() {
                 style={({ pressed }) => [
                   styles.timelineCard,
                   isCurrent && styles.timelineCardCurrent,
-                  isCurrent && testWeek && styles.timelineCardTest,
                   isCompleted && styles.timelineCardDone,
                   pressed && isCurrent && { opacity: 0.9 },
                 ]}
               >
                 <View style={[styles.cardIcon, { backgroundColor: C.surface }]}>
-                  {isCurrent && testWeek ? (
-                    <Ionicons name="trophy" size={18} color={C.categoryPrehabText} />
-                  ) : SESSION_IMAGES[item.sessionType] ? (
+                  {SESSION_IMAGES[item.sessionType] ? (
                     <Image
                       source={SESSION_IMAGES[item.sessionType]}
                       style={{ width: 28, height: 28 }}
@@ -485,24 +441,17 @@ export default function ProgramScreen() {
                   <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>
                     {SESSION_DISPLAY_NAMES[item.sessionType]}
                   </Text>
-                  <Text style={styles.cardSub}>
-                    {isCurrent && testWeek ? 'Strength Test' : itemMeta.subtitle}
-                  </Text>
+                  <Text style={styles.cardSub}>{itemMeta.subtitle}</Text>
                   {!isCompleted && (
                     <Text style={styles.cardRecency}>{lastTrained[item.sessionType]}</Text>
                   )}
                 </View>
                 {isCurrent && !activeSession && (
-                  <View style={[styles.startPill, testWeek && styles.startPillTest]}>
+                  <View style={styles.startPill}>
                     <Ionicons name="play" size={14} color={C.textInverse} />
                   </View>
                 )}
                 {isCompleted && <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />}
-                {item.isTestMarker && !isCurrent && (
-                  <View style={styles.testMarker}>
-                    <Ionicons name="trophy-outline" size={12} color={C.categoryPrehabText} />
-                  </View>
-                )}
               </Pressable>
             </View>
           );
@@ -649,7 +598,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
       borderWidth: 2.5,
     },
-    timelineDotTest: { borderColor: C.categoryPrehabText },
     currentPulse: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.primary },
     timelineLine: { width: 2, flex: 1, backgroundColor: C.border, marginVertical: -2 },
     timelineLineDone: { backgroundColor: C.primary },
@@ -666,7 +614,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.borderLight,
     },
     timelineCardCurrent: { borderColor: C.primary, borderWidth: 1.5 },
-    timelineCardTest: { borderColor: C.categoryPrehabText },
     timelineCardDone: { opacity: 0.6 },
     cardIcon: {
       width: 36,
@@ -695,15 +642,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       height: 34,
       borderRadius: 17,
       backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    startPillTest: { backgroundColor: C.categoryPrehabText },
-    testMarker: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: C.categoryPrehab,
       alignItems: 'center',
       justifyContent: 'center',
     },

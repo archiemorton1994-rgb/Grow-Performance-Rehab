@@ -94,10 +94,12 @@ Front/Rear Shoulder, Elbow/Wrist, Neck, Lower/Upper Back, Core/Ribs, Knee, Hip/G
 - Beginner restriction banner explains users can unlock more equipment via profile later
 - Experience level saved to `userProfile.experienceLevel` on step 1
 
-### 1RM Test Weeks
-- Triggered every 12 or 18 sessions (configurable)
-- Ramping protocol per session type and equipment tier
-- Results tracked with history and trend display on profile
+### 1RM Test Weeks (retired)
+- Removed. Nothing starts a strength test week and no screen offers one.
+- Maxes already recorded stay as history and are still shown on the Stats tab,
+  where the calculator is the only way to add one.
+- `testWeekFrequency` is persisted as `'never'` for everybody (persist v35) and
+  the five `test_*` badges are marked retired.
 
 ## File Structure
 ```

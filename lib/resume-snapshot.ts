@@ -42,13 +42,18 @@ import type { Exercise } from './workout-engine';
  */
 
 /**
- * What the session screen was launched with: the seven facts that decide
- * WHICH session this is.
+ * What the session screen was launched with: the six facts that decide WHICH
+ * session this is.
  *
  * A stored snapshot belongs to the session it was saved from and to no other,
- * so all seven have to agree before it can be preferred. They are the same
- * seven the restore has always compared, and they are compared in one place so
- * that a field added to one half cannot go missing from the other.
+ * so all six have to agree before it can be preferred. They are compared in one
+ * place so that a field added to one half cannot go missing from the other.
+ *
+ * It was seven until strength test weeks were retired. `isTestWeek` was the
+ * seventh, and it is gone from both halves rather than left comparing a value
+ * nothing writes: the one person with a test week half finished when the update
+ * landed gets their saved cards and their logged sets back, which is the right
+ * outcome, and the screen simply runs it as an ordinary session.
  */
 export interface SessionLaunch {
   sessionType: ActiveSession['sessionType'];
@@ -57,20 +62,13 @@ export interface SessionLaunch {
   painRegion?: ActiveSession['painRegion'];
   energy: ActiveSession['energy'];
   timeAvailable: ActiveSession['timeAvailable'];
-  isTestWeek: boolean;
 }
 
 /** Does this stored session describe the session now on screen? */
 export function storedMatchesLaunch(
   stored: Pick<
     ActiveSession,
-    | 'sessionType'
-    | 'equipmentTier'
-    | 'hasAches'
-    | 'painRegion'
-    | 'energy'
-    | 'timeAvailable'
-    | 'isTestWeek'
+    'sessionType' | 'equipmentTier' | 'hasAches' | 'painRegion' | 'energy' | 'timeAvailable'
   >,
   launch: SessionLaunch
 ): boolean {
@@ -80,8 +78,7 @@ export function storedMatchesLaunch(
     stored.hasAches === launch.hasAches &&
     (stored.painRegion ?? '') === (launch.painRegion ?? '') &&
     stored.energy === launch.energy &&
-    stored.timeAvailable === launch.timeAvailable &&
-    stored.isTestWeek === launch.isTestWeek
+    stored.timeAvailable === launch.timeAvailable
   );
 }
 

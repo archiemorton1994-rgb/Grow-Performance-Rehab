@@ -318,7 +318,9 @@ console.log(
 check(
   "train.tsx navigates to /readiness with sessionType: 'conditioning'",
   trainSrc.includes("sessionType: 'conditioning'") ||
-    trainSrc.includes("sessionType, isTestWeek: 'false'"),
+    /sessionType === 'conditioning'\)\s*\{[\s\S]{0,200}?pathname: '\/readiness',[\s\S]{0,120}?params: \{ sessionType,/.test(
+      trainSrc
+    ),
   'navigation call not found — tapping conditioning never launches a conditioning session'
 );
 

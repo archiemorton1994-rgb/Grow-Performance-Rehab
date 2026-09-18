@@ -576,8 +576,9 @@ export const DELOAD_EVERY_WEEKS = 4;
  * A deload week on a cycle of prehab and mobility is meaningless: there is
  * nothing to ease. Two days a week of Joint Health therefore never sees one,
  * and five days of it does, because at five days that cycle picks up a full
- * body session. The same rule the test-week gate follows - look at what is
- * actually in the cycle, not at the name on the front.
+ * body session. The rule is to look at what is actually in the cycle rather
+ * than at the name on the front, which is the same rule the retired test-week
+ * gate followed and for the same reason.
  */
 const LOADED_TYPES: SessionType[] = [
   'squat',

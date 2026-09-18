@@ -26,15 +26,16 @@
  *
  * 2. FOUR SCREENS COUNTED DOWN TO A TEST THAT WILL NEVER ARRIVE.
  *
- *    testWeekFrequency 'never' correctly disables everything: getTestWeekProgress
- *    short-circuits and isTestWeekDue is permanently false. The copy did not
- *    follow. The Program screen aliases 'never' to 12 so its arc dots have
- *    something to draw, then fed that number into "N sessions until your next
- *    strength test". Stats told them to record a max "in a test week". The
- *    assistant offered them a "Test a lift" button.
+ *    When strength test weeks could be switched off, switching them off disabled
+ *    everything properly and the copy did not follow: the Program screen counted
+ *    down "N sessions until your next strength test", Stats told people to
+ *    record a max "in a test week", and the assistant offered a "Test a lift"
+ *    button. An app that offers you something it has already disabled is worse
+ *    than an app that says nothing.
  *
- *    An app that offers you something it has already disabled is worse than an
- *    app that says nothing.
+ *    Test weeks are now retired for everybody, so the same promise is made of
+ *    everybody: no line the app can draw mentions a test. Section 5 holds that.
+ *    What CANNOT happen underneath is in tests/test-weeks-retired.check.mjs.
  *
  * Run:  npx tsx tests/tour-finale.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -46,7 +47,6 @@ import { readFileSync } from 'fs';
 
 const { evaluateBadges } = await import('../lib/badge-engine.ts');
 const { BADGE_CATALOG, BADGE_MAP, TOUR_WELCOME_BADGE_ID } = await import('../lib/badges.ts');
-const TW = await import('../lib/test-week-copy.ts');
 
 let failures = 0;
 let total = 0;
@@ -248,157 +248,85 @@ check(
   'sessionCardRef wraps a conditional, and a brand-new user is looking at the chooser'
 );
 
-// ─── 5. Test weeks: nothing is offered to somebody who declined ──────────────
-console.log('\n[5] An opted-out user is never counted down to a test');
+// ─── 5. Test weeks are retired, and nothing counts down to one ──────────────
+console.log('\n[5] Nobody is counted down to a strength test');
 
-check(
-  'the countdown is null when tests are off',
-  TW.sessionsUntilTest('never', 11) === null && TW.sessionsUntilTest('never', 0) === null,
-  ''
-);
-check(
-  'and a real number when they are on',
-  TW.sessionsUntilTest(12, 5) === 7 && TW.sessionsUntilTest(18, 5) === 13,
-  ''
-);
-check(
-  'a count sitting exactly on a multiple reads as due, not as a full cycle away',
-  TW.sessionsUntilTest(12, 12) === 0 && TW.sessionsUntilTest(12, 24) === 0,
-  'the old arithmetic was n - (count % n), which at a multiple gives n: it said "12 until test" on the session the test was due'
-);
-check(
-  'a brand-new user is a full cycle away',
-  TW.sessionsUntilTest(12, 0) === 12,
-  ''
-);
+/*
+ * Sections 5 and 6 used to run lib/test-week-copy.ts: a countdown to the next
+ * strength test, two wordings of the Stats hint and the assistant nudge (one
+ * for people with tests on and one for people who had declined), and the notice
+ * that told somebody what would happen if they switched tests back on.
+ *
+ * Strength test weeks are retired, that module is deleted, and there is one
+ * wording of each piece of copy left. What survives here is the promise those
+ * sections were really making, now made of everybody rather than only of the
+ * people who had opted out: no line the app can draw mentions a test.
+ *
+ * The behaviour underneath (nothing can start a test week for any stored
+ * frequency, and a migrated state reads never) is held by
+ * tests/test-weeks-retired.check.mjs.
+ */
+
+const PC = await import('../lib/program-copy.ts');
 
 for (const count of [0, 1, 5, 10, 11, 12, 13, 23, 24, 100]) {
-  const msg = TW.programContextMessage('never', count, false);
-  check(
-    `program line at ${count} sessions says nothing about a test`,
-    !/test/i.test(msg),
-    msg
-  );
+  const msg = PC.programContextMessage(count);
+  check(`program line at ${count} sessions says nothing about a test`, !/test/i.test(msg), msg);
 }
-check(
-  'even when something upstream claims a test is due',
-  !/test/i.test(TW.programContextMessage('never', 12, true)),
-  'testWeekDue cannot be true for an opted-out user, but the copy must not depend on that being got right elsewhere'
-);
-check(
-  'an opted-in user two sessions out still gets the countdown',
-  /2 sessions until your next strength test/.test(TW.programContextMessage(12, 10, false)),
-  'the fix must not silence the message for the people it is for'
-);
-check(
-  'and one session out reads as singular',
-  /1 session until/.test(TW.programContextMessage(12, 11, false)),
-  ''
-);
-check(
-  'a due test is announced',
-  /Test week is here/.test(TW.programContextMessage(12, 12, true)),
-  ''
-);
 
 check(
-  'the Stats hint drops the test-week route when tests are off',
-  !/test week/i.test(TW.noOneRepMaxHint('never')) && /work one out/i.test(TW.noOneRepMaxHint('never')),
-  'the manual calculator directly below that text works either way'
-);
-check(
-  'and keeps it when they are on',
-  /test week/i.test(TW.noOneRepMaxHint(12)),
-  ''
+  'the Stats hint points at the calculator, which is the only route left',
+  (() => {
+    const stats = read('app/(tabs)/workouts.tsx');
+    const hint = stats.match(/One-rep max tracking covers[^<]*/)?.[0] ?? '';
+    return hint.length > 0 && !/test week/i.test(hint) && /work one out/i.test(hint);
+  })(),
+  'the route it used to name, recording one in a test week, no longer exists'
 );
 check(
   'the assistant stops offering to test a lift',
-  !/test/i.test(TW.noMaxAssistantCopy('never').actionLabel) &&
-    !/tested max/i.test(TW.noMaxAssistantCopy('never').body),
-  JSON.stringify(TW.noMaxAssistantCopy('never'))
+  (() => {
+    const coach = read('lib/coach.ts');
+    const nudge = coach.match(/id: 'prompt-1rm'[\s\S]{0,700}?\}\);/)?.[0] ?? '';
+    return (
+      nudge.length > 0 &&
+      /Work one out/.test(nudge) &&
+      !/Test a lift/.test(nudge) &&
+      !/tested max/i.test(nudge)
+    );
+  })(),
+  'it had two wordings and picked between them on testWeekFrequency; there is one left'
 );
 check(
-  'and still offers it to everyone else',
-  /Test a lift/.test(TW.noMaxAssistantCopy(12).actionLabel),
-  ''
+  'and the rule no longer reads a test-week frequency at all',
+  !/testWeekFrequency/.test(read('lib/coach.ts')),
+  'CoachInput carried the field only so this one nudge could branch on it'
 );
-check(
-  'the assistant rule reads the frequency at all',
-  /testWeekFrequency: TestWeekFrequency;/.test(read('lib/coach.ts')),
-  'CoachInput carried no such field, which is why the rule could not know'
-);
-for (const f of ['app/(tabs)/index.tsx', 'app/assistant.tsx']) {
+
+for (const f of [
+  'app/(tabs)/index.tsx',
+  'app/assistant.tsx',
+  'app/(tabs)/profile.tsx',
+  'app/(tabs)/train.tsx',
+  'app/readiness.tsx',
+]) {
   check(
-    `${f} passes it in`,
-    /hasOneRepMax: oneRepMaxes\.length > 0,\s*\r?\n\s*testWeekFrequency,/.test(read(f)),
-    'both call sites build their own CoachInput'
+    `${f} says nothing about a test week`,
+    !/\btest\s*week\b/i.test(stripComments(read(f))),
+    'every screen that promised or offered one has had that copy removed'
   );
 }
-
-// ─── 6. Turning tests back on is a path, not a switch ────────────────────────
-console.log('\n[6] The way back in says what will happen');
-
-check(
-  'nothing is said to somebody who has tests off',
-  TW.nextTestNotice('never', 5, false) === null,
-  'the notice must not appear as a nag on the setting they just declined'
-);
-check(
-  'an outstanding postponement is called out',
-  /next strength session will be a test/.test(TW.nextTestNotice(12, 5, true) ?? ''),
-  'this is the trap: testWeekDeferred survives being switched off, so turning tests back on could hand somebody a max attempt immediately'
-);
-check(
-  'so is landing exactly on a multiple',
-  /next strength session will be a test/.test(TW.nextTestNotice(12, 24, false) ?? ''),
-  ''
-);
-check(
-  'otherwise it counts',
-  /7 strength sessions away/.test(TW.nextTestNotice(12, 5, false) ?? ''),
-  ''
-);
-check(
-  'and reads properly at one to go',
-  /last one before a test week/.test(TW.nextTestNotice(12, 11, false) ?? ''),
-  ''
-);
-check(
-  'turning tests ON clears a stale postponement',
-  /testWeekDeferred: freq === 'never' \? s\.testWeekDeferred : false/.test(store),
-  'postpone a test, switch tests off, switch them back on months later: without this the very next strength session is an all-out max with no warning'
-);
-check(
-  'turning them OFF leaves it alone',
-  /freq === 'never' \? s\.testWeekDeferred/.test(store),
-  'nothing is scheduled while off anyway, and clearing it would lose a deferral for anyone toggling twice'
-);
-check(
-  'the settings screen shows the notice',
-  /testID="next-test-notice"/.test(read('app/(tabs)/profile.tsx')),
-  'the only feedback used to be the segmented button highlighting'
-);
-check(
-  'and the row that leads there names the setting',
-  /strength tests/.test(read('app/(tabs)/profile.tsx')),
-  'Settings listed six rows, none of which said strength, test or 1RM'
-);
 
 // ─── 7. House style ──────────────────────────────────────────────────────────
 console.log('\n[7] The new copy follows the same rules as the rest of the app');
 
 const newCopy = [
-  ...[0, 1, 5, 11, 12].flatMap((n) => [
-    TW.programContextMessage(12, n, false),
-    TW.programContextMessage('never', n, false),
-  ]),
-  TW.noOneRepMaxHint('never'),
-  TW.noOneRepMaxHint(12),
-  ...Object.values(TW.noMaxAssistantCopy('never')),
-  ...Object.values(TW.noMaxAssistantCopy(12)),
-  TW.nextTestNotice(12, 5, false),
-  TW.nextTestNotice(12, 11, false),
-  TW.nextTestNotice(12, 5, true),
+  ...[0, 1, 2, 5, 7, 9, 11, 12, 18, 27].map((n) => PC.programContextMessage(n)),
+  ...[
+    { sessionCount: 3, mix: 'Conditioning', weekCount: 1, weeklyGoal: 2, streakWeeks: 0 },
+    { sessionCount: 30, mix: 'Mobility', weekCount: 2, weeklyGoal: 2, streakWeeks: 4 },
+    { sessionCount: 12, mix: 'Full Body', weekCount: 0, weeklyGoal: 3, streakWeeks: 3 },
+  ].map(PC.nonStrengthContextMessage),
   ...[...homeCode.matchAll(/\btitle: '([^']{8,})'|\bbody: '([^']{8,})'/g)].map(
     (m) => m[1] ?? m[2]
   ),

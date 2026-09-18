@@ -1,13 +1,7 @@
-import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, TestWeekFrequency, WeightUnit } from './store';
-import { noMaxAssistantCopy } from './test-week-copy';
+import type { CompletedSession, ExerciseProgress, PainRegion, SessionType, WeightUnit } from './store';
 import { getTrainingBalanceNudge, type BalanceInput } from './training-balance';
 import { PROGRAMMES, type ProgrammeDrift } from './programme';
-import {
-  COMEBACK_SESSIONS,
-  describeTimeAway,
-  getLayoff,
-  getSessionLabel,
-} from './workout-engine';
+import { describeTimeAway, getLayoff, getSessionLabel } from './workout-engine';
 import { ACUTE_PROTOCOL_NOTES } from './acute-rehab';
 import { formatWeight } from './utils';
 import {
@@ -143,16 +137,8 @@ export interface CoachInput {
   progress: ExerciseProgress[];
   /** Consecutive stalled sessions per exercise id. */
   stuckStreak: Record<string, number>;
-  /** False when the user has never logged a tested max. */
+  /** False when the user has never recorded a one-rep max. */
   hasOneRepMax: boolean;
-  /**
-   * What the user agreed to, not what they train.
-   *
-   * Here so the "no max on record" nudge can stop pointing an opted-out user at
-   * a test week. It is the only rule that reads it; everything else in this
-   * file is about what has been logged.
-   */
-  testWeekFrequency: TestWeekFrequency;
   /**
    * The block being trained around, when there is a clear pattern. Null when
    * nobody is enrolled, when the block is paused, and for the great majority of
@@ -218,25 +204,19 @@ const regionLabel = (r: PainRegion): string =>
  * back, take it easy!" tells you nothing; "about 78% of where you left off"
  * tells you exactly what was decided on your behalf and lets you disagree.
  */
-export function getLayoffMessage(
-  daysSinceLast: number | null,
-  opts?: { testHeld?: boolean }
-): CoachMessage | null {
+export function getLayoffMessage(daysSinceLast: number | null): CoachMessage | null {
   const layoff = getLayoff(daysSinceLast);
   if (!layoff) return null;
   const away = describeTimeAway(layoff.daysAway);
-  const testNote = opts?.testHeld
-    ? ` Your strength test is on hold until you have ${COMEBACK_SESSIONS} sessions back in.`
-    : '';
   return {
     id: 'layoff',
     icon: 'hourglass-outline',
     title: layoff.reset ? `${away} away, starting fresh` : `${away} since your last session`,
     body: layoff.reset
-      ? `Weights that old stop being a useful guide, so today is worked out from your profile again, the way it was on day one. A few sessions and it will be reading your own numbers.${testNote}`
+      ? `Weights that old stop being a useful guide, so today is worked out from your profile again, the way it was on day one. A few sessions and it will be reading your own numbers.`
       : layoff.slight
-        ? `Today's weights come down a touch from where you left off. They climb back as soon as you are training again.${testNote}`
-        : `Today's weights are about ${Math.round(layoff.factor * 100)}% of where you left off. They climb back as soon as you are training again.${testNote}`,
+        ? `Today's weights come down a touch from where you left off. They climb back as soon as you are training again.`
+        : `Today's weights are about ${Math.round(layoff.factor * 100)}% of where you left off. They climb back as soon as you are training again.`,
     tone: 'info',
     action: { label: 'Ease back in', kind: 'start-session' },
   };
@@ -534,20 +514,20 @@ function buildCoachBuckets(input: CoachInput): Bucket {
     });
   }
 
-  // ── Never tested a max ─────────────────────────────────────────────────────
-  if (
-    !input.hasOneRepMax &&
-    input.sessionCount >= 8 &&
-    !hidden('prompt-1rm', 30)
-  ) {
-    const copy = noMaxAssistantCopy(input.testWeekFrequency);
+  // ── No max on record ───────────────────────────────────────────────────────
+  //
+  // This used to have two wordings, one of which offered to "Test a lift" if
+  // the user had strength test weeks switched on. Test weeks are retired, so
+  // there is one wording left and it points at the only route that still
+  // exists: work a max out from a set you have already done.
+  if (!input.hasOneRepMax && input.sessionCount >= 8 && !hidden('prompt-1rm', 30)) {
     b.info.push({
       id: 'prompt-1rm',
       icon: 'barbell-outline',
-      title: copy.title,
-      body: copy.body,
+      title: 'No max on record yet',
+      body: 'Your main lifts are working from what you log week to week, which is a good guide. Putting in a one-rep max gives every percentage something real to hang off, and you can work one out from a set you have already done.',
       tone: 'info',
-      action: { label: copy.actionLabel, kind: 'open-stats' },
+      action: { label: 'Work one out', kind: 'open-stats' },
       dismissible: true,
     });
   }

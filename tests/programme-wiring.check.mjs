@@ -59,7 +59,6 @@ function reset(patch = {}) {
     completedSessions: [],
     completedCount: 0,
     cycleStartOffset: 0,
-    testWeekFrequency: 12,
     testWeekDeferred: false,
     oneRepMaxes: [],
     ...patch,
@@ -93,7 +92,6 @@ reset({
     session('conditioning'),
     session('conditioning'),
   ],
-  testWeekFrequency: 'never',
 });
 check(
   'somebody who only ever does conditioning is still only offered conditioning',
@@ -125,19 +123,23 @@ check(
 // tests/complete-onboarding.check.mjs and in tests/onboarding-pager.check.mjs
 // section 9, including the pounds fault that stored 176 lb as 176 kg.
 //
-// What is kept here is the half neither of those can see, because it is about a
-// programme rather than about a profile: a block with no barbell lift in it is
-// never interrupted by a strength test, and a block with three still is.
-console.log('\n[2] A strength test belongs to the programmes with a barbell in them');
+// What was kept here was the half neither of those can see, because it is about
+// a programme rather than about a profile: a block with no barbell lift in it is
+// never interrupted by a strength test, and a block with three still is. The
+// second half of that is retired with test weeks themselves, and the first is
+// now true of everybody, so what stands here is the fact underneath both.
+console.log('\n[2] No block is ever interrupted by a strength test');
 
 /**
- * Twelve barbell sessions, which is exactly the history that makes a test due
- * at a frequency of 12.
+ * Twelve barbell sessions, which is exactly the history that used to make a
+ * test due at a frequency of 12.
  *
- * Dated relative to now rather than to a fixed day. The test-week check
- * withholds a max attempt from somebody just back off a layoff, so a fixture
- * pinned to a date in the past reads as exactly that the moment enough real
- * time passes, and the assertion would rot rather than fail.
+ * Dated relative to now rather than to a fixed day. The test-week check withheld
+ * a max attempt from somebody just back off a layoff, so a fixture pinned to a
+ * date in the past read as exactly that the moment enough real time passed, and
+ * the assertion rotted rather than failed. Kept dated the same way, because what
+ * this fixture is FOR now is being the worst case: the precise history that
+ * would once have produced a test on the very next session.
  */
 const twelveBarbellSessions = () =>
   Array.from({ length: 12 }, (_, i) =>
@@ -147,36 +149,28 @@ const twelveBarbellSessions = () =>
   );
 
 check(
-  /**
-   * Stronger than the assertion it replaces, which ran on somebody whose
-   * frequency was already 'never' and whose history was empty, so it could have
-   * passed on either of those alone. Written that way first and mutation-tested:
-   * putting a squat into Joint Health's cycle left it green.
-   *
-   * This one leaves the frequency at 12 and hands over the SAME twelve sessions
-   * that make a test due on the barbell block below, so the only thing standing
-   * between this person and a one-rep max attempt is their programme.
-   */
-  'a named programme with no barbell in its cycle is never interrupted by one',
-  (() => {
-    reset({ testWeekFrequency: 12, lastReadinessTime: '45' });
-    S().enrolInProgramme('joints', '2026-08-31T09:00:00.000Z');
-    useAppStore.setState({ completedSessions: twelveBarbellSessions() });
-    return S().getTestWeekProgress().active === false && S().isTestWeekDue() === false;
-  })(),
-  JSON.stringify(S().getTestWeekProgress())
+  'the store has no way to work out that a test is due',
+  S().getTestWeekProgress === undefined && S().isTestWeekDue === undefined,
+  'those two decided what today was, and a due test outranked the block'
 );
-check(
-  // The other half, or the check above would read as "test weeks are broken".
-  'while a barbell programme still gets tested exactly as it always has',
-  (() => {
-    reset({ testWeekFrequency: 12 });
-    S().enrolInProgramme('barbell', '2026-08-31T09:00:00.000Z');
-    useAppStore.setState({ completedSessions: twelveBarbellSessions() });
-    return S().testWeekFrequency === 12 && S().getTestWeekProgress().active === true;
-  })(),
-  JSON.stringify(S().getTestWeekProgress())
-);
+
+for (const id of ['joints', 'barbell']) {
+  reset({ lastReadinessTime: '45' });
+  S().enrolInProgramme(id, '2026-08-31T09:00:00.000Z');
+  useAppStore.setState({ completedSessions: twelveBarbellSessions() });
+  const next = S().getCurrentSessionType();
+  const position = S().getProgrammePosition();
+  check(
+    `the ${id} block still decides what comes next after twelve barbell sessions`,
+    position !== null && next === position.next,
+    `got ${next}, and the block asked for ${position?.next}`
+  );
+  check(
+    `and ${id} is never diverted onto the first lift of a test block`,
+    cycleFor(id, 3).includes(next),
+    `got ${next}, which is not a session this block asks for at all`
+  );
+}
 
 // ─── 3. The programme decides the session ───────────────────────────────────
 console.log('\n[3] The block, not the rotation, decides what comes next');
@@ -373,19 +367,30 @@ check(
   ''
 );
 
-// ─── 5. A due strength test still outranks the block ────────────────────────
-console.log('\n[5] A strength test still comes first');
+// ─── 5. Nothing outranks the block any more ─────────────────────────────────
+console.log('\n[5] The block is not interrupted, even by a history of test weeks');
 
-reset({ testWeekFrequency: 12, lastReadinessTime: '45' });
+/*
+ * This section used to assert the opposite: a half-finished test week dictated
+ * the lift, whatever the block would otherwise have said, so that nobody was
+ * pulled off a test they had already started. Strength tests are retired and
+ * nobody can start one.
+ *
+ * What replaces it is the migration case, and it is the one that matters for
+ * somebody who has been using the app: an account whose history is FULL of
+ * completed test weeks, with a barbell block running. The old rule would have
+ * read those sessions and carried on dictating lifts. The block decides now.
+ */
+reset({ lastReadinessTime: '45' });
 S().enrolInProgramme('barbell', '2026-08-31T09:00:00.000Z');
 useAppStore.setState({
   completedSessions: [session(SESSION_ORDER[0], { isTestWeek: true })],
   programme: { ...S().programme, startedAtSessionCount: 0 },
 });
 check(
-  'a half-finished test week dictates the lift, whatever the block would say',
-  S().getCurrentSessionType() === SESSION_ORDER[1],
-  `got ${S().getCurrentSessionType()}; nobody should be pulled off a test they have started`
+  'a test week in the history does not dictate the next lift',
+  S().getCurrentSessionType() === S().getProgrammePosition()?.next,
+  `got ${S().getCurrentSessionType()}, and the block asked for ${S().getProgrammePosition()?.next}`
 );
 
 // ─── 6. It cannot be destroyed ──────────────────────────────────────────────
@@ -528,20 +533,22 @@ check(
   JSON.stringify(S().programme)
 );
 check(
-  // A custom cycle full of prehab has no barbell lift in it, so the same rule
-  // that stopped Joint Health being interrupted has to cover this too.
-  'and a custom cycle with no barbell in it is never interrupted by a strength test',
+  // A custom cycle full of prehab has no barbell lift in it. This used to check
+  // that the rule which stopped Joint Health being interrupted covered a custom
+  // block too; there is no interruption left to be covered from, so it asserts
+  // the outcome that mattered: the cycle is what they get.
+  'and a custom cycle of recovery work is offered exactly what it asks for',
   (() => {
-    reset({ testWeekFrequency: 12 });
+    reset();
     S().enrolInCustomProgramme(
       { name: 'Just recovery', cycle: ['prehab', 'flexibility'] },
       2,
       8,
       '2026-09-01T00:00:00.000Z'
     );
-    return S().getTestWeekProgress().active === false;
+    return S().getCurrentSessionType() === 'prehab';
   })(),
-  JSON.stringify(S().getTestWeekProgress())
+  JSON.stringify(S().programme)
 );
 
 const buildScreen = read('components/BuildProgramme.tsx');

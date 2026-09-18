@@ -51,7 +51,7 @@ globalThis.Date = class FixedDate extends RealDate {
 };
 
 // Imported after the clock is frozen, so nothing in lib/ can read the real one.
-const { generateWorkout, generate1RMWorkout } = await import('../lib/workout-engine.ts');
+const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { SESSION_POOLS } = await import('../lib/exercise-db.ts');
 const { CARDIO_MACHINES } = await import('../lib/cardio-warmup.ts');
 
@@ -89,8 +89,25 @@ function arraysIn(value, out = []) {
   return out;
 }
 
+/**
+ * ORM_TEST IS NOT ONE OF THE POOLS ANY MORE, and that is the point.
+ *
+ * It holds the 1RM testing protocols. Strength test weeks are retired, the
+ * generator that read them is deleted, and no session anywhere is built from
+ * this table, so emptying it changes nothing and the "the pool really was
+ * emptied" half below would correctly fail. It is still in SESSION_POOLS
+ * because the exercises a past test week logged have to keep resolving to a
+ * name on the history screens.
+ *
+ * Kept in ORM_TEST_POOL rather than simply dropped, so section 5 can assert the
+ * unreachability instead of leaving it as a thing this file quietly stopped
+ * looking at.
+ */
+const ORM_TEST_POOL = { name: 'ORM_TEST', arrays: arraysIn(SESSION_POOLS.ORM_TEST) };
 const POOLS = [
-  ...Object.entries(SESSION_POOLS).map(([name, value]) => ({ name, arrays: arraysIn(value) })),
+  ...Object.entries(SESSION_POOLS)
+    .filter(([name]) => name !== 'ORM_TEST')
+    .map(([name, value]) => ({ name, arrays: arraysIn(value) })),
   // The gym warm-up machines live in their own file.
   { name: 'CARDIO_MACHINES', arrays: arraysIn(CARDIO_MACHINES) },
 ];
@@ -195,12 +212,11 @@ function buildAll() {
       }
     }
   }
-  // The strength test week is a session too, built from its own pool.
-  for (const type of LIFT_TYPES) {
-    for (const tier of TIERS) {
-      attempt(`test week ${type}/${tier}`, () => generate1RMWorkout(type, tier, 0, 100));
-    }
-  }
+  // The strength test week used to be built here as well, from its own pool.
+  // It is retired: generate1RMWorkout is gone from the engine and nothing can
+  // reach the ORM_TEST protocols any more. tests/test-weeks-retired.check.mjs
+  // holds that, and the table itself is kept only so the exercises a past test
+  // week logged still resolve to a name on the history screens.
   return built;
 }
 
@@ -324,6 +340,44 @@ check(
   `all ${intact.size} sessions match the snapshot taken at the start`,
   drifted.length === 0,
   firstFew(drifted)
+);
+
+// ─── 5. The 1RM test protocols are unreachable ───────────────────────────────
+console.log('\n[5] Nothing builds a session out of the retired test protocols');
+
+check(
+  'ORM_TEST still holds the protocols it always did',
+  ORM_TEST_POOL.arrays.length > 0 &&
+    ORM_TEST_POOL.arrays.some((a) => a.length > 0),
+  'emptying an already-empty table would prove nothing about reachability'
+);
+
+const ormTestReach = emptied([ORM_TEST_POOL], () => {
+  const built = buildAll();
+  const problems = [];
+  let differs = 0;
+  for (const [key, r] of built) {
+    for (const p of problemsWith(r)) problems.push(`${key}: ${p}`);
+    if (signature(r) !== signature(intact.get(key))) differs++;
+  }
+  return { problems, differs };
+});
+check(
+  'emptying ORM_TEST changes no session at all',
+  ormTestReach.differs === 0,
+  `${ormTestReach.differs} session(s) changed, so some code path is still building out of the retired 1RM protocols`
+);
+check(
+  'and every session still builds with no blank card while it is empty',
+  ormTestReach.problems.length === 0,
+  firstFew(ormTestReach.problems)
+);
+
+const afterOrm = buildAll();
+check(
+  'ORM_TEST is put back exactly as it was',
+  [...intact.keys()].every((key) => signature(afterOrm.get(key)) === signature(intact.get(key))),
+  'the table is history, so the check must not leave it damaged'
 );
 
 console.log(`\n${total - failures}/${total} passed`);

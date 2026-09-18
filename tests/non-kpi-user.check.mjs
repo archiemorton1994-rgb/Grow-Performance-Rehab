@@ -21,6 +21,11 @@
  *     anyone on dumbbells or above could not postpone a max-effort barbell test
  *     at all.
  *
+ * The second of those is settled a different way now: strength test weeks are
+ * retired outright, so there is nothing to decline and nothing that can be
+ * imposed. Section 1 holds the retirement at the surface; the behaviour is in
+ * tests/test-weeks-retired.check.mjs.
+ *
  * Run:  node tests/non-kpi-user.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -31,6 +36,9 @@ import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const read = (rel) => readFileSync(join(__dir, rel), 'utf8');
+/** Source with comments removed, so a docblock explaining a retirement cannot
+ *  be mistaken for the code it describes. */
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const store = read('../lib/store.ts');
 const readiness = read('../app/readiness.tsx');
 const profile = read('../app/(tabs)/profile.tsx');
@@ -46,49 +54,49 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Test weeks can be turned off ─────────────────────────────────────────
-console.log('\n[1] Test weeks are declinable');
+// ─── 1. Test weeks are retired, not merely declinable ────────────────────────
+console.log('\n[1] Nobody can be given a strength test at all');
 
+/*
+ * THIS SECTION USED TO GUARD THE OPT-OUT, and the opt-out is now the only
+ * option there is.
+ *
+ * It asserted that TestWeekFrequency had a 'never' value, that the store
+ * short-circuited on it before the resume branch, that Settings offered Never
+ * beside Every 12 and Every 18, and that the readiness screen carried both a
+ * postpone link and a turn-tests-off link, since the decline control used to be
+ * hidden behind an equipment check and most people had no way out of a
+ * max-effort barbell test.
+ *
+ * All of that was about making an escape hatch reachable. There is nothing left
+ * to escape: strength test weeks are retired and the type has one value. So the
+ * promise this section makes is the stronger one, and it is made of the source
+ * of every screen that used to offer or impose a test rather than of one flag.
+ *
+ * The behaviour underneath is in tests/test-weeks-retired.check.mjs, which runs
+ * the real store and the real engine rather than reading either of them.
+ */
 check(
-  "TestWeekFrequency includes 'never'",
-  /export type TestWeekFrequency = 12 \| 18 \| 'never'/.test(store),
-  ''
+  "TestWeekFrequency has exactly one value, 'never'",
+  /export type TestWeekFrequency = 'never';/.test(store),
+  'a number in this type is a number some code path could put back'
 );
 check(
-  'getTestWeekProgress short-circuits when off',
-  /if \(testWeekFrequency === 'never'\) return idleOff;/.test(store),
-  'expected an early return before the resume-a-part-finished-block branch'
+  'nothing in the store can compute a due test',
+  !/getTestWeekProgress|isTestWeekDue|setTestWeekFrequency|deferTestWeek/.test(store),
+  'those four were the whole mechanism: the progress object, the due flag, the setter and the postponement'
 );
 check(
-  'the off switch is checked BEFORE the resume branch',
-  store.indexOf("testWeekFrequency === 'never'") < store.indexOf('Part-way through'),
-  'someone who turns tests off mid-block must be released, not told they owe two more'
+  'the readiness screen cannot be handed one',
+  !/isTestWeek/.test(stripComments(readiness)) &&
+    !/testID="disable-test-weeks"/.test(readiness) &&
+    !/testID="postpone-test-week"/.test(readiness),
+  'it read an isTestWeek route param and changed the whole screen on it'
 );
 check(
-  'Settings offers Never alongside 12 and 18',
-  /\(\[12, 18, 'never'\] as const\)/.test(profile),
-  ''
-);
-
-// ─── 2. Declining is available to everyone, at the moment it is imposed ──────
-console.log('\n[2] The decline control is not equipment-gated');
-
-check(
-  'the defer banner no longer requires sub-dumbbell equipment to render',
-  !/effectiveTestWeek &&\s*\n?\s*TIER_ORDER\.indexOf\(effectiveTier\) < TIER_ORDER\.indexOf\('dumbbells'\) && \(/.test(
-    readiness
-  ),
-  'the whole banner was behind an equipment check, so most users had no way out'
-);
-check(
-  'there is a turn-tests-off action on the readiness screen',
-  /testID="disable-test-weeks"/.test(readiness) && /setTestWeekFrequency\('never'\)/.test(readiness),
-  'declining must be possible where the test is imposed, not only in a settings sheet'
-);
-check(
-  'postponing is still available too',
-  /testID="postpone-test-week"/.test(readiness),
-  'not now and never are different answers'
+  'and Settings no longer offers a frequency to choose',
+  !/\[12, 18, 'never'\]/.test(profile) && !/setTestWeekFrequency/.test(profile),
+  'three buttons for a setting with one value is a question with one answer'
 );
 
 // ─── 3. Home stops recommending a lift you never do ──────────────────────────
@@ -168,16 +176,16 @@ const NON_KPI_EVIDENCE = Number(
 const NON_KPI_FALLBACK =
   grab(/export const NON_KPI_FALLBACK: SessionType = '([a-z_]+)'/, 'NON_KPI_FALLBACK')?.[1] ?? '';
 
-// Mirror of getCurrentSessionType's non-test-week path. History is newest-first,
-// as completedSessions is. `testsOn` matters: saying yes to test weeks raises
-// how much evidence is needed before the barbell rotation is abandoned.
-function suggest(history, cycleStartOffset = 0, testsOn = false) {
+// Mirror of getCurrentSessionType. History is newest-first, as
+// completedSessions is. There used to be a second, higher evidence threshold
+// for anyone who had opted in to strength test weeks; test weeks are retired,
+// so there is one threshold and everybody is measured against it.
+function suggest(history, cycleStartOffset = 0) {
   const sessions = history.map((t) => ({ sessionType: t }));
   const strengthCount = sessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).length;
   const recent = sessions.slice(0, RECENT_WINDOW);
   const liftsRecently = recent.some((s) => SESSION_ORDER.includes(s.sessionType));
-  const evidenceNeeded = testsOn ? RECENT_WINDOW : NON_KPI_EVIDENCE;
-  if (liftsRecently || sessions.length < evidenceNeeded) {
+  if (liftsRecently || sessions.length < NON_KPI_EVIDENCE) {
     return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
   }
   const vocabulary = [];
@@ -208,37 +216,41 @@ for (const [label, history, expected] of scenarios) {
   check(label, got === expected, `got "${got}", expected "${expected}"`);
 }
 
-// ─── 3b-ii. Opting IN must keep the barbell rotation ─────────────────────────
-console.log('\n[3b-ii] Saying yes to test weeks keeps the KPI programme');
+// ─── 3b-ii. One diverting threshold, for everybody ───────────────────────────
+console.log('\n[3b-ii] The barbell rotation is given up on the same evidence for everyone');
 
-// The failure this guards against is circular and easy to miss: a flat
-// three-session threshold meant three conditioning sessions in someone's first
-// fortnight moved them off the barbell rotation — and once off it they could
-// never be tested either, because a test only comes due on a strength session.
-// Opting in led to never being offered the thing you opted into.
+/*
+ * THERE USED TO BE TWO THRESHOLDS HERE, and the second one is retired with test
+ * weeks.
+ *
+ * Saying "test me every 12 sessions" was read as saying the three lifts were
+ * part of the plan, so it took a full recent window rather than NON_KPI_EVIDENCE
+ * sessions to move that person off the barbell rotation. The fault it fixed was
+ * circular: three conditioning sessions in someone's first fortnight diverted
+ * them, and once diverted they could never be tested either, because a test only
+ * came due on a strength session. Opting in led to never being offered the thing
+ * you opted into.
+ *
+ * Nobody can opt in now, so there is one threshold left and it is the lighter
+ * one. What still has to hold is that the divert works and is reversible.
+ */
 check(
-  'the threshold depends on the opt-in',
-  /const evidenceNeeded = testWeekFrequency === 'never' \? NON_KPI_EVIDENCE : RECENT_WINDOW;/.test(
-    store
-  ),
-  'without this, opting in and then doing anything else for a fortnight silently cancels it'
+  'the store reads one threshold, with no opt-in branch left',
+  /if \(completedSessions\.length < NON_KPI_EVIDENCE\) return true;/.test(store) &&
+    !/testWeekFrequency === 'never' \? NON_KPI_EVIDENCE/.test(store),
+  'a second threshold keyed on a setting nobody can change is a branch that can never be taken'
 );
 
-const optedInScenarios = [
-  ['a brand-new opted-in user is offered a KPI lift', [], SESSION_ORDER[0]],
+const divertScenarios = [
+  ['a brand-new user is offered a KPI lift', [], SESSION_ORDER[0]],
   [
-    `${NON_KPI_EVIDENCE} non-KPI sessions do NOT divert an opted-in user`,
+    'one non-KPI session is not enough evidence to divert',
+    ['conditioning'],
+    SESSION_ORDER[0],
+  ],
+  [
+    NON_KPI_EVIDENCE + ' non-KPI sessions divert them',
     Array(NON_KPI_EVIDENCE).fill('conditioning'),
-    SESSION_ORDER[0],
-  ],
-  [
-    `${RECENT_WINDOW - 1} still does not`,
-    Array(RECENT_WINDOW - 1).fill('conditioning'),
-    SESSION_ORDER[0],
-  ],
-  [
-    `a full window of ${RECENT_WINDOW} finally does`,
-    Array(RECENT_WINDOW).fill('conditioning'),
     'conditioning',
   ],
   [
@@ -247,18 +259,10 @@ const optedInScenarios = [
     SESSION_ORDER[1],
   ],
 ];
-for (const [label, history, expected] of optedInScenarios) {
-  const got = suggest(history, 0, true);
-  check(label, got === expected, `got "${got}", expected "${expected}"`);
+for (const [label, history, expected] of divertScenarios) {
+  const got = suggest(history);
+  check(label, got === expected, 'got "' + got + '", expected "' + expected + '"');
 }
-
-// The opposite user must keep the lighter threshold — they said the opposite,
-// and taking three sessions at their word is the whole point.
-check(
-  `someone who declined test weeks still diverts after ${NON_KPI_EVIDENCE}`,
-  suggest(Array(NON_KPI_EVIDENCE).fill('conditioning'), 0, false) === 'conditioning',
-  'raising the bar for everyone would undo the inclusivity work'
-);
 
 // 'custom' is the one suggestion the home card cannot send through readiness:
 // generateWorkout returns [] for it, so a custom session is built rather than
@@ -313,37 +317,34 @@ check(
   /\{onStrengthProgramme && \(\s*\n?\s*<View style=\{styles\.arcCard\}>/.test(program),
   ''
 );
-check(
-  '"until test" is replaced rather than left counting down',
-  /progSessToTest !== null \? 'until test' : 'week streak'/.test(program),
-  ''
-);
-/**
- * AND THE GATE IS THE FREQUENCY, NOT THE PROGRAMME.
+/*
+ * THE "UNTIL TEST" TILE IS GONE, and so is the gate that decided who saw it.
  *
- * This check used to require the tile to read
- * `onStrengthProgramme ? 'until test' : 'week streak'`, which was the gate that
- * carried the bug. onStrengthProgramme is about what somebody trains; whether a
- * test is coming is about what they agreed to, and the two are different
- * people. A user who squats, benches and deadlifts and has turned strength
- * tests off IS on the strength programme, is never tested, and was shown a live
- * countdown to it - which they could then never find, because isTestWeekDue is
- * permanently false for them.
+ * Three checks here used to pin that gate. The tile counted down to the next
+ * strength test, and it read onStrengthProgramme to decide whether to: that is
+ * about what somebody TRAINS, whereas whether a test was coming was about what
+ * they had AGREED TO, and the two are different people. Somebody who squats,
+ * benches and deadlifts with tests switched off was counted down to an event
+ * they could never find.
  *
- * sessionsUntilTest returns null when the frequency is 'never', so the tile
- * falls back to the week streak for them, exactly as it already did for
- * non-barbell users.
+ * Test weeks are retired, the tile shows the week streak for everybody, and the
+ * context line takes nothing but a session count.
  */
 check(
-  'and the countdown itself is gated on the frequency',
-  /const progSessToTest = sessionsUntilTest\(testWeekFrequency, strengthCount\);/.test(program),
-  'the frequency is aliased to 12 for the arc dots, so any arithmetic reading cycleLength lies to an opted-out user'
+  'the tile shows the week streak rather than a countdown',
+  /<Text style=\{styles\.cycleNumber\}>\{getStreakDays\(\)\}<\/Text>/.test(program) &&
+    /<Text style=\{styles\.cycleLabel\}>week streak<\/Text>/.test(program),
+  'there is nothing left to count down to'
 );
 check(
-  'the context line is too',
-  /programContextMessage\(testWeekFrequency,/.test(program) &&
-    !/getContextMessage\(strengthCount, cycleLength/.test(program),
-  'getContextMessage took a plain number and was handed the aliased cycleLength'
+  'the context line takes a session count and nothing else',
+  /programContextMessage\(strengthCount\)/.test(program),
+  'it used to be handed a test-week frequency and a due flag'
+);
+check(
+  'and nothing on the screen reads a frequency any more',
+  !/testWeekFrequency|sessionsUntilTest/.test(program),
+  'both were only ever there to feed the countdown'
 );
 check(
   'the subtitle is no longer unconditionally the three lifts',
@@ -407,17 +408,25 @@ check(
   nonKpiLines.filter((l) => /—|–|―|--/.test(l)).join(' | ')
 );
 
-// ─── 4. The countdown is hidden when there is nothing to count to ────────────
+// ─── 4. Home counts down to nothing at all ───────────────────────────────────
 console.log('\n[4] Home does not count down to an event that will not happen');
 
+/*
+ * This used to assert that the block-progress row was gated on tests being on,
+ * because a row reading "Test week in 3 sessions" is nonsense to somebody who
+ * has switched tests off. The whole row is gone: every word of it was about the
+ * test-week cycle, and nobody has one. What Home says about a block now comes
+ * from the programme tile, which counts the block that is actually running.
+ */
 check(
-  // Asserted on the CONDITION rather than on how it is spelled. This pinned
-  // `const showBlockProgress = testsOn &&` on one line, so wrapping the
-  // expression over several - which is what happened when a programme was added
-  // to it - failed a test with no opinion about formatting.
-  'the block progress bar is gated on tests being on',
-  /const showBlockProgress =[\s\S]{0,80}?\btestsOn\b/.test(home),
-  'a "Test week in 3 sessions" bar is nonsense once tests are off'
+  'the block-progress row is gone, not hidden behind a condition',
+  !/showBlockProgress|blockProgressLabel|blockBarFill/.test(home),
+  'a row that can never render is a row that can come back'
+);
+check(
+  'and Home says nothing about a test week',
+  !/\btest\s*week\b/i.test(stripComments(home)) && !/testWeekFrequency/.test(home),
+  'the pill above the greeting, the start button and the row all named one'
 );
 
 console.log('');

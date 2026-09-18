@@ -536,7 +536,6 @@ for (const [field, value] of [
   ['painRegion', 'knee'],
   ['energy', 'low'],
   ['timeAvailable', '30'],
-  ['isTestWeek', true],
 ]) {
   check(
     `a snapshot saved under a different ${field} is not used`,
@@ -544,6 +543,30 @@ for (const [field, value] of [
     'the snapshot belongs to the session it was saved from and to no other'
   );
 }
+
+/*
+ * There used to be a seventh launch fact here, isTestWeek. Strength test weeks
+ * are retired, nothing writes the flag, and it is gone from both halves of the
+ * comparison rather than left comparing a value that is always the same.
+ *
+ * The consequence is deliberate and is asserted rather than assumed: somebody
+ * who had a test week half finished when the update landed gets their saved
+ * cards and their logged sets back, instead of the app deciding the snapshot
+ * belongs to a different session and silently throwing the work away.
+ */
+check(
+  'a session saved during a test week still resumes card for card',
+  (() => {
+    const midTest = { ...stored, isTestWeek: true };
+    const back = snapshotToResume(midTest, launch);
+    return (
+      back !== null &&
+      back.length === stored.exerciseSnapshot.length &&
+      back.every((e, i) => e.id === stored.exerciseSnapshot[i].id)
+    );
+  })(),
+  'the flag is no longer a launch fact, so it cannot orphan a saved session'
+);
 
 for (const [label, snapshot] of [
   ['came back empty', []],

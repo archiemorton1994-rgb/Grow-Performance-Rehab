@@ -10,9 +10,11 @@
  * gap perfectly well — the streak reset, the bodyweight reminder fired — the
  * number simply never reached the weight.
  *
- * Worse than the weight: someone who stopped at session 11 and came back a
- * month later walked straight into a max-effort 1RM test, because tests fire on
- * a session count and a session count does not know what a month is.
+ * Worse than the weight, at the time: someone who stopped at session 11 and came
+ * back a month later walked straight into a max-effort 1RM test, because tests
+ * fired on a session count and a session count does not know what a month is.
+ * Strength test weeks are retired now, so that half is settled outright rather
+ * than guarded, and section 6 keeps what it left behind.
  *
  * WHAT THIS FILE PROTECTS
  * ───────────────────────
@@ -306,8 +308,8 @@ check(
   '"about 99% of where you left off" reads like a rounding error'
 );
 
-// ─── 6. No test week off the back of a layoff ────────────────────────────────
-console.log('\n[6] Nobody is walked into a max-effort test straight off a break');
+// ─── 6. The app knows when somebody is on the way back ──────────────────────
+console.log('\n[6] Coming back off a break is a state the app can see');
 
 const day = (n) => new Date(Date.UTC(2026, 0, 1) + n * 86400000).toISOString();
 const NOW = Date.parse(day(200));
@@ -337,6 +339,26 @@ check(
   ''
 );
 
+/*
+ * THE HOLD ITSELF IS GONE, because the thing it held back is gone.
+ *
+ * Eight assertions used to stand here, driving the real store: a test due on the
+ * day somebody returned from a month off was withheld, the postponement was
+ * recorded so it could not vanish for a whole block, and it came due again once
+ * COMEBACK_SESSIONS strength sessions were back in. That was Archie's own case:
+ * stopped at session 11, came back a month later, and was handed a one-rep max
+ * attempt on a body that had not been under a bar since.
+ *
+ * Strength test weeks are retired, so nobody is walked into a max-effort attempt
+ * from any starting point at all. The assertions above still hold the half that
+ * survives and is still doing work elsewhere in the app: getReturnWindow knows
+ * when somebody is on the way back, it counts the break across ALL training, and
+ * a conditioning session back does not close a barbell window. The load backs
+ * off after a break on the strength of it, which is what sections 1 to 4 of this
+ * file measure.
+ *
+ * tests/test-weeks-retired.check.mjs holds the retirement.
+ */
 /** A store seeded with `n` strength sessions, the newest `gapDays` ago. */
 function seedStore(n, gapDays) {
   const sessions = Array.from({ length: n }, (_, i) => ({
@@ -353,7 +375,6 @@ function seedStore(n, gapDays) {
   useAppStore.setState({
     completedSessions: sessions,
     completedCount: n,
-    testWeekFrequency: 12,
     testWeekDeferred: false,
   });
   return sessions;
@@ -361,15 +382,17 @@ function seedStore(n, gapDays) {
 
 // Archie's case, exactly: stopped at session 11, came back a month later.
 seedStore(12, 30);
-let progress = useAppStore.getState().getTestWeekProgress();
 check(
-  'a test due on the day someone returns from a month off is held',
-  progress.active === false && progress.held === true,
-  `active=${progress.active} held=${progress.held}`
+  'somebody a month off, on the session that used to make a test due, is on the comeback',
+  useAppStore.getState().getReturnWindow()?.sessionsBack === 0,
+  JSON.stringify(useAppStore.getState().getReturnWindow())
+);
+check(
+  'and what they are offered is an ordinary session',
+  ['squat', 'bench', 'deadlift'].includes(useAppStore.getState().getCurrentSessionType()),
+  useAppStore.getState().getCurrentSessionType()
 );
 
-// They train that session. The count moves past the multiple that made the test
-// due, so the hold has to be recorded or the test is gone for a whole block.
 useAppStore.getState().completeSession({
   sessionType: 'squat',
   date: new Date().toISOString(),
@@ -381,49 +404,21 @@ useAppStore.getState().completeSession({
   exerciseLogs: [],
 });
 check(
-  'the held test is recorded rather than lost',
-  useAppStore.getState().testWeekDeferred === true,
-  'the session count has moved past the multiple that made it due'
+  'training once back does not record a postponement, because there is nothing to postpone',
+  useAppStore.getState().testWeekDeferred === false,
+  'the field is inert; anything writing to it is the old mechanism coming back'
 );
 check(
-  'it is still held on the very next session',
-  useAppStore.getState().getTestWeekProgress().active === false,
-  `one session back is short of the ${COMEBACK_SESSIONS} needed`
-);
-
-useAppStore.getState().completeSession({
-  sessionType: 'bench',
-  date: new Date().toISOString(),
-  equipmentTier: 'fullgym',
-  hadAches: false,
-  energy: 'normal',
-  timeAvailable: '60',
-  exerciseCount: 6,
-  exerciseLogs: [],
-});
-check(
-  `it comes due again once ${COMEBACK_SESSIONS} sessions are back in`,
-  useAppStore.getState().getTestWeekProgress().active === true,
-  'held means postponed, not cancelled'
+  `and the comeback window still counts that session (${COMEBACK_SESSIONS} closes it)`,
+  useAppStore.getState().getReturnWindow()?.sessionsBack === 1,
+  JSON.stringify(useAppStore.getState().getReturnWindow())
 );
 
 seedStore(12, 1);
 check(
-  'someone who never stopped is tested exactly as before',
-  useAppStore.getState().getTestWeekProgress().active === true,
-  'the hold must not fire for people who have been training all along'
-);
-
-// A block already under way finishes. Being mid-test is not the same as being
-// handed one out of nowhere.
-seedStore(13, 30);
-useAppStore.setState((s) => ({
-  completedSessions: s.completedSessions.map((x, i) => (i === 0 ? { ...x, isTestWeek: true } : x)),
-}));
-check(
-  'a test block already in progress is not interrupted by the hold',
-  useAppStore.getState().getTestWeekProgress().active === true,
-  ''
+  'somebody who never stopped has no comeback window at all',
+  useAppStore.getState().getReturnWindow() === null,
+  'the layoff machinery must not fire for people who have been training all along'
 );
 
 // ─── 7. The store publishes the date the engine needs ────────────────────────

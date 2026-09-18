@@ -68,7 +68,6 @@ import {
 } from '@/lib/utils';
 import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib/session-meta';
 import { togglePainFilter } from '@/lib/filter-utils';
-import { noOneRepMaxHint } from '@/lib/test-week-copy';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
@@ -3905,7 +3904,6 @@ export default function StatsScreen() {
     setTourJustCompleted,
     skipTour,
     getAllExerciseProgress,
-    testWeekFrequency,
   } = useAppStore();
 
   /**
@@ -4520,11 +4518,13 @@ export default function StatsScreen() {
             {noKpiData && (
               <View style={styles.noKpiCard}>
                 <Ionicons name="barbell-outline" size={18} color={C.textSecondary} />
-                {/* "Record one in a test week" to somebody who turned test
-                    weeks off points at the one route they closed. The
-                    calculator directly below works either way, so the opted-out
-                    wording sends them there instead. */}
-                <Text style={styles.noKpiText}>{noOneRepMaxHint(testWeekFrequency)}</Text>
+                {/* The route this used to name - "record one in a test week" -
+                    no longer exists. The calculator directly below is the only
+                    way in now, so that is what this points at. */}
+                <Text style={styles.noKpiText}>
+                  One-rep max tracking covers squat, bench and deadlift. Work one out below and the
+                  progression charts appear here.
+                </Text>
               </View>
             )}
 
@@ -5193,7 +5193,6 @@ export default function StatsScreen() {
               acute: 'false',
               energy: 'normal',
               timeAvailable: '60',
-              isTestWeek: 'false',
               equipment: effectiveTier,
               displayLabel: 'Targeted Prehab',
             },

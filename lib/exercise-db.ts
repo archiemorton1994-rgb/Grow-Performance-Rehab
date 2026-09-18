@@ -19524,7 +19524,7 @@ const PREHAB_COOLDOWN_BY_REGION: Record<PainRegion, ExerciseTemplate> = {
 // ─── WEEKLY BALANCED SESSIONS ──────────────────────────────────────────────────
 // Lower Body, Upper Body, Full Body — designed for users who want balanced
 // programming without the KPI squat/bench/deadlift progression arc.
-// No test weeks. Covers all required movement patterns per session type.
+// Covers all required movement patterns per session type.
 
 const WEEKLY_LOWER_BODY: Record<InternalTier, ExerciseTemplate[]> = {
   bodyweight: [
@@ -20733,8 +20733,10 @@ let _pickableCache: PickableExercise[] | null = null;
  * belongs to, so the picker can show everything and filter by equipment rather
  * than silently hiding most of the database.
  *
- * ORM_TEST is deliberately excluded — those are 1RM testing protocols driven by
- * the test-week flow, not movements to drop into a session.
+ * ORM_TEST is deliberately excluded — those are 1RM testing protocols from the
+ * retired test-week flow, not movements to drop into a session. The table is
+ * kept so the exercises a past test week logged still resolve to a name on the
+ * history screens; nothing builds a session out of it any more.
  */
 export function getAllPickableExercises(): PickableExercise[] {
   if (_pickableCache) return _pickableCache;

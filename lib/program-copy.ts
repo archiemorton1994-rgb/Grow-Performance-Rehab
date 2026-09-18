@@ -80,3 +80,25 @@ export function nonStrengthContextMessage(c: NonStrengthContext): string {
   }
   return `${c.sessionCount} sessions of ${mix}. This is the programme, and you built it.`;
 }
+
+/**
+ * The line under the Program header, for somebody on the barbell rotation.
+ *
+ * It used to live in lib/test-week-copy.ts and take a test-week frequency, and
+ * two of its branches counted down to a strength test: "2 sessions until your
+ * next strength test - finish strong." Strength test weeks are retired, so both
+ * branches are gone and nothing here promises an event that will not happen.
+ * What is left was always true either way, because it is about the rotation
+ * rather than about a test.
+ *
+ * Pure, and free of react-native imports, so tests run it rather than reading
+ * the screen for phrases.
+ */
+export function programContextMessage(completedCount: number): string {
+  if (completedCount === 0) return "Welcome to your program. Let's build something lasting.";
+  if (completedCount === 1) return 'First session in the books. The habit has begun.';
+  const cycleSession = completedCount % 9;
+  if (cycleSession === 0) return 'New cycle started. Each one builds on the last.';
+  if (cycleSession >= 7) return 'Final stretch of this cycle - finish it strong.';
+  return 'Every session compounds. Keep showing up.';
+}

@@ -27,7 +27,6 @@ export function resumeParams(session: ActiveSession): Record<string, string> {
     ...(session.acute !== undefined ? { acute: session.acute ? 'true' : 'false' } : {}),
     energy: session.energy,
     timeAvailable: session.timeAvailable,
-    isTestWeek: session.isTestWeek ? 'true' : 'false',
     equipment: session.equipmentTier,
     ...(session.displayLabel ? { displayLabel: session.displayLabel } : {}),
   };

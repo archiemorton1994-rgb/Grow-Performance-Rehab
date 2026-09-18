@@ -94,8 +94,6 @@ export default function TrainScreen() {
   const C = useColors();
   const {
     completedSessions,
-    isTestWeekDue,
-    testWeekFrequency,
     activeSession,
     clearActiveSession,
     equipmentTiers,
@@ -252,7 +250,6 @@ export default function TrainScreen() {
   const hasFullGym = profileEquipment.includes('fullgym');
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  const testWeek = isTestWeekDue();
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -331,7 +328,7 @@ export default function TrainScreen() {
       } else if (sessionType === 'prehab') {
         router.push({
           pathname: '/readiness',
-          params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam },
+          params: { sessionType, equipmentOverride: equipmentOverrideParam },
         });
       } else if (sessionType === 'flexibility') {
         router.push({
@@ -342,14 +339,13 @@ export default function TrainScreen() {
             painRegion: '',
             energy: 'normal',
             timeAvailable: '60',
-            isTestWeek: 'false',
             equipment: todayEffectiveTier,
           },
         });
       } else if (sessionType === 'conditioning') {
         router.push({
           pathname: '/readiness',
-          params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam },
+          params: { sessionType, equipmentOverride: equipmentOverrideParam },
         });
       } else if (
         sessionType === 'upper_body' ||
@@ -358,16 +354,12 @@ export default function TrainScreen() {
       ) {
         router.push({
           pathname: '/readiness',
-          params: { sessionType, isTestWeek: 'false', equipmentOverride: equipmentOverrideParam },
+          params: { sessionType, equipmentOverride: equipmentOverrideParam },
         });
       } else {
         router.push({
           pathname: '/readiness',
-          params: {
-            sessionType,
-            isTestWeek: testWeek ? 'true' : 'false',
-            equipmentOverride: equipmentOverrideParam,
-          },
+          params: { sessionType, equipmentOverride: equipmentOverrideParam },
         });
       }
     };

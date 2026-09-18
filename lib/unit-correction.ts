@@ -15,7 +15,7 @@
  * doubled for everybody who trains in pounds.
  *
  * WHAT IS NOT WRONG, which is most of it. The session screen has always
- * converted properly, so every logged set, every rep and every test-week max is
+ * converted properly, so every logged set, every rep and every recorded max is
  * correct, and so is any bodyweight since edited on the Profile or Home screens.
  * Only the two figures typed in the builder are affected.
  *

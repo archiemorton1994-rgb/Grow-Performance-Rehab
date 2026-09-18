@@ -115,18 +115,10 @@ import {
 import {
   Exercise,
   generateWorkout,
-  generate1RMWorkout,
   getSessionLabel,
   getPainRegionLabel,
   getWeightGuideKg,
   expandSetTargets,
-  getMainLiftExerciseId,
-  workingWeightFromOrm,
-  testLoadFromWorkingWeight,
-  estimateOrmFromAmrap,
-  workingWeightAfterTest,
-  skipsMaxTest,
-  TEST_EXPECTED_REPS,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 import { SWAP_KIND_HEADINGS } from '@/lib/exercise-swaps';
@@ -2337,64 +2329,6 @@ export function PainAdaptBanner({
 }
 
 /**
- * Shown on a test week that deliberately does not run the all-out set.
- *
- * Not dismissible and not silent on purpose: the block counter still moves on,
- * so without this the session would simply look like a test week that forgot
- * to be one. See `skipsMaxTest`.
- */
-export function NoMaxTestBanner({ visible }: { visible: boolean }) {
-  const C = useColors();
-  if (!visible) return null;
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(350)}
-      testID="no-max-test-banner"
-      style={{
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginHorizontal: 16,
-        marginBottom: 6,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: C.warningLight,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: C.warning + '44',
-        gap: 8,
-      }}
-    >
-      <Ionicons name="shield-checkmark" size={16} color={C.warning} />
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 13,
-            fontFamily: 'Inter_600SemiBold',
-            color: C.warning,
-            marginBottom: 1,
-          }}
-        >
-          No max test this block
-        </Text>
-        <Text
-          style={{
-            fontSize: 12,
-            fontFamily: 'Inter_400Regular',
-            color: C.warning,
-            opacity: 0.85,
-            lineHeight: 17,
-          }}
-        >
-          A fair strength test has to be heavy, and you have told us you are rehabbing. This is your
-          normal session instead, and your weights keep climbing as they have been. Drop rehab from your
-          goals in Profile if you want the test back.
-        </Text>
-      </View>
-    </Animated.View>
-  );
-}
-
-/**
  * The pain rule, on the sessions built for a sore area.
  *
  * WHY IT CANNOT BE DISMISSED
@@ -2861,7 +2795,6 @@ export default function SessionScreen() {
     acute?: string;
     energy: string;
     timeAvailable: string;
-    isTestWeek: string;
     equipment: string;
     displayLabel?: string;
     demo?: string;
@@ -2920,16 +2853,18 @@ export default function SessionScreen() {
   const timeAvailable = VALID_TIME.includes(params.timeAvailable as TimeAvailable)
     ? (params.timeAvailable as TimeAvailable)
     : '60';
-  const NON_TEST_TYPES: SessionType[] = [
-    'prehab',
-    'flexibility',
-    'conditioning',
-    'custom',
-    'upper_body',
-    'lower_body',
-    'full_body',
-  ];
-  const isTestWeek = params.isTestWeek === 'true' && !NON_TEST_TYPES.includes(sessionType);
+  /*
+   * THE SESSION SCREEN NO LONGER HAS A TEST-WEEK MODE.
+   *
+   * It used to read an isTestWeek route param, and when it was 'true' the whole
+   * screen changed: the exercises came from generate1RMWorkout instead of the
+   * generator, the main card became a single all-out set, the result was put
+   * through Epley and written into oneRepMaxes, and the working weight for the
+   * next block was rebuilt from it.
+   *
+   * All of that is gone, and so is the param. There is no value any caller can
+   * pass that turns today into a max-effort attempt.
+   */
   const paramDisplayLabel =
     typeof params.displayLabel === 'string' && params.displayLabel.length > 0
       ? params.displayLabel
@@ -2944,7 +2879,6 @@ export default function SessionScreen() {
   const {
     getEffectiveTier,
     completeSession,
-    addOneRepMax,
     userProfile,
     exerciseFeedback,
     getBestORM,
@@ -2991,16 +2925,6 @@ export default function SessionScreen() {
     : getEffectiveTier();
 
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
-
-  /**
-   * Does this test week actually run the all-out set?
-   *
-   * `isTestWeek` stays true either way — it is what records the session and
-   * moves the block counter on, and a rehab user's blocks should still turn
-   * over. This is the narrower question of whether the max-effort set happens;
-   * see `skipsMaxTest`.
-   */
-  const runsMaxTest = isTestWeek && !skipsMaxTest(userProfile);
 
   // Capture exerciseFeedback at session start so mid-session store updates don't re-generate exercises
   const exerciseFeedbackAtStart = useRef<Record<string, ExerciseFeedback>>(exerciseFeedback);
@@ -3086,40 +3010,6 @@ export default function SessionScreen() {
     return lookup;
   }, [completedSessions]);
 
-  /**
-   * What this lift is currently being trained at — the number a test week both
-   * builds its load from and is judged against.
-   *
-   * The most recent working weight wins, and the one implied by their best-ever
-   * 1RM is only a fallback for a lift with no history. It used to take the
-   * larger of the two, on the reasoning that a too-light bar inflates the Epley
-   * estimate. That reasoning belonged to the old maths, where the test load was
-   * a fraction of the WORKING weight and being under-loaded was easy; the load
-   * now comes off the estimated max, and the cap in
-   * `applyTestResultToWorkingWeight` closes the inflation door from the other
-   * side. Keeping best-ever in the maximum did real harm: someone who genuinely
-   * lost strength — illness, a long layoff — would be handed a bar set from a
-   * personal best they no longer own, which is both a failed test and a lift
-   * they should not be under.
-   */
-  const testWeekBaselineKg = useMemo(() => {
-    if (!isTestWeek) return 0;
-    const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
-    const lastKg = mainLiftId ? (lastLoggedWeights?.[mainLiftId] ?? 0) : 0;
-    if (lastKg > 0) return lastKg;
-    const bestForLift = getBestORM(sessionType);
-    return bestForLift
-      ? workingWeightFromOrm(bestForLift.weight, userProfile, loadUnitAtStart.current)
-      : 0;
-  }, [
-    isTestWeek,
-    sessionType,
-    equipmentTier,
-    lastLoggedWeights,
-    getBestORM,
-    userProfile,
-  ]);
-
   const generatedExercises = useMemo(() => {
     if (isDemo) return DEMO_EXERCISES;
     if (sessionType === 'custom') {
@@ -3136,23 +3026,6 @@ export default function SessionScreen() {
         videoId: '',
         hasSwap: false,
       }));
-    }
-    if (runsMaxTest) {
-      // Real numbers on the ramp-up and the test set, instead of "Ramp up" and
-      // "~90% of working weight". The load is a fixed share of the max implied
-      // by what they train at, so the reps needed to hold station are the same
-      // for every goal - see TEST_LOAD_FRACTION_OF_ORM.
-      const testKg =
-        testWeekBaselineKg > 0
-          ? testLoadFromWorkingWeight(testWeekBaselineKg, userProfile, loadUnitAtStart.current)
-          : 0;
-      return generate1RMWorkout(
-        sessionType,
-        equipmentTier,
-        strengthCount,
-        testKg > 0 ? testKg : undefined,
-        loadUnitAtStart.current
-      );
     }
     const bestOrm = getBestORM(sessionType);
     const bestOrmKg = bestOrm ? bestOrm.weight : undefined;
@@ -3188,9 +3061,7 @@ export default function SessionScreen() {
     painSeverity,
     energy,
     timeAvailable,
-    runsMaxTest,
     isDeloadWeek,
-    testWeekBaselineKg,
     userProfile,
     getBestORM,
     strengthCount,
@@ -3201,7 +3072,7 @@ export default function SessionScreen() {
     lastSessionPerformance,
   ]);
 
-  /** The seven facts that say WHICH session this is. See lib/resume-snapshot.ts. */
+  /** The six facts that say WHICH session this is. See lib/resume-snapshot.ts. */
   const launch: SessionLaunch = {
     sessionType,
     equipmentTier,
@@ -3209,7 +3080,6 @@ export default function SessionScreen() {
     painRegion,
     energy,
     timeAvailable,
-    isTestWeek,
   };
 
   /**
@@ -3617,7 +3487,6 @@ export default function SessionScreen() {
     acute: isAcute,
     energy,
     timeAvailable,
-    isTestWeek,
     sessionName: getSessionLabel(sessionType),
     displayLabel,
     ...(sessionType === 'custom' ? { customExercises: customExercisesSnapshot.current } : {}),
@@ -4426,41 +4295,10 @@ export default function SessionScreen() {
     }
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // Set when a test week completes with a usable AMRAP result, so the
-    // sessionWeights block below can also re-baseline the real KPI-lift
-    // exercise ID - not just the test protocol's own (different) ID - with
-    // this fresh number. Without this, a new 1RM never reaches
-    // lastLoggedWeights for the exercise a normal session actually reads
-    // from, so it stops influencing suggested weight after the very first
-    // time that lift is ever suggested.
-    let testWeekWorkingWeight: number | undefined;
-    if (runsMaxTest) {
-      const mainExIndex = exercises.findIndex((e) => e.category === 'main');
-      if (mainExIndex >= 0) {
-        const mainSets = exerciseData[mainExIndex].sets;
-        const amrapSet = mainSets.find((s) => s.completed && s.weight > 0 && s.reps > 0);
-        if (amrapSet) {
-          const estimatedMax = Math.round(estimateOrmFromAmrap(amrapSet.weight, amrapSet.reps));
-          addOneRepMax({
-            lift: sessionType,
-            weight: estimatedMax,
-            reps: amrapSet.reps,
-            date: new Date().toISOString(),
-            unit: 'kg',
-            source: 'test',
-          });
-          // What the test says, then what a single test is allowed to do about
-          // it. One session is evidence about a block, not a verdict on it -
-          // see MAX_TEST_WEIGHT_MOVE and TEST_DEADBAND.
-          testWeekWorkingWeight = workingWeightAfterTest(
-            testWeekBaselineKg,
-            estimatedMax,
-            userProfile,
-            loadUnitAtStart.current
-          );
-        }
-      }
-    }
+    // A test week used to write a fresh one-rep max here, from the all-out set,
+    // and rebuild the next block's working weight from it. Strength tests are
+    // retired, so the only thing that reaches lastLoggedWeights now is what the
+    // user actually lifted, which is what the block below records.
 
     // Rehab and mobility sessions record what was done, same as anything else.
     //
@@ -4543,13 +4381,6 @@ export default function SessionScreen() {
           );
         }
       }
-      // Also re-baseline the real (non-test-protocol) KPI-lift exercise ID
-      // when this was a test week, so the fresh 1RM actually feeds into the
-      // next normal session's suggestion instead of being ignored.
-      if (testWeekWorkingWeight !== undefined) {
-        const mainLiftId = getMainLiftExerciseId(sessionType, equipmentTier);
-        if (mainLiftId) sessionWeights[mainLiftId] = testWeekWorkingWeight;
-      }
       if (Object.keys(sessionWeights).length > 0) {
         updateLastLoggedWeights(sessionWeights);
       }
@@ -4570,7 +4401,6 @@ export default function SessionScreen() {
       timeAvailable,
       exerciseCount: exercises.length,
       exerciseLogs,
-      isTestWeek,
       durationSeconds: capturedDuration,
       displayLabel,
     });
@@ -4672,17 +4502,9 @@ export default function SessionScreen() {
         </Pressable>
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionLabel}>
-            {runsMaxTest ? 'Strength Test' : (displayLabel ?? getSessionLabel(sessionType))}
+            {displayLabel ?? getSessionLabel(sessionType)}
           </Text>
-          {runsMaxTest ? (
-            <GlossaryTerm
-              term="Max reps test"
-              definition={`Warm up, then do one all-out set: as many clean reps as you can manage at the weight shown. Around ${TEST_EXPECTED_REPS} reps keeps your training weight exactly where it is, so there is nothing to chase. Your one-rep max is worked out from that weight and how many reps you got.`}
-              textStyle={styles.sessionSub}
-            />
-          ) : isTestWeek ? (
-            <Text style={styles.sessionSub}>No max test on a rehab goal</Text>
-          ) : isDeloadWeek ? (
+          {isDeloadWeek ? (
             /* Said BEFORE the first set, not explained afterwards. The weights
                on this session are lighter than the ones on the last, and an
                app that lets somebody discover that on their own has, as far as
@@ -4767,20 +4589,8 @@ export default function SessionScreen() {
       {/* Only while there is a session left to adapt. At the end these
           describe how it was BUILT, which is not what anybody is looking for
           on the screen that says it is finished. */}
-      {!allDone && (hasAches || energy !== 'normal' || isTestWeek) && (
+      {!allDone && (hasAches || energy !== 'normal') && (
         <View style={styles.adaptationBar}>
-          {isTestWeek && (
-            <View style={[styles.adaptTag, { backgroundColor: C.categoryPrehab }]}>
-              <Ionicons
-                name={runsMaxTest ? 'trophy-outline' : 'shield-checkmark-outline'}
-                size={12}
-                color={C.categoryPrehabText}
-              />
-              <Text style={[styles.adaptTagText, { color: C.categoryPrehabText }]}>
-                {runsMaxTest ? 'Test Week' : 'Test Week · normal session'}
-              </Text>
-            </View>
-          )}
           {hasAches && painRegion && (
             <View style={[styles.adaptTag, { backgroundColor: C.badgeComfort }]}>
               <Ionicons name="medical-outline" size={12} color={C.badgeComfortText} />
@@ -4789,7 +4599,7 @@ export default function SessionScreen() {
               </Text>
             </View>
           )}
-          {energy !== 'normal' && !runsMaxTest && (
+          {energy !== 'normal' && (
             <View style={[styles.adaptTag, { backgroundColor: C.badgeVolume }]}>
               <Ionicons name="flash-outline" size={12} color={C.badgeVolumeText} />
               <Text style={[styles.adaptTagText, { color: C.badgeVolumeText }]}>
@@ -4808,8 +4618,6 @@ export default function SessionScreen() {
         dismissed={painBannerDismissed}
         onDismiss={() => setPainBannerDismissed(true)}
       />
-
-      <NoMaxTestBanner visible={isTestWeek && !runsMaxTest} />
 
       <PainFreeRangeBanner
         text={painFreeText}
@@ -5053,7 +4861,7 @@ export default function SessionScreen() {
               autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
-              suppressFeedback={runsMaxTest || isTimeEx || isBandEx}
+              suppressFeedback={isTimeEx || isBandEx}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
               demoForceFeedback={
@@ -5526,7 +5334,7 @@ export default function SessionScreen() {
             </Pressable>
             <View style={styles.sessionInfo}>
               <Text style={styles.sessionLabel}>
-                {runsMaxTest ? 'Strength Test' : (displayLabel ?? getSessionLabel(sessionType))}
+                {displayLabel ?? getSessionLabel(sessionType)}
               </Text>
             </View>
             <View style={styles.closeButton} />
@@ -5539,20 +5347,8 @@ export default function SessionScreen() {
             </Text>
           </View>
 
-          {(hasAches || energy !== 'normal' || isTestWeek) && (
+          {(hasAches || energy !== 'normal') && (
             <View style={styles.adaptationBar}>
-              {isTestWeek && (
-                <View style={[styles.adaptTag, { backgroundColor: C.categoryPrehab }]}>
-                  <Ionicons
-                    name={runsMaxTest ? 'trophy-outline' : 'shield-checkmark-outline'}
-                    size={12}
-                    color={C.categoryPrehabText}
-                  />
-                  <Text style={[styles.adaptTagText, { color: C.categoryPrehabText }]}>
-                    {runsMaxTest ? 'Test Week' : 'Test Week · normal session'}
-                  </Text>
-                </View>
-              )}
               {hasAches && painRegion && (
                 <View style={[styles.adaptTag, { backgroundColor: C.badgeComfort }]}>
                   <Ionicons name="medical-outline" size={12} color={C.badgeComfortText} />
@@ -5561,7 +5357,7 @@ export default function SessionScreen() {
                   </Text>
                 </View>
               )}
-              {energy !== 'normal' && !runsMaxTest && (
+              {energy !== 'normal' && (
                 <View style={[styles.adaptTag, { backgroundColor: C.badgeVolume }]}>
                   <Ionicons name="flash-outline" size={12} color={C.badgeVolumeText} />
                   <Text style={[styles.adaptTagText, { color: C.badgeVolumeText }]}>
@@ -6868,37 +6664,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.primaryMuted,
     },
-    // Test week ORM comparison card in congrats modal
-    ormCompareCard: {
-      width: '100%',
-      backgroundColor: C.primarySurface,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: C.primaryMuted,
-      padding: 14,
-      marginBottom: 14,
-    },
-    ormCompareTitle: {
-      fontSize: 12,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.primaryText,
-      textAlign: 'center',
-      marginBottom: 12,
-      textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
-    },
-    ormCompareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-    ormCompareItem: { alignItems: 'center', flex: 1 },
-    ormCompareLabel: {
-      fontSize: 11,
-      fontFamily: 'Inter_400Regular',
-      color: C.textTertiary,
-      marginBottom: 4,
-    },
-    ormCompareValue: { fontSize: 20, fontFamily: 'Inter_700Bold', color: C.text },
-    ormCompareNew: { color: C.primaryText, fontSize: 22 },
-    ormPbBadge: { marginTop: 10, alignItems: 'center' },
-    ormPbBadgeText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.primaryDark },
     // Time-based exercise done button
     timeDoneBtn: {
       flexDirection: 'row',

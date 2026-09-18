@@ -399,16 +399,31 @@ check(
 console.log('\n[9] Your Program, for a conditioning-and-mobility user');
 
 const program = stripComments(read('app/program.tsx'));
+/*
+ * Two checks here used to guard the shape of the test-week gate on this screen:
+ * a due test decorated a conditioning row with a trophy and the words Strength
+ * Test, and the start button sent isTestWeek:'true' with it. Strength test weeks
+ * are retired and the screen has no such branch left to get wrong, so the pair
+ * became a source grep for code that no longer exists.
+ *
+ * What replaces them is stronger, because it is about the whole screen rather
+ * than the one expression the fault happened to live in: nothing on Your
+ * Program can mention a test at all. tests/test-weeks-retired.check.mjs holds
+ * the behaviour underneath it.
+ */
 check(
-  'a due test cannot decorate a non-barbell session',
-  /const testWeek = isTestWeekDue\(\) && onStrengthProgramme;/.test(program),
-  'isTestWeekDue is about the strength-session count and knows nothing about what the user trains now, so a diverted user got a trophy and the words Strength Test over a conditioning row'
+  // The bare word, not just the phrase "test week". Mutation-tested: putting the
+  // old stat tile back reads "until test", which a phrase-only check misses.
+  // testID and testing are word-boundary safe, and are the only other uses of
+  // the letters on this screen.
+  'nothing on Your Program mentions a test',
+  !/\btests?\b/i.test(program),
+  'a screen that names a test somebody can never be given is the app contradicting itself'
 );
 check(
-  'and the start button cannot launch one as a test',
-  /isTestWeek: testWeek \? 'true' : 'false'/.test(program) &&
-    /const testWeek = isTestWeekDue\(\) && onStrengthProgramme;/.test(program),
-  'readiness strips the energy and time questions and offers "Begin Test" for whatever it is handed'
+  'and it cannot ask the session route for one',
+  !/isTestWeek/.test(program),
+  'the route param is gone; passing it would be passing a value nothing reads'
 );
 check(
   'every session type gets a recency label, not just the three lifts',

@@ -31,12 +31,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
-import { useAppStore, STRENGTH_SESSION_TYPES, SESSION_ORDER } from '@/lib/store';
+import { useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
 import { getSessionImage } from '@/lib/session-images';
 import { nameOf } from '@/lib/programme';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
-import { getEquipmentLabel, getEffectiveTier, COMEBACK_SESSIONS } from '@/lib/workout-engine';
+import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
 import { scheduleBodyweightReminder, cancelBodyweightReminder } from '@/lib/notifications';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -213,15 +213,12 @@ export default function HomeScreen() {
     getStreakDays,
     getThisWeekCount,
     weeklyStreakGoal,
-    getTestWeekProgress,
-    getReturnWindow,
     isWeightReminderVisible,
     userProfile,
     setUserProfile,
     activeSession,
     clearActiveSession,
     profilePhotoUri,
-    testWeekFrequency,
     weightUnit,
     equipmentTiers,
     sessionEquipmentOverride,
@@ -354,9 +351,6 @@ export default function HomeScreen() {
     : null;
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
-  const testWeekProgress = getTestWeekProgress();
-  const testWeek = testWeekProgress.active;
-  const testHeld = testWeekProgress.held;
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
   const greeting = getTimeOfDayGreeting();
   const lastSession = completedSessions.length > 0 ? completedSessions[0] : null;
@@ -463,7 +457,6 @@ export default function HomeScreen() {
       progress: getAllExerciseProgress(),
       stuckStreak: exerciseStuckStreak,
       hasOneRepMax: oneRepMaxes.length > 0,
-      testWeekFrequency,
       drift: getProgrammeDrift(),
       programmeName,
       weightUnit,
@@ -489,7 +482,6 @@ export default function HomeScreen() {
      * own list, which is why the same x works there and not here.
      */
     coachDismissedAt,
-    testWeekFrequency,
     oneRepMaxes.length,
     exerciseStuckStreak,
   ]);
@@ -555,14 +547,11 @@ export default function HomeScreen() {
       // otherwise it means "the one you were going to do anyway".
       router.push({
         pathname: '/readiness',
-        params: {
-          sessionType: action.sessionType ?? suggestedSession,
-          isTestWeek: action.sessionType ? 'false' : testWeek ? 'true' : 'false',
-        },
+        params: { sessionType: action.sessionType ?? suggestedSession },
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [suggestedSession, testWeek]
+    [suggestedSession]
   );
 
   const suggestedMeta = SESSION_META[suggestedSession];
@@ -572,61 +561,15 @@ export default function HomeScreen() {
     [completedSessions]
   );
 
-  // With test weeks off there is nothing to count down to, so the whole block
-  // bar is hidden rather than left ticking toward an event that will never
-  // arrive. cycleLength keeps the arithmetic below numeric either way.
-  const testsOn = testWeekFrequency !== 'never';
-  const cycleLength = testWeekFrequency === 'never' ? 12 : testWeekFrequency;
-  const sessionsInBlock =
-    !testWeek && strengthCount > 0 ? strengthCount % cycleLength || cycleLength : 0;
-  const sessionsUntilTest = cycleLength - sessionsInBlock;
-  /**
-   * The slim bar under the hero, which is about the TEST-WEEK cycle.
+  /*
+   * THE BLOCK-PROGRESS ROW IS GONE, along with the cycle it counted.
    *
-   * With a programme running it was saying "Cycle 1 · Block 6 / 12" directly
-   * above a tile reading "SESSION 6 of 12 in the block" - two counters, two
-   * different things, the same numbers. So with a programme it now only appears
-   * when it has something the tile does not: a test coming up, or one on hold.
+   * It was a slim bar under the hero saying "Cycle 2 · Block 6 / 12", and
+   * "Test week in 2 sessions" as one came due. Every word of it was about the
+   * strength test cycle, which is retired, so there is nothing left for it to
+   * count. Anyone on a programme still has the tile above it, which says where
+   * they are in the block that is actually running.
    */
-  const showBlockProgress =
-    testsOn &&
-    strengthCount >= 1 &&
-    !testWeek &&
-    (!programme || testHeld || sessionsUntilTest <= 2);
-  /**
-   * Sessions still owed before a withheld test is offered.
-   *
-   * The block is finished — that is why the test came due — but nobody walks
-   * out of a layoff into a max-effort attempt, so it waits until the baseline
-   * is back (see getTestWeekProgress in lib/store.ts). Left to the arithmetic
-   * above, the row counted a block that had already ended: "Test week in 0
-   * sessions" while no test was on offer, then "Block 1 / 12" as though a
-   * fresh block had started. Both read as a stuck counter.
-   */
-  const sessionsUntilTestResumes = testHeld
-    ? Math.max(0, COMEBACK_SESSIONS - (getReturnWindow()?.sessionsBack ?? 0))
-    : 0;
-  // How many full test-week blocks they've already been through, counted from
-  // actual completed test weeks (not derived from strengthCount / frequency)
-  // so it stays correct even if testWeekFrequency is changed mid-program or a
-  // test was deferred. The block they're currently working through is always
-  // one past however many they've finished.
-  /**
-   * A TEST WEEK IS THREE SESSIONS, NOT ONE.
-   *
-   * This counted sessions flagged isTestWeek and called the answer the number
-   * of completed test weeks, so one finished test week - squat, bench and
-   * deadlift - read as three and the home screen said "Cycle 4" to somebody on
-   * their second block. Exactly 3x out, every time, for as long as they train.
-   */
-  const testWeeksCompleted = useMemo(
-    () =>
-      Math.floor(
-        completedSessions.filter((s) => s.isTestWeek).length / SESSION_ORDER.length
-      ),
-    [completedSessions]
-  );
-  const blockCycleNumber = testWeeksCompleted + 1;
 
   // ─── Bodyweight reminder logic ──────────────────────────────────────────
   const [weightModalOpen, setWeightModalOpen] = useState(false);
@@ -770,7 +713,6 @@ export default function HomeScreen() {
         pathname: '/readiness',
         params: {
           sessionType: suggestedSession,
-          isTestWeek: testWeek ? 'true' : 'false',
           equipmentOverride: equipmentOverrideParam,
         },
       });
@@ -842,9 +784,6 @@ export default function HomeScreen() {
   // ── Guided tour: Home's own in-page tutorial ─────────────────────────────
   // Runs when the shared tour reaches this tab (index 0). Hands off to
   // Profile on its last step; skip abandons the whole tour, not just Home.
-  // The block-progress row only renders once showBlockProgress is true (a
-  // brand-new user with zero sessions doesn't have one yet) - skip that step
-  // entirely rather than spotlighting nothing.
   // Nothing to filter any more: the step that needed a training block to exist
   // was cut, along with the other four that described a screen a first-run user
   // has not filled in yet. Kept as a memo so the shape below is unchanged.
@@ -967,9 +906,9 @@ export default function HomeScreen() {
           <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
             {/* Greeting and name are stacked rather than run together on one
                 line: at 24px "Good evening Archie" has to share the row with the
-                test-week pill, the coach button and the avatar, and the name is
-                what loses. adjustsFontSizeToFit is a native-only prop, so on web
-                it did not shrink — it simply cut the name off. */}
+                coach button and the avatar, and the name is what loses.
+                adjustsFontSizeToFit is a native-only prop, so on web it did not
+                shrink — it simply cut the name off. */}
             <View style={{ flex: 1 }}>
               {firstName ? (
                 <>
@@ -984,14 +923,6 @@ export default function HomeScreen() {
                 </Text>
               )}
             </View>
-            {testWeek && (
-              <View style={styles.testWeekPill}>
-                <Ionicons name="trophy" size={13} color={C.categoryPrehabText} />
-                <Text style={styles.testWeekPillText}>
-                  Test Week · {testWeekProgress.completed + 1} of {testWeekProgress.total}
-                </Text>
-              </View>
-            )}
             <View ref={coachButtonRef} collapsable={false}>
               <CoachButton
                 onPress={() => {
@@ -1222,50 +1153,12 @@ export default function HomeScreen() {
                   testID="start-suggested-session"
                 >
                   <Ionicons name="flash" size={18} color={C.primaryDarkText} />
-                  <Text style={styles.startBtnText}>
-                    {testWeek
-                      ? `Test ${SESSION_SHORT_LABELS[suggestedSession] ?? 'Strength'} 1RM`
-                      : 'Start Session'}
-                  </Text>
+                  <Text style={styles.startBtnText}>Start Session</Text>
                 </Pressable>
               </Animated.View>
             )}
           </Animated.View>
           </View>
-
-          {/* Block progress — standalone slim row between hero card and stats strip */}
-          {completedSessions.length > 0 && showBlockProgress && (
-            <View collapsable={false}>
-              <Animated.View entering={FadeInDown.delay(75).duration(380)} style={styles.blockRow}>
-                <Ionicons name="stats-chart" size={12} color={C.textTertiary} />
-                <View style={styles.blockBarTrack}>
-                  <View
-                    style={[
-                      styles.blockBarFill,
-                      {
-                        width: (testHeld
-                          ? '100%'
-                          : `${Math.round((sessionsInBlock / cycleLength) * 100)}%`) as any,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.blockProgressLabel,
-                    !testHeld && sessionsUntilTest <= 2 && { color: C.warning },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {testHeld
-                    ? `Strength test on hold · ${sessionsUntilTestResumes} session${sessionsUntilTestResumes !== 1 ? 's' : ''} to go`
-                    : sessionsUntilTest <= 2
-                      ? `Test week in ${sessionsUntilTest} session${sessionsUntilTest !== 1 ? 's' : ''}`
-                      : `Cycle ${blockCycleNumber} · Block ${sessionsInBlock} / ${cycleLength}`}
-                </Text>
-              </Animated.View>
-            </View>
-          )}
 
           {/* Summary cards — 2×2 grid */}
           <Animated.View entering={FadeInDown.delay(120).duration(380)} style={styles.summaryGrid}>
@@ -1861,19 +1754,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
     },
     headerAvatarImg: { width: 38, height: 38, borderRadius: 19 },
     headerAvatarInitial: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primaryText },
-    testWeekPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      backgroundColor: C.warningLight,
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderWidth: 1,
-      borderColor: C.warning,
-    },
-    testWeekPillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.warning },
-
     todayCard: {
       backgroundColor: C.surface,
       borderRadius: 20,
@@ -1969,17 +1849,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
     equipmentChipTextOverride: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
     overrideDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary },
 
-    blockRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
-    blockProgressRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
-    blockBarTrack: {
-      flex: 1,
-      height: 4,
-      backgroundColor: C.borderLight,
-      borderRadius: 2,
-      overflow: 'hidden' as const,
-    },
-    blockBarFill: { height: 4, backgroundColor: C.primary, borderRadius: 2 },
-    blockProgressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.textTertiary },
     /**
      * FIXED. Not flexible, not stretched, not sharing the leftover.
      *

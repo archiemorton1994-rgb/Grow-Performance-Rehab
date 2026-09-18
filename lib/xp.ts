@@ -127,13 +127,12 @@ export const XP = {
   deload: 30,
   /** A weight nobody in this account had lifted before. */
   personalBest: 120,
-  /** A strength test session, which is a hard thing to walk into. */
-  testSession: 150,
   /** Finishing a whole block, on top of the session that finished it. */
   blockComplete: 750,
-  // There used to be a payment here for taking the movement screen. The screen
-  // is gone, so the line is gone with it rather than left in the table paying
-  // for something nobody can do.
+  // There used to be a payment here for taking the movement screen, and another
+  // for a strength test session. Both are gone from the app, so both lines are
+  // gone from the table rather than left in it paying for something nobody can
+  // do. What anyone already earned is frozen on the session that earned it.
   /** Accepting a level step a finished block offered. */
   levelStep: 250,
 } as const;
@@ -184,8 +183,6 @@ export function sessionXp(input: {
   onPlan?: boolean;
   /** Was it a planned easier one. */
   deload?: boolean;
-  /** Was it a strength test. */
-  testSession?: boolean;
   /** How many weights beat anything in the account's history. */
   personalBests?: number;
   /** Did this session finish a block. */
@@ -203,8 +200,6 @@ export function sessionXp(input: {
   // an on-plan session - so it pays once, under the name that is truer.
   if (input.deload) lines.push({ label: 'Easier session, as planned', amount: XP.deload });
   else if (input.onPlan) lines.push({ label: 'On your programme', amount: XP.onPlan });
-
-  if (input.testSession) lines.push({ label: 'Strength test', amount: XP.testSession });
 
   const pbs = Math.max(0, Math.trunc(input.personalBests ?? 0));
   if (pbs > 0) {

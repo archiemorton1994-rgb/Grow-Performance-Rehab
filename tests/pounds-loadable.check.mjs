@@ -44,7 +44,6 @@ globalThis.__DEV__ = false;
 import { readFileSync } from 'fs';
 import {
   generateWorkout,
-  generate1RMWorkout,
   expandSetTargets,
   getWeightGuideKg,
   getWeightGuide,
@@ -564,46 +563,19 @@ console.log('\n[7] The weight offered after every possible answer');
   );
 }
 
-// ─── 8. Test week ────────────────────────────────────────────────────────────
-console.log('\n[8] The 1RM test week');
-{
-  const offGrid = [];
-  const wrongUnitInCue = [];
-  let seen = 0;
-  for (const type of ['squat', 'bench', 'deadlift']) {
-    for (const tier of ['fullgym', 'dumbbells']) {
-      // 4th argument is the weight on the bar for the all-out set - see
-      // testLoadFromWorkingWeight, and tests/test-week-fairness.check.mjs for
-      // where that number comes from.
-      const session = generate1RMWorkout(type, tier, 4, displayUnitToKg(145, 'lbs'), 'lbs');
-      for (const ex of session) {
-        for (const n of cardNumbers(ex, 'lbs')) {
-          seen++;
-          if (!loadableInPounds(n)) offGrid.push(`${type}/${tier} "${ex.name}" card → ${n} lbs`);
-        }
-        for (const kg of boxTargetsKg(ex, 'lbs').filter((k) => k > 0)) {
-          seen++;
-          const lbs = kgToDisplayUnit(kg, 'lbs');
-          if (!loadableInPounds(lbs)) offGrid.push(`${type}/${tier} "${ex.name}" box → ${lbs} lbs`);
-        }
-        // The cue is the sentence the user follows. It must not name kilograms.
-        if (/\bkgs?\b/i.test(ex.cue) && /\d/.test(ex.cue)) wrongUnitInCue.push(`${ex.name}: ${ex.cue.slice(0, 70)}`);
-      }
-    }
-  }
-  check(`the test week produced weights to check (${seen})`, seen > 20, `${seen}`);
-  check('all of them loadable', offGrid.length === 0, offGrid.slice(0, 5).join(' | '));
-  check(
-    'and the instruction never tells a pounds user to load kilograms',
-    wrongUnitInCue.length === 0,
-    wrongUnitInCue.slice(0, 3).join(' | ')
-  );
-
-  // The same protocol in kilograms still says kilograms.
-  const kgSession = generate1RMWorkout('squat', 'fullgym', 4, 100, 'kg');
-  const kgMain = kgSession.find((e) => e.category === 'main');
-  check('a kilogram user is still told kilograms', /\b100 kg\b/.test(kgMain.cue), kgMain.cue.slice(0, 80));
-}
+/*
+ * SECTION 8 WAS THE 1RM TEST WEEK, and it is retired with the feature.
+ *
+ * It built the test protocol in pounds and in kilograms and asserted that every
+ * weight on the cards was a weight a gym can actually load, and that the cue a
+ * pounds user follows never names kilograms. The protocol is gone: there is no
+ * generate1RMWorkout to call.
+ *
+ * Nothing is lost from the pounds promise. Every other section of this file
+ * covers the sessions people actually get, and section 9 still asserts that the
+ * session screen hands the unit to the generator and to the per-set ramp. The
+ * retirement itself is held by tests/test-weeks-retired.check.mjs.
+ */
 
 // ─── 9. The per-set guide text ───────────────────────────────────────────────
 console.log('\n[9] The written per-set guide');
@@ -650,11 +622,6 @@ console.log('\n[10] The session screen tells the engine which gym the user is in
     // perfectly well. What matters is that it is passed at all.
     /generateWorkout\([\s\S]{0,900}?loadUnitAtStart\.current\b/.test(src),
     'without this the library is right and the screen still prescribes 143.3 lbs'
-  );
-  check(
-    'so is the 1RM test protocol',
-    /generate1RMWorkout\([\s\S]{0,400}?loadUnitAtStart\.current/.test(src),
-    ''
   );
   check(
     'and so is the per-set ramp the box prefills from',

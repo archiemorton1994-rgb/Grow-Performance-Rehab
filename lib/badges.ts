@@ -963,6 +963,13 @@ const equipmentBadges: BadgeSeed[] = [
 ];
 
 // ─── 18. Test Week Badges ─────────────────────────────────────────────────────
+/**
+ * ALL FIVE ARE RETIRED. Strength test weeks are gone from the app, so nobody
+ * can complete another one. Kept in the catalogue, with their names and their
+ * colours, for the people who did: a retired badge still shows on the shelf if
+ * it was earned, is left out of both halves of "x of y", and can never be
+ * awarded again. See the `retired` flag on Badge for the whole rule.
+ */
 const testWeekBadges: BadgeSeed[] = [
   {
     id: 'test_1',
@@ -972,6 +979,7 @@ const testWeekBadges: BadgeSeed[] = [
     criteriaType: 'test_week',
     icon: 'analytics-outline',
     color: C.violet,
+    retired: true,
   },
   {
     id: 'test_3',
@@ -981,6 +989,7 @@ const testWeekBadges: BadgeSeed[] = [
     criteriaType: 'test_week',
     icon: 'analytics-outline',
     color: C.violet,
+    retired: true,
   },
   {
     id: 'test_5',
@@ -990,6 +999,7 @@ const testWeekBadges: BadgeSeed[] = [
     criteriaType: 'test_week',
     icon: 'analytics-outline',
     color: C.violet,
+    retired: true,
   },
   {
     id: 'test_10',
@@ -999,6 +1009,7 @@ const testWeekBadges: BadgeSeed[] = [
     criteriaType: 'test_week',
     icon: 'ribbon-outline',
     color: C.violet,
+    retired: true,
   },
   {
     id: 'test_20',
@@ -1008,6 +1019,7 @@ const testWeekBadges: BadgeSeed[] = [
     criteriaType: 'test_week',
     icon: 'trophy-outline',
     color: C.violet,
+    retired: true,
   },
 ];
 

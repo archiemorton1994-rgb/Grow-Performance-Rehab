@@ -144,8 +144,21 @@ check(
 );
 check(
   'finishing a block is the biggest single thing in the table',
-  XP.blockComplete > Math.max(XP.session, XP.testSession, XP.personalBest, XP.levelStep) * 2,
+  XP.blockComplete > Math.max(XP.session, XP.personalBest, XP.levelStep) * 2,
   `${XP.blockComplete}`
+);
+// XP.testSession used to be in that maximum. Strength test weeks are retired,
+// the rate is gone from the table with them, and what anyone already earned for
+// one is frozen on the session that earned it (CompletedSession.xpEarned).
+check(
+  'and the retired strength-test rate is not still sitting in the table',
+  XP.testSession === undefined,
+  `XP.testSession = ${XP.testSession}`
+);
+check(
+  'nor does a stray testSession flag buy anything',
+  sessionXp({ sets: 10, testSession: true }).total === sessionXp({ sets: 10 }).total,
+  'an input the table no longer knows about must not add a line'
 );
 check(
   'the lines always add up to the total',

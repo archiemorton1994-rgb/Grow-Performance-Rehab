@@ -37,7 +37,6 @@ import {
   FitnessGoal,
   MAX_BODYWEIGHT_KG,
   MIN_BODYWEIGHT_KG,
-  SESSION_ORDER,
   Sex,
   TIER_ORDER,
   WeightUnit,
@@ -46,7 +45,6 @@ import {
 import { THEME_OPTIONS } from '@/lib/theme-options';
 import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
-import { nextTestNotice } from '@/lib/test-week-copy';
 import { buildPhysioSummary } from '@/lib/physio-summary';
 import { bodyweightIssue } from '@/lib/bodyweight';
 import {
@@ -399,9 +397,6 @@ export default function ProfileScreen() {
     getStreakDays,
     getThisWeekCount,
     resetProgress,
-    testWeekFrequency,
-    setTestWeekFrequency,
-    testWeekDeferred,
     userProfile,
     setUserProfile,
     getEffectiveTier: storeGetEffectiveTier,
@@ -801,19 +796,13 @@ export default function ProfileScreen() {
    * it. Anything older than a day says the date, because at that point the
    * answer is probably no and vagueness would be hiding it.
    */
-  // Only the barbell lifts advance the test-week count - conditioning,
-  // mobility, prehab and custom sessions never do - which is the same rule
-  // getTestWeekProgress uses, and why this cannot just count
-  // completedSessions.length.
-  const strengthSessionCount = useMemo(
-    () => completedSessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).length,
-    [completedSessions]
-  );
-  const testWeekNotice = useMemo(
-    () => nextTestNotice(testWeekFrequency, strengthSessionCount, testWeekDeferred),
-    [testWeekFrequency, strengthSessionCount, testWeekDeferred]
-  );
-
+  /*
+   * THE STRENGTH TEST WEEKS SETTING IS GONE FROM THIS SHEET.
+   *
+   * It was three buttons - Every 12, Every 18, Never - with a line underneath
+   * warning what the choice meant for the next session. There is nothing left
+   * to choose: strength test weeks are retired and everybody reads 'never'.
+   */
   const lastSyncedLabel = useMemo(() => {
     if (!lastSyncedAt) return 'Not backed up to your account yet';
     const t = Date.parse(lastSyncedAt);
@@ -2209,52 +2198,6 @@ export default function ProfileScreen() {
 
               <View style={styles.settingDivider} />
 
-              <Text style={styles.settingItemLabel}>Strength Test Weeks</Text>
-              <Text style={styles.settingItemSub}>
-                Maxing out Squat, Bench and Deadlift to re-baseline your weights. Turn it off if
-                those lifts aren&apos;t part of your training.
-              </Text>
-              <View style={styles.freqRow}>
-                {([12, 18, 'never'] as const).map((freq) => (
-                  <Pressable
-                    key={String(freq)}
-                    onPress={() => {
-                      setTestWeekFrequency(freq);
-                      if (Platform.OS !== 'web')
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    style={[styles.freqBtn, testWeekFrequency === freq && styles.freqBtnActive]}
-                    testID={freq === 'never' ? 'test-freq-never' : 'test-freq-toggle'}
-                  >
-                    <Text
-                      style={[
-                        styles.freqBtnText,
-                        testWeekFrequency === freq && styles.freqBtnTextActive,
-                      ]}
-                    >
-                      {freq === 'never' ? 'Never' : `Every ${freq}`}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {/*
-                SAY WHAT HAPPENS NEXT.
-
-                This control had no feedback beyond the button highlighting, for
-                a setting that decides whether the next session is a max
-                attempt. Somebody switching tests back on could be handed one
-                immediately - see setTestWeekFrequency in lib/store.ts - and
-                nothing told them. nextTestNotice returns null when tests are
-                off, so this row simply is not there for anyone who has declined.
-              */}
-              {testWeekNotice ? (
-                <Text style={styles.settingItemNotice} testID="next-test-notice">
-                  {testWeekNotice}
-                </Text>
-              ) : null}
-
-              <View style={styles.settingDivider} />
-
               <Text style={styles.settingItemLabel}>Weight Units</Text>
               <Text style={styles.settingItemSub}>Used throughout the app for weight display</Text>
               <View style={styles.freqRow}>
@@ -2983,17 +2926,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
       marginBottom: 10,
-    },
-    settingItemNotice: {
-      fontSize: 12,
-      lineHeight: 17,
-      fontFamily: 'Inter_500Medium',
-      color: C.primaryText,
-      backgroundColor: C.primaryMuted,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 9,
-      marginTop: 10,
     },
     settingDivider: { height: 1, backgroundColor: C.borderLight, marginVertical: 16 },
     freqRow: { flexDirection: 'row', gap: 10 },

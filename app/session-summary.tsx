@@ -29,7 +29,6 @@ import { elevatedShadow } from '@/constants/shadows';
 import {
   useAppStore,
   CompletedSession,
-  SESSION_ORDER,
   SetLog,
   ExerciseCategory,
   ExerciseFeedback,
@@ -415,86 +414,6 @@ function ProgressionRules({ P }: { P: CardPalette }) {
   );
 }
 
-/**
- * This lift's top set across the block that led to a test, as a simple bar
- * chart. Deliberately plain Views rather than a charting dependency — five to
- * twelve bars needs no library, and this has to survive being captured by
- * react-native-view-shot for the shareable card.
- */
-function BlockProgressChart({
-  points,
-  weightUnit,
-  liftName,
-}: {
-  points: { kg: number; date: string }[];
-  weightUnit: WeightUnit;
-  liftName: string;
-}) {
-  const P = SAGE;
-  const values = points.map((p) => p.kg);
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const gained = values[values.length - 1] - values[0];
-  // Scale bars between min and max rather than from zero: the interesting range
-  // is the top of the lift, and a zero baseline flattens every bar into a
-  // near-identical block.
-  const span = max - min || 1;
-  const heightFor = (kg: number) => 26 + ((kg - min) / span) * 54;
-
-  return (
-    <View style={{ paddingHorizontal: 20, paddingBottom: 18, gap: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: P.text }}>
-          {liftName} through this block
-        </Text>
-        <Text style={{ fontSize: 12, fontFamily: 'Inter_500Medium', color: P.muted }}>
-          {points.length} session{points.length === 1 ? '' : 's'}
-        </Text>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 80 }}>
-        {points.map((p, i) => {
-          const isLast = i === points.length - 1;
-          return (
-            <View key={`${p.date}-${i}`} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-              <View
-                style={{
-                  width: '100%',
-                  height: heightFor(p.kg),
-                  borderRadius: 5,
-                  backgroundColor: isLast ? P.accent : P.badgeBg,
-                }}
-              />
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: P.faint }}>
-          {formatWeight(values[0], weightUnit)}
-        </Text>
-        <Text
-          style={{
-            fontSize: 12,
-            fontFamily: 'Inter_700Bold',
-            color: gained > 0 ? P.accent : P.muted,
-          }}
-        >
-          {gained > 0
-            ? `+${formatWeight(gained, weightUnit)} over the block`
-            : gained < 0
-              ? `${formatWeight(Math.abs(gained), weightUnit)} down over the block`
-              : 'Held steady over the block'}
-        </Text>
-        <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: P.faint }}>
-          {formatWeight(values[values.length - 1], weightUnit)}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 function ProgressTab({
   rows,
   sessionType,
@@ -509,8 +428,6 @@ function ProgressTab({
   exerciseStuckStreak,
   exerciseFeedback,
   weightUnit,
-  testBlockSeries,
-  liftName,
   onOpenRating,
 }: {
   rows: ExerciseRow[];
@@ -531,13 +448,10 @@ function ProgressTab({
   exerciseFeedback: Record<string, ExerciseFeedback>;
   weightUnit: WeightUnit;
   /** Set on a test session: this lift's top set across the block leading here. */
-  testBlockSeries?: { kg: number; date: string }[] | null;
-  liftName?: string;
   onOpenRating: () => void;
 }) {
   const P = SAGE;
   const weighted = rows.filter((r) => r.isWeighted);
-  const isTest = Boolean(testBlockSeries);
   const toneColor: Record<'up' | 'down' | 'neutral' | 'first', string> = {
     up: TONE_UP,
     down: TONE_DOWN,
@@ -574,32 +488,10 @@ function ProgressTab({
           <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: P.text }}>
             What&apos;s driving your numbers
           </Text>
-          {isTest ? (
-            <Text
-              style={{
-                fontSize: 13,
-                fontFamily: 'Inter_400Regular',
-                color: P.muted,
-                lineHeight: 19,
-              }}
-            >
-              A test is two exercises, so today&apos;s volume says nothing. This is the block of
-              work that got you here.
-            </Text>
-          ) : (
-            <ProgressionRules P={P} />
-          )}
+          <ProgressionRules P={P} />
         </View>
 
-        {testBlockSeries && (
-          <BlockProgressChart
-            points={testBlockSeries}
-            weightUnit={weightUnit}
-            liftName={liftName ?? 'This lift'}
-          />
-        )}
-
-        {!isTest && totalReps > 0 && (
+        {totalReps > 0 && (
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingBottom: 16 }}>
             {hasWeighted && (
               <StatDeltaTile
@@ -785,7 +677,6 @@ export default function SessionSummaryScreen() {
   const exerciseRepNote = useAppStore((s) => s.exerciseRepNote);
   const exerciseStuckStreak = useAppStore((s) => s.exerciseStuckStreak);
   const exerciseFeedback = useAppStore((s) => s.exerciseFeedback);
-  const oneRepMaxes = useAppStore((s) => s.oneRepMaxes);
   const newlyUnlockedBadges = useAppStore((s) => s.newlyUnlockedBadges);
   const programme = useAppStore((s) => s.programme);
   const getSessionPlanTags = useAppStore((s) => s.getSessionPlanTags);
@@ -1052,7 +943,6 @@ export default function SessionSummaryScreen() {
         sets: summary.totalSets,
         onPlan: planTag?.onPlan === true,
         deload: planTag?.deload === true,
-        testSession: session.isTestWeek === true,
         // The rows already worked out which lifts beat their own history; a
         // 'first' badge is a first appearance, which is deliberately not one.
         personalBests: summary.rows.filter((r) => r.badge === 'gain-weight').length,
@@ -1279,265 +1169,66 @@ export default function SessionSummaryScreen() {
   const bestPbRow = summary.rows
     .filter((r) => r.badge === 'gain-weight')
     .sort((a, b) => b.deltaWeight - a.deltaWeight)[0];
-  // ── Test week: the tested max IS the story ─────────────────────────────────
-  // Twelve sessions of work land on this one number, so it outranks everything
-  // else on the hero — a routine PB or a session-count milestone must not bump
-  // it. oneRepMaxes is newest-first, so [0] is the result just recorded and [1]
-  // is the previous test of the same lift.
-  /**
-   * TESTS ONLY, NOT EVERY NUMBER EVER RECORDED FOR THIS LIFT.
+  /*
+   * THE TEST-WEEK SUMMARY IS GONE.
    *
-   * oneRepMaxes is one flat list that both the test path and the Stats-tab
-   * calculator write to, so [1] used to mean "the entry before this one",
-   * whatever it was. Squat tested at 130, a calculator estimate of 117 typed in
-   * between, then tested at 140, and the certificate read "Up 23 kg on your
-   * last test". The real answer was 10.
-   *
-   * Entries with no source predate the field and are almost all tests, so they
-   * are kept.
+   * This screen used to have a whole second personality for a strength test:
+   * the tested max as the hero number, the change since the last test of that
+   * lift, all three lifts together on the last test of a block, and a chart of
+   * the run-up because a two-exercise test always looked like a decline next to
+   * a training session. Strength tests are retired and nothing can log one, so
+   * every session gets the ordinary summary. The maxes already recorded are
+   * still kept and still shown on the Stats tab.
    */
-  const liftOrms = session.isTestWeek
-    ? oneRepMaxes.filter((o) => o.lift === session.sessionType && o.source !== 'manual')
-    : [];
-  const testedOrm = liftOrms[0];
-  const previousOrm = liftOrms[1];
-  const testDeltaKg = testedOrm && previousOrm ? testedOrm.weight - previousOrm.weight : null;
-  const liftName = getSessionLabel(session.sessionType).replace(/\s*Session$/i, '');
-  const liftSessionCount = completedSessions.filter(
-    (s) => s.sessionType === session.sessionType
-  ).length;
-
-  // Bodyweight and band tests log reps against a zero weight, so the 1RM path
-  // above never fires for them — those users used to finish a whole test week
-  // with nothing recorded and a summary that looked like any other session.
-  // For them the rep count IS the result, and it is already in the session log.
-  // The test protocol is always [ramp-up, test set], so the test set is last.
-  const testMainLog = session.isTestWeek
-    ? session.exerciseLogs[session.exerciseLogs.length - 1]
-    : undefined;
-  const testRepsSet = testMainLog?.sets.find((s) => s.completed && s.reps > 0);
-  const testedReps = !testedOrm && testRepsSet?.weight === 0 ? testRepsSet.reps : null;
-
-  // completedSessions is newest-first and already contains this session, so
-  // skipping by id finds the previous test of the same lift.
-  const previousTestSession = completedSessions.find(
-    (s) => s.id !== session.id && s.isTestWeek && s.sessionType === session.sessionType
-  );
-  const previousTestReps =
-    previousTestSession?.exerciseLogs[previousTestSession.exerciseLogs.length - 1]?.sets.find(
-      (s) => s.completed && s.reps > 0
-    )?.reps ?? null;
-  const testDeltaReps =
-    testedReps !== null && previousTestReps !== null ? testedReps - previousTestReps : null;
-
-  // ── Cycle results: the payoff for the whole block ──────────────────────────
-  // Three lifts are tested across a test week and nothing joined them up, so
-  // finishing the third one felt like finishing any other session. On that last
-  // test we show all three together — the actual milestone.
-  //
-  // Results are recomputed from each session's own log rather than read out of
-  // oneRepMaxes, so a lift is matched to its test by the session it came from
-  // instead of by hoping the dates line up.
-  const testResultOf = (s: CompletedSession): { kg: number | null; reps: number | null } => {
-    const log = s.exerciseLogs[s.exerciseLogs.length - 1];
-    const set = log?.sets.find((x) => x.completed && x.reps > 0);
-    if (!set) return { kg: null, reps: null };
-    // Epley, matching the estimate the completion path records.
-    if (set.weight > 0) return { kg: Math.round(set.weight * (1 + set.reps / 30)), reps: set.reps };
-    return { kg: null, reps: set.reps };
-  };
-
-  // The most recent unbroken run of test sessions — this block.
-  const blockTests: CompletedSession[] = [];
-  for (const s of completedSessions) {
-    if (!SESSION_ORDER.includes(s.sessionType)) continue;
-    if (!s.isTestWeek) break;
-    blockTests.push(s);
-    if (blockTests.length === SESSION_ORDER.length) break;
-  }
-  const cycleComplete =
-    Boolean(session.isTestWeek) &&
-    blockTests.length === SESSION_ORDER.length &&
-    blockTests.some((s) => s.id === session.id);
-
-  const cycleRows = cycleComplete
-    ? blockTests
-        .slice()
-        .reverse() // squat, bench, deadlift — the order they were tested in
-        .map((s) => {
-          const now = testResultOf(s);
-          // The same lift's previous test, from before this block.
-          const prior = completedSessions.find(
-            (p) =>
-              p.sessionType === s.sessionType &&
-              p.isTestWeek &&
-              !blockTests.some((b) => b.id === p.id)
-          );
-          const was = prior ? testResultOf(prior) : null;
-          const isReps = now.kg === null;
-          const value = isReps ? now.reps : now.kg;
-          const previous = was ? (isReps ? was.reps : was.kg) : null;
-          return {
-            lift: getSessionLabel(s.sessionType).replace(/\s*Session$/i, ''),
-            value,
-            previous,
-            delta: value !== null && previous !== null ? value - previous : null,
-            isReps,
-          };
-        })
-        .filter((r) => r.value !== null)
-    : [];
-
-  // ── The run-up to this test ────────────────────────────────────────────────
-  // On a test, today's volume and rep count are meaningless — a two-exercise
-  // test is always lighter than a training session, so both tiles read as a
-  // decline. What actually matters is the block of work that led here, so the
-  // Progress tab shows this lift's top set across every session since the last
-  // test of it.
-  const heaviestSetOf = (s: CompletedSession): number => {
-    let top = 0;
-    for (const log of s.exerciseLogs) {
-      for (const set of log.sets) {
-        if (set.completed && set.weight > top) top = set.weight;
-      }
-    }
-    return top;
-  };
-
-  const testBlockSeries = (() => {
-    if (!session.isTestWeek) return null;
-    const sameLift = completedSessions.filter((s) => s.sessionType === session.sessionType);
-    const here = sameLift.findIndex((s) => s.id === session.id);
-    if (here === -1) return null;
-    // completedSessions is newest-first, so walking forward goes back in time.
-    // Stop at the previous test: that is where this block began.
-    const block: CompletedSession[] = [];
-    for (let i = here + 1; i < sameLift.length; i++) {
-      if (sameLift[i].isTestWeek) break;
-      block.push(sameLift[i]);
-    }
-    const points = block
-      .reverse() // oldest first, so the chart reads left to right
-      .map((s) => ({ kg: heaviestSetOf(s), date: s.date }))
-      .filter((p) => p.kg > 0);
-    return points.length >= 2 ? points : null;
-  })();
-
-  const isTestHero = Boolean(testedOrm) || testedReps !== null;
-  const heroKind: 'test' | 'pb' | 'milestone' | 'default' = isTestHero
-    ? 'test'
-    : isMilestone
-      ? 'milestone'
-      : bestPbRow
-        ? 'pb'
-        : 'default';
+  const heroKind: 'pb' | 'milestone' | 'default' = isMilestone
+    ? 'milestone'
+    : bestPbRow
+      ? 'pb'
+      : 'default';
 
   const heroNumber =
-    heroKind === 'test' && testedOrm
-      ? kgToDisplayUnit(testedOrm.weight, weightUnit)
-      : heroKind === 'test' && testedReps !== null
-        ? testedReps
-        : heroKind === 'pb' && bestPbRow
-          ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
-          : heroKind === 'milestone'
-            ? sessionNumber
-            : topWeightKg > 0
-              ? kgToDisplayUnit(topWeightKg, weightUnit)
-              : summary.totalSets;
-  const heroUnit =
-    heroKind === 'test' && testedReps !== null
-      ? testedReps === 1
-        ? 'rep'
-        : 'reps'
+    heroKind === 'pb' && bestPbRow
+      ? kgToDisplayUnit(bestPbRow.bestWeight, weightUnit)
       : heroKind === 'milestone'
-        ? ''
-        : heroKind === 'default' && topWeightKg === 0
-          ? 'sets'
-          : weightUnit;
+        ? sessionNumber
+        : topWeightKg > 0
+          ? kgToDisplayUnit(topWeightKg, weightUnit)
+          : summary.totalSets;
+  const heroUnit =
+    heroKind === 'milestone'
+      ? ''
+      : heroKind === 'default' && topWeightKg === 0
+        ? 'sets'
+        : weightUnit;
   const heroBadgeLabel =
-    heroKind === 'test'
-      ? testedReps !== null
-        ? `${liftName} max reps`
-        : `${liftName} one-rep max`
-      : heroKind === 'pb'
-        ? 'New personal best'
-        : heroKind === 'milestone'
-          ? 'Milestone session'
-          : null;
-  const repsWord = (n: number) => `${n} rep${n === 1 ? '' : 's'}`;
-
-  /**
-   * Caption for a test result, in whichever unit that lift is measured in —
-   * kilos for a weighted test, reps for a bodyweight one. Covers a drop
-   * honestly: plenty of real test weeks go backwards, and saying so is better
-   * than the app pretending it did not happen.
-   */
-  const testCaption = (delta: number | null, format: (n: number) => string): string => {
-    if (delta === null) {
-      return `Your first tested ${liftName.toLowerCase()} max. This is the number everything else is measured against.`;
-    }
-    if (delta > 0) {
-      return `Up ${format(delta)} on your last test. That is ${liftSessionCount} session${liftSessionCount === 1 ? '' : 's'} of work showing up.`;
-    }
-    if (delta === 0) return 'Level with your last test. Holding a max is its own result.';
-    return `Down ${format(Math.abs(delta))} on your last test. One number on one day. It happens.`;
-  };
+    heroKind === 'pb'
+      ? 'New personal best'
+      : heroKind === 'milestone'
+        ? 'Milestone session'
+        : null;
 
   const heroCaption =
-    heroKind === 'test'
-      ? testedReps !== null
-        ? testCaption(testDeltaReps, repsWord)
-        : testCaption(testDeltaKg, (n) => formatWeight(n, weightUnit))
-      : heroKind === 'pb' && bestPbRow
-        ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
-        : heroKind === 'milestone'
-          ? bestPbRow
-            ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'}, and a new best on ${bestPbRow.exerciseName}`
-            : `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} and counting`
-          : streakWeeks >= 1
-            ? `${streakWeeks} week${streakWeeks === 1 ? '' : 's'} in a row. Keep it going.`
-            : 'Nice work today.';
+    heroKind === 'pb' && bestPbRow
+      ? `${bestPbRow.exerciseName}, up ${formatWeight(bestPbRow.deltaWeight, weightUnit)} from last time`
+      : heroKind === 'milestone'
+        ? bestPbRow
+          ? `${sessionNumber} session${sessionNumber === 1 ? '' : 's'}, and a new best on ${bestPbRow.exerciseName}`
+          : `${sessionNumber} session${sessionNumber === 1 ? '' : 's'} and counting`
+        : streakWeeks >= 1
+          ? `${streakWeeks} week${streakWeeks === 1 ? '' : 's'} in a row. Keep it going.`
+          : 'Nice work today.';
 
-  // On a test the rail carries the story of this lift rather than today's
-  // duration and set count, which are beside the point on a two-exercise test.
-  const testRail = (
-    previous: string,
-    delta: number | null,
-    format: (n: number) => string
-  ): { label: string; value: string; accent?: boolean }[] => [
-    { label: 'Previous', value: previous },
-    {
-      label: 'Change',
-      value: delta === null ? 'First' : `${delta >= 0 ? '+' : '−'}${format(Math.abs(delta))}`,
-      accent: delta !== null && delta > 0,
-    },
-    { label: `${liftName} sessions`, value: String(liftSessionCount) },
+  const stats: { label: string; value: string; accent?: boolean }[] = [
+    { label: 'Duration', value: durationLabel },
+    { label: 'Sets', value: String(summary.totalSets) },
+    // "Muscles" again, and true again. It was renamed to "Areas"
+    // because the tally counted the elbow, the knee and the ankle —
+    // joints, which nobody trains. Now that the joints resolve to the
+    // muscles that move them this counts muscles, and it counts exactly
+    // the chips printed under the figures rather than a larger number
+    // the reader can't reconcile with them.
+    { label: 'Muscles', value: String(workedLabels.length) },
   ];
-
-  const stats: { label: string; value: string; accent?: boolean }[] =
-    heroKind === 'test' && testedReps !== null
-      ? testRail(
-          previousTestReps !== null ? repsWord(previousTestReps) : '-',
-          testDeltaReps,
-          repsWord
-        )
-      : heroKind === 'test' && testedOrm
-        ? testRail(
-            previousOrm ? formatWeight(previousOrm.weight, weightUnit) : '-',
-            testDeltaKg,
-            (n) => formatWeight(n, weightUnit)
-          )
-        : [
-            { label: 'Duration', value: durationLabel },
-            { label: 'Sets', value: String(summary.totalSets) },
-            // "Muscles" again, and true again. It was renamed to "Areas"
-            // because the tally counted the elbow, the knee and the ankle —
-            // joints, which nobody trains. Now that the joints resolve to the
-            // muscles that move them this counts muscles, and it counts exactly
-            // the chips printed under the figures rather than a larger number
-            // the reader can't reconcile with them.
-            { label: 'Muscles', value: String(workedLabels.length) },
-          ];
 
   return (
     <View style={[styles.container, { backgroundColor: SAGE.outerBg }]}>
@@ -1636,8 +1327,6 @@ export default function SessionSummaryScreen() {
             exerciseStuckStreak={exerciseStuckStreak}
             exerciseFeedback={exerciseFeedback}
             weightUnit={weightUnit}
-            testBlockSeries={testBlockSeries}
-            liftName={liftName}
             onOpenRating={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowRatingModal(true);
@@ -1761,44 +1450,6 @@ export default function SessionSummaryScreen() {
                       </Text>
                     </Animated.View>
                   ) : null}
-
-                  {/* Cycle results — only on the last test of a block */}
-                  {cycleRows.length > 0 && (
-                    <Animated.View
-                      entering={FadeInDown.duration(500).delay(130)}
-                      style={styles.cyclePanel}
-                    >
-                      <Text style={styles.cycleTitle}>TEST WEEK COMPLETE</Text>
-                      {cycleRows.map((r) => (
-                        <View key={r.lift} style={styles.cycleRow}>
-                          <Text style={styles.cycleLift} numberOfLines={1}>
-                            {r.lift}
-                          </Text>
-                          <Text style={styles.cycleValue}>
-                            {r.isReps
-                              ? `${r.value} ${r.value === 1 ? 'rep' : 'reps'}`
-                              : formatWeight(r.value as number, weightUnit)}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.cycleDelta,
-                              r.delta !== null && r.delta > 0 && { color: SAGE.accent },
-                            ]}
-                          >
-                            {r.delta === null
-                              ? 'first'
-                              : r.delta === 0
-                                ? 'level'
-                                : `${r.delta > 0 ? '+' : '−'}${
-                                    r.isReps
-                                      ? Math.abs(r.delta)
-                                      : formatWeight(Math.abs(r.delta), weightUnit)
-                                  }`}
-                          </Text>
-                        </View>
-                      ))}
-                    </Animated.View>
-                  )}
 
                   {/* Stat rail */}
                   <Animated.View
@@ -2384,48 +2035,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: SAGE.accent,
     letterSpacing: 0.8,
-  },
-
-  // Cycle results — all three tested lifts, shown on the last test of a block
-  cyclePanel: {
-    backgroundColor: SAGE.pillBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: SAGE.hairline,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-    gap: 8,
-  },
-  cycleTitle: {
-    fontSize: 9,
-    fontFamily: 'Inter_700Bold',
-    color: SAGE.faint,
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  cycleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  cycleLift: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: SAGE.muted,
-  },
-  cycleValue: {
-    fontSize: 15,
-    fontFamily: 'Inter_700Bold',
-    color: SAGE.text,
-  },
-  cycleDelta: {
-    minWidth: 54,
-    textAlign: 'right',
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: SAGE.faint,
   },
 
   // Stat rail

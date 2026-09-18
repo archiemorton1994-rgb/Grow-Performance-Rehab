@@ -61,7 +61,6 @@ interface Stats {
   streak: number;
   totalVolumeKg: number;
   bestOrm: Record<string, number>; // lift → best kg
-  testWeekCount: number;
   sessionsByDate: Map<string, CompletedSession[]>; // YYYY-MM-DD → sessions
   sessionDates: string[]; // sorted ISO date strings
   maxSessionVolumeKg: number;
@@ -106,7 +105,6 @@ function computeStats(state: BadgeEvalState): Stats {
   let totalVolumeKg = 0;
   let maxSessionVolumeKg = 0;
   let maxSingleSetWeightKg = 0;
-  let testWeekCount = 0;
   let recoveryCount = 0;
   let sixtyMinCount = 0;
   let fortyFiveMinCount = 0;
@@ -132,7 +130,6 @@ function computeStats(state: BadgeEvalState): Stats {
     if (type === 'prehab' || type === 'flexibility') recoveryCount++;
     if (type === 'squat' || type === 'bench' || type === 'deadlift') strengthSessionCount++;
     if (type === 'conditioning') conditioningCount++;
-    if (session.isTestWeek) testWeekCount++;
     if (session.energy === 'low') lowEnergyCount++;
 
     const dur = session.durationSeconds ?? 0;
@@ -238,7 +235,6 @@ function computeStats(state: BadgeEvalState): Stats {
     streak,
     totalVolumeKg,
     bestOrm,
-    testWeekCount,
     sessionsByDate,
     sessionDates: sortedDates,
     maxSessionVolumeKg,
@@ -542,11 +538,10 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   );
 
   // ── 18. Test Weeks ────────────────────────────────────────────────────────
-  awardIf(s.testWeekCount >= 1, 'test_1');
-  awardIf(s.testWeekCount >= 3, 'test_3');
-  awardIf(s.testWeekCount >= 5, 'test_5');
-  awardIf(s.testWeekCount >= 10, 'test_10');
-  awardIf(s.testWeekCount >= 20, 'test_20');
+  // Gone. Strength test weeks are retired, so there is nothing left to count
+  // and no rule left to award. The five test_* badges stay in the catalogue
+  // marked retired, so anyone who earned one keeps it on their shelf, and the
+  // gate in awardIf would refuse them even if a rule came back here by mistake.
 
   // ── 19. Time of Day ───────────────────────────────────────────────────────
   awardIf(s.before6Count >= 1, 'time_5am');

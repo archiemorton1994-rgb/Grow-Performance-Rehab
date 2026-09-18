@@ -46,10 +46,18 @@ export interface SyncPayload {
   oneRepMaxes: any[];
   exerciseFeedback: Record<string, any>;
   weightUnit: string;
-  /** 12 | 18 | 'never' — see TestWeekFrequency in lib/store.ts. Widened when
-   *  'never' was added; a device switch must not silently turn test weeks back
-   *  on for someone who declined them. */
+  /**
+   * Always 'never' now, and a number from an older build is ignored.
+   *
+   * It used to be 12 | 18 | 'never'. Strength test weeks are retired, so the
+   * field stays in the payload only to leave the server contract where it is,
+   * and it is widened here because a copy uploaded by an older build still says
+   * 12. mergeServerData converts whatever arrives, for the same reason the v35
+   * migration converts whatever is on disk: a device switch must not put back
+   * the value the retirement exists to remove.
+   */
   testWeekFrequency: number | string;
+  /** Always false now. See testWeekFrequency above. */
   testWeekDeferred: boolean;
   cycleStartOffset: number;
   /**

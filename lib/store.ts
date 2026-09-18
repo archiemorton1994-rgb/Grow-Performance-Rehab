@@ -20,7 +20,6 @@ import {
   type BalanceNudge,
 } from '@/lib/training-balance';
 import {
-  COMEBACK_SESSIONS,
   estimateOrmFromAmrap,
   getReturnWindow as computeReturnWindow,
   setLastTrainedDate,
@@ -39,7 +38,6 @@ import type {
   SessionPlanTag,
 } from './programme';
 import {
-  cycleOf,
   programmePosition,
   programmeDrift,
   sessionsCountingToward,
@@ -88,16 +86,22 @@ export interface CardioLogData {
 }
 export type TimeAvailable = '30' | '45' | '60';
 /**
- * How often a strength test week comes due — or 'never'.
+ * STRENGTH TEST WEEKS ARE RETIRED, so this has exactly one value.
  *
- * 'never' exists because plenty of people do not train the three barbell lifts
- * at all: custom-session-only users, people who follow the conditioning and
- * mobility work in their own pattern, people doing weeks of rehab. Before this,
- * the only options were every 12 or every 18 sessions and there was no way to
- * decline, so a max-effort barbell test was imposed on everyone who ever
- * touched a KPI lift.
+ * It used to be 12 | 18 | 'never': a max-effort barbell attempt every twelve or
+ * eighteen strength sessions, with 'never' added later for the many people who
+ * do not train the three barbell lifts at all. The whole idea is gone now. Grow
+ * is a physiotherapist's app, and asking somebody to find out what they can lift
+ * once is not what it is for.
+ *
+ * Kept as a one-value type rather than deleted outright, because the field is
+ * still persisted and still sent in the sync payload, so the server contract
+ * does not change. Narrowing it to 'never' is what makes the retirement
+ * structural: no code anywhere can put a number back in without failing
+ * typecheck, whatever an old saved copy or an old server row happens to say.
+ * The v35 migration and mergeServerData both convert those on the way in.
  */
-export type TestWeekFrequency = 12 | 18 | 'never';
+export type TestWeekFrequency = 'never';
 /**
  * THE TRAINING LEVELS, easiest first, and the one list everything reads.
  *
@@ -320,7 +324,14 @@ export interface ActiveSession {
   acute?: boolean;
   energy: EnergyLevel;
   timeAvailable: TimeAvailable;
-  isTestWeek: boolean;
+  /**
+   * Left here, optional and never written, for the one person who had a test
+   * week half-finished when this update landed. Their saved session still
+   * carries the flag, the cards it holds come back off the snapshot exactly as
+   * they were, and nothing reads this on the way out. Removing it would make
+   * that saved session fail to parse for no gain.
+   */
+  isTestWeek?: boolean;
   /** Optional launch-context label (e.g. "Recovery" vs "Targeted Prehab") shown in history. */
   displayLabel?: string;
   exerciseData: InProgressSetData[];
@@ -398,12 +409,13 @@ export interface OneRepMax {
   /**
    * Where this number came from.
    *
-   * 'test' is a max actually attempted in a test week. 'manual' is an estimate
-   * the user typed into the calculator on the Stats tab from a set they had
-   * already done. They were indistinguishable, and the test-week summary read
-   * oneRepMaxes[1] as "your last test" - so somebody who used the calculator
-   * between test weeks was told "Up 23 kg on your last test" when the real
-   * answer was 10.
+   * 'test' is a max actually attempted in a test week, which only history now
+   * holds: strength test weeks are retired and nothing writes 'test' any more.
+   * 'manual' is an estimate the user works out on the Stats tab from a set they
+   * had already done, which is the one route left. They were indistinguishable
+   * for a while, and the old test-week summary read oneRepMaxes[1] as "your last
+   * test" - so somebody who used the calculator between test weeks was told "Up
+   * 23 kg on your last test" when the real answer was 10.
    *
    * Optional because entries written before this field existed cannot be
    * classified. Those are treated as tests, which is what almost all of them
@@ -427,6 +439,13 @@ export interface CompletedSession {
   timeAvailable: TimeAvailable;
   exerciseCount: number;
   exerciseLogs: ExerciseLog[];
+  /**
+   * HISTORY ONLY. Strength test weeks are retired, so nothing sets this any
+   * more. It stays because past sessions carry it and a record of what somebody
+   * actually did is not ours to rewrite: the session list still labels those
+   * days as a test week, and the badges they earned for them are still on the
+   * shelf. Nothing in the app branches on it to decide what to do TODAY.
+   */
   isTestWeek?: boolean;
   durationSeconds?: number;
   /** Optional launch-context label (e.g. "Recovery" vs "Targeted Prehab") shown in history. */
@@ -647,10 +666,6 @@ export interface OnboardingDraft {
   bodyweight?: string;
   goals?: FitnessGoal[];
   equipmentTiers?: EquipmentTier[];
-  ormSquat?: string;
-  ormBench?: string;
-  ormDeadlift?: string;
-  testWeekFrequency?: TestWeekFrequency;
 
   /**
    * The three answers the sign-up collects that the old pager never stored.
@@ -721,12 +736,16 @@ interface AppState {
   completedCount: number;
   completedSessions: CompletedSession[];
   oneRepMaxes: OneRepMax[];
+  /**
+   * Always 'never' now: see TestWeekFrequency. Persisted and synced so that the
+   * stored shape and the sync payload are unchanged, and so an older build
+   * still reading this finds the answer it understands.
+   */
   testWeekFrequency: TestWeekFrequency;
-  /** True when a due test week was postponed (e.g. proper equipment wasn't
-   *  available that day) rather than skipped outright. Keeps isTestWeekDue()
-   *  true on the very next strength session instead of waiting a full
-   *  testWeekFrequency-session cycle for it to come due again. Cleared once a
-   *  genuine test-week session completes. Persisted. */
+  /** Always false now. It used to mean "a due test week was postponed", and the
+   *  postponement had to survive a restart or the test vanished for a whole
+   *  block. Nothing sets it any more; kept, like the frequency above, so the
+   *  persisted and synced shapes do not move. */
   testWeekDeferred: boolean;
   /**
    * A Reset Progress whose cleared state has not yet reached the server.
@@ -975,10 +994,6 @@ interface AppState {
    */
   completeOnboarding: (answers: SignUpAnswers, nowIso: string) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
-  setTestWeekFrequency: (freq: TestWeekFrequency) => void;
-  /** Postpone today's due test week — isTestWeekDue() stays true until a
-   *  genuine test-week session completes, instead of the count moving past it. */
-  deferTestWeek: () => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   setLastWeightPromptedAt: (ts: number) => void;
   setDataOwnerId: (id: string) => void;
@@ -1218,23 +1233,6 @@ interface AppState {
   isOnStrengthProgramme: () => boolean;
   getCurrentSessionType: () => SessionType;
   /**
-   * Where you are in a test week: all three main lifts, one test per session,
-   * in SESSION_ORDER. `active` is true from the moment one comes due until the
-   * third test is logged. Derived from session history — see the implementation.
-   */
-  getTestWeekProgress: () => {
-    active: boolean;
-    /** Tests already logged in this block, 0–3. */
-    completed: number;
-    total: number;
-    /** The lift the next test session should use. */
-    nextLift: SessionType;
-    /** True when a test IS due by the count but is being withheld because the
-     *  user is only just back from a break. See the implementation. */
-    held: boolean;
-  };
-  isTestWeekDue: () => boolean;
-  /**
    * Where the user is in a comeback — how long their most recent break was and
    * how many strength sessions they have logged since it ended — or null when
    * there is no break in play. Thresholds live in lib/workout-engine.ts so the
@@ -1285,7 +1283,7 @@ export const useAppStore = create<AppState>()(
       completedCount: 0,
       completedSessions: [],
       oneRepMaxes: [],
-      testWeekFrequency: 12,
+      testWeekFrequency: 'never',
       testWeekDeferred: false,
       resetPendingUpload: false,
       userProfile: {
@@ -1477,27 +1475,6 @@ export const useAppStore = create<AppState>()(
 
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
-      /**
-       * TURNING TESTS ON ALSO CLEARS ANY OUTSTANDING POSTPONEMENT.
-       *
-       * testWeekDeferred is set when somebody postpones a due test, and it is
-       * persisted and independent of this setting. Without clearing it, the
-       * sequence "postpone a test, switch tests off, switch them back on months
-       * later" handed the user an all-out max attempt on their very next
-       * strength session, because `due` is `testWeekDeferred || count % freq`.
-       * A postponement from before they opted out is not a promise they made.
-       *
-       * Switching OFF deliberately leaves it alone: nothing is scheduled while
-       * the frequency is 'never' anyway, and preserving it means someone who
-       * turns tests off and straight back on again in the same minute has not
-       * silently lost a deferral they still meant.
-       */
-      setTestWeekFrequency: (freq) =>
-        set((s) => ({
-          testWeekFrequency: freq,
-          testWeekDeferred: freq === 'never' ? s.testWeekDeferred : false,
-        })),
-      deferTestWeek: () => set({ testWeekDeferred: true }),
       setUserProfile: (profile) => {
         // Last line of defence for the one field the load maths multiplies by.
         // Four screens write a bodyweight (onboarding, profile, the weekly weight
@@ -1732,13 +1709,6 @@ export const useAppStore = create<AppState>()(
 
       completeSession: (session) => {
         const id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-        // Read BEFORE the session is added, because adding it is what destroys
-        // the evidence: a test held back for a comeback is due on a session
-        // count that is a multiple of testWeekFrequency, and the session about
-        // to be logged moves the count past it. Without recording the
-        // postponement here the held test would silently vanish for a whole
-        // block — which is the failure the hold exists to prevent.
-        const testHeldForComeback = get().getTestWeekProgress().held;
         /**
          * HOW MANY WEIGHTS IN THIS SESSION BEAT ANYTHING IN THE ACCOUNT.
          *
@@ -1933,13 +1903,6 @@ export const useAppStore = create<AppState>()(
             // weeks ago on an exercise that was not trained today would be read
             // as today's news.
             exerciseRepNote: newRepNote,
-            // A genuine test-week session clears any postponement — the thing
-            // it was standing in for has now actually happened.
-            ...(session.isTestWeek
-              ? { testWeekDeferred: false }
-              : testHeldForComeback
-                ? { testWeekDeferred: true }
-                : {}),
           };
         });
         // Award any newly unlocked badges based on the updated state.
@@ -1981,7 +1944,6 @@ export const useAppStore = create<AppState>()(
           sets: completedSets,
           onPlan: tag?.onPlan === true,
           deload: tag?.deload === true,
-          testSession: session.isTestWeek === true,
           personalBests,
           blockComplete: blockJustFinished,
         });
@@ -2013,9 +1975,12 @@ export const useAppStore = create<AppState>()(
        * way. Everything below is a number that decides a future weight, so all
        * of it goes.
        *
-       * testWeekDeferred matters most of the four counters. Left set, the first
-       * session after wiping everything is a max-effort one-rep-max attempt, on
-       * an account the app now believes has never trained.
+       * testWeekDeferred used to matter most of the four counters: left set, the
+       * first session after wiping everything was a max-effort one-rep-max
+       * attempt, on an account the app now believed had never trained. Strength
+       * tests are retired and nothing sets it any more, so clearing it is now
+       * only tidiness. It is still cleared, because a reset that leaves stored
+       * fields behind is the exact bug this docblock is about.
        *
        * Deliberately NOT cleared: the bodyweight log. This resets training
        * progression; a weigh-in is a body measurement, not a lift, and losing a
@@ -2513,29 +2478,21 @@ export const useAppStore = create<AppState>()(
       },
 
       isOnStrengthProgramme: () => {
-        const { completedSessions, testWeekFrequency } = get();
+        const { completedSessions } = get();
         /**
-         * SAYING YES TO TEST WEEKS RAISES THE BAR FOR DIVERTING.
+         * HOW MUCH EVIDENCE IT TAKES TO STOP SUGGESTING THE BARBELL LIFTS.
          *
-         * Someone who chose "test my strength every 12 sessions" has told us,
-         * in as many words, that the three lifts are part of their plan. With a
-         * flat three-session threshold, three conditioning sessions in their
-         * first fortnight was enough to move them off the barbell rotation —
-         * and once off it they could never be tested either, because a test
-         * only comes due on a strength session. Opting in led to never being
-         * offered the thing they opted into.
+         * A lifter who spends six sessions rehabbing stops being told to squat,
+         * and their first squat back restores the rotation exactly where it was.
          *
-         * So an opted-in user keeps the rotation until a FULL recent window has
-         * gone by without a single KPI lift in it. The divert still works — a
-         * lifter who spends six sessions rehabbing stops being told to squat,
-         * and their first squat back restores the rotation exactly where it was
-         * — it just takes a clear, repeated choice rather than a quiet fortnight.
-         *
-         * Someone who declined test weeks keeps the lighter threshold: they
-         * said the opposite, and taking three sessions at their word is right.
+         * There used to be a second, higher bar here for anyone who had opted in
+         * to strength test weeks: saying "test me every 12 sessions" was read as
+         * saying the three lifts were part of the plan, so it took a full recent
+         * window rather than three sessions to divert them. Test weeks are
+         * retired, nobody can opt in any more, and one threshold for everybody
+         * is what is left.
          */
-        const evidenceNeeded = testWeekFrequency === 'never' ? NON_KPI_EVIDENCE : RECENT_WINDOW;
-        if (completedSessions.length < evidenceNeeded) return true;
+        if (completedSessions.length < NON_KPI_EVIDENCE) return true;
         return completedSessions
           .slice(0, RECENT_WINDOW)
           .some((s) => SESSION_ORDER.includes(s.sessionType));
@@ -2543,19 +2500,14 @@ export const useAppStore = create<AppState>()(
 
       getCurrentSessionType: () => {
         const { completedSessions, cycleStartOffset } = get();
-        // During a test week the lift is dictated by how far through the three
-        // tests you are, not by the normal rotation.
-        const progress = get().getTestWeekProgress();
-        if (progress.active) return progress.nextLift;
         /**
          * THE PROGRAMME, IF THERE IS ONE.
          *
-         * Placed AFTER the test-week override, because a due strength test
-         * dictates the lift whatever the block would otherwise ask for, and
-         * BEFORE everything below, because everything below is the behaviour the
-         * app had when nothing chose your sessions for you. Somebody who has
-         * never been through the profile tree has programme === null and reaches
-         * exactly the code they reach today.
+         * First now. A due strength test used to override it and dictate the
+         * lift whatever the block asked for; test weeks are retired, so the
+         * block is the only thing above the plain rotation. Everything below is
+         * the behaviour the app had when nothing chose your sessions for you,
+         * which is what somebody enrolled in nothing still gets.
          *
          * Paused is a real state rather than a deletion: the hub can pause a
          * block, the suggestion falls back to the old behaviour, and the position
@@ -2622,137 +2574,6 @@ export const useAppStore = create<AppState>()(
         if (vocabulary.length > 0) return vocabulary[vocabulary.length - 1];
         return hasCustom ? 'custom' : NON_KPI_FALLBACK;
       },
-
-      /**
-       * A test week is all three main lifts, tested one per session, in
-       * SESSION_ORDER (squat → bench → deadlift).
-       *
-       * WHY THIS IS DERIVED, NOT A FLAG
-       * ───────────────────────────────
-       * How far through you are is read back off the session history: count the
-       * most recent consecutive strength sessions that were tests. That survives
-       * a reinstall, a device switch, and mergeServerData, none of which a
-       * separate in-progress counter would.
-       *
-       * THE BUG THIS REPLACES
-       * ─────────────────────
-       * A test used to be a single session, fired when strengthCount hit a
-       * multiple of testWeekFrequency. Both frequency options (12 and 18) divide
-       * exactly by 3, so the rotation was always sitting on the same lift when a
-       * test came due — the same lift was tested every time, forever, and the
-       * other two never were. Replaying 40 sessions produced squat, squat, squat
-       * and never once bench or deadlift.
-       */
-      getTestWeekProgress: () => {
-        const { completedSessions, testWeekFrequency, testWeekDeferred } = get();
-        const idleOff = {
-          active: false,
-          completed: 0,
-          total: SESSION_ORDER.length,
-          nextLift: SESSION_ORDER[0],
-          held: false,
-        };
-        // Turned off entirely. Checked before the resume branch below on
-        // purpose: someone who switches test weeks off part-way through a block
-        // is asking not to be tested, and "you still owe us two more" is not an
-        // answer to that.
-        if (testWeekFrequency === 'never') return idleOff;
-
-        /**
-         * A STRENGTH TEST BELONGS TO A PROGRAMME BUILT ON THE BARBELL LIFTS.
-         *
-         * Reported from use: a home screen reading "Test Week 1 of 3" above a
-         * Squat Session, to somebody whose programme was nothing of the sort.
-         * Two things caused it and both are fixed here.
-         *
-         * The test-week question is only ASKED on the barbell path, and
-         * everybody else was defaulted to every 12 sessions so that
-         * isTestWeekDue could not read undefined. Safe, and wrong: it quietly
-         * signed up the person who came to the app because their knee hurts for
-         * a one-rep max attempt.
-         *
-         * So: if a programme is running and its cycle contains none of the
-         * three lifts, a strength test is not part of their plan and never
-         * interrupts it. Somebody enrolled in nothing at all is untouched -
-         * that is every existing user, and their rotation still tests them.
-         */
-        const enrolled = get().programme;
-        if (
-          enrolled &&
-          !cycleOf(enrolled).some((t) =>
-            SESSION_ORDER.includes(t)
-          )
-        ) {
-          return idleOff;
-        }
-
-        const strength = completedSessions.filter((s) =>
-          SESSION_ORDER.includes(s.sessionType)
-        );
-
-        // completedSessions is newest-first, so this walks backwards in time.
-        let completed = 0;
-        for (const s of strength) {
-          if (!s.isTestWeek) break;
-          completed++;
-          if (completed === SESSION_ORDER.length) break;
-        }
-
-        const idle = {
-          active: false,
-          completed: 0,
-          total: SESSION_ORDER.length,
-          nextLift: SESSION_ORDER[0],
-          held: false,
-        };
-
-        // Part-way through: finish the remaining lifts before anything else.
-        if (completed > 0 && completed < SESSION_ORDER.length) {
-          return {
-            active: true,
-            completed,
-            total: SESSION_ORDER.length,
-            nextLift: SESSION_ORDER[completed],
-            held: false,
-          };
-        }
-        // All three done — the block is over.
-        if (completed >= SESSION_ORDER.length) return idle;
-
-        // Not started. A postponed test stays due regardless of count until it
-        // is actually taken, otherwise the next strength session would consume
-        // the "due" count and push the real test a whole block away.
-        const due =
-          testWeekDeferred ||
-          (strength.length > 0 && strength.length % testWeekFrequency === 0);
-        if (!due) return idle;
-
-        // Nobody walks out of a layoff into a max-effort test.
-        //
-        // Someone who stopped at session 11 and came back a month later used to
-        // be handed a one-rep max attempt on their first session, on a body that
-        // had not been under a bar since. The test waits until they have put
-        // COMEBACK_SESSIONS strength sessions back in — enough for the load
-        // calculation to have something recent to work from, and for the number
-        // the test produces to mean something.
-        //
-        // Held, not cancelled: completeSession sets testWeekDeferred while this
-        // is true, so the test comes due again the moment the baseline is back
-        // rather than disappearing for another full block.
-        const comeback = get().getReturnWindow();
-        if (comeback !== null && comeback.sessionsBack < COMEBACK_SESSIONS) {
-          return { ...idle, held: true };
-        }
-        return {
-          active: true,
-          completed: 0,
-          total: SESSION_ORDER.length,
-          nextLift: SESSION_ORDER[0],
-          held: false,
-        };
-      },
-
-      isTestWeekDue: () => get().getTestWeekProgress().active,
 
       getReturnWindow: () => {
         const { completedSessions } = get();
@@ -3043,8 +2864,18 @@ export const useAppStore = create<AppState>()(
             // uploaded by an older build can still say 'system' and would put
             // back the value the v34 migration exists to remove.
             // tests/theme-options.check.mjs holds this.
-            testWeekFrequency: (data.testWeekFrequency as any) ?? s.testWeekFrequency,
-            testWeekDeferred: data.testWeekDeferred ?? s.testWeekDeferred,
+            /**
+             * THE SERVER'S ANSWER IS IGNORED, on purpose.
+             *
+             * Strength test weeks are retired and the v35 migration converts
+             * every stored frequency to 'never'. A copy uploaded by an older
+             * build still says 12 or 18, and adopting it here would undo that
+             * migration on the next sign-in for exactly the people who sync,
+             * which is the trap the theme note above describes. A migration
+             * that is not mirrored here is a migration that does not hold.
+             */
+            testWeekFrequency: 'never',
+            testWeekDeferred: false,
             cycleStartOffset: data.cycleStartOffset ?? s.cycleStartOffset,
             // ?? rather than ||, so a server copy written by an older build
             // (which has no programme key at all) leaves the local enrolment
@@ -3349,9 +3180,21 @@ export const useAppStore = create<AppState>()(
         if (!('weeklyStreakGoal' in persistedState)) {
           persistedState.weeklyStreakGoal = 2;
         }
-        if (!('testWeekDeferred' in persistedState)) {
-          persistedState.testWeekDeferred = false;
-        }
+        /**
+         * v35: strength test weeks are retired, so everybody reads 'never'.
+         *
+         * Unconditional, and it overwrites rather than seeds. A stored 12 or 18
+         * is not a preference to preserve: the thing it asked for no longer
+         * exists, and leaving the number there would mean the one value the
+         * TestWeekFrequency type allows disagreed with what is on disk. Any
+         * outstanding postponement goes with it, for the same reason.
+         *
+         * mergeServerData does the same conversion, because an older build can
+         * still upload a copy saying 12 and a migration that only runs against
+         * local storage would be undone by the next sign-in.
+         */
+        persistedState.testWeekFrequency = 'never';
+        persistedState.testWeekDeferred = false;
         /**
          * v34: the third theme is gone, and anyone on it lands on Light.
          *
@@ -3512,7 +3355,7 @@ export const useAppStore = create<AppState>()(
 
         return persistedState;
       },
-      version: 34,
+      version: 35,
     }
   )
 );

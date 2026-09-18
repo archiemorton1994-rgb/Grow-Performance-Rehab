@@ -495,7 +495,6 @@ export default function RecoverScreen() {
       pathname: '/readiness',
       params: {
         sessionType,
-        isTestWeek: 'false',
         ...(equipmentOverrideParam ? { equipmentOverride: equipmentOverrideParam } : {}),
       },
     });
@@ -518,7 +517,6 @@ export default function RecoverScreen() {
         ...(region !== 'fullbody' ? { acute: String(acute) } : {}),
         energy: 'normal',
         timeAvailable: '60',
-        isTestWeek: 'false',
         equipment: todayEffectiveTier,
         displayLabel,
       },

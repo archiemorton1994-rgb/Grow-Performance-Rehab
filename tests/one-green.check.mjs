@@ -137,7 +137,7 @@ check(
 
 check(
   'and the modifier tags are gone by then',
-  /\{!allDone && \(hasAches \|\| energy !== 'normal' \|\| isTestWeek\) && \(/.test(session),
+  /\{!allDone && \(hasAches \|\| energy !== 'normal'\) && \(/.test(session),
   'those describe how the session was built, which is not what the finished screen is for'
 );
 

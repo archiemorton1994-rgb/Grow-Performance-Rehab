@@ -123,7 +123,6 @@ export function ProgrammeHub() {
         pathname: '/readiness',
         params: {
           sessionType,
-          isTestWeek: 'false',
           equipmentOverride: (equipmentTiers ?? []).join(','),
         },
       });

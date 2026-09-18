@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Platform,
   ScrollView,
-  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -133,7 +132,6 @@ export default function ReadinessScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     sessionType: string;
-    isTestWeek: string;
     energy?: string;
     timeAvailable?: string;
     equipmentOverride?: string;
@@ -141,7 +139,6 @@ export default function ReadinessScreen() {
   }>();
   const sessionType = (params.sessionType || 'squat') as SessionType;
   const C = useColors();
-  const isTestWeek = params.isTestWeek === 'true';
 
   const {
     equipmentTiers,
@@ -152,10 +149,7 @@ export default function ReadinessScreen() {
     setLastReadiness,
     readinessTutorialShown,
     setReadinessTutorialShown,
-    deferTestWeek,
-    setTestWeekFrequency,
     completedSessions,
-    getTestWeekProgress,
   } = useAppStore();
 
   /**
@@ -169,39 +163,22 @@ export default function ReadinessScreen() {
    */
   const layoffMessage = useMemo(() => {
     const daysAway = daysAwayFrom(completedSessions.map((s) => s.date));
-    return getLayoffMessage(daysAway, { testHeld: getTestWeekProgress().held });
-  }, [completedSessions, getTestWeekProgress]);
-  // Once a due test is postponed, treat the rest of this screen as a normal
-  // session for good — the user still needs a plan for today.
-  const [testPostponed, setTestPostponed] = useState(false);
+    return getLayoffMessage(daysAway);
+  }, [completedSessions]);
 
-  // First-ever test week gets one explainer before it starts. Derived from
-  // history rather than a stored "seen" flag: once any test is completed this
-  // is false forever, so tests two and three of the same block never repeat it,
-  // and nothing new needs persisting or migrating. Someone who backs out of
-  // their very first test does see it again, which is the right outcome.
-  const hasTestedBefore = completedSessions.some((s) => s.isTestWeek);
-  const [introDismissed, setIntroDismissed] = useState(false);
-  const effectiveTestWeek = isTestWeek && !testPostponed;
-  const showTestIntro = effectiveTestWeek && !hasTestedBefore && !introDismissed;
-  const handlePostponeTest = () => {
-    hapticTap();
-    deferTestWeek();
-    setTestPostponed(true);
-  };
-
-  // Turning tests off in the moment they are being imposed, rather than only in
-  // a settings sheet the user has no reason to be looking at. Not deferring —
-  // deferring keeps the test due until it is taken, which is the opposite of
-  // what "I don't train these lifts" means. Reversible from Profile > Settings.
-  const [testsDisabled, setTestsDisabled] = useState(false);
-  const handleDisableTests = () => {
-    hapticTap();
-    setTestWeekFrequency('never');
-    setTestsDisabled(true);
-    setTestPostponed(true);
-  };
-
+  /*
+   * THE STRENGTH TEST WEEK USED TO START HERE, and it no longer exists.
+   *
+   * This screen carried the whole of it: a TEST WEEK banner naming the lift, a
+   * first-time explainer modal, a way to postpone it, a way to switch tests off
+   * altogether, and a start button that sent isTestWeek:'true' to the session.
+   * The energy and time questions were hidden while it was on, because a test
+   * ignored both answers.
+   *
+   * All of it is gone, along with the route param it was carried on, so there
+   * is no value any screen can pass that turns today into a max-effort attempt.
+   * Everyone gets the same readiness questions now.
+   */
   const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
   const availableTiers: EquipmentTier[] = isBeginnerExperience
     ? ['bodyweight', 'bands']
@@ -337,9 +314,7 @@ export default function ReadinessScreen() {
   }, [setReadinessTutorialShown]);
 
   useEffect(() => {
-    // Energy/Time sections (and their refs) don't render during a test week,
-    // so the tutorial would start with nothing to measure or spotlight.
-    if (!readinessTutorialShown && !isTestWeek) {
+    if (!readinessTutorialShown) {
       const timer = setTimeout(() => setCoachStep(0), 600);
       return () => clearTimeout(timer);
     }
@@ -359,7 +334,6 @@ export default function ReadinessScreen() {
           painRegion: '',
           energy: 'normal',
           timeAvailable: '60',
-          isTestWeek: 'false',
           equipment: tier,
         },
       });
@@ -375,7 +349,6 @@ export default function ReadinessScreen() {
           painRegion: '',
           energy: params.energy,
           timeAvailable: params.timeAvailable,
-          isTestWeek: 'false',
           equipment: tier,
         },
       });
@@ -414,33 +387,17 @@ export default function ReadinessScreen() {
       setStep('painRegion');
     } else {
       setLastReadiness(energy, timeAvailable);
-      if (effectiveTestWeek) {
-        router.push({
-          pathname: '/session',
-          params: {
-            sessionType,
-            hasAches: 'false',
-            painRegion: '',
-            energy: 'normal',
-            timeAvailable: '60',
-            isTestWeek: 'true',
-            equipment: getEffectiveTier(selectedEquipments),
-          },
-        });
-      } else {
-        router.push({
-          pathname: '/session',
-          params: {
-            sessionType,
-            hasAches: 'false',
-            painRegion: '',
-            energy,
-            timeAvailable,
-            isTestWeek: 'false',
-            equipment: getEffectiveTier(selectedEquipments),
-          },
-        });
-      }
+      router.push({
+        pathname: '/session',
+        params: {
+          sessionType,
+          hasAches: 'false',
+          painRegion: '',
+          energy,
+          timeAvailable,
+          equipment: getEffectiveTier(selectedEquipments),
+        },
+      });
     }
   };
 
@@ -457,35 +414,18 @@ export default function ReadinessScreen() {
     setPainRegion(primary);
     setLastReadiness(energy, timeAvailable, primary);
     const severityParam = severity ? { painSeverity: severity } : {};
-    if (effectiveTestWeek) {
-      router.push({
-        pathname: '/session',
-        params: {
-          sessionType,
-          hasAches: 'true',
-          painRegion: regionParam,
-          energy: 'normal',
-          timeAvailable: '60',
-          isTestWeek: 'true',
-          equipment: getEffectiveTier(selectedEquipments),
-          ...severityParam,
-        },
-      });
-    } else {
-      router.push({
-        pathname: '/session',
-        params: {
-          sessionType,
-          hasAches: 'true',
-          painRegion: regionParam,
-          energy,
-          timeAvailable,
-          isTestWeek: 'false',
-          equipment: getEffectiveTier(selectedEquipments),
-          ...severityParam,
-        },
-      });
-    }
+    router.push({
+      pathname: '/session',
+      params: {
+        sessionType,
+        hasAches: 'true',
+        painRegion: regionParam,
+        energy,
+        timeAvailable,
+        equipment: getEffectiveTier(selectedEquipments),
+        ...severityParam,
+      },
+    });
   };
 
   // Severe pain routes through a confirming prompt before committing to the
@@ -515,7 +455,6 @@ export default function ReadinessScreen() {
         acute: region !== 'fullbody' && prehabSore ? 'true' : 'false',
         energy: 'normal',
         timeAvailable: '60',
-        isTestWeek: 'false',
         equipment: tier,
         ...(params.displayLabel ? { displayLabel: params.displayLabel } : {}),
       },
@@ -559,68 +498,6 @@ export default function ReadinessScreen() {
               <Text style={styles.layoffTitle}>{layoffMessage.title}</Text>
               <Text style={styles.layoffBody}>{layoffMessage.body}</Text>
             </View>
-          </View>
-        )}
-        {effectiveTestWeek && (
-          <View style={styles.testWeekBanner}>
-            <View style={styles.testWeekBannerIcon}>
-              <Ionicons name="trophy" size={22} color={C.trophy} />
-            </View>
-            <View style={styles.testWeekBannerContent}>
-              <View style={styles.testWeekBannerRow}>
-                <View style={styles.testWeekBadge}>
-                  <Text style={styles.testWeekBadgeText}>TEST WEEK</Text>
-                </View>
-              </View>
-              <Text style={styles.testWeekBannerHeadline}>
-                {sessionType === 'squat'
-                  ? 'Squat 1RM'
-                  : sessionType === 'bench'
-                    ? 'Bench Press 1RM'
-                    : 'Deadlift 1RM'}{' '}
-                Test
-              </Text>
-              <Text style={styles.testWeekBannerSub}>
-                Warm up, then one all-out set.{'\n'}How many clean reps you manage sets your
-                number.
-              </Text>
-            </View>
-          </View>
-        )}
-        {/* Declining a test is available to everyone.
-            This banner used to render only when the day's equipment was below
-            dumbbells, so it read as an equipment caveat — which meant anyone on
-            dumbbells or above had no way to decline a max-effort barbell test
-            anywhere in the app. The equipment warning is still shown when it
-            applies, but the way out no longer depends on it. */}
-        {effectiveTestWeek && (
-          <View style={styles.testDeferBanner}>
-            <Ionicons name="alert-circle-outline" size={18} color={C.warning} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.testDeferText}>
-                {TIER_ORDER.indexOf(effectiveTier) < TIER_ORDER.indexOf('dumbbells')
-                  ? `${getEquipmentLabel(effectiveTier)} won't give a number you can trust for a real 1RM test.`
-                  : 'A test week maxes out Squat, Bench and Deadlift to re-baseline your weights.'}
-              </Text>
-              <Pressable onPress={handlePostponeTest} hitSlop={6} testID="postpone-test-week">
-                <Text style={styles.testDeferLink}>Postpone the test to next session →</Text>
-              </Pressable>
-              <Pressable onPress={handleDisableTests} hitSlop={6} testID="disable-test-weeks">
-                <Text style={styles.testDeferLink}>
-                  I don&apos;t train these lifts. Turn them off →
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-        {testPostponed && (
-          <View style={styles.testDeferConfirm}>
-            <Ionicons name="checkmark-circle-outline" size={16} color={C.primaryText} />
-            <Text style={styles.testDeferConfirmText}>
-              {testsDisabled
-                ? "Test weeks are off, so today is a normal session. You can turn them back on in Profile › Settings."
-                : "Test postponed. We'll ask again next session, today's a normal one."}
-            </Text>
           </View>
         )}
         {/* Equipment */}
@@ -768,107 +645,103 @@ export default function ReadinessScreen() {
           </View>
         </View>
 
-        {!effectiveTestWeek && (
-          <>
-            <View style={styles.divider} />
+        <View style={styles.divider} />
 
-            {/* Energy — tutorial step 1 spotlight target */}
-            <View
-              style={styles.section}
-              ref={energyRef}
-              onLayout={(e) => {
-                sectionScrollY.current.energy = e.nativeEvent.layout.y;
-              }}
-            >
-              <Text style={styles.sectionTitle}>Energy level</Text>
-              <View style={styles.pillRow}>
-                {[
-                  {
-                    level: 'low' as EnergyLevel,
-                    label: 'Low',
-                    icon: 'battery-dead-outline' as const,
-                  },
-                  {
-                    level: 'normal' as EnergyLevel,
-                    label: 'Normal',
-                    icon: 'battery-half-outline' as const,
-                  },
-                  {
-                    level: 'high' as EnergyLevel,
-                    label: 'High',
-                    icon: 'battery-full-outline' as const,
-                  },
-                ].map((item) => (
-                  <Pressable
-                    key={item.level}
-                    onPress={() => {
-                      hapticTap();
-                      setEnergy(item.level);
-                    }}
-                    style={[
-                      styles.pill,
-                      styles.pillFlex,
-                      energy === item.level && styles.pillActive,
-                    ]}
-                    testID={`energy-${item.level}`}
-                  >
-                    <Ionicons
-                      name={item.icon}
-                      size={15}
-                      color={energy === item.level ? C.textInverse : C.textSecondary}
-                    />
-                    <Text style={[styles.pillText, energy === item.level && styles.pillTextActive]}>
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+        {/* Energy — tutorial step 1 spotlight target */}
+        <View
+          style={styles.section}
+          ref={energyRef}
+          onLayout={(e) => {
+            sectionScrollY.current.energy = e.nativeEvent.layout.y;
+          }}
+        >
+          <Text style={styles.sectionTitle}>Energy level</Text>
+          <View style={styles.pillRow}>
+            {[
+              {
+                level: 'low' as EnergyLevel,
+                label: 'Low',
+                icon: 'battery-dead-outline' as const,
+              },
+              {
+                level: 'normal' as EnergyLevel,
+                label: 'Normal',
+                icon: 'battery-half-outline' as const,
+              },
+              {
+                level: 'high' as EnergyLevel,
+                label: 'High',
+                icon: 'battery-full-outline' as const,
+              },
+            ].map((item) => (
+              <Pressable
+                key={item.level}
+                onPress={() => {
+                  hapticTap();
+                  setEnergy(item.level);
+                }}
+                style={[
+                  styles.pill,
+                  styles.pillFlex,
+                  energy === item.level && styles.pillActive,
+                ]}
+                testID={`energy-${item.level}`}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={15}
+                  color={energy === item.level ? C.textInverse : C.textSecondary}
+                />
+                <Text style={[styles.pillText, energy === item.level && styles.pillTextActive]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
 
-            <View style={styles.divider} />
+        <View style={styles.divider} />
 
-            {/* Time — tutorial step 2 spotlight target */}
-            <View
-              style={styles.section}
-              ref={timeRef}
-              onLayout={(e) => {
-                sectionScrollY.current.time = e.nativeEvent.layout.y;
-              }}
-            >
-              <Text style={styles.sectionTitle}>Time available</Text>
-              <View style={styles.pillRow}>
-                {[
-                  { time: '30' as TimeAvailable, label: '30 min' },
-                  { time: '45' as TimeAvailable, label: '45 min' },
-                  { time: '60' as TimeAvailable, label: '60 min' },
-                ].map((item) => (
-                  <Pressable
-                    key={item.time}
-                    onPress={() => {
-                      hapticTap();
-                      setTimeAvailable(item.time);
-                    }}
-                    style={[
-                      styles.pill,
-                      styles.pillFlex,
-                      timeAvailable === item.time && styles.pillActive,
-                    ]}
-                    testID={`time-${item.time}`}
-                  >
-                    <Text
-                      style={[
-                        styles.pillText,
-                        timeAvailable === item.time && styles.pillTextActive,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </>
-        )}
+        {/* Time — tutorial step 2 spotlight target */}
+        <View
+          style={styles.section}
+          ref={timeRef}
+          onLayout={(e) => {
+            sectionScrollY.current.time = e.nativeEvent.layout.y;
+          }}
+        >
+          <Text style={styles.sectionTitle}>Time available</Text>
+          <View style={styles.pillRow}>
+            {[
+              { time: '30' as TimeAvailable, label: '30 min' },
+              { time: '45' as TimeAvailable, label: '45 min' },
+              { time: '60' as TimeAvailable, label: '60 min' },
+            ].map((item) => (
+              <Pressable
+                key={item.time}
+                onPress={() => {
+                  hapticTap();
+                  setTimeAvailable(item.time);
+                }}
+                style={[
+                  styles.pill,
+                  styles.pillFlex,
+                  timeAvailable === item.time && styles.pillActive,
+                ]}
+                testID={`time-${item.time}`}
+              >
+                <Text
+                  style={[
+                    styles.pillText,
+                    timeAvailable === item.time && styles.pillTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + webBottomInset + 12 }]}>
         <Pressable
@@ -876,19 +749,13 @@ export default function ReadinessScreen() {
           disabled={selectedEquipments.length === 0}
           style={({ pressed }) => [
             styles.startButton,
-            effectiveTestWeek && styles.startButtonTestWeek,
             selectedEquipments.length === 0 && styles.startButtonDisabled,
             pressed &&
               selectedEquipments.length > 0 && { opacity: 0.9, transform: [{ scale: 0.98 }] },
           ]}
           testID="readiness-start"
         >
-          {effectiveTestWeek ? (
-            <>
-              <Ionicons name="trophy" size={18} color={C.textInverse} />
-              <Text style={styles.startButtonText}>Begin Test</Text>
-            </>
-          ) : hasAches ? (
+          {hasAches ? (
             <>
               <Ionicons name="arrow-forward" size={18} color={C.textInverse} />
               <Text style={styles.startButtonText}>Next: pick area</Text>
@@ -1385,12 +1252,8 @@ const prehabDiagramMaxHeight =
           <Ionicons name="chevron-back" size={24} color={C.text} />
         </Pressable>
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionLabel}>
-            {effectiveTestWeek ? 'Strength Test Week' : getSessionLabel(sessionType)}
-          </Text>
-          <Text style={styles.sessionSub}>
-            {effectiveTestWeek ? 'Strength Testing' : getSessionSubtitle(sessionType)}
-          </Text>
+          <Text style={styles.sessionLabel}>{getSessionLabel(sessionType)}</Text>
+          <Text style={styles.sessionSub}>{getSessionSubtitle(sessionType)}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -1423,63 +1286,6 @@ const prehabDiagramMaxHeight =
           spotlightRect={readinessSpotlight ?? undefined}
         />
       )}
-
-      {/* First-ever test week: one explainer, before anything else on the
-          screen can be touched. Deliberately not the multi-step spotlight tour
-          used elsewhere — a test session is two exercises, so a tour would be
-          four taps of chrome around one idea. */}
-      <Modal visible={showTestIntro} transparent animationType="fade" onRequestClose={() => {}}>
-        <View style={styles.introOverlay}>
-          <View style={styles.introCard}>
-            <View style={styles.introIconRing}>
-              <Ionicons name="trophy" size={26} color={C.trophy} />
-            </View>
-            <Text style={styles.introTitle}>Your first test week</Text>
-            <Text style={styles.introBody}>
-              You&apos;ve earned this. Over the next three sessions you&apos;ll test each of your
-              main lifts once: squat, then bench, then deadlift.
-            </Text>
-
-            <View style={styles.introSteps}>
-              <View style={styles.introStep}>
-                <Text style={styles.introStepNum}>1</Text>
-                <Text style={styles.introStepText}>
-                  Warm up through a few building sets. The weights are worked out for you.
-                </Text>
-              </View>
-              <View style={styles.introStep}>
-                <Text style={styles.introStepNum}>2</Text>
-                <Text style={styles.introStepText}>
-                  Then one all-out set: as many clean reps as you can manage.
-                </Text>
-              </View>
-              <View style={styles.introStep}>
-                <Text style={styles.introStepNum}>3</Text>
-                <Text style={styles.introStepText}>
-                  The weight and your reps give us your one-rep max, the most you could lift for
-                  a single rep.
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.introWarn}>
-              Stop the moment your form slips. A scruffy rep doesn&apos;t count towards your
-              number, and it&apos;s where people get hurt.
-            </Text>
-
-            <Pressable
-              onPress={() => {
-                hapticTap();
-                setIntroDismissed(true);
-              }}
-              style={styles.introBtn}
-              testID="test-week-intro-dismiss"
-            >
-              <Text style={styles.introBtnText}>Let&apos;s go</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1487,93 +1293,6 @@ const prehabDiagramMaxHeight =
 function makeStyles(C: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-
-    // ── First test week explainer ──────────────────────────────────────────
-    introOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-    },
-    introCard: {
-      width: '100%',
-      backgroundColor: C.surface,
-      borderRadius: 22,
-      borderWidth: 1,
-      borderColor: C.borderLight,
-      paddingHorizontal: 22,
-      paddingTop: 22,
-      paddingBottom: 18,
-      alignItems: 'center',
-    },
-    introIconRing: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      backgroundColor: C.trophyBg,
-      borderWidth: 1,
-      borderColor: C.trophyBorder,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 12,
-    },
-    introTitle: {
-      fontSize: 21,
-      fontFamily: 'Inter_700Bold',
-      color: C.text,
-      textAlign: 'center',
-    },
-    introBody: {
-      fontSize: 14,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginTop: 8,
-    },
-    introSteps: { alignSelf: 'stretch', gap: 12, marginTop: 18 },
-    introStep: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-    introStepNum: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: C.primaryMuted,
-      color: C.primaryText,
-      fontSize: 12,
-      fontFamily: 'Inter_700Bold',
-      textAlign: 'center',
-      lineHeight: 22,
-      overflow: 'hidden',
-    },
-    introStepText: {
-      flex: 1,
-      fontSize: 13.5,
-      fontFamily: 'Inter_400Regular',
-      color: C.text,
-      lineHeight: 19,
-    },
-    introWarn: {
-      alignSelf: 'stretch',
-      marginTop: 16,
-      backgroundColor: C.warningLight,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      fontSize: 12.5,
-      fontFamily: 'Inter_500Medium',
-      color: C.warning,
-      lineHeight: 18,
-    },
-    introBtn: {
-      alignSelf: 'stretch',
-      marginTop: 18,
-      backgroundColor: C.primary,
-      borderRadius: 14,
-      paddingVertical: 15,
-      alignItems: 'center',
-    },
-    introBtnText: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.textInverse },
 
     topBar: {
       flexDirection: 'row',
@@ -1853,92 +1572,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_700Bold',
       textTransform: 'uppercase' as const,
       letterSpacing: 0.6,
-    },
-
-    testWeekBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-      backgroundColor: 'rgba(245,166,35,0.10)',
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: 'rgba(245,166,35,0.30)',
-      padding: 16,
-      marginBottom: 16,
-    },
-    testWeekBannerIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      backgroundColor: 'rgba(245,166,35,0.15)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    testWeekBannerContent: { flex: 1 },
-    testWeekBannerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-    testWeekBadge: {
-      backgroundColor: C.pbFlash,
-      borderRadius: 6,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-    },
-    testWeekBadgeText: {
-      fontSize: 10,
-      fontFamily: 'Inter_700Bold',
-      color: C.pbFlashText,
-      letterSpacing: 0.6,
-    },
-    testWeekBannerHeadline: {
-      fontSize: 16,
-      fontFamily: 'Inter_700Bold',
-      color: C.text,
-      marginBottom: 2,
-    },
-    testWeekBannerSub: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-    },
-    startButtonTestWeek: {
-      backgroundColor: C.pbFlash,
-    },
-    testDeferBanner: {
-      flexDirection: 'row',
-      gap: 10,
-      backgroundColor: C.warningLight,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: C.warning + '4d',
-      padding: 14,
-      marginBottom: 16,
-    },
-    testDeferText: {
-      fontSize: 13,
-      fontFamily: 'Inter_500Medium',
-      color: C.text,
-      lineHeight: 18,
-      marginBottom: 6,
-    },
-    testDeferLink: {
-      fontSize: 13,
-      fontFamily: 'Inter_700Bold',
-      color: C.warning,
-    },
-    testDeferConfirm: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: C.primarySurface,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 16,
-    },
-    testDeferConfirmText: {
-      flex: 1,
-      fontSize: 12,
-      fontFamily: 'Inter_500Medium',
-      color: C.primaryText,
-      lineHeight: 17,
     },
 
     layoffBanner: {
