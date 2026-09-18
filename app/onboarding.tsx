@@ -539,7 +539,11 @@ function SignUpFlow() {
                   style={[styles.textInput, styles.numericInput]}
                   value={answers.bodyweight}
                   onChangeText={(bodyweight) => setAnswers((a) => ({ ...a, bodyweight }))}
-                  placeholder={weightUnit === 'kg' ? '80' : '176'}
+                  // NOT A NUMBER. A weight sitting in the box before anybody has
+                  // typed is the same problem as guessing on their behalf, which
+                  // is the whole reason this question is asked. The unit is
+                  // already on the tag beside the field.
+                  placeholder="Your weight"
                   placeholderTextColor={C.textTertiary}
                   keyboardType="decimal-pad"
                   returnKeyType="next"
