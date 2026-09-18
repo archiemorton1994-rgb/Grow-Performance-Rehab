@@ -41,6 +41,7 @@ import type { SessionType } from '@/lib/store';
 import {
   PROGRAMMES,
   PROGRAMME_IDS,
+  OFFERED_PROGRAMME_IDS,
   blockPlan,
   cycleOf,
   extrasOf,
@@ -52,7 +53,7 @@ import {
   type TrainingDays,
 } from '@/lib/programme';
 import { bandLabel, LEVEL_NAMES } from '@/lib/exercise-levels';
-import { EXPERIENCE_OPTIONS } from '@/lib/experience-options';
+import { EXPERIENCE_OPTIONS, experienceNote } from '@/lib/experience-options';
 import { levelBandForExperience } from '@/lib/programme';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
@@ -101,6 +102,7 @@ export function ProgrammeHub() {
   const updateProgramme = useAppStore((s) => s.updateProgramme);
   const switchProgramme = useAppStore((s) => s.switchProgramme);
   const setProgrammePaused = useAppStore((s) => s.setProgrammePaused);
+  const leaveProgramme = useAppStore((s) => s.leaveProgramme);
   const equipmentTiers = useAppStore((s) => s.equipmentTiers);
   const experienceLevel = useAppStore((s) => s.userProfile?.experienceLevel);
   const setUserProfile = useAppStore((s) => s.setUserProfile);
@@ -157,6 +159,25 @@ export function ProgrammeHub() {
    */
   const earnedBand = levelBandForExperience(experienceLevel ?? 'beginner', earnedLevelBonus);
 
+  /**
+   * What they can move TO, plus the one they are on.
+   *
+   * Barbell Strength and Build Muscle are no longer offered, so they are not on
+   * this list either - "train a different programme" is a browse list like the
+   * chooser is. The exception is the programme somebody is actually on: leaving
+   * it out would draw a list of alternatives with no NOW marker anywhere in it,
+   * so a person finishing a Barbell Strength block would open the list and find
+   * nothing that says where they are.
+   *
+   * Filtered from PROGRAMME_IDS rather than appended to the offered list, so the
+   * order is the one order these are ever listed in, and a custom cycle adds no
+   * row at all: it is not in PROGRAMME_IDS, and "Change my own cycle" above is
+   * already its entry.
+   */
+  const switchTargets = PROGRAMME_IDS.filter(
+    (id) => OFFERED_PROGRAMME_IDS.includes(id) || id === programme.templateId
+  );
+
   /** Which sessions of the block are done, for the plan list. */
   const doneUpTo = position.onPlan;
 
@@ -173,6 +194,41 @@ export function ProgrammeHub() {
             haptic(true);
             switchProgramme(id, new Date().toISOString());
             setChanging(false);
+          },
+        },
+      ]
+    );
+  };
+
+  /**
+   * STOPPING IS NOT THE SAME AS PAUSING, AND THE ALERT HAS TO SAY WHICH.
+   *
+   * Pausing keeps the block and the place in it. Stopping puts the programme
+   * down: the app goes back to suggesting from whatever they have been training,
+   * which is what everybody who never chose a programme already gets. That is a
+   * real loss - the place in an unfinished block does not come back, and an
+   * unfinished block writes no report - so it is said plainly rather than left
+   * to be discovered.
+   *
+   * What is NOT lost is everything a person actually cares about, and the second
+   * sentence is the same promise switching makes: history, records and weights
+   * are untouched, because leaveProgramme only clears the enrolment.
+   *
+   * No navigation afterwards. app/program.tsx draws the hub only while there is
+   * a programme, so clearing it drops straight back to their own sessions.
+   */
+  const confirmStop = () => {
+    Alert.alert(
+      `Stop ${displayName}?`,
+      'You go back to choosing your own sessions, and Grow suggests from whatever you have been training. Your history, your records and your weights are untouched. The block itself stops here, so there is no report for it, and starting again later starts a fresh one.',
+      [
+        { text: 'Keep going', style: 'cancel' },
+        {
+          text: 'Stop it',
+          style: 'destructive',
+          onPress: () => {
+            haptic(true);
+            leaveProgramme();
           },
         },
       ]
@@ -422,7 +478,13 @@ export function ProgrammeHub() {
           * has to mean if it is to mean anything.
           */}
         <Text style={styles.ctrlLabel}>YOUR LEVEL</Text>
-        <View style={styles.segment}>
+        {/* TWO BY TWO, not four across. Four words in one row on a 360pt phone
+            leaves each of them about 74 points, and "Intermediate" does not fit
+            in 74 points: it was being shrunk to three quarters of its size by
+            adjustsFontSizeToFit, which is the control apologising for a layout
+            rather than a layout. Half width each gives every level about 150
+            points and the same 40pt target. */}
+        <View style={styles.segmentWrap}>
           {EXPERIENCE_OPTIONS.map((e) => (
             <Pressable
               key={e.value}
@@ -432,7 +494,7 @@ export function ProgrammeHub() {
               }}
               testID={`hub-experience-${e.value}`}
               style={[
-                styles.segItem,
+                styles.segHalf,
                 experienceLevel === e.value && { backgroundColor: C.primaryMuted },
               ]}
             >
@@ -442,18 +504,19 @@ export function ProgrammeHub() {
                   experienceLevel === e.value && { color: C.primaryText },
                 ]}
                 numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
               >
                 {e.label}
               </Text>
             </Pressable>
           ))}
         </View>
+        {/* The sentence about the levels themselves is shared with the Profile
+            edit sheet and derived from the engine, so it cannot go on promising
+            harder work between two levels that are handed identical sessions.
+            See experienceNote. */}
         <Text style={styles.ctrlNote}>
-          This sets your difficulty, which is {difficulty.label} right now, and the hardest
-          movements the app will ever put in front of you. Move it up when the work stops being
-          hard, not before.
+          Your programme is rated {difficulty.label} at this level.{' '}
+          {experienceNote(experienceLevel ?? 'beginner')}
         </Text>
 
         {/* The other half of the ceiling: what finishing blocks has earned. It
@@ -581,7 +644,7 @@ export function ProgrammeHub() {
               </View>
               <Ionicons name="chevron-forward" size={17} color={C.textTertiary} />
             </Pressable>
-            {PROGRAMME_IDS.map((id) => {
+            {switchTargets.map((id) => {
               const p = PROGRAMMES[id];
               const current = id === programme.templateId;
               return (
@@ -631,6 +694,25 @@ export function ProgrammeHub() {
         <Text style={styles.ctrlNote}>
           Pausing keeps your place. The app goes back to suggesting from whatever you have been
           training.
+        </Text>
+
+        {/* LAST, AND THE ONLY ONE THAT ENDS ANYTHING.
+            Under pause on purpose: most people reaching for this want a break
+            rather than an ending, and the gentler control should be the one
+            they meet first. Nobody has to be on a programme, so there has to be
+            a way off one, and until now the only way out of a block was to
+            switch to a different block. */}
+        <Pressable
+          onPress={confirmStop}
+          testID="hub-stop"
+          style={({ pressed }) => [styles.wideBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="close-circle-outline" size={17} color={C.textSecondary} />
+          <Text style={[styles.wideBtnText, { color: C.textSecondary }]}>Stop this programme</Text>
+        </Pressable>
+        <Text style={styles.ctrlNote}>
+          You do not need a programme at all. Stopping hands your sessions back to you, and
+          everything in Train stays open either way.
         </Text>
       </View>
     </ScrollView>
@@ -920,6 +1002,17 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       padding: 4,
       borderRadius: 12,
       backgroundColor: C.surfaceSecondary,
+    },
+    // Two per row, whatever the phone. flexBasis under half forces the wrap
+    // after the second, and flexGrow then shares the row out evenly.
+    segHalf: {
+      flexBasis: '47%',
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: 40,
+      paddingHorizontal: 8,
+      borderRadius: 9,
     },
     segChip: {
       // Three rows of three rather than seven and a ragged two. flexBasis at

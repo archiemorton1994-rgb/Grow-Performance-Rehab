@@ -145,12 +145,12 @@ export interface ProgrammeTemplate {
 }
 
 /**
- * Every programme the app can put somebody on.
+ * Every programme the app has ever put somebody on.
  *
- * Seven, which covers the six things people come to this app to train for plus
- * the split of general strength into a beginner and an experienced shape.
- * Adding an eighth is a data change and nothing else, which is the entire point
- * of the template layer.
+ * Seven, of which five are still offered: see RETIRED_PROGRAMME_IDS below for
+ * why Barbell Strength and Build Muscle came off the list and why they are
+ * still here. Adding one is a data change and nothing else, which is the entire
+ * point of the template layer.
  */
 export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
   barbell: {
@@ -258,15 +258,56 @@ export const PROGRAMMES: Record<ProgrammeId, ProgrammeTemplate> = {
 };
 
 /**
- * The seven you can pick off a list.
+ * The seven that are real programmes rather than a cycle somebody built.
  *
  * 'custom' is deliberately not in here. It is built, not chosen, so it must not
  * appear in the chooser, in "and six more, included", or in any of the places
  * that enumerate what somebody could switch to. Everything that wants ALL eight
  * reads PROGRAMMES directly.
+ *
+ * This is every named programme, INCLUDING the two that are no longer offered.
+ * Anything that resolves a programme somebody is already on, or that was frozen
+ * into a report they earned, wants this list. Anything that puts programmes in
+ * front of somebody to choose from wants OFFERED_PROGRAMME_IDS below.
  */
 export const PROGRAMME_IDS = (Object.keys(PROGRAMMES) as ProgrammeId[]).filter(
   (id) => id !== 'custom'
+);
+
+/**
+ * RETIRED FROM THE LIST, KEPT IN THE DATA. Archie's decision 12.
+ *
+ * WHY THESE TWO
+ * ─────────────
+ *   BARBELL STRENGTH  its cycle is squat, bench and deadlift, and those are not
+ *                     sessions any more. They are old ids that route to Lower,
+ *                     Upper and Full Body, so the programme is now a worse
+ *                     spelling of Upper and Lower wearing a name that promises
+ *                     three lift days the app no longer builds.
+ *   BUILD MUSCLE      its two, three and four day cycles are character for
+ *                     character the same as Upper and Lower's. Two entries on
+ *                     the list that prescribe identical sessions is a choice
+ *                     that cannot be made wrongly and cannot be made well
+ *                     either, which is worse than one honest entry.
+ *
+ * NOT DELETED, AND THIS IS THE WHOLE POINT. Somebody nine weeks into a Barbell
+ * Strength block keeps it: the template still resolves, the position still
+ * replays, the hub still draws the plan, and they finish. Every report frozen
+ * into completedProgrammes still names the programme it was earned on rather
+ * than falling through programmeFor's `??` and quietly becoming Full Body
+ * Foundations, which is the failure this list exists to avoid.
+ */
+export const RETIRED_PROGRAMME_IDS: ProgrammeId[] = ['barbell', 'muscle'];
+
+/**
+ * The programmes somebody can still be offered: the browse list, and the only
+ * list anything is allowed to suggest from.
+ *
+ * Derived rather than written out, so retiring a third one is a single entry
+ * above and every screen follows.
+ */
+export const OFFERED_PROGRAMME_IDS = PROGRAMME_IDS.filter(
+  (id) => !RETIRED_PROGRAMME_IDS.includes(id)
 );
 
 /**
@@ -858,7 +899,7 @@ export function programmeDrift(
 }
 
 /**
- * Which of the seven fits what somebody has ACTUALLY been doing.
+ * Which of the ones still on offer fits what somebody has ACTUALLY been doing.
  *
  * TWO HALVES, MULTIPLIED, and the second half is the one that earns its place.
  *
@@ -896,7 +937,11 @@ export function closestProgramme(
   const mine = fit(current);
   let best: ProgrammeId | null = null;
   let bestShare = 0;
-  for (const id of PROGRAMME_IDS) {
+  // OFFERED, not every named programme. This name is read out in a coach
+  // message as something worth switching to, and pointing somebody at a
+  // programme the browse list no longer carries would be advertising a door
+  // that has been taken off its hinges.
+  for (const id of OFFERED_PROGRAMME_IDS) {
     if (id === current) continue;
     const s = fit(id);
     if (s > bestShare) {
@@ -958,6 +1003,34 @@ export const DIFFICULTY_LABELS = [
 ] as const;
 
 export type Difficulty = (typeof DIFFICULTY_LABELS)[number];
+
+/**
+ * THE SAME SIX RUNGS, IN WORDS THAT CANNOT BE MISTAKEN FOR THE PERSON.
+ *
+ * The keys above stay exactly as they are, because they are keys: BANDS in
+ * lib/exercise-levels.ts is looked up by them and levelBandFor falls back to
+ * Intermediate for anything it does not recognise, so renaming the key would
+ * silently re-band every programme in the app rather than failing loudly.
+ *
+ * What changed is what a person reads. Four of these six words - Beginner,
+ * Intermediate, Advanced, and Elite next to Athlete - are also the words the
+ * level control on the same screen uses for the PERSON, and the two mean
+ * opposite kinds of thing: the level is who you are, and this is how hard the
+ * work is. The hub was printing an ADVANCED pill an inch above a control where
+ * Advanced was lit, meaning two different things, and no amount of explanation
+ * under it fixes a word that is already wrong.
+ *
+ * Plain, ordered, and about the work: gentle, easy, moderate, hard, very hard,
+ * hardest. Nobody has to be told which end is which.
+ */
+export const DIFFICULTY_DISPLAY_NAMES: Record<Difficulty, string> = {
+  Beginner: 'Gentle',
+  Novice: 'Easy',
+  Intermediate: 'Moderate',
+  Advanced: 'Hard',
+  Expert: 'Very hard',
+  Elite: 'Hardest',
+};
 
 /**
  * WHAT THE LABEL DESCRIBES: the programme, not the person.
@@ -1055,7 +1128,17 @@ const CAPABILITY_CEILING: Record<ExperienceLevel, number> = {
 };
 
 export interface ProgrammeDifficulty {
-  label: Difficulty;
+  /**
+   * The rung, which is a key and never a word on a screen.
+   *
+   * Everything that has to reason about how hard the block is - the movement
+   * band, the ceiling, the tests - reads this. Showing it would put the word
+   * Advanced on a programme belonging to somebody the level control also calls
+   * Advanced, which is where the two ideas started being confused for one.
+   */
+  key: Difficulty;
+  /** The word somebody reads, from DIFFICULTY_DISPLAY_NAMES. */
+  label: string;
   /** 0 to 5, the index into DIFFICULTY_LABELS. */
   score: number;
   /** One line, naming what made it that. Shown under the label. */
@@ -1143,7 +1226,8 @@ export function programmeDifficulty(
   }
 
   return {
-    label: DIFFICULTY_LABELS[score],
+    key: DIFFICULTY_LABELS[score],
+    label: DIFFICULTY_DISPLAY_NAMES[DIFFICULTY_LABELS[score]],
     score,
     band: levelBandFor(DIFFICULTY_LABELS[score]),
     because:

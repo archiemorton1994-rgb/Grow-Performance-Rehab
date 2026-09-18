@@ -1,5 +1,5 @@
 /**
- * NO PROGRAMME YET: the page that offers seven, and says none of them is compulsory.
+ * NO PROGRAMME YET: the page that offers them, and says none of them is compulsory.
  *
  * WHY IT EXISTS
  * ─────────────
@@ -9,9 +9,9 @@
  * suggested a Squat Session with a Test Week badge to somebody who had never
  * asked for either, and there was nowhere obvious to go and change it.
  *
- * So Home now points here whenever nobody is enrolled, and here offers the seven
- * programmes directly, plus a way to put a cycle together yourself. Both land in
- * the same hub.
+ * So Home now points here whenever nobody is enrolled, and here offers the
+ * programmes still on the list directly, plus a way to put a cycle together
+ * yourself. Both land in the same hub.
  *
  * THE SENTENCE AT THE BOTTOM IS NOT A DISCLAIMER, IT IS THE POINT.
  * A programme is a convenience, not the app. Everything in Train stays open,
@@ -29,7 +29,7 @@ import { SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { useAppStore } from '@/lib/store';
 import {
   PROGRAMMES,
-  PROGRAMME_IDS,
+  OFFERED_PROGRAMME_IDS,
   cycleFor,
   programmeDifficulty,
   type ProgrammeId,
@@ -85,7 +85,7 @@ export function ChooseProgramme({ onKeepRotation }: ChooseProgrammeProps) {
         put your own together.
       </Text>
 
-      {/* The only route in besides the seven below.
+      {/* The only route in besides the list below.
           There used to be a second one above this, "Build mine from a few
           questions", which sent people back through sign-up. Sign-up asks who
           you are; it does not choose a programme and it never enrols anybody,
@@ -113,7 +113,11 @@ export function ChooseProgramme({ onKeepRotation }: ChooseProgrammeProps) {
 
       <Text style={styles.sectionLabel}>OR CHOOSE ONE YOURSELF</Text>
 
-      {PROGRAMME_IDS.map((id) => {
+      {/* OFFERED, not every programme in the table. Barbell Strength and Build
+          Muscle are retired from the list and kept in the data, so anybody part
+          way through one finishes it and every report already earned still
+          names the programme it was earned on. See RETIRED_PROGRAMME_IDS. */}
+      {OFFERED_PROGRAMME_IDS.map((id) => {
         const t = PROGRAMMES[id];
         const open = picked === id;
         const difficulty = programmeDifficulty(id, experienceLevel ?? 'beginner', 3);

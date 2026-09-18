@@ -31,6 +31,7 @@
  * No React and no react-native import, so a check can read the real list.
  */
 import { EXPERIENCE_LEVELS, type ExperienceLevel } from './store';
+import { levelBandForExperience } from './programme';
 
 /** The word for each level, wherever one is shown to somebody. */
 export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
@@ -72,3 +73,53 @@ export const EXPERIENCE_OPTIONS: ExperienceOption[] = EXPERIENCE_LEVELS.map((val
   label: EXPERIENCE_LABELS[value],
   description: EXPERIENCE_DESCRIPTIONS[value],
 }));
+
+/**
+ * The other levels that are prescribed exactly the same movements as this one.
+ *
+ * READ FROM THE ENGINE, NEVER WRITTEN DOWN. Today Advanced and Athlete share a
+ * band: levelBandForExperience gives both of them the same rung to build on and
+ * the same ceiling, and every other experience-keyed table in the engine gives
+ * them the same numbers too. So moving the control from Advanced to Athlete
+ * changes the word on the profile and nothing about the session.
+ *
+ * That is worth saying out loud under a control that otherwise reads as "this
+ * makes it harder", and it has to be DERIVED, because the day Athlete work
+ * really is different the sentence has to stop being printed on its own. A note
+ * that outlives the fact it describes is worse than no note.
+ */
+export function levelsTrainedTheSameAs(level: ExperienceLevel): ExperienceLevel[] {
+  const mine = levelBandForExperience(level);
+  return EXPERIENCE_LEVELS.filter((other) => {
+    if (other === level) return false;
+    const theirs = levelBandForExperience(other);
+    return theirs.prefer === mine.prefer && theirs.max === mine.max;
+  });
+}
+
+/** "Advanced and Athlete", or "Intermediate, Advanced and Athlete". */
+function andList(words: string[]): string {
+  if (words.length <= 1) return words[0] ?? '';
+  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+
+/**
+ * The note under a level picker: what moving it does, and what it does not.
+ *
+ * One sentence of what the answer is for, one sentence of honesty when two
+ * levels are the same, and one line of advice. Shown under the control on the
+ * programme hub and in the Profile edit sheet, which is why it lives here
+ * rather than being written out twice.
+ */
+export function experienceNote(level: ExperienceLevel): string {
+  const same = levelsTrainedTheSameAs(level);
+  const head =
+    'This sets the hardest movements the app will ever put in front of you, and where your weights start.';
+  const tail = 'Move it up when the work stops being hard, not before.';
+  if (same.length === 0) return `${head} ${tail}`;
+  // In the store's own order, so an athlete reads "Advanced and Athlete" rather
+  // than the same two levels backwards.
+  const group = EXPERIENCE_LEVELS.filter((l) => l === level || same.includes(l));
+  const names = andList(group.map((l) => EXPERIENCE_LABELS[l]));
+  return `${head} ${names} are given the same movements for now, so pick whichever describes you. ${tail}`;
+}

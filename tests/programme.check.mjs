@@ -442,7 +442,7 @@ check(
   // Whoever is top of the list, rather than whoever was top on the day this was
   // written: the check is that the hardest label is reachable at all.
   'Elite is reachable by the top level, so it is a label rather than decoration',
-  programmeDifficulty('barbell', TOP_LEVEL, 5).label === 'Elite' &&
+  programmeDifficulty('barbell', TOP_LEVEL, 5).key === 'Elite' &&
     DIFFICULTY_LABELS[DIFFICULTY_LABELS.length - 1] === 'Elite',
   'a band nothing can ever land in is a word on a page'
 );
@@ -452,7 +452,7 @@ check(
     const seen = new Set();
     for (const id of PROGRAMME_IDS)
       for (const e of LEVELS)
-        for (const d of DAYS) seen.add(programmeDifficulty(id, e, d).label);
+        for (const d of DAYS) seen.add(programmeDifficulty(id, e, d).key);
     return DIFFICULTY_LABELS.every((l) => seen.has(l));
   })(),
   'six words with only four outcomes behind them'
@@ -470,12 +470,16 @@ check(
         for (const d of DAYS) {
           const r = programmeDifficulty(id, e, d);
           if (
-            !DIFFICULTY_LABELS.includes(r.label) ||
+            !DIFFICULTY_LABELS.includes(r.key) ||
+            // The word somebody actually reads, which is the one that reaches
+            // difficulty.label.toUpperCase() on four screens.
+            typeof r.label !== 'string' ||
+            r.label.length < 3 ||
             !Number.isFinite(r.score) ||
             r.because.length <= 12 ||
             /undefined|NaN/.test(r.because)
           )
-            bad.push(`${id}/${e}/${d} -> ${r.label} (${r.score})`);
+            bad.push(`${id}/${e}/${d} -> ${r.key}/${r.label} (${r.score})`);
         }
     return bad.length === 0;
   })(),

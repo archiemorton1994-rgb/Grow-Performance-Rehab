@@ -296,7 +296,9 @@ const LEVELS = [...EXPERIENCE_LEVELS];
 /** What each experience level can actually be prescribed, from the real function. */
 const reachableFor = (e) =>
   DIFFICULTY_LABELS.filter((d) =>
-    PROGRAMME_IDS.some((id) => [2, 3, 4, 5].some((days) => programmeDifficulty(id, e, days).label === d))
+    // .key, not .label: the band is looked up by the key, and the label is the
+    // word on the pill.
+    PROGRAMME_IDS.some((id) => [2, 3, 4, 5].some((days) => programmeDifficulty(id, e, days).key === d))
   );
 
 check(

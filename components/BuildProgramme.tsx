@@ -3,8 +3,8 @@
  *
  * WHY THIS EXISTS
  * ───────────────
- * The seven programmes cover the six things people say they want plus a split,
- * and they will never cover everybody. Archie asked for it directly: "we do
+ * The programmes on the list cover the things people say they want, and they
+ * will never cover everybody. Archie asked for it directly: "we do
  * custom sessions, so what about an option for building their own custom
  * program?"
  *

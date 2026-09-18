@@ -280,7 +280,12 @@ for (const id of PROGRAMME_IDS) {
     for (const days of DAYS) {
       const d = programmeDifficulty(id, level, days);
       if (
-        !DIFFICULTY_LABELS.includes(d.label) ||
+        !DIFFICULTY_LABELS.includes(d.key) ||
+        // The word on the screen is a display name now, not the key. Both have
+        // to be there: the key bands the programme, the label is what a person
+        // reads off the pill.
+        typeof d.label !== 'string' ||
+        d.label.length < 3 ||
         !Number.isFinite(d.score) ||
         d.score < 0 ||
         d.score >= DIFFICULTY_LABELS.length ||
@@ -319,7 +324,12 @@ check(
     DAYS.every((days) => {
       const top = programmeDifficulty(id, TOP, days);
       const below = programmeDifficulty(id, BELOW_TOP, days);
-      return top.label === below.label && top.score === below.score && top.because === below.because;
+      return (
+        top.key === below.key &&
+        top.label === below.label &&
+        top.score === below.score &&
+        top.because === below.because
+      );
     })
   ),
   'the label claims a difference the prescription does not have'

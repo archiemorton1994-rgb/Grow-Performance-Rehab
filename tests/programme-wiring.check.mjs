@@ -801,8 +801,12 @@ console.log('\n[5] Home works with a programme, and without one');
 
   const chooser = read('components/ChooseProgramme.tsx');
   check(
-    'the chooser offers every programme by name, and a cycle of your own',
-    /PROGRAMME_IDS\.map/.test(chooser) && /choose-build-own/.test(chooser),
+    // OFFERED_PROGRAMME_IDS rather than every programme in the table: two are
+    // retired from the list and kept in the data. What that list actually holds
+    // is asserted by running it in tests/programmes-optional.check.mjs; this is
+    // only the seam between the screen and the list.
+    'the chooser offers the programmes still on the list by name, and a cycle of your own',
+    /OFFERED_PROGRAMME_IDS\.map/.test(chooser) && /choose-build-own/.test(chooser),
     ''
   );
   check(

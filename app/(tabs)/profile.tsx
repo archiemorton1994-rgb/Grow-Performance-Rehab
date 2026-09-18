@@ -43,7 +43,7 @@ import {
   useAppStore,
 } from '@/lib/store';
 import { THEME_OPTIONS } from '@/lib/theme-options';
-import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS } from '@/lib/experience-options';
+import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS, experienceNote } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
 import { buildPhysioSummary } from '@/lib/physio-summary';
 import { bodyweightIssue } from '@/lib/bodyweight';
@@ -1484,6 +1484,12 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.inputLabel}>Experience Level</Text>
+            {/* The same sentence the programme hub prints under the same four
+                chips, from the same function, so the two screens cannot come to
+                describe the level differently. It is derived from the engine, so
+                it stops claiming Advanced and Athlete are the same the day they
+                stop being. See experienceNote. */}
+            <Text style={styles.inputHint}>{experienceNote(editExp)}</Text>
             <View style={styles.optionGroup}>
               {EXPERIENCE_OPTIONS.map((opt) => (
                 <Pressable
