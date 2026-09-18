@@ -983,8 +983,12 @@ function personalizeLoad(
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
   isMainLift?: boolean,
-  /** Count of completed STRENGTH sessions (squat/bench/deadlift) only - not total sessions. */
-  strengthSessionCount: number = 0,
+  /**
+   * Lifting sessions logged SINCE THE CURRENT EXERCISE LIBRARY - not total
+   * sessions, and not the count that drives the rotation. See the auto
+   * multiplier below, and `libraryEpochSessionCount` in lib/store.ts.
+   */
+  loadSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
 
@@ -1035,13 +1039,23 @@ function personalizeLoad(
       ? exerciseFeedback[exerciseId].multiplier
       : 1.0;
 
-  // ── Auto session-count multiplier (+1% per 3 strength sessions, max +20%) ──
+  // ── Auto session-count multiplier (+1% per 3 lifting sessions, max +20%) ──
   // This baseline increment models the natural progressive overload across a
-  // training block. It is driven by the count of completed STRENGTH sessions
-  // only (squat / bench / deadlift) - conditioning, prehab, and flexibility
-  // do not load the main lifts and so must not advance the multiplier.
-  // The caller is responsible for filtering; the parameter name reflects this.
-  const autoMult = Math.min(1.2, 1 + Math.floor(strengthSessionCount / 3) * 0.01);
+  // training block. It is driven by the count of completed LIFTING sessions
+  // only - conditioning, prehab and flexibility do not load the lifts being
+  // progressed and so must not advance the multiplier.
+  //
+  // AND ONLY THE ONES LOGGED AGAINST THE EXERCISES WE ARE ABOUT TO PRESCRIBE.
+  // This multiplier reaches its +20% ceiling at 60 sessions and never comes
+  // back down, and it is applied on the path taken for an exercise with NO
+  // logged history - a weight worked out from bodyweight, for a movement the
+  // person has never performed. Counted over a whole career, somebody with
+  // three years behind them was handed every unfamiliar exercise a fifth
+  // heavier than the estimate for it, on the strength of sessions that were
+  // never that exercise. The caller passes the sessions since the current
+  // library instead, so the confidence is earned against the movements
+  // actually on offer. See `libraryEpochSessionCount` in lib/store.ts.
+  const autoMult = Math.min(1.2, 1 + Math.floor(loadSessionCount / 3) * 0.01);
   // Combine feedback and auto progression, capped at the existing 1.5 max.
   // feedbackMult: carries "too easy" (+7%), thumbs up (+3%), thumbs down (-5%)
   // adjustments from prior sessions and stacks multiplicatively on top of the
@@ -1162,7 +1176,7 @@ function personalizeLoad(
 
   if (__DEV__ && exerciseId && combinedMult !== 1.0) {
     console.log(
-      `[personalizeLoad] ex=${exerciseId} (heuristic) strengthSessions=${strengthSessionCount}` +
+      `[personalizeLoad] ex=${exerciseId} (heuristic) liftingSessionsThisLibrary=${loadSessionCount}` +
         ` autoMult=${autoMult.toFixed(3)} feedbackMult=${feedbackMult.toFixed(3)}` +
         ` combinedMult=${combinedMult.toFixed(3)}`
     );
@@ -1485,7 +1499,7 @@ function applyPersonalization(
   isUpperBody: boolean,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   ormKg?: number,
-  /** Count of completed STRENGTH sessions only - see personalizeLoad. */
+  /** Count of completed LIFTING sessions, all time - the rotation's count. */
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
@@ -1494,10 +1508,22 @@ function applyPersonalization(
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /**
+   * How many of those sessions were logged BEFORE the current exercise library.
+   *
+   * THE ONE PLACE THE TWO COUNTS ARE TOLD APART. Everything above rotates on
+   * the all-time count, so somebody's variety keeps moving for as long as they
+   * train; the load estimate below counts from the epoch instead, so a long
+   * history cannot vouch for an exercise that was not in the app when it was
+   * earned. Zero means "no epoch", which is a brand new account and every
+   * caller that has no reason to care.
+   */
+  libraryEpochSessionCount: number = 0
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
+  const loadSessionCount = Math.max(0, strengthSessionCount - libraryEpochSessionCount);
 
   // Derive a human-readable progression note from the same signals used in
   // personalizeLoad, so ExerciseCard can explain the suggested load to the user.
@@ -1565,7 +1591,7 @@ function applyPersonalization(
       exerciseFeedback,
       ormKg,
       isMainLift,
-      strengthSessionCount,
+      loadSessionCount,
       lastLoggedWeights,
       exerciseNormalStreak,
 
@@ -1750,7 +1776,13 @@ export function generateWorkout(
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
   bestOrmKg?: number,
-  /** Count of completed STRENGTH sessions (squat/bench/deadlift) only - drives auto-progression. */
+  /**
+   * Completed LIFTING sessions, all time - Lower, Upper and Full Body, plus the
+   * three lift-named ids that now mean those. It turns the exercise rotation
+   * over, and with `libraryEpochSessionCount` below it decides how confident a
+   * first-time weight estimate is allowed to be. See lib/session-type.ts for
+   * which sessions count and why conditioning and mobility do not.
+   */
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
@@ -1788,7 +1820,19 @@ export function generateWorkout(
    * - which is every account before its first session, all timed and AMRAP
    * work, and all rehab dosing, forever.
    */
-  exerciseRepTarget?: Record<string, string>
+  exerciseRepTarget?: Record<string, string>,
+  /**
+   * How many of `strengthSessionCount` were logged before the current exercise
+   * library. Appended LAST for the same reason the two above were.
+   *
+   * Only the FIRST-TIME weight estimate reads it; the rotation deliberately
+   * does not, so variety keeps advancing over a whole training career while
+   * confidence about an unfamiliar movement does not. Defaults to 0, which
+   * means "count them all" - correct for a new account, and what every caller
+   * that does not track an epoch already expects. See
+   * `libraryEpochSessionCount` in lib/store.ts for where the number comes from.
+   */
+  libraryEpochSessionCount: number = 0
 ): Exercise[] {
   /**
    * A squat day is a lower body day, a bench day an upper body day and a
@@ -1866,7 +1910,8 @@ export function generateWorkout(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     ),
     screenedReadiness,
     equipmentTier,
@@ -2869,7 +2914,9 @@ function generateWorkoutUnscreened(
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /** Sessions logged before the current library - see generateWorkout. */
+  libraryEpochSessionCount: number = 0
 ): Exercise[] {
   if (sessionType === 'conditioning') {
     return generateConditioningWorkout(
@@ -2884,7 +2931,8 @@ function generateWorkoutUnscreened(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     );
   }
   if (sessionType === 'prehab') {
@@ -3009,7 +3057,8 @@ function generateWorkoutUnscreened(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     );
   }
 
@@ -3270,7 +3319,8 @@ function generateWorkoutUnscreened(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     )
   );
   const kettlebelled =
@@ -3329,7 +3379,9 @@ function generateWeeklyWorkout(
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /** Sessions logged before the current library - see generateWorkout. */
+  libraryEpochSessionCount: number = 0
 ): Exercise[] {
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
@@ -3628,7 +3680,8 @@ function generateWeeklyWorkout(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     )
   );
 
@@ -3673,7 +3726,7 @@ function generateConditioningWorkout(
   readiness: ReadinessCheck,
   profile?: UserProfile,
   exerciseFeedback?: Record<string, ExerciseFeedback>,
-  /** Count of completed STRENGTH sessions only - see personalizeLoad. */
+  /** Count of completed LIFTING sessions, all time - the rotation's count. */
   strengthSessionCount: number = 0,
   lastLoggedWeights?: Record<string, number>,
   exerciseNormalStreak?: Record<string, number>,
@@ -3682,7 +3735,9 @@ function generateConditioningWorkout(
   lastSessionPerformance?: Record<string, ExercisePerformance>,
   layoff?: Layoff | null,
   /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /** Sessions logged before the current library - see generateWorkout. */
+  libraryEpochSessionCount: number = 0
 ): Exercise[] {
   const { energy, timeAvailable } = readiness;
   const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
@@ -3744,7 +3799,8 @@ function generateConditioningWorkout(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      libraryEpochSessionCount
     )
   );
   return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;

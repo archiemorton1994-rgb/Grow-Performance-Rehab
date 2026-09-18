@@ -83,10 +83,10 @@ import {
   CustomExercise,
   CardioLogData,
   useAppStore,
-  STRENGTH_SESSION_TYPES,
   TIER_ORDER,
   FitnessGoal,
 } from '@/lib/store';
+import { countLiftingSessions } from '@/lib/session-type';
 import {
   effortHint,
   parseReps,
@@ -2907,6 +2907,7 @@ export default function SessionScreen() {
     setInSessionAssistantEnabled,
     isDeloadSession,
     programme,
+    libraryEpochSessionCount,
   } = useAppStore();
   // Fall back to the saved active-session label when the resume path did not
   // forward the displayLabel param (e.g. older resume entry points).
@@ -2915,11 +2916,22 @@ export default function SessionScreen() {
     (activeSession && activeSession.sessionType === sessionType
       ? activeSession.displayLabel
       : undefined);
-  // Only count strength sessions for auto-progression - conditioning, prehab,
-  // and flexibility sessions do not drive strength progressive overload.
-  const strengthCount = completedSessions.filter((s) =>
-    STRENGTH_SESSION_TYPES.includes(s.sessionType)
-  ).length;
+  /**
+   * HOW MANY TIMES THIS PERSON HAS LIFTED, ALL TIME.
+   *
+   * It turns the exercise rotation over, so the same session run twice is not
+   * the same list of exercises. Conditioning, mobility and their own custom
+   * sessions are out: none of them load the lifts being progressed.
+   *
+   * It used to look for the three lift-named ids literally, which was right
+   * while those were the only sessions the app built and became silently wrong
+   * the day it started building Lower, Upper and Full Body instead. Everybody
+   * on the new sessions counted zero for ever, so the rotation sat on one seed
+   * and served the same exercises session after session. Counted through
+   * `trainTypeOf` now, so a squat day from three years ago counts as the lower
+   * body day it means and today's lower body day counts too.
+   */
+  const strengthCount = countLiftingSessions(completedSessions);
   const equipmentTier: EquipmentTier = TIER_ORDER.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
     : getEffectiveTier();
@@ -3051,7 +3063,11 @@ export default function SessionScreen() {
       undefined,
       loadUnitAtStart.current,
       exerciseStuckStreak,
-      exerciseRepTarget
+      exerciseRepTarget,
+      // How much of that count was trained on a different exercise library.
+      // The rotation above uses the whole count; the first-time weight estimate
+      // counts from here. See libraryEpochSessionCount in lib/store.ts.
+      libraryEpochSessionCount
     );
   }, [
     sessionType,
@@ -3065,6 +3081,7 @@ export default function SessionScreen() {
     userProfile,
     getBestORM,
     strengthCount,
+    libraryEpochSessionCount,
     lastLoggedWeights,
     exerciseNormalStreak,
     exerciseStuckStreak,

@@ -7,6 +7,9 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { displayUnitToKg, isoWeek } from '@/lib/utils';
 import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
+// Type-only against this file, so there is no runtime edge back here and no
+// cycle. See the note at the top of lib/session-type.ts.
+import { countLiftingSessions } from '@/lib/session-type';
 import { performanceForLog } from '@/lib/set-performance';
 import {
   combineWithMeasuredReps,
@@ -735,6 +738,28 @@ interface AppState {
   equipmentTiers: EquipmentTier[];
   completedCount: number;
   completedSessions: CompletedSession[];
+  /**
+   * HOW MUCH OF SOMEBODY'S HISTORY WAS TRAINED ON A DIFFERENT EXERCISE LIBRARY.
+   *
+   * The number of lifting sessions already on record when this build reached
+   * them. Everything logged after it is training the app can vouch for; the
+   * sessions before it happened, and count for the rotation and for every
+   * badge, but they are not evidence about a movement that was not on offer at
+   * the time.
+   *
+   * It exists because of one specific sum. A first-time weight - the estimate
+   * for an exercise somebody has never logged - is nudged up 1% for every three
+   * lifting sessions, to a ceiling of 20%. Counted over a whole career that
+   * ceiling is reached in about five months and never left, so somebody who has
+   * been with us for years would be handed every unfamiliar exercise a fifth
+   * above its estimate on the strength of sessions that were never that
+   * exercise. Counting from here instead means the app builds that confidence
+   * back up from the movements it is actually prescribing.
+   *
+   * Zero for a new account, which is the honest answer: none of their history
+   * predates the library because none of it exists yet.
+   */
+  libraryEpochSessionCount: number;
   oneRepMaxes: OneRepMax[];
   /**
    * Always 'never' now: see TestWeekFrequency. Persisted and synced so that the
@@ -1282,6 +1307,7 @@ export const useAppStore = create<AppState>()(
       equipmentTiers: ['bodyweight'],
       completedCount: 0,
       completedSessions: [],
+      libraryEpochSessionCount: 0,
       oneRepMaxes: [],
       testWeekFrequency: 'never',
       testWeekDeferred: false,
@@ -1991,6 +2017,10 @@ export const useAppStore = create<AppState>()(
         set({
           completedCount: 0,
           completedSessions: [],
+          // The history it measures has just been deleted, so the mark goes
+          // with it. Left standing it would sit above every session they log
+          // from now on, and the first-time estimates would never rise again.
+          libraryEpochSessionCount: 0,
           oneRepMaxes: [],
           lastLoggedWeights: {},
           lastSessionPerformance: {},
@@ -2670,6 +2700,13 @@ export const useAppStore = create<AppState>()(
           userProfile: s.userProfile,
           equipmentTiers: s.equipmentTiers,
           completedSessions: s.completedSessions,
+          /**
+           * The mark travels, or a new phone quietly disagrees with the old one
+           * about how heavy an unfamiliar exercise should be. Restoring 300
+           * sessions onto a fresh device with no mark would count every one of
+           * them as training done since this library.
+           */
+          libraryEpochSessionCount: s.libraryEpochSessionCount,
           oneRepMaxes: s.oneRepMaxes,
           exerciseFeedback: s.exerciseFeedback,
           weightUnit: s.weightUnit,
@@ -2841,6 +2878,43 @@ export const useAppStore = create<AppState>()(
         const mergedSessions = mergeSessionsById(s.completedSessions, data.completedSessions);
         if (mergedSessions.length !== s.completedSessions.length) {
           set({ completedSessions: mergedSessions, completedCount: mergedSessions.length });
+        }
+
+        /**
+         * THE LIBRARY MARK MOVES WITH THE HISTORY IT MEASURES.
+         *
+         * libraryEpochSessionCount is a count, not a date, so it only means
+         * anything against the session list it was stamped from - and the union
+         * above can lengthen that list by hundreds. Left alone, signing in on a
+         * new handset would count somebody's entire restored career as training
+         * done since this library and hand them every unfamiliar exercise 20%
+         * heavy: exactly the fault the mark exists to prevent, arriving by the
+         * one route a migration cannot see.
+         *
+         * Two cases, and both end up conservative:
+         *
+         *   The payload carries a mark. It is the same account's, written by a
+         *   device that had this build, so take whichever mark is higher. The
+         *   higher one is the one stamped against the longer history.
+         *
+         *   It does not, because it was uploaded by a build from before any of
+         *   this existed. Then every session in it predates the library by
+         *   definition, so the mark rises by however many lifting sessions the
+         *   merge just brought in and the count since the epoch is unchanged.
+         */
+        const serverEpoch =
+          typeof data.libraryEpochSessionCount === 'number' &&
+          Number.isFinite(data.libraryEpochSessionCount)
+            ? Math.max(0, Math.floor(data.libraryEpochSessionCount))
+            : null;
+        const restoredLifting =
+          countLiftingSessions(mergedSessions) - countLiftingSessions(s.completedSessions);
+        const nextEpoch =
+          serverEpoch === null
+            ? s.libraryEpochSessionCount + restoredLifting
+            : Math.max(serverEpoch, s.libraryEpochSessionCount);
+        if (nextEpoch !== s.libraryEpochSessionCount) {
+          set({ libraryEpochSessionCount: nextEpoch });
         }
 
         if (serverCount > localCount) {
@@ -3353,9 +3427,44 @@ export const useAppStore = create<AppState>()(
           persistedState.xpTotal = backfilled;
         }
 
+        /**
+         * v36 - WHERE SOMEBODY'S HISTORY STOPS AND THIS LIBRARY STARTS.
+         *
+         * Two things changed together, and the second exists to hold the first
+         * still.
+         *
+         * The session screen used to count "strength sessions" by looking for
+         * the three lift-named ids. The app stopped building those, so anybody
+         * training Lower, Upper and Full Body counted zero, for ever: their
+         * exercise rotation was frozen on a single seed and their first-time
+         * weight estimates never moved off the beginner figure. Counting the
+         * sessions they actually do fixes the rotation - and would, on its own,
+         * have handed every one of them an instant 20% on the next unfamiliar
+         * exercise, because a count that had been pinned at zero for years
+         * would have jumped to its ceiling in one launch.
+         *
+         * So the mark is stamped at whatever is already on record. Nobody's
+         * next session is any heavier than their last one was, and the app
+         * starts earning that confidence again from the movements it is
+         * currently prescribing. Somebody with a long lift-named history is the
+         * one person this eases off for, deliberately: those sessions were
+         * logged against a different set of exercises, and easing off is the
+         * safe direction to be wrong in.
+         *
+         * Counted with the same function the live app uses, so the two can
+         * never drift apart, and mirrored in mergeServerData - a mark stamped
+         * here means nothing once a sign-in lengthens the history it was
+         * measured against.
+         */
+        if (!('libraryEpochSessionCount' in persistedState)) {
+          persistedState.libraryEpochSessionCount = countLiftingSessions(
+            Array.isArray(persistedState.completedSessions) ? persistedState.completedSessions : []
+          );
+        }
+
         return persistedState;
       },
-      version: 35,
+      version: 36,
     }
   )
 );

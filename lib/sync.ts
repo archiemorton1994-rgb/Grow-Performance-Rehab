@@ -43,6 +43,20 @@ export interface SyncPayload {
   };
   equipmentTiers: string[];
   completedSessions: any[];
+  /**
+   * How many lifting sessions were already on record when this build reached
+   * the user. See libraryEpochSessionCount in lib/store.ts.
+   *
+   * It has to travel with the sessions it counts. A new phone restores the
+   * whole history; without the mark beside it, every session in that history
+   * looks like training done since the current exercise library, and the first
+   * unfamiliar exercise is prescribed 20% above its estimate.
+   *
+   * Optional for the reason every field here is: a payload written by an older
+   * build does not carry it, and an absent field must leave the device alone
+   * rather than blanking it. mergeServerData handles that case explicitly.
+   */
+  libraryEpochSessionCount?: number;
   oneRepMaxes: any[];
   exerciseFeedback: Record<string, any>;
   weightUnit: string;

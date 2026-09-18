@@ -234,17 +234,62 @@ check(
 
 console.log('\n[5] The earned reps reach the card');
 
+const WIRING_PROFILE = {
+  name: 'T',
+  sex: 'male',
+  experienceLevel: 'intermediate',
+  goals: ['strength'],
+  bodyweightKg: 80,
+};
+/** A real session, with the earned targets handed over BY POSITION, as every caller does. */
+const buildSession = (targets) =>
+  generateWorkout(
+    'squat',
+    'fullgym',
+    { hasAches: false, energy: 'normal', timeAvailable: '60' },
+    WIRING_PROFILE,
+    undefined,
+    undefined,
+    10,
+    {},
+    undefined,
+    undefined,
+    0,
+    'kg',
+    undefined,
+    targets
+  );
+
 check(
   'the engine accepts them',
   /exerciseRepTarget\?: Record<string, string>/.test(engine),
   ''
 );
 check(
-  'appended last, so the positional call sites do not shift',
-  /exerciseStuckStreak\?: Record<string, number>,\s*\r?\n[\s\S]{0,600}?exerciseRepTarget\?: Record<string, string>\s*\r?\n\): Exercise\[\]/.test(
-    engine
-  ),
-  'this signature is called from the session screen and a couple of dozen check scripts'
+  /**
+   * WAS "APPENDED LAST", WHICH HAS SINCE STOPPED BEING TRUE AND NEVER WAS THE RULE.
+   *
+   * The assertion was that `exerciseRepTarget` is the final parameter of
+   * generateWorkout, anchored on the closing `): Exercise[]`. A later parameter
+   * was then appended after it - correctly, and for the same reason this one was
+   * appended - and the pin went red while the wiring it guards was never in any
+   * danger. That is the defect this repo keeps making: a test that pins where
+   * the code is written rather than what it does.
+   *
+   * The rule is that the targets arrive WHERE THE CALLERS PUT THEM. The session
+   * screen and a couple of dozen check scripts all pass them by position, so a
+   * parameter that moves silently rebinds every one of them to something else.
+   * Pass them by position, and see whether they come out on the card.
+   */
+  'the earned targets are read from the position every caller passes them in',
+  (() => {
+    const base = buildSession(undefined);
+    const anchor = base.find((ex) => ex.id && typeof ex.reps === 'string');
+    if (!anchor) return false;
+    const moved = buildSession({ [anchor.id]: '99' });
+    return moved.find((ex) => ex.id === anchor.id)?.reps === '99';
+  })(),
+  'handed over 14th and read as some other parameter, so every positional caller is quietly filling the wrong slot'
 );
 check(
   'they are applied to the final list, after swaps',
@@ -265,32 +310,8 @@ check(
    */
   'an exercise with no earned target is untouched',
   (() => {
-    const profile = {
-      name: 'T',
-      sex: 'male',
-      experienceLevel: 'intermediate',
-      goals: ['strength'],
-      bodyweightKg: 80,
-    };
-    const build = (targets) =>
-      generateWorkout(
-        'squat',
-        'fullgym',
-        { hasAches: false, energy: 'normal', timeAvailable: '60' },
-        profile,
-        undefined,
-        undefined,
-        10,
-        {},
-        undefined,
-        undefined,
-        0,
-        'kg',
-        undefined,
-        targets
-      );
-    const none = build(undefined);
-    const otherId = build({ 'no-such-exercise-id': '99' });
+    const none = buildSession(undefined);
+    const otherId = buildSession({ 'no-such-exercise-id': '99' });
     return (
       none.length > 0 &&
       none.length === otherId.length &&
@@ -299,9 +320,28 @@ check(
   })(),
   'every account before its first session, and all timed and rehab work forever'
 );
+/**
+ * THE CALL ITSELF, not the whole screen.
+ *
+ * The assertion below used to be anchored on `exerciseRepTarget` being the
+ * closing argument, which stopped being true when a later argument was appended
+ * after it. Relaxing that anchor on its own was not safe: the same two names sit
+ * next to each other again in the hook's dependency array a few lines below, so
+ * a relaxed pattern matched THAT and passed happily with the argument removed
+ * from the call. Cut the call out first, and the pattern has only one place to
+ * look.
+ */
+const callStart = session.indexOf('generateWorkout(');
+const callEnd = session.indexOf('  }, [', callStart);
+const callText = callStart >= 0 && callEnd > callStart ? session.slice(callStart, callEnd) : '';
+check(
+  'the generator call can be told apart from the hook that wraps it',
+  callText.includes('generateWorkout(') && !callText.includes('}, ['),
+  'the screen has been restructured and the rule below has gone blind'
+);
 check(
   'the session screen passes them',
-  /exerciseStuckStreak,\s*\r?\n\s*exerciseRepTarget\s*\r?\n\s*\);/.test(session),
+  /exerciseStuckStreak,\s*\r?\n\s*exerciseRepTarget\s*[,)]/.test(callText),
   'computing the target and never reading it back is the same bug with extra steps'
 );
 

@@ -57,6 +57,48 @@ export function trainTypeOf(sessionType: SessionType): TrainSessionType {
   return TRAIN_TYPE[sessionType];
 }
 
+/**
+ * THE SESSIONS THAT PUT A WEIGHT THROUGH THE BODY.
+ *
+ * Counting these is how the app knows how far into a training block somebody
+ * is: it turns the exercise rotation over, and it is the only thing allowed to
+ * nudge a first-time weight estimate upwards. Conditioning, prehab and
+ * flexibility are deliberately out - none of them load the lifts being
+ * progressed, so none of them may claim credit for progressing them - and a
+ * custom session is out too, because it can be anything at all.
+ *
+ * Written against the TRAIN type, never the stored id, so a squat day logged
+ * three years ago counts exactly as the lower body day it now means. That is
+ * the whole reason this list is here rather than in the store beside
+ * STRENGTH_SESSION_TYPES: the old list named the three lift ids literally, and
+ * once the app stopped building them, everybody training Lower, Upper and Full
+ * Body counted zero sessions for ever. Their rotation froze on one seed and
+ * their block progress never moved.
+ */
+export const LIFTING_SESSION_TYPES: TrainSessionType[] = ['upper_body', 'lower_body', 'full_body'];
+
+/** True when a stored session type is one the app progresses loads from. */
+export function isLiftingSession(sessionType: SessionType): boolean {
+  return LIFTING_SESSION_TYPES.includes(TRAIN_TYPE[sessionType]);
+}
+
+/**
+ * How many of these completed sessions were lifting sessions.
+ *
+ * Takes the bare field rather than a CompletedSession, so the store's migration
+ * can count a plain object read back off disk with the same function the live
+ * app uses. Anything whose type is not a session type we know is not counted:
+ * the lookup returns undefined and the test below is false, which is the right
+ * answer for a record written by a build this one has never met.
+ */
+export function countLiftingSessions(sessions: { sessionType: SessionType }[]): number {
+  let n = 0;
+  for (const session of sessions) {
+    if (session && isLiftingSession(session.sessionType)) n++;
+  }
+  return n;
+}
+
 /** The three ids kept only so history, sync and frozen reports still resolve. */
 export const LEGACY_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift'];
 
