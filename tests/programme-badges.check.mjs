@@ -374,6 +374,40 @@ check(
   })(),
   'the denominator excludes them, so the numerator has to as well'
 );
+
+/**
+ * AND HOME COUNTS BY THE SAME RULE, which it did not.
+ *
+ * The home tile printed earnedBadges.length and the Achievements screen one tap
+ * behind it printed countedEarned, so anybody holding a retired badge - a
+ * movement screen, a strength test week - was shown one number on Home and a
+ * smaller one the moment they tapped it. Measured on a real account during an
+ * earlier review: "3" on Home against "1 of 294" a tap later.
+ *
+ * The first half below proves the two rules really do differ, so the second
+ * half cannot go vacuous: a check that both screens call the same function is
+ * worth nothing if the function is the identity.
+ */
+{
+  const earned = [ACTIVE_BADGES[0].id, 'screen_taken', 'screen_all_patterns'];
+  check(
+    `the two rules genuinely disagree (raw ${earned.length}, counted ${countedEarned(earned)})`,
+    earned.length !== countedEarned(earned) && countedEarned(earned) === 1,
+    'if these ever agree, the assertion below is testing nothing'
+  );
+  const homeSrc = readFileSync(new URL('../app/(tabs)/index.tsx', import.meta.url), 'utf8');
+  const achSrc = readFileSync(new URL('../app/achievements.tsx', import.meta.url), 'utf8');
+  check(
+    'and both screens that print a badge total go through countedEarned',
+    /countedEarned\(earnedBadges\)/.test(homeSrc) &&
+      /countedEarned\(earnedBadges\)/.test(achSrc) &&
+      // Neither may print the raw length as a figure. This is the exact
+      // expression that was on Home.
+      !/\{earnedBadges\.length\}/.test(homeSrc) &&
+      !/\{earnedBadges\.length\}/.test(achSrc),
+    'two screens, one tap apart, showing different totals for the same shelf'
+  );
+}
 check(
   /**
    * RETIRING ONE MUST NOT RE-COLOUR THE BADGES AROUND IT.

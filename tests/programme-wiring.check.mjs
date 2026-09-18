@@ -19,7 +19,9 @@
 import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
 import { useAppStore, SESSION_ORDER } from '../lib/store.ts';
-import { cycleFor } from '../lib/programme.ts';
+import { cycleFor, nameOf } from '../lib/programme.ts';
+import { countLiftingSessions as countLifting } from '../lib/session-type.ts';
+import * as HOME_SCREEN from '../lib/home-screen.ts';
 import { MAX_EARNED_BONUS } from '../lib/programme-report.ts';
 
 let passed = 0;
@@ -466,33 +468,335 @@ check(
   'blockWeeks 12 read as sessions 12 would silently shorten a three day block to a third of its length'
 );
 
-// ─── 5. The programme is the spine of the home screen ───────────────────────
-console.log('\n[5] One thing in the suggested box, and somewhere to go without one');
+// ─── 5. Home works with a programme and without one ─────────────────────────
+console.log('\n[5] Home works with a programme, and without one');
 
+/**
+ * WHAT THIS SECTION USED TO ASSERT, AND WHY IT IS THE OPPOSITE NOW.
+ *
+ * It pinned the hero to `{!programme ? (`: enrolled, and you get the session;
+ * not enrolled, and you get a card headed "No programme yet" with a button to
+ * go and get one. That was the right fix for the fault of its day, which was a
+ * Squat Session invented for somebody enrolled in nothing. It has a cost that
+ * grew until it was the bigger fault: a programme is OPTIONAL, most people are
+ * on none, and Grow's first screen answered "what am I training today" with an
+ * advert.
+ *
+ * Worse, `programme` is truthy for a PAUSED block. The hero named a block that
+ * had been explicitly stopped, printed its session count, and announced "Easier
+ * week" from a deload the engine was not applying, while getCurrentSessionType
+ * had already handed the day back to the plain rotation.
+ *
+ * So the hero shows the session whenever nothing is choosing one, and the
+ * assertions below RUN lib/home-screen.ts against the REAL store rather than
+ * matching JSX.
+ */
 {
   const home = read('app/(tabs)/index.tsx');
+  const HS = HOME_SCREEN;
+  const YS = await import('../lib/your-sessions.ts');
+  const { rotatesSessions } = await import('../lib/session-type.ts');
+  const { SESSION_SHORT_LABELS } = await import('../lib/session-meta.ts');
+
+  /** Everything Home derives, taken from the live store exactly as the screen does. */
+  const homeState = () => {
+    const s = S();
+    const name = s.programme ? nameOf(s.programme) : null;
+    const heroName = HS.heroProgrammeName(
+      s.programme && name ? { name, paused: s.programme.paused } : null
+    );
+    const place = HS.programmePlace(s.programme, s.getProgrammePosition());
+    const next = s.getCurrentSessionType();
+    return {
+      heroName,
+      place,
+      next,
+      eyebrow: HS.heroEyebrow(heroName),
+      placeLine: HS.programmePlaceLine(place),
+      hero: HS.homeHero({
+        hasProgramme: s.programme !== null,
+        rotates: rotatesSessions(s.userProfile),
+        liftingCount: countLifting(s.completedSessions),
+      }),
+      tile: HS.programmeTile({
+        reportReady: s.pendingProgrammeReportId !== null,
+        enrolledName: name,
+        paused: s.programme?.paused,
+        place,
+        nextSessionLabel: SESSION_SHORT_LABELS[next],
+      }),
+    };
+  };
+
+  // ── enrolled and running ──────────────────────────────────────────────────
+  reset({ lastReadinessTime: '45', completedSessions: [] });
+  S().enrolInProgramme('joints', '2026-08-31T09:00:00.000Z');
+  {
+    const h = homeState();
+    check(
+      'a running block is named over the session for today',
+      h.eyebrow === 'TODAY · JOINT HEALTH' && h.hero === 'today',
+      h.eyebrow
+    );
+    check(
+      'and the line under it counts the block',
+      h.placeLine === 'Session 1 of 12',
+      String(h.placeLine)
+    );
+    check('and the tile is the block', h.tile.title === 'JOINT HEALTH', JSON.stringify(h.tile));
+  }
+
+  // ── PAUSED: the phase's own assertion ─────────────────────────────────────
+  /**
+   * A PAUSED PROGRAMME USER SEES THE ROTATION CARD WITH NO PROGRAMME NAME.
+   *
+   * Three things had to be true at once and only the first was: the suggestion
+   * falls back to the rotation (already held in section 4), the card stops
+   * naming the block, and the "Easier week" note stops appearing. The last two
+   * were read straight off getProgrammePosition, which deliberately still
+   * answers for a paused block so the hub can show where it will pick up.
+   */
+  S().setProgrammePaused(true);
+  {
+    const h = homeState();
+    check(
+      'paused: nothing is named over the session',
+      h.heroName === null && h.eyebrow === 'Today',
+      h.eyebrow
+    );
+    check(
+      'paused: the card shows the rotation, not the block',
+      h.next === S().getCurrentSessionType() && SESSION_ORDER.includes(h.next),
+      `got ${h.next}`
+    );
+    check(
+      'paused: no session count and no place line',
+      h.place === null && h.placeLine === null,
+      JSON.stringify(h.place)
+    );
+    check(
+      'paused: the tile keeps the name so there is a way back, and drops the count',
+      h.tile.title === 'JOINT HEALTH' && h.tile.number === ' ' && /paused/i.test(h.tile.subtitle),
+      JSON.stringify(h.tile)
+    );
+    /**
+     * AND THEY GET THE TODAY CARD, not the first-session chooser.
+     *
+     * Found by driving the real screen rather than by reasoning: Joint Health
+     * is prehab and flexibility, so somebody who pauses it has NO lifting
+     * history, and a chooser keyed only on that asked a person three weeks into
+     * a block to pick their first session. Paused is not "never met you".
+     */
+    check(
+      'paused: the hero is the session, not a first-session chooser',
+      h.hero === 'today' && countLifting(S().completedSessions) === 0,
+      `${h.hero}, with ${countLifting(S().completedSessions)} lifting sessions behind them`
+    );
+  }
+
+  /**
+   * AND THE EASIER WEEK, WHICH IS THE ONE THAT COULD MISLEAD SOMEBODY.
+   *
+   * Driven to a real deload week first, so the note is genuinely on, and then
+   * paused. A card that says "Easier week" over a session the engine is
+   * building at full weight is the app telling somebody to expect 10% less than
+   * it is about to give them.
+   */
+  {
+    reset({ completedSessions: [] });
+    S().enrolInProgramme('barbell', '2026-09-01T00:00:00.000Z');
+    S().updateProgramme({ sessions: 20, days: 3 });
+    const cycle = cycleFor('barbell', 3);
+    useAppStore.setState({
+      completedSessions: Array.from({ length: 9 }, (_, i) =>
+        session(cycle[(8 - i) % cycle.length])
+      ),
+      programme: { ...S().programme, startedAtSessionCount: 0 },
+    });
+    const running = homeState();
+    check(
+      'a real easier week does say so on the line it already had',
+      running.place?.deload === true && / · Easier week$/.test(running.placeLine ?? ''),
+      String(running.placeLine)
+    );
+    S().setProgrammePaused(true);
+    const paused = homeState();
+    check(
+      'and pausing takes it off, because a paused block has no weeks',
+      paused.placeLine === null && S().isDeloadSession(S().getProgrammePosition()?.next) === false,
+      String(paused.placeLine)
+    );
+    S().setProgrammePaused(false);
+  }
+
+  // ── enrolled in nothing ───────────────────────────────────────────────────
+  reset({ completedSessions: [session('lower_body'), session('conditioning')] });
+  {
+    const h = homeState();
+    check(
+      'off a programme the hero is still the session',
+      h.hero === 'today' && h.eyebrow === 'Today' && h.placeLine === null,
+      JSON.stringify(h)
+    );
+    check(
+      'and the tile is their own sessions, with the next one named',
+      h.tile.title === 'YOUR SESSIONS' &&
+        h.tile.subtitle === `Next: ${SESSION_SHORT_LABELS[h.next]}`,
+      JSON.stringify(h.tile)
+    );
+  }
+
+  // ── the one-off first-session chooser ─────────────────────────────────────
+  /**
+   * OFFERED TO EXACTLY ONE POPULATION, AND IT GIVES setCycleStartOffset ITS
+   * ONLY CALLER BACK.
+   *
+   * Somebody who rotates and has never lifted here: the app has no position to
+   * carry, so picking for them is a coin toss. A beginner is never asked,
+   * because Archie's second decision has already answered it, and nobody is
+   * asked twice.
+   */
+  const profile = (experienceLevel, earnedLevelBonus = 0) => ({
+    name: 'Probe',
+    sex: 'male',
+    experienceLevel,
+    goals: ['muscle'],
+    bodyweightKg: 80,
+    earnedLevelBonus,
+  });
+
+  reset({ completedSessions: [] });
+  check('a rotating user with no history is asked', homeState().hero === 'chooser', '');
+
+  reset({ completedSessions: [], userProfile: profile('beginner', 0) });
   check(
-    // Reported after use: a Squat Session with a Test Week badge, to somebody
-    // who had asked for neither, with no obvious way to change it. The box held
-    // the three-lift rotation's next lift because that is what it fell back to.
-    'the hero branches on whether there IS a programme, not on how much they have trained',
-    /\{!programme \? \(/.test(home) && !/completedSessions\.length === 0 \? \(/.test(home),
-    'a suggestion invented for somebody enrolled in nothing is a suggestion from nowhere'
+    'a beginner is not, because Full Body is already the answer',
+    homeState().hero === 'today' && homeState().next === 'full_body',
+    ''
+  );
+
+  reset({ completedSessions: [], userProfile: profile('beginner', 1) });
+  check('but one earned rung puts them back in front of it', homeState().hero === 'chooser', '');
+
+  reset({ completedSessions: [session('conditioning'), session('flexibility')] });
+  check(
+    'conditioning and mobility do not count as having started',
+    homeState().hero === 'chooser',
+    'they do not turn the rotation either, so there is still no position to carry'
+  );
+
+  reset({ completedSessions: [session('squat')] });
+  check(
+    'and a single lift-named session from the old app does',
+    homeState().hero === 'today',
+    'a squat day is a lower body day, so their rotation has a position'
+  );
+
+  for (const type of YS.FIRST_SESSION_CHOICES) {
+    reset({ completedSessions: [] });
+    const offset = YS.offsetForFirstSession(type);
+    S().setCycleStartOffset(offset);
+    check(
+      `picking ${type} makes ${type} the very next session`,
+      S().getCurrentSessionType() === type,
+      `offset ${offset} gave ${S().getCurrentSessionType()}`
+    );
+    // And the two after it follow the rotation from there rather than resetting.
+    useAppStore.setState({ completedSessions: [session(type)] });
+    check(
+      `and the one after ${type} is the next in the rotation`,
+      S().getCurrentSessionType() === SESSION_ORDER[(offset + 1) % SESSION_ORDER.length],
+      S().getCurrentSessionType()
+    );
+  }
+
+  check(
+    'the chooser offers the three the rotation moves through, in its order',
+    YS.FIRST_SESSION_CHOICES.length === SESSION_ORDER.length &&
+      YS.FIRST_SESSION_CHOICES.every((t, i) => t === SESSION_ORDER[i]),
+    YS.FIRST_SESSION_CHOICES.join(', ')
   );
   check(
-    'and the three-lift first-session chooser is gone with it',
-    !/first-session-\$\{type\}/.test(home) && !/Choose Your First Session/.test(home),
-    'three barbell lifts offered to a brand-new user is not their programme either'
+    'and the screen draws one tile per choice, wired to the store',
+    // Drawn from the list rather than written out three times, so the tiles
+    // cannot drift from the offsets asserted above.
+    /FIRST_SESSION_CHOICES\.map\(\(type\)/.test(home) &&
+      /testID=\{`home-first-session-\$\{type\}`\}/.test(home) &&
+      /offsetForFirstSession\(type\)/.test(home) &&
+      /setCycleStartOffset\(offset\)/.test(home),
+    'setCycleStartOffset had no caller at all in app/, components/ or lib/ until this card came back'
+  );
+
+  // ── Your Programme cannot disagree with Home ─────────────────────────────
+  /**
+   * THE ROW MARKED "CURRENT" IS THE SESSION HOME OFFERS. ALWAYS.
+   *
+   * app/program.tsx worked the rotation out a second time, from the session
+   * count alone: no `cycleStartOffset`, and no beginner rule. Measured over the
+   * grid below, the two screens disagreed for a beginner at six session counts
+   * in nine, and the first-session chooser would have made them disagree for
+   * two rotating users in three. Both read one function now, and this is what
+   * says so.
+   */
+  let disagreements = 0;
+  let compared = 0;
+  for (const level of ['beginner', 'intermediate', 'advanced', 'athlete']) {
+    for (const rung of [0, 1]) {
+      for (let lifts = 0; lifts <= 11; lifts++) {
+        for (const offset of [0, 1, 2]) {
+          reset({
+            cycleStartOffset: offset,
+            completedSessions: Array.from({ length: lifts }, (_, i) =>
+              session(SESSION_ORDER[i % SESSION_ORDER.length])
+            ),
+            userProfile: profile(level, rung),
+          });
+          const s = S();
+          const rows = YS.sessionTimeline({
+            rotates: rotatesSessions(s.userProfile),
+            onRotation: s.isOnStrengthProgramme(),
+            liftingCount: countLifting(s.completedSessions),
+            cycleStartOffset: s.cycleStartOffset,
+            recentTypes: s.completedSessions.slice(0, 4).map((x) => x.sessionType),
+            suggestedNext: s.getCurrentSessionType(),
+          });
+          const current = rows.find((r) => r.status === 'current');
+          compared++;
+          if (!current || current.sessionType !== s.getCurrentSessionType()) disagreements++;
+        }
+      }
+    }
+  }
+  check(
+    `Your Programme marks the session Home offers, in all ${compared} cases`,
+    disagreements === 0,
+    `${disagreements} of ${compared} rows disagreed with getCurrentSessionType`
   );
   check(
-    'with no programme it points at the page that fixes that',
-    /testID="home-choose-programme"/.test(home) && /router\.push\('\/program'\)/.test(home),
+    'and the screen builds its rows from that one function',
+    /sessionTimeline\(\{/.test(read('app/program.tsx')) &&
+      /rotatesSessions\(userProfile\)/.test(read('app/program.tsx')),
+    'two copies of the rotation is one copy that goes wrong, which is how it went wrong'
+  );
+
+  // ── Your Programme opens on their sessions, not on our programmes ────────
+  const programScreen = read('app/program.tsx');
+  check(
+    'Your Programme opens on the rotation rather than on the chooser',
+    /const \[browsing, setBrowsing\] = React\.useState\(false\)/.test(programScreen) &&
+      /\) : browsing \? \(/.test(programScreen),
+    'a page named after what somebody trains should answer that before offering them seven things to sign up to'
+  );
+  check(
+    'with a clear way through to browsing them',
+    /testID="program-browse-programmes"/.test(programScreen) &&
+      /Browse programmes/.test(programScreen),
     ''
   );
   check(
-    'and the card names the block the session belongs to',
-    /programmeName/.test(home) && /programmeTilePlace/.test(home),
-    'a session with no programme named over it is the same suggestion from nowhere'
+    'and it no longer prints the three barbell lifts at anybody',
+    !/Squat · Bench · Deadlift/.test(programScreen),
+    'the last screen still naming sessions the app does not build'
   );
 
   const chooser = read('components/ChooseProgramme.tsx');
@@ -519,9 +823,9 @@ console.log('\n[5] One thing in the suggested box, and somewhere to go without o
     ''
   );
   check(
-    'the rotation screen is still reachable rather than deleted out from under anybody',
-    /choose-programme-keep-rotation/.test(chooser) && /showRotation/.test(read('app/program.tsx')),
-    'somebody nine cycles into the rotation should not lose the screen that shows it'
+    'and there is a way back out of it to your own sessions',
+    /choose-programme-keep-rotation/.test(chooser) && /setBrowsing\(false\)/.test(programScreen),
+    'somebody who opened the list to look should not have to leave the screen to get out of it'
   );
 }
 
@@ -678,7 +982,22 @@ check(
 const homeScreen = read('app/(tabs)/index.tsx');
 check(
   'the home tile says so on the line it already had',
-  /deload: pos\.deload/.test(homeScreen) && /Easier week/.test(homeScreen),
+  // RUN the line. It moved into lib/home-screen.ts with the rest of the card,
+  // which is what let section 5 above prove the other half of this rule: that
+  // a PAUSED block, which still has a position and still reports a deload on
+  // it, says nothing of the sort.
+  (() => {
+    const { programmePlaceLine } = HOME_SCREEN;
+    const easier = programmePlaceLine({ done: 9, total: 20, deload: true });
+    const ordinary = programmePlaceLine({ done: 3, total: 20, deload: false });
+    return (
+      easier === 'Session 10 of 20 · Easier week' &&
+      ordinary === 'Session 4 of 20' &&
+      // Still one line, because Home is sized not to scroll.
+      !easier.includes('\n') &&
+      /placeLine/.test(homeScreen)
+    );
+  })(),
   'Home is sized not to scroll, so this cannot be a new row'
 );
 
@@ -983,7 +1302,10 @@ check(
     const home = read('app/(tabs)/index.tsx');
     return (
       /reportReady/.test(home) &&
-      /router\.push\(reportReady \? '\/programme-report' : '\/program'\)/.test(home) &&
+      // The destination moved into lib/home-screen.ts with the rest of the
+      // tile, so this asserts the screen asks it rather than re-deciding, and
+      // programmeTileHref itself is run in tests/your-program-card.check.mjs.
+      /router\.push\(programmeTileHref\(reportReady\)\)/.test(home) &&
       // The id must NOT move with the state: the tour spotlights this tile by
       // name, so a conditional id breaks the tour for the longest-standing users.
       /testID="your-program-card"/.test(home)

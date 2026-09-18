@@ -14,8 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import { SessionType, useAppStore, CompletedSession, SESSION_ORDER } from '@/lib/store';
-import { countLiftingSessions } from '@/lib/session-type';
+import { SessionType, useAppStore, CompletedSession } from '@/lib/store';
+import { countLiftingSessions, rotatesSessions } from '@/lib/session-type';
+import { sessionTimeline } from '@/lib/your-sessions';
 import { getSessionImage } from '@/lib/session-images';
 import {
   SESSION_META,
@@ -82,8 +83,21 @@ export default function ProgramScreen() {
   const scrollHint = useScrollIndicator();
   const C = useColors();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-  /** Set from the chooser, for somebody who wants the rotation view back. */
-  const [showRotation, setShowRotation] = React.useState(false);
+  /**
+   * THE CHOOSER IS NOW SOMEWHERE YOU GO, NOT WHERE YOU LAND.
+   *
+   * This screen used to open on the programme chooser for everybody who was not
+   * enrolled, with the rotation view hidden behind a quiet link at the foot of
+   * it. That made "Your Programme" a page about programmes rather than a page
+   * about the person's training, and for the majority of users - who are on no
+   * programme and, by Archie's own plan, never need to be - it answered the
+   * question "what am I training" with "choose one of these seven".
+   *
+   * So the rotation view is the default and browsing is a button on it. Nothing
+   * is taken away: the chooser is one tap from the top of the screen and says
+   * the same things it always did.
+   */
+  const [browsing, setBrowsing] = React.useState(false);
 
   const {
     completedSessions,
@@ -98,10 +112,21 @@ export default function ProgramScreen() {
     clearActiveSession,
     programme,
     userProfile,
+    cycleStartOffset,
   } = useAppStore();
 
-  const onStrengthProgramme = isOnStrengthProgramme();
   const suggestedNext = getCurrentSessionType();
+  /**
+   * WHETHER TO DRAW A ROTATION AT ALL.
+   *
+   * Two questions, and this screen only used to ask one. isOnStrengthProgramme
+   * asks whether their recent training has been lifting; rotatesSessions asks
+   * whether they are on the rotation in the first place, which a beginner with
+   * no earned rung is not - they are offered Full Body every session. Missing
+   * the second is how Your Programme came to mark Upper Body as "current" while
+   * Home offered Full Body to the same person in the same minute.
+   */
+  const onRotation = isOnStrengthProgramme() && rotatesSessions(userProfile);
 
   /**
    * Every session that put a weight through the body, counted through
@@ -125,15 +150,13 @@ export default function ProgramScreen() {
    *
    * It used to be the user's test-week frequency, with 'never' aliased to 12.
    * Test weeks are retired and there is no frequency left to read, so the alias
-   * is all that survives. (This screen still draws the plain rotation by
-   * construction; giving the rotation view its own shape, with Browse
-   * programmes beside it, is a later piece of work, not this one.)
+   * is all that survives.
    */
   const progCycleLength = 12;
   const progCyclePos = strengthCount % progCycleLength;
 
-  // What this person actually trains, most-used first — used in place of the
-  // hardcoded "Squat · Bench · Deadlift" subtitle.
+  // What this person actually trains, most-used first, used in place of the
+  // subtitle that named three barbell lifts.
   const trainingMix = useMemo(() => {
     const counts = new Map<SessionType, number>();
     for (const s of completedSessions) {
@@ -146,7 +169,7 @@ export default function ProgramScreen() {
     return top.length > 0 ? top.join(' · ') : 'Your own mix';
   }, [completedSessions]);
 
-  const contextMsg = onStrengthProgramme
+  const contextMsg = onRotation
     ? programContextMessage(strengthCount)
     : nonStrengthContextMessage({
         sessionCount: completedSessions.length,
@@ -156,45 +179,30 @@ export default function ProgramScreen() {
         streakWeeks: getStreakDays(),
       });
 
-  const timeline = useMemo(() => {
-    const items: {
-      sessionType: SessionType;
-      status: 'completed' | 'current' | 'upcoming';
-    }[] = [];
-
-    // Not on the barbell rotation? Then do not draw one.
-    //
-    // This screen used to build its timeline from SESSION_ORDER[i % 3]
-    // unconditionally, so someone who has never lifted a barbell opened "Your
-    // Program" and was shown a nine-row squat/bench/deadlift cycle with "Not
-    // done yet" beside every one of them. The rest of the app had already been
-    // taught not to assume that; this screen had not, which made it the loudest
-    // remaining contradiction in the app.
-    //
-    // Their programme is what they actually do, so it is drawn from history:
-    // the last few sessions completed, then whatever the home card is
-    // suggesting next. Same decision function as the home card, so the two can
-    // never disagree about which programme someone is on.
-    if (!onStrengthProgramme) {
-      const recent = completedSessions.slice(0, RECENT_TIMELINE).reverse();
-      for (const s of recent) {
-        items.push({ sessionType: s.sessionType, status: 'completed' });
-      }
-      items.push({ sessionType: suggestedNext, status: 'current' });
-      return items;
-    }
-
-    const tlLen = Math.min(progCycleLength, 9);
-    const posInCycle = strengthCount % tlLen;
-    for (let i = 0; i < tlLen; i++) {
-      const sessionType = SESSION_ORDER[i % 3];
-      const status: 'completed' | 'current' | 'upcoming' =
-        i < posInCycle ? 'completed' : i === posInCycle ? 'current' : 'upcoming';
-      items.push({ sessionType, status });
-    }
-    return items;
+  /**
+   * THE ROWS, BUILT BY lib/your-sessions.ts RATHER THAN HERE.
+   *
+   * Not tidiness: the row marked "current" has to be the session Home offers,
+   * and this screen worked it out a second time with two thirds of the rule
+   * missing. It ignored `cycleStartOffset`, so the first-session chooser would
+   * have made it disagree with Home for two people in three, and it ignored the
+   * beginner rule entirely. Both screens ask one function now, and a check runs
+   * it against the real store across every experience level, session count and
+   * offset.
+   */
+  const timeline = useMemo(
+    () =>
+      sessionTimeline({
+        rotates: rotatesSessions(userProfile),
+        onRotation: isOnStrengthProgramme(),
+        liftingCount: strengthCount,
+        cycleStartOffset,
+        recentTypes: completedSessions.slice(0, RECENT_TIMELINE).map((s) => s.sessionType),
+        suggestedNext,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strengthCount, onStrengthProgramme, completedSessions, suggestedNext]);
+    [strengthCount, onRotation, completedSessions, suggestedNext, cycleStartOffset, userProfile]
+  );
 
   /**
    * Every session type, not just the three barbell lifts.
@@ -296,7 +304,7 @@ export default function ProgramScreen() {
           <Text style={styles.headerTitle}>Your Programme</Text>
         </View>
         {/* The rotation's own badge, so it belongs to the rotation view. */}
-        {!programme && showRotation && onStrengthProgramme && (
+        {!programme && !browsing && onRotation && (
           <View style={styles.cycleBadge}>
             <Text style={styles.cycleBadgeText}>Cycle {progCycleNumber}</Text>
           </View>
@@ -304,27 +312,24 @@ export default function ProgramScreen() {
       </View>
 
       {/**
-       * ENROLLED, SO THE HUB. Otherwise the chooser.
+       * ENROLLED, SO THE HUB. OTHERWISE THEIR OWN SESSIONS, unless they asked
+       * to browse.
        *
-       * This used to fall through to the three-lift rotation screen, which is a
-       * description of what the app had been doing rather than a choice anybody
-       * made - and it was the only thing "Your Program" could lead to for a user
-       * who had never been through the builder. Reported after use: a Squat
-       * Session and a Test Week badge, with nowhere obvious to go and change it.
+       * The order of those last two has been swapped. This screen opened on the
+       * chooser for everybody who was not enrolled, which made a page called
+       * "Your Programme" into a page about OUR programmes: somebody who trains
+       * three times a week, on nothing, and by the plan never needs to be on
+       * anything, opened it and was shown seven things to sign up to and a
+       * quiet link at the bottom to see what they were already doing.
        *
-       * The rotation view is still below and still exactly right for somebody
-       * who wants it; it is reached from the chooser rather than being the only
-       * answer to the question "what am I training".
+       * Now it answers the question it is named after first, and browsing is a
+       * button on it. Nothing was removed from the chooser and nothing about it
+       * changed, including the sentence saying nobody needs one.
        */}
       {programme ? (
         <ProgrammeHub />
-      ) : !showRotation ? (
-        <ChooseProgramme
-          onKeepRotation={
-            // Only offered to somebody who actually has a rotation behind them.
-            completedSessions.length > 0 ? () => setShowRotation(true) : undefined
-          }
-        />
+      ) : browsing ? (
+        <ChooseProgramme onKeepRotation={() => setBrowsing(false)} />
       ) : (
       <>
       <ScrollView
@@ -333,26 +338,50 @@ export default function ProgramScreen() {
         showsVerticalScrollIndicator={false}
         {...scrollHint.handlers}
       >
-        {/* Subtitle */}
+        {/* Subtitle. It named the three barbell lifts, which stopped being
+            sessions the app builds and was the last place on any screen still
+            printing them at somebody. The rotation is what it has always been
+            underneath: Lower, Upper, Full. */}
         <Text style={styles.subtitle}>
-          {onStrengthProgramme
-            ? `Squat · Bench · Deadlift · ${getEquipmentLabel(todayEffectiveTier)}`
+          {onRotation
+            ? `Lower Body · Upper Body · Full Body · ${getEquipmentLabel(todayEffectiveTier)}`
             : `${trainingMix} · ${getEquipmentLabel(todayEffectiveTier)}`}
         </Text>
+
+        {/* THE WAY ON TO A PROGRAMME, on the screen that used to BE the way on.
+            Said as an offer rather than a prompt: this page is about what they
+            already train, and a programme is one of the things they could do
+            next rather than something missing from their account. */}
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setBrowsing(true);
+          }}
+          testID="program-browse-programmes"
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.browseBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="albums-outline" size={18} color={C.primaryText} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.browseTitle}>Browse programmes</Text>
+            <Text style={styles.browseSub}>
+              Optional. Pick one and your sessions are chosen for you, week by week.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={C.textTertiary} />
+        </Pressable>
 
         {/* Stats row. "Until test" is meaningless to someone who is not being
             tested, so it is replaced rather than left showing a countdown to an
             event that will never arrive. */}
         <View style={styles.cycleInfo}>
           <View style={styles.cycleCard}>
-            {onStrengthProgramme ? (
+            {onRotation ? (
               <Text style={styles.cycleValue}>Cycle {progCycleNumber}</Text>
             ) : (
               <Text style={styles.cycleNumber}>{getThisWeekCount()}</Text>
             )}
-            <Text style={styles.cycleLabel}>
-              {onStrengthProgramme ? 'of your program' : 'this week'}
-            </Text>
+            <Text style={styles.cycleLabel}>{onRotation ? 'of your program' : 'this week'}</Text>
           </View>
           <View style={styles.cycleDivider} />
           <View style={styles.cycleCard}>
@@ -370,7 +399,7 @@ export default function ProgramScreen() {
         </View>
 
         {/* Arc dots — position within a cycle, so only meaningful on one. */}
-        {onStrengthProgramme && (
+        {onRotation && (
         <View style={styles.arcCard}>
           <View style={styles.arcHeader}>
             <Text style={styles.arcLabel}>
@@ -507,6 +536,25 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_500Medium',
       color: C.textSecondary,
       marginBottom: 2,
+    },
+
+    browseBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.primaryMuted,
+      backgroundColor: C.primarySurface,
+    },
+    browseTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.text },
+    browseSub: {
+      fontSize: 11.5,
+      lineHeight: 16,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      marginTop: 1,
     },
 
     cycleInfo: {

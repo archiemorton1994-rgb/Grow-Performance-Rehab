@@ -29,11 +29,29 @@
  *  - textAlign:'center' removed from summaryBigNum (numbers left-align)
  *  - lineHeight/fontSize bumped until total height > 72pt (content clips)
  *  - summaryCycleLabel fontSize enlarged (label overwhelms number hierarchy)
+ *
+ * AND WHAT THE TILE SAYS, which section 7 RUNS rather than reads.
+ * ──────────────────────────────────────────────────────────────
+ * The four lines moved into lib/home-screen.ts so that a check can ask for each
+ * state of the tile and read the strings back. That matters here more than
+ * anywhere, because the layout invariants above only hold while all four lines
+ * are DRAWN: this tile carries one child more than the three beside it, and
+ * summaryGrid stretches, so a state that returns an empty number steps the
+ * whole first row of the grid and Home, which does not scroll, scrolls.
  */
+
+globalThis.__DEV__ = false;
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  FIRST_SESSION_BODY_MAX,
+  FIRST_SESSION_COPY,
+  FIRST_SESSION_TITLE_MAX,
+  programmeTile,
+  programmeTileHref,
+} from '../lib/home-screen.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -294,6 +312,203 @@ if (!cycleFontSizeMatch) {
       `summaryCycleLabel: fontSize ${fs_} must be ≤ 10 (micro label)`,
       'A large label would visually compete with the number and reduce hierarchy'
     );
+  }
+}
+
+// ─── test 6b: the first-session chooser fits where the Today card sat ───────
+//
+// HOME DOES NOT SCROLL, and the hero is the tallest thing on it. The chooser is
+// a second hero card, drawn instead of the Today card for one narrow population
+// (somebody who rotates and has never lifted here), so if it is taller than the
+// card it replaces then Home scrolls for exactly the people seeing it for the
+// first time. The page was measured at exactly the viewport on a 390x844 phone,
+// so there is no slack to spend.
+//
+// Both stacks are added up from the numbers in the stylesheet rather than from
+// numbers written here, so moving a padding moves the budget with it.
+{
+  const num = (re, fallback) => {
+    const m = indexSrc.match(re);
+    return m ? parseInt(m[1], 10) : fallback;
+  };
+  const styleNum = (style, prop, fallback) =>
+    num(new RegExp(`${style}\\s*:\\s*\\{[^}]*${prop}:\\s*(\\d+)`), fallback);
+  // A line of text, near enough: these fonts sit around 1.3x their size.
+  const line = (size) => Math.round(size * 1.3);
+
+  // The Today card, above and below the shared chip row.
+  const todayStack =
+    styleNum('todayIcon', 'height', 999) +
+    styleNum('todayCardTop', 'marginBottom', 0) +
+    styleNum('startBtn', 'paddingVertical', 0) * 2 +
+    line(styleNum('startBtnText', 'fontSize', 0));
+
+  // The chooser, over the same chip row, with no primary button under it.
+  const subMargin = num(/styles\.todaySessionSub, \{ marginBottom: (\d+) \}/, 0);
+  const chooserStack =
+    line(styleNum('todayLabel', 'fontSize', 0)) +
+    styleNum('todayLabel', 'marginBottom', 0) +
+    line(styleNum('chooserTitle', 'fontSize', 0)) +
+    styleNum('chooserTitle', 'marginBottom', 0) +
+    line(styleNum('todaySessionSub', 'fontSize', 0)) +
+    subMargin +
+    (styleNum('chooserTile', 'paddingVertical', 0) * 2 +
+      line(styleNum('chooserTileText', 'fontSize', 0))) +
+    styleNum('chooserRow', 'marginBottom', 0);
+
+  if (chooserStack <= todayStack) {
+    ok(`the chooser stack is ${chooserStack}pt against the Today card's ${todayStack}pt`);
+  } else {
+    fail(
+      `the chooser stack is ${chooserStack}pt, ${chooserStack - todayStack}pt taller than the Today card`,
+      'Home comes out at exactly the viewport on a 390x844 phone, so a taller hero is a scrollbar'
+    );
+  }
+
+  // And the two sentences on it have to stay on one line each, because a wrap
+  // is another row of the whole page. The screen sets numberOfLines={1}, so an
+  // over-long string truncates rather than growing the card; these ceilings are
+  // what stop it being truncated instead.
+  if (
+    FIRST_SESSION_COPY.title.length <= FIRST_SESSION_TITLE_MAX &&
+    FIRST_SESSION_COPY.body.length <= FIRST_SESSION_BODY_MAX
+  ) {
+    ok(
+      `the chooser copy fits one line each ("${FIRST_SESSION_COPY.title}" / "${FIRST_SESSION_COPY.body}")`
+    );
+  } else {
+    fail(
+      'the chooser copy fits on one line each',
+      `${FIRST_SESSION_COPY.title.length}/${FIRST_SESSION_TITLE_MAX} and ${FIRST_SESSION_COPY.body.length}/${FIRST_SESSION_BODY_MAX} characters`
+    );
+  }
+  if (/numberOfLines=\{1\}>\s*\{FIRST_SESSION_COPY\.title\}/.test(indexSrc)) {
+    ok('and the screen holds them to one line');
+  } else {
+    fail('the screen holds them to one line', 'without numberOfLines a long title grows the card');
+  }
+}
+
+// ─── test 7: the four lines, in every state the tile has ────────────────────
+//
+// RUN, not read. Every assertion above this point is about the box; these are
+// about what goes in it, and they are the half that used to be unguarded
+// because the strings were inline in a React Native screen.
+
+const TILE_STATES = {
+  'enrolled, part way through a block': {
+    reportReady: false,
+    enrolledName: 'Joint Health',
+    paused: false,
+    place: { done: 3, total: 12, deload: false },
+    nextSessionLabel: 'Full Body',
+  },
+  'enrolled, block finished and the report unread': {
+    reportReady: true,
+    enrolledName: 'Joint Health',
+    paused: false,
+    place: { done: 12, total: 12, deload: false },
+    nextSessionLabel: 'Full Body',
+  },
+  'enrolled but paused': {
+    reportReady: false,
+    enrolledName: 'Joint Health',
+    paused: true,
+    place: null,
+    nextSessionLabel: 'Lower Body',
+  },
+  'enrolled in nothing': {
+    reportReady: false,
+    enrolledName: null,
+    paused: false,
+    place: null,
+    nextSessionLabel: 'Lower Body',
+  },
+  'enrolled in nothing, and brand new': {
+    reportReady: false,
+    enrolledName: null,
+    paused: false,
+    place: null,
+    nextSessionLabel: 'Full Body',
+  },
+};
+
+/**
+ * THE HEIGHT PROMISE, AS A STRING TEST.
+ *
+ * The number is ' ' rather than '' when there is nothing to count. An empty
+ * string renders a Text of zero height, the tile loses a line, and the grid
+ * steps: see the STEP_MAX arithmetic above. So every state has to produce four
+ * non-empty lines, and the two that have no number have to produce a space.
+ */
+for (const [name, input] of Object.entries(TILE_STATES)) {
+  const t = programmeTile(input);
+  const lines = [t.label, t.number, t.title, t.subtitle];
+  if (lines.every((v) => typeof v === 'string')) {
+    ok(`${name}: all four lines exist`);
+  } else {
+    fail(`${name}: all four lines exist`, JSON.stringify(t));
+  }
+  if (t.number.length > 0 && t.title.length > 0 && t.subtitle.length > 0) {
+    ok(`${name}: "${t.label}" / "${t.number}" / ${t.title} / ${t.subtitle}`);
+  } else {
+    fail(
+      `${name}: the number, title and subtitle are never blank`,
+      `a blank Text is a missing line, and this tile sets the height of the whole first row: ${JSON.stringify(t)}`
+    );
+  }
+}
+
+/**
+ * OFF A PROGRAMME, THE TILE IS ABOUT THEIR SESSIONS, NOT ABOUT OURS.
+ *
+ * It read YOUR PROGRAMME and "Choose one" to everybody enrolled in nothing,
+ * which is the majority of users and, by the plan, the ones who never need to
+ * be enrolled in anything. Two square inches of the home screen spent telling
+ * somebody they have not set up an optional feature.
+ */
+{
+  const off = programmeTile(TILE_STATES['enrolled in nothing']);
+  if (off.title === 'YOUR SESSIONS') ok('off a programme the tile is headed YOUR SESSIONS');
+  else fail('off a programme the tile is headed YOUR SESSIONS', off.title);
+
+  if (off.subtitle.includes('Lower Body')) {
+    ok(`and it names the next session ("${off.subtitle}")`);
+  } else {
+    fail('and it names the next session', off.subtitle);
+  }
+  if (!/choose/i.test(off.subtitle) && !/programme/i.test(off.title)) {
+    ok('rather than asking them to choose a programme');
+  } else {
+    fail('rather than asking them to choose a programme', `${off.title} / ${off.subtitle}`);
+  }
+
+  const on = programmeTile(TILE_STATES['enrolled, part way through a block']);
+  if (on.title === 'JOINT HEALTH' && on.number === '3' && on.subtitle === 'of 12 in the block') {
+    ok('while a block still reads as the block');
+  } else {
+    fail('while a block still reads as the block', JSON.stringify(on));
+  }
+
+  // Paused keeps the NAME, because this is the only route back to a block that
+  // has been stopped, and loses the COUNT, because nothing is counting.
+  const paused = programmeTile(TILE_STATES['enrolled but paused']);
+  if (paused.title === 'JOINT HEALTH' && paused.number === ' ' && /paused/i.test(paused.subtitle)) {
+    ok('and a paused block says so rather than counting sessions towards itself');
+  } else {
+    fail('a paused block says so rather than counting sessions', JSON.stringify(paused));
+  }
+
+  const done = programmeTile(TILE_STATES['enrolled, block finished and the report unread']);
+  if (done.label === 'FINISHED' && /report/i.test(done.subtitle)) {
+    ok('and a finished block points at its report');
+  } else {
+    fail('a finished block points at its report', JSON.stringify(done));
+  }
+  if (programmeTileHref(true) === '/programme-report' && programmeTileHref(false) === '/program') {
+    ok('and the tap goes to the report only when there is one waiting');
+  } else {
+    fail('the tap goes to the report only when there is one waiting');
   }
 }
 

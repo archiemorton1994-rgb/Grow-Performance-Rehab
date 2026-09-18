@@ -45,6 +45,13 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { TRAIN_TUTORIAL } from '../lib/train-screen.ts';
+import {
+  FIRST_SESSION_COPY,
+  HOME_TUTORIAL,
+  heroEyebrow,
+  programmePlaceLine,
+  programmeTile,
+} from '../lib/home-screen.ts';
 
 const { evaluateBadges } = await import('../lib/badge-engine.ts');
 const { BADGE_CATALOG, BADGE_MAP, TOUR_WELCOME_BADGE_ID } = await import('../lib/badges.ts');
@@ -207,6 +214,21 @@ check(
   'the hero card is either the first-session chooser or the today card, never both. One copy means it is missing for exactly the user the tour is running for'
 );
 check(
+  'and the two branches really are the chooser and the today card',
+  /testID="home-first-session"/.test(homeCode) && /testID="start-suggested-session"/.test(homeCode),
+  'the hero used to branch on whether somebody was enrolled, so most people were shown an advert for a programme instead of a session'
+);
+check(
+  'nobody is shown a card headed "No programme yet" any more',
+  !/No programme yet/.test(homeCode) && !/home-no-programme/.test(homeCode),
+  'a programme is optional, so an empty-state card about not having one is the app telling most of its users they have got something wrong'
+);
+check(
+  'and the barbell-named callout has gone with it',
+  !/Named after the barbell lifts/.test(homeCode),
+  'it apologised for programmes being called Squat and Bench, on a card that no longer offers them'
+);
+check(
   'it opens the Train tab',
   /handleTrainSomethingElse = useCallback\(\(\) => \{[\s\S]{0,200}?router\.push\('\/\(tabs\)\/train'\)/.test(
     homeCode
@@ -238,7 +260,9 @@ check(
 );
 check(
   'and a step for achievements',
-  /spotlightRef: 'achievements'/.test(homeCode),
+  // RUN the cards. They are data in lib/home-screen.ts now, so this reads the
+  // step the user is given rather than a line of the screen's source.
+  HOME_TUTORIAL.some((s) => s.spotlightRef === 'achievements'),
   'they were cut from the tour as "badges nobody has earned"; the tour now awards one'
 );
 check(
@@ -248,8 +272,13 @@ check(
 );
 check(
   'the first card no longer promises a Start button to a user who has none',
-  !/Tap Start and the whole session gets built/.test(homeCode),
+  !HOME_TUTORIAL.some((s) => /Tap Start and the whole session gets built/.test(s.body)),
   'sessionCardRef wraps a conditional, and a brand-new user is looking at the chooser'
+);
+check(
+  'every step still points at a ref this screen makes',
+  HOME_TUTORIAL.every((s) => new RegExp(`\\b${s.spotlightRef}: \\w+Ref,`).test(homeCode)),
+  'moving the cards out of the screen is only safe while the refLookup here still answers every one of them'
 );
 
 // ─── 5. Test weeks are retired, and nothing counts down to one ──────────────
@@ -331,9 +360,32 @@ const newCopy = [
     { sessionCount: 30, mix: 'Mobility', weekCount: 2, weeklyGoal: 2, streakWeeks: 4 },
     { sessionCount: 12, mix: 'Full Body', weekCount: 0, weeklyGoal: 3, streakWeeks: 3 },
   ].map(PC.nonStrengthContextMessage),
-  ...[...homeCode.matchAll(/\btitle: '([^']{8,})'|\bbody: '([^']{8,})'/g)].map(
-    (m) => m[1] ?? m[2]
-  ),
+  // The Home tour cards, RUN rather than scraped out of the screen. Scraping
+  // matched anything shaped like `title: '...'` in a 2,000 line file; this is
+  // the list of sentences the user is actually shown.
+  ...HOME_TUTORIAL.flatMap((s) => [s.title, s.body]),
+  // And every line Home can draw outside the tour, in every state it has, for
+  // the same two rules. These are generated rather than listed, so a new state
+  // is covered the day it is added.
+  ...Object.values(FIRST_SESSION_COPY),
+  heroEyebrow(null),
+  heroEyebrow('Joint Health'),
+  programmePlaceLine({ done: 3, total: 12, deload: false }),
+  programmePlaceLine({ done: 9, total: 12, deload: true }),
+  ...[
+    { reportReady: true, enrolledName: 'Joint Health', paused: false, place: null },
+    { reportReady: false, enrolledName: 'Joint Health', paused: true, place: null },
+    {
+      reportReady: false,
+      enrolledName: 'Joint Health',
+      paused: false,
+      place: { done: 3, total: 12, deload: false },
+    },
+    { reportReady: false, enrolledName: null, paused: false, place: null },
+  ].flatMap((state) => {
+    const t = programmeTile({ ...state, nextSessionLabel: 'Full Body' });
+    return [t.title, t.subtitle];
+  }),
 ].filter(Boolean);
 
 check(

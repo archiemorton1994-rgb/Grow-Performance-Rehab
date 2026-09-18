@@ -553,21 +553,53 @@ check(
   !/hasFullGym/.test(train),
   'a promise about how a session is built is owed to somebody on bands as much as to anybody else'
 );
+/**
+ * HOME NO LONGER OWES THE EXPLANATION, BECAUSE IT NO LONGER NAMES A BARBELL.
+ *
+ * Three assertions used to stand here, all about a note on the home screen
+ * reading "Named after the barbell lifts - every session adapts to the
+ * equipment you have", shown to anybody without a full gym. It was an apology,
+ * and it was owed: the card under it offered programmes called Squat and Bench,
+ * drawn with a barbell, to somebody who had just answered No Equipment.
+ *
+ * The card offers Lower Body, Upper Body and Full Body now. Nothing on Home is
+ * named after a lift or drawn with one, so there is nothing to apologise for,
+ * and a note apologising anyway would be the app inventing a problem. What
+ * replaces the three assertions is the fact that made them unnecessary, proved
+ * rather than assumed: every session the chooser offers really is buildable
+ * with no equipment at all.
+ */
 check(
-  'both screens that still name the barbell decide it from the same fact',
-  [home, profile].every((s) => /fullgym/.test(s) && /hasFullGym/.test(s)),
-  'a second way of asking is how two screens start disagreeing'
+  'Home names no barbell, so it needs no note explaining one',
+  !/barbell/i.test(home) && !/hasFullGym/.test(home),
+  'the note was owed only while the card under it offered lift-named programmes drawn with a barbell'
+);
+
+const { FIRST_SESSION_CHOICES } = await import('../lib/your-sessions.ts');
+const unbuildable = [];
+for (const type of FIRST_SESSION_CHOICES) {
+  for (let n = 0; n < 4; n++) {
+    const w = generateWorkout(
+      type,
+      'bodyweight',
+      { energy: 'normal', timeAvailable: '45', hasAches: false },
+      PROFILE,
+      {},
+      undefined,
+      n
+    );
+    if (w.length === 0) unbuildable.push(`${type} #${n}`);
+  }
+}
+check(
+  `every session the first-session chooser offers builds with no equipment (${FIRST_SESSION_CHOICES.join(', ')})`,
+  unbuildable.length === 0 && FIRST_SESSION_CHOICES.length === 3,
+  unbuildable.join(', ')
 );
 check(
-  'the first-session chooser explains why it is showing barbell names',
-  /home-first-session-kit-note/.test(home) &&
-    /every session adapts to the equipment you/.test(home),
-  'three pictures of kit the user just said they do not have, with no explanation'
-);
-check(
-  'and only to the people who need the explanation',
-  /\{!hasFullGym && \([\s\S]{0,400}?home-first-session-kit-note/.test(home),
-  'a full-gym user does not need telling their barbell session uses a barbell'
+  'and the chooser names those sessions rather than any lift',
+  FIRST_SESSION_CHOICES.every((t) => /_body$/.test(t)),
+  FIRST_SESSION_CHOICES.join(', ')
 );
 check(
   'the 1RM invitation is not shown to someone who cannot act on it',

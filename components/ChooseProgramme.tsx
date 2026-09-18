@@ -37,12 +37,13 @@ import {
 
 export interface ChooseProgrammeProps {
   /**
-   * Reveals the three-lift rotation screen this page replaced.
+   * Back to the person's own sessions, which is now the screen behind this one.
    *
-   * Absent for anybody who has never trained on it. Present, and quiet, for
-   * everybody who has: their rotation is real, it has a cycle number they have
-   * watched climb, and replacing that with a chooser without a way back would
-   * be taking something away in the name of tidying up.
+   * It used to be the other way round: this page was what "Your Programme"
+   * opened on and this link revealed the rotation view, so it was only offered
+   * to somebody who had trained enough to have one. The rotation view is the
+   * default now and browsing is a button on it, so the link is always there and
+   * it is a way BACK rather than a way in.
    */
   onKeepRotation?: () => void;
 }
@@ -200,7 +201,7 @@ export function ChooseProgramme({ onKeepRotation }: ChooseProgrammeProps) {
           testID="choose-programme-keep-rotation"
           style={({ pressed }) => [styles.quietLink, pressed && { opacity: 0.6 }]}
         >
-          <Text style={styles.quietLinkText}>See the rotation you have been training</Text>
+          <Text style={styles.quietLinkText}>Back to your own sessions</Text>
         </Pressable>
       )}
     </ScrollView>

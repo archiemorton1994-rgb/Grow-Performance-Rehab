@@ -9,7 +9,7 @@ import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 // Type-only against this file, so there is no runtime edge back here and no
 // cycle. See the note at the top of lib/session-type.ts.
-import { countLiftingSessions, isLiftingSession } from '@/lib/session-type';
+import { countLiftingSessions, isLiftingSession, rotatesSessions } from '@/lib/session-type';
 import { performanceForLog } from '@/lib/set-performance';
 import {
   combineWithMeasuredReps,
@@ -2586,10 +2586,13 @@ export const useAppStore = create<AppState>()(
          * Session" for ever. Lower, Upper and Full Body are built at every
          * equipment tier down to no equipment at all, so there is no longer a
          * suggestion anybody is unable to take.
+         *
+         * The rule itself is rotatesSessions in lib/session-type.ts, because
+         * Home's first-session chooser and the Your Programme timeline have to
+         * answer it the same way this does. See that function for why.
          */
         const profile = get().userProfile;
-        const earnedRung = profile.earnedLevelBonus ?? 0;
-        if (profile.experienceLevel === 'beginner' && earnedRung === 0) {
+        if (!rotatesSessions(profile)) {
           return 'full_body';
         }
 

@@ -32,9 +32,22 @@ import Animated, {
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { useAppStore } from '@/lib/store';
-import { countLiftingSessions } from '@/lib/session-type';
+import { countLiftingSessions, rotatesSessions } from '@/lib/session-type';
 import { getSessionImage } from '@/lib/session-images';
 import { nameOf } from '@/lib/programme';
+import {
+  FIRST_SESSION_COPY,
+  HOME_TUTORIAL,
+  heroEyebrow,
+  heroProgrammeName,
+  homeHero,
+  programmePlace,
+  programmePlaceLine,
+  programmeTile,
+  programmeTileHref,
+} from '@/lib/home-screen';
+import { FIRST_SESSION_CHOICES, offsetForFirstSession } from '@/lib/your-sessions';
+import { countedEarned } from '@/lib/badges';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
 import { SESSION_META, SESSION_SHORT_LABELS } from '@/lib/session-meta';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
@@ -57,142 +70,14 @@ import { resumeParams } from '@/lib/resume-params';
 import { photoSource } from '@/lib/profile-photo';
 
 /**
- * THE TOUR, REBUILT — and mostly by deleting.
+ * THE TOUR CARDS LIVE IN lib/home-screen.ts.
  *
- * It ran to eighteen cards across five tabs before the user had done anything,
- * and length was the whole problem: nobody reads eighteen, so the ones that
- * mattered were never reached. It is twelve now, and the cuts followed three
- * rules.
- *
- * DO NOT NARRATE AN EMPTY SCREEN. Five steps described data a first-run user
- * does not have — a training block with no sessions in it, a program rotation
- * that has not started, badges nobody has earned, charts that "fill in as you
- * log". Being told about a number you cannot see teaches you the app is talking
- * to someone else.
- *
- * SAY IT ONCE. The streak was explained on Home, again on Profile and again on
- * Stats. It is explained here, and nowhere else.
- *
- * EARN THE STEP. Anything self-evident from its own heading went. "Additional
- * Sessions" is a heading above four named cards; a card explaining that they
- * are four ways to train is a card spent on nothing.
- *
- * What went IN is the assistant, which was in the app and in no tour — the one
- * place that says what the app has noticed about your training, behind a button
- * most people would never press unprompted.
+ * Data with no React in it, so tests/guided-tour.check.mjs and
+ * tests/tour-finale.check.mjs RUN the cards and read the sentence the user
+ * gets, rather than matching a regular expression over this screen - which
+ * matched the comments explaining the copy as readily as the copy itself. The
+ * Train tab made the same move for the same reason; see lib/train-screen.ts.
  */
-interface HomeTutorialStep {
-  spotlightRef: 'session' | 'programme' | 'coach' | 'streak' | 'achievements';
-  iconName: string;
-  iconLabel: string;
-  title: string;
-  body: string;
-}
-
-const HOME_TUTORIAL: readonly HomeTutorialStep[] = [
-  {
-    /**
-     * THIS CARD DESCRIBED THE WRONG SCREEN.
-     *
-     * It said "Tap Start and the whole session gets built for you", and
-     * sessionCardRef wraps a conditional, and it has been wrong about which
-     * conditional twice now. It first said "tap Start" when a brand-new user
-     * was looking at a three-lift chooser with no Start button on it. That
-     * chooser is gone; the card is either the next session in somebody's
-     * PROGRAMME or an invitation to choose one, and this now describes the
-     * first without promising the barbell to a person on Joint Health.
-     */
-    spotlightRef: 'session',
-    iconName: 'flash-outline',
-    iconLabel: 'Today',
-    title: 'Start here every day',
-    body: 'This is the next session in your programme, named above it so you always know where it came from. Tap Start and the whole thing gets built for you: warm-up, main work, accessories and the weight for every set.',
-  },
-  /**
-   * THE WAY OUT USED TO BE A STEP OF ITS OWN, AND IS NOW THE TRAIN TAB'S.
-   *
-   * It spotlighted the "Train something else" button to say the app is bigger
-   * than one recommended session. That is still true and still has to be said -
-   * it is now said on the Train tab, in the step that step used to point at,
-   * seconds later in the same run and on the screen it is actually about.
-   *
-   * Cut rather than kept because the tour has a hard ceiling of fourteen steps
-   * and the programme below had to go in: the first rule of this tour is say it
-   * once, and two cards a minute apart making the same promise is the shape
-   * that pushed it to eighteen the first time.
-   */
-  {
-    /**
-     * WHERE THE PROGRAMME LIVES.
-     *
-     * A tour written before programmes existed pointed at a streak, a session
-     * and a trophy, and never once at the thing that now decides what everybody
-     * trains. Reported after use: "the process to try and edit / change /
-     * program didnt feel simple", which starts with not knowing where it is.
-     *
-     * It is also the natural place to say the programme is not the whole app,
-     * because it is the moment somebody is looking straight at it.
-     */
-    spotlightRef: 'programme',
-    iconName: 'albums-outline',
-    iconLabel: 'Programme',
-    title: 'Your programme lives here',
-    body: 'Tap this to see the whole block, the recovery sessions that sit alongside it, and every control: days a week, how long, your level, a different programme, or one you build yourself.',
-  },
-  {
-    /**
-     * THE SYMBOL IS THE PART THAT HAS TO BE TAUGHT.
-     *
-     * This step was written when the assistant was a grey speech bubble that
-     * only ever raised problems, and it said so: three examples, all faults,
-     * ending on "it stays out of your way until you open it".
-     *
-     * None of that is the button any more. It is sapphire, it says as much
-     * about what is going well as what is not, and it swaps its glyph for a
-     * sparkle when there is something unread - which is the ONLY way a user
-     * finds out there is anything to read. A tour that leaves that out ships a
-     * changing symbol nobody has been told the meaning of.
-     *
-     * The card wears the sparkle rather than the resting bubble for the same
-     * reason: on a first run the button is already sparkling, so a card showing
-     * a speech bubble is a picture of something that is not on screen.
-     */
-    spotlightRef: 'coach',
-    iconName: 'sparkles',
-    iconLabel: 'Assistant',
-    title: 'Your assistant',
-    body: 'The blue button is what the app has noticed: a personal best, a lift that has stalled, a week worth taking lighter. It shows the three that matter most, with the rest one tap behind. When the symbol turns into a sparkle, there is something new.',
-  },
-  {
-    spotlightRef: 'streak',
-    iconName: 'flame-outline',
-    iconLabel: 'Streak',
-    title: 'Consistent, not perfect',
-    body: 'Your streak counts weeks you hit your goal, not days in a row. Miss a session and it survives; miss a week and it starts again.',
-  },
-  {
-    /**
-     * ACHIEVEMENTS WERE CUT FROM THIS TOUR, AND THE REASON NO LONGER HOLDS.
-     *
-     * The header above lists five steps that were removed for narrating an
-     * empty screen, and one of them was "badges nobody has earned". That was
-     * right at the time. It is not right any more, because the tour now ends by
-     * awarding one: finishing the practice session earns Welcome Aboard and the
-     * user watches it land. A step that explains the shelf a minute before
-     * something appears on it is not narrating an empty screen, it is setting
-     * up the only thing in this tour that happens TO the user rather than being
-     * described at them.
-     *
-     * The number is deliberately not quoted here. It comes from the catalogue
-     * and the catalogue grows; the achievements screen counts them itself.
-     */
-    spotlightRef: 'achievements',
-    iconName: 'trophy-outline',
-    iconLabel: 'Badges',
-    title: 'Something to collect',
-    body: 'Badges unlock on their own as you train: sessions logged, weeks kept, a lift moved, an area you looked after. You never chase them. Tap here any time to see what you have and what is next.',
-  },
-] as const;
 
 const HOME_ICONS = {
   weekStreak: require('@/assets/images/home/week-streak.png'),
@@ -247,6 +132,7 @@ export default function HomeScreen() {
     exerciseStuckStreak,
     oneRepMaxes,
     getAllExerciseProgress,
+    setCycleStartOffset,
   } = useAppStore();
 
   const [coachOpen, setCoachOpen] = useState(false);
@@ -260,7 +146,17 @@ export default function HomeScreen() {
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
-  const hasFullGym = profileEquipment.includes('fullgym');
+  /*
+   * THE BARBELL CALLOUT IS GONE, and so is the reason it was here.
+   *
+   * It read "Named after the barbell lifts - every session adapts to the
+   * equipment you have", and it was shown to anybody without a full gym who was
+   * not on a programme. It was an apology for the programmes being called Squat
+   * and Bench, on a card that no longer offers them, to a person who may well
+   * never open one. The kit promise it was making is on the Train tab, where the
+   * sessions are, and it is made to everybody there rather than only to the
+   * people the app decided were short of equipment.
+   */
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetDraft, setSheetDraft] = useState<(typeof ALL_TIERS)[number][]>([]);
@@ -300,13 +196,19 @@ export default function HomeScreen() {
 
   const suggestedSession = getCurrentSessionType();
   /**
-   * Which block this session belongs to, and where in it.
+   * The block's name, and null unless a block is really choosing sessions.
    *
-   * Both null when nobody is enrolled, which is the branch that shows the
-   * chooser instead, so the Today card only ever reads these with a programme
-   * behind them.
+   * Enrolled is not the same as running. A paused block is still stored, still
+   * has a position, and is still the thing this screen used to name over
+   * today's session - while getCurrentSessionType had already handed the day
+   * back to the plain rotation. The card named a programme that was not
+   * choosing it. heroProgrammeName is the one rule for that, shared with the
+   * place line and the easier-week note below.
    */
-  const programmeName = programme ? nameOf(programme) : null;
+  const enrolledName = programme ? nameOf(programme) : null;
+  const programmeName = heroProgrammeName(
+    programme && enrolledName ? { name: enrolledName, paused: programme.paused } : null
+  );
   /**
    * A block has finished and its report has not been opened.
    *
@@ -327,29 +229,17 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [getUnitCorrection, userProfile.bodyweightKg, bodyweightUpdatedAt, oneRepMaxes]
   );
-  const programmeTilePlace = (() => {
-    if (!programme) return null;
-    const pos = getProgrammePosition();
-    if (!pos) return null;
-    return {
-      done: pos.onPlan,
-      total: pos.totalSessions,
-      next: pos.onPlan + 1,
-      deload: pos.deload,
-    };
-  })();
   /**
-   * Appended rather than given its own line, because this card cannot grow.
+   * Where in the block they are, and null the moment the block is not running.
    *
-   * Home is sized to fit without scrolling and every tile in it is fixed, so a
-   * second row here is a second row everywhere. Six words on the end of a line
-   * that was already there is the whole announcement, and the session screen
-   * carries the explanation.
+   * getProgrammePosition answers for a PAUSED block too, on purpose: the hub
+   * shows somebody where they will pick up. Home read that straight, so a
+   * paused block went on counting sessions here and, worse, went on announcing
+   * "Easier week" for a deload week that nothing was applying. programmePlace
+   * is the guard, and everything drawn from the block goes through it.
    */
-  const programmePlace = programmeTilePlace
-    ? `Session ${Math.min(programmeTilePlace.next, programmeTilePlace.total)} of ${programmeTilePlace.total}` +
-      (programmeTilePlace.deload ? ' · Easier week' : '')
-    : null;
+  const tilePlace = programmePlace(programme, getProgrammePosition());
+  const placeLine = programmePlaceLine(tilePlace);
   const streak = getStreakDays();
   const weekCount = getThisWeekCount();
   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : null;
@@ -562,11 +452,41 @@ export default function HomeScreen() {
    *
    * Counted through trainTypeOf (see lib/session-type.ts), not against the three
    * lift-named ids. That list stopped naming a session the app builds, so
-   * everybody training Lower, Upper and Full Body counted zero, and the one
-   * thing this number decides - whether the programme tile says "Choose one" or
-   * "Choose a programme" - read as brand new to somebody two hundred sessions in.
+   * everybody training Lower, Upper and Full Body counted zero, and somebody two
+   * hundred sessions in read as brand new.
+   *
+   * What it decides now is whether the first-session chooser is shown at all:
+   * nought lifting sessions means the rotation has no position to carry and the
+   * app would otherwise be picking for them.
    */
   const strengthCount = useMemo(() => countLiftingSessions(completedSessions), [completedSessions]);
+
+  /**
+   * WHICH HERO CARD: the session, or the one-off chooser.
+   *
+   * Both the rotation rule and the pause rule are shared rather than rewritten
+   * here. A beginner never sees the chooser because there is nothing to choose,
+   * and a paused block does not count as one that is choosing, so somebody who
+   * paused gets their own rotation back on the same card everybody else has.
+   */
+  const heroMode = homeHero({
+    // Enrolled at all, PAUSED INCLUDED, unlike every other read on this screen.
+    // Somebody who paused Joint Health has no lifting history, and treating
+    // that as "never met you" put a first-session chooser in front of a person
+    // three weeks into a block. See homeHero.
+    hasProgramme: programme !== null,
+    rotates: rotatesSessions(userProfile),
+    liftingCount: strengthCount,
+  });
+
+  /** The tile's four lines, in whichever of its four states applies. */
+  const tile = programmeTile({
+    reportReady,
+    enrolledName,
+    paused: programme?.paused,
+    place: tilePlace,
+    nextSessionLabel: SESSION_SHORT_LABELS[suggestedSession],
+  });
 
   /*
    * THE BLOCK-PROGRESS ROW IS GONE, along with the cycle it counted.
@@ -735,6 +655,36 @@ export default function HomeScreen() {
     go();
   };
 
+  /**
+   * THE FIRST SESSION, AND THE ONLY CALLER setCycleStartOffset HAS.
+   *
+   * The stored offset is what makes the pick stick: with no lifting history the
+   * suggestion is SESSION_ORDER[offset], so writing the index of what they chose
+   * means tomorrow's card already says it, and the two after it follow in order.
+   * Written BEFORE the navigation, so backing out of readiness still leaves the
+   * choice made rather than dropping them back on this card.
+   */
+  const handleStartFirstSession = (type: (typeof FIRST_SESSION_CHOICES)[number]) => {
+    const offset = offsetForFirstSession(type);
+    if (offset >= 0) setCycleStartOffset(offset);
+    const go = () => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push({
+        pathname: '/readiness',
+        params: {
+          sessionType: type,
+          equipmentOverride: sessionEquipmentOverride
+            ? JSON.stringify(sessionEquipmentOverride)
+            : undefined,
+        },
+      });
+    };
+    if (activeSession) {
+      confirmReplaceActive(go);
+      return;
+    }
+    go();
+  };
 
   const handleResume = () => {
     if (!activeSession) return;
@@ -972,89 +922,75 @@ export default function HomeScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Hero card - always the unified Today block (or first-session chooser for brand-new users) */}
+          {/* Hero card - the session, or the one-off first-session chooser */}
           {/* Glow wrapper: pulses green after the tab tour completes */}
           <View ref={sessionCardRef} collapsable={false}>
           <Animated.View style={cardGlowStyle}>
             {/**
-              * ONE THING IN THIS BOX: the session your programme is asking for.
+              * ONE THING IN THIS BOX: the session Grow is suggesting.
               *
-              * It used to hold three barbell lifts for a brand-new user and the
-              * rotation's next lift for everybody else, neither of which is
-              * anybody's programme. Reported after use: a Squat Session with a
-              * Test Week badge, to somebody who had asked for neither, with no
-              * obvious way to change it.
+              * IT USED TO BRANCH ON THE PROGRAMME, and for most people that
+              * meant a card headed "No programme yet" with a button to go and
+              * get one. Grow's first screen, for the majority of its users, was
+              * an advert for the one feature the plan calls optional - and it
+              * offered no way to train at all beyond a quiet "Train something
+              * else" link. A paused block was worse: `programme` was still set,
+              * so the card went on naming a block that had been stopped and
+              * counting sessions towards it, while the app was quietly building
+              * the plain rotation instead.
               *
-              * So the branch is on the PROGRAMME. Enrolled, and this is the next
-              * session in the block. Not enrolled, and it says so and points at
-              * the page that fixes it, rather than inventing a suggestion.
+              * So the branch is on whether the app KNOWS what to suggest. It
+              * almost always does, programme or no programme. The one case it
+              * does not is somebody who rotates their sessions and has never
+              * lifted here, and they are asked rather than guessed at.
               */}
-            {!programme ? (
+            {heroMode === 'chooser' ? (
               <Animated.View
                 entering={FadeInDown.delay(60).duration(380)}
                 style={styles.todayCard}
-                testID="home-no-programme"
+                testID="home-first-session"
               >
-                <Text style={styles.todayLabel}>No programme yet</Text>
-                <Text style={[styles.todaySessionSub, { marginBottom: 16 }]}>
-                  Pick one and every session is chosen for you. You can still train whatever you
-                  like alongside it.
+                {/* The SAME eyebrow the other branch draws, from the same
+                    function. This card stands in for the Today card and has to
+                    read as it, not as a different screen. */}
+                <Text style={styles.todayLabel} numberOfLines={1}>
+                  {heroEyebrow(null)}
                 </Text>
-                <Pressable
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    router.push('/program');
-                  }}
-                  style={({ pressed }) => [
-                    styles.startBtn,
-                    pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-                  ]}
-                  testID="home-choose-programme"
-                >
-                  <Ionicons name="git-branch-outline" size={18} color={C.primaryDarkText} />
-                  <Text style={styles.startBtnText}>Choose your programme</Text>
-                </Pressable>
-                <View ref={trainElseRef} collapsable={false} style={styles.trainElseWrap}>
-                  <Pressable
-                    onPress={handleTrainSomethingElse}
-                    style={({ pressed }) => [styles.trainElseBtn, pressed && { opacity: 0.8 }]}
-                    testID="home-train-something-else"
-                    accessibilityRole="button"
-                    accessibilityLabel="Train something else"
-                  >
-                    <Ionicons name="grid-outline" size={15} color={C.primaryText} />
-                    <Text style={styles.trainElseText}>Train something else</Text>
-                    <Ionicons name="chevron-forward" size={13} color={C.primaryText} />
-                  </Pressable>
+                <Text style={styles.chooserTitle} numberOfLines={1}>
+                  {FIRST_SESSION_COPY.title}
+                </Text>
+                <Text style={[styles.todaySessionSub, { marginBottom: 12 }]} numberOfLines={1}>
+                  {FIRST_SESSION_COPY.body}
+                </Text>
+                <View style={styles.chooserRow}>
+                  {FIRST_SESSION_CHOICES.map((type) => (
+                    <Pressable
+                      key={type}
+                      onPress={() => handleStartFirstSession(type)}
+                      style={({ pressed }) => [styles.chooserTile, pressed && { opacity: 0.85 }]}
+                      testID={`home-first-session-${type}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Start with ${SESSION_META[type].label}`}
+                    >
+                      <Text style={styles.chooserTileText}>{SESSION_META[type].label}</Text>
+                    </Pressable>
+                  ))}
                 </View>
-                {/* THE SAME PROMISE THE TRAIN TAB MAKES, ON THE SCREEN THAT
-                    SHOWS IT FIRST.
-
-                    The programmes are named after the barbell lifts and drawn
-                    with a barbell, and for someone who chose No Equipment that
-                    is a picture of kit they just said they do not have. The
-                    sessions do adapt, and Train says so in as many words; this
-                    is the screen people actually land on, and it said nothing
-                    at all. */}
-                {!hasFullGym && (
-                  <Pressable
-                    onPress={() => router.push('/(tabs)/profile')}
-                    style={({ pressed }) => [styles.kitCallout, pressed && { opacity: 0.7 }]}
-                    testID="home-first-session-kit-note"
-                    accessibilityRole="button"
-                  >
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={14}
-                      color={C.primaryText}
-                    />
-                    <Text style={styles.kitCalloutText}>
-                      Named after the barbell lifts - every session adapts to the equipment you
-                      have.
-                    </Text>
-                    <Ionicons name="chevron-forward" size={12} color={C.primaryText} />
-                  </Pressable>
-                )}
+                <View style={styles.chipRow}>
+                  <View ref={trainElseRef} collapsable={false} style={styles.trainElseWrap}>
+                    <Pressable
+                      onPress={handleTrainSomethingElse}
+                      style={({ pressed }) => [styles.trainElseBtn, pressed && { opacity: 0.8 }]}
+                      testID="home-train-something-else"
+                      accessibilityRole="button"
+                      accessibilityLabel="Train something else"
+                    >
+                      <Ionicons name="grid-outline" size={15} color={C.primaryText} />
+                      <Text style={styles.trainElseText}>Train something else</Text>
+                      <Ionicons name="chevron-forward" size={13} color={C.primaryText} />
+                    </Pressable>
+                  </View>
+                </View>
               </Animated.View>
             ) : (
               <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.todayCard}>
@@ -1074,9 +1010,11 @@ export default function HomeScreen() {
                         the box is unmistakably the programme's rather than a
                         suggestion from nowhere. It is the sentence that was
                         missing when somebody opened Home and found a Squat
-                        Session they had never asked for. */}
+                        Session they had never asked for - and it says plain
+                        "Today" when nothing is choosing, rather than naming a
+                        block that is paused or absent. */}
                     <Text style={styles.todayLabel} numberOfLines={1}>
-                      {programmeName ? `TODAY · ${programmeName.toUpperCase()}` : 'Today'}
+                      {heroEyebrow(programmeName)}
                     </Text>
                     {/*
                       numberOfLines is load-bearing, not tidiness.
@@ -1092,7 +1030,7 @@ export default function HomeScreen() {
                       {suggestedMeta.label}
                     </Text>
                     <Text style={styles.todaySessionSub} numberOfLines={1}>
-                      {programmePlace ?? suggestedMeta.subtitle}
+                      {placeLine ?? suggestedMeta.subtitle}
                     </Text>
                   </View>
                   <View style={styles.todayIcon}>
@@ -1210,49 +1148,42 @@ export default function HomeScreen() {
                  been using the app longest. */
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(reportReady ? '/programme-report' : '/program');
+                router.push(programmeTileHref(reportReady));
               }}
               testID="your-program-card"
-              accessibilityLabel={reportReady ? 'Read your programme report' : 'Your programme'}
+              accessibilityLabel={
+                reportReady
+                  ? 'Read your programme report'
+                  : enrolledName
+                    ? 'Your programme'
+                    : 'Your sessions'
+              }
             >
               <Image
                 source={HOME_ICONS.yourProgram}
                 style={styles.summaryCardImage}
                 resizeMode="contain"
               />
-              {/* The real block when there is one, and an invitation when there
-                  is not. This tile used to read "CYCLE 10 · Session 3 of 3" to
-                  everybody, which is the three-lift rotation's own counter and
-                  describes nothing for a person on Joint Health. */}
-              {/* NO NUMBER WHEN THERE IS NO BLOCK.
-                  The un-enrolled branch showed progCycleNumber - the old
-                  three-lift rotation counter, completed strength sessions
-                  divided by three - as the biggest thing on the tile. It means
-                  nothing to anybody not on that rotation, a brand new user saw
-                  a large "1", and somebody who had just finished a block and
-                  earned a report was shown "FINISHED 7" where the 7 had nothing
-                  to do with the block they finished. An invitation does not need
-                  a figure. */}
-              <Text style={styles.summaryCycleLabel}>
-                {reportReady ? 'FINISHED' : programme ? 'SESSION' : ''}
-              </Text>
-              {/* The line is KEPT either way, with a space in it. Home is sized
-                  not to scroll and these tiles are fixed height, so dropping an
-                  element out of one is a layout change rather than a copy one. */}
-              <Text style={styles.summaryBigNum}>
-                {programme && programmeTilePlace ? programmeTilePlace.done : ' '}
-              </Text>
+              {/* ALL FOUR LINES COME FROM ONE FUNCTION, in lib/home-screen.ts,
+                  so a check can run every state of this tile and read the
+                  strings back rather than matching them in this file.
+
+                  The four lines are ALWAYS drawn, and the number is a space
+                  when there is no number. Home is sized not to scroll and these
+                  tiles are a fixed height, so dropping an element out of one
+                  state is a layout change rather than a copy one: this tile
+                  would stand a line shorter than the three beside it.
+
+                  Off a programme it is no longer an invitation to get one. It
+                  says YOUR SESSIONS and names the next, because a person
+                  training without a programme is not missing anything. */}
+              <Text style={styles.summaryCycleLabel}>{tile.label}</Text>
+              <Text style={styles.summaryBigNum}>{tile.number}</Text>
               <Text style={styles.summaryCardTitle} numberOfLines={1}>
-                {programme ? programmeName?.toUpperCase() : 'YOUR PROGRAMME'}
+                {tile.title}
               </Text>
               <Text style={styles.summaryCardSub} numberOfLines={1}>
-                {reportReady
-                  ? 'Read your report'
-                  : programme && programmeTilePlace
-                    ? `of ${programmeTilePlace.total} in the block`
-                    : strengthCount === 0
-                      ? 'Choose one'
-                      : 'Choose a programme'}
+                {tile.subtitle}
               </Text>
             </Pressable>
 
@@ -1290,7 +1221,14 @@ export default function HomeScreen() {
                 style={styles.summaryCardImage}
                 resizeMode="contain"
               />
-              <Text style={styles.summaryBigNum}>{earnedBadges.length}</Text>
+              {/* THE SAME RULE THE ACHIEVEMENTS SCREEN COUNTS BY.
+                  This read earnedBadges.length, which includes badges the app
+                  has stopped awarding, while achievements.tsx shows "x of y"
+                  through countedEarned, which leaves them out. Anyone holding a
+                  retired badge - a strength test week, a movement screen - saw
+                  one number here and a smaller one on the very next screen. One
+                  function, so the two cannot disagree again. */}
+              <Text style={styles.summaryBigNum}>{countedEarned(earnedBadges)}</Text>
               <Text style={styles.summaryCardTitle}>ACHIEVEMENTS</Text>
             </Pressable>
           </Animated.View>
@@ -2072,26 +2010,45 @@ function makeStyles(C: ReturnType<typeof useColors>, compactTiles = false) {
       justifyContent: 'center',
     },
 
-    // The brand-new user's card is the tallest thing on Home: three of these
-    // rows are 237pt on their own. Measured, not guessed - see the budget in
-    // tests/home-fits.check.mjs.
-
-    kitCallout: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      gap: 7,
-      backgroundColor: C.primarySurface,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginTop: 12,
+    /**
+     * THE FIRST-SESSION CHOOSER, SIZED TO THE CARD IT REPLACES.
+     *
+     * Home does not scroll and the hero is the tallest thing on it, so this
+     * branch has to come in at or under the Today card or the grid below it
+     * goes off the bottom of a 390x844 screen. Three side-by-side tiles of
+     * words, no artwork: a picture in each would have been about 40pt of extra
+     * height for three names everybody can already read.
+     *
+     * The title is its own size rather than todaySessionName's 28pt, which is
+     * built for one or two words and wraps a question onto three lines.
+     */
+    chooserTitle: {
+      fontSize: 20,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      marginBottom: 4,
     },
-    kitCalloutText: {
+    chooserRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      marginBottom: 12,
+    },
+    chooserTile: {
       flex: 1,
-      fontSize: 11,
-      fontFamily: 'Inter_400Regular',
-      color: C.primaryText,
-      lineHeight: 15,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    chooserTileText: {
+      fontSize: 13,
+      fontFamily: 'Inter_700Bold',
+      color: C.text,
+      textAlign: 'center' as const,
     },
 
     unitFixCard: {

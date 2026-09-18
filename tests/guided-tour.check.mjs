@@ -64,7 +64,18 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
  * refs are still looked up in the screen, because that is where they are made.
  */
 const TOURS = [
-  { name: 'Home', file: 'app/(tabs)/index.tsx', constName: 'HOME_TUTORIAL', tab: 0, handsOffTo: 2 },
+  {
+    name: 'Home',
+    file: 'app/(tabs)/index.tsx',
+    // Home's cards moved out of the screen for the same reason Train's did: a
+    // check could only ask "does the first card still promise everybody a
+    // programme" by matching a regex over a file whose comments quote the very
+    // wording being looked for. Section 10 imports and RUNS them.
+    constFile: 'lib/home-screen.ts',
+    constName: 'HOME_TUTORIAL',
+    tab: 0,
+    handsOffTo: 2,
+  },
   {
     name: 'Train',
     file: 'app/(tabs)/train.tsx',
@@ -234,7 +245,7 @@ console.log('\n[6] The assistant step matches the assistant');
  * panel actually shows.
  */
 const homeSrc = read('app/(tabs)/index.tsx');
-const homeBlock = blockOf(homeSrc, 'HOME_TUTORIAL') ?? '';
+const homeBlock = blockOf(read('lib/home-screen.ts'), 'HOME_TUTORIAL') ?? '';
 const coachAt = homeBlock.indexOf("spotlightRef: 'coach'");
 const assistantStep = coachAt === -1 ? '' : homeBlock.slice(coachAt, homeBlock.indexOf('},', coachAt));
 const assistantCopy = userFacingCopy(assistantStep);
@@ -561,15 +572,22 @@ console.log('\n[10] It points at the programme, and says it is not the whole app
 
 {
   const home = read('app/(tabs)/index.tsx');
-  // RUN, do not read. Train's cards live in lib/train-screen.ts, which has no
-  // React in it, so the sentence below is the sentence the user gets rather than
-  // a line of source that might be the comment explaining it.
+  // RUN, do not read. Both tours are data in lib/, with no React in them, so
+  // every sentence below is the sentence the user gets rather than a line of
+  // source that might as easily be the comment explaining it.
   const { TRAIN_TUTORIAL } = await import('../lib/train-screen.ts');
+  const { HOME_TUTORIAL } = await import('../lib/home-screen.ts');
   const trainCopy = TRAIN_TUTORIAL.map((s) => `${s.title} ${s.body}`).join(' \n ');
+  const homeStep = (ref) => {
+    const s = HOME_TUTORIAL.find((x) => x.spotlightRef === ref);
+    return s ? `${s.title} ${s.body}` : '';
+  };
+  const programmeCopy = homeStep('programme');
+  const sessionCopy = homeStep('session');
 
   check(
     'there is a step on where the programme lives',
-    /spotlightRef: 'programme'/.test(home) && /Your programme lives here/.test(home),
+    programmeCopy.length > 0,
     '"the process to try and edit / change / program didnt feel simple" starts with not knowing where it is'
   );
   check(
@@ -578,14 +596,70 @@ console.log('\n[10] It points at the programme, and says it is not the whole app
       /programme: programmeTileRef,/.test(home),
     'without collapsable Android flattens the view and the spotlight points at nothing'
   );
+
+  /**
+   * THE FIRST CARD HAS DESCRIBED THE WRONG SCREEN TWICE, both times because it
+   * named a feature the reader might not have.
+   *
+   * It said "Tap Start and the whole session gets built for you" while a
+   * brand-new user was looking at a chooser with no Start button. It was then
+   * rewritten as "This is the next session in your programme", which was true
+   * of the only card the hero could draw at the time - and became false for
+   * everybody the moment the hero stopped requiring a programme, which is most
+   * people, and all of them on their first run.
+   *
+   * So: it may not promise a programme, and it may not promise a rotation
+   * either, because a beginner is on neither.
+   */
   check(
-    // The old copy promised the barbell to everybody, because it was written
-    // when the rotation was the only programme there was.
-    'the session card no longer promises a rotation nobody is on',
-    !/rotating through Squat, Bench and Deadlift/.test(home) &&
-      /next session in your programme/.test(home),
+    'the session card promises nobody a programme they may not have',
+    sessionCopy.length > 0 &&
+      !/next session in your programme/i.test(sessionCopy) &&
+      // It may name a programme, but only conditionally. "Your programme" flat
+      // out is a statement about the reader; "your programme if you are on one"
+      // is a statement about the card.
+      (!/programme/i.test(sessionCopy) ||
+        /if you are on one|when you are on one|if you have one|if you are/i.test(sessionCopy)),
+    sessionCopy
+  );
+  check(
+    'and it still says where the suggestion comes from',
+    /where it came from|above it/i.test(sessionCopy),
+    'the eyebrow over the session name exists to answer that, and the card is where it is explained'
+  );
+  check(
+    'and no card names a lift or a barbell rotation',
+    ![/rotating through Squat, Bench and Deadlift/i, /Squat Session/i, /Bench Session/i].some((re) =>
+      re.test(`${sessionCopy} ${programmeCopy}`)
+    ),
     'a Joint Health user being told the app rotates squat, bench and deadlift'
   );
+
+  /**
+   * THE PROGRAMME STEP HAS TO SAY THE PROGRAMME IS OPTIONAL.
+   *
+   * It opened "Tap this to see the whole block", which quietly assumes a block,
+   * on the one card in the tour pointed straight at the programme tile. Most
+   * people are on no programme and, by the plan, never need to be; being shown
+   * a card about "the whole block" on a first run teaches them there is
+   * something they have not set up.
+   */
+  check(
+    'the programme step says out loud that nobody needs one',
+    /optional|do not need/i.test(programmeCopy),
+    programmeCopy
+  );
+  check(
+    'and says the app still suggests a session without one',
+    /either way|without one|suggests a session/i.test(programmeCopy),
+    'saying it is optional without saying what happens instead leaves the reader to guess'
+  );
+  check(
+    'while still pointing at where the block and its controls live',
+    /days a week|your level|whole block/i.test(programmeCopy),
+    'it is also the only card that answers "where do I change my programme"'
+  );
+
   check(
     'and Train says choosing something else costs nothing',
     /whether you are on a programme or not/.test(trainCopy) &&

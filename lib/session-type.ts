@@ -2,7 +2,7 @@
 // lib/workout-engine.ts imports it, the store imports the engine, and a runtime
 // edge back to the store would close that loop into a cycle. It is also what
 // lets a plain node check import this file on its own.
-import type { SessionType } from './store';
+import type { ExperienceLevel, SessionType } from './store';
 
 /**
  * WHICH SESSION THE APP ACTUALLY BUILDS FOR A STORED SESSION TYPE.
@@ -97,6 +97,33 @@ export function countLiftingSessions(sessions: { sessionType: SessionType }[]): 
     if (session && isLiftingSession(session.sessionType)) n++;
   }
   return n;
+}
+
+/**
+ * DOES THIS PERSON ROTATE THEIR SESSIONS, OR GET FULL BODY EVERY TIME?
+ *
+ * Archie's second decision: "Beginners are offered Full Body every session
+ * until they step up a level. Everyone else rotates Lower Body, Upper Body,
+ * Full Body." Stepping up is the EARNED rung rather than the answer given at
+ * sign-up, because the rung is something they showed us by finishing a block.
+ *
+ * WHY IT IS A FUNCTION AND NOT THREE COPIES OF AN `IF`. Three screens have to
+ * agree about it, and they are the three a person compares within a minute of
+ * each other: the Home suggestion, the first-session chooser (which only makes
+ * sense to somebody who has a rotation to start), and the Your Programme
+ * timeline. The timeline drew Lower / Upper / Full from the session count on
+ * its own, so a beginner four sessions in was shown Upper Body as "current" on
+ * one screen and offered Full Body on the other, with no way to tell which the
+ * app meant.
+ *
+ * Takes the two fields rather than a UserProfile so a check can call it with a
+ * bare object, and so it has no runtime dependency on the store.
+ */
+export function rotatesSessions(profile: {
+  experienceLevel: ExperienceLevel;
+  earnedLevelBonus?: number;
+}): boolean {
+  return !(profile.experienceLevel === 'beginner' && (profile.earnedLevelBonus ?? 0) === 0);
 }
 
 /** The three ids kept only so history, sync and frozen reports still resolve. */

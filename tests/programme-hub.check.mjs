@@ -66,12 +66,14 @@ check(
   'this is the view every existing user opens, and it must not have been gutted'
 );
 check(
-  // The badge belongs to the rotation view, so it is now gated on that view
-  // being the one on screen: a programme hides it, and so does the chooser that
-  // an unenrolled user lands on first.
+  // The badge belongs to the rotation view, so it is gated on that view being
+  // the one on screen: a programme hides it, and so does the programme list
+  // when somebody opens it. `browsing` is the chooser now rather than
+  // `showRotation`, because the rotation view is what this screen opens on and
+  // the list is what you go TO.
   'the cycle badge only appears over the rotation view it belongs to',
-  /\{!programme && showRotation && onStrengthProgramme && \(/.test(screenCode),
-  '"Cycle 3" counts barbell sessions towards a strength test, which means nothing on Joint Health'
+  /\{!programme && !browsing && onRotation && \(/.test(screenCode),
+  '"Cycle 3" counts lifting sessions through a rotation, which means nothing on Joint Health'
 );
 check(
   'the hub renders nothing rather than guessing when it has no programme',
