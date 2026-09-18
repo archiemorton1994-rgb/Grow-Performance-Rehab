@@ -96,7 +96,9 @@ if (Platform.OS !== 'web') {
  * again after the first session. Testers reported all three, and when the user
  * had never set a weight it could not be dismissed at all.
  *
- * Bodyweight is asked ONCE now, during onboarding, where answering is optional.
+ * Bodyweight is asked ONCE now, during sign-up, where it is required: it scales
+ * every opening load the app works out before it has watched anybody lift, so
+ * there is no longer an assumed figure to fall back on.
  * Keeping it fresh is handled without interrupting anyone: the assistant on
  * Home already carries a "Your logged weight is getting old" message with an
  * Update action, Profile shows a dot on Settings when it goes stale, and there
